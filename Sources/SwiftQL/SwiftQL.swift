@@ -535,6 +535,10 @@ class DatabaseConnection {
     init(connection: SQLProviderProtocol) {
         self.connection = connection
     }
+    
+    func transaction<T>(transaction: () throws -> T) throws -> T {
+        try connection.transaction(transaction: transaction)
+    }
 
     func statement<Output>(cached: Bool, query builder: AnySQLBuilder<Output>) throws -> PreparedSQL<Output> {
         let statement: SQLPreparedStatementProtocol
@@ -578,10 +582,14 @@ extension Database {
         let schema = Schema()
         let builder = statements(schema)
         return try connection.statement(cached: cached, query: builder)
-   }
+    }
 
     @discardableResult func execute<Output>(cached: Bool = true, @SelectQueryBuilder _ statements: (Self.Schema) -> AnySQLBuilder<Output>) throws -> [Output] {
         try self.query(cached: cached, statements).execute()
+    }
+    
+    func transaction<T>(transaction: () throws -> T) throws -> T {
+        try connection.transaction(transaction: transaction)
     }
 }
 

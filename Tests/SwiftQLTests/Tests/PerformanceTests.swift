@@ -13,7 +13,7 @@ final class PerformanceTests: BaseTestCase {
     
     
     func testInsertUncached() {
-        let samples = (0 ..< 5_000).map { i in
+        let samples = (0 ..< 1_000).map { i in
             Sample(id: "\(i)", value: i)
         }
         let options = XCTMeasureOptions()
@@ -32,7 +32,7 @@ final class PerformanceTests: BaseTestCase {
     }
     
     func testInsertCached() {
-        let samples = (0 ..< 5_000).map { i in
+        let samples = (0 ..< 1_000).map { i in
             Sample(id: "\(i)", value: i)
         }
         let options = XCTMeasureOptions()
@@ -43,6 +43,48 @@ final class PerformanceTests: BaseTestCase {
             for sample in samples {
                 try! database.execute(cached: true) { db in
                     Insert(db.samples(), sample)
+                }
+            }
+            stopMeasuring()
+            teardownDatabase()
+        }
+    }
+    
+    func testInsertUncachedTransaction() {
+        let samples = (0 ..< 10_000).map { i in
+            Sample(id: "\(i)", value: i)
+        }
+        let options = XCTMeasureOptions()
+        options.invocationOptions = [.manuallyStart, .manuallyStop]
+        measure(options: options) {
+            try! setupDatabase()
+            startMeasuring()
+            try! database.transaction {
+                for sample in samples {
+                    try! database.execute(cached: false) { db in
+                        Insert(db.samples(), sample)
+                    }
+                }
+            }
+            stopMeasuring()
+            teardownDatabase()
+        }
+    }
+
+    func testInsertCachedTransaction() {
+        let samples = (0 ..< 10_000).map { i in
+            Sample(id: "\(i)", value: i)
+        }
+        let options = XCTMeasureOptions()
+        options.invocationOptions = [.manuallyStart, .manuallyStop]
+        measure(options: options) {
+            try! setupDatabase()
+            startMeasuring()
+            try! database.transaction {
+                for sample in samples {
+                    try! database.execute(cached: true) { db in
+                        Insert(db.samples(), sample)
+                    }
                 }
             }
             stopMeasuring()

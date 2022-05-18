@@ -43,7 +43,7 @@ protocol SQLPreparedStatementProtocol {
 protocol SQLProviderProtocol {
     
     func prepare(sql: String) throws -> SQLPreparedStatementProtocol
-    func perform(block: () -> Int32) throws -> SQLSuccess
+    func transaction<T>(transaction: () throws -> T) throws -> T
 }
 
 
@@ -117,6 +117,10 @@ enum SQLite {
             self.rawSQL = sql
             self.handle = handle
             self.connection = connection
+        }
+        
+        deinit {
+            // TODO: Finalize statement
         }
         
         func sql() -> String {
@@ -224,6 +228,31 @@ enum SQLite {
                 throw QueryError(underlyingError: error, sql: sql)
             }
             return PreparedStatement(handle: handle, sql: sql, connection: self)
+        }
+        
+        func transaction<T>(transaction: () throws -> T) throws -> T {
+            try exec(sql: "BEGIN TRANSACTION")
+            do {
+                let t = try transaction()
+                try exec(sql: "END TRANSACTION")
+                return t
+            }
+            catch {
+                try exec(sql: "ROLLBACK TRANSACTION")
+                throw error
+            }
+        }
+        
+        private func exec(sql: String) throws {
+            var sqlCString = sql.cString(using: .utf8)!
+            do {
+                try perform() {
+                    sqlite3_exec(db, &sqlCString, nil, nil, nil)
+                }
+            }
+            catch {
+                throw QueryError(underlyingError: error, sql: sql)
+            }
         }
         
         @discardableResult func perform(block: () -> Int32) throws -> SQLSuccess {

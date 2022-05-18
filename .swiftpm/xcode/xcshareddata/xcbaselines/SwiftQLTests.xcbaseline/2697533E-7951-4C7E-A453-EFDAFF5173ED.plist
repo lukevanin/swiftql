@@ -11,7 +11,17 @@
 				<key>com.apple.dt.XCTMetric_Clock.time.monotonic</key>
 				<dict>
 					<key>baselineAverage</key>
-					<real>1.420000</real>
+					<real>0.281000</real>
+					<key>baselineIntegrationDisplayName</key>
+					<string>Local Baseline</string>
+				</dict>
+			</dict>
+			<key>testInsertCachedTransaction()</key>
+			<dict>
+				<key>com.apple.dt.XCTMetric_Clock.time.monotonic</key>
+				<dict>
+					<key>baselineAverage</key>
+					<real>0.107000</real>
 					<key>baselineIntegrationDisplayName</key>
 					<string>Local Baseline</string>
 				</dict>
@@ -21,7 +31,17 @@
 				<key>com.apple.dt.XCTMetric_Clock.time.monotonic</key>
 				<dict>
 					<key>baselineAverage</key>
-					<real>1.440000</real>
+					<real>0.281000</real>
+					<key>baselineIntegrationDisplayName</key>
+					<string>Local Baseline</string>
+				</dict>
+			</dict>
+			<key>testInsertUncachedTransaction()</key>
+			<dict>
+				<key>com.apple.dt.XCTMetric_Clock.time.monotonic</key>
+				<dict>
+					<key>baselineAverage</key>
+					<real>0.192000</real>
 					<key>baselineIntegrationDisplayName</key>
 					<string>Local Baseline</string>
 				</dict>
