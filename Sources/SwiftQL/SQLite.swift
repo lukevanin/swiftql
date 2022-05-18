@@ -6,45 +6,15 @@
 //
 
 import Foundation
+import OSLog
 import SQLite3
+
+
+let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "sqlite3")
+
 
 let SQLITE_STATIC = unsafeBitCast(0, to: sqlite3_destructor_type.self)
 let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-
-
-enum SQLSuccess {
-    case ok
-    case row
-    case done
-}
-
-
-protocol SQLBindingProtocol {
-    func bind(variable: Int, value: Int) throws
-    func bind(variable: Int, value: Double) throws
-    func bind<T>(variable: Int, value: T) throws where T: StringProtocol
-    func bind<T>(variable: Int, value: T) throws where T: DataProtocol
-}
-
-
-protocol SQLRowProtocol {
-    func readInt(column: Int) -> Int
-    func readDouble(column: Int) -> Double
-    func readString(column: Int) -> String
-    func readData(column: Int) -> Data
-}
-
-protocol SQLPreparedStatementProtocol {
-    func sql() -> String
-    func execute(bind: (SQLBindingProtocol) throws -> Void, read: (SQLRowProtocol) -> Void) throws -> Void
-}
-
-
-protocol SQLProviderProtocol {
-    
-    func prepare(sql: String) throws -> SQLPreparedStatementProtocol
-    func transaction<T>(transaction: () throws -> T) throws -> T
-}
 
 
 enum SQLite {
@@ -120,7 +90,14 @@ enum SQLite {
         }
         
         deinit {
-            // TODO: Finalize statement
+            do {
+                try connection.perform {
+                    sqlite3_finalize(handle)
+                }
+            }
+            catch {
+                logger.error("Cannot deallocated sqlite prepared statement. \(error.localizedDescription)")
+            }
         }
         
         func sql() -> String {
