@@ -184,9 +184,9 @@ class MyDatabase: Database {
         }
     }
     
-    let connection: SQLite.Connection
+    let connection: DatabaseConnection
     
-    init(connection: SQLite.Connection) {
+    init(connection: DatabaseConnection) {
         self.connection = connection
     }
 }

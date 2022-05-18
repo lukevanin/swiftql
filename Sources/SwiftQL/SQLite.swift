@@ -12,6 +12,41 @@ let SQLITE_STATIC = unsafeBitCast(0, to: sqlite3_destructor_type.self)
 let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
 
+enum SQLSuccess {
+    case ok
+    case row
+    case done
+}
+
+
+protocol SQLBindingProtocol {
+    func bind(variable: Int, value: Int) throws
+    func bind(variable: Int, value: Double) throws
+    func bind<T>(variable: Int, value: T) throws where T: StringProtocol
+    func bind<T>(variable: Int, value: T) throws where T: DataProtocol
+}
+
+
+protocol SQLRowProtocol {
+    func readInt(column: Int) -> Int
+    func readDouble(column: Int) -> Double
+    func readString(column: Int) -> String
+    func readData(column: Int) -> Data
+}
+
+protocol SQLPreparedStatementProtocol {
+    func sql() -> String
+    func execute(bind: (SQLBindingProtocol) throws -> Void, read: (SQLRowProtocol) -> Void) throws -> Void
+}
+
+
+protocol SQLProviderProtocol {
+    
+    func prepare(sql: String) throws -> SQLPreparedStatementProtocol
+    func perform(block: () -> Int32) throws -> SQLSuccess
+}
+
+
 enum SQLite {
 
     enum ResourceError: Error {
@@ -27,16 +62,22 @@ enum SQLite {
         let errorCodeMessage: String
         let extendedErrorCodeMessage: String
     }
-
     
-    enum Success {
-        case ok
-        case row
-        case done
+    
+    struct QueryError: Error {
+        let underlyingError: Error
+        let sql: String
     }
     
     
-    class Row {
+    struct BindingError: Error {
+        let underlyingError: Error
+        let index: Int
+        let kind: String
+    }
+    
+    
+    class Row: SQLRowProtocol {
         
         private let handle: OpaquePointer
         
@@ -65,69 +106,84 @@ enum SQLite {
     }
     
     
-    class AnyPreparedStatement {
+    class PreparedStatement: SQLPreparedStatementProtocol, SQLBindingProtocol {
+        
 
         fileprivate let handle: OpaquePointer
         fileprivate let connection: Connection
+        private let rawSQL: String
 
-        init(handle: OpaquePointer, connection: Connection) {
+        init(handle: OpaquePointer, sql: String, connection: Connection) {
+            self.rawSQL = sql
             self.handle = handle
             self.connection = connection
         }
+        
+        func sql() -> String {
+            return rawSQL
+        }
 
         func bind(variable: Int, value: Int) throws {
-            try connection.perform {
+            try performBinding(Int.self, index: variable) {
                 sqlite3_bind_int64(handle, Int32(variable), Int64(value))
             }
         }
 
         func bind(variable: Int, value: Double) throws {
-            try connection.perform {
+            try performBinding(Double.self, index: variable) {
                 sqlite3_bind_double(handle, Int32(variable), value)
             }
         }
 
         func bind<T>(variable: Int, value: T) throws where T: StringProtocol {
             var buffer = value.cString(using: .utf8) ?? []
-            try connection.perform {
+            try performBinding(T.self, index: variable) {
                 sqlite3_bind_text(handle, Int32(variable), &buffer, Int32(buffer.count), SQLITE_TRANSIENT)
             }
         }
         
         func bind<T>(variable: Int, value: T) throws where T: DataProtocol {
             let _ = try value.withContiguousStorageIfAvailable { buffer in
-                try connection.perform {
+                try performBinding(T.self, index: variable) {
                     sqlite3_bind_blob(handle, Int32(variable), buffer.baseAddress, Int32(buffer.count), SQLITE_TRANSIENT)
                 }
             }
         }
-    }
-
-    class PreparedStatement<Output>: AnyPreparedStatement {
         
-        typealias Read = (Row) -> Output
-        
-        private let read: Read
-        
-        init(handle: OpaquePointer, connection: Connection, read: @escaping Read) {
-            self.read = read
-            super.init(handle: handle, connection: connection)
-        }
-
-        func execute() throws -> [Output] {
-            var output = [Output]()
-            let row = Row(handle: handle)
-            while true {
-                let result = try connection.perform() {
-                    sqlite3_step(handle)
-                }
-                if result != .row {
-                    break
-                }
-                let item = read(row)
-                output.append(item)
+        private func performBinding<I>(_ kind: I.Type, index: Int, block: () throws -> Void) throws -> Void {
+            do {
+                try block()
             }
-            return output
+            catch {
+                throw BindingError(underlyingError: error, index: index, kind: String(describing: I.self))
+            }
+        }
+        
+        func execute(bind: (SQLBindingProtocol) throws -> Void, read: (SQLRowProtocol) -> Void) throws -> Void {
+            defer {
+                try! connection.perform {
+                    sqlite3_reset(handle)
+                }
+            }
+            let row = Row(handle: handle)
+            do {
+                try connection.perform {
+                    sqlite3_clear_bindings(handle)
+                }
+                try bind(self)
+                while true {
+                    let result = try connection.perform() {
+                        sqlite3_step(handle)
+                    }
+                    if result != .row {
+                        break
+                    }
+                    read(row)
+                }
+            }
+            catch {
+                throw QueryError(underlyingError: error, sql: sql())
+            }
         }
     }
 
@@ -148,7 +204,7 @@ enum SQLite {
     }
 
 
-    class Connection {
+    class Connection: SQLProviderProtocol {
         
         fileprivate let db: OpaquePointer
             
@@ -156,16 +212,21 @@ enum SQLite {
             self.db = db
         }
         
-        func prepare<Entity>(sql: String, read: @escaping (Row) -> Entity) throws -> PreparedStatement<Entity> {
+        func prepare(sql: String) throws -> SQLPreparedStatementProtocol {
             var sqlCString = sql.cString(using: .utf8)!
             var handle: OpaquePointer!
-            try perform() {
-                sqlite3_prepare_v2(db, &sqlCString, Int32(sqlCString.count), &handle, nil)
+            do {
+                try perform() {
+                    sqlite3_prepare_v2(db, &sqlCString, Int32(sqlCString.count), &handle, nil)
+                }
             }
-            return PreparedStatement(handle: handle, connection: self, read: read)
+            catch {
+                throw QueryError(underlyingError: error, sql: sql)
+            }
+            return PreparedStatement(handle: handle, sql: sql, connection: self)
         }
         
-        @discardableResult fileprivate func perform(block: () -> Int32) throws -> Success {
+        @discardableResult func perform(block: () -> Int32) throws -> SQLSuccess {
             let result = block()
             if result == SQLITE_OK {
                 return .ok

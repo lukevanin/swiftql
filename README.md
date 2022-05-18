@@ -167,8 +167,10 @@ Note in the above examples that we used a variable `sample` to refer to the sche
 Below are some of the goals for SwiftQL, roughly in order of highest priority first.
 
 - Hash and cache prepared queries for lower overhead on reuse.
+- Database transactions.
 - Observable live updating select query results.
 - Define table schemas using the Create statement instead of as metadata classes.
+- SQL GROUP BY syntax.  
 - Bulk import from CSV and data frames.
 - Automatic schema migration when opening a populated database which has an outdated schema.
 - Migrate documentation to Swift-DocC.

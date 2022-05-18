@@ -2,48 +2,15 @@ import XCTest
 
 @testable import SwiftQL
 
-final class SwiftQLTests: XCTestCase {
-    
-    var fileURL: URL!
-    var resource: SQLite.Resource!
-    var connection: SQLite.Connection!
-    var database: MyDatabase!
+final class SwiftQLTests: BaseTestCase {
 
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-        let filename = UUID().uuidString
-        let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        let fileURL = directory.appendingPathComponent(filename).appendingPathExtension("sqlite3")
-        resource = SQLite.Resource(fileURL: fileURL)
-        connection = try resource.connect()
-        database = MyDatabase(connection: connection)
-        try database.query { db in Create(db.users()) }.execute()
-        try database.query { db in Create(db.photos()) }.execute()
-        try database.query { db in Create(db.samples()) }.execute()
-        try database.query { db in Create(db.places()) }.execute()
+        try setupDatabase()
     }
-
+    
     override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-        database = nil
-        connection = nil
-        resource = nil
+        teardownDatabase()
     }
-
-//    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // Any test you write for XCTest can be annotated as throws and async.
-        // Mark your test throws to produce an unexpected failure when your test encounters an uncaught error.
-        // Mark your test async to allow awaiting for asynchronous code to complete. Check the results with assertions afterwards.
-//    }
-
-//    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-//        measure {
-            // Put the code you want to measure the time of here.
-//        }
-//    }
     
     func testCreate() throws {
         let subject = try database.query { db in
@@ -72,7 +39,7 @@ final class SwiftQLTests: XCTestCase {
             result,
             "INSERT INTO `samples` " +
             "( `id`, `value` ) " +
-            "VALUES ( ?1, ?2 )"
+            "VALUES ( ?, ? )"
         )
     }
     
@@ -88,8 +55,8 @@ final class SwiftQLTests: XCTestCase {
         XCTAssertEqual(
             result,
             "UPDATE `samples` AS `t0` " +
-            "SET `value` = ?1 " +
-            "WHERE `t0`.`id` == ?2"
+            "SET `value` = ? " +
+            "WHERE `t0`.`id` == ?"
         )
     }
 
@@ -137,7 +104,7 @@ final class SwiftQLTests: XCTestCase {
             result,
             "SELECT `t0`.`id` " +
             "FROM `places` AS `t0` " +
-            "WHERE `t0`.`verified` == ?1"
+            "WHERE `t0`.`verified` == ?"
         )
     }
 
@@ -155,7 +122,7 @@ final class SwiftQLTests: XCTestCase {
             result,
             "SELECT `t0`.`id` " +
             "FROM `places` AS `t0` " +
-            "WHERE `t0`.`verified` == ?1"
+            "WHERE `t0`.`verified` == ?"
         )
     }
 
@@ -173,7 +140,7 @@ final class SwiftQLTests: XCTestCase {
             result,
             "SELECT `t0`.`id` " +
             "FROM `places` AS `t0` " +
-            "WHERE `t0`.`name` == ?1"
+            "WHERE `t0`.`name` == ?"
         )
     }
 
@@ -191,7 +158,7 @@ final class SwiftQLTests: XCTestCase {
             result,
             "SELECT `t0`.`id` " +
             "FROM `places` AS `t0` " +
-            "WHERE `t0`.`verified` == ?1 AND `t0`.`name` == ?2"
+            "WHERE `t0`.`verified` == ? AND `t0`.`name` == ?"
         )
     }
 
@@ -251,7 +218,7 @@ final class SwiftQLTests: XCTestCase {
             result,
             "SELECT `t0`.`id` " +
             "FROM `photos` AS `t0` " +
-            "WHERE `t0`.`published` == ?1 " +
+            "WHERE `t0`.`published` == ? " +
             "ORDER BY `t0`.`image_url` ASC"
         )
     }
@@ -349,7 +316,7 @@ final class SwiftQLTests: XCTestCase {
             "SELECT `t0`.`id` " +
             "FROM `photos` AS `t0` " +
             "JOIN `users` AS `t1` ON `t0`.`user_id` == `t1`.`id` " +
-            "WHERE `t1`.`active` == ?1"
+            "WHERE `t1`.`active` == ?"
         )
     }
 
@@ -418,7 +385,7 @@ final class SwiftQLTests: XCTestCase {
             "SELECT `t0`.`id` " +
             "FROM `photos` AS `t0` " +
             "JOIN `users` AS `t1` ON `t0`.`user_id` == `t1`.`id` " +
-            "WHERE `t1`.`active` == ?1 " +
+            "WHERE `t1`.`active` == ? " +
             "ORDER BY `t0`.`image_url` ASC"
         )
     }
@@ -440,71 +407,7 @@ final class SwiftQLTests: XCTestCase {
             "SELECT `t0`.`id` " +
             "FROM `photos` AS `t0` " +
             "JOIN `users` AS `t1` ON `t0`.`user_id` == `t1`.`id` " +
-            "WHERE `t1`.`active` == ?1 AND `t0`.`published` == ?2"
+            "WHERE `t1`.`active` == ? AND `t0`.`published` == ?"
         )
     }
-    
-    func testInsertOneThenSelect() throws {
-        let expectedSample = Sample(id: "a", value: 7)
-        let insertQuery =  try database.query() { db in
-            let sample = db.samples()
-            Insert(sample, expectedSample)
-        }
-        let selectQuery = try database.query { db in
-            let sample = db.samples()
-            Select(sample)
-            From(sample)
-        }
-        try insertQuery.execute()
-        let result = try selectQuery.execute()
-        XCTAssertEqual(result, [expectedSample])
-    }
-    
-    func testInsertTwoThenSelect() throws {
-        let expectedSample0 = Sample(id: "a", value: 7)
-        let expectedSample1 = Sample(id: "b", value: 3)
-        try database.execute { db in
-            let sample = db.samples()
-            Insert(sample, expectedSample0)
-        }
-        try database.execute { db in
-            let sample = db.samples()
-            Insert(sample, expectedSample1)
-        }
-        let result = try database.execute { db in
-            let sample = db.samples()
-            Select(sample)
-            From(sample)
-            OrderBy { sample.value.ascending }
-        }
-        XCTAssertEqual(result, [expectedSample1, expectedSample0])
-    }
-    
-    func testInsertThenSelectJoin() throws {
-        let expectedUser = User(id: "john", placeId: "us", username: "johndoe", active: true)
-        let expectedPlace = Place(id: "us", name: "United States", verified: true)
-        try database.execute { db in
-            let user = db.users()
-            Insert(user, expectedUser)
-        }
-        try database.execute { db in
-            let place = db.places()
-            Insert(place, expectedPlace)
-        }
-        let results = try database.execute { db in
-            let user = db.users()
-            let place = db.places()
-            Select() { row in
-                (
-                    user: row.field(user.username),
-                    place: row.field(place.name)
-                )
-            }
-            From(user)
-            Join(place) { user.placeId == place.id }
-        }
-        XCTAssertEqual(results[0].user, "johndoe")
-        XCTAssertEqual(results[0].place, "United States")
-    }
-    
 }
