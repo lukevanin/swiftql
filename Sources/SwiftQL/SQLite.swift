@@ -7,10 +7,11 @@
 
 import Foundation
 import OSLog
+import Combine
 import SQLite3
 
 
-let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "sqlite3")
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "sqlite3")
 
 
 let SQLITE_STATIC = unsafeBitCast(0, to: sqlite3_destructor_type.self)
@@ -131,9 +132,11 @@ enum SQLite {
             }
         }
         
-        private func performBinding<I>(_ kind: I.Type, index: Int, block: () throws -> Void) throws -> Void {
+        private func performBinding<I>(_ kind: I.Type, index: Int, block: () -> Int32) throws -> Void {
             do {
-                try block()
+                try connection.perform {
+                    block()
+                }
             }
             catch {
                 throw BindingError(underlyingError: error, index: index, kind: String(describing: I.self))
@@ -183,16 +186,52 @@ enum SQLite {
             return Connection(db: handle)
         }
     }
+    
+    
+    class Transaction: SQLTransactionProtocol {
+        
+    }
 
 
     class Connection: SQLProviderProtocol {
         
+        typealias Subject = PassthroughSubject<SQLProviderEvent, Error>
+        
+        let eventsPublisher: AnyPublisher<SQLProviderEvent, Error>
+        
         fileprivate let db: OpaquePointer
+        private let transactionQueue = DispatchQueue(
+            label: "transaction",
+            qos: .default,
+            attributes: [],
+            autoreleaseFrequency: .inherit,
+            target: .global(qos: .default)
+        )
+        private var eventSubject = Subject()
             
         init(db: OpaquePointer) {
             self.db = db
+            self.eventsPublisher = eventSubject.eraseToAnyPublisher()
+            sqlite3_commit_hook(
+                db,
+                { pointer in
+                    logger.debug("connection > commit hook > \(pointer == nil ? "nil" : "not nil")")
+                    if let pointer = pointer {
+                        // TODO: Check if pointee is deallocated when callback is called
+                        let eventSubjectPointer = pointer.assumingMemoryBound(to: Subject.self)
+                        let eventSubject = eventSubjectPointer.pointee
+                        eventSubject.send(SQLProviderEvent.commit)
+                    }
+                    return 0
+                },
+                &eventSubject
+            )
         }
         
+        deinit {
+            sqlite3_commit_hook(db, nil, nil)
+        }
+    
         func prepare(sql: String) throws -> SQLPreparedStatementProtocol {
             var sqlCString = sql.cString(using: .utf8)!
             var handle: OpaquePointer!
@@ -207,20 +246,56 @@ enum SQLite {
             return PreparedStatement(handle: handle, sql: sql, connection: self)
         }
         
-        func transaction<T>(transaction: () throws -> T) throws -> T {
-            try exec(sql: "BEGIN TRANSACTION")
-            do {
-                let t = try transaction()
-                try exec(sql: "END TRANSACTION")
-                return t
-            }
-            catch {
-                try exec(sql: "ROLLBACK TRANSACTION")
-                throw error
+        /// Schedule a transaction on the queue.
+        func transaction<T>(transaction: @escaping (SQLTransactionProtocol) throws -> T) async throws -> T {
+            try await withCheckedThrowingContinuation { [weak self, transactionQueue] continuation in
+                transactionQueue.async { [weak self] in
+                    guard let self = self else {
+                        return
+                    }
+                    // 1. Begin the transaction
+                    do {
+                        try self.exec(sql: "BEGIN TRANSACTION")
+                    }
+                    catch {
+                        logger.error("Cannot begin transaction. \(error.localizedDescription)")
+                        continuation.resume(with: .failure(error))
+                        return
+                    }
+                    // 2. Execute the transaction block
+                    let t: T
+                    do {
+                        t = try transaction(Transaction())
+                    }
+                    catch {
+                        logger.error("Cannot perform transaction. \(error.localizedDescription)")
+                        do {
+                            try self.exec(sql: "ROLLBACK TRANSACTION")
+                            continuation.resume(with: .failure(error))
+                        }
+                        catch {
+                            logger.error("Cannot roll back transaction. \(error.localizedDescription)")
+                            continuation.resume(with: .failure(error))
+                        }
+                        return
+                    }
+                    // 3. End the transaction
+                    do {
+                        try self.exec(sql: "END TRANSACTION")
+                    }
+                    catch {
+                        logger.error("Cannot end transaction. \(error.localizedDescription)")
+                        continuation.resume(with: .failure(error))
+                        return
+                    }
+                    // 4. Return the result
+                    continuation.resume(with: .success(t))
+                }
             }
         }
         
         private func exec(sql: String) throws {
+            logger.debug("exec > \(sql)")
             var sqlCString = sql.cString(using: .utf8)!
             do {
                 try perform() {

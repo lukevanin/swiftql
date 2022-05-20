@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 
 
 enum SQLSuccess {
@@ -30,14 +31,25 @@ protocol SQLRowProtocol {
     func readData(column: Int) -> Data
 }
 
+
 protocol SQLPreparedStatementProtocol {
     func sql() -> String
     func execute(bind: (SQLBindingProtocol) throws -> Void, read: (SQLRowProtocol) -> Void) throws -> Void
 }
 
 
+enum SQLProviderEvent: String {
+    case commit
+}
+
+
+protocol SQLTransactionProtocol {
+}
+
+
 protocol SQLProviderProtocol {
-    
+
+    var eventsPublisher: AnyPublisher<SQLProviderEvent, Error> { get }
     func prepare(sql: String) throws -> SQLPreparedStatementProtocol
-    func transaction<T>(transaction: () throws -> T) throws -> T
+    @discardableResult func transaction<T>(transaction: @escaping (SQLTransactionProtocol) throws -> T) async throws -> T
 }

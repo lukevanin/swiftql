@@ -170,6 +170,8 @@ Below are some of the goals for SwiftQL, roughly in order of highest priority fi
 - Define table schemas using the Create statement instead of as metadata classes.
 - SQL GROUP BY syntax.  
 - Handle SQLITE_BUSY errors.
+- Allow only read (select) statements to be observed. 
+- Optimize observable statements: Only re-query when the tables and fields mentioned in the query are changed.
 - Bulk import from CSV and data frames.
 - Automatic schema migration when opening a populated database which has an outdated schema.
 - Migrate documentation to Swift-DocC.

@@ -98,7 +98,7 @@ final class HashKeyTests: XCTestCase {
         let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         let fileURL = directory.appendingPathComponent(filename).appendingPathExtension("sqlite3")
         let resource = SQLite.Resource(fileURL: fileURL)
-        connection = DatabaseConnection(connection: try resource.connect())
+        connection = DatabaseConnection(provider: try resource.connect())
         database = MyDatabase(connection: connection)
         try database.query { db in Create(db.users()) }.execute()
         try database.query { db in Create(db.photos()) }.execute()
