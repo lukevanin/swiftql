@@ -1,10 +1,3 @@
-//
-//  File.swift
-//  
-//
-//  Created by Luke Van In on 2022/05/18.
-//
-
 import Foundation
 import Combine
 

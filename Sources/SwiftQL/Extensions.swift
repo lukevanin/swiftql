@@ -1,10 +1,3 @@
-//
-//  Extensions.swift
-//  
-//
-//  Created by Luke Van In on 2022/05/16.
-//
-
 import Foundation
 
 /// https://stackoverflow.com/a/62465044/762377
