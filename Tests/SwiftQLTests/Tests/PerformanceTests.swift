@@ -14,7 +14,7 @@ final class PerformanceTests: BaseTestCase {
     
     func testInsertUncached() {
         let samples = (0 ..< 500).map { i in
-            Sample(id: "\(i)", value: i)
+            Sample(id: PrimaryKey(), value: i)
         }
         let options = XCTMeasureOptions()
         options.invocationOptions = [.manuallyStart, .manuallyStop]
@@ -33,7 +33,7 @@ final class PerformanceTests: BaseTestCase {
     
     func testInsertCached() {
         let samples = (0 ..< 500).map { i in
-            Sample(id: "\(i)", value: i)
+            Sample(id: PrimaryKey(), value: i)
         }
         let options = XCTMeasureOptions()
         options.invocationOptions = [.manuallyStart, .manuallyStop]
@@ -52,7 +52,7 @@ final class PerformanceTests: BaseTestCase {
     
     func testInsertUncachedTransaction() {
         let samples = (0 ..< 10_000).map { i in
-            Sample(id: "\(i)", value: i)
+            Sample(id: PrimaryKey(), value: i)
         }
         let options = XCTMeasureOptions()
         options.invocationOptions = [.manuallyStart, .manuallyStop]
@@ -75,7 +75,7 @@ final class PerformanceTests: BaseTestCase {
 
     func testInsertCachedTransaction() {
         let samples = (0 ..< 10_000).map { i in
-            Sample(id: "\(i)", value: i)
+            Sample(id: PrimaryKey(), value: i)
         }
         let options = XCTMeasureOptions()
         options.invocationOptions = [.manuallyStart, .manuallyStop]

@@ -20,10 +20,10 @@ final class ExecuteTests: BaseTestCase {
     }
     
     func testInsertOneThenSelectUncached() throws {
-        let expectedSample = Sample(id: "a", value: 7)
+        let expectedSample = Sample(id: PrimaryKey(), value: 7)
         try database.execute(cached: false) { db in
             let sample = db.samples()
-            Insert(sample, expectedSample)
+            Insert(sample, values: expectedSample)
         }
         let result = try database.execute(cached: false) { db in
             let sample = db.samples()
@@ -34,8 +34,8 @@ final class ExecuteTests: BaseTestCase {
     }
     
     func testInsertTwoThenSelectUncached() throws {
-        let expectedSample0 = Sample(id: "a", value: 7)
-        let expectedSample1 = Sample(id: "b", value: 3)
+        let expectedSample0 = Sample(id: PrimaryKey(), value: 7)
+        let expectedSample1 = Sample(id: PrimaryKey(), value: 3)
         try database.execute(cached: false) { db in
             let sample = db.samples()
             Insert(sample, expectedSample0)
@@ -54,8 +54,8 @@ final class ExecuteTests: BaseTestCase {
     }
     
     func testInsertTwoThenSelect() throws {
-        let expectedSample0 = Sample(id: "a", value: 7)
-        let expectedSample1 = Sample(id: "b", value: 3)
+        let expectedSample0 = Sample(id: PrimaryKey(), value: 7)
+        let expectedSample1 = Sample(id: PrimaryKey(), value: 3)
         try database.execute(cached: true) { db in
             let sample = db.samples()
             Insert(sample, expectedSample0)
@@ -74,8 +74,8 @@ final class ExecuteTests: BaseTestCase {
     }
 
     func testInsertThenSelectJoin() throws {
-        let expectedUser = User(id: "john", placeId: "us", username: "johndoe", active: true)
-        let expectedPlace = Place(id: "us", name: "United States", verified: true)
+        let expectedPlace = Place(id: PrimaryKey(), name: "United States", verified: true)
+        let expectedUser = User(id: PrimaryKey(), placeId: expectedPlace.id, username: "johndoe", active: true)
         try database.execute() { db in
             let user = db.users()
             Insert(user, expectedUser)
@@ -87,10 +87,10 @@ final class ExecuteTests: BaseTestCase {
         let results = try database.execute() { db in
             let user = db.users()
             let place = db.places()
-            Select() { row in
+            Select() {
                 (
-                    user: row.field(user.username),
-                    place: row.field(place.name)
+                    user: user.username,
+                    place: place.name
                 )
             }
             From(user)

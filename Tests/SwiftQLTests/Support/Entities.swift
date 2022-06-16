@@ -11,42 +11,91 @@ import Foundation
 
 // MARK: - ENTITIES
 
-struct User: Identifiable, Equatable {
+struct User: Table {
+    var id: PrimaryKey
+    var placeId: ForeignKey<Place>
+    var username: String
+    var active: Bool
+}
+
+extension User {
+//    static let schema = TableSchema<User>(
+//        fields: [
+//            FieldSchema(name: .id, keyPath: \.id),
+//            FieldSchema(name: .placeId, keyPath: \.placeId),
+//            FieldSchema(name: .username, keyPath: \.username),
+//            FieldSchema(name: .active, keyPath: \.active),
+//        ]
+//    )
     
-    let id: String
-    let placeId: String
-    let username: String
-    let active: Bool
+    final class Schema: TableSchema {
+        @FieldProxy let id: PrimaryKey
+        @FieldProxy let placeId: ForeignKey<Place>
+        @FieldProxy let username: String
+        @FieldProxy let active: Bool
+        
+        static let fields = [\.id, \.placeId, \.username, \.active]
+    }
 }
 
 
-struct Photo: Identifiable, Equatable {
-    
-    let id: String
-    let userId: String
-    let placeId: String
-    let imageURL: URL
-    let published: Bool
+struct Photo: Table {
+    var id: PrimaryKey
+    var userId: ForeignKey<User>
+    var placeId: ForeignKey<Place>
+    var imageURL: URL
+    var published: Bool
+}
+
+extension Photo {
+    static let schema = TableSchema<User>(
+        fields: [
+            FieldSchema(name: .id, keyPath: \.id),
+            FieldSchema(name: .userId, keyPath: \.userId),
+            FieldSchema(name: .placeId, keyPath: \.placeId),
+            FieldSchema(name: .imageURL, keyPath: \.imageURL),
+            FieldSchema(name: .published, keyPath: \.published),
+        ]
+    )
 }
 
 
-struct Place: Identifiable, Equatable {
-    let id: String
+struct Place: Table {
+    let id: PrimaryKey
     let name: String
     let verified: Bool
 }
 
+extension Place {
+    static let schema = TableSchema<User>(
+        fields: [
+            FieldSchema(name: .id, keyPath: \.id),
+            FieldSchema(name: .name, keyPath: \.name),
+            FieldSchema(name: .verified, keyPath: \.verified),
+        ]
+    )
+}
 
-struct Sample: Identifiable, Equatable {
-    
-    let id: String
+
+struct Sample: Table {
+    let id: PrimaryKey
     let value: Int
+}
+
+extension Sample {
+    static let schema = TableSchema<User>(
+        fields: [
+            FieldSchema(name: .id, keyPath: \.id),
+            FieldSchema(name: .value, keyPath: \.value),
+        ]
+    )
 }
 
 
 
 class MyDatabase: Database {
     
+    /*
     final class Schema: DatabaseSchema {
 
         final class SampleSchema: BaseTableSchema, TableSchema {
@@ -183,6 +232,29 @@ class MyDatabase: Database {
             schema(table: SampleSchema.self)
         }
     }
+     */
+    
+    
+    class Schema: DatabaseSchema {
+        
+        func users() -> User {
+            schema(table: User.self)
+        }
+        
+        func photos() -> Photo {
+            schema(table: Photo.self)
+        }
+        
+        func places() -> Place {
+            schema(table: Place.self)
+        }
+        
+        func samples() -> Sample {
+            schema(table: Sample.self)
+        }
+
+    }
+
     
     let connection: DatabaseConnection
     

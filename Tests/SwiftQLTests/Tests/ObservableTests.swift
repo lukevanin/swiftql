@@ -21,9 +21,9 @@ final class ObservableTests: BaseTestCase {
     
     func testObservePrepopulated() async throws {
         
-        let expectedValue = Sample(id: "a", value: 7)
+        let expectedValue = Sample(id: PrimaryKey(), value: 7)
         try database.execute(cached: true) { db in
-            Insert(db.samples(), expectedValue)
+            Insert(db.samples(), values: expectedValue)
         }
         
         try await Task.sleep(nanoseconds: 1_000_000)

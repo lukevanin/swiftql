@@ -11,6 +11,7 @@ import XCTest
 
 final class HashKeyTests: XCTestCase {
     
+    /*
     struct Sample1 {
         var id: String
         var value: Int
@@ -217,5 +218,6 @@ final class HashKeyTests: XCTestCase {
     // TODO: Where
     
     // TODO: Order by
-
+    */
+    
 }

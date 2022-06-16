@@ -31,8 +31,8 @@ final class SwiftQLTests: BaseTestCase {
     
     func testInsert() throws {
         let subject = try database.query() { db in
-            let sample = db.samples()
-            Insert(sample, Sample(id: "foo", value: 7))
+            let samples = db.samples()
+            Insert(samples, values: Sample(id: PrimaryKey(), value: 7))
         }
         let result = subject.string()
         XCTAssertEqual(
@@ -43,13 +43,14 @@ final class SwiftQLTests: BaseTestCase {
         )
     }
     
+    /*
     func testUpdate() throws {
         let subject = try database.query() { db in
             let sample = db.samples()
             Update(sample) {
-                Set(sample.value, 49)
+                Set(sample.$value, 49)
             }
-            Where { sample.id == "foo" }
+            Where { sample.$id == "foo" }
         }
         let result = subject.string()
         XCTAssertEqual(
@@ -77,9 +78,7 @@ final class SwiftQLTests: BaseTestCase {
     func testSelectField() throws {
         let subject = try database.query() { db in
             let sample = db.samples()
-            Select { row in
-                row.field(sample.id)
-            }
+            Select(sample.id)
             From(sample)
         }
         let result = subject.string()
@@ -91,13 +90,13 @@ final class SwiftQLTests: BaseTestCase {
     }
 
     func testSelectWhereBooleanLiteral() throws {
-        let subject = try database.query() { db in
-            let place = db.places()
-            Select { row in
-                row.field(place.id)
+        let subject = try database.query() {
+            From(\.places) { place in
+                Select { row in
+                    row.field(place.id)
+                }
+                Where { place.verified == true }
             }
-            From(place)
-            Where { place.verified == true }
         }
         let result = subject.string()
         XCTAssertEqual(
@@ -109,13 +108,13 @@ final class SwiftQLTests: BaseTestCase {
     }
 
     func testSelectWhereBooleanBinding() throws {
-        let subject = try database.query() { db in
-            let place = db.places()
-            Select { row in
-                row.field(place.id)
+        let subject = try database.query() {
+            From(\.places) { place
+                Select { row in
+                    row.field(place.id)
+                }
+                Where { place.verified == true }
             }
-            From(place)
-            Where { place.verified == true }
         }
         let result = subject.string()
         XCTAssertEqual(
@@ -243,16 +242,16 @@ final class SwiftQLTests: BaseTestCase {
     }
 
     func testSelectTwoJoins() throws {
-        let subject = try database.query { db in
-            let photo = db.photos()
-            let user = db.users()
-            let place = db.places()
+        let subject = try database.query {
+            let t0 = db.photos
+            let t1 = db.users
+            let t2 = db.places
             Select() { row in
                 row.field(photo.id)
             }
-            From(photo)
-            Join(user) { photo.userId == user.id }
-            Join(place) { photo.placeId == place.id }
+            From(db.photos)
+            Join(db.users, on: t0.userId)
+            Join(db.places, on: t0.placeId)
         }
         let result = subject.string()
         XCTAssertEqual(
@@ -265,11 +264,11 @@ final class SwiftQLTests: BaseTestCase {
     }
     
     func testSelectJoinMultiple() throws {
-        let subject = try database.query() { db in
-            let photo = db.photos()
-            let user = db.users()
-            let userPlace = db.places()
-            let photoPlace = db.places()
+        let subject = try database { db in
+            let photo = From(db.photos)
+            let user = Join(db.users, photo.userId)
+            let userPlace = Join(db.places, user.placeId)
+            let photoPlace = Join(db.places, photo.placeId)
             Select { row in
                 (
                     username: row.field(user.username),
@@ -278,10 +277,6 @@ final class SwiftQLTests: BaseTestCase {
                     photoPlaceName: row.field(photoPlace.name)
                 )
             }
-            From(photo)
-            Join(user) { photo.userId == user.id }
-            Join(userPlace) { userPlace.id == user.placeId }
-            Join(photoPlace) { photoPlace.id == photo.placeId }
         }
         let result = subject.string()
         XCTAssertEqual(
@@ -297,18 +292,49 @@ final class SwiftQLTests: BaseTestCase {
             "JOIN `places` AS `t3` ON `t3`.`id` == `t0`.`place_id`"
         )
     }
+    
+    
+//    struct Query<Database>: SelectQuery {
+//        var query: some ReadStatement = {
+//            let photo = From(\.photo)
+//            Select {
+//                photo.id
+//            }
+//        }
+//    }
+
+    
+//    struct Query<Database>: SelectQuery {
+//        var query: ReadStatement = {
+//            let photo = From(\.photo)
+//            let user = Join(\.user, on: photo.$userId)
+//            Select {
+//                (
+//                    id: photo.id,
+//                    imageURL: user.imageURL
+//                )
+//            }
+//            Where {
+//                photo.$isActive == active
+//            }
+//            OrderBy {
+//                photo.modifiedData.descending
+//                user.name.ascending
+//            }
+//        }
+//    }
 
 
     func testSelectJoinWhere() throws {
-        let subject = try database.query { db in
-            let photo = db.photos()
-            let user = db.users()
-            Select { row in
-                row.field(photo.id)
+        let subject = try database.query {
+            let photo = From(\.photos)
+            let user = Join(\.users, on: photo.$id)
+            Select {
+                photo.id
             }
-            From(photo)
-            Join(user) { photo.userId == user.id }
-            Where { user.active == true }
+            Where {
+                user.$active == true
+            }
         }
         let result = subject.string()
         XCTAssertEqual(
@@ -321,38 +347,62 @@ final class SwiftQLTests: BaseTestCase {
     }
 
     func testSelectJoinOrderBy() throws {
-        let subject = try database.query { db in
-            let photo = db.photos()
-            let user = db.users()
-            Select { row in
-                row.field(photo.id)
+        let subject = try database.query {
+            From(\.photos) { t0 in
+                Join(\.users, on: t0.userId)
+                    Select {
+                        t1.username
+                    }
+                    OrderBy {
+                        t0.imageURL.ascending
+                    }
+                }
             }
-            From(photo)
-            Join(user) { photo.userId == user.id }
-            OrderBy { photo.imageURL.ascending }
         }
         let result = subject.string()
         XCTAssertEqual(
             result,
-            "SELECT `t0`.`id` " +
+            "SELECT `t1`.`username` " +
             "FROM `photos` AS `t0` " +
             "JOIN `users` AS `t1` ON `t0`.`user_id` == `t1`.`id` " +
             "ORDER BY `t0`.`image_url` ASC"
         )
     }
 
-    func testSelectJoinOrderByTerms() throws {
-        let subject = try database.query { db in
-            let photo = db.photos()
-            let user = db.users()
-            Select { row in
-                row.field(photo.id)
+    func testSelectJoinOrderBy_shouldExcludeUnReferencedJoin() throws {
+        let subject = try database.query() { db in
+            let photos = \.photos) { t0 in
+                Join(\.users, on: t0.$userId) { t1 in
+                    Select {
+                        t1.username
+                    }
+                    OrderBy {
+                        t0.$imageURL.ascending
+                    }
+                }
             }
-            From(photo)
-            Join(user) { photo.userId == user.id }
+        }
+        let result = subject.string()
+        XCTAssertEqual(
+            result,
+            "SELECT `t1`.`username` " +
+            "FROM `photos` AS `t0` " +
+            "JOIN `users` AS `t1` " +
+            "ON `t0`.`user_id` == `t1`.`id` " +
+            "ORDER BY `t0`.`image_url` ASC"
+        )
+    }
+
+    func testSelectJoinOrderByTerms() throws {
+        let subject = try database.query { t in
+            let t0 = t.photos
+            let t1 = t.users
+            Select { t1.username }
+            From(t0)
+            Join(user, on: t0.userId)
             OrderBy {
-                photo.id.ascending
-                user.username.descending
+                t0.id.ascending
+                t1.username.descending
             }
         }
         let result = subject.string()
@@ -371,13 +421,11 @@ final class SwiftQLTests: BaseTestCase {
         let subject = try database.query { db in
             let photo = db.photos()
             let user = db.users()
-            Select { row in
-                row.field(photo.id)
-            }
+            Select { photo.id }
             From(photo)
-            Join(user) { photo.userId == user.id }
-            Where { user.active == true }
-            OrderBy { photo.imageURL.ascending }
+            Join(user, on: photo.$userId)
+            Where { user.$active == true }
+            OrderBy { photo.$imageURL.ascending }
         }
         let result = subject.string()
         XCTAssertEqual(
@@ -392,13 +440,11 @@ final class SwiftQLTests: BaseTestCase {
 
     func testSelectJoinCompoundWhere() throws {
         let subject = try database.query { db in
-            let photo = db.photos()
-            let user = db.users()
-            Select { row in
-                row.field(photo.id)
-            }
+            let photo = db.photos
+            let user = db.users
+            Select { photo.id }
             From(photo)
-            Join(user) { photo.userId == user.id }
+            Join(user, on: photo.userId)
             Where { user.active == true && photo.published == true }
         }
         let result = subject.string()
@@ -410,4 +456,5 @@ final class SwiftQLTests: BaseTestCase {
             "WHERE `t1`.`active` == ? AND `t0`.`published` == ?"
         )
     }
+     */
 }
