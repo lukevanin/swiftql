@@ -382,10 +382,6 @@ final class Insert<T>: TableKeywordBuilder<T>, SQLStatement where T: Table, T.Sc
 //            try value.bind(context: context, statement: statement)
 //        }
     }
-    
-    override func setContext(_ context: SQLWriter) {
-        
-    }
 }
 
 

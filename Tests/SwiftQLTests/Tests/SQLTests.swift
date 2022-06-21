@@ -28,19 +28,22 @@ final class SQLTests: BaseTestCase {
             ")"
         )
     }
-    /*
 
     func testInsert() throws {
-        let subject = Insert(Sample(id: PrimaryKey(), value: 7))
-        let result = subject.string()
+        let subject = try Transaction {
+            Insert(Sample(id: PrimaryKey(), value: 7))
+        }
+        let result = subject.sql()
         XCTAssertEqual(
             result,
-            "INSERT INTO `samples` " +
+            "INSERT INTO `Sample` " +
             "( `id`, `value` ) " +
             "VALUES ( ?, ? )"
         )
     }
-    
+
+    /*
+
     func testUpdate() throws {
         let key = PrimaryKey()
         let subject = Update(Sample.self) { sample in
