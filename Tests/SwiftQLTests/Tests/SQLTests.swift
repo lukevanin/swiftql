@@ -2,7 +2,7 @@ import XCTest
 
 @testable import SwiftQL
 
-final class SwiftQLTests: BaseTestCase {
+final class SQLTests: BaseTestCase {
 
     override func setUpWithError() throws {
         try setupDatabase()
@@ -13,27 +13,25 @@ final class SwiftQLTests: BaseTestCase {
     }
     
     func testCreate() throws {
-        let subject = try database.query { db in
-            Create(db.users())
+        let subject = try Transaction {
+            Create(User.self)
         }
-        let result = subject.string()
+        let result = subject.sql()
         print(result)
         XCTAssertEqual(
             result,
-            "CREATE TABLE IF NOT EXISTS `users` ( " +
-            "`id` TEXT PRIMARY KEY NOT NULL, " +
-            "`place_id` TEXT REFERENCES `places` ( `id` ) NOT NULL, " +
-            "`username` TEXT NOT NULL, " +
-            "`active` INT NOT NULL " +
+            "CREATE TABLE IF NOT EXISTS `User` ( " +
+            "`id` TEXT PRIMARY KEY, " +
+            "`place_id` TEXT REFERENCES `Place` ( `id` ), " +
+            "`username` TEXT, " +
+            "`active` INT " +
             ")"
         )
     }
-    
+    /*
+
     func testInsert() throws {
-        let subject = try database.query() { db in
-            let samples = db.samples()
-            Insert(samples, values: Sample(id: PrimaryKey(), value: 7))
-        }
+        let subject = Insert(Sample(id: PrimaryKey(), value: 7))
         let result = subject.string()
         XCTAssertEqual(
             result,
@@ -43,43 +41,40 @@ final class SwiftQLTests: BaseTestCase {
         )
     }
     
-    /*
     func testUpdate() throws {
-        let subject = try database.query() { db in
-            let sample = db.samples()
-            Update(sample) {
-                Set(sample.$value, 49)
+        let key = PrimaryKey()
+        let subject = Update(Sample.self) { sample in
+            Set {
+                sample.value = 49
             }
-            Where { sample.$id == "foo" }
+            Where {
+                sample.$id == key
+            }
         }
         let result = subject.string()
         XCTAssertEqual(
-            result,
+            result[,
             "UPDATE `samples` AS `t0` " +
             "SET `value` = ? " +
             "WHERE `t0`.`id` == ?"
         )
     }
 
-    func testSelect() throws {
-        let subject = try database.query() { db in
-            let sample = db.samples()
+    func testSelectRow() throws {
+        let subject = From(Sample.self) { sample in
             Select(sample)
-            From(sample)
         }
         let result = subject.string()
         XCTAssertEqual(
-            result,
+            result[0],
             "SELECT `t0`.`id`, `t0`.`value` " +
             "FROM `samples` AS `t0`"
         )
     }
 
     func testSelectField() throws {
-        let subject = try database.query() { db in
-            let sample = db.samples()
-            Select(sample.id)
-            From(sample)
+        let subject = From(Sample.self) { sample in
+            Select(sample.$id)
         }
         let result = subject.string()
         XCTAssertEqual(
@@ -90,30 +85,12 @@ final class SwiftQLTests: BaseTestCase {
     }
 
     func testSelectWhereBooleanLiteral() throws {
-        let subject = try database.query() {
-            From(\.places) { place in
-                Select { row in
-                    row.field(place.id)
-                }
-                Where { place.verified == true }
+        let subject = From(Place.self) { place in
+            Select {
+                place.id
             }
-        }
-        let result = subject.string()
-        XCTAssertEqual(
-            result,
-            "SELECT `t0`.`id` " +
-            "FROM `places` AS `t0` " +
-            "WHERE `t0`.`verified` == ?"
-        )
-    }
-
-    func testSelectWhereBooleanBinding() throws {
-        let subject = try database.query() {
-            From(\.places) { place
-                Select { row in
-                    row.field(place.id)
-                }
-                Where { place.verified == true }
+            Where {
+                place.verified == true
             }
         }
         let result = subject.string()
@@ -126,13 +103,13 @@ final class SwiftQLTests: BaseTestCase {
     }
 
     func testSelectWhereString() throws {
-        let subject = try database.query() { db in
-            let place = db.places()
-            Select { row in
-                row.field(place.id)
+        let subject = From(Place.self) { place in
+            Select {
+                place.id
             }
-            From(place)
-            Where { place.name == "Spain" }
+            Where {
+                place.name == "Spain"
+            }
         }
         let result = subject.string()
         XCTAssertEqual(
@@ -141,16 +118,17 @@ final class SwiftQLTests: BaseTestCase {
             "FROM `places` AS `t0` " +
             "WHERE `t0`.`name` == ?"
         )
+
     }
 
     func testSelectComplexWhere() throws {
-        let subject = try database.query() { db in
-            let place = db.places()
-            Select { row in
-                row.field(place.id)
+        let subject = From(Place.self) { place in
+            Select {
+                place.id
             }
-            From(place)
-            Where { (place.verified == true) && (place.name == "Spain") }
+            Where {
+                (place.verified == true) && (place.name == "Spain")
+            }
         }
         let result = subject.string()
         XCTAssertEqual(
@@ -162,13 +140,13 @@ final class SwiftQLTests: BaseTestCase {
     }
 
     func testSelectOrderBy() throws {
-        let subject = try database.query { db in
-            let users = db.users()
-            Select { row in
-                row.field(users.id)
+        let subject = From(User.self) { user in
+            Select {
+                user.id
             }
-            From(users)
-            OrderBy { users.username.ascending }
+            OrderBy {
+                users.username.ascending
+            }
         }
         let result = subject.string()
         XCTAssertEqual(
@@ -180,15 +158,13 @@ final class SwiftQLTests: BaseTestCase {
     }
 
     func testSelectOrderByTerms() throws {
-        let subject = try database.query { db in
-            let users = db.users()
-            Select { row in
-                row.field(users.id)
+        let subject = From(User.self) { user in
+            Select {
+                user.id
             }
-            From(users)
             OrderBy {
-                users.active.descending
-                users.username.ascending
+                user.active.descending
+                user.username.ascending
             }
         }
         let result = subject.string()
@@ -201,6 +177,8 @@ final class SwiftQLTests: BaseTestCase {
             "`t0`.`username` ASC"
         )
     }
+
+        /*
 
     func testSelectWhereOrderBy() throws {
         let subject = try database.query { db in
@@ -221,52 +199,55 @@ final class SwiftQLTests: BaseTestCase {
             "ORDER BY `t0`.`image_url` ASC"
         )
     }
+         */
 
     func testSelectJoin() throws {
-        let subject = try database.query() { db in
-            let photo = db.photos()
-            let user = db.users()
-            Select() { row in
-                row.field(photo.id)
+        let subject = From(Photo.self) { photo in
+            Join(User.self, on: photo.userId) { user in
+                Select() {
+                    (photo.id, user.id)
+                }
             }
-            From(photo)
-            Join(user) { photo.userId == user.id }
         }
         let result = subject.string()
         XCTAssertEqual(
             result,
-            "SELECT `t0`.`id` " +
+            "SELECT `t0`.`id`, `t1`.`id` " +
             "FROM `photos` AS `t0` " +
             "JOIN `users` AS `t1` ON `t0`.`user_id` == `t1`.`id`"
         )
     }
 
     func testSelectTwoJoins() throws {
-        let subject = try database.query {
-            let t0 = db.photos
-            let t1 = db.users
-            let t2 = db.places
-            Select() { row in
-                row.field(photo.id)
+        let subject = From(Photo.self) { t0 in
+            Join(User.self, on: t0.userId) { t1 in
+                Join(Place.self, on: t0.placeId) { t2 in
+                    Select() {
+                        (t0.id, t1.id, t2.id)
+                    }
+                }
             }
-            From(db.photos)
-            Join(db.users, on: t0.userId)
-            Join(db.places, on: t0.placeId)
         }
         let result = subject.string()
         XCTAssertEqual(
             result,
-            "SELECT `t0`.`id` " +
+            "SELECT `t0`.`id`, `t1`.`id`, `t2`.`id` " +
             "FROM `photos` AS `t0` " +
             "JOIN `users` AS `t1` ON `t0`.`user_id` == `t1`.`id` " +
             "JOIN `places` AS `t2` ON `t0`.`place_id` == `t2`.`id`"
         )
     }
-    
+
     func testSelectJoinMultiple() throws {
-        let subject = try database { db in
-            let photo = From(db.photos)
-            let user = Join(db.users, photo.userId)
+        let subject = From(Photo.self) { t0 in
+            Join(User.self, photo.userId) { t1 in
+                Join(Place.self, t1.placeId) { t2 in
+                    Join(Place.self, t0.placeId) { t3 in
+                        Select {
+                            (t0.id, t1.id, t2.id, t3.id)
+                        }
+                    }
+                }
             let userPlace = Join(db.places, user.placeId)
             let photoPlace = Join(db.places, photo.placeId)
             Select { row in
@@ -282,10 +263,7 @@ final class SwiftQLTests: BaseTestCase {
         XCTAssertEqual(
             result,
             "SELECT " +
-            "`t1`.`username`, " +
-            "`t2`.`name`, " +
-            "`t0`.`image_url`, " +
-            "`t3`.`name` " +
+            "`t0`.`id`, `t1`.`id`, `t2`.`id`, `t3`.`id` " +
             "FROM `photos` AS `t0` " +
             "JOIN `users` AS `t1` ON `t0`.`user_id` == `t1`.`id` " +
             "JOIN `places` AS `t2` ON `t2`.`id` == `t1`.`place_id` " +
@@ -293,7 +271,7 @@ final class SwiftQLTests: BaseTestCase {
         )
     }
     
-    
+
 //    struct Query<Database>: SelectQuery {
 //        var query: some ReadStatement = {
 //            let photo = From(\.photo)

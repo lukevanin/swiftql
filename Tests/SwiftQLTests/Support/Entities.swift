@@ -7,7 +7,7 @@
 
 import Foundation
 
-@testable import SwiftQL
+import SwiftQL
 
 // MARK: - ENTITIES
 
@@ -28,13 +28,29 @@ extension User {
 //        ]
 //    )
     
-    final class Schema: TableSchema {
-        @FieldProxy let id: PrimaryKey
-        @FieldProxy let placeId: ForeignKey<Place>
-        @FieldProxy let username: String
-        @FieldProxy let active: Bool
-        
-        static let fields = [\.id, \.placeId, \.username, \.active]
+    final class Schema: TableSchema<User> {        
+        @Field(name: "id") var id: PrimaryKey = .defaultValue
+        @Field(name: "place_id") var placeId: ForeignKey<Place> = .defaultValue
+        @Field(name: "username") var username: String = .defaultValue
+        @Field(name: "active") var active: Bool = .defaultValue
+    }
+    
+    init(_ schema: Schema) {
+        self = User(
+            id: schema.id,
+            placeId: schema.placeId,
+            username: schema.username,
+            active: schema.active
+        )
+    }
+    
+    func _values() ->  [AnyLiteral] {
+        [
+            Literal(id),
+            Literal(placeId),
+            Literal(username),
+            Literal(active)
+        ]
     }
 }
 
@@ -48,15 +64,43 @@ struct Photo: Table {
 }
 
 extension Photo {
-    static let schema = TableSchema<User>(
-        fields: [
-            FieldSchema(name: .id, keyPath: \.id),
-            FieldSchema(name: .userId, keyPath: \.userId),
-            FieldSchema(name: .placeId, keyPath: \.placeId),
-            FieldSchema(name: .imageURL, keyPath: \.imageURL),
-            FieldSchema(name: .published, keyPath: \.published),
+//    static let schema = TableSchema<User>(
+//        fields: [
+//            FieldSchema(name: .id, keyPath: \.id),
+//            FieldSchema(name: .userId, keyPath: \.userId),
+//            FieldSchema(name: .placeId, keyPath: \.placeId),
+//            FieldSchema(name: .imageURL, keyPath: \.imageURL),
+//            FieldSchema(name: .published, keyPath: \.published),
+//        ]
+//    )
+    
+    final class Schema: TableSchema<Photo> {
+        @Field(name: "id") var id: PrimaryKey = .defaultValue
+        @Field(name: "user_id") var userId: ForeignKey<User> = .defaultValue
+        @Field(name: "place_id") var placeId: ForeignKey<Place> = .defaultValue
+        @Field(name: "image_url") var imageURL: URL = .defaultValue
+        @Field(name: "published") var published: Bool = .defaultValue
+    }
+    
+    init(_ schema: Schema) {
+        self.init(
+            id: schema.id,
+            userId: schema.userId,
+            placeId: schema.placeId,
+            imageURL: schema.imageURL,
+            published: schema.published
+        )
+    }
+    
+    func _values() -> [AnyLiteral] {
+        [
+            Literal(id),
+            Literal(userId),
+            Literal(placeId),
+            Literal(imageURL),
+            Literal(published),
         ]
-    )
+    }
 }
 
 
@@ -67,13 +111,35 @@ struct Place: Table {
 }
 
 extension Place {
-    static let schema = TableSchema<User>(
-        fields: [
-            FieldSchema(name: .id, keyPath: \.id),
-            FieldSchema(name: .name, keyPath: \.name),
-            FieldSchema(name: .verified, keyPath: \.verified),
+//    static let schema = TableSchema<User>(
+//        fields: [
+//            FieldSchema(name: .id, keyPath: \.id),
+//            FieldSchema(name: .name, keyPath: \.name),
+//            FieldSchema(name: .verified, keyPath: \.verified),
+//        ]
+//    )
+    
+    final class Schema: TableSchema<Place> {
+        @Field(name: "id") var id: PrimaryKey = .defaultValue
+        @Field(name: "name") var name: String = .defaultValue
+        @Field(name: "verified") var verified: Bool = .defaultValue
+    }
+    
+    init(_ schema: Schema) {
+        self.init(
+            id: schema.id,
+            name: schema.name,
+            verified: schema.verified
+        )
+    }
+    
+    func _values() -> [AnyLiteral] {
+        [
+            Literal(id),
+            Literal(name),
+            Literal(verified)
         ]
-    )
+    }
 }
 
 
@@ -83,182 +149,23 @@ struct Sample: Table {
 }
 
 extension Sample {
-    static let schema = TableSchema<User>(
-        fields: [
-            FieldSchema(name: .id, keyPath: \.id),
-            FieldSchema(name: .value, keyPath: \.value),
+    
+    final class Schema: TableSchema<Sample> {
+        @Field(name: "id") var id: PrimaryKey = .defaultValue
+        @Field(name: "value") var value: Int = .defaultValue
+    }
+    
+    init(_ schema: Schema) {
+        self.init(
+            id: schema.id,
+            value: schema.value
+        )
+    }
+    
+    func _values() -> [AnyLiteral] {
+        [
+            Literal(id),
+            Literal(value)
         ]
-    )
-}
-
-
-
-class MyDatabase: Database {
-    
-    /*
-    final class Schema: DatabaseSchema {
-
-        final class SampleSchema: BaseTableSchema, TableSchema {
-            lazy var id = PrimaryKeyField<String>(name: "id", table: self)
-            lazy var value = Field<Int>(name: "value", table: self)
-            
-            static let tableName = SQLIdentifier(stringLiteral: "samples")
-
-            var tableFields: [AnyField] {
-                return [id, value]
-            }
-            
-            func entity(from row: SQLRow) -> Sample {
-                Sample(
-                    id: row.field(id),
-                    value: row.field(value)
-                )
-            }
-            
-            func values(entity: Sample) -> [SQLIdentifier : SQLExpression] {
-                [
-                    id.name: StringLiteral(entity.id),
-                    value.name: IntegerLiteral(entity.value)
-                ]
-            }
-        }
-
-        final class UserSchema: BaseTableSchema, TableSchema {
-            lazy var id = PrimaryKeyField<String>(name: "id", table: self)
-            lazy var placeId = ForeignKeyField<String, PlaceSchema>(name: "place_id", table: self, field: \.id)
-            lazy var username = Field<String>(name: "username", table: self)
-            lazy var active = Field<Bool>(name: "active", table: self)
-            
-            static let tableName = SQLIdentifier(stringLiteral: "users")
-    
-            var tableFields: [AnyField] {
-                return [id, placeId, username, active]
-            }
-    
-            func entity(from row: SQLRow) -> User {
-                User(
-                    id: row.field(id),
-                    placeId: row.field(placeId),
-                    username: row.field(username),
-                    active: row.field(active)
-                )
-            }
-            
-            func values(entity: User) -> [SQLIdentifier : SQLExpression] {
-                [
-                    id.name: StringLiteral(entity.id),
-                    placeId.name: StringLiteral(entity.placeId),
-                    username.name: StringLiteral(entity.username),
-                    active.name: BooleanLiteral(entity.active)
-                ]
-            }
-        }
-
-        final class PhotoSchema: BaseTableSchema, TableSchema {
-            lazy var id = PrimaryKeyField<String>(name: "id", table: self)
-            lazy var userId = ForeignKeyField<String, UserSchema>(name: "user_id", table: self, field: \.id)
-            lazy var placeId = ForeignKeyField<String, PlaceSchema>(name: "place_id", table: self, field: \.id)
-            lazy var imageURL = Field<URL>(name: "image_url", table: self)
-            lazy var published = Field<Bool>(name: "published", table: self)
-            
-            static let tableName = SQLIdentifier(stringLiteral: "photos")
-
-            var tableFields: [AnyField] {
-                return [id, userId, placeId, imageURL, published]
-            }
-    
-            func entity(from row: SQLRow) -> Photo {
-                Photo(
-                    id: row.field(id),
-                    userId: row.field(userId),
-                    placeId: row.field(placeId),
-                    imageURL: row.field(imageURL),
-                    published: row.field(published)
-                )
-            }
-            
-            func values(entity: Photo) -> [SQLIdentifier : SQLExpression] {
-                [
-                    id.name: StringLiteral(entity.id),
-                    userId.name: StringLiteral(entity.userId),
-                    placeId.name: StringLiteral(entity.placeId),
-                    imageURL.name: URLLiteral(entity.imageURL),
-                    published.name: BooleanLiteral(entity.published)
-                ]
-            }
-        }
-
-        final class PlaceSchema: BaseTableSchema, TableSchema {
-            lazy var id = PrimaryKeyField<String>(name: "id", table: self)
-            lazy var name = Field<String>(name: "name", table: self)
-            lazy var verified = Field<Bool>(name: "verified", table: self)
-            
-            static let tableName = SQLIdentifier(stringLiteral: "places")
-            
-            var tableFields: [AnyField] {
-                return [id, name, verified]
-            }
-            
-            func entity(from row: SQLRow) -> Place {
-                Place(
-                    id: row.field(id),
-                    name: row.field(name),
-                    verified: row.field(verified)
-                )
-            }
-            
-            func values(entity: Place) -> [SQLIdentifier : SQLExpression] {
-                [
-                    id.name: StringLiteral(entity.id),
-                    name.name: StringLiteral(entity.name),
-                    verified.name: BooleanLiteral(entity.verified)
-                ]
-            }
-        }
-
-        func users() -> UserSchema {
-            schema(table: UserSchema.self)
-        }
-        
-        func photos() -> PhotoSchema {
-            schema(table: PhotoSchema.self)
-        }
-        
-        func places() -> PlaceSchema {
-            schema(table: PlaceSchema.self)
-        }
-        
-        func samples() -> SampleSchema {
-            schema(table: SampleSchema.self)
-        }
-    }
-     */
-    
-    
-    class Schema: DatabaseSchema {
-        
-        func users() -> User {
-            schema(table: User.self)
-        }
-        
-        func photos() -> Photo {
-            schema(table: Photo.self)
-        }
-        
-        func places() -> Place {
-            schema(table: Place.self)
-        }
-        
-        func samples() -> Sample {
-            schema(table: Sample.self)
-        }
-
-    }
-
-    
-    let connection: DatabaseConnection
-    
-    init(connection: DatabaseConnection) {
-        self.connection = connection
     }
 }

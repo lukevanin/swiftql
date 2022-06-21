@@ -1,7 +1,7 @@
 import Foundation
 
 
-protocol HashKey {
+public protocol HashKey {
     var rawValue: String { get }
 }
 
@@ -33,6 +33,7 @@ struct QualifiedIdentifierHashKey: HashKey {
 }
 
 
+// MARK: Unify SQL symbol tokens
 enum SymbolHashKey: String, HashKey {
     case primaryKey = "pk"
     case foreignKey = "fk"
@@ -60,6 +61,7 @@ enum SymbolHashKey: String, HashKey {
     case insert = "ins"
     case update = "upd"
     case select = "sel"
+    case set = "set"
     case from = "frm"
     case join = "joi"
     case orderBy = "ord"

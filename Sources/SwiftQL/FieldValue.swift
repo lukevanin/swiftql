@@ -1,7 +1,8 @@
 import Foundation
 
 
-protocol SQLFieldValue: Hashable, Codable {
+public protocol SQLFieldValue: Hashable, Codable {
+    
     static var defaultValue: Self { get }
     
     static var sqlDefinition: SQLToken { get }
@@ -15,138 +16,153 @@ protocol SQLFieldValue: Hashable, Codable {
 
 
 extension Bool: SQLFieldValue {
-    static let defaultValue: Bool = false
+    public static let defaultValue: Bool = false
     
-    static let sqlDefinition: SQLToken = KeywordSQLToken(value: "INT")
+    public static let sqlDefinition: SQLToken = KeywordSQLToken(value: "INT")
     
-    static let hashKey: HashKey = SymbolHashKey.boolean
+    public static let hashKey: HashKey = SymbolHashKey.boolean
     
-    static func read(column: Int, row: SQLRowProtocol) -> Bool {
+    public static func read(column: Int, row: SQLRowProtocol) -> Bool {
         row.readInt(column: column) == 0 ? false : true
     }
     
-    func bind(context: PreparedStatementContext) throws {
+    public func bind(context: PreparedStatementContext) throws {
         try context.bind(value: self ? 1 : 0)
     }
 }
 
 
 extension Int: SQLFieldValue {
-    static let defaultValue: Int = 0
+    public static let defaultValue: Int = 0
 
-    static let sqlDefinition: SQLToken = KeywordSQLToken(value: "INT")
+    public static let sqlDefinition: SQLToken = KeywordSQLToken(value: "INT")
 
-    static let hashKey: HashKey = SymbolHashKey.integer
+    public static let hashKey: HashKey = SymbolHashKey.integer
     
-    static func read(column: Int, row: SQLRowProtocol) -> Int {
+    public static func read(column: Int, row: SQLRowProtocol) -> Int {
         row.readInt(column: column)
     }
     
-    func bind(context: PreparedStatementContext) throws {
+    public func bind(context: PreparedStatementContext) throws {
         try context.bind(value: self)
     }
 }
 
 
 extension Double: SQLFieldValue {
-    static let defaultValue: Double = 0
+    public static let defaultValue: Double = 0
 
-    static let sqlDefinition: SQLToken = KeywordSQLToken(value: "REAL")
+    public static let sqlDefinition: SQLToken = KeywordSQLToken(value: "REAL")
 
-    static let hashKey: HashKey = SymbolHashKey.real
+    public static let hashKey: HashKey = SymbolHashKey.real
     
-    static func read(column: Int, row: SQLRowProtocol) -> Double {
+    public static func read(column: Int, row: SQLRowProtocol) -> Double {
         row.readDouble(column: column)
     }
     
-    func bind(context: PreparedStatementContext) throws {
+    public func bind(context: PreparedStatementContext) throws {
         try context.bind(value: self)
     }
 }
 
 
 extension String: SQLFieldValue {
-    static let defaultValue: String = ""
+    public static let defaultValue: String = ""
     
-    static let sqlDefinition: SQLToken = KeywordSQLToken(value: "TEXT")
+    public static let sqlDefinition: SQLToken = KeywordSQLToken(value: "TEXT")
 
-    static let hashKey: HashKey = SymbolHashKey.text
+    public static let hashKey: HashKey = SymbolHashKey.text
     
-    static func read(column: Int, row: SQLRowProtocol) -> String {
+    public static func read(column: Int, row: SQLRowProtocol) -> String {
         row.readString(column: column)
     }
     
-    func bind(context: PreparedStatementContext) throws {
+    public func bind(context: PreparedStatementContext) throws {
         try context.bind(value: self)
     }
 }
 
 
 extension URL: SQLFieldValue {
-    static let defaultValue: URL = URL(string: "http://")!
+    public static let defaultValue: URL = URL(string: "http://")!
     
-    static let sqlDefinition: SQLToken = KeywordSQLToken(value: "TEXT")
+    public static let sqlDefinition: SQLToken = KeywordSQLToken(value: "TEXT")
 
-    static let hashKey: HashKey = SymbolHashKey.url
+    public static let hashKey: HashKey = SymbolHashKey.url
     
-    static func read(column: Int, row: SQLRowProtocol) -> URL {
+    public static func read(column: Int, row: SQLRowProtocol) -> URL {
         // TODO: Safe unwrap
         URL(string: row.readString(column: column))!
     }
     
-    func bind(context: PreparedStatementContext) throws {
+    public func bind(context: PreparedStatementContext) throws {
         try context.bind(value: self.absoluteString)
     }
 }
 
 
 extension Date: SQLFieldValue {
-    static let defaultValue: Date = Date(timeIntervalSince1970: 0)
+    public static let defaultValue: Date = Date(timeIntervalSince1970: 0)
     
-    static let sqlDefinition: SQLToken = KeywordSQLToken(value: "TEXT")
+    public static let sqlDefinition: SQLToken = KeywordSQLToken(value: "TEXT")
 
-    static let hashKey: HashKey = SymbolHashKey.date
+    public static let hashKey: HashKey = SymbolHashKey.date
     
-    static func read(column: Int, row: SQLRowProtocol) -> Date {
+    public static func read(column: Int, row: SQLRowProtocol) -> Date {
         SQLSyntax.date(from: row.readString(column: column))
     }
     
-    func bind(context: PreparedStatementContext) throws {
+    public func bind(context: PreparedStatementContext) throws {
         try context.bind(value: SQLSyntax.string(from: self))
     }
 }
 
 
 extension UUID: SQLFieldValue {
-    static let defaultValue: UUID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+    public static let defaultValue: UUID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
     
-    static let sqlDefinition: SQLToken = KeywordSQLToken(value: "TEXT")
+    public static let sqlDefinition: SQLToken = KeywordSQLToken(value: "TEXT")
 
-    static let hashKey: HashKey = SymbolHashKey.uuid
+    public static let hashKey: HashKey = SymbolHashKey.uuid
     
-    static func read(column: Int, row: SQLRowProtocol) -> UUID {
-        // TODO: Safe unwrap
-        UUID(uuidString: row.readString(column: column))!
+    public static func read(column: Int, row: SQLRowProtocol) -> UUID {
+        let d = row.readData(column: column)
+        return UUID(
+            uuid: (
+                 d[0],  d[1],  d[2],  d[3],
+                 d[4],  d[5],  d[6],  d[7],
+                 d[8],  d[9], d[10], d[11],
+                d[12], d[13], d[14], d[15]
+            )
+        )
     }
     
-    func bind(context: PreparedStatementContext) throws {
-        try context.bind(value: self.uuidString)
+    public func bind(context: PreparedStatementContext) throws {
+        let u = self.uuid
+        try context.bind(
+            value: Data([
+                u.0,  u.1,  u.2,  u.3,
+                u.4,  u.5,  u.6,  u.7,
+                u.8,  u.9, u.10, u.11,
+               u.12, u.13, u.14, u.15
+           ])
+        )
     }
 }
 
 
 extension Data: SQLFieldValue {
-    static let defaultValue: Data = Data()
+    public static let defaultValue: Data = Data()
     
-    static let sqlDefinition: SQLToken = KeywordSQLToken(value: "BLOB")
+    public static let sqlDefinition: SQLToken = KeywordSQLToken(value: "BLOB")
 
-    static let hashKey: HashKey = SymbolHashKey.data
+    public static let hashKey: HashKey = SymbolHashKey.data
     
-    static func read(column: Int, row: SQLRowProtocol) -> Data {
+    public static func read(column: Int, row: SQLRowProtocol) -> Data {
         row.readData(column: column)
     }
     
-    func bind(context: PreparedStatementContext) throws {
+    public func bind(context: PreparedStatementContext) throws {
         try context.bind(value: self)
     }
 }

@@ -166,7 +166,7 @@ Note in the above examples that we used a variable `sample` to refer to the sche
 
 Below are some of the goals for SwiftQL, roughly in order of highest priority first.
 
-- Define table schemas using the Create statement instead of as metadata classes.
+- Create table if it does not exist when it is accessed?
 - SQL GROUP BY syntax.  
 - Handle SQLITE_BUSY errors.
 - Allow only read (select) statements to be observed. 

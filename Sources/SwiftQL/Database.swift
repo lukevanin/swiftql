@@ -2,11 +2,29 @@ import Foundation
 import Combine
 
 
-class DatabaseConnection {
+public final class DatabaseConnection {
+    
+    static let shared: DatabaseConnection = {
+        let fileURL = FileManager.default
+            .urls(
+                for: .documentDirectory,
+                in: .userDomainMask
+            )
+            .first!
+            .appendingPathComponent("database", isDirectory: false)
+            .appendingPathExtension("sqlite")
+        let resource = SQLite.Resource(
+            fileURL: fileURL
+        )
+        let connection = try! resource.connect()
+        return DatabaseConnection(
+            provider: connection
+        )
+    }()
     
     private var statements = [String : SQLPreparedStatementProtocol]()
     
-    let provider: SQLProviderProtocol
+    private let provider: SQLProviderProtocol
     
     init(provider: SQLProviderProtocol) {
         self.provider = provider
@@ -20,11 +38,18 @@ class DatabaseConnection {
         else {
             statement = try createStatement(builder: builder)
         }
-        return PreparedSQL(builder: builder, statement: statement, provider: provider)
+        return PreparedSQL(
+            builder: builder,
+            statement: statement,
+            provider: provider
+        )
     }
     
     private func getOrCreateCachedStatement(builder: SQLBuilder) throws -> SQLPreparedStatementProtocol {
-        let key = builder.hashKey.rawValue
+        let hashKey = CompositeHashKey(
+            builder.hashKey
+        )
+        let key = hashKey.rawValue
         if let statement = statements[key] {
             return statement
         }
@@ -34,45 +59,74 @@ class DatabaseConnection {
     }
     
     private func createStatement(builder: SQLBuilder) throws -> SQLPreparedStatementProtocol {
-        let context = SQLWriter()
-        let token = builder.sql(context: context)
+        let token = builder.sql()
         let sql = token.string()
         return try provider.prepare(sql: sql)
     }
-}
-
-
-protocol Database: AnyObject {
-    associatedtype Schema: DatabaseSchema
     
-    var connection: DatabaseConnection { get }
-}
-
-extension Database {
-
-    func query<Output>(cached: Bool = true, @SelectQueryBuilder _ statements: (Self.Schema) -> AnySQLBuilder<Output>) throws -> PreparedSQL<Output> {
-        let schema = Schema()
-        let builder = statements(schema)
-        return try connection.statement(cached: cached, query: builder)
-    }
-
-    @discardableResult func execute<Output>(cached: Bool = true, @SelectQueryBuilder _ statements: (Self.Schema) -> AnySQLBuilder<Output>) throws -> [Output] {
-        try self.query(cached: cached, statements).execute()
-    }
-    
-    @discardableResult func observe<Output>(cached: Bool = true, @SelectQueryBuilder _ statements: (Self.Schema) -> AnySQLBuilder<Output>) throws -> AnyPublisher<Result<[Output], Error>, Error> {
-        try self.query(cached: cached, statements).observe()
-    }
-    
-    @discardableResult func transaction<T>(transaction: @escaping (Self, SQLTransactionProtocol) throws -> T) async throws -> T {
-        try await connection.provider.transaction() { [unowned self] t in
-            try transaction(self, t)
-        }
+    @discardableResult func transaction<T>(transaction: @escaping (SQLTransactionProtocol) throws -> T) async throws -> T {
+        try await provider.transaction(transaction: transaction)
     }
 }
 
+extension DatabaseConnection {
 
-class PreparedStatementContext {
+//    func query<Output>(cached: Bool = true, @SelectQueryBuilder _ statements: (D.Schema) -> AnySQLBuilder<Output>) throws -> PreparedSQL<Output> {
+//        let context = SQLWriter()
+//        let schema = D.Schema(context: context)
+//        let builder = statements(schema)
+//        return try statement(cached: cached, query: builder, context: context)
+//    }
+
+//    @discardableResult func execute<Output>(cached: Bool = true, @SelectQueryBuilder _ statements: (D.Schema) -> AnySQLBuilder<Output>) throws -> [Output] {
+//        try self.query(cached: cached, statements).execute()
+//    }
+    
+//    @discardableResult func observe<Output>(cached: Bool = true, @SelectQueryBuilder _ statements: (D.Schema) -> AnySQLBuilder<Output>) throws -> AnyPublisher<Result<[Output], Error>, Error> {
+//        try self.query(cached: cached, statements).observe()
+//    }
+    
+//    @discardableResult func transaction<T>(transaction: @escaping (Self, SQLTransactionProtocol) throws -> T) async throws -> T {
+//        try await transaction() { [unowned self] t in
+//            try transaction(self, t)
+//        }
+//    }
+}
+
+
+//public protocol Database: AnyObject {
+//    associatedtype Schema: DatabaseSchema
+//}
+
+
+final class Transaction<Output> {
+    
+    private lazy var statement: PreparedSQL<Output> = {
+        try! connection.statement(cached: cached, query: self.builder)
+    }()
+    
+    private let connection: DatabaseConnection
+    private let cached: Bool
+    private let builder: AnySQLBuilder<Output>
+    
+    init(
+        connection: DatabaseConnection = .shared,
+        cached: Bool = true,
+        @TransactionQueryBuilder statements: () -> AnySQLBuilder<Output>
+    ) throws {
+        self.connection = connection
+        self.cached = cached
+        self.builder = statements()
+        self.builder.setContext(SQLWriter())
+    }
+    
+    func sql() -> String {
+        builder.sql().string()
+    }
+}
+
+
+public final class PreparedStatementContext {
     
     private let statement: SQLBindingProtocol
     private var index: Int = 1
@@ -112,7 +166,11 @@ class PreparedSQL<Output> {
     let statement: SQLPreparedStatementProtocol
     let provider: SQLProviderProtocol
     
-    init(builder: AnySQLBuilder<Output>, statement: SQLPreparedStatementProtocol, provider: SQLProviderProtocol) {
+    init(
+        builder: AnySQLBuilder<Output>,
+        statement: SQLPreparedStatementProtocol,
+        provider: SQLProviderProtocol
+    ) {
         self.builder = builder
         self.statement = statement
         self.provider = provider
@@ -125,11 +183,15 @@ class PreparedSQL<Output> {
     @discardableResult func execute() throws -> [Output] {
         var output = [Output]()
         try statement.execute(
-            bind: { context in
-                try builder.bind(context: PreparedStatementContext(statement: context))
+            bind: { statement in
+                try builder.bind(
+                    statement: PreparedStatementContext(
+                        statement: statement
+                    )
+                )
             },
             read: { row in
-                let item = builder.read(row: ResultSQLRow(row: row))
+                let item = builder.read(row: row)
                 output.append(item)
             }
         )

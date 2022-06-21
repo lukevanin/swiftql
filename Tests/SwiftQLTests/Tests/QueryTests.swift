@@ -1,16 +1,10 @@
-//
-//  QueryTests.swift
-//  
-//
-//  Created by Luke Van In on 2022/05/18.
-//
-
 import XCTest
 
 @testable import SwiftQL
 
 final class ExecuteTests: BaseTestCase {
 
+    /*
     override func setUpWithError() throws {
         try setupDatabase()
     }
@@ -38,17 +32,17 @@ final class ExecuteTests: BaseTestCase {
         let expectedSample1 = Sample(id: PrimaryKey(), value: 3)
         try database.execute(cached: false) { db in
             let sample = db.samples()
-            Insert(sample, expectedSample0)
+            Insert(sample, values: expectedSample0)
         }
         try database.execute(cached: false) { db in
             let sample = db.samples()
-            Insert(sample, expectedSample1)
+            Insert(sample, values: expectedSample1)
         }
         let result = try database.execute(cached: false) { db in
             let sample = db.samples()
             Select(sample)
             From(sample)
-            OrderBy { sample.value.ascending }
+            OrderBy { sample.$value.ascending }
         }
         XCTAssertEqual(result, [expectedSample1, expectedSample0])
     }
@@ -58,17 +52,17 @@ final class ExecuteTests: BaseTestCase {
         let expectedSample1 = Sample(id: PrimaryKey(), value: 3)
         try database.execute(cached: true) { db in
             let sample = db.samples()
-            Insert(sample, expectedSample0)
+            Insert(sample, values: expectedSample0)
         }
         try database.execute(cached: true) { db in
             let sample = db.samples()
-            Insert(sample, expectedSample1)
+            Insert(sample, values: expectedSample1)
         }
         let result = try database.execute(cached: true) { db in
             let sample = db.samples()
             Select(sample)
             From(sample)
-            OrderBy { sample.value.ascending }
+            OrderBy { sample.$value.ascending }
         }
         XCTAssertEqual(result, [expectedSample1, expectedSample0])
     }
@@ -78,11 +72,11 @@ final class ExecuteTests: BaseTestCase {
         let expectedUser = User(id: PrimaryKey(), placeId: expectedPlace.id, username: "johndoe", active: true)
         try database.execute() { db in
             let user = db.users()
-            Insert(user, expectedUser)
+            Insert(user, values: expectedUser)
         }
         try database.execute() { db in
             let place = db.places()
-            Insert(place, expectedPlace)
+            Insert(place, values: expectedPlace)
         }
         let results = try database.execute() { db in
             let user = db.users()
@@ -94,9 +88,10 @@ final class ExecuteTests: BaseTestCase {
                 )
             }
             From(user)
-            Join(place) { user.placeId == place.id }
+            Join(place) { user.$placeId == place.id }
         }
         XCTAssertEqual(results[0].user, "johndoe")
         XCTAssertEqual(results[0].place, "United States")
     }
+     */
 }

@@ -1,7 +1,7 @@
 import Foundation
 
 
-protocol SQLToken {
+public protocol SQLToken {
     func string() -> String
 }
 
@@ -50,5 +50,12 @@ struct CompositeSQLToken: SQLToken {
     
     func string() -> String {
         tokens.map { $0.string() }.joined(separator: separator)
+    }
+}
+
+
+struct NilSQLToken: SQLToken {
+    func string() -> String {
+        ""
     }
 }

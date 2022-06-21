@@ -11,7 +11,7 @@ import XCTest
 
 final class PerformanceTests: BaseTestCase {
     
-    
+    /*
     func testInsertUncached() {
         let samples = (0 ..< 500).map { i in
             Sample(id: PrimaryKey(), value: i)
@@ -23,7 +23,7 @@ final class PerformanceTests: BaseTestCase {
                 startMeasuring()
                 for sample in samples {
                     try! database.execute(cached: false) { db in
-                        Insert(db.samples(), sample)
+                        Insert(db.samples(), values: sample)
                     }
                 }
                 stopMeasuring()
@@ -42,7 +42,7 @@ final class PerformanceTests: BaseTestCase {
                 startMeasuring()
                 for sample in samples {
                     try! database.execute(cached: true) { db in
-                        Insert(db.samples(), sample)
+                        Insert(db.samples(), values: sample)
                     }
                 }
                 stopMeasuring()
@@ -63,7 +63,7 @@ final class PerformanceTests: BaseTestCase {
                     try! await database.transaction { database, transaction in
                         for sample in samples {
                             try! database.execute(cached: false) { db in
-                                Insert(db.samples(), sample)
+                                Insert(db.samples(), values: sample)
                             }
                         }
                     }
@@ -86,7 +86,7 @@ final class PerformanceTests: BaseTestCase {
                     try! await database.transaction { database, transaction in
                         for sample in samples {
                             try! database.execute(cached: true) { db in
-                                Insert(db.samples(), sample)
+                                Insert(db.samples(), values: sample)
                             }
                         }
                     }
@@ -109,4 +109,5 @@ final class PerformanceTests: BaseTestCase {
         }
         wait(for: [e], timeout: timeout)
     }
+     */
 }

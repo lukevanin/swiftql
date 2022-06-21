@@ -7,30 +7,30 @@ protocol KeyProtocol: SQLFieldValue  {
 }
 
 
-struct PrimaryKey: KeyProtocol {
+public struct PrimaryKey: KeyProtocol {
     
-    var uuidString: String {
+    public var uuidString: String {
         uuid.uuidString
     }
     
-    let uuid: UUID
+    public let uuid: UUID
     
-    init?(uuidString: String) {
+    public init?(uuidString: String) {
         guard let uuid = UUID(uuidString: uuidString) else {
             return nil
         }
         self.init(uuid)
     }
     
-    init() {
+    public init() {
         self.init(UUID())
     }
     
-    init(_ uuid: UUID) {
+    public init(_ uuid: UUID) {
         self.uuid = uuid
     }
     
-    static var sqlDefinition: SQLToken {
+    public static var sqlDefinition: SQLToken {
         CompositeSQLToken(
             separator: " ",
             tokens: [
@@ -41,73 +41,76 @@ struct PrimaryKey: KeyProtocol {
         )
     }
     
-    static var hashKey: HashKey {
+    public static var hashKey: HashKey {
         CompositeHashKey(
             SymbolHashKey.data,
             SymbolHashKey.primaryKey
         )
     }
     
-    static var defaultValue: PrimaryKey {
+    public static var defaultValue: PrimaryKey {
         PrimaryKey()
     }
     
-    static func read(column: Int, row: SQLRowProtocol) -> PrimaryKey {
+    public static func read(column: Int, row: SQLRowProtocol) -> PrimaryKey {
         PrimaryKey(UUID.read(column: column, row: row))
     }
     
-    func bind(context: PreparedStatementContext) throws {
+    public func bind(context: PreparedStatementContext) throws {
         try uuid.bind(context: context)
     }
 }
 
 
-struct ForeignKey<T>: KeyProtocol {
+public struct ForeignKey<T>: KeyProtocol where T: Table {
     
-    var uuidString: String {
+    public var uuidString: String {
         uuid.uuidString
     }
     
-    let uuid: UUID
+    public let uuid: UUID
     
-    init?(uuidString: String) {
+    public init?(uuidString: String) {
         guard let uuid = UUID(uuidString: uuidString) else {
             return nil
         }
         self.init(uuid)
     }
     
-    init(_ uuid: UUID) {
+    public init(_ uuid: UUID) {
         self.uuid = uuid
     }
     
-    static var sqlDefinition: SQLToken {
+    public static var sqlDefinition: SQLToken {
         CompositeSQLToken(
             separator: " ",
             tokens: [
                 KeywordSQLToken(value: "TEXT"),
-                KeywordSQLToken(value: "FOREIGN"),
-                KeywordSQLToken(value: "KEY")
+                KeywordSQLToken(value: "REFERENCES"),
+                IdentifierSQLToken(value: T.tableName),
+                KeywordSQLToken(value: "("),
+                IdentifierSQLToken(value: SQLIdentifier(stringLiteral: "id")),
+                KeywordSQLToken(value: ")")
             ]
         )
     }
     
-    static var hashKey: HashKey {
+    public static var hashKey: HashKey {
         CompositeHashKey(
             SymbolHashKey.data,
             SymbolHashKey.foreignKey
         )
     }
     
-    static var defaultValue: ForeignKey {
+    public static var defaultValue: ForeignKey {
         ForeignKey(uuidString: "00000000-0000-0000-0000-000000000000")!
     }
     
-    static func read(column: Int, row: SQLRowProtocol) -> ForeignKey<T> {
+    public static func read(column: Int, row: SQLRowProtocol) -> ForeignKey<T> {
         ForeignKey(UUID.read(column: column, row: row))
     }
     
-    func bind(context: PreparedStatementContext) throws {
+    public func bind(context: PreparedStatementContext) throws {
         try uuid.bind(context: context)
     }
 }

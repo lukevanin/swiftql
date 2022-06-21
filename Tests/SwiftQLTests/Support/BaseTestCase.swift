@@ -11,7 +11,7 @@ import XCTest
 
 class BaseTestCase: XCTestCase {
     
-    var database: MyDatabase!
+    var database: DatabaseConnection!
 
     func setupDatabase() throws {
         database = try makeDatabase()
@@ -21,21 +21,24 @@ class BaseTestCase: XCTestCase {
         database = nil
     }
     
-    func withDatabase(block: (MyDatabase) throws -> Void) throws {
+    func withDatabase(block: (DatabaseConnection) throws -> Void) throws {
         try block(makeDatabase())
     }
 
-    func makeDatabase() throws -> MyDatabase {
+    func makeDatabase() throws -> DatabaseConnection {
         let filename = UUID().uuidString
         let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         let fileURL = directory.appendingPathComponent(filename).appendingPathExtension("sqlite3")
         let resource = SQLite.Resource(fileURL: fileURL)
-        let connection = DatabaseConnection(provider: try resource.connect())
-        let database = MyDatabase(connection: connection)
-        try database.query { db in Create(db.users()) }.execute()
-        try database.query { db in Create(db.photos()) }.execute()
-        try database.query { db in Create(db.samples()) }.execute()
-        try database.query { db in Create(db.places()) }.execute()
+        let database = DatabaseConnection(provider: try resource.connect())
+        #warning("TODO: Create tables")
+//        let transaction = Transaction {
+//            Create(db.users)
+//            Create(db.photos)
+//            Create(db.samples)
+//            Create(db.places)
+//        }
+//        database.execute(transaction)
         return database
     }
 }

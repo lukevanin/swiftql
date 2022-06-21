@@ -17,7 +17,7 @@ protocol SQLBindingProtocol {
 }
 
 
-protocol SQLRowProtocol {
+public protocol SQLRowProtocol {
     func readInt(column: Int) -> Int
     func readDouble(column: Int) -> Double
     func readString(column: Int) -> String
