@@ -107,7 +107,9 @@ class SQLSequenceBuilder: SQLBuilder {
     func sql() -> SQLToken {
         CompositeSQLToken(
             separator: separator,
-            tokens: builders.map { $0.sql() }
+            tokens: builders.map { builder in
+                builder.sql()
+            }
         )
     }
     

@@ -51,6 +51,7 @@ final class From<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table 
                 IdentifierSQLToken(value: schema._name),
                 KeywordSQLToken(value: "AS"),
                 IdentifierSQLToken(value: schema._alias),
+                subquery.sql()
             ]
         )
     }
@@ -231,7 +232,7 @@ final class Select<R>: SQLBuilder, SQLReader {
     
     private let map: Map
 
-    init(_ map: @autoclosure @escaping () -> R) {
+    init(_ map: @escaping Map) {
         // Hash key of the contents of the map is stored in the SQL writer
         self.map = map
     }
@@ -265,7 +266,7 @@ final class Select<R>: SQLBuilder, SQLReader {
 
 extension Select where R: Table, R.Schema: TableSchemaOf<R> {
     convenience init(_ table: R.Schema) {
-        self.init(R(table))
+        self.init { R(table) }
     }
 }
 
@@ -626,6 +627,10 @@ final class Set: KeywordBuilder, SQLStatement {
         
     static func buildBlock<R>(_ s: Select<R>) -> AnySQLBuilder<R> {
         AnySQLBuilder(s)
+    }
+    
+    static func buildBlock<R>(_ s: Select<R>, _ w: Where) -> AnySQLBuilder<R> {
+        AnySQLBuilder(s, w)
     }
 }
 

@@ -49,7 +49,10 @@ struct CompositeSQLToken: SQLToken {
     let tokens: [SQLToken]
     
     func string() -> String {
-        tokens.map { $0.string() }.joined(separator: separator)
+        tokens
+            .map { $0.string() }
+            .filter { $0.isEmpty == false }
+            .joined(separator: separator)
     }
 }
 

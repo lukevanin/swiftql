@@ -77,56 +77,55 @@ final class SQLTests: BaseTestCase {
         )
     }
 
-    /*
-
     func testSelectField() throws {
-        let subject = From(Sample.self) { sample in
-            Select(sample.$id)
+        let subject = try Transaction {
+            From(Sample.self) { sample in
+                Select { sample.id }
+            }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
-            "FROM `samples` AS `t0`"
+            "FROM `sample` AS `t0`"
         )
     }
 
     func testSelectWhereBooleanLiteral() throws {
-        let subject = From(Place.self) { place in
-            Select {
-                place.id
-            }
-            Where {
-                place.verified == true
+        let subject = try Transaction {
+            From(Place.self) { t0 in
+                Select { t0.id }
+                Where { t0.$verified == true }
             }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
-            "FROM `places` AS `t0` " +
+            "FROM `place` AS `t0` " +
             "WHERE `t0`.`verified` == ?"
         )
     }
 
     func testSelectWhereString() throws {
-        let subject = From(Place.self) { place in
-            Select {
-                place.id
-            }
-            Where {
-                place.name == "Spain"
+        let subject = try Transaction {
+            From(Place.self) { t0 in
+                Select { t0.id }
+                Where { t0.$name == "Spain" }
             }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
-            "FROM `places` AS `t0` " +
+            "FROM `place` AS `t0` " +
             "WHERE `t0`.`name` == ?"
         )
 
     }
+
+    /*
+
 
     func testSelectComplexWhere() throws {
         let subject = From(Place.self) { place in
