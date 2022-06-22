@@ -11,19 +11,19 @@ class KeywordBuilder {
 }
 
 
-class TableKeywordBuilder<T>: KeywordBuilder where T: Table, T.Schema: TableSchema<T> {
+class TableKeywordBuilder<T>: KeywordBuilder where T: Table {
     
     fileprivate lazy var schema: T.Schema = context.schema(table: T.self)
 }
 
 
-final class From<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table, T.Schema: TableSchema<T> {
+final class From<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table {
     
     typealias Builder = (T.Schema) -> AnySQLBuilder<R>
     
     lazy var hashKey: HashKey = CompositeHashKey(
         SymbolHashKey.from,
-        IdentifierHashKey(T.tableName),
+        IdentifierHashKey(T._name),
         ListHashKey(
             separator: ",",
             values: context.fieldReferenceHashKeys
@@ -70,7 +70,7 @@ final class From<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table,
 }
 
 
-final class Join<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table, T.Schema: TableSchema<T> {
+final class Join<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table {
     
     lazy var hashKey: HashKey = CompositeHashKey(
         SymbolHashKey.join,
@@ -221,7 +221,7 @@ final class OrderBy: SQLStatement {
 }
 
 
-final class Select<R, T>: TableKeywordBuilder<T>, SQLBuilder, SQLReader where T: Table, T.Schema: TableSchema<T> {
+final class Select<R, T>: TableKeywordBuilder<T>, SQLBuilder, SQLReader where T: Table {
     
     typealias Map = () -> R
 
@@ -268,7 +268,7 @@ extension Select where R: Table {
 }
 
 
-final class Create<T>: TableKeywordBuilder<T>, SQLStatement where T: Table, T.Schema: TableSchema<T> {
+final class Create<T>: TableKeywordBuilder<T>, SQLStatement where T: Table {
     
     lazy var  hashKey: HashKey = CompositeHashKey(
         SymbolHashKey.create,
@@ -316,7 +316,7 @@ final class Create<T>: TableKeywordBuilder<T>, SQLStatement where T: Table, T.Sc
 }
 
 
-final class Insert<T>: TableKeywordBuilder<T>, SQLStatement where T: Table, T.Schema: TableSchema<T> {
+final class Insert<T>: TableKeywordBuilder<T>, SQLStatement where T: Table {
     
     #warning("TODO: Split into separate INSERT/INTO/VALUES keywords")
     
@@ -385,7 +385,9 @@ final class Insert<T>: TableKeywordBuilder<T>, SQLStatement where T: Table, T.Sc
 }
 
 
-final class Update<T>: TableKeywordBuilder<T>, SQLStatement where T: Table, T.Schema: TableSchema<T> {
+final class Update<T>: TableKeywordBuilder<T>, SQLStatement where T: Table {
+    
+    typealias Builder = (T.Schema) -> SQLBuilder
     
     lazy var hashKey: HashKey = CompositeHashKey(
         SymbolHashKey.update,
@@ -396,15 +398,14 @@ final class Update<T>: TableKeywordBuilder<T>, SQLStatement where T: Table, T.Sc
         )
     )
     
-    private let name: SQLIdentifier
-    private let alias: SQLIdentifier
-    private let subquery: SQLBuilder
+    private lazy var subquery: SQLBuilder = {
+        builder(schema)
+    }()
     
-    init<T>(_ context: SQLWriter = SQLWriter(), _ t: T.Type, @UpdateQueryBuilder _ builder: (T.Schema) -> SQLBuilder) where T: Table, T.Schema: TableSchema<T> {
-        let schema = context.schema(table: T.self)
-        self.subquery = builder(schema)
-        self.name = schema._name
-        self.alias = schema._alias
+    private let builder: Builder
+    
+    init(_ t: T.Type, @UpdateQueryBuilder _ builder: @escaping Builder) {
+        self.builder = builder
     }
     
     func sql() -> SQLToken {
@@ -412,34 +413,20 @@ final class Update<T>: TableKeywordBuilder<T>, SQLStatement where T: Table, T.Sc
             separator: " ",
             tokens: [
                 KeywordSQLToken(value: "UPDATE"),
-                IdentifierSQLToken(value: name),
+                IdentifierSQLToken(value: schema._name),
                 KeywordSQLToken(value: "AS"),
-                IdentifierSQLToken(value: alias),
+                IdentifierSQLToken(value: schema._alias),
                 subquery.sql()
-//                KeywordSQLToken(value: "SET"),
-//                CompositeSQLToken(
-//                    separator: ", ",
-//                    tokens: context.fieldTokens.map { token in
-//                        CompositeSQLToken(
-//                            separator: " ",
-//                            tokens: [
-//                                token,
-//                                KeywordSQLToken(value: "="),
-//                                VariableSQLToken()
-//                            ]
-//                        )
-//                    }
-//                )
             ]
         )
     }
     
     func bind(statement: PreparedStatementContext) throws {
-//        try values.bind(context: context)
         try subquery.bind(statement: statement)
     }
     
     override func setContext(_ context: SQLWriter) {
+        super.setContext(context)
         subquery.setContext(context)
     }
 }
@@ -528,28 +515,24 @@ final class Set: KeywordBuilder, SQLStatement {
     func bind(statement: PreparedStatementContext) throws {
 //        try value.bind(context: context)
     }
-    
-    override func setContext(_ context: SQLWriter) {
-        
-    }
 }
 
 
 @resultBuilder class TransactionQueryBuilder {
     
-    static func buildBlock<T>(_ c: Create<T>) -> AnySQLBuilder<Void> where T: Table, T.Schema: TableSchema<T> {
+    static func buildBlock<T>(_ c: Create<T>) -> AnySQLBuilder<Void> where T: Table {
         AnySQLBuilder(c)
     }
     
-    static func buildBlock<T>(_ i: Insert<T>) -> AnySQLBuilder<Void> where T: Table, T.Schema: TableSchema<T> {
+    static func buildBlock<T>(_ i: Insert<T>) -> AnySQLBuilder<Void> where T: Table {
         AnySQLBuilder(i)
     }
     
-    static func buildBlock<T>(_ u: Update<T>) -> AnySQLBuilder<Void> where T: Table, T.Schema: TableSchema<T> {
+    static func buildBlock<T>(_ u: Update<T>) -> AnySQLBuilder<Void> where T: Table {
         AnySQLBuilder(u)
     }
 
-    static func buildBlock<R, T>(_ f: From<R, T>) -> AnySQLBuilder<R> where T: Table, T.Schema: TableSchema<T> {
+    static func buildBlock<R, T>(_ f: From<R, T>) -> AnySQLBuilder<R> where T: Table {
         AnySQLBuilder(f)
     }
 
@@ -635,11 +618,11 @@ final class Set: KeywordBuilder, SQLStatement {
 
 @resultBuilder class SelectQueryBuilder {
     
-    static func buildBlock<R, T>(_ j: Join<R, T>) -> AnySQLBuilder<R> where T: Table, T.Schema: TableSchema<T> {
+    static func buildBlock<R, T>(_ j: Join<R, T>) -> AnySQLBuilder<R> where T: Table {
         AnySQLBuilder(j)
     }
         
-    static func buildBlock<R, T>(_ s: Select<R, T>) -> AnySQLBuilder<R> where T: Table, T.Schema: TableSchema<T> {
+    static func buildBlock<R, T>(_ s: Select<R, T>) -> AnySQLBuilder<R> where T: Table {
         AnySQLBuilder(s)
     }
 }

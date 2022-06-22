@@ -20,9 +20,9 @@ final class SQLTests: BaseTestCase {
         print(result)
         XCTAssertEqual(
             result,
-            "CREATE TABLE IF NOT EXISTS `User` ( " +
+            "CREATE TABLE IF NOT EXISTS `user` ( " +
             "`id` TEXT PRIMARY KEY, " +
-            "`place_id` TEXT REFERENCES `Place` ( `id` ), " +
+            "`place_id` TEXT REFERENCES `place` ( `id` ), " +
             "`username` TEXT, " +
             "`active` INT " +
             ")"
@@ -36,32 +36,34 @@ final class SQLTests: BaseTestCase {
         let result = subject.sql()
         XCTAssertEqual(
             result,
-            "INSERT INTO `Sample` " +
+            "INSERT INTO `sample` " +
             "( `id`, `value` ) " +
             "VALUES ( ?, ? )"
         )
     }
 
-    /*
-
     func testUpdate() throws {
         let key = PrimaryKey()
-        let subject = Update(Sample.self) { sample in
-            Set {
-                sample.value = 49
-            }
-            Where {
-                sample.$id == key
+        let subject = try Transaction {
+            Update(Sample.self) { sample in
+                Set {
+                    sample.value = 49
+                }
+                Where {
+                    sample.$id == key
+                }
             }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
-            result[,
-            "UPDATE `samples` AS `t0` " +
-            "SET `value` = ? " +
+            result,
+            "UPDATE `sample` AS `t0` " +
+            "SET `t0`.`value` = ? " +
             "WHERE `t0`.`id` == ?"
         )
     }
+
+    /*
 
     func testSelectRow() throws {
         let subject = From(Sample.self) { sample in

@@ -12,3 +12,18 @@ extension DataProtocol {
         }.joined()
     }
 }
+
+
+extension Array {
+    func appending(_ element: Element) -> Array {
+        var output = self
+        output.append(element)
+        return output
+    }
+    
+    func appending(contentsOf elements: Array) -> Array {
+        var output = self
+        output.append(contentsOf: elements)
+        return output
+    }
+}

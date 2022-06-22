@@ -87,7 +87,7 @@ public struct ForeignKey<T>: KeyProtocol where T: Table {
             tokens: [
                 KeywordSQLToken(value: "TEXT"),
                 KeywordSQLToken(value: "REFERENCES"),
-                IdentifierSQLToken(value: T.tableName),
+                IdentifierSQLToken(value: T._name),
                 KeywordSQLToken(value: "("),
                 IdentifierSQLToken(value: SQLIdentifier(stringLiteral: "id")),
                 KeywordSQLToken(value: ")")

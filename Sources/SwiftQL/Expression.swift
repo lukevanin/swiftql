@@ -35,14 +35,14 @@ struct AnySQLBuilder<Output>: SQLBuilder, SQLReader {
     private let builder: SQLBuilder
     private let reader: Reader
 
-    init<T>(_ c: Create<T>) where T: Table, T.Schema: TableSchema<T> {
+    init<T>(_ c: Create<T>) where T: Table {
         self.builder = c
         self.reader = { row in
             fatalError("reader not implemented")
         }
     }
 
-    init<T>(_ i: Insert<T>) where T: Table, T.Schema: TableSchema<T> {
+    init<T>(_ i: Insert<T>) where T: Table {
         self.builder = i
         self.reader = { row in
             #warning("TODO: Returns number of rows inserted")
@@ -50,7 +50,7 @@ struct AnySQLBuilder<Output>: SQLBuilder, SQLReader {
         }
     }
     
-    init<T>(_ u: Update<T>) where T: Table, T.Schema: TableSchema<T> {
+    init<T>(_ u: Update<T>) where T: Table {
         self.builder = u // SQLSequenceBuilder(u, w)
         self.reader = { row in
             #warning("TODO: Returns number of rows updated")
@@ -58,7 +58,7 @@ struct AnySQLBuilder<Output>: SQLBuilder, SQLReader {
         }
     }
 
-    init<T>(_ s: Select<Output, T>, _ builders: SQLBuilder...) where T: Table, T.Schema: TableSchema<T> {
+    init<T>(_ s: Select<Output, T>, _ builders: SQLBuilder...) where T: Table {
         self.builder = SQLSequenceBuilder([s] + builders)
         self.reader = s.read
     }
@@ -87,8 +87,11 @@ struct AnySQLBuilder<Output>: SQLBuilder, SQLReader {
 
 
 class SQLSequenceBuilder: SQLBuilder {
+
+    lazy var hashKey: HashKey = {
+        ListHashKey(separator: separator, values: builders.map { $0.hashKey })
+    }()
     
-    let hashKey: HashKey
     let separator: String
     let builders: [SQLBuilder]
 
@@ -97,7 +100,6 @@ class SQLSequenceBuilder: SQLBuilder {
     }
     
     init(separator: String = " ", _ builders: [SQLBuilder]) {
-        self.hashKey = ListHashKey(separator: separator, values: builders.map { $0.hashKey })
         self.separator = separator
         self.builders = builders
     }
@@ -162,22 +164,22 @@ open class SQLWriter {
     private var fieldReferenceIdentifiers = [SQLQualifiedFieldIdentifier]()
     private var fieldAssignmentIdentifiers = [SQLQualifiedFieldIdentifier]()
 
-    func addFieldReference(identifier: SQLQualifiedFieldIdentifier, field: AnyField) {
+    func addFieldReference(field: AnyField) {
         fieldReferenceHashKeys.append(field.hashKey)
-        fieldReferenceIdentifiers.append(identifier)
+        fieldReferenceIdentifiers.append(field.qualifiedName)
     }
 
-    func addFieldAssignment(identifier: SQLQualifiedFieldIdentifier, field: AnyField) {
+    func addFieldAssignment(field: AnyField) {
         fieldAssignmentHashKeys.append(field.hashKey)
-        fieldAssignmentIdentifiers.append(identifier)
+        fieldAssignmentIdentifiers.append(field.qualifiedName)
     }
 
-    func schema<T>(table: T.Type) -> T.Schema where T: Table, T.Schema: TableSchema<T> {
+    func schema<T>(table: T.Type) -> T.Schema where T: Table {
         defer {
             tableCount += 1
         }
         let alias = SQLIdentifier(table: tableCount)
-        return T.Schema(alias: alias, context: self)
+        return T.Schema(name: T._name, alias: alias, context: self)
     }
 
     
@@ -290,11 +292,14 @@ open class SQLWriter {
 //}
 
 
+typealias ExpressionBuilder = () -> SQLExpression
+
+
 protocol SQLExpression: SQLBuilder {
 }
 
 func &&(lhs: SQLExpression, rhs: SQLExpression) -> SQLExpression {
-    return BinaryExpression(operator: .and, lhs: lhs, rhs: rhs)
+    return BinaryExpression(operator: .and, lhs: { lhs }, rhs: { rhs })
 }
 
 
@@ -372,16 +377,26 @@ final class BinaryExpression: SQLExpression {
         }
     }
     
-    let hashKey: HashKey
-    let `operator`: Operator
-    let lhs: SQLExpression
-    let rhs: SQLExpression
+    lazy var hashKey: HashKey = {
+        CompositeHashKey(lhs.hashKey, `operator`.hashKey, rhs.hashKey)
+    }()
     
-    init(operator: Operator, lhs: SQLExpression, rhs: SQLExpression) {
-        self.hashKey = CompositeHashKey(lhs.hashKey, `operator`.hashKey, rhs.hashKey)
+    private lazy var lhs: SQLExpression = {
+        lhsBuilder()
+    }()
+    
+    private lazy var rhs: SQLExpression = {
+        rhsBuilder()
+    }()
+    
+    let `operator`: Operator
+    let lhsBuilder: ExpressionBuilder
+    let rhsBuilder: ExpressionBuilder
+    
+    init(operator: Operator, lhs: @escaping ExpressionBuilder, rhs: @escaping ExpressionBuilder) {
         self.operator = `operator`
-        self.lhs = lhs
-        self.rhs = rhs
+        self.lhsBuilder = lhs
+        self.rhsBuilder = rhs
     }
     
     func sql() -> SQLToken {

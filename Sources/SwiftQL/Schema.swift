@@ -78,7 +78,7 @@ public class AnyField {
         self.hashKey = hashKey
     }
 
-    func didAdd(to table: AnyTableSchema) {
+    func didAdd(to table: TableSchema) {
         self.table = table._alias
     }
 
@@ -126,29 +126,26 @@ public class AnyField {
         storage storageKeyPath: ReferenceWritableKeyPath<T, Field>
     ) -> Value {
         get {
-            let container = instance as! AnyTableSchema
+            let container = instance as! TableSchema
             let field = instance[keyPath: storageKeyPath]
             return container.getValue(field: field)
         }
         set {
-            let container = instance as! AnyTableSchema
+            let container = instance as! TableSchema
             let field = instance[keyPath: storageKeyPath]
             container.setValue(field: field, value: newValue)
         }
     }
 }
 
-extension Field {
 
-    static func ==(lhs: Field, rhs: Field) -> SQLExpression {
-        BinaryExpression(operator: .equal, lhs: lhs.qualifiedName, rhs: rhs.qualifiedName)
-    }
+func ==<Value>(lhs: Field<Value>, rhs: Field<Value>) -> SQLExpression where Value: SQLFieldValue {
+    BinaryExpression(operator: .equal, lhs: { lhs.qualifiedName }, rhs: { rhs.qualifiedName })
 }
 
-extension Field {
-    static func ==(lhs: Field, rhs: Value) -> SQLExpression {
-        BinaryExpression(operator: .equal, lhs: lhs.qualifiedName, rhs: Literal(rhs))
-    }
+
+func ==<Value>(lhs: Field<Value>, rhs: Value) -> SQLExpression where Value: SQLFieldValue {
+    BinaryExpression(operator: .equal, lhs: { lhs.qualifiedName }, rhs: { Literal(rhs) })
 }
 
 
@@ -156,9 +153,9 @@ extension Field {
 // MARK: Table
 
 
-open class AnyTableSchema {
+open class TableSchema {
     
-    @Field(name: "id") var id: PrimaryKey = .defaultValue
+    @Field(name: "id") public var id: PrimaryKey = .defaultValue
     
     var hashKey: HashKey {
         CompositeHashKey(
@@ -183,14 +180,15 @@ open class AnyTableSchema {
 
     private let context: SQLWriter
 
-    public init(name: SQLIdentifier, alias: SQLIdentifier, context: SQLWriter) {
+    required public init(name: SQLIdentifier, alias: SQLIdentifier, context: SQLWriter) {
         self._name = name
         self._alias = alias
         self.context = context
         let m = Mirror(reflecting: self)
-        let fields = m.children.compactMap { child in
+        let customFields = m.children.compactMap { child in
             child.value as? AnyField
         }
+        let fields = [$id].appending(contentsOf: customFields)
         fields.forEach { field in
             field.didAdd(to: self)
         }
@@ -207,7 +205,7 @@ open class AnyTableSchema {
 //                table: _alias,
 //                field: field.name
 //            )
-            context.addFieldReference(identifier: field.qualifiedName, field: field)
+            context.addFieldReference(field: field)
         }
         if let row = row {
             return V.read(column: column, row: row)
@@ -218,9 +216,7 @@ open class AnyTableSchema {
     }
     
     func setValue<V>(field: Field<V>, value: V) where V : SQLFieldValue {
-        if let preparedStatement = context.preparedStatement {
-           try! value.bind(context: preparedStatement)
-        }
+        context.addFieldAssignment(field: field)
     }
     
     func sqlFields() -> SQLToken {
@@ -233,30 +229,27 @@ open class AnyTableSchema {
     }
 }
 
-open class TableSchema<T>: AnyTableSchema where T: Table {
-
-    public required init(alias: SQLIdentifier, context: SQLWriter) {
-        super.init(name: T.tableName, alias: alias, context: context)
-    }
-}
-
-extension TableSchema {
+//open class TableSchema<T>: AnyTableSchema where T: Table {
+//
+//}
+//
+//extension TableSchema {
 //    subscript<Value>(field keyPath: KeyPath<T, Value>) -> FieldSchema<T, Value> where Value: SQLFieldValue {
 //        fieldsByKeyPath[keyPath] as! FieldSchema<T, Value>
 //    }
-}
+//}
 
 
 public protocol Table: Identifiable, Equatable, Codable {
-    associatedtype Schema
+    associatedtype Schema: TableSchema
     var id: PrimaryKey { get }
     init(_ schema: Schema)
     func _values() -> [AnyLiteral]
 }
 
 extension Table {
-    static var tableName: SQLIdentifier {
-        SQLIdentifier(stringLiteral: String(describing: self))
+    static var _name: SQLIdentifier {
+        SQLIdentifier(stringLiteral: String(describing: self).lowercased())
     }
 }
 
