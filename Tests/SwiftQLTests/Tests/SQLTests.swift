@@ -187,28 +187,29 @@ final class SQLTests: BaseTestCase {
         )
     }
 
-        /*
-
     func testSelectWhereOrderBy() throws {
-        let subject = try database.query { db in
-            let photo = db.photos()
-            Select { row in
-                row.field(photo.id)
+        let subject = try Transaction {
+            From(Photo.self) { t0 in
+                Select {
+                    t0.id
+                }
+                Where {
+                    t0.$published == true
+                }
+                OrderBy {
+                    t0.$imageURL.ascending
+                }
             }
-            From(photo)
-            Where { photo.published == true }
-            OrderBy { photo.imageURL.ascending }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
-            "FROM `photos` AS `t0` " +
+            "FROM `photo` AS `t0` " +
             "WHERE `t0`.`published` == ? " +
             "ORDER BY `t0`.`image_url` ASC"
         )
     }
-         */
 
     /*
     func testSelectJoin() throws {

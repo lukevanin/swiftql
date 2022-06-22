@@ -636,6 +636,10 @@ final class Set: KeywordBuilder, SQLStatement {
     static func buildBlock<R>(_ s: Select<R>, _ o: OrderBy) -> AnySQLBuilder<R> {
         AnySQLBuilder(s, o)
     }
+    
+    static func buildBlock<R>(_ s: Select<R>, _ w: Where, _ o: OrderBy) -> AnySQLBuilder<R> {
+        AnySQLBuilder(s, w, o)
+    }
 }
 
 
