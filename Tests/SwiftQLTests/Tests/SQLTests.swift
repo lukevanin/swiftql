@@ -301,34 +301,10 @@ final class SQLTests: BaseTestCase {
         )
     }
 
-    /*
     func testSelectJoinOrderBy() throws {
-        let subject = try database.query {
-            From(\.photos) { t0 in
-                Join(\.users, on: t0.userId)
-                    Select {
-                        t1.username
-                    }
-                    OrderBy {
-                        t0.imageURL.ascending
-                    }
-                }
-            }
-        }
-        let result = subject.string()
-        XCTAssertEqual(
-            result,
-            "SELECT `t1`.`username` " +
-            "FROM `photos` AS `t0` " +
-            "JOIN `users` AS `t1` ON `t0`.`user_id` == `t1`.`id` " +
-            "ORDER BY `t0`.`image_url` ASC"
-        )
-    }
-
-    func testSelectJoinOrderBy_shouldExcludeUnReferencedJoin() throws {
-        let subject = try database.query() { db in
-            let photos = \.photos) { t0 in
-                Join(\.users, on: t0.$userId) { t1 in
+        let subject = try Transaction {
+            From(Photo.self) { t0 in
+                Join(User.self, on: t0.$userId) { t1 in
                     Select {
                         t1.username
                     }
@@ -338,41 +314,44 @@ final class SQLTests: BaseTestCase {
                 }
             }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
             result,
             "SELECT `t1`.`username` " +
-            "FROM `photos` AS `t0` " +
-            "JOIN `users` AS `t1` " +
-            "ON `t0`.`user_id` == `t1`.`id` " +
+            "FROM `photo` AS `t0` " +
+            "JOIN `user` AS `t1` ON `t1`.`id` = `t0`.`user_id` " +
             "ORDER BY `t0`.`image_url` ASC"
         )
     }
 
+
     func testSelectJoinOrderByTerms() throws {
-        let subject = try database.query { t in
-            let t0 = t.photos
-            let t1 = t.users
-            Select { t1.username }
-            From(t0)
-            Join(user, on: t0.userId)
-            OrderBy {
-                t0.id.ascending
-                t1.username.descending
+        let subject = try Transaction {
+            From(Photo.self) { t0 in
+                Join(User.self, on: t0.$userId) { t1 in
+                    Select {
+                        t0.id
+                    }
+                    OrderBy {
+                        t0.$id.ascending
+                        t1.$username.descending
+                    }
+                }
             }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
-            "FROM `photos` AS `t0` " +
-            "JOIN `users` AS `t1` ON `t0`.`user_id` == `t1`.`id` " +
+            "FROM `photo` AS `t0` " +
+            "JOIN `user` AS `t1` ON `t1`.`id` = `t0`.`user_id` " +
             "ORDER BY " +
             "`t0`.`id` ASC, " +
             "`t1`.`username` DESC"
         )
     }
 
+    /*
     func testSelectJoinWhereOrderBy() throws {
         let subject = try database.query { db in
             let photo = db.photos()
