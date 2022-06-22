@@ -73,19 +73,23 @@ final class From<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table 
 
 final class Join<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table {
     
+    typealias Builder = (T.Schema) -> AnySQLBuilder<R>
+    
     lazy var hashKey: HashKey = CompositeHashKey(
         SymbolHashKey.join,
         IdentifierHashKey(schema._name),
         IdentifierHashKey(schema._alias),
-        constraint.hashKey
+        foreignKey.hashKey
     )
+
+    private lazy var subquery: AnySQLBuilder<R> = builder(schema)
+
+    private let foreignKey: SQLQualifiedFieldIdentifier
+    private let builder: Builder
     
-    let constraint: Field<PrimaryKey>
-    let subquery: AnySQLBuilder<R>
-    
-    init(_ table: T, on constraint: Field<PrimaryKey>, @SelectQueryBuilder builder: () -> AnySQLBuilder<R>) {
-        self.constraint = constraint
-        self.subquery = builder()
+    init<S>(_ table: T.Type, on constraint: Field<ForeignKey<S>>, @SelectQueryBuilder builder: @escaping Builder) where S: Table {
+        self.foreignKey = constraint.qualifiedName
+        self.builder = builder
     }
     
     func sql() -> SQLToken {
@@ -98,8 +102,8 @@ final class Join<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table 
                 IdentifierSQLToken(value: schema._alias),
                 KeywordSQLToken(value: "ON"),
                 QualifiedIdentifierSQLToken(value: schema.$id.qualifiedName),
-                KeywordSQLToken(value: "="),
-                QualifiedIdentifierSQLToken(value: constraint.qualifiedName),
+                KeywordSQLToken(value: "==ç"),
+                QualifiedIdentifierSQLToken(value: foreignKey),
                 subquery.sql()
             ]
         )

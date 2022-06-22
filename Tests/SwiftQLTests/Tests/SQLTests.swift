@@ -211,23 +211,26 @@ final class SQLTests: BaseTestCase {
         )
     }
 
-    /*
     func testSelectJoin() throws {
-        let subject = From(Photo.self) { photo in
-            Join(User.self, on: photo.userId) { user in
-                Select() {
-                    (photo.id, user.id)
+        let subject = try Transaction {
+            From(Photo.self) { t0 in
+                Join(User.self, on: t0.$userId) { t1 in
+                    Select {
+                        (t0.id, t1.id)
+                    }
                 }
             }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id`, `t1`.`id` " +
-            "FROM `photos` AS `t0` " +
-            "JOIN `users` AS `t1` ON `t0`.`user_id` == `t1`.`id`"
+            "FROM `photo` AS `t0` " +
+            "JOIN `user` AS `t1` ON `t1`.`id` == `t0`.`user_id`"
         )
     }
+
+    /*
 
     func testSelectTwoJoins() throws {
         let subject = From(Photo.self) { t0 in
