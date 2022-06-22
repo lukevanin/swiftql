@@ -59,7 +59,7 @@ final class SQLTests: BaseTestCase {
             result,
             "UPDATE `sample` AS `t0` " +
             "SET `t0`.`value` = ? " +
-            "WHERE `t0`.`id` == ?"
+            "WHERE `t0`.`id` = ?"
         )
     }
 
@@ -103,7 +103,7 @@ final class SQLTests: BaseTestCase {
             result,
             "SELECT `t0`.`id` " +
             "FROM `place` AS `t0` " +
-            "WHERE `t0`.`verified` == ?"
+            "WHERE `t0`.`verified` = ?"
         )
     }
 
@@ -119,7 +119,7 @@ final class SQLTests: BaseTestCase {
             result,
             "SELECT `t0`.`id` " +
             "FROM `place` AS `t0` " +
-            "WHERE `t0`.`name` == ?"
+            "WHERE `t0`.`name` = ?"
         )
 
     }
@@ -140,7 +140,7 @@ final class SQLTests: BaseTestCase {
             result,
             "SELECT `t0`.`id` " +
             "FROM `place` AS `t0` " +
-            "WHERE `t0`.`verified` == ? AND `t0`.`name` == ?"
+            "WHERE `t0`.`verified` = ? AND `t0`.`name` = ?"
         )
     }
 
@@ -206,7 +206,7 @@ final class SQLTests: BaseTestCase {
             result,
             "SELECT `t0`.`id` " +
             "FROM `photo` AS `t0` " +
-            "WHERE `t0`.`published` == ? " +
+            "WHERE `t0`.`published` = ? " +
             "ORDER BY `t0`.`image_url` ASC"
         )
     }
@@ -226,7 +226,7 @@ final class SQLTests: BaseTestCase {
             result,
             "SELECT `t0`.`id`, `t1`.`id` " +
             "FROM `photo` AS `t0` " +
-            "JOIN `user` AS `t1` ON `t1`.`id` == `t0`.`user_id`"
+            "JOIN `user` AS `t1` ON `t1`.`id` = `t0`.`user_id`"
         )
     }
 
@@ -247,8 +247,8 @@ final class SQLTests: BaseTestCase {
             result,
             "SELECT `t0`.`id`, `t1`.`id`, `t2`.`id` " +
             "FROM `photo` AS `t0` " +
-            "JOIN `user` AS `t1` ON `t1`.`id` == `t0`.`user_id` " +
-            "JOIN `place` AS `t2` ON `t2`.`id` == `t0`.`place_id`"
+            "JOIN `user` AS `t1` ON `t1`.`id` = `t0`.`user_id` " +
+            "JOIN `place` AS `t2` ON `t2`.`id` = `t0`.`place_id`"
         )
     }
 
@@ -272,67 +272,36 @@ final class SQLTests: BaseTestCase {
             "SELECT " +
             "`t0`.`id`, `t1`.`id`, `t2`.`id`, `t3`.`id` " +
             "FROM `photo` AS `t0` " +
-            "JOIN `user` AS `t1` ON `t1`.`id` == `t0`.`user_id` " +
-            "JOIN `place` AS `t2` ON `t2`.`id` == `t1`.`place_id` " +
-            "JOIN `place` AS `t3` ON `t3`.`id` == `t0`.`place_id`"
+            "JOIN `user` AS `t1` ON `t1`.`id` = `t0`.`user_id` " +
+            "JOIN `place` AS `t2` ON `t2`.`id` = `t1`.`place_id` " +
+            "JOIN `place` AS `t3` ON `t3`.`id` = `t0`.`place_id`"
         )
     }
     
-        /*
-
-
-//    struct Query<Database>: SelectQuery {
-//        var query: some ReadStatement = {
-//            let photo = From(\.photo)
-//            Select {
-//                photo.id
-//            }
-//        }
-//    }
-
-    
-//    struct Query<Database>: SelectQuery {
-//        var query: ReadStatement = {
-//            let photo = From(\.photo)
-//            let user = Join(\.user, on: photo.$userId)
-//            Select {
-//                (
-//                    id: photo.id,
-//                    imageURL: user.imageURL
-//                )
-//            }
-//            Where {
-//                photo.$isActive == active
-//            }
-//            OrderBy {
-//                photo.modifiedData.descending
-//                user.name.ascending
-//            }
-//        }
-//    }
-
-
     func testSelectJoinWhere() throws {
-        let subject = try database.query {
-            let photo = From(\.photos)
-            let user = Join(\.users, on: photo.$id)
-            Select {
-                photo.id
-            }
-            Where {
-                user.$active == true
+        let subject = try Transaction {
+            From(Photo.self) { t0 in
+                Join(User.self, on: t0.$userId) { t1 in
+                    Select {
+                        t0.id
+                    }
+                    Where {
+                        t1.$active == true
+                    }
+                }
             }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
-            "FROM `photos` AS `t0` " +
-            "JOIN `users` AS `t1` ON `t0`.`user_id` == `t1`.`id` " +
-            "WHERE `t1`.`active` == ?"
+            "FROM `photo` AS `t0` " +
+            "JOIN `user` AS `t1` ON `t1`.`id` = `t0`.`user_id` " +
+            "WHERE `t1`.`active` = ?"
         )
     }
 
+    /*
     func testSelectJoinOrderBy() throws {
         let subject = try database.query {
             From(\.photos) { t0 in

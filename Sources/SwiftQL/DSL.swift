@@ -102,7 +102,7 @@ final class Join<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table 
                 IdentifierSQLToken(value: schema._alias),
                 KeywordSQLToken(value: "ON"),
                 QualifiedIdentifierSQLToken(value: schema.$id.qualifiedName),
-                KeywordSQLToken(value: "=="),
+                KeywordSQLToken(value: "="),
                 QualifiedIdentifierSQLToken(value: foreignKey),
                 subquery.sql()
             ]

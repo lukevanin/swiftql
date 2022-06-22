@@ -347,7 +347,7 @@ final class BinaryExpression: SQLExpression {
         func sql() -> SQLToken {
             switch self {
             case .equal:
-                return KeywordSQLToken(value: "==")
+                return KeywordSQLToken(value: "=")
             case .and:
                 return KeywordSQLToken(value: "AND")
             case .or:
