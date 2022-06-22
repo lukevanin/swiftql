@@ -63,19 +63,21 @@ final class SQLTests: BaseTestCase {
         )
     }
 
-    /*
-
     func testSelectRow() throws {
-        let subject = From(Sample.self) { sample in
-            Select(sample)
+        let subject = try Transaction {
+            From(Sample.self) { sample in
+                Select<Sample>(sample)
+            }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
-            result[0],
+            result,
             "SELECT `t0`.`id`, `t0`.`value` " +
-            "FROM `samples` AS `t0`"
+            "FROM `sample` AS `t0`"
         )
     }
+
+    /*
 
     func testSelectField() throws {
         let subject = From(Sample.self) { sample in

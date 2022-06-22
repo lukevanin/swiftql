@@ -44,7 +44,7 @@ final class From<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table 
             tokens: [
                 KeywordSQLToken(value: "SELECT"),
                 CompositeSQLToken(
-                    separator: " ",
+                    separator: ", ",
                     tokens: context.fieldReferenceTokens
                 ),
                 KeywordSQLToken(value: "FROM"),
@@ -221,11 +221,13 @@ final class OrderBy: SQLStatement {
 }
 
 
-final class Select<R, T>: TableKeywordBuilder<T>, SQLBuilder, SQLReader where T: Table {
+final class Select<R>: SQLBuilder, SQLReader {
     
     typealias Map = () -> R
 
-    lazy var hashKey: HashKey = CompositeHashKey(SymbolHashKey.select)
+    lazy var hashKey: HashKey = {
+        CompositeHashKey(SymbolHashKey.select)
+    }()
     
     private let map: Map
 
@@ -256,12 +258,12 @@ final class Select<R, T>: TableKeywordBuilder<T>, SQLBuilder, SQLReader where T:
         map()
     }
     
-    override func setContext(_ context: SQLWriter) {
-        
+    func setContext(_ context: SQLWriter) {
+        map()
     }
 }
 
-extension Select where R: Table {
+extension Select where R: Table, R.Schema: TableSchemaOf<R> {
     convenience init(_ table: R.Schema) {
         self.init(R(table))
     }
@@ -622,7 +624,7 @@ final class Set: KeywordBuilder, SQLStatement {
         AnySQLBuilder(j)
     }
         
-    static func buildBlock<R, T>(_ s: Select<R, T>) -> AnySQLBuilder<R> where T: Table {
+    static func buildBlock<R>(_ s: Select<R>) -> AnySQLBuilder<R> {
         AnySQLBuilder(s)
     }
 }

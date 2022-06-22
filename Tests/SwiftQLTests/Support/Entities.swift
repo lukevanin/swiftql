@@ -28,7 +28,7 @@ extension User {
 //        ]
 //    )
     
-    final class Schema: TableSchema {
+    final class Schema: TableSchemaOf<User> {
         @Field(name: "place_id") var placeId: ForeignKey<Place> = .defaultValue
         @Field(name: "username") var username: String = .defaultValue
         @Field(name: "active") var active: Bool = .defaultValue
@@ -73,7 +73,7 @@ extension Photo {
 //        ]
 //    )
     
-    final class Schema: TableSchema {
+    final class Schema: TableSchemaOf<Photo> {
         @Field(name: "user_id") var userId: ForeignKey<User> = .defaultValue
         @Field(name: "place_id") var placeId: ForeignKey<Place> = .defaultValue
         @Field(name: "image_url") var imageURL: URL = .defaultValue
@@ -117,7 +117,7 @@ extension Place {
 //        ]
 //    )
     
-    final class Schema: TableSchema {
+    final class Schema: TableSchemaOf<Place> {
         @Field(name: "name") var name: String = .defaultValue
         @Field(name: "verified") var verified: Bool = .defaultValue
     }
@@ -147,7 +147,7 @@ struct Sample: Table {
 
 extension Sample {
     
-    final class Schema: TableSchema {
+    final class Schema: TableSchemaOf<Sample> {
         @Field(name: "value") var value: Int = .defaultValue
     }
     

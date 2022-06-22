@@ -201,10 +201,6 @@ open class TableSchema {
             column = fields.count
             fields.append(field)
             columns[field.name] = column
-//            let identifier = SQLQualifiedFieldIdentifier(
-//                table: _alias,
-//                field: field.name
-//            )
             context.addFieldReference(field: field)
         }
         if let row = row {
@@ -229,10 +225,10 @@ open class TableSchema {
     }
 }
 
-//open class TableSchema<T>: AnyTableSchema where T: Table {
-//
-//}
-//
+open class TableSchemaOf<T>: TableSchema where T: Table {
+
+}
+
 //extension TableSchema {
 //    subscript<Value>(field keyPath: KeyPath<T, Value>) -> FieldSchema<T, Value> where Value: SQLFieldValue {
 //        fieldsByKeyPath[keyPath] as! FieldSchema<T, Value>

@@ -58,7 +58,7 @@ struct AnySQLBuilder<Output>: SQLBuilder, SQLReader {
         }
     }
 
-    init<T>(_ s: Select<Output, T>, _ builders: SQLBuilder...) where T: Table {
+    init(_ s: Select<Output>, _ builders: SQLBuilder...) {
         self.builder = SQLSequenceBuilder([s] + builders)
         self.reader = s.read
     }
@@ -126,21 +126,6 @@ class SQLSequenceBuilder: SQLBuilder {
 
 
 open class SQLWriter {
-    
-//    var hashKey: HashKey {
-//        CompositeHashKey(
-//            SymbolHashKey.select,
-//            ListHashKey(
-//                separator: ",",
-//                values: fieldReferenceHashKeys
-//            ),
-//            SymbolHashKey.set,
-//            ListHashKey(
-//                separator: ",",
-//                values: fieldAssignmentHashKeys
-//            )
-//        )
-//    }
     
     var fieldReferenceTokens: [SQLToken] {
         fieldReferenceIdentifiers.map { fieldIdentifier in
