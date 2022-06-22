@@ -144,25 +144,27 @@ final class SQLTests: BaseTestCase {
         )
     }
 
-    /*
-
     func testSelectOrderBy() throws {
-        let subject = From(User.self) { user in
-            Select {
-                user.id
-            }
-            OrderBy {
-                users.username.ascending
+        let subject = try Transaction {
+            From(User.self) { t0 in
+                Select {
+                    t0.id
+                }
+                OrderBy {
+                    t0.$username.ascending
+                }
             }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
-            "FROM `users` AS `t0` " +
+            "FROM `user` AS `t0` " +
             "ORDER BY `t0`.`username` ASC"
         )
     }
+
+    /*
 
     func testSelectOrderByTerms() throws {
         let subject = From(User.self) { user in
