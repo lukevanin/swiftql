@@ -351,45 +351,49 @@ final class SQLTests: BaseTestCase {
         )
     }
 
-    /*
     func testSelectJoinWhereOrderBy() throws {
-        let subject = try database.query { db in
-            let photo = db.photos()
-            let user = db.users()
-            Select { photo.id }
-            From(photo)
-            Join(user, on: photo.$userId)
-            Where { user.$active == true }
-            OrderBy { photo.$imageURL.ascending }
+        let subject = try Transaction {
+            From(Photo.self) { t0 in
+                Join(User.self, on: t0.$userId) { t1 in
+                    Select {
+                        t0.id
+                    }
+                    Where {
+                        t1.$active == true
+                    }
+                    OrderBy {
+                        t0.$imageURL.ascending
+                    }
+                }
+            }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
-            "FROM `photos` AS `t0` " +
-            "JOIN `users` AS `t1` ON `t0`.`user_id` == `t1`.`id` " +
-            "WHERE `t1`.`active` == ? " +
+            "FROM `photo` AS `t0` " +
+            "JOIN `user` AS `t1` ON `t1`.`id` = `t0`.`user_id` " +
+            "WHERE `t1`.`active` = ? " +
             "ORDER BY `t0`.`image_url` ASC"
         )
     }
 
     func testSelectJoinCompoundWhere() throws {
-        let subject = try database.query { db in
-            let photo = db.photos
-            let user = db.users
-            Select { photo.id }
-            From(photo)
-            Join(user, on: photo.userId)
-            Where { user.active == true && photo.published == true }
+        let subject = try Transaction {
+            From(Photo.self) { t0 in
+                Join(User.self, on: t0.$userId) { t1 in
+                    Select { t0.id }
+                    Where { t1.$active == true && t0.$published == true }
+                }
+            }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
-            "FROM `photos` AS `t0` " +
-            "JOIN `users` AS `t1` ON `t0`.`user_id` == `t1`.`id` " +
-            "WHERE `t1`.`active` == ? AND `t0`.`published` == ?"
+            "FROM `photo` AS `t0` " +
+            "JOIN `user` AS `t1` ON `t1`.`id` = `t0`.`user_id` " +
+            "WHERE `t1`.`active` = ? AND `t0`.`published` = ?"
         )
     }
-     */
 }
