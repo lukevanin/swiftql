@@ -124,26 +124,27 @@ final class SQLTests: BaseTestCase {
 
     }
 
-    /*
-
-
     func testSelectComplexWhere() throws {
-        let subject = From(Place.self) { place in
-            Select {
-                place.id
-            }
-            Where {
-                (place.verified == true) && (place.name == "Spain")
+        let subject = try Transaction {
+            From(Place.self) { t0 in
+                Select {
+                    t0.id
+                }
+                Where {
+                    (t0.$verified == true) && (t0.$name == "Spain")
+                }
             }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
-            "FROM `places` AS `t0` " +
+            "FROM `place` AS `t0` " +
             "WHERE `t0`.`verified` == ? AND `t0`.`name` == ?"
         )
     }
+
+    /*
 
     func testSelectOrderBy() throws {
         let subject = From(User.self) { user in
