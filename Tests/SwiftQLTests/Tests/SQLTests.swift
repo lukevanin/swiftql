@@ -252,41 +252,34 @@ final class SQLTests: BaseTestCase {
         )
     }
 
-    /*
-
     func testSelectJoinMultiple() throws {
-        let subject = From(Photo.self) { t0 in
-            Join(User.self, photo.userId) { t1 in
-                Join(Place.self, t1.placeId) { t2 in
-                    Join(Place.self, t0.placeId) { t3 in
-                        Select {
-                            (t0.id, t1.id, t2.id, t3.id)
+        let subject = try Transaction {
+            From(Photo.self) { t0 in
+                Join(User.self, on: t0.$userId) { t1 in
+                    Join(Place.self, on: t1.$placeId) { t2 in
+                        Join(Place.self, on: t0.$placeId) { t3 in
+                            Select {
+                                (t0.id, t1.id, t2.id, t3.id)
+                            }
                         }
                     }
                 }
-            let userPlace = Join(db.places, user.placeId)
-            let photoPlace = Join(db.places, photo.placeId)
-            Select { row in
-                (
-                    username: row.field(user.username),
-                    userPlaceName: row.field(userPlace.name),
-                    photoURL: row.field(photo.imageURL),
-                    photoPlaceName: row.field(photoPlace.name)
-                )
             }
         }
-        let result = subject.string()
+        let result = subject.sql()
         XCTAssertEqual(
             result,
             "SELECT " +
             "`t0`.`id`, `t1`.`id`, `t2`.`id`, `t3`.`id` " +
-            "FROM `photos` AS `t0` " +
-            "JOIN `users` AS `t1` ON `t0`.`user_id` == `t1`.`id` " +
-            "JOIN `places` AS `t2` ON `t2`.`id` == `t1`.`place_id` " +
-            "JOIN `places` AS `t3` ON `t3`.`id` == `t0`.`place_id`"
+            "FROM `photo` AS `t0` " +
+            "JOIN `user` AS `t1` ON `t1`.`id` == `t0`.`user_id` " +
+            "JOIN `place` AS `t2` ON `t2`.`id` == `t1`.`place_id` " +
+            "JOIN `place` AS `t3` ON `t3`.`id` == `t0`.`place_id`"
         )
     }
     
+        /*
+
 
 //    struct Query<Database>: SelectQuery {
 //        var query: some ReadStatement = {
