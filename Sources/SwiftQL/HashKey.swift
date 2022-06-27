@@ -5,9 +5,18 @@ public protocol HashKey {
     var rawValue: String { get }
 }
 
-
 func ==(lhs: HashKey, rhs: HashKey) -> Bool {
     lhs.rawValue == rhs.rawValue
+}
+
+
+struct AnyHashKey: HashKey, Hashable {
+    
+    let rawValue: String
+    
+    init<T>(_ hashKey: T) where T: HashKey {
+        self.rawValue = hashKey.rawValue
+    }
 }
 
 

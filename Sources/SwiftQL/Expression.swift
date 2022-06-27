@@ -1,12 +1,11 @@
 import Foundation
 
 
-
 protocol SQLBuilder {
-    var hashKey: HashKey { get }
+    func prepare()
+    func hashKey() -> HashKey
     func sql() -> SQLToken
-    func bind(statement: PreparedStatementContext) throws
-    func setContext(_ context: SQLWriter)
+    func bind() throws
 }
 
 
@@ -17,117 +16,177 @@ protocol SQLStatement: SQLBuilder {
 
 protocol SQLReader {
     associatedtype Entity
-    func read(row: SQLRowProtocol) -> Entity
+    func read() -> Entity
 }
 
 
-typealias SQLReadStatement = SQLStatement & SQLReader
-
-
-struct AnySQLBuilder<Output>: SQLBuilder, SQLReader {
+protocol SQLWriteStatement: SQLStatement {
     
-    typealias Reader = (SQLRowProtocol) -> Output
-
-    var hashKey: HashKey {
-        builder.hashKey
-    }
-    
-    private let builder: SQLBuilder
-    private let reader: Reader
-
-    init<T>(_ c: Create<T>) where T: Table {
-        self.builder = c
-        self.reader = { row in
-            fatalError("reader not implemented")
-        }
-    }
-
-    init<T>(_ i: Insert<T>) where T: Table {
-        self.builder = i
-        self.reader = { row in
-            #warning("TODO: Returns number of rows inserted")
-            fatalError("reader not implemented")
-        }
-    }
-    
-    init<T>(_ u: Update<T>) where T: Table {
-        self.builder = u // SQLSequenceBuilder(u, w)
-        self.reader = { row in
-            #warning("TODO: Returns number of rows updated")
-            fatalError("reader not implemented")
-        }
-    }
-
-    init(_ s: Select<Output>, _ builders: SQLBuilder...) {
-        self.builder = SQLSequenceBuilder([s] + builders)
-        self.reader = s.read
-    }
-    
-    init<S>(_ builder: S) where S: SQLReadStatement, S.Entity == Output {
-        self.builder = builder
-        self.reader = builder.read
-    }
-    
-    func sql() -> SQLToken {
-        builder.sql()
-    }
-    
-    func bind(statement: PreparedStatementContext) throws {
-        try builder.bind(statement: statement)
-    }
-
-    func read(row: SQLRowProtocol) -> Output {
-        reader(row)
-    }
-    
-    func setContext(_ context: SQLWriter) {
-        builder.setContext(context)
-    }
 }
 
 
-class SQLSequenceBuilder: SQLBuilder {
-
-    lazy var hashKey: HashKey = {
-        ListHashKey(separator: separator, values: builders.map { $0.hashKey })
-    }()
+protocol SQLReadStatement: SQLStatement, SQLReader {
     
-    let separator: String
+}
+
+
+struct SQLSequenceBuilder: SQLBuilder {
+    
+    var separator: String = ", "
     let builders: [SQLBuilder]
-
-    convenience init(separator: String = " ", _ builders: SQLBuilder...) {
-        self.init(separator: separator, builders)
+    
+    func prepare() {
+        for builder in builders {
+            builder.prepare()
+        }
     }
     
-    init(separator: String = " ", _ builders: [SQLBuilder]) {
-        self.separator = separator
-        self.builders = builders
+    func hashKey() -> HashKey {
+        ListHashKey(
+            separator: ", ",
+            values: builders.map { builder in
+                builder.hashKey()
+            }
+        )
     }
-
+    
     func sql() -> SQLToken {
         CompositeSQLToken(
-            separator: separator,
+            separator: ", ",
             tokens: builders.map { builder in
                 builder.sql()
             }
         )
     }
     
-    func bind(statement: PreparedStatementContext) throws {
-        try builders.forEach { builder in
-            try builder.bind(statement: statement)
-        }
-    }
-    
-    func setContext(_ context: SQLWriter) {
-        builders.forEach { builder in
-            builder.setContext(context)
+    func bind() throws {
+        for builder in builders {
+            try builder.bind()
         }
     }
 }
 
 
-open class SQLWriter {
+struct AnySQLBuilder<Output>: SQLBuilder {
+    
+    typealias Reader = () -> Output
+
+    private let builders: [SQLBuilder]
+    private let reader: Reader
+
+    init(select: Select<Output>, _ builders: SQLStatement...) {
+        self.builders = [select] + builders
+        self.reader = select.read
+    }
+
+    init(_ builders: SQLBuilder...) {
+        self.builders = builders
+        self.reader = {
+            fatalError("reader not implemented")
+        }
+    }
+
+    init(_ builders: [SQLBuilder]) {
+        self.builders = builders
+        self.reader = {
+            fatalError("reader not implemented")
+        }
+    }
+
+    init<S>(_ builder: S) where S: SQLBuilder & SQLReader, S.Entity == Output {
+        self.builders = [builder]
+        self.reader = builder.read
+    }
+    
+    func prepare() {
+        for builder in builders {
+            builder.prepare()
+        }
+    }
+    
+    func hashKey() -> HashKey {
+        ListHashKey(
+            separator: " ",
+            values: builders.map { builder in
+                builder.hashKey()
+            }
+        )
+    }
+    
+    func sql() -> SQLToken {
+        CompositeSQLToken(
+            separator: " ",
+            tokens: builders.map { builder in
+                builder.sql()
+            }
+        )
+    }
+
+    func bind() throws {
+        for builder in builders {
+            try builder.bind()
+        }
+    }
+    
+    func read() -> Output {
+        reader()
+    }
+}
+
+
+//struct SQLWriteStatements {
+//
+//    let builders: [SQLBuilder]
+//
+//    init(_ builders: SQLBuilder...) {
+//        self.init(builders)
+//    }
+//
+//    init(_ builders: [SQLBuilder]) {
+//        self.builders = builders
+//    }
+//
+//    func execute(connection: DatabaseConnection, cached: Bool) {
+//        for builder in builders {
+//            let statement = try connection.statement(
+//                cached: cached,
+//                query: builder
+//            )
+//            try statement.execute()
+//        }
+//    }
+//
+//}
+
+
+//struct SQLReadStatements<Output> {
+//
+//    let builders: [Select<Output>]
+//
+//    init(_ builders: Select<Output>...) {
+//        self.init(builders)
+//    }
+//    
+//    init(_ builders: [Select<Output>]) {
+//        self.builders = builders
+//    }
+//    
+//    func execute(connection: DatabaseConnection, cached: Bool) -> [Output] {
+//        var output = [Output]()
+//        for builder in builders {
+//            let statement = try connection.readStatement(
+//                cached: cached,
+//                query: builder
+//            )
+//            let results = try statement.execute()
+//            output.append(contentsOf: results)
+//        }
+//        return output
+//    }
+//}
+
+
+public final class SQLWriter {
     
     var fieldReferenceTokens: [SQLToken] {
         fieldReferenceIdentifiers.map { fieldIdentifier in
@@ -141,60 +200,93 @@ open class SQLWriter {
         }
     }
 
-    var preparedStatement: PreparedStatementContext?
+    private let row: SQLRowProtocol?
+    private let statement: PreparedStatementContext?
 
     private var tableCount = 0
+    private var referenceCount = 0
+    private var assignmentCount = 0
 
     private(set) var fieldReferenceHashKeys = [HashKey]()
     private(set) var fieldAssignmentHashKeys = [HashKey]()
     
     private var fieldReferenceIdentifiers = [SQLQualifiedFieldIdentifier]()
     private var fieldAssignmentIdentifiers = [SQLQualifiedFieldIdentifier]()
+    
+    init(row: SQLRowProtocol? = nil, statement: PreparedStatementContext? = nil) {
+        self.row = row
+        self.statement = statement
+    }
 
-    func addFieldReference(field: AnyField) {
+    private func addFieldReference(field: AnyField) {
         fieldReferenceHashKeys.append(field.hashKey)
         fieldReferenceIdentifiers.append(field.qualifiedName)
     }
 
-    func addFieldAssignment(field: AnyField) {
+    private func addFieldAssignment<Value>(field: AnyField, value: Value) where Value: SQLFieldValue {
         fieldAssignmentHashKeys.append(field.hashKey)
         fieldAssignmentIdentifiers.append(field.qualifiedName)
     }
 
-    func schema<T>(table: T.Type) -> T.Schema where T: Table {
+    func makeSchema<S, T>() -> S where S: TableSchemaOf<T>, T: Table {
         defer {
             tableCount += 1
         }
         let alias = SQLIdentifier(table: tableCount)
-        return T.Schema(name: T._name, alias: alias, context: self)
+        return S(name: T._name, alias: alias, context: self)
     }
-
     
-//    private var currentAlias: Int = 0
-//    private var currentFieldAlias: Int = 0
-//    private var variableCount: Int = 0
-
-//    func nextFieldAlias() -> SQLIdentifier {
-//        defer {
-//            currentFieldAlias += 1
-//        }
-//        return SQLIdentifier(stringLiteral: "f\(currentFieldAlias)")
+    func getValue<T>(field: Field<T>) -> T where T: SQLFieldValue {
+        defer {
+            referenceCount += 1
+        }
+        addFieldReference(field: field)
+        if let row = row {
+            return T.read(column: referenceCount, row: row)
+        }
+        else {
+            return T.defaultValue
+        }
+    }
+    
+    func setValue<T>(field: Field<T>, value: T) where T: SQLFieldValue {
+        defer {
+            assignmentCount += 1
+        }
+        addFieldAssignment(field: field, value: value)
+        if let statement = statement {
+            try! value.bind(context: statement)
+        }
+    }
+    
+//    subscript<T>(field: Field<T>) -> T where T : SQLFieldValue {
+//        addFieldReference(field: field)
+//        return T.defaultValue
 //    }
     
-//    func nextAlias() -> SQLIdentifier {
-//        defer {
-//            currentAlias += 1
+//    func readValue<Value>(column: Int, field: Field<Value>) -> Value where Value: SQLFieldValue {
+//        if let row = row {
+//            return Value.read(column: column, row: row)
 //        }
-//        return SQLIdentifier(stringLiteral: "t\(currentAlias)")
-//    }
-    
-//    func nextVariable() -> SQLVariable {
-//        defer {
-//            variableCount += 1
+//        else {
+//            addFieldReference(field: field)
+//            return Value.defaultValue
 //        }
-//        return SQLVariable(index: variableCount + 1)
 //    }
 }
+
+
+//class SQLReadContext<Output>: SQLWriter {
+//    
+//    typealias Reader = () -> Output
+//
+//    var reader: Reader!
+//    
+//    func read(row: SQLRowProtocol) -> Output {
+//        self.row = row
+//        return reader()
+//    }
+//}
 
 
 //protocol SQLRow {
@@ -291,18 +383,20 @@ func &&(lhs: SQLExpression, rhs: SQLExpression) -> SQLExpression {
 
 
 public class AnyLiteral: SQLExpression {
+
+    func prepare() {
+        
+    }
     
-    let hashKey: HashKey = SymbolHashKey.variable
+    func hashKey() -> HashKey {
+        SymbolHashKey.variable
+    }
 
     func sql() -> SQLToken {
-        return VariableSQLToken()
+        VariableSQLToken()
     }
     
-    func bind(statement: PreparedStatementContext) throws {
-        fatalError("not implemented")
-    }
-    
-    func setContext(_ context: SQLWriter) {
+    func bind() throws {
         fatalError("not implemented")
     }
 }
@@ -315,10 +409,10 @@ final public class Literal<T>: AnyLiteral where T: SQLFieldValue {
         self.value = value
     }
     
-    override func bind(statement: PreparedStatementContext) throws {
-        try value.bind(context: statement)
+    override func bind() throws {
+//        try value.bind()
     }
-    
+
     override func sql() -> SQLToken {
         VariableSQLToken()
     }
@@ -332,8 +426,12 @@ final class BinaryExpression: SQLExpression {
         case equal
         case and
         case or
+
+        func prepare() {
+            
+        }
         
-        var hashKey: HashKey {
+        func hashKey() -> HashKey {
             switch self {
             case .equal:
                 return SymbolHashKey.equality
@@ -354,19 +452,11 @@ final class BinaryExpression: SQLExpression {
                 return KeywordSQLToken(value: "OR")
             }
         }
-        
-        func bind(statement: PreparedStatementContext) throws {
+
+        func bind() throws {
 
         }
-        
-        func setContext(_ context: SQLWriter) {
-        
-        }
     }
-    
-    lazy var hashKey: HashKey = {
-        CompositeHashKey(lhs.hashKey, `operator`.hashKey, rhs.hashKey)
-    }()
     
     private lazy var lhs: SQLExpression = {
         lhsBuilder()
@@ -386,6 +476,18 @@ final class BinaryExpression: SQLExpression {
         self.rhsBuilder = rhs
     }
     
+    func prepare() {
+        
+    }
+
+    func hashKey() -> HashKey {
+        CompositeHashKey(
+            lhs.hashKey(),
+            `operator`.hashKey(),
+            rhs.hashKey()
+        )
+    }
+
     func sql() -> SQLToken {
         CompositeSQLToken(
             separator: " ",
@@ -397,17 +499,13 @@ final class BinaryExpression: SQLExpression {
         )
     }
     
-    func bind(statement: PreparedStatementContext) throws {
+    func bind() throws {
 
-    }
-    
-    func setContext(_ context: SQLWriter) {
-        
     }
 }
 
 
-#warning("TODO: Use strict typeing for aliases")
+#warning("TODO: Use strict typing for aliases")
 //struct TableAlias {
 //    let alias: Int
 //
@@ -435,28 +533,39 @@ public struct SQLIdentifier: Hashable, ExpressibleByStringLiteral {
 }
 
 
-struct SQLQualifiedFieldIdentifier: SQLExpression {
+struct SQLQualifiedFieldIdentifier: SQLExpression, Hashable {
     
-    let hashKey: HashKey
     let table: SQLIdentifier
     let field: SQLIdentifier
 
     init(table: SQLIdentifier, field: SQLIdentifier) {
         self.table = table
         self.field = field
-        self.hashKey = QualifiedIdentifierHashKey(table, field)
     }
     
+    func prepare() {
+        
+    }
+
+    func hashKey() -> HashKey {
+        QualifiedIdentifierHashKey(table, field)
+    }
+
     func sql() -> SQLToken {
         QualifiedIdentifierSQLToken(value: self)
     }
-    
-    func bind(statement: PreparedStatementContext) throws {
+
+    func bind() throws {
 
     }
     
-    func setContext(_ context: SQLWriter) {
-
+    func hash(into hasher: inout Hasher) {
+        table.hash(into: &hasher)
+        field.hash(into: &hasher)
+    }
+    
+    static func ==(lhs: SQLQualifiedFieldIdentifier, rhs: SQLQualifiedFieldIdentifier) -> Bool {
+        lhs.table == rhs.table && lhs.field == rhs.field
     }
 }
 

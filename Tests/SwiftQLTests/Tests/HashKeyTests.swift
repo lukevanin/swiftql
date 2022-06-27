@@ -9,7 +9,7 @@ import XCTest
 
 @testable import SwiftQL
 
-final class HashKeyTests: XCTestCase {
+//final class HashKeyTests: XCTestCase {
     
     /*
     struct Sample1 {
@@ -220,4 +220,4 @@ final class HashKeyTests: XCTestCase {
     // TODO: Order by
     */
     
-}
+//}

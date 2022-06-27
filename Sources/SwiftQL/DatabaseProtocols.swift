@@ -26,8 +26,10 @@ public protocol SQLRowProtocol {
 
 
 protocol SQLPreparedStatementProtocol {
+    typealias Bind = (SQLBindingProtocol) throws -> Void
+    typealias Read = (SQLRowProtocol) -> Void
     func sql() -> String
-    func execute(bind: (SQLBindingProtocol) throws -> Void, read: (SQLRowProtocol) -> Void) throws -> Void
+    func execute(bind: Bind?, read: Read?) throws -> Void
 }
 
 

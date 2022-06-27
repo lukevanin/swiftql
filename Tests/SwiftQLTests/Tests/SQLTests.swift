@@ -4,19 +4,18 @@ import XCTest
 
 final class SQLTests: BaseTestCase {
 
-    override func setUpWithError() throws {
-        try setupDatabase()
-    }
-    
-    override func tearDownWithError() throws {
-        teardownDatabase()
-    }
-    
+//    override func setUpWithError() throws {
+//        try setupDatabase()
+//    }
+//
+//    override func tearDownWithError() throws {
+//        teardownDatabase()
+//    }
+
     func testCreate() throws {
-        let subject = try Transaction {
-            Create(User.self)
-        }
-        let result = subject.sql()
+        let db = MyDatabase.Schema()
+        let subject = Create(db.users)
+        let result = subject.sql().string()
         print(result)
         XCTAssertEqual(
             result,
@@ -30,10 +29,9 @@ final class SQLTests: BaseTestCase {
     }
 
     func testInsert() throws {
-        let subject = try Transaction {
-            Insert(Sample(id: PrimaryKey(), value: 7))
-        }
-        let result = subject.sql()
+        let db = MyDatabase.Schema()
+        let subject = Insert(db.samples, Sample(id: PrimaryKey(), value: 7))
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "INSERT INTO `sample` " +
@@ -44,17 +42,16 @@ final class SQLTests: BaseTestCase {
 
     func testUpdate() throws {
         let key = PrimaryKey()
-        let subject = try Transaction {
-            Update(Sample.self) { sample in
-                Set {
-                    sample.value = 49
-                }
-                Where {
-                    sample.$id == key
-                }
+        let db = MyDatabase.Schema()
+        let subject = Update(db.samples) { sample in
+            Set {
+                sample.value = 49
+            }
+            Where {
+                sample.$id == key
             }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "UPDATE `sample` AS `t0` " +
@@ -64,12 +61,11 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectRow() throws {
-        let subject = try Transaction {
-            From(Sample.self) { sample in
-                Select<Sample>(sample)
-            }
+        let database = MyDatabase.Schema()
+        let subject = From(database.samples) { sample in
+            Select<Sample>(sample)
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id`, `t0`.`value` " +
@@ -78,12 +74,11 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectField() throws {
-        let subject = try Transaction {
-            From(Sample.self) { sample in
-                Select { sample.id }
-            }
+        let database = MyDatabase.Schema()
+        let subject = From(database.samples) { sample in
+            Select { sample.id }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
@@ -92,50 +87,46 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectWhereBooleanLiteral() throws {
-        let subject = try Transaction {
-            From(Place.self) { t0 in
-                Select { t0.id }
-                Where { t0.$verified == true }
-            }
+        let database = MyDatabase.Schema()
+        let subject = From(database.samples) { t0 in
+            Select { t0.id }
+            Where { t0.$value == 49 }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
-            "FROM `place` AS `t0` " +
-            "WHERE `t0`.`verified` = ?"
+            "FROM `sample` AS `t0` " +
+            "WHERE `t0`.`value` = ?"
         )
     }
 
     func testSelectWhereString() throws {
-        let subject = try Transaction {
-            From(Place.self) { t0 in
-                Select { t0.id }
-                Where { t0.$name == "Spain" }
-            }
+        let db = MyDatabase.Schema()
+        let subject = From(db.places) { t0 in
+            Select { t0.id }
+            Where { t0.$name == "Spain" }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
             "FROM `place` AS `t0` " +
             "WHERE `t0`.`name` = ?"
         )
-
     }
 
     func testSelectComplexWhere() throws {
-        let subject = try Transaction {
-            From(Place.self) { t0 in
-                Select {
-                    t0.id
-                }
-                Where {
-                    (t0.$verified == true) && (t0.$name == "Spain")
-                }
+        let db = MyDatabase.Schema()
+        let subject = From(db.places) { t0 in
+            Select {
+                t0.id
+            }
+            Where {
+                (t0.$verified == true) && (t0.$name == "Spain")
             }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
@@ -145,17 +136,16 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectOrderBy() throws {
-        let subject = try Transaction {
-            From(User.self) { t0 in
-                Select {
-                    t0.id
-                }
-                OrderBy {
-                    t0.$username.ascending
-                }
+        let db = MyDatabase.Schema()
+        let subject = From(db.users) { t0 in
+            Select {
+                t0.id
+            }
+            OrderBy {
+                t0.$username.ascending
             }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
@@ -165,18 +155,17 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectOrderByTerms() throws {
-        let subject = try Transaction {
-            From(User.self) { t0 in
-                Select {
-                    t0.id
-                }
-                OrderBy {
-                    t0.$active.descending
-                    t0.$username.ascending
-                }
+        let db = MyDatabase.Schema()
+        let subject = From(db.users) { t0 in
+            Select {
+                t0.id
+            }
+            OrderBy {
+                t0.$active.descending
+                t0.$username.ascending
             }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
@@ -188,20 +177,19 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectWhereOrderBy() throws {
-        let subject = try Transaction {
-            From(Photo.self) { t0 in
-                Select {
-                    t0.id
-                }
-                Where {
-                    t0.$published == true
-                }
-                OrderBy {
-                    t0.$imageURL.ascending
-                }
+        let db = MyDatabase.Schema()
+        let subject = From(db.photos) { t0 in
+            Select {
+                t0.id
+            }
+            Where {
+                t0.$published == true
+            }
+            OrderBy {
+                t0.$imageURL.ascending
             }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
@@ -212,16 +200,15 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectJoin() throws {
-        let subject = try Transaction {
-            From(Photo.self) { t0 in
-                Join(User.self, on: t0.$userId) { t1 in
-                    Select {
-                        (t0.id, t1.id)
-                    }
+        let db = MyDatabase.Schema()
+        let subject = From(db.photos) { t0 in
+            Join(db.users, on: t0.$userId) { t1 in
+                Select {
+                    (t0.id, t1.id)
                 }
             }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id`, `t1`.`id` " +
@@ -231,18 +218,17 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectTwoJoins() throws {
-        let subject = try Transaction {
-            From(Photo.self) { t0 in
-                Join(User.self, on: t0.$userId) { t1 in
-                    Join(Place.self, on: t0.$placeId) { t2 in
-                        Select() {
-                            (t0.id, t1.id, t2.id)
-                        }
+        let db = MyDatabase.Schema()
+        let subject = From(db.photos) { t0 in
+            Join(db.users, on: t0.$userId) { t1 in
+                Join(db.places, on: t0.$placeId) { t2 in
+                    Select() {
+                        (t0.id, t1.id, t2.id)
                     }
                 }
             }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id`, `t1`.`id`, `t2`.`id` " +
@@ -253,20 +239,19 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectJoinMultiple() throws {
-        let subject = try Transaction {
-            From(Photo.self) { t0 in
-                Join(User.self, on: t0.$userId) { t1 in
-                    Join(Place.self, on: t1.$placeId) { t2 in
-                        Join(Place.self, on: t0.$placeId) { t3 in
-                            Select {
-                                (t0.id, t1.id, t2.id, t3.id)
-                            }
+        let db = MyDatabase.Schema()
+        let subject = From(db.photos) { t0 in
+            Join(db.users, on: t0.$userId) { t1 in
+                Join(db.places, on: t1.$placeId) { t2 in
+                    Join(db.places, on: t0.$placeId) { t3 in
+                        Select {
+                            (t0.id, t1.id, t2.id, t3.id)
                         }
                     }
                 }
             }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT " +
@@ -277,21 +262,20 @@ final class SQLTests: BaseTestCase {
             "JOIN `place` AS `t3` ON `t3`.`id` = `t0`.`place_id`"
         )
     }
-    
+
     func testSelectJoinWhere() throws {
-        let subject = try Transaction {
-            From(Photo.self) { t0 in
-                Join(User.self, on: t0.$userId) { t1 in
-                    Select {
-                        t0.id
-                    }
-                    Where {
-                        t1.$active == true
-                    }
+        let db = MyDatabase.Schema()
+        let subject = From(db.photos) { t0 in
+            Join(db.users, on: t0.$userId) { t1 in
+                Select {
+                    t0.id
+                }
+                Where {
+                    t1.$active == true
                 }
             }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
@@ -302,19 +286,18 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectJoinOrderBy() throws {
-        let subject = try Transaction {
-            From(Photo.self) { t0 in
-                Join(User.self, on: t0.$userId) { t1 in
-                    Select {
-                        t1.username
-                    }
-                    OrderBy {
-                        t0.$imageURL.ascending
-                    }
+        let db = MyDatabase.Schema()
+        let subject = From(db.photos) { t0 in
+            Join(db.users, on: t0.$userId) { t1 in
+                Select {
+                    t1.username
+                }
+                OrderBy {
+                    t0.$imageURL.ascending
                 }
             }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t1`.`username` " +
@@ -324,22 +307,20 @@ final class SQLTests: BaseTestCase {
         )
     }
 
-
     func testSelectJoinOrderByTerms() throws {
-        let subject = try Transaction {
-            From(Photo.self) { t0 in
-                Join(User.self, on: t0.$userId) { t1 in
-                    Select {
-                        t0.id
-                    }
-                    OrderBy {
-                        t0.$id.ascending
-                        t1.$username.descending
-                    }
+        let db = MyDatabase.Schema()
+        let subject =  From(db.photos) { t0 in
+            Join(db.users, on: t0.$userId) { t1 in
+                Select {
+                    t0.id
+                }
+                OrderBy {
+                    t0.$id.ascending
+                    t1.$username.descending
                 }
             }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
@@ -352,22 +333,21 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectJoinWhereOrderBy() throws {
-        let subject = try Transaction {
-            From(Photo.self) { t0 in
-                Join(User.self, on: t0.$userId) { t1 in
-                    Select {
-                        t0.id
-                    }
-                    Where {
-                        t1.$active == true
-                    }
-                    OrderBy {
-                        t0.$imageURL.ascending
-                    }
+        let db = MyDatabase.Schema()
+        let subject = From(db.photos) { t0 in
+            Join(db.users, on: t0.$userId) { t1 in
+                Select {
+                    t0.id
+                }
+                Where {
+                    t1.$active == true
+                }
+                OrderBy {
+                    t0.$imageURL.ascending
                 }
             }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +
@@ -379,15 +359,14 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectJoinCompoundWhere() throws {
-        let subject = try Transaction {
-            From(Photo.self) { t0 in
-                Join(User.self, on: t0.$userId) { t1 in
-                    Select { t0.id }
-                    Where { t1.$active == true && t0.$published == true }
-                }
+        let db = MyDatabase.Schema()
+        let subject = From(db.photos) { t0 in
+            Join(db.users, on: t0.$userId) { t1 in
+                Select { t0.id }
+                Where { t1.$active == true && t0.$published == true }
             }
         }
-        let result = subject.sql()
+        let result = subject.sql().string()
         XCTAssertEqual(
             result,
             "SELECT `t0`.`id` " +

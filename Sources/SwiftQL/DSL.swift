@@ -1,43 +1,29 @@
 import Foundation
 
 
-class KeywordBuilder {
+struct From<Output, T>: SQLBuilder, SQLReader where T: Table {
     
-    fileprivate var context: SQLWriter!
+    typealias Builder<S> = (S) -> AnySQLBuilder<Output>
+    
+    private let schema: TableSchema
+    private let subquery: AnySQLBuilder<Output>
 
-    func setContext(_ context: SQLWriter) {
-        self.context = context
+    init<S>(_ schema: S, @SelectQueryBuilder _ builder: Builder<S>) where S: TableSchemaOf<T> {
+        self.schema = schema
+        self.subquery = builder(schema)
     }
-}
-
-
-class TableKeywordBuilder<T>: KeywordBuilder where T: Table {
     
-    fileprivate lazy var schema: T.Schema = context.schema(table: T.self)
-}
-
-
-final class From<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table {
-    
-    typealias Builder = (T.Schema) -> AnySQLBuilder<R>
-    
-    lazy var hashKey: HashKey = CompositeHashKey(
-        SymbolHashKey.from,
-        IdentifierHashKey(T._name),
-        ListHashKey(
-            separator: ",",
-            values: context.fieldReferenceHashKeys
+    func hashKey() -> HashKey {
+        CompositeHashKey(
+            SymbolHashKey.from,
+            IdentifierHashKey(T._name)
         )
-    )
-    
-    private lazy var subquery: AnySQLBuilder<R> = builder(schema)
-    
-    private let builder: Builder
-
-    init(_ table: T.Type, @SelectQueryBuilder _ builder: @escaping Builder){
-        self.builder = builder
     }
     
+    func prepare() {
+        subquery.prepare()
+    }
+
     func sql() -> SQLToken {
         CompositeSQLToken(
             separator: " ",
@@ -45,51 +31,52 @@ final class From<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table 
                 KeywordSQLToken(value: "SELECT"),
                 CompositeSQLToken(
                     separator: ", ",
-                    tokens: context.fieldReferenceTokens
+                    tokens: schema._context.fieldReferenceTokens
                 ),
                 KeywordSQLToken(value: "FROM"),
-                IdentifierSQLToken(value: schema._name),
+                IdentifierSQLToken(value: T._name),
                 KeywordSQLToken(value: "AS"),
                 IdentifierSQLToken(value: schema._alias),
                 subquery.sql()
             ]
         )
     }
-    
-    func bind(statement: PreparedStatementContext) throws {
-        try subquery.bind(statement: statement)
+
+    func bind() throws {
+        try subquery.bind()
     }
     
-    func read(row: SQLRowProtocol) -> R {
-        subquery.read(row: row)
-    }
-    
-    override func setContext(_ context: SQLWriter) {
-        super.setContext(context)
-        subquery.setContext(context)
+    func read() -> Output {
+        subquery.read()
     }
 }
 
 
-final class Join<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table {
+struct Join<R, T>: SQLBuilder, SQLReader where T: Table {
     
-    typealias Builder = (T.Schema) -> AnySQLBuilder<R>
-    
-    lazy var hashKey: HashKey = CompositeHashKey(
-        SymbolHashKey.join,
-        IdentifierHashKey(schema._name),
-        IdentifierHashKey(schema._alias),
-        foreignKey.hashKey
-    )
+    typealias Builder<S> = (S) -> AnySQLBuilder<R>
 
-    private lazy var subquery: AnySQLBuilder<R> = builder(schema)
-
+    private let schema: TableSchema
     private let foreignKey: SQLQualifiedFieldIdentifier
-    private let builder: Builder
+    private let subquery: AnySQLBuilder<R>
     
-    init<S>(_ table: T.Type, on constraint: Field<ForeignKey<S>>, @SelectQueryBuilder builder: @escaping Builder) where S: Table {
+    init<S, F>(_ schema: S, on constraint: Field<ForeignKey<F>>, @SelectQueryBuilder builder: @escaping Builder<S>) where S: TableSchemaOf<T>, F: Table {
+        self.schema = schema
         self.foreignKey = constraint.qualifiedName
-        self.builder = builder
+        self.subquery = builder(schema)
+    }
+
+    func prepare() {
+        subquery.prepare()
+    }
+    
+    func hashKey() -> HashKey {
+        CompositeHashKey(
+            SymbolHashKey.join,
+            IdentifierHashKey(T._name),
+            IdentifierHashKey(schema._alias),
+            foreignKey.hashKey()
+        )
     }
     
     func sql() -> SQLToken {
@@ -109,32 +96,33 @@ final class Join<R, T>: TableKeywordBuilder<T>, SQLReadStatement where T: Table 
         )
     }
     
-    func bind(statement: PreparedStatementContext) throws {
-        try subquery.bind(statement: statement)
+    func bind() throws {
+        try subquery.bind()
     }
     
-    func read(row: SQLRowProtocol) -> R {
-        subquery.read(row: row)
-    }
-    
-    override func setContext(_ context: SQLWriter) {
-        super.setContext(context)
-        subquery.setContext(context)
+    func read() -> R {
+        subquery.read()
     }
 }
 
 
-final class Where: SQLStatement {
-    
-    lazy var hashKey: HashKey = CompositeHashKey(
-        SymbolHashKey.where,
-        self.expression.hashKey
-    )
+struct Where: SQLStatement {
     
     private let expression: SQLExpression
 
     init(_ expression: () -> SQLExpression) {
         self.expression = expression()
+    }
+    
+    func prepare() {
+        
+    }
+    
+    func hashKey() -> HashKey {
+        CompositeHashKey(
+            SymbolHashKey.where,
+            self.expression.hashKey()
+        )
     }
 
     func sql() -> SQLToken {
@@ -147,12 +135,8 @@ final class Where: SQLStatement {
         )
     }
     
-    func bind(statement: PreparedStatementContext) throws {
-        try expression.bind(statement: statement)
-    }
-    
-    func setContext(_ context: SQLWriter) {
-        expression.setContext(context)
+    func bind() throws {
+        try expression.bind()
     }
 }
 
@@ -164,7 +148,11 @@ enum SQLOrder {
 
 extension SQLOrder: SQLExpression {
     
-    var hashKey: HashKey {
+    func prepare() {
+        
+    }
+    
+    func hashKey() -> HashKey {
         switch self {
         case .ascending:
             return SymbolHashKey.ascending
@@ -182,27 +170,29 @@ extension SQLOrder: SQLExpression {
         }
     }
     
-    func bind(statement: PreparedStatementContext) throws {
+    func bind() throws {
 
-    }
-    
-    func setContext(_ context: SQLWriter) {
-        
     }
 }
 
 
-final class OrderBy: SQLStatement {
-    
-    lazy var hashKey: HashKey = CompositeHashKey(
-        SymbolHashKey.orderBy,
-        builder.hashKey
-    )
+struct OrderBy: SQLStatement {
     
     private let builder: SQLBuilder
     
     init(@OrderByQueryBuilder _ builder: () -> SQLBuilder) {
         self.builder = builder()
+    }
+    
+    func prepare() {
+        
+    }
+    
+    func hashKey() -> HashKey {
+        CompositeHashKey(
+            SymbolHashKey.orderBy,
+            builder.hashKey()
+        )
     }
     
     func sql() -> SQLToken {
@@ -216,83 +206,83 @@ final class OrderBy: SQLStatement {
         )
     }
     
-    func bind(statement: PreparedStatementContext) throws {
-        try builder.bind(statement: statement)
-    }
-    
-    func setContext(_ context: SQLWriter) {
-        builder.setContext(context)
+    func bind() throws {
+        try builder.bind()
     }
 }
 
 
-final class Select<R>: SQLBuilder, SQLReader {
+public protocol RowProtocol {
+    subscript<T>(field: Field<T>) -> T { get }
+}
+
+
+struct Select<R>: SQLBuilder, SQLReader {
     
     typealias Map = () -> R
 
-    lazy var hashKey: HashKey = {
-        CompositeHashKey(SymbolHashKey.select)
-    }()
-    
     private let map: Map
 
     init(_ map: @escaping Map) {
         // Hash key of the contents of the map is stored in the SQL writer
         self.map = map
+        _ = map()
     }
     
+    func prepare() {
+        
+    }
+
+    func hashKey() -> HashKey {
+        SymbolHashKey.select
+    }
+
     func sql() -> SQLToken {
         NilSQLToken()
-//        CompositeSQLToken(
-//            separator: " ",
-//            tokens: [
-//                KeywordSQLToken(value: "SELECT"),
-//                CompositeSQLToken(
-//                    separator: ",",
-//                    tokens: context.fieldReferenceTokens
-//                )
-//            ]
-//        )
     }
     
-    func bind(statement: PreparedStatementContext) throws {
+    func bind() throws {
         // TODO: Support computed column values
     }
     
-    func read(row: SQLRowProtocol) -> R {
-        map()
-    }
-    
-    func setContext(_ context: SQLWriter) {
+    func read() -> R {
         map()
     }
 }
 
 extension Select where R: Table, R.Schema: TableSchemaOf<R> {
-    convenience init(_ table: R.Schema) {
-        self.init { R(table) }
+    init(_ schema: R.Schema) {
+        self.init {
+            R(schema: schema)
+        }
     }
 }
 
 
-final class Create<T>: TableKeywordBuilder<T>, SQLStatement where T: Table {
-    
-    lazy var  hashKey: HashKey = CompositeHashKey(
-        SymbolHashKey.create,
-        IdentifierHashKey(schema._name),
-        schema.hashKey,
-        ListHashKey(
-            separator: ",",
-            values: schema._allFields.map { tableField in
-                tableField.hashKey
-            }
-        )
-    )
-    
-    // TODO: Pass closure to map entity variables to schema fields
-    
-    init(_ table: T.Type) {
+struct Create<T>: SQLWriteStatement where T: Table {
         
+    // TODO: Pass closure to map entity variables to schema fields
+    private var schema: TableSchema
+    
+    init<S>(_ schema: S) where S: TableSchemaOf<T> {
+        self.schema = schema
+    }
+    
+    func prepare() {
+        
+    }
+
+    func hashKey() -> HashKey {
+        CompositeHashKey(
+            SymbolHashKey.create,
+            IdentifierHashKey(T._name),
+            ListHashKey(
+                separator: ",",
+                values: schema._allFields.map { tableField in
+                    tableField.hashKey
+                }
+            )
+        )
     }
 
     func sql() -> SQLToken {
@@ -317,42 +307,33 @@ final class Create<T>: TableKeywordBuilder<T>, SQLStatement where T: Table {
         )
     }
     
-    func bind(statement: PreparedStatementContext) throws {
+    func bind() throws {
         // TODO: Support computed column values and default values
     }
 }
 
 
-final class Insert<T>: TableKeywordBuilder<T>, SQLStatement where T: Table {
+struct Insert<T>: SQLWriteStatement where T: Table {
     
     #warning("TODO: Split into separate INSERT/INTO/VALUES keywords")
     
-    lazy var hashKey: HashKey = CompositeHashKey(
-        SymbolHashKey.insert,
-        IdentifierHashKey(schema._name)
-//        ListHashKey(
-//            separator: ",",
-//            values: schema._allFields.map { field in
-//                field.hashKey // TODO: Pre-compute field hash keys
-//            }
-//        )
-    )
-    
-//    private let name: SQLIdentifier
-//    private let fields: [SQLIdentifier]
-//    private let values: [SQLBuilder]
+    private let schema: T.Schema
     private let entity: T
     
-    init(_ entity: @autoclosure () -> T) {
-//        let fields = schema._allFields
-//        let fieldNames = fields.map { field in
-//            field.name
-//        }
-//        let fieldValues = fields.map { $0 }
-//        self.name = schema._name
-//        self.fields = fieldNames
-//        self.values = entity()._values()
+    init(_ schema: T.Schema, _ entity: @autoclosure () -> T) {
+        self.schema = schema
         self.entity = entity()
+    }
+    
+    func prepare() {
+        
+    }
+
+    func hashKey() -> HashKey {
+        CompositeHashKey(
+            SymbolHashKey.insert,
+            IdentifierHashKey(T._name)
+        )
     }
 
     func sql() -> SQLToken {
@@ -382,120 +363,57 @@ final class Insert<T>: TableKeywordBuilder<T>, SQLStatement where T: Table {
             ]
         )
     }
-    
-    func bind(statement: PreparedStatementContext) throws {
-        #warning("TODO: Bind entity values")
-//        try values.forEach { value in
-//            try value.bind(context: context, statement: statement)
+
+    func bind() throws {
+//        #warning("TODO: Bind entity values")
+//        try entity._values().forEach { value in
+//            try value.bind(statement: statement)
 //        }
     }
 }
 
 
-final class Update<T>: TableKeywordBuilder<T>, SQLStatement where T: Table {
+struct Update<T>: SQLBuilder where T: Table {
     
-    typealias Builder = (T.Schema) -> SQLBuilder
+    typealias Builder<S> = (S) -> SQLBuilder
     
-    lazy var hashKey: HashKey = CompositeHashKey(
-        SymbolHashKey.update,
-        IdentifierHashKey(schema._name),
-        ListHashKey(
-            separator: ",",
-            values: context.fieldAssignmentHashKeys
-        )
-    )
+    private let schema: TableSchema
+    private let subquery: SQLBuilder
     
-    private lazy var subquery: SQLBuilder = {
-        builder(schema)
-    }()
-    
-    private let builder: Builder
-    
-    init(_ t: T.Type, @UpdateQueryBuilder _ builder: @escaping Builder) {
-        self.builder = builder
+    init<S>(_ schema: S, @UpdateQueryBuilder _ builder: @escaping Builder<S>) where S: TableSchemaOf<T> {
+        #warning("TODO: Return UpdateBuilder")
+        self.schema = schema
+        self.subquery = builder(schema)
     }
     
+    func prepare() {
+        
+    }
+
+    func hashKey() -> HashKey {
+        CompositeHashKey(
+            SymbolHashKey.update,
+            IdentifierHashKey(T._name),
+//            ListHashKey(
+//                separator: ",",
+//                values: context.fieldAssignmentHashKeys
+//            )
+            subquery.hashKey()
+        )
+    }
+
     func sql() -> SQLToken {
         CompositeSQLToken(
             separator: " ",
             tokens: [
                 KeywordSQLToken(value: "UPDATE"),
-                IdentifierSQLToken(value: schema._name),
+                IdentifierSQLToken(value: T._name),
                 KeywordSQLToken(value: "AS"),
                 IdentifierSQLToken(value: schema._alias),
-                subquery.sql()
-            ]
-        )
-    }
-    
-    func bind(statement: PreparedStatementContext) throws {
-        try subquery.bind(statement: statement)
-    }
-    
-    override func setContext(_ context: SQLWriter) {
-        super.setContext(context)
-        subquery.setContext(context)
-    }
-}
-
-
-final class Set: KeywordBuilder, SQLStatement {
-    
-    lazy var hashKey: HashKey = SymbolHashKey.set
-    
-//    private let field: SQLQualifiedFieldIdentifier
-//    private let value: SQLExpression
-    
-    // TODO: Spport computed expressions
-
-    // TODO: Support date, url
-
-//    convenience init(_ field: FieldReference<T, Bool>, _ value: Bool) {
-//        self.init(field: field, value: BooleanLiteral(value))
-//    }
-//
-//    convenience init(_ field: FieldReference<T, Int>, _ value: Int) {
-//        self.init(field: field, value: IntegerLiteral(Int(value)))
-//    }
-//
-//    convenience init(_ field: FieldReference<T, Double>, _ value: Double) {
-//        self.init(field: field, value: FloatingPointLiteral(value))
-//    }
-//
-//    convenience init(_ field: FieldReference<T, String>, _ value: String) {
-//        self.init(field: field, value: StringLiteral(value))
-//    }
-//
-//    convenience init(_ field: FieldReference<T, Data>, _ value: Data) {
-//        self.init(field: field, value: DataLiteral(value))
-//    }
-
-//    convenience init<V>(_ field: FieldReference<T, V>, _ value: V) where V: SQLFieldValue {
-//        self.init(field: field, value: Literal(value))
-//    }
-
-//    private init<Kind>(field: FieldReference<T, Kind>, value: SQLExpression) where Kind: SQLFieldValue {
-//        self.field = field.qualifiedName
-//        self.value = value
-//        self.hashKey = CompositeHashKey(
-//            QualifiedIdentifierHashKey(field.qualifiedName),
-//            SymbolHashKey.equality,
-//            value.hashKey
-//        )
-//    }
-    
-    init(_ setter: () -> Void) {
-        setter()
-    }
-    
-    func sql() -> SQLToken {
-        CompositeSQLToken(
-            separator: " ",
-            tokens: [
                 KeywordSQLToken(value: "SET"),
                 CompositeSQLToken(
                     separator: ", ",
-                    tokens: context.fieldAssignmentTokens.map { token in
+                    tokens: schema._context.fieldAssignmentTokens.map { token in
                         CompositeSQLToken(
                             separator: " ",
                             tokens: [
@@ -505,107 +423,38 @@ final class Set: KeywordBuilder, SQLStatement {
                             ]
                         )
                     }
-                )
+                ),
+                subquery.sql()
             ]
         )
-
-//        CompositeSQLToken(
-//            separator: " ",
-//            tokens: [
-//                QualifiedIdentifierSQLToken(value: field),
-//                KeywordSQLToken(value: "="),
-//                value.sql(context: context)
-//            ]
-//        )
     }
     
-    func bind(statement: PreparedStatementContext) throws {
-//        try value.bind(context: context)
+    func bind() throws {
+        try subquery.bind()
     }
 }
 
 
-@resultBuilder class TransactionQueryBuilder {
+struct Set: SQLStatement {
     
-    static func buildBlock<T>(_ c: Create<T>) -> AnySQLBuilder<Void> where T: Table {
-        AnySQLBuilder(c)
+    init(_ setter: () -> Void) {
+        setter()
     }
     
-    static func buildBlock<T>(_ i: Insert<T>) -> AnySQLBuilder<Void> where T: Table {
-        AnySQLBuilder(i)
-    }
-    
-    static func buildBlock<T>(_ u: Update<T>) -> AnySQLBuilder<Void> where T: Table {
-        AnySQLBuilder(u)
+    func prepare() {
+        
     }
 
-    static func buildBlock<R, T>(_ f: From<R, T>) -> AnySQLBuilder<R> where T: Table {
-        AnySQLBuilder(f)
+    func hashKey() -> HashKey {
+        SymbolHashKey.set
     }
-
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ j: Join) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, j)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ j0: Join, _ j1: Join) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, j0, j1)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ j0: Join, _ j1: Join, _ j2: Join) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, j0, j1, j2)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ w: Where) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, w)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ j: Join, _ w: Where) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, j, w)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ j0: Join, _ j1: Join, _ w: Where) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, j0, j1, w)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ j0: Join, _ j1: Join, _ j2: Join, _ w: Where) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, j0, j1, j2, w)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ o: OrderBy) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, o)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ j: Join, _ o: OrderBy) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, j, o)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ j0: Join, _ j1: Join, _ o: OrderBy) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, j0, j1, o)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ j0: Join, _ j1: Join, _ j2: Join, _ o: OrderBy) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, j0, j1, j2, o)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ w: Where, _ o: OrderBy) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, w, o)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ j: Join, _ w: Where, _ o: OrderBy) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, j, w, o)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ j0: Join, _ j1: Join, _ w: Where, _ o: OrderBy) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, j0, j1, w, o)
-//    }
-//
-//    static func buildBlock<Row>(_ s: Select<Row>, _ f: From, _ j0: Join, _ j1: Join, _ j2: Join, _ w: Where, _ o: OrderBy) -> AnySQLBuilder<Row> {
-//        AnySQLBuilder(s, f, j0, j1, j2, w, o)
-//    }
+    
+    func sql() -> SQLToken {
+        NilSQLToken()
+    }
+    
+    func bind() throws {
+    }
 }
 
 
@@ -618,7 +467,7 @@ final class Set: KeywordBuilder, SQLStatement {
     
     static func buildBlock(_ s: Set, _ w: Where) -> SQLBuilder {
 //        SQLSequenceBuilder(separator: ", ", s)
-        SQLSequenceBuilder(s, w)
+        AnySQLBuilder<Void>(s, w)
     }
 }
 
@@ -630,19 +479,19 @@ final class Set: KeywordBuilder, SQLStatement {
     }
         
     static func buildBlock<R>(_ s: Select<R>) -> AnySQLBuilder<R> {
-        AnySQLBuilder(s)
+        AnySQLBuilder(select: s)
     }
     
     static func buildBlock<R>(_ s: Select<R>, _ w: Where) -> AnySQLBuilder<R> {
-        AnySQLBuilder(s, w)
+        AnySQLBuilder(select: s, w)
     }
     
     static func buildBlock<R>(_ s: Select<R>, _ o: OrderBy) -> AnySQLBuilder<R> {
-        AnySQLBuilder(s, o)
+        AnySQLBuilder(select: s, o)
     }
     
     static func buildBlock<R>(_ s: Select<R>, _ w: Where, _ o: OrderBy) -> AnySQLBuilder<R> {
-        AnySQLBuilder(s, w, o)
+        AnySQLBuilder(select: s, w, o)
     }
 }
 
@@ -650,7 +499,7 @@ final class Set: KeywordBuilder, SQLStatement {
 @resultBuilder class OrderByQueryBuilder {
     
     static func buildBlock(_ terms: FieldOrder...) -> SQLBuilder {
-        SQLSequenceBuilder(separator: ", ", terms)
+        SQLSequenceBuilder(separator: ", ", builders: terms)
     }
 }
 

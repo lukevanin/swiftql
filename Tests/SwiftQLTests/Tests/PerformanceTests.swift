@@ -9,7 +9,7 @@ import XCTest
 
 @testable import SwiftQL
 
-final class PerformanceTests: BaseTestCase {
+//final class PerformanceTests: BaseTestCase {
     
     /*
     func testInsertUncached() {
@@ -110,4 +110,4 @@ final class PerformanceTests: BaseTestCase {
         wait(for: [e], timeout: timeout)
     }
      */
-}
+//}

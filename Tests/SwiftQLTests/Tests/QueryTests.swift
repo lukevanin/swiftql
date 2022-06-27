@@ -4,7 +4,6 @@ import XCTest
 
 final class ExecuteTests: BaseTestCase {
 
-    /*
     override func setUpWithError() throws {
         try setupDatabase()
     }
@@ -13,20 +12,29 @@ final class ExecuteTests: BaseTestCase {
         teardownDatabase()
     }
     
-    func testInsertOneThenSelectUncached() throws {
+    func testInsertOneThenSelectUncached() async throws {
+        let connection = DatabaseConnection<MyDatabase>()
         let expectedSample = Sample(id: PrimaryKey(), value: 7)
-        try database.execute(cached: false) { db in
-            let sample = db.samples()
-            Insert(sample, values: expectedSample)
+        let t0 = WriteTransaction<MyDatabase> {
+            StatementBuilder<MyDatabase, Void> { db in
+                Create(db.samples)
+            }
+            StatementBuilder<MyDatabase, Void> { db in
+                Insert(db.samples, expectedSample)
+            }
         }
-        let result = try database.execute(cached: false) { db in
-            let sample = db.samples()
-            Select(sample)
-            From(sample)
+        let t1 = ReadTransaction<MyDatabase, Sample> { db in
+            From(db.samples) { t0 in
+                Select<Sample>(t0)
+            }
         }
+        try await connection.execute(transaction: t0)
+        let result = try await connection.execute(transaction: t1)
         XCTAssertEqual(result, [expectedSample])
     }
-    
+
+    /*
+
     func testInsertTwoThenSelectUncached() throws {
         let expectedSample0 = Sample(id: PrimaryKey(), value: 7)
         let expectedSample1 = Sample(id: PrimaryKey(), value: 3)

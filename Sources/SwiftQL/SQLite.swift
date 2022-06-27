@@ -143,7 +143,7 @@ enum SQLite {
             }
         }
         
-        func execute(bind: (SQLBindingProtocol) throws -> Void, read: (SQLRowProtocol) -> Void) throws -> Void {
+        func execute(bind: ((SQLBindingProtocol) throws -> Void)?, read: ((SQLRowProtocol) -> Void)?) throws -> Void {
             defer {
                 try! connection.perform {
                     sqlite3_reset(handle)
@@ -154,15 +154,19 @@ enum SQLite {
                 try connection.perform {
                     sqlite3_clear_bindings(handle)
                 }
-                try bind(self)
-                while true {
-                    let result = try connection.perform() {
-                        sqlite3_step(handle)
+                if let bind = bind {
+                    try bind(self)
+                }
+                if let read = read {
+                    while true {
+                        let result = try connection.perform() {
+                            sqlite3_step(handle)
+                        }
+                        if result != .row {
+                            break
+                        }
+                        read(row)
                     }
-                    if result != .row {
-                        break
-                    }
-                    read(row)
                 }
             }
             catch {

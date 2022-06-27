@@ -6,7 +6,7 @@ import Combine
 private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "swiftql")
 
 
-class ObservableStatement<T>: Publisher {
+class ObservableStatement<D, T>: Publisher where D: DatabaseProtocol {
     typealias Failure = Error
     
     typealias Output = Result<[T], Error>
@@ -14,11 +14,11 @@ class ObservableStatement<T>: Publisher {
     // TODO: Raise error when database connection is closed
     
     private var eventCancellable: AnyCancellable?
-    private let statement: PreparedSQL<T>
+    private let statement: PreparedReadSQL<D, T>
     private let provider: SQLProviderProtocol
     private let subject: CurrentValueSubject<Output, Failure>
     
-    init(statement: PreparedSQL<T>, provider: SQLProviderProtocol) {
+    init(statement: PreparedReadSQL<D, T>, provider: SQLProviderProtocol) {
         logger.debug("observable statement > init > start")
         self.statement = statement
         self.provider = provider

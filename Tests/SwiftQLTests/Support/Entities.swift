@@ -19,22 +19,13 @@ struct User: Table {
 }
 
 extension User {
-//    static let schema = TableSchema<User>(
-//        fields: [
-//            FieldSchema(name: .id, keyPath: \.id),
-//            FieldSchema(name: .placeId, keyPath: \.placeId),
-//            FieldSchema(name: .username, keyPath: \.username),
-//            FieldSchema(name: .active, keyPath: \.active),
-//        ]
-//    )
-    
     final class Schema: TableSchemaOf<User> {
         @Field(name: "place_id") var placeId: ForeignKey<Place> = .defaultValue
         @Field(name: "username") var username: String = .defaultValue
         @Field(name: "active") var active: Bool = .defaultValue
     }
     
-    init(_ schema: Schema) {
+    init(schema: Schema) {
         self = User(
             id: schema.id,
             placeId: schema.placeId,
@@ -63,16 +54,6 @@ struct Photo: Table {
 }
 
 extension Photo {
-//    static let schema = TableSchema<User>(
-//        fields: [
-//            FieldSchema(name: .id, keyPath: \.id),
-//            FieldSchema(name: .userId, keyPath: \.userId),
-//            FieldSchema(name: .placeId, keyPath: \.placeId),
-//            FieldSchema(name: .imageURL, keyPath: \.imageURL),
-//            FieldSchema(name: .published, keyPath: \.published),
-//        ]
-//    )
-    
     final class Schema: TableSchemaOf<Photo> {
         @Field(name: "user_id") var userId: ForeignKey<User> = .defaultValue
         @Field(name: "place_id") var placeId: ForeignKey<Place> = .defaultValue
@@ -80,7 +61,7 @@ extension Photo {
         @Field(name: "published") var published: Bool = .defaultValue
     }
     
-    init(_ schema: Schema) {
+    init(schema: Schema) {
         self.init(
             id: schema.id,
             userId: schema.userId,
@@ -109,20 +90,12 @@ struct Place: Table {
 }
 
 extension Place {
-//    static let schema = TableSchema<User>(
-//        fields: [
-//            FieldSchema(name: .id, keyPath: \.id),
-//            FieldSchema(name: .name, keyPath: \.name),
-//            FieldSchema(name: .verified, keyPath: \.verified),
-//        ]
-//    )
-    
     final class Schema: TableSchemaOf<Place> {
         @Field(name: "name") var name: String = .defaultValue
         @Field(name: "verified") var verified: Bool = .defaultValue
     }
     
-    init(_ schema: Schema) {
+    init(schema: Schema) {
         self.init(
             id: schema.id,
             name: schema.name,
@@ -151,7 +124,7 @@ extension Sample {
         @Field(name: "value") var value: Int = .defaultValue
     }
     
-    init(_ schema: Schema) {
+    init(schema: Schema) {
         self.init(
             id: schema.id,
             value: schema.value
@@ -163,5 +136,28 @@ extension Sample {
             Literal(id),
             Literal(value)
         ]
+    }
+}
+
+
+final class MyDatabase: DatabaseProtocol {
+    
+    final class Schema: AnyDatabaseSchema {
+    
+        var users: User.Schema {
+            makeSchema()
+        }
+        
+        var places: Place.Schema {
+            makeSchema()
+        }
+        
+        var photos: Photo.Schema {
+            makeSchema()
+        }
+        
+        var samples: Sample.Schema {
+            makeSchema()
+        }
     }
 }

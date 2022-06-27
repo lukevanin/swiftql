@@ -2,7 +2,7 @@ import XCTest
 
 @testable import SwiftQL
 
-final class ObservableTests: BaseTestCase {
+//final class ObservableTests: BaseTestCase {
 
 //    override func setUpWithError() throws {
 //        try setupDatabase()
@@ -67,4 +67,4 @@ final class ObservableTests: BaseTestCase {
 //        let finalResult = try await values.next()?.get()
 //        XCTAssertEqual(finalResult, [expectedValue])
 //    }
-}
+//}
