@@ -42,6 +42,13 @@ extension User {
             Literal(active)
         ]
     }
+    
+    func _bind(schema: Schema) {
+        schema.id = id
+        schema.placeId = placeId
+        schema.username = username
+        schema.active = active
+    }
 }
 
 
@@ -80,6 +87,14 @@ extension Photo {
             Literal(published),
         ]
     }
+    
+    func _bind(schema: Schema) {
+        schema.id = id
+        schema.userId = userId
+        schema.placeId = placeId
+        schema.imageURL = imageURL
+        schema.published = published
+    }
 }
 
 
@@ -110,6 +125,12 @@ extension Place {
             Literal(verified)
         ]
     }
+    
+    func _bind(schema: Schema) {
+        schema.id = id
+        schema.name = name
+        schema.verified = verified
+    }
 }
 
 
@@ -136,6 +157,11 @@ extension Sample {
             Literal(id),
             Literal(value)
         ]
+    }
+    
+    func _bind(schema: Schema) {
+        schema.id = id
+        schema.value = value
     }
 }
 

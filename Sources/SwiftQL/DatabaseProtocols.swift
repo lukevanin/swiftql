@@ -10,15 +10,15 @@ enum SQLSuccess {
 
 
 protocol SQLBindingProtocol {
-    func bind(variable: Int, value: Int) throws
+    func bind(variable: Int, value: Int64) throws
     func bind(variable: Int, value: Double) throws
-    func bind<T>(variable: Int, value: T) throws where T: StringProtocol
-    func bind<T>(variable: Int, value: T) throws where T: DataProtocol
+    func bind(variable: Int, value: String) throws
+    func bind(variable: Int, value: Data) throws
 }
 
 
 public protocol SQLRowProtocol {
-    func readInt(column: Int) -> Int
+    func readInt(column: Int) -> Int64
     func readDouble(column: Int) -> Double
     func readString(column: Int) -> String
     func readData(column: Int) -> Data

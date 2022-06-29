@@ -12,6 +12,13 @@ import XCTest
 class BaseTestCase: XCTestCase {
     
     var database: DatabaseConnection<MyDatabase>!
+    
+    override func setUp() {
+        SQLite.initialize()
+    }
+    
+    override class func tearDown() {
+    }
 
     func setupDatabase() throws {
         database = try makeDatabase()

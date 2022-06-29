@@ -9,7 +9,7 @@ import XCTest
 
 @testable import SwiftQL
 
-//final class PerformanceTests: BaseTestCase {
+final class PerformanceTests: BaseTestCase {
     
     /*
     func testInsertUncached() {
@@ -72,27 +72,33 @@ import XCTest
             }
         }
     }
+     */
 
-    func testInsertCachedTransaction() {
+    func testInsertCachedTransaction() throws {
         let samples = (0 ..< 10_000).map { i in
             Sample(id: PrimaryKey(), value: i)
         }
         let options = XCTMeasureOptions()
         options.invocationOptions = [.manuallyStart, .manuallyStop]
         measure(options: options) {
-            try! withDatabase { database in
-                startMeasuring()
-                sync {
-                    try! await database.transaction { database, transaction in
-                        for sample in samples {
-                            try! database.execute(cached: true) { db in
-                                Insert(db.samples(), values: sample)
-                            }
-                        }
-                    }
+            let connection = DatabaseConnection<MyDatabase>.temporary()
+            sync {
+                try await connection.execute { db in
+                    Create(db.samples)
                 }
-                stopMeasuring()
             }
+            startMeasuring()
+            sync {
+                try! await connection.execute { db in
+                    var statements = [AnySQLBuilder<Void>]()
+                    for sample in samples {
+                        let statement = Insert(db.samples, sample)
+                        statements.append(AnySQLBuilder<Void>(statement))
+                    }
+                    return statements
+                }
+            }
+            stopMeasuring()
         }
     }
         
@@ -109,5 +115,5 @@ import XCTest
         }
         wait(for: [e], timeout: timeout)
     }
-     */
-//}
+     
+}

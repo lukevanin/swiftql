@@ -2,16 +2,37 @@ import Foundation
 import Combine
 
 
-public final class PreparedStatementContext {
+public protocol BindProtocol {
+    func bind(value: Int64) throws
+    func bind(value: Double) throws
+    func bind(value: String) throws
+    func bind(value: Data) throws
+}
+
+
+public protocol ReadProtocol {
+    func readInt() throws -> Int64
+    func readDouble() throws -> Double
+    func readString() throws -> String
+    func readData() throws -> Data
+}
+
+
+final class StatementBindContext: BindProtocol {
     
     private let statement: SQLBindingProtocol
-    private var index: Int = 1
+    private var index: Int = 0
     
     init(statement: SQLBindingProtocol) {
         self.statement = statement
+        reset()
     }
     
-    func bind(value: Int) throws {
+    func reset() {
+        index = 0
+    }
+    
+    func bind(value: Int64) throws {
         try statement.bind(variable: nextIndex(), value: value)
     }
     
@@ -19,12 +40,51 @@ public final class PreparedStatementContext {
         try statement.bind(variable: nextIndex(), value: value)
     }
 
-    func bind<V>(value: V) throws where V: StringProtocol {
+    func bind(value: String) throws {
         try statement.bind(variable: nextIndex(), value: value)
     }
     
-    func bind<V>(value: V) throws where V: DataProtocol {
+    func bind(value: Data) throws {
         try statement.bind(variable: nextIndex(), value: value)
+    }
+    
+    private func nextIndex() -> Int {
+        defer {
+            index += 1
+        }
+        return index + 1
+    }
+}
+
+
+final class RowReadContext: ReadProtocol {
+    
+    private let row: SQLRowProtocol
+    private var index: Int = 0
+    
+    init(row: SQLRowProtocol) {
+        self.row = row
+        reset()
+    }
+    
+    func reset() {
+        index = 0
+    }
+    
+    func readInt() throws -> Int64 {
+        row.readInt(column: nextIndex())
+    }
+    
+    func readDouble() throws -> Double {
+        row.readDouble(column: nextIndex())
+    }
+    
+    func readString() throws -> String {
+        row.readString(column: nextIndex())
+    }
+    
+    func readData() throws -> Data {
+        row.readData(column: nextIndex())
     }
     
     private func nextIndex() -> Int {
@@ -36,41 +96,6 @@ public final class PreparedStatementContext {
 }
 
 
-//class PreparedWriteSQL {
-//
-//    let builder: AnySQLBuilder<Void>
-//    let statement: SQLPreparedStatementProtocol
-//    let provider: SQLProviderProtocol
-//
-//    init(
-//        builder: AnySQLBuilder<Void>,
-//        statement: SQLPreparedStatementProtocol,
-//        provider: SQLProviderProtocol
-//    ) {
-//        self.builder = builder
-//        self.statement = statement
-//        self.provider = provider
-//    }
-//
-//    func string() -> String {
-//        statement.sql()
-//    }
-//
-//    @discardableResult func execute(context: SQLWriter) throws {
-//        try statement.execute(
-//            bind: { statement in
-//                try context.bind(
-//                    context: PreparedStatementContext(
-//                        statement: statement
-//                    )
-//                )
-//            },
-//            read: { _ in }
-//        )
-//    }
-//}
-
-
 protocol PreparedSQLProtocol {
     associatedtype Output
     func sql() -> SQLToken
@@ -78,89 +103,51 @@ protocol PreparedSQLProtocol {
 }
                                     
 
-struct PreparedSQL<D, O> where D: DatabaseProtocol {
+struct PreparedWriteSQL<D>: PreparedSQLProtocol where D: DatabaseProtocol {
     
-    typealias Builder = (D.Schema) -> AnySQLBuilder<O>
-    
-    typealias Reader = (SQLRowProtocol) -> Void
-
-    let builder: Builder
+    let builder: AnySQLBuilder<Void>
+    let context: SQLWriter
     let statement: SQLPreparedStatementProtocol
     
     func sql() -> SQLToken {
-        let schema = D.Schema()
-        let statement = builder(schema)
-        let sql = statement.sql()
-        return sql
-    }
-
-    func execute(reader: Reader?) throws {
-        try statement.execute(
-            bind: { s in
-                let context = PreparedStatementContext(statement: s)
-                let schema = D.Schema(statement: context)
-                let statement = builder(schema)
-                try statement.bind()
-            },
-            read: reader
-        )
-    }
-}
-
-
-struct PreparedWriteSQL<D>: PreparedSQLProtocol where D: DatabaseProtocol {
-    
-    typealias Output = Void
-    
-    typealias Builder = (D.Schema) -> AnySQLBuilder<Void>
-
-    private let preparedStatement: PreparedSQL<D, Void>
-    
-    init(builder: @escaping Builder, statement: SQLPreparedStatementProtocol) {
-        self.preparedStatement = PreparedSQL(
-            builder: builder,
-            statement: statement
-        )
-    }
-    
-    func sql() -> SQLToken {
-        preparedStatement.sql()
+        builder.sql()
     }
 
     func execute() throws {
-        try preparedStatement.execute(reader: nil)
+        try statement.execute(
+            bind: { s in
+                context.bindContext = StatementBindContext(statement: s)
+                builder.bind()
+            },
+            read: nil
+        )
     }
 }
 
 
-struct PreparedReadSQL<D, O>: PreparedSQLProtocol where D: DatabaseProtocol {
+struct PreparedReadSQL<Database, Output>: PreparedSQLProtocol where Database: DatabaseProtocol {
     
-    typealias Builder = (D.Schema) -> AnySQLBuilder<O>
-
-    private let builder: Builder
-    private let preparedStatement: PreparedSQL<D, O>
-    
-    init(builder: @escaping Builder, statement: SQLPreparedStatementProtocol) {
-        self.builder = builder
-        self.preparedStatement = PreparedSQL(
-            builder: builder,
-            statement: statement
-        )
-    }
+    let builder: AnySQLBuilder<Output>
+    let context: SQLWriter
+    let statement: SQLPreparedStatementProtocol
     
     func sql() -> SQLToken {
-        preparedStatement.sql()
+        builder.sql()
     }
 
-    func execute() throws -> [O] {
-        var output = [O]()
-        try preparedStatement.execute { r in
-            let schema = D.Schema(row: r)
-            let statement = builder(schema)
-            let item = statement.read()
-            output.append(item)
-        }
+    func execute() throws -> [Output] {
+        var output = [Output]()
+        try statement.execute(
+            bind: { s in
+                context.bindContext = StatementBindContext(statement: s)
+                builder.bind()
+            },
+            read: { r in
+                context.readContext = RowReadContext(row: r)
+                let item = builder.read()
+                output.append(item)
+            }
+        )
         return output
     }
 }
-

@@ -25,11 +25,10 @@ struct FieldOrder: SQLBuilder {
         self.field = field
         self.order = order
     }
-    
-    func prepare() {
 
+    func bind() {
     }
-    
+
     func hashKey() -> HashKey {
         CompositeHashKey(
             field.hashKey(),
@@ -45,10 +44,6 @@ struct FieldOrder: SQLBuilder {
                 order.sql()
             ]
         )
-    }
-    
-    func bind() throws {
-
     }
 }
 
@@ -174,7 +169,7 @@ open class TableSchema {
             )
         )
     }
-
+    
     let _alias: SQLIdentifier
     let _name: SQLIdentifier
     let _context: SQLWriter
@@ -182,11 +177,12 @@ open class TableSchema {
     private(set) var _allFields: [AnyField] = []
 
     private var fields = [AnyField]()
-
+    
     required public init(name: SQLIdentifier, alias: SQLIdentifier, context: SQLWriter) {
         self._name = name
         self._alias = alias
         self._context = context
+        #warning("TODO: Auto-generate fields")
         let m = Mirror(reflecting: self)
         let customFields = m.children.compactMap { child in
             child.value as? AnyField
@@ -226,6 +222,7 @@ public protocol Table: Identifiable, Equatable, Codable {
     var id: PrimaryKey { get }
     init(schema: Schema)
     func _values() -> [AnyLiteral]
+    func _bind(schema: Schema)
 }
 
 extension Table {

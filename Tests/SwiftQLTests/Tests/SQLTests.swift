@@ -13,15 +13,15 @@ final class SQLTests: BaseTestCase {
 //    }
 
     func testCreate() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = Create(db.users)
         let result = subject.sql().string()
         print(result)
         XCTAssertEqual(
             result,
             "CREATE TABLE IF NOT EXISTS `user` ( " +
-            "`id` TEXT PRIMARY KEY, " +
-            "`place_id` TEXT REFERENCES `place` ( `id` ), " +
+            "`id` BLOB PRIMARY KEY, " +
+            "`place_id` BLOB REFERENCES `place` ( `id` ), " +
             "`username` TEXT, " +
             "`active` INT " +
             ")"
@@ -29,7 +29,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testInsert() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = Insert(db.samples, Sample(id: PrimaryKey(), value: 7))
         let result = subject.sql().string()
         XCTAssertEqual(
@@ -42,7 +42,7 @@ final class SQLTests: BaseTestCase {
 
     func testUpdate() throws {
         let key = PrimaryKey()
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = Update(db.samples) { sample in
             Set {
                 sample.value = 49
@@ -61,7 +61,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectRow() throws {
-        let database = MyDatabase.Schema()
+        let database = MyDatabase.Schema(context: SQLWriter())
         let subject = From(database.samples) { sample in
             Select<Sample>(sample)
         }
@@ -74,7 +74,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectField() throws {
-        let database = MyDatabase.Schema()
+        let database = MyDatabase.Schema(context: SQLWriter())
         let subject = From(database.samples) { sample in
             Select { sample.id }
         }
@@ -87,7 +87,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectWhereBooleanLiteral() throws {
-        let database = MyDatabase.Schema()
+        let database = MyDatabase.Schema(context: SQLWriter())
         let subject = From(database.samples) { t0 in
             Select { t0.id }
             Where { t0.$value == 49 }
@@ -102,7 +102,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectWhereString() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = From(db.places) { t0 in
             Select { t0.id }
             Where { t0.$name == "Spain" }
@@ -117,7 +117,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectComplexWhere() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = From(db.places) { t0 in
             Select {
                 t0.id
@@ -136,7 +136,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectOrderBy() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = From(db.users) { t0 in
             Select {
                 t0.id
@@ -155,7 +155,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectOrderByTerms() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = From(db.users) { t0 in
             Select {
                 t0.id
@@ -177,7 +177,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectWhereOrderBy() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = From(db.photos) { t0 in
             Select {
                 t0.id
@@ -200,7 +200,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectJoin() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = From(db.photos) { t0 in
             Join(db.users, on: t0.$userId) { t1 in
                 Select {
@@ -218,7 +218,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectTwoJoins() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = From(db.photos) { t0 in
             Join(db.users, on: t0.$userId) { t1 in
                 Join(db.places, on: t0.$placeId) { t2 in
@@ -239,7 +239,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectJoinMultiple() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = From(db.photos) { t0 in
             Join(db.users, on: t0.$userId) { t1 in
                 Join(db.places, on: t1.$placeId) { t2 in
@@ -264,7 +264,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectJoinWhere() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = From(db.photos) { t0 in
             Join(db.users, on: t0.$userId) { t1 in
                 Select {
@@ -286,7 +286,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectJoinOrderBy() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = From(db.photos) { t0 in
             Join(db.users, on: t0.$userId) { t1 in
                 Select {
@@ -308,7 +308,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectJoinOrderByTerms() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject =  From(db.photos) { t0 in
             Join(db.users, on: t0.$userId) { t1 in
                 Select {
@@ -333,7 +333,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectJoinWhereOrderBy() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = From(db.photos) { t0 in
             Join(db.users, on: t0.$userId) { t1 in
                 Select {
@@ -359,7 +359,7 @@ final class SQLTests: BaseTestCase {
     }
 
     func testSelectJoinCompoundWhere() throws {
-        let db = MyDatabase.Schema()
+        let db = MyDatabase.Schema(context: SQLWriter())
         let subject = From(db.photos) { t0 in
             Join(db.users, on: t0.$userId) { t1 in
                 Select { t0.id }

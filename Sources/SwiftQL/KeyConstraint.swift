@@ -34,7 +34,7 @@ public struct PrimaryKey: KeyProtocol {
         CompositeSQLToken(
             separator: " ",
             tokens: [
-                KeywordSQLToken(value: "TEXT"),
+                KeywordSQLToken(value: "BLOB"),
                 KeywordSQLToken(value: "PRIMARY"),
                 KeywordSQLToken(value: "KEY")
             ]
@@ -52,11 +52,11 @@ public struct PrimaryKey: KeyProtocol {
         PrimaryKey()
     }
     
-    public static func read(column: Int, row: SQLRowProtocol) -> PrimaryKey {
-        PrimaryKey(UUID.read(column: column, row: row))
+    public static func read(context: ReadProtocol) throws -> PrimaryKey {
+        PrimaryKey(try UUID.read(context: context))
     }
     
-    public func bind(context: PreparedStatementContext) throws {
+    public func bind(context: BindProtocol) throws {
         try uuid.bind(context: context)
     }
 }
@@ -85,7 +85,7 @@ public struct ForeignKey<T>: KeyProtocol where T: Table {
         CompositeSQLToken(
             separator: " ",
             tokens: [
-                KeywordSQLToken(value: "TEXT"),
+                KeywordSQLToken(value: "BLOB"),
                 KeywordSQLToken(value: "REFERENCES"),
                 IdentifierSQLToken(value: T._name),
                 KeywordSQLToken(value: "("),
@@ -106,11 +106,11 @@ public struct ForeignKey<T>: KeyProtocol where T: Table {
         ForeignKey(uuidString: "00000000-0000-0000-0000-000000000000")!
     }
     
-    public static func read(column: Int, row: SQLRowProtocol) -> ForeignKey<T> {
-        ForeignKey(UUID.read(column: column, row: row))
+    public static func read(context: ReadProtocol) throws -> ForeignKey<T> {
+        ForeignKey(try UUID.read(context: context))
     }
     
-    public func bind(context: PreparedStatementContext) throws {
+    public func bind(context: BindProtocol) throws {
         try uuid.bind(context: context)
     }
 }

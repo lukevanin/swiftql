@@ -4,57 +4,41 @@ import XCTest
 
 final class ExecuteTests: BaseTestCase {
 
-    override func setUpWithError() throws {
-        try setupDatabase()
-    }
-    
-    override func tearDownWithError() throws {
-        teardownDatabase()
-    }
-    
     func testInsertOneThenSelectUncached() async throws {
-        let connection = DatabaseConnection<MyDatabase>()
+        let connection = DatabaseConnection<MyDatabase>.temporary()
         let expectedSample = Sample(id: PrimaryKey(), value: 7)
-        let t0 = WriteTransaction<MyDatabase> {
-            StatementBuilder<MyDatabase, Void> { db in
-                Create(db.samples)
-            }
-            StatementBuilder<MyDatabase, Void> { db in
-                Insert(db.samples, expectedSample)
-            }
+        try await connection.execute { db in
+            Create(db.samples)
+            Insert(db.samples, expectedSample)
         }
-        let t1 = ReadTransaction<MyDatabase, Sample> { db in
+        let result = try await connection.execute { db in
             From(db.samples) { t0 in
                 Select<Sample>(t0)
             }
         }
-        try await connection.execute(transaction: t0)
-        let result = try await connection.execute(transaction: t1)
         XCTAssertEqual(result, [expectedSample])
     }
 
-    /*
-
-    func testInsertTwoThenSelectUncached() throws {
+    func testInsertTwoThenSelectUncached() async throws {
+        let connection = DatabaseConnection<MyDatabase>.temporary()
         let expectedSample0 = Sample(id: PrimaryKey(), value: 7)
         let expectedSample1 = Sample(id: PrimaryKey(), value: 3)
-        try database.execute(cached: false) { db in
-            let sample = db.samples()
-            Insert(sample, values: expectedSample0)
+        try await connection.execute { db in
+            Create(db.samples)
+            Insert(db.samples, expectedSample0)
+            Insert(db.samples, expectedSample1)
         }
-        try database.execute(cached: false) { db in
-            let sample = db.samples()
-            Insert(sample, values: expectedSample1)
-        }
-        let result = try database.execute(cached: false) { db in
-            let sample = db.samples()
-            Select(sample)
-            From(sample)
-            OrderBy { sample.$value.ascending }
+        let result = try await connection.execute { db in
+            From(db.samples) { t0 in
+                Select<Sample>(t0)
+                OrderBy { t0.$value.ascending }
+            }
         }
         XCTAssertEqual(result, [expectedSample1, expectedSample0])
     }
     
+    /*
+
     func testInsertTwoThenSelect() throws {
         let expectedSample0 = Sample(id: PrimaryKey(), value: 7)
         let expectedSample1 = Sample(id: PrimaryKey(), value: 3)

@@ -13,15 +13,15 @@ struct From<Output, T>: SQLBuilder, SQLReader where T: Table {
         self.subquery = builder(schema)
     }
     
+    func bind() {
+        subquery.bind()
+    }
+    
     func hashKey() -> HashKey {
         CompositeHashKey(
             SymbolHashKey.from,
             IdentifierHashKey(T._name)
         )
-    }
-    
-    func prepare() {
-        subquery.prepare()
     }
 
     func sql() -> SQLToken {
@@ -40,10 +40,6 @@ struct From<Output, T>: SQLBuilder, SQLReader where T: Table {
                 subquery.sql()
             ]
         )
-    }
-
-    func bind() throws {
-        try subquery.bind()
     }
     
     func read() -> Output {
@@ -65,9 +61,9 @@ struct Join<R, T>: SQLBuilder, SQLReader where T: Table {
         self.foreignKey = constraint.qualifiedName
         self.subquery = builder(schema)
     }
-
-    func prepare() {
-        subquery.prepare()
+    
+    func bind() {
+        subquery.bind()
     }
     
     func hashKey() -> HashKey {
@@ -96,10 +92,6 @@ struct Join<R, T>: SQLBuilder, SQLReader where T: Table {
         )
     }
     
-    func bind() throws {
-        try subquery.bind()
-    }
-    
     func read() -> R {
         subquery.read()
     }
@@ -114,7 +106,7 @@ struct Where: SQLStatement {
         self.expression = expression()
     }
     
-    func prepare() {
+    func bind() {
         
     }
     
@@ -134,10 +126,6 @@ struct Where: SQLStatement {
             ]
         )
     }
-    
-    func bind() throws {
-        try expression.bind()
-    }
 }
 
 
@@ -148,7 +136,7 @@ enum SQLOrder {
 
 extension SQLOrder: SQLExpression {
     
-    func prepare() {
+    func bind() {
         
     }
     
@@ -169,10 +157,6 @@ extension SQLOrder: SQLExpression {
             return KeywordSQLToken(value: "DESC")
         }
     }
-    
-    func bind() throws {
-
-    }
 }
 
 
@@ -184,7 +168,7 @@ struct OrderBy: SQLStatement {
         self.builder = builder()
     }
     
-    func prepare() {
+    func bind() {
         
     }
     
@@ -204,10 +188,6 @@ struct OrderBy: SQLStatement {
                 builder.sql()
             ]
         )
-    }
-    
-    func bind() throws {
-        try builder.bind()
     }
 }
 
@@ -229,10 +209,10 @@ struct Select<R>: SQLBuilder, SQLReader {
         _ = map()
     }
     
-    func prepare() {
+    func bind() {
         
     }
-
+    
     func hashKey() -> HashKey {
         SymbolHashKey.select
     }
@@ -241,16 +221,12 @@ struct Select<R>: SQLBuilder, SQLReader {
         NilSQLToken()
     }
     
-    func bind() throws {
-        // TODO: Support computed column values
-    }
-    
     func read() -> R {
         map()
     }
 }
 
-extension Select where R: Table, R.Schema: TableSchemaOf<R> {
+extension Select where R: Table {
     init(_ schema: R.Schema) {
         self.init {
             R(schema: schema)
@@ -268,10 +244,10 @@ struct Create<T>: SQLWriteStatement where T: Table {
         self.schema = schema
     }
     
-    func prepare() {
+    func bind() {
         
     }
-
+    
     func hashKey() -> HashKey {
         CompositeHashKey(
             SymbolHashKey.create,
@@ -302,13 +278,9 @@ struct Create<T>: SQLWriteStatement where T: Table {
                         field.sqlColumnDefinition()
                     }
                 ),
-                KeywordSQLToken(value: ")"),
+                KeywordSQLToken(value: ")")
             ]
         )
-    }
-    
-    func bind() throws {
-        // TODO: Support computed column values and default values
     }
 }
 
@@ -325,10 +297,10 @@ struct Insert<T>: SQLWriteStatement where T: Table {
         self.entity = entity()
     }
     
-    func prepare() {
-        
+    func bind() {
+        entity._bind(schema: schema)
     }
-
+    
     func hashKey() -> HashKey {
         CompositeHashKey(
             SymbolHashKey.insert,
@@ -363,13 +335,6 @@ struct Insert<T>: SQLWriteStatement where T: Table {
             ]
         )
     }
-
-    func bind() throws {
-//        #warning("TODO: Bind entity values")
-//        try entity._values().forEach { value in
-//            try value.bind(statement: statement)
-//        }
-    }
 }
 
 
@@ -386,18 +351,14 @@ struct Update<T>: SQLBuilder where T: Table {
         self.subquery = builder(schema)
     }
     
-    func prepare() {
-        
+    func bind() {
+        subquery.bind()
     }
-
+    
     func hashKey() -> HashKey {
         CompositeHashKey(
             SymbolHashKey.update,
             IdentifierHashKey(T._name),
-//            ListHashKey(
-//                separator: ",",
-//                values: context.fieldAssignmentHashKeys
-//            )
             subquery.hashKey()
         )
     }
@@ -428,10 +389,6 @@ struct Update<T>: SQLBuilder where T: Table {
             ]
         )
     }
-    
-    func bind() throws {
-        try subquery.bind()
-    }
 }
 
 
@@ -441,19 +398,16 @@ struct Set: SQLStatement {
         setter()
     }
     
-    func prepare() {
+    func bind() {
         
     }
-
+    
     func hashKey() -> HashKey {
         SymbolHashKey.set
     }
     
     func sql() -> SQLToken {
         NilSQLToken()
-    }
-    
-    func bind() throws {
     }
 }
 
