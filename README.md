@@ -63,7 +63,7 @@ Tables can be given an explicit alias:
 ```
 let schema = SQLSchema()
 let people = schema.table(Person.self, as: "people")
-// SELECT people.* FROM Person AS people;
+// SELECT people.* FROM Person AS people
 let statement = select(people).from(people) 
 ```
 
@@ -83,7 +83,7 @@ let statement = sqlQuery { schema in
 }
 ``` 
 
-SwiftQL also supports a result builder syntax that is similar tow SwiftUI, which lets you to write SQL statements in a 
+SwiftQL also supports a result builder syntax that is similar to SwiftUI, which lets you to write SQL statements in a 
 style that more closely resembles SQL text. To use the result builder syntax use the `sql` closure:
 
 ```
