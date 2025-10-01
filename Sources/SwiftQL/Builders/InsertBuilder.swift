@@ -10,7 +10,9 @@ import Foundation
 
 ///
 /// InsertBuilder is a helper class used to construct insert statements when the structure of the statement is
-/// not known at compile time. Currently this is used to construct insert statements with a variable number of
+/// not known at compile time.
+///
+/// Currently InsertBuilder is used to construct insert statements with a variable number of
 /// parameters.
 ///
 public struct InsertBuilder<Row> {

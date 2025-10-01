@@ -10,7 +10,9 @@ import Foundation
 
 ///
 /// QueryBuilder is used to construct select statements, when the structure of the query is not known at
-/// compile time. QueryBuilder provides greater flexibility over static queries which cannot normally change
+/// compile time.
+///
+/// QueryBuilder provides greater flexibility over static queries which cannot normally change
 /// once compiled. This flexibility comes with some caveats:
 ///
 /// 1. QueryBuilder does not strictly enforce the integrity of the query. It is the programmer's responsibility to
