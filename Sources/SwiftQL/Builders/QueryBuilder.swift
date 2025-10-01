@@ -1,6 +1,6 @@
 //
-//  XLSchema.swift
-//  
+//  QueryBuilder.swift
+//
 //
 //  Created by Luke Van In on 2023/08/10.
 //
@@ -8,7 +8,17 @@
 import Foundation
 
 
-public struct XLQueryBuilder<Row> {
+///
+/// QueryBuilder is used to construct select statements, when the structure of the query is not known at
+/// compile time. QueryBuilder provides greater flexibility over static queries which cannot normally change
+/// once compiled. This flexibility comes with some caveats:
+///
+/// 1. QueryBuilder does not strictly enforce the integrity of the query. It is the programmer's responsibility to
+/// ensure that the resulting query is valid.
+/// 2. The SQL statement is generated each time the `build()` method is called, which incurs a small
+/// runtime overhead. Static queries should be used where maximum efficiency is required.
+///
+public struct QueryBuilder<Row> {
     
     #warning("TODO: Rename AND and OR to requiredConstraint and optionalConstraint")
     
@@ -37,22 +47,177 @@ public struct XLQueryBuilder<Row> {
     
     private var offset: (any XLExpression)?
     
+    ///
+    /// Create a query builder using a row definition. The row is typically defined using the row reader on
+    /// a struct annotated with `@SQLTable` or `@SQLResult`.
+    ///
     public init<T>(select result: T) where T: XLRowReadable, T.Row == Row {
         self.init(select: Select(result))
     }
 
 
+    ///
+    /// Creates a query builder using an expression. The expression should use one or more fields in one or
+    /// more tables in the from clause.
+    ///
     public init(select expression: any XLExpression<Row>) where Row: XLExpression & XLLiteral {
         self.init(select: Select(expression))
     }
     
     
+    ///
+    /// Creates a query builder from a select statement.
+    ///
     public init(select: Select<Row>) {
         self.select = select
     }
+
+    ///
+    /// Creates a query using a common table expression.
+    ///
+    public func with<T>(_ commonTable: T) -> QueryBuilder where T: XLMetaCommonTable {
+        copy {
+            $0.commonTables.append(commonTable.definition)
+        }
+    }
     
-    private func copy(modifier: (inout XLQueryBuilder) -> Void) -> XLQueryBuilder {
-        var newInstance = XLQueryBuilder(select: select)
+    ///
+    /// Adds a from clause to the query.
+    ///
+    public func from<T>(_ table: T) -> QueryBuilder where T: XLMetaNamedResult {
+        copy {
+            $0.from = From(table)
+        }
+    }
+
+    ///
+    /// Adds an inner join clause to the query.
+    ///
+    public func innerJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaResult {
+        copy {
+            $0.joins.append(Join(kind: .innerJoin, table: table, constraint: constraint))
+        }
+    }
+
+    ///
+    /// Adds an inner join clause to the query, using an optional field.
+    ///
+    public func innerJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaResult {
+        copy {
+            $0.joins.append(Join(kind: .innerJoin, table: table, constraint: constraint))
+        }
+    }
+
+    ///
+    /// Adds a left join to the query.
+    ///
+    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaNullableResult {
+        copy {
+            $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
+        }
+    }
+
+    ///
+    /// Adds a left join to the query.
+    ///
+    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNullableResult {
+        copy {
+            $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
+        }
+    }
+
+    ///
+    /// Adds a left join to the query.
+    ///
+    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaNullableNamedResult {
+        copy {
+            $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
+        }
+    }
+
+    ///
+    /// Adds a left join to the query.
+    ///
+    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNullableNamedResult {
+        copy {
+            $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
+        }
+    }
+    
+    ///
+    /// Adds an and expression to the where clause.
+    ///
+    public func and(_ condition: any XLExpression<Bool>) -> QueryBuilder {
+        copy {
+            $0.whereAnd.append(condition)
+        }
+    }
+
+    ///
+    /// Adds an and expression to the where clause.
+    ///
+    public func and(_ condition: any XLExpression<Optional<Bool>>) -> QueryBuilder {
+        copy {
+            $0.whereAnd.append(condition)
+        }
+    }
+
+    ///
+    /// Adds an or expression to the where clause.
+    ///
+    public func or(_ condition: any XLExpression<Bool>) -> QueryBuilder {
+        copy {
+            $0.whereOr.append(condition)
+        }
+    }
+
+    ///
+    /// Adds an or expression to the where clause.
+    ///
+    public func or(_ condition: any XLExpression<Optional<Bool>>) -> QueryBuilder {
+        copy {
+            $0.whereOr.append(condition)
+        }
+    }
+
+    ///
+    /// Adds a group by expression to the where clause.
+    ///
+    public func groupBy(_ expression: any XLExpression) -> QueryBuilder {
+        copy {
+            $0.groupBy.append(expression)
+        }
+    }
+    
+    ///
+    /// Adds an order by expression to the where clause.
+    ///
+    public func orderBy(_ condition: any XLOrderingTerm) -> QueryBuilder {
+        copy {
+            $0.orderBy.append(condition)
+        }
+    }
+    
+    ///
+    /// Adds a limit clause.
+    ///
+    public func limit(_ expression: any XLExpression) -> QueryBuilder {
+        copy {
+            $0.limit = expression
+        }
+    }
+    
+    ///
+    /// Adds an offset clause.
+    ///
+    public func offset(_ expression: any XLExpression) -> QueryBuilder {
+        copy {
+            $0.offset = expression
+        }
+    }
+    
+    private func copy(modifier: (inout QueryBuilder) -> Void) -> QueryBuilder {
+        var newInstance = QueryBuilder(select: select)
         newInstance.commonTables = commonTables
         newInstance.from = from
         newInstance.joins = joins
@@ -65,103 +230,14 @@ public struct XLQueryBuilder<Row> {
         modifier(&newInstance)
         return newInstance
     }
-
-    public func with<T>(_ commonTable: T) -> XLQueryBuilder where T: XLMetaCommonTable {
-        copy {
-            $0.commonTables.append(commonTable.definition)
-        }
-    }
     
-    public func from<T>(_ table: T) -> XLQueryBuilder where T: XLMetaNamedResult {
-        copy {
-            $0.from = From(table)
-        }
-    }
-
-    public func innerJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> XLQueryBuilder where T: XLMetaResult {
-        copy {
-            $0.joins.append(Join(kind: .innerJoin, table: table, constraint: constraint))
-        }
-    }
-
-    public func innerJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> XLQueryBuilder where T: XLMetaResult {
-        copy {
-            $0.joins.append(Join(kind: .innerJoin, table: table, constraint: constraint))
-        }
-    }
-
-    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> XLQueryBuilder where T: XLMetaNullableResult {
-        copy {
-            $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
-        }
-    }
-
-    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> XLQueryBuilder where T: XLMetaNullableResult {
-        copy {
-            $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
-        }
-    }
-
-    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> XLQueryBuilder where T: XLMetaNullableNamedResult {
-        copy {
-            $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
-        }
-    }
-
-    public func leftJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> XLQueryBuilder where T: XLMetaNullableNamedResult {
-        copy {
-            $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
-        }
-    }
-    
-    public func and(_ condition: any XLExpression<Bool>) -> XLQueryBuilder {
-        copy {
-            $0.whereAnd.append(condition)
-        }
-    }
-
-    public func and(_ condition: any XLExpression<Optional<Bool>>) -> XLQueryBuilder {
-        copy {
-            $0.whereAnd.append(condition)
-        }
-    }
-
-    public func or(_ condition: any XLExpression<Bool>) -> XLQueryBuilder {
-        copy {
-            $0.whereOr.append(condition)
-        }
-    }
-
-    public func or(_ condition: any XLExpression<Optional<Bool>>) -> XLQueryBuilder {
-        copy {
-            $0.whereOr.append(condition)
-        }
-    }
-
-    public func groupBy(_ expression: any XLExpression) -> XLQueryBuilder {
-        copy {
-            $0.groupBy.append(expression)
-        }
-    }
-    
-    public func orderBy(_ condition: any XLOrderingTerm) -> XLQueryBuilder {
-        copy {
-            $0.orderBy.append(condition)
-        }
-    }
-    
-    public func limit(_ expression: any XLExpression) -> XLQueryBuilder {
-        copy {
-            $0.limit = expression
-        }
-    }
-    
-    public func offset(_ expression: any XLExpression) -> XLQueryBuilder {
-        copy {
-            $0.offset = expression
-        }
-    }
-    
+    ///
+    /// Constructs the SQL query from the provided clauses.
+    /// - Returns: A complete SQL select statement.
+    /// - Throws: `InternalError.missingFromClause` if the from clause is missing.
+    /// - Throws: `InternalError.missingLimitClause` if an offset term is specified without a
+    /// limit expression.
+    ///
     public func build() throws -> any XLQueryStatement<Row> {
         var statement = XLQueryStatementComponents(select: select)
         if !commonTables.isEmpty {
