@@ -1543,3 +1543,6 @@ automatically the first time it is called.
 
 ### Implement `count(*)`
 Add `all()` method which encodes to `*`. Used in `count` and other expressions, e.g. `count(all())`.
+
+### Synthesize parameters on requests:
+
