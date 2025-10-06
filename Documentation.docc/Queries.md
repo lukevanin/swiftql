@@ -118,38 +118,33 @@ let query = sql { schema in
     let person = schema.table(Person.self)
     let occupation = schema.nullableTable(Occupation.self)
     Select(
-        result {
-            PersonOccupation.SQLReader(
-                personId: person.id,
-                occupationId: occupation.id,
-                personName: person.name,
-                occupationName: occupation.name
-            )
-        }
+        PersonOccupation.columns(
+            personId: person.id,
+            occupationId: occupation.id,
+            personName: person.name,
+            occupationName: occupation.name
+        )
     )
     From(person)
     Join.Left(occupation, on: occupation.id == person.occupationId)
 }
 ```
 
-In the select statement we used the `result` function and 
-`PersonOccupation.SQLReader` to instantiate a column set which includes fields 
-from both the `Person` and `Occupation` tables. 
+We used the `PersonOccupation.columns` to instantiate a column set which 
+uses fields from both the `Person` and `Occupation` tables. 
 
-We can also reference the result in the query:
+We can also reference the fields of the result column set in the query:
 
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
     let occupation = schema.nullableTable(Occupation.self)
-    let row = result {
-        PersonOccupation.SQLReader(
-            personId: person.id,
-            occupationId: occupation.id,
-            personName: person.name,
-            occupationName: occupation.name
-        )
-    }
+    let row = PersonOccupation.columns(
+        personId: person.id,
+        occupationId: occupation.id,
+        personName: person.name,
+        occupationName: occupation.name
+    )
     Select(row)
     From(person)
     Join.Left(occupation, on: occupation.id == person.occupationId)
@@ -295,7 +290,53 @@ let query = sql { schema in
 
 ## Subqueries
 
-[TODO]
+Subqueries can be used anywhere that a column is used, such as in a result for
+a `Select` query:
+
+```
+@SQLResult struct OccupationCount {
+    let occupation: String
+    let numberOfPeople: Int
+}
+```
+
+```
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    let occupation = schema.table(Occupation.self)
+    Select(
+        OccupationCount.columns(
+            occupation: occupation.name,
+            numberOfPeople: subqueryExpression { _ in
+                Select(count(person.id))
+                From(person)
+                Where(person.occupationId == occupation.id)
+            }
+        )
+    )
+    From(occupation)
+}
+```
+
+Subqueries can also be used in place of a table in a `From` or `Joine` clause:
+
+```swift
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(
+        subqueryExpression { _ in
+            Select(person)
+            From(person)
+            Where(person.age > 18)
+        }
+    )
+    Where(person.age < 65)
+}
+```
+
+See the <doc:Expressions/In-operator> documentation for an example of using a
+subquery with the `in` operator.
 
 ## Union, Union All, Except, Intersect
 
@@ -336,14 +377,10 @@ let query = sql { schema in
     let familyDad = schema.table(Family.self)
 
     // Define the result that reads the person's name and their mother's name.
-    let momRow = result {
-        FamilyMemberParent.SQLReader(name: familyMom.name, parent: familyMom.mom)
-    }
+    let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
 
     // Define the result that reads the person's name and their fathers's name.
-    let dadRow = result {
-        FamilyMemberParent.SQLReader(name: familyDad.name, parent: familyDad.dad)
-    }
+    let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
 
     // Fetch the name of the mother for each person.
     Select(momRow)
@@ -472,14 +509,12 @@ let query = sql { schema in
     let cte = schema.recursiveCommonTableExpression(ScalarString.self) { schema, cte in
         let org = schema.table(Org.self)
         // Define the initial value for the starting condition.
-        let initialResult = result {
-            ScalarString.SQLReader(value: "Alice".toNullable())
-        }
+        let initialResult = ScalarString.columns(value: "Alice".toNullable())
         Select(initialResult)
         // Union the initial value with successive values.
         Union()
         // Select members from the org whose boss matches the current member
-        Select(result { ScalarString.SQLReader(value: org.name) })
+        Select(ScalarString.columns(value: org.name))
         From(org)
         Join.Cross(cte)
         Where(org.boss == cte.scalarValue)
@@ -508,12 +543,8 @@ let selectStatement = sql { schema in
     
     let parentOfCommonTable = schema.commonTableExpression { schema in
         let family = schema.table(Family.self)
-        let momRow = result {
-            FamilyMemberParent.SQLReader(name: family.name, parent: family.mom)
-        }
-        let dadRow = result {
-            FamilyMemberParent.SQLReader(name: family.name, parent: family.dad)
-        }
+        let momRow = FamilyMemberParent.columns(name: family.name, parent: family.mom)
+        let dadRow = FamilyMemberParent.columns(name: family.name, parent: family.dad)
         Select(momRow)
         From(family)
         Union()
@@ -523,11 +554,11 @@ let selectStatement = sql { schema in
     
     let ancestorOfAliceCommonTable = schema.recursiveCommonTableExpression(ScalarString.self) { schema, this in
         let parentOf = schema.table(parentOfCommonTable)
-        Select(result { ScalarString.SQLReader(value: parentOf.parent) })
+        Select(ScalarString.columns(value: parentOf.parent))
         From(parentOf)
         Where(parentOf.name == "Alice".toNullable())
         UnionAll()
-        Select(result { ScalarString.SQLReader(value: parentOf.parent) })
+        Select(ScalarString.columns(value: parentOf.parent))
         From(parentOf)
         Join.Inner(this, on: this.value == parentOf.name)
     }

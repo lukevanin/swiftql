@@ -111,12 +111,11 @@ Concatenates two or more strings:
 
 let query = sql { schema in 
     let contact = schema.table(Contact.self)
-    let row = result {
-        ContactViewState.SQLReader(
+    Select(
+        ContactViewState.columns(
             name: contact.firstName + " " + contact.lastName
         )
-    }
-    Select(row)
+    )
     From(contact)
 }
 ```
@@ -296,7 +295,7 @@ let query = sql { schema in
 In this query the occupation name is coalesced to `No occupation` when no 
 `Occupation` record is associated with the `Person`.
 
-## In operator:
+## In operator
 
 The `in` operator is a logical operator used in `Where` clauses to determine if 
 a value matches any value within a specified list or a subquery. It provides a 
