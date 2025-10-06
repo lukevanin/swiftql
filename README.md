@@ -1546,3 +1546,14 @@ Add `all()` method which encodes to `*`. Used in `count` and other expressions, 
 
 ### Synthesize parameters on requests:
 
+### Provide a `#table` macro to replace `schema.table(SomeTable.self)`
+
+### Provide a `#row` macro to replace `result { SomeResult.SQLReader(...) }`
+
+### Support ESCAPE clause in LIKE
+
+### Support COLLATE NOCASE 
+
+### Use `isNil` and `notNil` instead of `isNull` and `notNull`.
+
+### Remove `coalesce` operator (keep only `??`).

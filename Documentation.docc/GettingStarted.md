@@ -1,68 +1,22 @@
-# SwiftQL
+# Getting started with SwiftQL
 
-SwiftQL lets you write SQL using familiar type-safe Swift.
+Introduces the basic concepts and usage of SwiftQL. 
 
 ## Overview
 
-SwiftQL lets you write type-safe SQLite statements using familiar Swift syntax.
+This guide covers the fundamental functionality provided by SwiftQL. After 
+completing this you will be able to perform essential database operations 
+using SwiftQL. 
 
-Here is a quick example:
+This guide assumes cursory understanding of SQL as used in SQLite. This guide 
+will not attempt to teach SQL, but aims to provide sufficient detail to be 
+useful to non-experts and newcomers to SQL. 
 
-```swift
-let query = sql { schema in
-    let person = schema.table(Person.self)
-    Select(person)
-    From(person)
-    Where(person.name == 'Fred')
-}
-```
+Please refer to the 
+[SQLite SQL Language Documentation](https://www.sqlite.org/lang.html) for a more
+comprehensive discussion about using SQL.  
 
-This would be equivalent to writing the SQL:
-
-```sql
-SELECT *
-FROM Person AS person
-WHERE person.name == 'Fred'
-```
-
-SwiftQL is designed to look like SQLite SQL syntax, while keeping to the style 
-and conventions of the Swift language. 
-
-## When to use SwiftQL
-
-SwiftQL provides a safer way to write SQL to interact with an SQLite database, 
-or if you need a portable self-hosted relational database. SwiftQL lets you:
-- Create tables using `Create` statements,
-- Modify the database using `Update`, `Insert`, and `Delete` statements, and 
-- Query the database using `Select` statements.
-
-## Why SQLite?
-
-SQLite is a commonly used database used by many iOS and MacOS applications. It 
-has been around forever, runs just about everywhere, and its charactaristics are 
-generally well understood. 
-
-## How is SwiftQL different to SwiftData?
-
-SwiftData is an object-relational mapping (ORM) framework that allows 
-applications to persist an object graph. SwiftQL provides an interface to query 
-and modify a relational database.
-
-With an ORM such as SwiftData the application primarly interacts with objects. 
-Relationships between objects are defined by member properties.
-
-With a relational database the application interacts with rows within tables.
-Relationships are defined by joining tables using primary and foreign keys.
-
-Call us biased but believe that relational databases are the Correct Way™️ to
-handle large and/or complicated data sets efficiently.
-
-## Getting started
-
-We briefly saw SwiftQL's syntax in the overview. This section goes into more 
-detail on composing and executing queries, including how to pass parameters.
-
-### Defining tables
+## Defining tables
 
 Before we can query our database we need to define the structure of our tables.
 A table is defined using a `struct`, annotated with `@SQLTable`:
@@ -123,7 +77,7 @@ bypass creating the table if it already exists. This allows us to safely execute
 the  create statement when our app starts, without first needing to check if the 
 table already exists. 
 
-### Executing statements
+## Executing statements
 
 SwiftQL provides a default implementation using GRDB for running statements
 
@@ -150,7 +104,7 @@ application life cycle.
 We will follow this pattern of creating and executing statements throughout this
 tutorial.
 
-### Inserting data
+## Inserting data
 
 Our database has been created but it is currently empty. Let's add some data.
 First we create an instance of our table struct:
@@ -177,7 +131,7 @@ INSERT INTO Person (id, occupationId, name, age)
 VALUES ('fred', NULL, 'Fred', 31)
 ```
 
-### Running select queries
+## Running select queries
 
 Now that we have some data, we can run the select query we enountered 
 previously. First we prepare the query, then execute it:
@@ -201,6 +155,8 @@ We can also use `fetchOne` to fetch only the first result from the query.
 ```swift
 let firstResult = try database.makeRequest(with: query).fetchOne()
 ```
+
+We will cover more select clauses in the <doc:InDepth> guide.
 
 ### Prepared statements
 
@@ -227,7 +183,7 @@ Once created we can call the prepared statement whenever it is needed.
 let result = try request.fetchAll()
 ```
 
-### Variables
+## Variables
 
 SwiftQL allows you to use variables in queries in a type-safe manner.
 
@@ -273,6 +229,79 @@ return try request.fetchAll()
 This binds the value "Fred" to the name parameter in the context of the request
 before fetching all of the matching results.
 
+## Update statements
 
+We can modify an existing record using an update statement. In this example we
+set the age of the person whose id is `fred` to the value `42`.
 
+```swift
+let updateStatement = sql { schema in
+    let person = schema.into(Person.self)
+    Update(person)
+    Setting<Person> { row in
+        row.age = 42
+    }
+    Where(
+        person.id == 'fred'
+    )
+}
 
+try database.makeRequest(with: updateStatement).execute()
+```
+
+> Note: Use `schema.into()` when defining a table that is modified in the query.
+
+> Warning: Omitting the where clause will update all of the records in the 
+table. A  best practice when using update statements is to always specify a 
+where clause to limit the scope of changes. 
+
+We can also a prepared statement with named parameters for common update 
+operations:
+
+```swift
+let idParameter = XLNamedBindingReference<String>(name: "id")
+let ageParameter = XLNamedBindingReference<Int>(name: "age")
+
+let updateStatement = sql { schema in
+    let person = schema.into(Person.self)
+    Update(person)
+    Setting<Person> { row in
+        row.age = ageParameter
+    }
+    Where(
+        person.id == idParameter
+    )
+}
+
+let updateRequest = try database.makeRequest(with: updateStatement)
+
+...
+
+var newUpdateRequest = updateRequest
+newUpdateRequest.set(idParameter, "fred")
+newUpdateRequest.set(ageParameter, 42)
+try newUpdateRequest.execute()
+```
+
+## Delete statements
+
+We can delete records by specifying the table and a where clause for the items
+to delete. The example shows a prepared statement with parameters:
+
+```swift
+let idParameter = XLNamedBindingReference<String>(name: "id")
+
+let deleteStatement = sql { schema in
+    let person = schema.into(Person.self)
+    Delete(person)
+    Where(person.id == idParameter)
+}
+
+let deleteRequest = try database.makeRequest(with: deleteStatement)
+
+...
+
+var newDeleteRequest = deleteRequest
+newDeleteRequest.set(idParameter, "fred")
+try newDeleteRequest.execute()
+```
