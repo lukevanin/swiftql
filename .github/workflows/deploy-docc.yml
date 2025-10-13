@@ -25,7 +25,7 @@ jobs:
 
       - name: Deploy DocC
         id: deployment
-        uses: swiftlang/swift-docc-plugin@v1
+        uses: swiftlang/swift-docc-plugin@v1.4.5
         with:
           target: SwiftQL
           hosting-base-path: /swiftql
