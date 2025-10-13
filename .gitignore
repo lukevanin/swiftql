@@ -4,7 +4,7 @@
 /Packages
 xcuserdata/
 DerivedData/
-.docc-build/
+**/.docc-build/
 .swiftpm/configuration/registries.json
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
