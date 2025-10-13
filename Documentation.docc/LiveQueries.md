@@ -1,4 +1,6 @@
-# Live queries with SwiftQL
+# Live queries
+
+Use Combine Publishers to observe changes to the database. 
 
 ## Overview
 

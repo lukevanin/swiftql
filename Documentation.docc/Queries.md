@@ -1,4 +1,5 @@
-# SwiftQL select queries
+# Select Queries
+
 Use joins, aggregates, sorting, subqueries, and common table expressions.
 
 ## Overview

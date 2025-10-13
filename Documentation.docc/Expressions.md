@@ -1,5 +1,7 @@
 # Expressions
 
+In depth discussion of expressions in SwiftQL.
+
 ## Overview
 
 SwiftQL allows complex expressions to be used wherever a column reference is

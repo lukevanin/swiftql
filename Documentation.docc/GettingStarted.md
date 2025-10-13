@@ -1,4 +1,4 @@
-# Getting started with SwiftQL
+# Getting started
 
 Introduces the basic concepts and usage of SwiftQL. 
 
@@ -133,8 +133,8 @@ VALUES ('fred', NULL, 'Fred', 31)
 
 ## Running select queries
 
-Now that we have some data, we can run the select query we enountered 
-previously. First we prepare the query, then execute it:
+Now that we have some data, we can run a select query. In the example below we 
+prepare the query and execute it:
 
 ```swift
 let query = sql { schema in
@@ -156,7 +156,25 @@ We can also use `fetchOne` to fetch only the first result from the query.
 let firstResult = try database.makeRequest(with: query).fetchOne()
 ```
 
-We will cover more select clauses in the <doc:InDepth> guide.
+Select statement syntax is discussed in more detail the <doc:Queries> guide.
+
+### Schema parameter
+
+In the example above we used a `schema` parameter in the `sql` function to 
+construct a reference to the table used in the query. A common convention is to
+omit the `schema` parameter name entirely and use the default parameter name 
+`$0` instead:
+
+```swift
+let query = sql { 
+    let person = $0.table(Person.self)
+    Select(person)
+    From(person)
+    Where(person.name == 'Fred')
+}
+```
+
+The guide documentation use the explicit `schema` for clarity.  
 
 ### Prepared statements
 

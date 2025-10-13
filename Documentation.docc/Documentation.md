@@ -1,6 +1,6 @@
 # SwiftQL
 
-SwiftQL lets you write SQL using familiar type-safe Swift.
+Write SQL using familiar type-safe Swift syntax.
 
 ## Overview
 
@@ -17,7 +17,7 @@ let query = sql { schema in
 }
 ```
 
-This would be equivalent to writing the SQL:
+This would be equivalent to writing the following SQL:
 
 ```sql
 SELECT *
@@ -25,8 +25,27 @@ FROM Person AS person
 WHERE person.name == 'Fred'
 ```
 
-SwiftQL is designed to look like SQLite SQL syntax, while keeping to the style 
-and conventions of the Swift language. 
+SwiftQL is designed to look like the SQL you are acustomed to while adhering to 
+the style and conventions of the Swift language. 
+
+SwiftQL uses the SQL dialect used by SQLite.
+
+## Why SQLite?
+
+SQLite is a commonly used database used by many iOS and MacOS applications. It 
+has been around forever, runs just about everywhere, and its charactaristics are 
+generally well understood. 
+
+SwiftQL provides the best the best of both SQLite and Swift: a stable and well 
+defined interface and set of capabilities, accessed through a modern type safe 
+language.
+
+Where Swift and SQLite diverge in philosophy, Swift is given preference so that
+the SQL code you write continues to feel like first class Swift. An example is 
+where SQLite uses flexible typing, SwiftQL adheres to Swift's strict typing and
+provides assurances that SQL statements will not implicitly convert types. 
+However SwiftQL does not intentionally remove any functionality from SQLite, and 
+provides utilities for safely casting types when needed.  
 
 ## When to use SwiftQL
 
@@ -48,12 +67,6 @@ warnings to indicate where references need to be changed in your code.
 
 SwiftQL ensures that types are handled consistently avoiding errors caused by
 implicit type conversion.
-
-## Why SQLite?
-
-SQLite is a commonly used database used by many iOS and MacOS applications. It 
-has been around forever, runs just about everywhere, and its charactaristics are 
-generally well understood. 
 
 ## How is SwiftQL different to SwiftData?
 
@@ -78,8 +91,12 @@ handle large and/or complicated data sets efficiently.
 - <doc:Queries>
 - <doc:LiveQueries>
 - <doc:Expressions>
-<!--- <doc:Functions>-->
-<!--- <doc:CustomFunctions>-->
-<!--- <doc:CustomTypes>-->
+- <doc:BuiltinFunctions>
+- <doc:FunctionalSyntax>
+
+### Advanced topics
+- <doc:CustomFunctions>
+- <doc:CustomTypes>
+- <doc:GenericTableParameters>
 
 
