@@ -1,6 +1,6 @@
 //
-//  File.swift
-//  
+//  InsertBuilder.swift
+//
 //
 //  Created by Luke Van In on 2024/10/25.
 //
@@ -8,7 +8,14 @@
 import Foundation
 
 
-public struct XLInsertBuilder<Row> {
+///
+/// InsertBuilder is a helper class used to construct insert statements when the structure of the statement is
+/// not known at compile time.
+///
+/// Currently InsertBuilder is used to construct insert statements with a variable number of
+/// parameters.
+///
+public struct InsertBuilder<Row> {
     
     enum InternalError: LocalizedError {
         case missingValuesClause
@@ -28,14 +35,14 @@ public struct XLInsertBuilder<Row> {
         self.insert = insert
     }
     
-    private func copy(modifier: (inout XLInsertBuilder) -> Void) -> XLInsertBuilder {
-        var newInstance = XLInsertBuilder(insert: insert)
+    private func copy(modifier: (inout InsertBuilder) -> Void) -> InsertBuilder {
+        var newInstance = InsertBuilder(insert: insert)
         newInstance.values = values
         modifier(&newInstance)
         return newInstance
     }
     
-    public func values(_ values: Row) -> XLInsertBuilder where Row: XLTable, Row.MetaInsert.Row == Row  {
+    public func values(_ values: Row) -> InsertBuilder where Row: XLTable, Row.MetaInsert.Row == Row  {
         copy {
             $0.values = Row.MetaInsert(values)
         }
