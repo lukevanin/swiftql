@@ -6,5 +6,5 @@ swift package --allow-writing-to-directory docs/ \
     generate-documentation --target SwiftQL \
     --disable-indexing \
     --transform-for-static-hosting \
-    --hosting-base-path swiftql \
+    --hosting-base-path /swiftql \
     --output-path docs/
