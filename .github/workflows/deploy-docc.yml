@@ -1,41 +1,38 @@
-name: Deploy DocC
-
+name: Deploy DocC Documentation to Github Pages
 on:
+  # Runs on pushes targeting the master branch
   push:
     branches: ["main"]
 
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
+# Allow one concurrent deployment
 concurrency:
   group: "pages"
-  cancel-in-progress: false
-
+  cancel-in-progress: true
+  
 jobs:
+  # One deployment deploy job since we're just deploying
   deploy:
     environment:
+      # Must set to this for deploying to GitHub Pages
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Deploy DocC
-        id: deployment
-        uses: swiftlang/swift-docc-plugin@main
-        with:
-          target: SwiftQL
-          hosting-base-path: /swiftql
-          output-path: "docs"
-          transform-for-static-hosting: "true"
-
+        uses: actions/checkout@v3
+      - name: Build DocC
+        run: make-docs.sh
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v1
         with:
-          path: docs
-
+          # Upload only docs directory
+          path: 'docs'
       - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
+        id: deployment
+        uses: actions/deploy-pages@v1
