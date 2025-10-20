@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  MetaBuilder.swift
 //  
 //
 //  Created by Luke Van In on 2024/09/20.
@@ -15,7 +15,7 @@ import SwiftSyntaxMacros
 // MARK: - Builder
 
 
-struct MetaProperty {
+internal struct MetaProperty {
     
     enum ColumnKind {
         
@@ -68,9 +68,15 @@ struct MetaProperty {
     }
 }
 
+
 #warning("TODO: Remove anonymous properties")
 
-struct MetaBuilder {
+///
+/// Generates code for `SQLTable` and `SQLResult` macros.
+///
+/// Used internally by SwiftQL to generate code for `SQLTable` and `SQLResult` macros.
+///
+internal struct MetaBuilder {
     
     private enum InternalError: LocalizedError {
         case unsupportedType(String)
@@ -86,22 +92,37 @@ struct MetaBuilder {
         }
     }
     
+    /// Name of the struct defined in the Swift source file.
     let structName: String
     
+    /// Name of the SQL table which the struct refers to. SwiftQL uses the struct name for the table name
+    /// unless the `name:` parameter is specified in the macro. Only applies to `SQLTable` macros.
     let tableName: String
     
+    /// SwiftSyntax declaration of the struct.
     let declaration: StructDeclSyntax
     
+    /// Non-optional properties defined on the struct. These properties correspond to table columns.
     let properties: [MetaProperty]
     
+    /// Optional properties defined on the struct. These properties correspond to nullable table columns.
     let optionalProperties: [MetaProperty]
     
+    /// Anonymous (unnamed) properties. Only applies to `SQLResult` macros.
+    /// > TODO: Remove anonymous properties.
     let anonymousProperties: [MetaProperty]
     
+    /// Optional anonymous  properties. Only applies to `SQLResult` macros.
+    /// > TODO: Remove optional anonymous properties.
     let anonymousOptionalProperties: [MetaProperty]
 
+    /// Mutable properties defined on the struct.
     let mutableProperties: [MetaProperty]
 
+    ///
+    /// Convenience initializer used to initialise the builder with a `DeclGroupSyntax`.
+    /// - throws: `SQLMacroError.unsupportedType` if the declaration is not a `StructDeclSyntax`
+    ///
     init(node: AttributeSyntax, declaration: DeclGroupSyntax) throws {
         guard let declaration = declaration.as(StructDeclSyntax.self) else {
             throw SQLMacroError.unsupportedType
@@ -109,10 +130,21 @@ struct MetaBuilder {
         try self.init(node: node, declaration: declaration)
     }
     
+    ///
+    /// Initialises the builder with a node and a declaration.
+    ///
+    /// - Parameter node: Reference to the macro. E.g. `@SQLTable(name: "foo")`
+    /// - Parameter declaration: Reference to the struct which the macro is defined on.
+    ///
+    /// The initializer collects the properties defined on the struct, to be used in generating the meta data
+    /// for the table or result.
+    ///
     init(node: AttributeSyntax, declaration: StructDeclSyntax) throws {
         self.structName = declaration.name.text
         self.declaration = declaration
         
+        // Use the name parameter from the macro if it is defined, otherwise
+        // use the name of the struct for the table name.
         if
             case let .argumentList(arguments) = node.arguments,
             let nameArg = arguments.first(where: { $0.label?.text == "name" }),
@@ -126,6 +158,7 @@ struct MetaBuilder {
             self.tableName = structName
         }
         
+        // Collect the properties from the struct definition.
         let properties = try declaration.memberBlock.members
             .compactMap { member in
                 guard let declaration = member.decl.as(VariableDeclSyntax.self) else {
@@ -183,10 +216,34 @@ struct MetaBuilder {
         self.mutableProperties = properties.filter {
             $0.mutability == .mutable
         }
-
     }
 
 
+    ///
+    /// Creates an extension for the struct with the given conformance.
+    ///
+    /// - Parameter name: Name of the protocol.
+    ///
+    /// Example:
+    ///
+    /// Given the following struct:
+    /// ```swift
+    /// @SQLTable() struct Foo {
+    /// }
+    /// ```
+    ///
+    /// We can generate conformance for the `Bar` protocol:
+    ///
+    /// ```swift
+    /// builder.makeConformanceExtension(name: "Bar")
+    /// ```
+    ///
+    /// This will generate the following code:
+    /// ```swift
+    /// extension Foo: Bar {
+    /// }
+    /// ```
+    ///
     func makeConformanceExtension(name: String) -> String {
         var context = SwiftSyntaxBuilder()
         context.block("extension \(structName): \(name)") { context in
@@ -823,11 +880,10 @@ struct MetaBuilder {
         }
         return context.build()
     }
-    
-//    private func alias(at index: Int) -> String {
-//        "c\(index)"
-//    }
-    
+
+    ///
+    /// Helper method used to surround a string with quote `"` characters.
+    ///
     private func quoted(_ input: String) -> String {
         "\"\(input)\""
     }

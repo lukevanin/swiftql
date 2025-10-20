@@ -9,7 +9,11 @@ import Foundation
 
 
 extension Data {
-    func hex() -> String {
+    
+    ///
+    /// Convenience function used to encode data into a hexadecimal string.
+    ///
+    internal func hex() -> String {
         map {
             String(format: "%02x", $0)
         }
@@ -19,7 +23,10 @@ extension Data {
 
 
 extension UUID {
-        
+    
+    ///
+    /// Initializes a UUID with a Data object.
+    ///
     init(data: Data) {
         self = data.withUnsafeBytes { (p: UnsafeRawBufferPointer) -> UUID in
             let b = p.bindMemory(to: uuid_t.self)
@@ -27,6 +34,9 @@ extension UUID {
         }
     }
 
+    ///
+    /// Creates a Data object from the UUID.
+    ///
     func data() -> Data {
         withUnsafePointer(to: self) {
             Data(bytes: $0, count: MemoryLayout.size(ofValue: self))

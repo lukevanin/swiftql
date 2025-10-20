@@ -38,7 +38,7 @@ internal struct SwiftSyntaxBuilder {
     /// The `line` method is used to add a single line of output.
     ///
     /// Example: Declare a variable named "foo" with the value 42.
-    /// ```
+    /// ```swift
     /// var builder = SwiftSyntaxBuilder()
     /// builder.line("let foo = 12")
     /// ```
@@ -60,7 +60,7 @@ internal struct SwiftSyntaxBuilder {
     ///
     /// Example: Declare a function named "makeFoo" which returns an Int, in this case the number 42.
     ///
-    /// ```
+    /// ```swift
     /// var builder = SwiftSyntaxBuilder()
     /// builder.block("makeFoo() -> Int") { builder in
     ///     builder.line("return 42")
@@ -69,7 +69,7 @@ internal struct SwiftSyntaxBuilder {
     ///
     /// Example: Define a struct "Foo", with an attribute "name" of type Int.
     ///
-    /// ```
+    /// ```swift
     /// var builder = SwiftSyntaxBuilder()
     /// builder.block("Foo") { builder in
     ///     builder.line("var name: Int")
@@ -99,7 +99,7 @@ internal struct SwiftSyntaxBuilder {
     ///
     /// Example: Instantiate a struct named "Foo", setting the "name" attribute to the value 42:
     ///
-    /// ```
+    /// ```swift
     /// var builder = SwiftSyntaxBuilder()
     /// builder.declaration("Foo") { builder in
     ///     builder.item { builder in
@@ -142,7 +142,7 @@ internal struct SwiftSyntaxBuilder {
 ///
 /// Specialised Swift code builder used to construct lists, such as arrays and parameters.
 ///
-/// > Use a relevant list method on `SwiftSyntaxBuilder` to obtain an instance of this object.
+/// > Note: Use a relevant list method on `SwiftSyntaxBuilder` to obtain an instance of this object.
 ///
 internal struct SwiftSyntaxListBuilder {
     

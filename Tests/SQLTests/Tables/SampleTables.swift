@@ -60,9 +60,9 @@ struct Org {
 
 @SQLTable
 struct Family {
-    var name: String?
-    var mom: String?
-    var dad: String?
-    var born: Date?
-    var died: Date?
+var name: String?
+var mom: String?
+var dad: String?
+var born: Date?
+var died: Date?
 }
