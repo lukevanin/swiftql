@@ -399,7 +399,7 @@ public protocol XLBuilder {
     /// - Parameter operator: Prefix applied before the sub-expression
     /// - Parameter expression: Sub-expression applied after the prefix.
     ///
-    /// This differs from <doc:unaryOperator> in that the prefix is applied as a separate sub-expression
+    /// This differs from `unaryOperator` in that the prefix is applied as a separate sub-expression
     /// separated by the standard delimiter (usually a space).
     ///
     mutating func unaryPrefix(_ operator: String, expression: Builder)
@@ -418,7 +418,7 @@ public protocol XLBuilder {
     /// - Parameter operator: Leading operator applied before the expression.
     /// - Parameter expression: Sub-expression applied after the operator.
     ///
-    /// This differs from <doc:unaryPrefix> in that the operator is applied immediately before
+    /// This differs from `unaryPrefix` in that the operator is applied immediately before
     /// the expression.
     ///
     mutating func unaryOperator(_ operator: String, expression: Builder)

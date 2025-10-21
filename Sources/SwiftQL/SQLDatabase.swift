@@ -111,7 +111,7 @@ public protocol XLRequest<Row> {
     ///
     /// Assigns a literal value to an optional named variable parameter.
     ///
-    /// - Parameter parameter: Named variable parameter to assign.
+    /// - Parameter reference: Named variable parameter to assign.
     /// - Parameter value: Optional value to assign to the named parameter.
     ///
     mutating func set<T>(parameter reference: XLNamedBindingReference<Optional<T>>, value: T?) where T: XLBindable
@@ -119,7 +119,7 @@ public protocol XLRequest<Row> {
     ///
     /// Assigns a literal value to a variable parameter.
     ///
-    /// - Parameter parameter: Named variable parameter to assign.
+    /// - Parameter reference: Named variable parameter to assign.
     /// - Parameter value: Value to assign to the named parameter.
     ///
     mutating func set<T>(parameter reference: XLNamedBindingReference<T>, value: T) where T: XLBindable
@@ -183,7 +183,7 @@ public protocol XLWriteRequest {
     ///
     /// Assigns a literal value to an optional named variable parameter.
     ///
-    /// - Parameter parameter: Named variable parameter to assign.
+    /// - Parameter reference: Named variable parameter to assign.
     /// - Parameter value: Optional value to assign to the named parameter.
     ///
     mutating func set<T>(parameter reference: XLNamedBindingReference<Optional<T>>, value: T?) where T: XLBindable
@@ -191,7 +191,7 @@ public protocol XLWriteRequest {
     ///
     /// Assigns a literal value to a named variable parameter.
     ///
-    /// - Parameter parameter: Named variable parameter to assign.
+    /// - Parameter reference: Named variable parameter to assign.
     /// - Parameter value: Value to assign to the named parameter.
     ///
     mutating func set<T>(parameter reference: XLNamedBindingReference<T>, value: T) where T: XLBindable
