@@ -21,9 +21,11 @@ errors, typos, or missing fields.
 SwiftQL lets you use your IDE's code completion and refactoring tools to assist 
 you in writing error free SQL.
 
-Currently SwiftQL supports SQLite's dialect of SQL.
+SwiftQL uses SQLite's dialect of SQL. If you have written SQL for SQLite you 
+already know SwiftQL. 
 
-See the [Getting Started Guide](Documentation.docc/GettingStarted.md) for more.
+See the [documentation](https://lukevanin.github.io/swiftql/documentation/swiftql/) 
+for more.
 
 ## Installation
 
