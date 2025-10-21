@@ -255,7 +255,6 @@ public struct Setting<Row>: XLEncodable {
     
     private let values: any XLEncodable
     
-    #warning("FIXME: Closure requires explicit genric type parameter to resolve Row type.")
     public init(_ values: (inout Row.MetaUpdate) -> Void) where Row: XLTable {
         var meta = Row.MetaUpdate()
         values(&meta)

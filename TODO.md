@@ -281,6 +281,9 @@ pre-defines the column index to be read.
 ### JoinKind:     #warning("TODO: Support cross and full outer join")
 
 
+### Setting<Row>:     #warning("FIXME: Closure requires explicit genric type parameter to resolve Row type.")
+
+
 
 
 
