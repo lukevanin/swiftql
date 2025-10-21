@@ -25,10 +25,11 @@ FROM Person AS person
 WHERE person.name == 'Fred'
 ```
 
-SwiftQL is designed to look like the SQL you are acustomed to while adhering to 
-the style and conventions of the Swift language. 
+SwiftQL is designed to look like the SQL you are accustomed to, while adhering 
+to the style and conventions of the Swift language. 
 
-SwiftQL uses the SQL dialect used by SQLite.
+SwiftQL uses SQL used by SQLite. If you have used SQL in SQLite you already know 
+SwiftQL.
 
 ## Why SQLite?
 
@@ -67,21 +68,6 @@ warnings to indicate where references need to be changed in your code.
 
 SwiftQL ensures that types are handled consistently avoiding errors caused by
 implicit type conversion.
-
-## How is SwiftQL different to SwiftData?
-
-SwiftData is an object-relational mapping (ORM) framework that allows 
-applications to persist an object graph. SwiftQL provides an interface to query 
-and modify a relational database.
-
-With an ORM such as SwiftData the application primarly interacts with objects. 
-Relationships between objects are defined by member properties.
-
-With a relational database the application interacts with rows within tables.
-Relationships are defined by joining tables using primary and foreign keys.
-
-Call us biased but believe that relational databases are the Correct Way™️ to
-handle large and/or complicated data sets efficiently.
 
 ## Topics
 
