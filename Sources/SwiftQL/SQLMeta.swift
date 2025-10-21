@@ -194,8 +194,6 @@ public protocol XLRowWritable<Row>: XLEncodable {
 ///
 /// The types and method defined by this protocol  are implemented by macro code generation.
 ///
-/// > TODO: Remove `anonymous` methods.
-///
 /// The word `...anonymous...` used in method names refers to a defuct implementation detail
 /// where column names were anonymized as c0, c1, ... cN. This was done to reduce the length of the XL
 /// string that needed to be parsed. However this reduced readability for humans and this was later changed.
@@ -287,9 +285,7 @@ public protocol XLResult {
 /// Types and methods defined by this protocol are implemented by macro code generation.
 ///
 public protocol XLTable: XLResult {
-    
-    #warning("TODO: Only Tables should be writable (able to insert and update), Views, Common Table Expression and Subquery should not be writable.")
-    
+        
     ///
     /// Metadata used when the table is used as the target destination in a write statement.
     ///
@@ -391,7 +387,6 @@ public class XLNamespace {
     ///
     func makeAlias(alias: XLName?) -> XLName {
         let newAlias = alias ?? nextAlias()
-        #warning("TODO: Rename alias if alias already exists")
         usedAlises.insert(newAlias)
         return newAlias
     }
@@ -601,8 +596,6 @@ public struct XLCommonTableDependency: XLColumnDependency, XLNamedDependency {
     }
 
     public func qualifiedName(forColumn name: XLName) -> XLQualifiedName {
-        // TODO: It should not be possible to reference the columns of a common
-        // table expression directly.
         XLQualifiedTableAliasColumnName(table: alias, column: name)
     }
 
@@ -751,7 +744,6 @@ public struct XLUnionDependency: XLTableDeclaration {
 public enum JoinKind: String {
     case innerJoin = "INNER JOIN"
     case leftJoin = "LEFT JOIN"
-    #warning("TODO: Support cross and full outer join")
 }
 
 

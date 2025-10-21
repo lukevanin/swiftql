@@ -270,6 +270,18 @@ pre-defines the column index to be read.
 
 ### Move SQL methods into static `sql` variable to reduce clutter.
 
+### XLTable:     #warning("TODO: Only Tables should be writable (able to insert and update), Views, Common Table Expression and Subquery should not be writable.")
+
+
+### SQLMeta:         #warning("TODO: Rename alias if alias already exists")
+
+
+### SQLMeta:         // TODO: It should not be possible to reference the columns of a common table expression directly.
+
+### JoinKind:     #warning("TODO: Support cross and full outer join")
+
+
+
 
 
 

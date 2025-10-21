@@ -30,8 +30,6 @@ extension XLExpression {
     ///
     /// Automatically unwraps the expression.
     ///
-    /// > TODO: Make this internal.
-    ///
     public func writeSQL(context: inout XLBuilder) {
         (T.self as! XLEncodable.Type).unwrapSQL(context: &context, builder: makeSQL)
     }
