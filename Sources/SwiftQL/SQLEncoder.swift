@@ -862,11 +862,7 @@ public struct XLiteColumnDefinitionsBuilder: XLColumnDefinitionsBuilder {
     /// Note: We do not include the type definition, but instead rely on XLite type affinity to cast the stored value to the type defined in Swift.
     ///
     public mutating func column(name: XLName, nullable: Bool) {
-        
-        #warning("TODO: Include primary key specifier")
-        
-        #warning("TODO: Include default value")
-        
+                
         var components: [String] = []
         components.append(formatter.name(name.rawValue))
         if !nullable {

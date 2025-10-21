@@ -230,6 +230,51 @@ pre-defines the column index to be read.
 
 ### Move functional extensions to separate package.
 
+### warning("TODO: Include common tables and INSERT...SELECT")
+
+### QueryBuilder: Rename AND and OR to requiredConstraint and optionalConstraint.
+
+### Move QueryBuilder and InsertBuilder into separate packages.
+
+### XLDateFunctionModifiers: warning("TODO: Include all modifiers")
+
+### XLExpression: Support IN operator for expressions where one or both sides contain NULL.
+
+### XLTextOperators: #warning("TODO: Implement regexp and match for XLExpression<String>")
+
+### UpdateStatement:     #warning("TODO: Record tables which are updated in the query - post notification when tables are updated")
+
+### GRDBSQLDatabase:             #warning("TODO: Return result")
+
+### GRDBSQLDatabase:         #warning("TODO: Only post entity change notification ")
+
+### XLWriteRequest:     #warning("TODO: Add mutable arguments")
+
+### XLWriteRequest:    #warning("TODO: Return result")
+
+### SQLEncoder: column():         #warning("TODO: Include primary key specifier and #warning("TODO: Include default value")
+
+### SQLExpression: #warning("TODO: Implement IN and NOT IN expressions")
+
+### XLSeparator:     #warning("TODO: Use semantic separator instead of literal (e.g. .list, .tuple)")
+
+### SQLFunctionalSyntax: #warning("TODO: Implement UPSERT (UPDATE OR INSERT)")
+
+### SQLFunctionalSyntax: #warning("TODO: Add support for common table expression returning a raw (not wrapped) scalar value")
+
+### SQLFunctionalSyntax: #warning("TODO: Implement scalar method to create an XLExpression from a common table that returns a scalar value")
+
+### SQLFunctionalSyntax: #warning("TODO: Combine result and SQLReader into single method ") or use .columns instead.
+
+### #warning("TODO: Remove makeSQLAnonymous... methods (column names are no longer anonymized ie c0, c1, c2 ... cN).")
+
+### Move SQL methods into static `sql` variable to reduce clutter.
+
+
+
+
+
+
 
 
 

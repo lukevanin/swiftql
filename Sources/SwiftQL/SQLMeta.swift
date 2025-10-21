@@ -189,8 +189,6 @@ public protocol XLRowWritable<Row>: XLEncodable {
 }
 
 
-#warning("TODO: Remove makeSQLAnonymous... methods (column names are no longer anonymized ie c0, c1, c2 ... cN).")
-
 ///
 /// Metadata associated with a struct annotated with `@SQLResult`.
 ///

@@ -254,10 +254,8 @@ struct GRDBWriteRequest: XLWriteRequest {
         try databasePool.write { database in
             logger?.debug("execute: <<<\(sql)>>> parameters: <<<\(arguments)>>>")
             let statement = try database.cachedStatement(sql: sql)
-            #warning("TODO: Return result")
             try statement.execute(arguments: arguments)
         }
-        #warning("TODO: Only post entity change notification ")
         NotificationCenter.default.postSQLEntitiesChangedNotification(entities: entities)
         NotificationCenter.default.postSQLCommitNotification()
     }

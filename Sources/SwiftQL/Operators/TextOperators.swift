@@ -8,8 +8,6 @@
 import Foundation
 
 
-#warning("TODO: Implement regexp and match for XLExpression<String>")
-
 
 // MARK: - Concatenation
 

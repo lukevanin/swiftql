@@ -76,8 +76,6 @@ extension NotificationCenter {
 ///
 /// Constructs a prepared select query statement with parameters.
 ///
-/// > TODO: Make internal.
-///
 public struct XLRequestBuilder<Row> {
     
     public typealias Parameterize = (inout any XLRequest<Row>) -> Void
@@ -181,8 +179,6 @@ extension XLRequest {
 /// from executing the request.
 ///
 public protocol XLWriteRequest {
-    #warning("TODO: Add mutable arguments")
-    #warning("TODO: Return result")
     
     ///
     /// Assigns a literal value to an optional named variable parameter.

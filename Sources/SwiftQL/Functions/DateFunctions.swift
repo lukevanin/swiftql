@@ -9,9 +9,7 @@ import Foundation
 
 
 public enum XLDateFunctionModifiers: String {
-    
-    #warning("TODO: Include all modifiers")
-    
+        
     case subseconds = "subsec"
 }
 

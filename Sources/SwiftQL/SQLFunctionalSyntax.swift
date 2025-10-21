@@ -69,9 +69,6 @@ public func sqlCreate<T>(_ table: T.Type) -> any XLCreateStatement<T> where T: X
 }
 
 
-#warning("TODO: Implement UPSERT (UPDATE OR INSERT)")
-
-
 // MARK: With (common table expression)
 
 
@@ -86,17 +83,30 @@ public struct XLSchema {
     public init() {
         
     }
-    
+
+    ///
+    /// Constructs a named binding reference.
+    ///
+    /// > Tip: For most use cases this method is not needed and `XLNamedBindingReference` should
+    /// be instantiated directly.
+    ///
     public func binding<T>(of type: T.Type, as alias: XLName? = nil) -> XLNamedBindingReference<T> where T: XLLiteral {
         XLNamedBindingReference(name: parameterNamespace.makeAlias(alias: alias))
     }
 
+    ///
+    /// Constructs common table expression using a select query that returns an `SQLTable`.
+    ///
     public func commonTable<T>(alias: XLName? = nil, statement: any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLTable {
         let alias = commonTableNamespace.makeAlias(alias: alias)
         let dependency = XLCommonTableDependency(alias: alias, statement: statement)
         return T.makeSQLCommonTable(namespace: commonTableNamespace, dependency: dependency)
     }
     
+    ///
+    /// Constructs a common table expression with a select query that returns an `SQLResult`
+    /// column set.
+    ///
     public func commonTable<T>(alias: XLName? = nil, statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
         let alias = commonTableNamespace.makeAlias(alias: alias)
         let schema = XLSchema()
@@ -105,7 +115,10 @@ public struct XLSchema {
     }
     
     ///
-    /// Note: Recursive common table requires heap allocation.
+    /// Constructs a recursive common table expression using a select query that returns
+    /// an `SQLResult`.
+    ///
+    /// > Note: Recursive common table requires heap allocation.
     ///
     public func recursiveCommonTable<T>(_ type: T.Type, alias: XLName? = nil, statement: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
         let alias = commonTableNamespace.makeAlias(alias: alias)
@@ -119,7 +132,9 @@ public struct XLSchema {
     }
     
     ///
-    /// Note: Recursive common table requires heap allocation.
+    /// Constructs a recursive common table expression using a select query that returns an `SQLTable`.
+    ///
+    /// > Note: Recursive common table requires heap allocation.
     ///
     public func recursiveCommonTableExpression<T>(_ type: T.Type, alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
         let alias = commonTableNamespace.makeAlias(alias: alias)
@@ -132,40 +147,54 @@ public struct XLSchema {
         return commonTable
     }
     
-    #warning("TODO: Add support for common table expression returning a raw (not wrapped) scalar value")
-
+    ///
+    /// Creates a reference to an `SQLTable`.
+    ///
     public func table<T>(_ table: T.Type, as alias: XLName? = nil) -> T.MetaNamedResult where T: XLTable {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLFromTableDependency(qualifiedName: T.sqlTableName(), alias: alias)
         return T.makeSQLNamedResult(namespace: tableNamespace, dependency: dependency)
     }
     
+    ///
+    /// Creates a reference to an `SQLResult`.
+    ///
     public func table<T>(_ commonTable: T, as alias: XLName? = nil) -> T.Result.MetaNamedResult where T: XLMetaCommonTable, T.Result: XLResult {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLFromCommonTableDependency(commonTable: commonTable.definition, alias: alias)
         return T.Result.makeSQLAnonymousNamedResult(namespace: tableNamespace, dependency: dependency)
     }
 
+    ///
+    /// Creates a reference to an `SQLTable` that can resolve to `NULL`.
+    ///
     public func nullableTable<T>(_ table: T.Type, as alias: XLName? = nil) -> T.MetaNullableNamedResult where T: XLTable {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLFromTableDependency(qualifiedName: T.sqlTableName(), alias: alias)
         return T.makeSQLNullableNamedResult(namespace: tableNamespace, dependency: dependency)
     }
     
-    #warning("TODO: Implement scalar method to create an XLExpression from a common table that returns a scalar value")
-
+    ///
+    /// Creates a reference to an `SQLResult` that can resolve to `NULL`.
+    ///
     public func nullableTable<T>(_ commonTable: T, as alias: XLName? = nil) -> T.Result.MetaNullableNamedResult where T: XLMetaCommonTable, T.Result: XLResult {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLFromCommonTableDependency(commonTable: commonTable.definition, alias: alias)
         return T.Result.makeSQLAnonymousNullableNamedResult(namespace: tableNamespace, dependency: dependency)
     }
     
+    ///
+    /// Creates a reference to an `SQLTable` that is the subject of a write operation.
+    ///
     public func into<T>(_ table: T.Type, as alias: XLName? = nil) -> T.MetaWritableTable where T: XLTable {
         let alias = tableNamespace.makeAlias(alias: alias)
         let dependency = XLFromTableDependency(qualifiedName: T.sqlTableName(), alias: alias)
         return T.makeSQLInsert(namespace: tableNamespace, dependency: dependency)
     }
     
+    ///
+    /// Creates a reference to an `SQLTable` that is used in a `From` clause in an `Insert` statement.
+    ///
     public func from<T>(as alias: XLName? = nil, statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLTable {
         let alias = tableNamespace.makeAlias(alias: alias)
         let schema = XLSchema()
@@ -173,6 +202,9 @@ public struct XLSchema {
         return T.makeSQLAnonymousNamedResult(namespace: tableNamespace, dependency: dependency)
     }
 
+    ///
+    /// Creates a reference to a table that is used in a Create statement.
+    ///
     public func create<T>(_ table: T.Type) -> T.MetaCreate where T: XLTable {
         return T.makeSQLCreate()
     }
@@ -183,6 +215,9 @@ public struct XLSchema {
 // MARK: With
 
 
+///
+/// Specifies common table expressions used in a statement.
+///
 public func with(_ commonTables: any XLMetaCommonTable...) -> XLWithStatement {
     XLWithStatement(commonTables.map { $0.definition })
 }
@@ -192,8 +227,10 @@ public func with(_ commonTables: any XLMetaCommonTable...) -> XLWithStatement {
 // MARK: Result
 
 
-#warning("TODO: Combine result and SQLReader into single method ")
-
+///
+/// Specifies the values for columns in a select statement.
+///
+@available(*, deprecated, message: "Use the .columns() method on the table object instead.")
 public func result<T>(_ builder: () -> T) -> T.Row.MetaResult where T: XLRowReadable, T.Row: XLResult {
     let newNamespace = XLNamespace.table()
     let dependency = XLSelectResultDependency()
@@ -202,6 +239,10 @@ public func result<T>(_ builder: () -> T) -> T.Row.MetaResult where T: XLRowRead
 }
 
 
+///
+/// Specifies the values for columns in a select statement.
+///
+@available(*, deprecated, message: "Use the .columns() method on the table object instead.")
 public func result<T>(_ iterator: @escaping (XLRowReader) -> T) -> T.MetaResult where T: XLResult {
     let newNamespace = XLNamespace.table()
     let dependency = XLSelectResultDependency()
@@ -211,7 +252,9 @@ public func result<T>(_ iterator: @escaping (XLRowReader) -> T) -> T.MetaResult 
 
 // MARK: Subquery
 
-
+///
+/// Constructs a subquery with a select query statement that returns a column set.
+///
 public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLResult {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
@@ -221,6 +264,9 @@ public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQ
 }
 
 
+///
+/// Constructs a subquery with a select query statement that returns a column set that can evaluate to NULL.
+///
 public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableNamedResult where T: XLMetaNullable, T.Basis: XLResult {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
@@ -230,12 +276,19 @@ public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQ
 }
 
 
+///
+/// Constructs a subquery with a select query statement that returns a scalar value that can evaluate
+/// to NULL.
+///
 public func subquery<T>(_ statement: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
     let schema = XLSchema()
     return XLSubquery(statement: statement(schema))
 }
 
 
+///
+/// Constructs a subquery with a select query statement that returns a scalar value.
+///
 public func subquery<T>(_ statement: () -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
     return XLSubquery(statement: statement())
 }
@@ -243,16 +296,25 @@ public func subquery<T>(_ statement: () -> any XLQueryStatement<T>) -> some XLEx
 
 // MARK: Select
 
+///
+/// Constructs a select statement that returns a column set.
+///
 public func select<T>(_ result: T) -> XLQuerySelectStatement<T.Row> where T: XLRowReadable {
     makeQuery(select: Select(result))
 }
 
 
+///
+/// Constructs a select statement that returns a scalar value.
+///
 public func select<T>(_ expression: any XLExpression<T>) -> XLQuerySelectStatement<T> where T: XLExpression & XLLiteral {
     makeQuery(select: Select(expression))
 }
 
 
+///
+/// Constructs a select statement using an explicit Select expression.
+///
 private func makeQuery<T>(select: Select<T>) -> XLQuerySelectStatement<T> {
     let components = XLQueryStatementComponents(select: select)
     return XLQuerySelectStatement(components: components)
@@ -261,11 +323,17 @@ private func makeQuery<T>(select: Select<T>) -> XLQuerySelectStatement<T> {
 
 // MARK: Update
 
+///
+/// Constructs an Update statement with a Set clause.
+///
 public func update<T, S>(_ table: T, set: S) -> XLUpdateSetStatement<T.Row> where T: XLMetaWritableTable, S: XLMetaUpdate, S.Row == T.Row {
     let components = XLUpdateStatementComponents(update: Update(table), components: [set])
     return XLUpdateSetStatement(components: components)
 }
 
+///
+/// Constructs an Update statement.
+///
 public func update<T>(_ table: T) -> XLUpdateTableStatement<T.Row> where T: XLMetaWritableTable {
     let components = XLUpdateStatementComponents(update: Update(table))
     return XLUpdateTableStatement(components: components)
@@ -274,6 +342,9 @@ public func update<T>(_ table: T) -> XLUpdateTableStatement<T.Row> where T: XLMe
 
 // MARK: Insert
 
+///
+/// Constructs an Insert statement.
+///
 public func insert<T>(_ meta: T) -> XLInsertTableStatement<T.Row> where T: XLMetaNamedResult {
     let components = XLInsertStatementComponents(insert: Insert(meta))
     return XLInsertTableStatement(components: components)
@@ -282,6 +353,9 @@ public func insert<T>(_ meta: T) -> XLInsertTableStatement<T.Row> where T: XLMet
 
 // MARK: Create
 
+///
+/// Constructs a Create statement.
+///
 public func create<T>(_ meta: T) -> XLCreateTableStatement<T.Table> where T: XLMetaCreate {
     let components = XLCreateTableStatementComponents(create: Create(meta))
     return XLCreateTableStatement(components: components)
@@ -290,6 +364,9 @@ public func create<T>(_ meta: T) -> XLCreateTableStatement<T.Table> where T: XLM
 
 // MARK: Delete
 
+///
+/// Constructs a Delete statement.
+///
 public func delete<T>(_ table: T) -> XLDeleteTableStatement<T> where T: XLMetaWritableTable, T.Row: XLTable {
     let components = XLDeleteStatementComponents(delete: Delete(table))
     return XLDeleteTableStatement(components: components)

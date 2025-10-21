@@ -16,8 +16,6 @@ import Foundation
 ///
 public struct XLUpdateStatementComponents<Row>: XLEncodable {
 
-    #warning("TODO: Record tables which are updated in the query - post notification when tables are updated")
-
     var commonTables: [XLCommonTableDependency]
     
     let update: Update<Row>

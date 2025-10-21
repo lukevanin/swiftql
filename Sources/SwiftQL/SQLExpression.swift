@@ -8,9 +8,6 @@
 import Foundation
 
 
-#warning("TODO: Implement IN and NOT IN expressions")
-
-
 public typealias XLCustomType = XLExpression & XLBindable & XLLiteral
 
 
@@ -523,7 +520,6 @@ public struct XLQualifiedSelectColumnName: XLQualifiedName, Equatable {
 /// Delimiter used to encode SQLite expressions.
 ///
 public enum XLSeparator: String {
-    #warning("TODO: Use semantic separator instead of literal (e.g. .list, .tuple)")
     case elided = ""
     case space = " "
     case comma = ", "
@@ -536,8 +532,6 @@ public enum XLSeparator: String {
 
 ///
 /// An expression composed of multiple sub-expressions.
-///
-/// > TODO: make internal
 ///
 struct XLCompoundExpression<T>: XLExpression {
     
@@ -564,8 +558,6 @@ struct XLCompoundExpression<T>: XLExpression {
 
 ///
 /// An expression enclosing a sub-expression with parenthesis.
-///
-/// > TODO: Make internal
 ///
 struct XLParenthesis<T>: XLExpression {
     

@@ -5,6 +5,9 @@
 import Foundation
 
 
+///
+/// Logging level using by XLLogger.
+///
 public enum XLLogLevel {
     case information
     case debug
@@ -13,6 +16,9 @@ public enum XLLogLevel {
 }
 
 
+///
+/// Logs SwiftQL events.
+///
 public protocol XLLogger {
     
     func log(level: XLLogLevel, message: String)

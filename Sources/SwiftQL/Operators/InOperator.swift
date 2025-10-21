@@ -31,7 +31,6 @@ extension XLExpression {
         return XLInValueExpression(lhs: self, rhs: expression(schema))
     }
 
-    // TODO: Support IN operator for expressions where one or both sides contain NULL.
     // Currently this creates ambiguous expressions with the in operator for non-null expressions. Possibly a solution
     // is to remove XLLiteral and/or XLExpression conformance from Optional.
     public func `in`<Wrapped>(expression: () -> any XLQueryStatement<Wrapped>) -> some XLExpression<Optional<Bool>> where T == Optional<Wrapped> {

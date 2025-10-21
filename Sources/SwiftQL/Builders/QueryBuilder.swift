@@ -22,8 +22,6 @@ import Foundation
 ///
 public struct QueryBuilder<Row> {
     
-    #warning("TODO: Rename AND and OR to requiredConstraint and optionalConstraint")
-    
     enum InternalError: LocalizedError {
         case missingFromClause
         case missingLimitClause

@@ -49,7 +49,6 @@ public struct InsertBuilder<Row> {
     }
     
     public func build() throws -> any XLInsertStatement<Row> {
-        #warning("TODO: Include common tables and INSERT...SELECT")
         var statement = XLInsertStatementComponents(insert: insert)
         
         guard let values else {
