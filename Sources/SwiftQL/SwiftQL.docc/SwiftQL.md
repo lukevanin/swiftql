@@ -1,4 +1,4 @@
-# SwiftQL
+# ``SwiftQL``
 
 Write SQL using familiar type-safe Swift syntax.
 
