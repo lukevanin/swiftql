@@ -11,7 +11,7 @@ functions provided natively by SQLite.
 
 ### iif()
 
-The `iif` function in SqiftQL is a conditional function that returns one of two 
+The `iif` function in SwiftQL is a conditional function that returns one of two 
 or more values based on a boolean expression. It functions similarly to a `Case` 
 statement, is logically equivalent to Swift's' `if-then-else`, and returns a 
 value based on the first true condition or a default value if all conditions are 

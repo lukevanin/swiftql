@@ -1,6 +1,6 @@
 //
-//  XLOperators.swift
-//  
+//  SQLOperators.swift
+//
 //
 //  Created by Luke Van In on 2023/08/01.
 //
@@ -8,9 +8,21 @@
 import Foundation
 
 
-#warning("TODO: Implement between operator")
-
-
+///
+/// Unary operator.
+///
+/// Example:
+///
+/// *Swift:*
+/// ```swift
+/// +69
+/// ```
+///
+/// *SQL:*
+/// ```SQL
+/// +69
+/// ```
+///
 public struct XLUnaryOperatorExpression<T>: XLExpression {
     
     let op: String
@@ -28,6 +40,21 @@ public struct XLUnaryOperatorExpression<T>: XLExpression {
 }
 
 
+///
+/// Prefix operator.
+///
+/// Example:
+///
+/// *Swift:*
+/// ```swift
+/// !foo
+/// ```
+///
+/// *SQL:*
+/// ```SQL
+/// (NOT foo)
+/// ```
+///
 public struct XLPrefixOperatorExpression<T>: XLExpression {
     
     let op: String
@@ -47,6 +74,22 @@ public struct XLPrefixOperatorExpression<T>: XLExpression {
 }
 
 
+
+///
+/// Postfix operator.
+///
+/// Example:
+///
+/// *Swift:*
+/// ```swift
+/// foo.isNull()
+/// ```
+///
+/// *SQL:*
+/// ```SQL
+/// (foo ISNULL)
+/// ```
+///
 public struct XLPostfixOperatorExpression<T>: XLExpression {
     
     let op: String
@@ -66,6 +109,21 @@ public struct XLPostfixOperatorExpression<T>: XLExpression {
 }
 
 
+///
+/// Binary operator expression.
+///
+/// Example:
+///
+/// *Swift:*
+/// ```swift
+/// foo * bar
+/// ```
+///
+/// *SQL:*
+/// ```SQL
+/// (foo * bar)
+/// ```
+///
 public struct XLBinaryOperatorExpression<T>: XLExpression {
     
     let op: String
@@ -88,6 +146,21 @@ public struct XLBinaryOperatorExpression<T>: XLExpression {
 }
 
 
+///
+/// String contatenation expression.
+///
+/// Example:
+///
+/// *Swift:*
+/// ```swift
+/// foo + bar
+/// ```
+///
+/// *SQL:*
+/// ```SQL
+/// foo || bar
+/// ```
+///
 public struct XLConcatenationExpression<T>: XLExpression {
     
     let op: String
@@ -108,6 +181,21 @@ public struct XLConcatenationExpression<T>: XLExpression {
 }
 
 
+///
+/// IN value expression.
+///
+/// Example:
+///
+/// *Swift:*
+/// ```swift
+/// foo.in("bar", "baz")
+/// ```
+///
+/// *SQL:*
+/// ```SQL
+/// (foo IN ('bar', 'baz'))
+/// ```
+///
 public struct XLInValueExpression<T>: XLExpression {
     
     let lhs: any XLExpression
@@ -133,6 +221,21 @@ public struct XLInValueExpression<T>: XLExpression {
 }
 
 
+///
+/// IN table expression.
+///
+/// Example:
+///
+/// *Swift:*
+/// ```swift
+/// foo.in(bar)
+/// ```
+///
+/// *SQL:*
+/// ```SQL
+/// (foo IN bar)
+/// ```
+///
 public struct XLInTableExpression<T>: XLExpression {
     
     let lhs: any XLExpression
@@ -156,6 +259,21 @@ public struct XLInTableExpression<T>: XLExpression {
 }
 
 
+///
+/// Type case expression.
+///
+/// Example:
+///
+/// *Swift:*
+/// ```swift
+/// foo.toString()
+/// ```
+///
+/// *SQL:*
+/// ```SQL
+/// CASE(foo AS TEXT)
+/// ```
+///
 public struct XLTypeCastExpression<T>: XLExpression {
     
     private let type: String
@@ -174,7 +292,27 @@ public struct XLTypeCastExpression<T>: XLExpression {
 
 
 ///
-/// Use XL implicit type affinity to assign an expression to a given type.
+/// Type affinity expression.
+///
+/// Changes the type affinity of an expression. This is similar to type case in that it can be used to force a type
+/// to meet compile time type constraints.
+///
+/// A type case is used when the data is interpreted into a different representation, such as converting an
+/// `Int` to a `String`. Type affinity is used when the  of the type does not change but the compile time
+/// type constraints do change, such as converting an Int to an `Optional<Int>`, or converting an
+/// `enum` with a raw value of type `Int` to an `Int`.
+///
+/// Example:
+///
+/// *Swift:*
+/// ```swift
+/// foo.toNullable()
+/// ```
+///
+/// *SQL:*
+/// ```SQL
+/// foo
+/// ```
 ///
 public struct XLTypeAffinityExpression<T>: XLExpression {
     
@@ -190,6 +328,20 @@ public struct XLTypeAffinityExpression<T>: XLExpression {
 }
 
 
+///
+/// Null coalescing expression.
+///
+/// Example:
+///
+/// *Swift:*
+/// ```swift
+/// foo.coalesce("bar")
+/// ```
+///
+/// *SQL:*
+/// ```SQL
+/// COALESCE(foo, 'bar')
+/// ```
 public struct XLNullCoalesceExpression<T>: XLExpression {
     
     let lhs: any XLExpression<Optional<T>>
@@ -214,6 +366,21 @@ public struct XLNullCoalesceExpression<T>: XLExpression {
 }
 
 
+///
+/// IIF expression.
+///
+/// Example:
+///
+/// *Swift:*
+/// ```swift
+/// iif(foo.bar.isNull(), then: "baz", else: "buzz")
+/// ```
+///
+/// *SQL:*
+/// ```SQL
+/// IIF((foo.bar ISNULL), 'baz', 'buzz')
+/// ```
+///
 public struct XLIfExpression<T>: XLExpression {
     
     let condition: any XLExpression

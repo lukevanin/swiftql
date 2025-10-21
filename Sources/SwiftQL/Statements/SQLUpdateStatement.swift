@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  SQLUpdateStatement.swift
 //
 //
 //  Created by Luke Van In on 2024/10/25.
@@ -11,6 +11,9 @@ import Foundation
 
 
 
+///
+/// Builder used to construct an update statement.
+///
 public struct XLUpdateStatementComponents<Row>: XLEncodable {
 
     #warning("TODO: Record tables which are updated in the query - post notification when tables are updated")
@@ -49,6 +52,9 @@ public struct XLUpdateStatementComponents<Row>: XLEncodable {
 }
 
 
+///
+/// An update statement.
+///
 public protocol XLUpdateStatement<Table>: XLEncodable  {
     associatedtype Table
     var components: XLUpdateStatementComponents<Table> { get }
@@ -61,6 +67,9 @@ extension XLUpdateStatement {
 }
 
 
+///
+/// An update statement.
+///
 public struct XLUpdateTableStatement<Row> {
     
     public let components: XLUpdateStatementComponents<Row>
@@ -75,6 +84,9 @@ public struct XLUpdateTableStatement<Row> {
 }
 
 
+///
+/// An update statement with a set clause.
+///
 public struct XLUpdateSetStatement<Row>: XLUpdateStatement {
     
     public let components: XLUpdateStatementComponents<Row>
@@ -89,6 +101,9 @@ public struct XLUpdateSetStatement<Row>: XLUpdateStatement {
 }
 
 
+///
+/// An update statement with a from clause.
+///
 public struct XLUpdateFromStatement<Row>: XLUpdateStatement {
     
     public let components: XLUpdateStatementComponents<Row>
@@ -96,14 +111,13 @@ public struct XLUpdateFromStatement<Row>: XLUpdateStatement {
     public func `where`<U>(_ expression: any XLExpression<U>) -> XLUpdateWhereStatement<Row> where U: XLBoolean {
         XLUpdateWhereStatement(components: components.appending(Where(expression)))
     }
-    
-    #warning("TODO: Implement 'returning' on update.")
 }
 
 
+///
+/// An update statement with a where clause.
+///
 public struct XLUpdateWhereStatement<Row>: XLUpdateStatement {
     
     public let components: XLUpdateStatementComponents<Row>
-
-    #warning("TODO: Implement 'returning' on update.")
 }

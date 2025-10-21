@@ -10,6 +10,11 @@ import Foundation
 
 // MARK: - Constant Case-When-Then expression
 
+///
+/// Builder used to construct CASE...END expressions.
+///
+/// Do not instantiate this class directly - use one of the relevant methods on a case expression instead.
+///
 private struct ConstantCaseComponents {
     
     typealias Builder = (inout XLBuilder) -> Void
@@ -37,6 +42,16 @@ private struct ConstantCaseComponents {
 }
 
 
+///
+/// Root for a `Case` expression.
+///
+/// A `Case` expression is similar to a `switch` statement in Swift: it returns a single value from a list of
+/// possible choices.
+///
+/// A `Case` expression must be followed by one or more `when(then:)` clauses. The `Case`
+/// expression returns the value of the `then` expression for the first condition that matches the case
+/// statement.
+///
 public struct ConstantCase<T> {
     
     private let condition: any XLExpression<T>
@@ -45,6 +60,14 @@ public struct ConstantCase<T> {
         self.condition = condition
     }
     
+    ///
+    /// Defines a condition that is matches against the term in the case statement.
+    ///
+    /// - Returns: Complete case/when/then expression.
+    ///
+    /// The case statement evaluates to the `then` result when the condition matches the term in the
+    /// case statement.
+    ///
     public func when<U>(_ condition: any XLExpression<T>, then result: any XLExpression<U>) -> ConstantCaseWhenThen<T, U> {
         ConstantCaseWhenThen(
             components: ConstantCaseComponents(condition: self.condition),
@@ -55,6 +78,16 @@ public struct ConstantCase<T> {
 }
 
 
+///
+/// A complete case/when/then expression.
+///
+/// The expression can be expanded by repeatedly calling `when(then:)` and specifying additional
+/// conditions and results, or by calling `else()` and specifying a fallback result.
+///
+/// If an `else` expression is defined and no `when` conditions match the case term then the case
+/// expression evaluates to the result defined in the `else` expression. If an `else` expression is not
+/// defined and no `when` conditions match the case term then the case expression evaluates to `nil`.
+///
 public struct ConstantCaseWhenThen<Condition, Result>: XLExpression {
     
     public typealias T = Optional<Result>
@@ -68,10 +101,21 @@ public struct ConstantCaseWhenThen<Condition, Result>: XLExpression {
         }
     }
     
+    ///
+    /// Defines a condition that is matches against the term in the case statement.
+    ///
+    /// - Returns: Complete case/when/then expression.
+    ///
+    /// The case statement evaluates to the `then` result when the condition matches the term in the
+    /// case statement.
+    ///
     public func when(_ condition: any XLExpression<Condition>, then result: any XLExpression<Result>) -> ConstantCaseWhenThen<Condition, Result> {
         ConstantCaseWhenThen(components: components, condition: condition, result: result)
     }
     
+    ///
+    /// Defines a fallback result that is used when no `when` condition matches the case term.
+    ///
     public func `else`(_ result: any XLExpression<Result>) -> ConstantCaseWhenThenElse<Condition, Result> {
         ConstantCaseWhenThenElse(components: components, result: result)
     }

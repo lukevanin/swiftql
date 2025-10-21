@@ -1,6 +1,6 @@
 //
-//  XLMeta.swift
-//  
+//  SQLMeta.swift
+//
 //
 //  Created by Luke Van In on 2023/08/07.
 //
@@ -34,48 +34,77 @@ public class XLDatabaseMetadataObject: XLDatabaseMetadata {
 // MARK: - Table
 
 
-//public protocol XLSelectable {
-//    func select(reader: XLRowReader) -> Self
-//}
-
-
-#warning("TODO: Throw error when reading fails")
+///
+/// Reads the value for a column for a row returned from a select query.
+///
+/// Used when reading results of a query returned by SQLite.
+///
 public protocol XLColumnReader {
+    
+    ///
+    /// Determines if the value for a column at a given index contains a NULL value.
+    ///
+    /// - Parameter index: Index of the column to examine.
+    ///
+    /// - Returns: `true` if the column value is NULL.
+    ///
     func isNull(at index: Int) -> Bool
+    
+    ///
+    /// Reads an integer value for a column at a given index.
+    ///
+    /// - Parameter index: Index of the column to read.
+    ///
+    /// - Returns: Integer value for the column.
+    ///
     func readInteger(at index: Int) -> Int
+    
+    ///
+    /// Reads a real number for a column at a given index.
+    ///
+    /// - Parameter index: Index of the column to read.
+    ///
+    /// - Returns: Floating point value for the column.
+    ///
     func readReal(at index: Int) -> Double
+    
+    ///
+    /// Reads a text value for the column at a given index
+    ///
+    /// - Parameter index: Index of the column to read.
+    ///
+    /// - Returns: String value for the column.
+    ///
     func readText(at index: Int) -> String
+    
+    ///
+    /// Reads a BLOB value for the column at a given index.
+    ///
+    /// - Parameter index: Index of the column to read.
+    ///
+    /// - Returns: Data value for the column.
+    ///
     func readBlob(at index: Int) -> Data
 }
 
 
+///
+/// Reads the value for columns in rows returned by a select query statement.
+///
 public protocol XLRowReader: AnyObject {
+    
+    ///
+    /// Reads and returns the value for the current column.
+    ///
+    /// Columns are read sequentially in order starting at the first column in the result set. This method
+    /// should be called multiple times, to read each column in sequence.
+    ///
     func column<T>(_ expression: any XLExpression<T>, alias: XLName) throws -> T where T: XLLiteral
-//    func column<T>(_ subquery: any XLQueryStatement<T>) -> T where T: XLLiteral
-}
-
-extension XLRowReader {
-    
-    //    public func subquery<T>(statement: () -> any XLQueryStatement<T>) -> T where T: XLLiteral {
-    //        return subquery(statement())
-    //    }
-    
-    //    public func subquery<T>(@XLQueryStatementBuilder builder: () -> any XLQueryStatement<T>) -> T where T: XLLiteral {
-    //        return subquery(builder())
-    //    }
-    
-//    func column<T>(_ expression: T) -> T where T: XLSelectable {
-//        expression.select(reader: self)
-//    }
-
-//    func columns<T>(_ table: T) -> T.Row where T: XLRowReadable & XLDefault {
-//        table.readRow(reader: self)
-//    }
 }
 
 
 ///
-/// Introspect the expressions used to produce the columns so that we can generate the columns for the select statement.
+/// Introspects a query expression to determine the columns that are used.
 ///
 final class XLColumnsDefinitionRowReader: XLRowReader, XLEncodable {
     
@@ -105,6 +134,9 @@ final class XLColumnsDefinitionRowReader: XLRowReader, XLEncodable {
 }
 
 
+///
+/// Reads the columns for a row returned by a select query statement.
+///
 final class XLColumnValuesRowReader<Output>: XLRowReader {
     
     private var count: Int = 0
@@ -114,11 +146,18 @@ final class XLColumnValuesRowReader<Output>: XLRowReader {
     init() {
     }
     
+    ///
+    /// Resets the reader state so that the next call to the `column` method will return the first column in
+    /// the row.
+    ///
     func reset(reader: XLColumnReader) {
         count = 0
         self.reader = reader
     }
     
+    ///
+    /// Reads the value of the current column from the row, then advances the state to the next column.
+    ///
     func column<T>(_ expression: any XLExpression<T>, alias: XLName) throws -> T where T: XLLiteral {
         try readValue()
     }
@@ -133,12 +172,18 @@ final class XLColumnValuesRowReader<Output>: XLRowReader {
 }
 
 
+///
+/// Reads rows from a database using an `XLRowReader`.
+///
 public protocol XLRowReadable<Row> {
     associatedtype Row
     func readRow(reader: XLRowReader) throws -> Row
 }
 
 
+///
+/// An `XLEncodable` type that can be written to a database.
+///
 public protocol XLRowWritable<Row>: XLEncodable {
     associatedtype Row
 }
@@ -147,70 +192,187 @@ public protocol XLRowWritable<Row>: XLEncodable {
 #warning("TODO: Remove makeSQLAnonymous... methods (column names are no longer anonymized ie c0, c1, c2 ... cN).")
 
 ///
-/// Note: The word `...anonymous...` used in method names refers to a defuct implementation detail where column names were anonymized as c0, c1, ... cN. This was
-/// done to reduce the length of the XL string that needed to be parsed. However this reduced readability for humans and this was later changed to use the proper
-/// names for columns.
-/// The word `...named...` indicates that the result is an identifiable type such as a table, from, join, subquery, or common table, and can be used in an `IN`
-/// expression. Examples of results that are unnamed include the set of columns in a `SELECT` statement, and the result of a `UNION`, `INTERSECT`,
-/// or `EXCLUDE`.
+/// Metadata associated with a struct annotated with `@SQLResult`.
+///
+/// The types and method defined by this protocol  are implemented by macro code generation.
+///
+/// > TODO: Remove `anonymous` methods.
+///
+/// The word `...anonymous...` used in method names refers to a defuct implementation detail
+/// where column names were anonymized as c0, c1, ... cN. This was done to reduce the length of the XL
+/// string that needed to be parsed. However this reduced readability for humans and this was later changed.
+///
+/// to use the proper names for columns. The word `...named...` indicates that the result is an
+/// identifiable type such as a table, from, join, subquery, or common table, and can be used in an `IN`
+/// expression. Examples of results that are unnamed include the set of columns in a `SELECT` statement,
+/// and the result of a `UNION`, `INTERSECT`, or `EXCLUDE`.
 ///
 public protocol XLResult {
     typealias MetaRowIterator = (XLRowReader) throws -> Self
+    
+    ///
+    /// Duplicate of the struct where each field is forced to be nullable.
+    ///
     associatedtype Nullable: XLMetaNullable
+    
+    ///
+    /// Metadata used when the result is returned in a query.
+    ///
     associatedtype MetaResult: XLMetaResult
+    
+    ///
+    /// Metadata used when the result is returned with a name.
+    ///
     associatedtype MetaNamedResult: XLMetaNamedResult
+    
+    ///
+    /// Metadata used when the result can evaluate to null, such as when the result is used in a left join
+    /// expression.
+    ///
     associatedtype MetaNullableResult: XLMetaNullableResult
+    
+    ///
+    /// Metadata used when the result is used with a named table that can evaluate to null.
+    ///
     associatedtype MetaNullableNamedResult: XLMetaNullableNamedResult
+    
+    ///
+    /// Metadata used when the result is returned by a common table expression.
+    ///
     associatedtype MetaCommonTable: XLMetaCommonTable
+    
+    ///
+    /// Reader used to assign values to each field of the result.
+    ///
     associatedtype SQLReader: XLRowReadable
 
+    ///
+    /// Creates a common table reference.
+    ///
     static func makeSQLCommonTable(namespace: XLNamespace, dependency: XLCommonTableDependency) -> MetaCommonTable
 
+    ///
+    /// TODO: Remove
+    ///
     static func makeSQLAnonymousResult(namespace: XLNamespace, dependency: XLTableDeclaration, iterator: @escaping MetaRowIterator) -> MetaResult
 
+    ///
+    /// TODO: Remove
+    ///
     static func makeSQLAnonymousNamedResult(namespace: XLNamespace, dependency: XLNamedTableDeclaration, iterator: @escaping MetaRowIterator) -> MetaNamedResult
 
+    ///
+    /// TODO: Remove
+    ///
     static func makeSQLAnonymousResult(namespace: XLNamespace, dependency: XLTableDeclaration) -> MetaResult
     
+    ///
+    /// TODO: Remove
+    ///
     static func makeSQLAnonymousNamedResult(namespace: XLNamespace, dependency: XLNamedTableDeclaration) -> MetaNamedResult
 
+    ///
+    /// TODO: Remove
+    ///
     static func makeSQLAnonymousNullableResult(namespace: XLNamespace, dependency: XLTableDeclaration) -> MetaNullableResult
 
+    ///
+    /// TODO: Remove
+    ///
     static func makeSQLAnonymousNullableNamedResult(namespace: XLNamespace, dependency: XLNamedTableDeclaration) -> MetaNullableNamedResult
 }
 
 
-// XL Table, Common Table Expression, and Subquery
+///
+/// Metadata associated with a struct annotated with `SQLTable`.
+///
+/// Types and methods defined by this protocol are implemented by macro code generation.
+///
 public protocol XLTable: XLResult {
     
     #warning("TODO: Only Tables should be writable (able to insert and update), Views, Common Table Expression and Subquery should not be writable.")
     
+    ///
+    /// Metadata used when the table is used as the target destination in a write statement.
+    ///
     associatedtype MetaWritableTable: XLMetaWritableTable
+    
+    ///
+    /// Metadata used when the table is used in an insert statement.
+    ///
     associatedtype MetaInsert: XLMetaInsert
+    
+    ///
+    /// Metadata used when the table is used in an update statement.
+    ///
     associatedtype MetaUpdate: XLMetaUpdate
+    
+    ///
+    /// Metadata used when the table is used in a create statement.
+    ///
     associatedtype MetaCreate: XLMetaCreate
+    
+    ///
+    /// Metadata used when a table is used in a create statement with a select query.
+    ///
     associatedtype MetaCreateAs: XLMetaCreate
 
+    ///
+    /// The name of the underlying SQL table represented by the struct.
+    ///
     static func sqlTableName() -> XLQualifiedTableName
     
+    ///
+    /// Creates metadata for using the struct as a table in a statement.
+    ///
     static func makeSQLTable(namespace: XLNamespace, dependency: XLTableDeclaration) -> MetaResult
 
+    ///
+    /// Creates metadata for using the struct as a table with a name in a statement.
+    ///
     static func makeSQLNamedResult(namespace: XLNamespace, dependency: XLNamedTableDeclaration) -> MetaNamedResult
 
+    ///
+    /// Creates metadata for using the struct as a table in a statement where the table can evaluate to null,
+    /// such as when it is used in a left join.
+    ///
     static func makeSQLNullableResult(namespace: XLNamespace, dependency: XLTableDeclaration) -> MetaNullableResult
 
+    ///
+    /// Creates metadata for using the struct as a table with a name in a statement where the table can
+    /// evaluate to null.
+    ///
     static func makeSQLNullableNamedResult(namespace: XLNamespace, dependency: XLNamedTableDeclaration) -> MetaNullableNamedResult
 
+    ///
+    /// Creates metadata for using the struct in an insert statement.
+    ///
     static func makeSQLInsert(namespace: XLNamespace, dependency: XLTableDeclaration) -> MetaWritableTable
     
+    ///
+    /// Creates metadata for using the struct in an update statement.
+    ///
     static func makeSQLUpdate(namespace: XLNamespace, dependency: XLTableDeclaration) -> MetaWritableTable
     
+    ///
+    /// Creates metadata for using the struct in a create statement.
+    ///
     static func makeSQLCreate() -> MetaCreate
     
+    ///
+    /// Creates metadata for using the struct in a create statement with a select query.
+    ///
     static func makeSQLCreateAs() -> MetaCreateAs
 }
 
 
+///
+/// Maintains a collection of unique names for common table expressions, tables, and parameters.
+///
+/// Aliases are used to refer to tables, columns and values by names. If an alias is not defined explicitly, one
+/// is assigned automatically. Automatically assigned aliases are assigned sequentially in the order in which
+/// they are requested.
+///
 public class XLNamespace {
     
     private var usedAlises: Set<XLName> = []
@@ -223,6 +385,12 @@ public class XLNamespace {
         self.nameFormat = nameFormat
     }
 
+    ///
+    /// Creates an alias with a given name.
+    ///
+    /// Creates and returns an alias with a given name. The alias is tracked to avoid conflcits. If the alias is
+    /// not specified then one is assigned automatically using `nextAlias()`.
+    ///
     func makeAlias(alias: XLName?) -> XLName {
         let newAlias = alias ?? nextAlias()
         #warning("TODO: Rename alias if alias already exists")
@@ -230,6 +398,9 @@ public class XLNamespace {
         return newAlias
     }
     
+    ///
+    /// Creates the next alias in the sequence.
+    ///
     func nextAlias() -> XLName {
         defer {
             aliasCount += 1
@@ -237,25 +408,45 @@ public class XLNamespace {
         return XLName(String(format: nameFormat, aliasCount))
     }
     
+    ///
+    /// instantiates a namespace used for common table expressions.
+    ///
     public static func common() -> XLNamespace {
         XLNamespace(nameFormat: "cte%d")
     }
     
+    ///
+    /// Instantiates a namespace used for tables.
+    ///
     public static func table() -> XLNamespace {
         XLNamespace(nameFormat: "t%d")
     }
     
+    ///
+    /// Instantiates a namespace used for parameters.
+    ///
     public static func parameter() -> XLNamespace {
         XLNamespace(nameFormat: "p%d")
     }
 }
 
 
+///
+/// Metadata for a `@SQLTable` or `@SQLResult` struct where every field is forced to be optional.
+///
+/// Implemented by macro.
+///
 public protocol XLMetaNullable {
     associatedtype Basis
 }
 
 
+///
+/// Metadata for a `@SQLTable` or `@SQLResult` struct where the struct is used as a normal table in a
+/// query.
+///
+/// Implemented by macro.
+///
 public protocol XLMetaResult: XLEncodable {
     associatedtype Row
     var _namespace: XLNamespace { get }
@@ -263,6 +454,12 @@ public protocol XLMetaResult: XLEncodable {
 }
 
 
+///
+/// Metadata for a `@SQLTable` or `@SQLResult` struct where the struct is used as a table with a given
+/// name in a query.
+///
+/// Implemented by macro.
+///
 public protocol XLMetaNamedResult: XLEncodable {
     associatedtype Row
     var _namespace: XLNamespace { get }
@@ -270,6 +467,12 @@ public protocol XLMetaNamedResult: XLEncodable {
 }
 
 
+///
+/// Metadata for a `@SQLTable` or `@SQLResult` struct where the struct is used as a table in a query
+/// where the table can resolve to NULL, such as in a LEFT JOIN.
+///
+/// Implemented by macro.
+///
 public protocol XLMetaNullableResult: XLEncodable {
     associatedtype Dependency = XLTableDeclaration
     var _namespace: XLNamespace { get }
@@ -277,6 +480,13 @@ public protocol XLMetaNullableResult: XLEncodable {
 }
 
 
+///
+/// Metadata for a `@SQLTable` or `@SQLResult` struct  where the struct is used as a table with a given
+/// name in a query, and where the table can resolve to NULL, such as a LEFT JOIN in a common table
+/// expression.
+///
+/// Implemented by macro.
+///
 public protocol XLMetaNullableNamedResult: XLEncodable {
     associatedtype Dependency = XLTableDeclaration & XLNamedDependency
     var _namespace: XLNamespace { get }
@@ -284,55 +494,103 @@ public protocol XLMetaNullableNamedResult: XLEncodable {
 }
 
 
+///
+/// Metadata for a `@SQLTable` or `@SQLResult` struct where the struct is returned from a common
+/// table expression.
+///
+/// Implemented by macro.
+///
 public protocol XLMetaCommonTable {
     associatedtype Result: XLResult
     var definition: XLCommonTableDependency { get }
 }
 
 
+///
+/// Metadata for a `@SQLTable` struct where the table is written to.
+///
+/// Implemented by macro.
+///
 public protocol XLMetaWritableTable<Row>: XLEncodable {
     associatedtype Row
     var _table: any XLEncodable { get }
 }
 
 
+///
+/// Metadata for a `@SQLTable` struct where the struct is used in an INSERT statement.
+///
+/// Implemented by macro.
+///
 public protocol XLMetaInsert<Row>: XLEncodable, XLRowWritable {
     associatedtype Row
     init(_ instance: Row)
 }
 
 
+///
+/// Metadata for a `@SQLTable`struct where the struct is used in an UPDATE statement.
+///
+/// Implemented by macro.
+///
 public protocol XLMetaUpdate<Row>: XLEncodable, XLRowWritable {
     associatedtype Row
     init()
 }
 
 
+///
+/// Metadata for a `@SQLTable` struct where the struct is used in a CREATE statement.
+///
 public protocol XLMetaCreate: XLEncodable {
     associatedtype Table
 }
 
 
+///
+/// A `@SQLTable` or `@SQLResult` struct which contains a set of columns.
+///
+/// The struct may be named, such as a `@SQLTable` where the columns are defined on a specific table, or
+/// unnamed, such as a `@SQLResult` where the columns are returned in a select query.
+///
 public protocol XLColumnDependency {
+    
+    ///
+    /// Creates a qualified name for a column on the struct.
+    ///
+    /// For a `@SQLTable` struct this method returns the qualified name of the column including the table
+    /// name. For a `@SQLResult` struct this method returns the bare column name.
+    ///
     func qualifiedName(forColumn name: XLName) -> XLQualifiedName
 }
 
 
 ///
-/// A dependency which can be identified by an alias which can be used in an IN clause, such as a table, common table, from clause, join clause. Excludes
-/// unnammed results such as select columns, UNION, UNION ALL, INTERSECT, and EXCLUDE.
+///
+/// A dependency which can be identified by an alias which can be used in an IN clause, such as a table,
+/// common table, from clause, join clause. Excludes unnammed results such as select columns, UNION,
+/// UNION ALL, INTERSECT, and EXCLUDE.
 ///
 public protocol XLNamedDependency {
     var alias: XLName { get }
 }
 
 
+///
+/// A normal SQL table.
+///
 public typealias XLTableDeclaration = XLEncodable & XLColumnDependency
 
 
+///
+/// A table with a given name.
+///
 public typealias XLNamedTableDeclaration = XLEncodable & XLColumnDependency & XLNamedDependency
 
 
+///
+/// A common table expression.
+///
 public struct XLCommonTableDependency: XLColumnDependency, XLNamedDependency {
     
     public var alias: XLName
@@ -345,7 +603,8 @@ public struct XLCommonTableDependency: XLColumnDependency, XLNamedDependency {
     }
 
     public func qualifiedName(forColumn name: XLName) -> XLQualifiedName {
-        // It should not be possible to reference the columns of a common table expression directly.
+        // TODO: It should not be possible to reference the columns of a common
+        // table expression directly.
         XLQualifiedTableAliasColumnName(table: alias, column: name)
     }
 
@@ -358,8 +617,12 @@ public struct XLCommonTableDependency: XLColumnDependency, XLNamedDependency {
 
 
 ///
-/// Wraps a statement to be injected after the dependency is instantiated.
-/// Note: Recursive common table requires stack allocation.
+/// A recursive common table expression.
+///
+/// A recursive common table expression is a common table expression which contains a reference to itself.
+///
+/// > Note: Recursive common table expressions are represented by a reference type and therefore require
+/// stack allocation.
 ///
 internal class XLRecursiveCommonTableStatement: XLEncodable {
     
@@ -371,6 +634,9 @@ internal class XLRecursiveCommonTableStatement: XLEncodable {
 }
 
 
+///
+/// The result of a select statement.
+///
 public struct XLSelectResultDependency: XLTableDeclaration {
     
     public init() {
@@ -386,8 +652,9 @@ public struct XLSelectResultDependency: XLTableDeclaration {
     }
 }
 
-#warning("TODO: Unify XLFromTableDependency and XLCommonTableDependency - use generic any XLEncodable instead of qualifiedName ")
-
+///
+/// A table used in a FROM clause in a select query.
+///
 public struct XLFromTableDependency: XLTableDeclaration, XLNamedDependency {
 
     private var qualifiedName: XLQualifiedName
@@ -409,6 +676,9 @@ public struct XLFromTableDependency: XLTableDeclaration, XLNamedDependency {
 }
 
 
+///
+/// A table used in a FROM clause in a common table expression.
+///
 public struct XLFromCommonTableDependency: XLTableDeclaration, XLNamedDependency {
     
     public var alias: XLName
@@ -430,6 +700,9 @@ public struct XLFromCommonTableDependency: XLTableDeclaration, XLNamedDependency
 }
 
 
+///
+/// A table used in a FROM clause in an UPDATE statement.
+///
 public struct XLUpdateFromTableDependency: XLTableDeclaration, XLNamedDependency {
 
     public var alias: XLName
@@ -457,6 +730,9 @@ public struct XLUpdateFromTableDependency: XLTableDeclaration, XLNamedDependency
 }
 
 
+///
+/// A table used in a UNION clause.
+///
 public struct XLUnionDependency: XLTableDeclaration {
 
     public init() {
@@ -470,6 +746,10 @@ public struct XLUnionDependency: XLTableDeclaration {
     }
 }
 
+
+///
+/// Supported joins.
+///
 public enum JoinKind: String {
     case innerJoin = "INNER JOIN"
     case leftJoin = "LEFT JOIN"
@@ -477,6 +757,9 @@ public enum JoinKind: String {
 }
 
 
+///
+/// A table used in a JOIN clause.
+///
 final class XLJoinTableDependency: XLTableDeclaration, XLNamedDependency {
     
     private let name: XLEncodable
@@ -503,6 +786,9 @@ final class XLJoinTableDependency: XLTableDeclaration, XLNamedDependency {
 }
 
 
+///
+/// A table used in a JOIN clause in a common table expression.
+///
 final class XLJoinCommonTableDependency: XLTableDeclaration, XLNamedDependency {
     
     private let commonTable: XLCommonTableDependency
@@ -529,6 +815,9 @@ final class XLJoinCommonTableDependency: XLTableDeclaration, XLNamedDependency {
 }
 
 
+///
+/// A table used in a subquery.
+///
 public struct XLSubqueryDependency: XLTableDeclaration, XLNamedDependency {
     
     public var alias: XLName
@@ -557,6 +846,9 @@ public struct XLSubqueryDependency: XLTableDeclaration, XLNamedDependency {
 }
 
 
+///
+/// A table used in a FROM clause in a subquery.
+///
 public struct XLFromSubqueryDependency: XLTableDeclaration, XLNamedDependency {
     
     public var alias: XLName
@@ -575,43 +867,4 @@ public struct XLFromSubqueryDependency: XLTableDeclaration, XLNamedDependency {
     public func qualifiedName(forColumn name: XLName) -> XLQualifiedName {
         XLQualifiedTableAliasColumnName(table: alias, column: name)
     }
-}
-
-
-
-// MARK: - Query builder
-
-
-
-
-public protocol XLQueryContext {
-//    func with<T: XLColumns>(as alias: XLName, @XLQueryStatementBuilder builder: (inout XLQueryContext) -> any XLQueryStatement<T>) -> T.MetaCommonTable
-//    func subquery<T: XLColumns>(as alias: XLName, @XLQueryStatementBuilder builder: (inout XLQueryContext) -> any XLQueryStatement<T>) -> T.MetaSubqueryTable
-//    func table<T: SQLTable>(_ table: T.Type, as alias: XLName) -> T.MetaTable
-//    func result<T: SQLTableColumns>(iterator: @escaping (XLRowReader) -> T) -> T.MetaResultColumns
-}
-
-
-public struct XLiteQueryContext: XLQueryContext {
-
-//    public func with<T>(as alias: XLName, builder: (inout XLQueryContext) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T : XLColumns {
-//        var queryContext: XLQueryContext = XLiteQueryContext()
-//        let statement = builder(&queryContext)
-//        return T.MetaCommonTable(alias: alias, statement: statement)
-//    }
-//
-//    public func subquery<T>(as alias: XLName, builder: (inout XLQueryContext) -> any XLQueryStatement<T>) -> T.MetaSubqueryTable where T : XLColumns {
-//        var queryContext: XLQueryContext = XLiteQueryContext()
-//        let statement = builder(&queryContext)
-//        return T.MetaSubqueryTable(alias: alias, statement: statement)
-//    }
-//    
-//    #warning("TODO: Generate table alias from context")
-//    public func table<T>(_ table: T.Type, as alias: XLName) -> T.MetaTable where T : SQLTable {
-//        T.MetaTable(alias: alias)
-//    }
-//
-//    public func result<T>(iterator: @escaping (XLRowReader) -> T) -> T.MetaResultColumns where T : SQLTableColumns {
-//        T.MetaResultColumns(rowIterator: iterator)
-//    }
 }

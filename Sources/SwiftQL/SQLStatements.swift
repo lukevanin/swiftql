@@ -1,6 +1,6 @@
 //
-//  XLQuery.swift
-//  
+//  SQLStatements.swift
+//
 //
 //  Created by Luke Van In on 2023/08/02.
 //
@@ -11,6 +11,9 @@ import Foundation
 // MARK: - Statement builder
 
 
+///
+/// A clause within a query, such as `GroupBy`.
+///
 public protocol XLQueryComponent: XLEncodable {
     
 }
@@ -19,6 +22,9 @@ public protocol XLQueryComponent: XLEncodable {
 // MARK: Select
 
 
+///
+/// A select statement.
+///
 public struct Select<Row>: XLEncodable, XLRowReadable {
     
     private let fields: any XLEncodable
@@ -40,8 +46,6 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
         try row(reader)
     }
     
-    #warning("TODO: See if it is possible to remove Row type constraint (XLExpression and XLLiteral) - if they can also be removed from the reader")
-    
     public init(@XLScalarExpressionBuilder _ expression: @escaping () -> some XLExpression<Row>) where Row: XLExpression & XLLiteral {
         self.fields = expression()
         self.row = { reader in
@@ -61,6 +65,9 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
 // MARK: - Union
 
 
+///
+/// A boolean set operation, succh as a union or intersection.
+///
 internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
     
     enum Kind {
@@ -110,6 +117,16 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
 }
 
 
+///
+/// Union clause.
+///
+/// Combines two queries, and returns the rows returned by the first query followed by the rows returned by
+/// the second query.
+///
+/// Duplicate rows are excluded.
+///
+/// > Note: Both queries must return the same row type.
+///
 public struct Union {
     public init() {
         
@@ -117,6 +134,16 @@ public struct Union {
 }
 
 
+///
+/// Union all clause.
+///
+/// Combines two queries, and returns the rows returned by the first query followed by the rows returned by
+/// the second query.
+///
+/// Duplicate rows are included.
+///
+/// > Note: Both queries must return the same row type.
+///
 public struct UnionAll {
     public init() {
         
@@ -124,6 +151,13 @@ public struct UnionAll {
 }
 
 
+///
+/// Intersect clause.
+///
+/// Combines two queries, and returns only the rows which are returned by both queries.
+///
+/// > Note: Both queries must return the same row type.
+///
 public struct Intersect {
     public init() {
         
@@ -131,6 +165,13 @@ public struct Intersect {
 }
 
 
+///
+/// Except clause.
+///
+/// Combines two queries, and returns the rows from the first query which do not exist in the second query.
+///
+/// > Note: Both queries must return the same row type.
+///
 public struct Except {
     public init() {
         
@@ -141,6 +182,11 @@ public struct Except {
 // MARK: - With
 
 
+///
+/// With clause.
+///
+/// Specifies common tables used in a select, update, insert, or delete statement.
+///
 public struct With {
     
     internal let commonTables: [XLCommonTableDependency]
@@ -180,6 +226,9 @@ public struct With {
 //}
 
 
+///
+/// Update statement.
+///
 public struct Update<Row>: XLEncodable, XLRowWritable {
     
     private let table: any XLEncodable
@@ -197,6 +246,11 @@ public struct Update<Row>: XLEncodable, XLRowWritable {
 // MARK: - Set
 
 
+///
+/// Setting clause.
+///
+/// Specifies the values for specific columns in an update statement.
+///
 public struct Setting<Row>: XLEncodable {
     
     private let values: any XLEncodable
@@ -222,6 +276,9 @@ public struct Setting<Row>: XLEncodable {
 // MARK: - Insert
 
 
+///
+/// Insert statement.
+///
 public struct Insert<Row>: XLEncodable, XLRowWritable {
     
     private let table: any XLEncodable
@@ -239,6 +296,11 @@ public struct Insert<Row>: XLEncodable, XLRowWritable {
 // MARK: - Values
 
 
+///
+/// Values clause.
+///
+/// Specifies the values for columns for an insert clause.
+///
 public struct Values<Row> {
     
     internal let values: any XLEncodable
@@ -256,6 +318,9 @@ public struct Values<Row> {
 // MARK: - Create
 
 
+///
+/// Create statement.
+///
 public struct Create<Table>: XLEncodable {
     
     private let meta: any XLEncodable
@@ -273,6 +338,11 @@ public struct Create<Table>: XLEncodable {
 // MARK: - As
 
 
+///
+/// As clause.
+///
+/// Specifies a query to use to populate a table in a create statement.
+///
 public struct As<Table> {
     
     internal let queryStatement: any XLEncodable
@@ -287,6 +357,9 @@ public struct As<Table> {
 // MARK: - Delete
 
 
+///
+/// Delete statement.
+///
 public struct Delete<Table>: XLEncodable {
     
     internal let name: any XLEncodable
@@ -306,6 +379,11 @@ public struct Delete<Table>: XLEncodable {
 // MARK: - From
 
 
+///
+/// From clause.
+///
+/// Specifies the table to use in a select clause.
+///
 public struct From: XLTableStatement {
     
     let table: XLEncodable
@@ -317,10 +395,6 @@ public struct From: XLTableStatement {
     public init<T>(_ meta: T) where T: XLMetaNamedResult {
         self.table = meta
     }
-    
-//    internal init(table: XLEncodable) {
-//        self.table = table
-//    }
 
     public func makeSQL(context: inout XLBuilder) {
         context.unaryPrefix("FROM", expression: table.makeSQL)
@@ -332,15 +406,20 @@ public struct From: XLTableStatement {
 
 
 ///
-/// Note: Right joins are not supported.  A workaround is to LEFT JOIN, and swap the tables in the FROM and JOIN clauses.
-/// Note: "INNER JOIN", "CROSS JOIN", "JOIN", "," all perform a cartesian product, which returns every possible combination of rows from the two tables.
-/// Note: CROSS JOIN is treated as a special case by XLite in that it returns the cartesian product but does not re-order the tables.
+/// Join clause.
+///
+/// Joins a table in a select statement.
+///
+/// > Note: Right joins are not supported.  A workaround is to LEFT JOIN, and swap the tables in the FROM and
+/// JOIN clauses.
+///
+/// > Note: "INNER JOIN", "CROSS JOIN", "JOIN", "," all perform a cartesian product, which returns every
+/// possible combination of rows from the two tables.
+///
+/// > Note: CROSS JOIN is treated as a special case by XLite in that it returns the cartesian product but does
+/// not re-order the tables.
 ///
 public struct Join: XLTableStatement {
-    
-    #warning("TODO: Support NATURAL JOIN and USING clause")
-    
-    #warning("TODO: Support RIGHT JOIN (support nullable table in FROM clause)")
     
     public enum Kind: String {
         case innerJoin = "INNER JOIN"
@@ -375,22 +454,37 @@ public struct Join: XLTableStatement {
         }
     }
     
+    ///
+    /// Creates a cross join.
+    ///
     public static func Cross<T>(_ table: T) -> Join where T: XLMetaNamedResult {
         Join(kind: .crossJoin, table: table, constraint: nil)
     }
 
+    ///
+    /// Creates an inner join.
+    ///
     public static func Inner<T>(_ table: T) -> Join where T: XLMetaNamedResult {
         Join(kind: .innerJoin, table: table, constraint: nil)
     }
 
+    ///
+    /// Creates an inner join with a column constraint.
+    ///
     public static func Inner<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNamedResult, U: XLBoolean {
         Join(kind: .innerJoin, table: table, constraint: constraint)
     }
 
+    ///
+    /// Creates a left join with a column constraint.
+    ///
     public static func Left<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNullableNamedResult, U: XLBoolean {
         Join(kind: .leftJoin, table: table, constraint: constraint)
     }
 
+    ///
+    /// Creates an outer join with a column constraint.
+    ///
     public static func Outer<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNamedResult, U: XLBoolean {
         Join(kind: .outerJoin, table: table, constraint: constraint)
     }
@@ -400,6 +494,9 @@ public struct Join: XLTableStatement {
 // MARK: - Where
 
 
+///
+/// Where clause.
+///
 public struct Where: XLQueryComponent {
     
     private let condition: any XLExpression
@@ -425,11 +522,17 @@ public struct Where: XLQueryComponent {
 // MARK: - Order
 
 
+///
+/// An ordering term such as ascending or descending.
+///
 public protocol XLOrderingTerm: XLEncodable {
     
 }
 
 
+///
+/// Ascending ordering term used in an OrderBy expression.
+///
 public struct Ascending: XLOrderingTerm {
     
     private let expression: any XLExpression
@@ -448,6 +551,9 @@ public struct Ascending: XLOrderingTerm {
 }
 
 
+///
+/// Descending ordering term used in an OrderBy expression.
+///
 public struct Descending: XLOrderingTerm {
     
     private let expression: any XLExpression
@@ -466,6 +572,9 @@ public struct Descending: XLOrderingTerm {
 }
 
 
+///
+/// Constructs a list of ordering term sub-expressions.
+///
 @resultBuilder public struct XLOrderingTermsBuilder {
     public static func buildBlock(_ components: XLOrderingTerm...) -> any XLEncodable {
         XLEncodableList(separator: ", ", expressions: components)
@@ -473,6 +582,9 @@ public struct Descending: XLOrderingTerm {
 }
 
 
+///
+/// OrderBy clause.
+///
 public struct OrderBy: XLQueryComponent {
     
     private let orderingTerms: XLEncodableList
@@ -494,6 +606,9 @@ public struct OrderBy: XLQueryComponent {
 // MARK: - Limit
 
 
+///
+/// Limit clause.
+///
 public struct Limit: XLQueryComponent {
     
     private let count: any XLExpression
@@ -515,6 +630,9 @@ public struct Limit: XLQueryComponent {
 // MARK: - Offset
 
 
+///
+/// Offset clause.
+///
 public struct Offset: XLQueryComponent {
     
     private let count: any XLExpression
@@ -536,6 +654,9 @@ public struct Offset: XLQueryComponent {
 // MARK: - Group By
 
 
+///
+/// GroupBy clause.
+///
 public struct GroupBy: XLQueryComponent {
     
     private let columns: any XLEncodable
@@ -557,6 +678,11 @@ public struct GroupBy: XLQueryComponent {
 // MARK: - Having
 
 
+///
+/// Having clause.
+///
+/// Constrains a GroupBy clause.
+///
 public struct Having: XLQueryComponent {
     
     private let condition: any XLExpression

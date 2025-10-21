@@ -10,8 +10,6 @@ import Foundation
 
 // MARK: - IN
 
-#warning("TODO: IN optional")
-
 extension XLExpression {
 
 //    public func `in`(@XLQueryStatementBuilder expression: (inout XLQueryComposer) -> any XLQueryStatement<T>) -> some XLExpression<Bool> {

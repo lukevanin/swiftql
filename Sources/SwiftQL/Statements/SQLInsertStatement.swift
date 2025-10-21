@@ -1,6 +1,6 @@
 //
-//  File.swift
-//  
+//  SQLInsertStatement.swift
+//
 //
 //  Created by Luke Van In on 2024/10/25.
 //
@@ -11,14 +11,18 @@ import Foundation
 // MARK: - Insert
 
 
+///
+/// An insert statement.
+///
 struct AbstractXLInsertStatement<Row>: XLInsertStatement {
     var components: XLInsertStatementComponents<Row>
 }
 
 
+///
+/// Builder used to construct insert statements.
+///
 public struct XLInsertStatementComponents<Row>: XLEncodable {
-
-    #warning("TODO: Record tables which are updated in the query - post notification when tables are updated")
 
     var commonTables: [XLCommonTableDependency]
     
@@ -55,6 +59,9 @@ public struct XLInsertStatementComponents<Row>: XLEncodable {
 }
 
 
+///
+/// An insert statement.
+///
 public protocol XLInsertStatement<Row>: XLEncodable  {
     associatedtype Row
     var components: XLInsertStatementComponents<Row> { get }
@@ -67,6 +74,9 @@ extension XLInsertStatement {
 }
 
 
+///
+/// Insert statement.
+///
 public struct XLInsertTableStatement<Table> {
     
     public let components: XLInsertStatementComponents<Table>
@@ -83,14 +93,14 @@ public struct XLInsertTableStatement<Table> {
         XLInsertSelectStatement(components: components.appending(Select(result)))
     }
     
-    #warning("TODO: Implement REPLACE")
-
-    #warning("TODO: Implement INSERT ... OR ...")
-    
-    #warning("TODO: Implement INSERT ... RETURNING ...")
 }
 
 
+///
+/// Values clause for an insert statement.
+///
+/// Specifies values for columns in an insert statement.
+///
 public struct XLInsertTableValuesStatement<Table>: XLInsertStatement {
     
     public let components: XLInsertStatementComponents<Table>
@@ -98,6 +108,11 @@ public struct XLInsertTableValuesStatement<Table>: XLInsertStatement {
 }
 
 
+///
+/// Select clause in insert statement.
+///
+/// Specifies a select query used to insert rows.
+///
 public struct XLInsertSelectStatement<Table>: XLInsertStatement {
     
     public let components: XLInsertStatementComponents<Table>
@@ -111,6 +126,9 @@ public struct XLInsertSelectStatement<Table>: XLInsertStatement {
 }
 
 
+///
+/// A select from statement used in an insert statement.
+///
 public struct XLInsertSelectTableStatement<Row>: XLInsertStatement {
         
     public let components: XLInsertStatementComponents<Row>
@@ -177,6 +195,9 @@ public struct XLInsertSelectTableStatement<Row>: XLInsertStatement {
 }
 
 
+///
+/// A select where statement used in an insert statement.
+///
 public struct XLInsertSelectWhereStatement<Row>: XLInsertStatement {
     
     public let components: XLInsertStatementComponents<Row>
@@ -213,6 +234,9 @@ public struct XLInsertSelectWhereStatement<Row>: XLInsertStatement {
 }
 
 
+///
+/// A select group-by statement used in an insert statement.
+///
 public struct XLInsertSelectGroupByStatement<Row>: XLInsertStatement {
     
     public let components: XLInsertStatementComponents<Row>
@@ -249,6 +273,9 @@ public struct XLInsertSelectGroupByStatement<Row>: XLInsertStatement {
 }
 
 
+///
+/// An insert ... having statement used in an insert statement.
+///
 public struct XLInsertSelectHavingStatement<Row>: XLInsertStatement {
     
     public let components: XLInsertStatementComponents<Row>
@@ -274,6 +301,9 @@ public struct XLInsertSelectHavingStatement<Row>: XLInsertStatement {
     }
 }
 
+///
+/// A select order-by statement used in an insert statement.
+///
 public struct XLInsertSelectOrderByStatement<Row>: XLInsertStatement {
     
     public let components: XLInsertStatementComponents<Row>
@@ -290,6 +320,9 @@ public struct XLInsertSelectOrderByStatement<Row>: XLInsertStatement {
 }
 
 
+///
+/// A select limit statement used in an insert statement.
+///
 public struct XLInsertSelectLimitStatement<Row>: XLInsertStatement {
     
     public let components: XLInsertStatementComponents<Row>
@@ -304,6 +337,9 @@ public struct XLInsertSelectLimitStatement<Row>: XLInsertStatement {
 }
 
 
+///
+/// A select offset statement used in an insert statement.
+///
 public struct XLInsertSelectOffsetStatement<Row>: XLInsertStatement {
     
     public let components: XLInsertStatementComponents<Row>

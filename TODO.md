@@ -141,3 +141,95 @@ pattern of providing a function name and a set of parameters:
 more easily.
 
 ### Support custom collations (eg for unicode).
+
+### Instead of using explicit variable bindings, literal values should 
+auto-resolve into named variable bindings.
+
+### Document BETWEEN expression.
+
+### Replace specialised `between` method in XLBuilder with generic methods.
+
+### Remove XL prefix from public interface.
+
+### Move SQLite formatter and builder into separate file.
+
+### Change XLLiteral initializer to take a single FieldReader parameter which 
+pre-defines the column index to be read. 
+
+### Document XLEnum.
+
+### Move database notifications implementation into separate file.
+
+### XLColumnReader: Throw an error when reading fails.
+
+### Change column reader implementation to a struct to avoid runtime heap allocation.
+
+### Create a playground.
+
+### See if we can use a value type for recursive common table expressions.
+
+### Unify XLFromTableDependency and XLCommonTableDependency - use generic any XLEncodable instead of qualifiedName 
+
+### Implement between operator.
+
+### Allow common table expressions to return scalar results.
+
+### Select (in SQLStatements): See if it is possible to remove Row type constraint (XLExpression and XLLiteral) - if they can also be removed from the reader
+
+### Support NATURAL JOIN and USING clause
+
+### Support RIGHT JOIN (support nullable table in FROM clause)
+
+### Change join: Specify column names instead of allowing a free expression.
+
+### Assess access scopes.
+
+### CreateTableStatement: Table constraints
+
+### CreateTableStatement: Table options
+
+### CreateTableStatement: Temporary table
+
+### CreateTableStatement: Make IF NOT EXISTS opt-in
+
+### DeleteStatement: Enable XLRowReadable conformance to implement `returning` clause
+
+### InsertStatementComponents: Record tables which are updated in the query - post notification when tables are updated
+
+### InsertStatement: Implement REPLACE.
+
+### InsertStatement: Implement INSERT ... OR ...
+    
+### InsertStatement: Implement INSERT ... RETURNING ...
+
+### Implement 'returning' on update.
+
+### Support Update with common table.
+
+### warning("TODO: Support time intervals (eg relative time offsets")
+
+### warning("TODO: Support custom date formats")
+
+### warning("TODO: Support floating point date")
+
+### warning("TODO: Date operators: !=, >=, <, <=, -")
+
+### warning("TODO: Support date components")
+
+### warning("TODO: Use property wrapper to specify date formatting")
+
+### warning("TODO: Make XLISO8601Date a property wrapper")
+
+### IN optional
+
+### warning("TODO: Overload sql function and infer subquery context from return type")
+
+### warning("TODO: Add support for subqueries returning nullable tables and scalar values")
+
+### Move GRDB extensions to separate package.
+
+### Move functional extensions to separate package.
+
+
+
+

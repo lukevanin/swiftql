@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  SQLDeleteStatement.swift
 //  
 //
 //  Created by Luke Van In on 2024/10/29.
@@ -8,6 +8,9 @@
 import Foundation
 
 
+///
+/// Builder that is used to construct a delete statement.
+///
 public struct XLDeleteStatementComponents<Table>: XLEncodable {
     
     public var commonTables: [XLCommonTableDependency]
@@ -42,6 +45,9 @@ public struct XLDeleteStatementComponents<Table>: XLEncodable {
 }
 
 
+///
+/// A delete statement.
+///
 public protocol XLDeleteStatement<Table>: XLEncodable {
     associatedtype Table
     var components: XLDeleteStatementComponents<Table> { get }
@@ -53,23 +59,33 @@ extension XLDeleteStatement {
         components.makeSQL(context: &context)
     }
 
-    #warning("TODO: Enable XLRowReadable conformance to implement `returning` clause")
     //    public func readRow(reader: XLRowReader) throws -> Row {
     //        try components.readRow(reader: reader)
     //    }
 }
 
 
+///
+/// Delete statement.
+///
+/// > Warning: A delete statement without a where clause affects all rows in the given table.
+///
 public struct XLDeleteTableStatement<Table>: XLDeleteStatement {
     
     public var components: XLDeleteStatementComponents<Table>
     
+    ///
+    /// Adds a where clause to the delete statement.
+    ///
     public func `where`<U>(_ expression: any XLExpression<U>) -> XLDeleteWhereStatement<Table> where U: XLBoolean {
         XLDeleteWhereStatement(components: components.appending(Where(expression)))
     }
 }
 
 
+///
+/// Where clause on a delete statement.
+///
 public struct XLDeleteWhereStatement<Table>: XLDeleteStatement {
     
     public let components: XLDeleteStatementComponents<Table>

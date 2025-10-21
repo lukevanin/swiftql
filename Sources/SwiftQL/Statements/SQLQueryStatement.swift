@@ -1,6 +1,6 @@
 //
-//  File.swift
-//  
+//  SQLQueryStatement.swift
+//
 //
 //  Created by Luke Van In on 2024/10/25.
 //
@@ -11,13 +11,13 @@ import Foundation
 // MARK: - Query
 
 
+///
+/// Builder used to construct a select query statement.
+///
 public struct XLQueryStatementComponents<Row>: XLEncodable, XLRowReadable {
 
-    #warning("TODO: Record tables which are used in the query - create publisher which triggers when tables are updated")
-    
     var commonTables: [XLCommonTableDependency]
     
-//    let select: Select<Row>
     let reader: any XLRowReadable<Row>
     
     var components: [any XLEncodable]
@@ -52,7 +52,6 @@ public struct XLQueryStatementComponents<Row>: XLEncodable, XLRowReadable {
                 }
             }
         }
-//        reader.makeSQL(context: &context)
         for component in components {
             component.makeSQL(context: &context)
         }
@@ -64,6 +63,9 @@ public struct XLQueryStatementComponents<Row>: XLEncodable, XLRowReadable {
 }
 
 
+///
+/// A select query statement.
+///
 public protocol XLQueryStatement<Row>: XLEncodable, XLRowReadable {
     var components: XLQueryStatementComponents<Row> { get }
 }
@@ -79,11 +81,17 @@ extension XLQueryStatement {
 }
     
 
+///
+/// A query statement.
+///
 struct AbstractXLQueryStatement<Row>: XLQueryStatement {
     var components: XLQueryStatementComponents<Row>
 }
 
 
+///
+/// A query statement that can be combined with another query statement.
+///
 public protocol XLSimpleSelectQueryStatement<Row>: XLQueryStatement {
 }
 
@@ -113,6 +121,9 @@ extension XLSimpleSelectQueryStatement {
 }
 
 
+///
+/// A select query statement.
+///
 public struct XLQuerySelectStatement<Row>: XLQueryStatement, XLSimpleSelectQueryStatement {
         
     public let components: XLQueryStatementComponents<Row>
@@ -125,6 +136,9 @@ public struct XLQuerySelectStatement<Row>: XLQueryStatement, XLSimpleSelectQuery
 }
 
 
+///
+/// A select query statement with a from clause.
+///
 public struct XLQueryTableStatement<Row>: XLQueryStatement, XLSimpleSelectQueryStatement {
         
     public let components: XLQueryStatementComponents<Row>
@@ -190,6 +204,9 @@ public struct XLQueryTableStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
 }
 
 
+///
+/// A select query statement with a where clause.
+///
 public struct XLQueryWhereStatement<Row>: XLQueryStatement, XLSimpleSelectQueryStatement {
     
     public let components: XLQueryStatementComponents<Row>
@@ -226,6 +243,9 @@ public struct XLQueryWhereStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
 }
 
 
+///
+/// A select query statement with a group-by clause.
+///
 public struct XLQueryGroupByStatement<Row>: XLQueryStatement, XLSimpleSelectQueryStatement {
     
     public let components: XLQueryStatementComponents<Row>
@@ -262,6 +282,9 @@ public struct XLQueryGroupByStatement<Row>: XLQueryStatement, XLSimpleSelectQuer
 }
 
 
+///
+/// A select query with a group-by having clause.
+///
 public struct XLQueryHavingStatement<Row>: XLQueryStatement, XLSimpleSelectQueryStatement {
     
     public let components: XLQueryStatementComponents<Row>
@@ -288,6 +311,9 @@ public struct XLQueryHavingStatement<Row>: XLQueryStatement, XLSimpleSelectQuery
 }
 
 
+///
+/// A partial union specifying one query.
+///
 public struct XLQueryPartialUnion<Statement> where Statement: XLSimpleSelectQueryStatement {
     
     internal let kind: BooleanClause<Statement.Row>.Kind
@@ -296,6 +322,9 @@ public struct XLQueryPartialUnion<Statement> where Statement: XLSimpleSelectQuer
 }
 
 
+///
+/// A query combining two queries.
+///
 public struct XLQueryUnionStatement<Row>: XLQueryStatement, XLSimpleSelectQueryStatement {
     
     public let components: XLQueryStatementComponents<Row>
@@ -322,6 +351,9 @@ public struct XLQueryUnionStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
 }
 
 
+///
+/// A select query with an order-by clause.
+///
 public struct XLQueryOrderByStatement<Row>: XLQueryStatement {
     
     public let components: XLQueryStatementComponents<Row>
@@ -338,6 +370,9 @@ public struct XLQueryOrderByStatement<Row>: XLQueryStatement {
 }
 
 
+///
+/// A select query with a limit clause.
+///
 public struct XLQueryLimitStatement<Row>: XLQueryStatement {
     
     public let components: XLQueryStatementComponents<Row>
@@ -352,6 +387,9 @@ public struct XLQueryLimitStatement<Row>: XLQueryStatement {
 }
 
 
+///
+/// A select query with an offset clause.
+///
 public struct XLQueryOffsetStatement<Row>: XLQueryStatement {
     
     public let components: XLQueryStatementComponents<Row>

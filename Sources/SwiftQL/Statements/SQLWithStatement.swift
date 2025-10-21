@@ -1,6 +1,6 @@
 //
-//  File.swift
-//  
+//  SQLWithStatement.swift
+//
 //
 //  Created by Luke Van In on 2024/10/29.
 //
@@ -8,6 +8,9 @@
 import Foundation
 
 
+///
+/// Builder used to construct a with statement.
+///
 public struct XLWithStatement {
    
    public let commonTables: [XLCommonTableDependency]
@@ -28,7 +31,6 @@ public struct XLWithStatement {
 
    // MARK: Update
    
-   #warning("TODO: Support Update with common table.")
 //    public func update<T>(_ meta: T) -> XLUpdateTableStatement<T.Row> where T: SQLTable {
 //        XLUpdateTableStatement(components: XLUpdateStatementComponents(commonTables: commonTables, update: Update(meta)))
 //    }

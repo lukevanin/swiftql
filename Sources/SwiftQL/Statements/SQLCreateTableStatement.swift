@@ -1,6 +1,6 @@
 //
-//  File.swift
-//  
+//  SQLCreateTableStatement.swift
+//
 //
 //  Created by Luke Van In on 2024/10/25.
 //
@@ -8,6 +8,9 @@
 import Foundation
 
 
+///
+/// Builder used to construct a create statement.
+///
 public struct XLCreateTableStatementComponents<Table>: XLEncodable {
 
     let create: Create<Table>
@@ -36,6 +39,9 @@ public struct XLCreateTableStatementComponents<Table>: XLEncodable {
 }
 
 
+///
+/// A create table statement.
+///
 public protocol XLCreateStatement<Table>: XLEncodable  {
     associatedtype Table
     var components: XLCreateTableStatementComponents<Table> { get }
@@ -48,18 +54,18 @@ extension XLCreateStatement {
 }
 
 
+///
+/// Create table statement.
+///
 public struct XLCreateTableStatement<Table>: XLCreateStatement {
     
-    #warning("TODO: Table constraints")
-
-    #warning("TODO: Table options")
-
-    #warning("TODO: Temporary table")
-
-    #warning("TODO: Make IF NOT EXISTS opt-in")
-
     public let components: XLCreateTableStatementComponents<Table>
     
+    ///
+    /// Adds an as clause with a select query.
+    ///
+    /// Adds a select query which is used to populate the table when it is created.
+    ///
     public func `as`(builder: (XLSchema) -> some XLQueryStatement<Table>) -> some XLCreateStatement where Table: XLTable {
         let meta = Table.makeSQLCreateAs()
         let schema = XLSchema()
@@ -70,6 +76,9 @@ public struct XLCreateTableStatement<Table>: XLCreateStatement {
 }
 
 
+///
+/// Create table as clause.
+///
 public struct XLCreateTableAsStatement<Table>: XLCreateStatement {
     
     public let components: XLCreateTableStatementComponents<Table>

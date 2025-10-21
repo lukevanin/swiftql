@@ -1,5 +1,5 @@
 //
-//  XLSyntax.swift
+//  SQLExpression.swift
 //
 //
 //  Created by Luke Van In on 2023/07/21.
@@ -17,18 +17,38 @@ public typealias XLCustomType = XLExpression & XLBindable & XLLiteral
 // MARK: - Expressions
 
 
-/// An XL expression. An expression evaluates to a value of a known type.
+///
+/// An SQL expression.
+///
+/// An expression evaluates to a value of a known type defined by the associated type `T`.
+///
 public protocol XLExpression<T>: XLEncodable {
     associatedtype T
 }
 
 extension XLExpression {
+    
+    ///
+    /// Helper method used to encode an expression.
+    ///
+    /// Automatically unwraps the expression.
+    ///
+    /// > TODO: Make this internal.
+    ///
     public func writeSQL(context: inout XLBuilder) {
         (T.self as! XLEncodable.Type).unwrapSQL(context: &context, builder: makeSQL)
     }
 }
 
 
+///
+/// Context used to bind values to expression at runtime.
+///
+/// Used to pass a variable parameter into a prepared SQL statement at runtime,
+///
+/// A custom type definition must convert its internal representation into one of the supported intrinsic types
+/// then call the relevant `bind` function, in order to pass the value to a prepared statement at runtime.
+///
 public protocol XLBindingContext {
     mutating func bindNull()
     mutating func bindInteger(value: Int)
@@ -38,15 +58,54 @@ public protocol XLBindingContext {
 }
 
 
+///
+/// A type that can be passed to a prepared statement at runtime.
+///
+/// Bindable types include all intrinsic types and custom types.
+///
 public protocol XLBindable {
     func bind(context: inout XLBindingContext)
 }
 
 
+///
+/// A value stored in the database.
+///
+/// Custom types must implement an initializer to read an intrinsic value from the database, and provide an
+/// appropriate default placeholder value.
+///
+/// Custom types may optionally implement a wrapper to transform values in SQL expressions.
+///
 public protocol XLLiteral: XLBindable {
+    
+    ///
+    /// Constructs a wrapped expression.
+    ///
     typealias MakeExpression = (inout XLBuilder) -> Void
+    
+    ///
+    /// - Returns: Any valid instance of the implementation. The default value is used internally by SwiftQL when creating prepared statements.
+    ///
     static func sqlDefault() -> Self
+    
+    ///
+    /// Initializes an instance from a database column.
+    ///
+    /// - Parameter reader: Reads values of columns.
+    /// - Parameter index: Index of the column which should be read.
+    ///
+    /// Custom types should read the column at the provided index using the method for the relevant intrinsic type.
+    ///
     init(reader: XLColumnReader, at index: Int) throws
+    
+    ///
+    /// Wraps occurances of the type with an expression.
+    ///
+    /// The default behaviour is to return the expression without modification.
+    ///
+    /// Custom types may implement this method to wrap occurances of the type to perform specific
+    /// encoding, such as converting a `String` / `TEXT` value into a a date.
+    ///
     static func wrapSQL(context: inout XLBuilder, builder: MakeExpression)
 }
 
@@ -57,16 +116,26 @@ extension XLLiteral {
 }
 
 
+///
+/// A type of a value which can be compared to another value of the same type for equivalence.
+///
 public protocol XLEquatable: XLExpression {
     
 }
 
 
+///
+/// A type of a value value which can be compared to another value of the same type for ordinality (greater
+/// than, less than, greater than or equal to, less than or equal to).
+///
 public protocol XLComparable: XLEquatable {
     
 }
 
 
+///
+/// Expression that refers to a table column.
+///
 public struct XLColumnReference<T>: XLExpression where T: XLLiteral {
     
     public var alias: XLName
@@ -86,6 +155,9 @@ public struct XLColumnReference<T>: XLExpression where T: XLLiteral {
 }
 
 
+///
+/// Expression that refers to a column in a result, such as the list of columns in a select statement.
+///
 public struct XLColumnResult<T>: XLExpression where T: XLLiteral {
     
     public var alias: XLName
@@ -103,11 +175,17 @@ public struct XLColumnResult<T>: XLExpression where T: XLLiteral {
 }
 
 
+///
+/// Reference to a variable used in an expression.
+///
 public protocol XLBindingReference<T>: XLExpression {
     
 }
 
 
+///
+/// A variable used in an expression that is referred to by a given name.
+///
 public struct XLNamedBindingReference<T>: XLBindingReference where T: XLLiteral {
     
     public let name: XLName
@@ -124,6 +202,9 @@ public struct XLNamedBindingReference<T>: XLBindingReference where T: XLLiteral 
 }
 
 
+///
+/// A function that is called in an expression.
+///
 public struct XLFunction<T>: XLExpression where T: XLLiteral {
     
     private let name: String
@@ -162,6 +243,17 @@ public struct XLFunction<T>: XLExpression where T: XLLiteral {
 }
 
 
+///
+/// An enum that is used as a column on an `SQLTable` or `SQLResult`.
+///
+/// To use an enum for a column the enum must adhere to the following conditions:
+/// - Use an intrinsic type for the `RawValue`,
+/// - Conform to the `XLEnum` protocol.
+/// - Implement the `sqlDefault` static method and return any valid enum value.
+///
+/// The `XLEnum` protocol provides default implementations for most of the required methods which can
+/// be overriden as required.
+///
 public protocol XLEnum: XLLiteral, XLExpression, XLEquatable, XLComparable, RawRepresentable where T == Self, RawValue: XLExpression & XLLiteral & XLEquatable & XLComparable {
     
 }
@@ -286,6 +378,11 @@ extension Optional: XLBoolean where Wrapped == Bool {
 // MARK: - Names
 
 
+///
+/// A name used in a SwiftQL expression.
+///
+/// `XLName` is simply a wrapper for name references.
+///
 public struct XLName: XLEncodable, ExpressibleByStringLiteral, Equatable, Hashable {
     
     public var rawValue: String
@@ -304,6 +401,9 @@ public struct XLName: XLEncodable, ExpressibleByStringLiteral, Equatable, Hashab
 }
 
 
+///
+/// A name of a schema used in a SwiftQL expression.
+///
 public struct XLSchemaName: XLEncodable, Equatable {
     
     public static let main = XLSchemaName(name: "main")
@@ -320,6 +420,9 @@ public struct XLSchemaName: XLEncodable, Equatable {
 }
 
 
+///
+/// A name of a table used in a SwiftQL expression.
+///
 public struct XLTableName: XLEncodable, Equatable {
     
     public var name: XLName
@@ -334,6 +437,9 @@ public struct XLTableName: XLEncodable, Equatable {
 }
 
 
+///
+/// A qualified name used in a SwiftQL expression, such as the name of a column on a table.
+///
 public protocol XLQualifiedName: XLEncodable {
     var components: [XLName] { get }
 }
@@ -345,6 +451,9 @@ extension XLQualifiedName {
 }
 
 
+///
+/// A qualified name of a table.
+///
 public struct XLQualifiedTableName: XLQualifiedName, Equatable {
     
     public let components: [XLName]
@@ -375,6 +484,9 @@ public struct XLQualifiedTableName: XLQualifiedName, Equatable {
 }
 
 
+///
+/// A qualified name of a table column.
+///
 public struct XLQualifiedTableAliasColumnName: XLQualifiedName, Equatable {
     
     public let components: [XLName]
@@ -391,6 +503,9 @@ public struct XLQualifiedTableAliasColumnName: XLQualifiedName, Equatable {
 }
 
 
+///
+/// A qualified name of a column in a result set in a select statement.
+///
 public struct XLQualifiedSelectColumnName: XLQualifiedName, Equatable {
     
     public let components: [XLName]
@@ -404,6 +519,9 @@ public struct XLQualifiedSelectColumnName: XLQualifiedName, Equatable {
 }
 
 
+///
+/// Delimiter used to encode SQLite expressions.
+///
 public enum XLSeparator: String {
     #warning("TODO: Use semantic separator instead of literal (e.g. .list, .tuple)")
     case elided = ""
@@ -416,6 +534,11 @@ public enum XLSeparator: String {
 // MARK: - Concrete expressions
 
 
+///
+/// An expression composed of multiple sub-expressions.
+///
+/// > TODO: make internal
+///
 struct XLCompoundExpression<T>: XLExpression {
     
     private var separator: XLSeparator
@@ -439,6 +562,11 @@ struct XLCompoundExpression<T>: XLExpression {
 }
 
 
+///
+/// An expression enclosing a sub-expression with parenthesis.
+///
+/// > TODO: Make internal
+///
 struct XLParenthesis<T>: XLExpression {
     
     private let expression: any XLEncodable
@@ -453,6 +581,9 @@ struct XLParenthesis<T>: XLExpression {
 }
 
 
+///
+/// An expression representing an SQL subquery.
+///
 struct XLSubquery<Wrapped>: XLExpression where Wrapped: XLLiteral {
     
     typealias T = Optional<Wrapped>
