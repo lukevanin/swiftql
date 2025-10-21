@@ -386,8 +386,8 @@ public protocol XLBuilder {
     ///
     /// Adds a nested sub-expression.
     ///
-    /// - Parameter beginsWith: Prefix applied before the nested sub-expression, such as a leading expression or opening parenthesis.
-    /// - Parameter endsWith: Suffix applied after the nested sub-expression, such as a trailing expression or closing parenthesis.
+    /// - Parameter prefix: Prefix applied before the nested sub-expression, such as a leading expression or opening parenthesis.
+    /// - Parameter suffix: Suffix applied after the nested sub-expression, such as a trailing expression or closing parenthesis.
     /// - Parameter separator: Character sequence used to delimit sub-expressions within the sub-expression.
     /// - Parameter contents: Sub-expression applied between the `beginsWith` and `endsWith` expressions.
     ///
