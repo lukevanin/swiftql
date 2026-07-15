@@ -11,7 +11,7 @@ import SwiftQL
 
 
 
-final class XLInsertBuilderTests: XCTestCase {
+final class InsertBuilderTests: XCTestCase {
     
     var encoder: XLiteEncoder!
     
@@ -30,7 +30,7 @@ final class XLInsertBuilderTests: XCTestCase {
         let schema = XLSchema()
         let table = schema.table(TestTable.self)
         let values = TestTable(id: "foo", value: 42)
-        let subject = XLInsertBuilder(insert: table).values(values)
+        let subject = InsertBuilder(insert: table).values(values)
         let result = try subject.build()
         XCTAssertEqual(encoder.makeSQL(result).sql, "INSERT INTO `Test` AS `t0` (`id`,`value`) VALUES ('foo',42)")
     }
@@ -38,7 +38,7 @@ final class XLInsertBuilderTests: XCTestCase {
     func testInsertWithoutValuesShouldFail() throws {
         let schema = XLSchema()
         let table = schema.table(TestTable.self)
-        let subject = XLInsertBuilder(insert: table)
+        let subject = InsertBuilder(insert: table)
         XCTAssertThrowsError(try subject.build())
     }
 }

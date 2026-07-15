@@ -10,7 +10,7 @@ import GRDB
 import SwiftQL
 
     
-final class XLQueryBuilderTests: XCTestCase {
+final class QueryBuilderTests: XCTestCase {
     
     var encoder: XLiteEncoder!
     
@@ -32,7 +32,7 @@ final class XLQueryBuilderTests: XCTestCase {
         
         let company = schema.table(CompanyTable.self)
         
-        var query = XLQueryBuilder(select: company)
+        var query = QueryBuilder(select: company)
         query = query.from(company)
         
         let finalResult = try encoder.makeSQL(query.build()).sql
@@ -47,7 +47,7 @@ final class XLQueryBuilderTests: XCTestCase {
         
         let company = schema.table(CompanyTable.self)
         
-        var query = XLQueryBuilder(select: company)
+        var query = QueryBuilder(select: company)
         query = query.from(company)
         query = query.and(company.name == "Apple")
         
@@ -63,7 +63,7 @@ final class XLQueryBuilderTests: XCTestCase {
         
         let company = schema.table(CompanyTable.self)
         
-        var query = XLQueryBuilder(select: company)
+        var query = QueryBuilder(select: company)
         query = query.from(company)
         query = query.orderBy(company.name.ascending())
         
@@ -80,7 +80,7 @@ final class XLQueryBuilderTests: XCTestCase {
         let company = schema.table(CompanyTable.self)
         let employee = schema.nullableTable(EmployeeTable.self)
         
-        var query = XLQueryBuilder(select: company)
+        var query = QueryBuilder(select: company)
         query = query.from(company)
         query = query.leftJoin(employee, on: employee.companyId == company.id)
         
@@ -97,7 +97,7 @@ final class XLQueryBuilderTests: XCTestCase {
         let company = schema.table(CompanyTable.self)
         let employee = schema.nullableTable(EmployeeTable.self)
         
-        var query = XLQueryBuilder(select: company)
+        var query = QueryBuilder(select: company)
         query = query.from(company)
         query = query.leftJoin(employee, on: employee.companyId == company.id)
         query = query.and(employee.name == "Tim")
@@ -115,7 +115,7 @@ final class XLQueryBuilderTests: XCTestCase {
         let company = schema.table(CompanyTable.self)
         let employee = schema.nullableTable(EmployeeTable.self)
         
-        var query = XLQueryBuilder(select: company)
+        var query = QueryBuilder(select: company)
         query = query.from(company)
         query = query.leftJoin(employee, on: employee.companyId == company.id)
         query = query.and(employee.name == "Tim")
