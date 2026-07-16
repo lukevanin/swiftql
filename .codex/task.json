@@ -1,0 +1,11 @@
+{
+  "task_name": "XLColumnReader: Throw an error when reading fails.",
+  "issue_number": 38,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/38",
+  "workspace_repo": "lukevanin/swiftql",
+  "codex_session_title": "lukevanin/swiftql#38 - Throw on column read failure",
+  "codex_session_id": "019f6ab7-ff93-71b2-977a-aa0d3f5c581b",
+  "codex_session_url": null,
+  "task_branch": "codex/38-xlcolumnreader-throw-on-read-failure",
+  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/38-xlcolumnreader-throw-on-read-failure"
+}
