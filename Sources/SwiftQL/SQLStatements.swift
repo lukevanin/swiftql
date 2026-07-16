@@ -420,10 +420,9 @@ public struct From: XLTableStatement {
 ///
 public struct Join: XLTableStatement {
     
-    public enum Kind: String {
+    public enum Kind: String, CaseIterable {
         case innerJoin = "INNER JOIN"
         case leftJoin = "LEFT JOIN"
-        case outerJoin = "OUTER JOIN"
         case crossJoin = "CROSS JOIN"
     }
     
@@ -479,13 +478,6 @@ public struct Join: XLTableStatement {
     ///
     public static func Left<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNullableNamedResult, U: XLBoolean {
         Join(kind: .leftJoin, table: table, constraint: constraint)
-    }
-
-    ///
-    /// Creates an outer join with a column constraint.
-    ///
-    public static func Outer<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNamedResult, U: XLBoolean {
-        Join(kind: .outerJoin, table: table, constraint: constraint)
     }
 }
 
