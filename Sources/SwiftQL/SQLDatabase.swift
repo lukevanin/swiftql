@@ -19,10 +19,12 @@ extension String {
 
 extension NotificationCenter {
     
+    @available(*, deprecated, message: "GRDB live queries no longer consume global entity notifications. Use XLRequest.publish() or GRDB ValueObservation.")
     public func sqlEntitiesChangedPublisher() -> NotificationCenter.Publisher {
         publisher(for: .XLEntitiesChanged)
     }
     
+    @available(*, deprecated, message: "GRDB live queries no longer consume global entity notifications. Use XLRequest.publish() or GRDB ValueObservation.")
     public func sqlEntitiesChangedObserver(queue: OperationQueue, observer: @escaping (Notification) -> Void) -> NSObjectProtocol {
         addObserver(
             forName: .XLEntitiesChanged,
@@ -32,6 +34,7 @@ extension NotificationCenter {
         )
     }
     
+    @available(*, deprecated, message: "GRDB live queries no longer consume global entity notifications. Observe with XLRequest.publish() or GRDB ValueObservation.")
     public func postSQLEntitiesChangedNotification(entities: Set<String>) {
         post(
             name: .XLEntitiesChanged,
@@ -50,10 +53,12 @@ extension Notification.Name {
 
 extension NotificationCenter {
     
+    @available(*, deprecated, message: "GRDB live queries no longer consume global commit notifications. Use XLRequest.publish() or GRDB ValueObservation.")
     public func sqlCommitPublisher() -> NotificationCenter.Publisher {
         publisher(for: .XLCommit)
     }
     
+    @available(*, deprecated, message: "GRDB live queries no longer consume global commit notifications. Use XLRequest.publish() or GRDB ValueObservation.")
     public func sqlCommitObserver(queue: OperationQueue, observer: @escaping (Notification) -> Void) -> NSObjectProtocol {
         addObserver(
             forName: .XLCommit,
@@ -63,6 +68,7 @@ extension NotificationCenter {
         )
     }
     
+    @available(*, deprecated, message: "GRDB live queries no longer consume global commit notifications. Observe with XLRequest.publish() or GRDB ValueObservation.")
     public func postSQLCommitNotification() {
         post(
             name: .XLCommit,
@@ -102,8 +108,8 @@ public struct XLRequestBuilder<Row> {
 ///
 /// Use the set methods to assign variables parameters to the query.
 ///
-/// Use the fetch methods to execute the query, or use the publish methods to create a Combine publisher
-/// that executes the query automatically when any of the tables referenced in the query are modified.
+/// Use the fetch methods to execute the query, or use the publish methods to create an adapter-backed
+/// Combine publisher that observes the query's database region.
 ///
 public protocol XLRequest<Row> {
     associatedtype Row
@@ -141,8 +147,11 @@ public protocol XLRequest<Row> {
     func fetchOne() throws -> Row?
     
     ///
-    /// Creates a Combine Publisher that emits all rows from the query when any of the tables referenced
-    /// by the query are modified.
+    /// Creates a Combine Publisher that observes and emits all rows from the query.
+    ///
+    /// Observation starts when the publisher is subscribed to. Each subscriber receives a fresh initial
+    /// value and owns an independent observation. Adapter-specific scheduling, write visibility, and
+    /// connection boundaries apply.
     ///
     /// The publisher fails with the original query-execution or row-decoding error instead of emitting a
     /// partial result.
@@ -150,8 +159,11 @@ public protocol XLRequest<Row> {
     func publish() -> AnyPublisher<[Row], Error>
     
     ///
-    /// Creates a Combine Publisher that emits the first row from the query when any of the tables
-    /// referenced by the query are modified.
+    /// Creates a Combine Publisher that observes and emits the first row from the query.
+    ///
+    /// Observation starts when the publisher is subscribed to. Each subscriber receives a fresh initial
+    /// value and owns an independent observation. Adapter-specific scheduling, write visibility, and
+    /// connection boundaries apply.
     ///
     /// The publisher fails with the original query-execution or row-decoding error.
     ///
@@ -278,6 +290,5 @@ extension XLDatabase {
         builder.build(with: self)
     }
 }
-
 
 

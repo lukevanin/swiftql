@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import GRDB
 import XCTest
 @testable import SwiftQL
@@ -63,6 +64,7 @@ final class XLColumnReadErrorTests: XCTestCase {
     private var databasePool: DatabasePool!
     private var databaseDirectoryURL: URL!
     private var logger: ColumnReadTestLogger!
+    private var cancellables: Set<AnyCancellable> = []
 
     override func setUpWithError() throws {
         logger = ColumnReadTestLogger()
@@ -84,6 +86,7 @@ final class XLColumnReadErrorTests: XCTestCase {
     }
 
     override func tearDown() {
+        cancellables.removeAll()
         databasePool = nil
         database = nil
         logger = nil
@@ -232,19 +235,85 @@ final class XLColumnReadErrorTests: XCTestCase {
         )
     }
 
-    func testPublisherFailsOnMiddleRowDecodeErrorWithoutEmittingPartialResults() async throws {
+    func testPublisherFailsOnMiddleRowDecodeErrorWithoutEmittingPartialResults() throws {
         try createTestTableWithInvalidMiddleRow()
         let statement = orderedTestTableStatement()
-        let publisher = database.makeRequest(with: statement).publish()
-        var iterator = publisher.values.makeAsyncIterator()
+        let failureExpectation = expectation(description: "initial decode failure")
+        var receivedError: Error?
 
-        do {
-            let rows = try await iterator.next()
-            XCTFail("Expected a row-decoding failure, received \(String(describing: rows)).")
+        database.makeRequest(with: statement).publish()
+            .sink(
+                receiveCompletion: { completion in
+                    switch completion {
+                    case .failure(let error):
+                        receivedError = error
+                    case .finished:
+                        XCTFail("Expected a row-decoding failure, received normal completion.")
+                    }
+                    failureExpectation.fulfill()
+                },
+                receiveValue: { rows in
+                    XCTFail("Expected a row-decoding failure, received \(rows).")
+                }
+            )
+            .store(in: &cancellables)
+
+        wait(for: [failureExpectation], timeout: 2)
+        XCTAssertEqual(receivedError as? XLColumnReadError, nullIntegerReadError())
+    }
+
+    func testPublisherPropagatesRefreshDecodeErrorWithoutEmittingPartialResults() throws {
+        try databasePool.write { database in
+            try database.execute(sql: "CREATE TABLE Test (id TEXT NOT NULL, value INTEGER)")
+            try database.execute(
+                sql: """
+                    INSERT INTO Test (id, value) VALUES
+                        ('1-valid', 1),
+                        ('2-invalid-later', 2),
+                        ('3-valid', 3)
+                    """
+            )
         }
-        catch {
-            XCTAssertEqual(error as? XLColumnReadError, nullIntegerReadError())
+        let initialExpectation = expectation(description: "valid initial value")
+        let failureExpectation = expectation(description: "refresh decode failure")
+        var receivedValues: [[TestTable]] = []
+        var receivedError: Error?
+
+        database.makeRequest(with: orderedTestTableStatement()).publish()
+            .removeDuplicates()
+            .sink(
+                receiveCompletion: { completion in
+                    if case .failure(let error) = completion {
+                        receivedError = error
+                        failureExpectation.fulfill()
+                    }
+                },
+                receiveValue: { rows in
+                    receivedValues.append(rows)
+                    if receivedValues.count == 1 {
+                        initialExpectation.fulfill()
+                    }
+                }
+            )
+            .store(in: &cancellables)
+
+        wait(for: [initialExpectation], timeout: 2)
+        try databasePool.write { database in
+            try database.execute(
+                sql: "UPDATE Test SET value = NULL WHERE id = '2-invalid-later'"
+            )
         }
+        wait(for: [failureExpectation], timeout: 2)
+
+        XCTAssertEqual(receivedError as? XLColumnReadError, nullIntegerReadError())
+        XCTAssertEqual(
+            receivedValues,
+            [[
+                TestTable(id: "1-valid", value: 1),
+                TestTable(id: "2-invalid-later", value: 2),
+                TestTable(id: "3-valid", value: 3),
+            ]]
+        )
     }
 
     func testEnumReaderRejectsUnknownRawValue() throws {

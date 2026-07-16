@@ -92,8 +92,8 @@ public struct XLEncoding {
     ///
     /// A set of names of database tables which are referenced in the SQL statement.
     ///
-    /// Used by SwiftQL to determine when a table in a select statement has been modified by an insert,
-    /// update, or delete statement.
+    /// This metadata is available to database adapters and diagnostics. GRDB-backed live queries derive
+    /// their observed database region from the prepared query instead of this set.
     ///
     public let entities: Set<String>
 }
