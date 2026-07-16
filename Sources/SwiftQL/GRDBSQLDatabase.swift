@@ -177,18 +177,15 @@ struct GRDBRequest<Row>: XLRequest {
     
     private let sql: String
     
-    private let entities: Set<String>
-    
     private let reader: any XLRowReadable<Row>
 
     private var arguments = StatementArguments()
     
-    public init(databasePool: DatabasePool, logger: XLLogger?, reader: any XLRowReadable<Row>, sql: String, entities: Set<String>) {
+    public init(databasePool: DatabasePool, logger: XLLogger?, reader: any XLRowReadable<Row>, sql: String) {
         self.databasePool = databasePool
         self.logger = logger
         self.reader = reader
         self.sql = sql
-        self.entities = entities
     }
     
     public mutating func set<T>(parameter reference: XLNamedBindingReference<Optional<T>>, value: T?) where T: XLBindable {
@@ -215,76 +212,64 @@ struct GRDBRequest<Row>: XLRequest {
     }
     
     func fetchAll() throws -> [Row] {
-        return try databasePool.read { database in
-            logger?.debug("fetchAll: <<<\(sql)>>> parameters: <<<\(arguments)>>>")
-            let statement = try database.cachedStatement(sql: sql)
-            let rows = try GRDB.Row.fetchAll(statement, arguments: arguments)
-            
-            let columnReader = XLColumnValuesRowReader<Row>()
-            var items: [Row] = []
-            
-            for row in rows {
-                columnReader.reset(reader: GRDBRowAdapter(row: row))
-                do {
-                    let item = try reader.readRow(reader: columnReader)
-                    items.append(item)
-                }
-                catch {
-                    logger?.error("fetchAll : Cannot decode entity: \(error)")
-                    throw error
-                }
-            }
-            return items
+        try databasePool.read { database in
+            try fetchAll(in: database)
         }
+    }
+
+    private func fetchAll(in database: Database) throws -> [Row] {
+        logger?.debug("fetchAll: <<<\(sql)>>> parameters: <<<\(arguments)>>>")
+        let statement = try database.cachedStatement(sql: sql)
+        let rows = try GRDB.Row.fetchAll(statement, arguments: arguments)
+
+        let columnReader = XLColumnValuesRowReader<Row>()
+        var items: [Row] = []
+
+        for row in rows {
+            columnReader.reset(reader: GRDBRowAdapter(row: row))
+            do {
+                let item = try reader.readRow(reader: columnReader)
+                items.append(item)
+            }
+            catch {
+                logger?.error("fetchAll : Cannot decode entity: \(error)")
+                throw error
+            }
+        }
+        return items
     }
     
     func fetchOne() throws -> Row? {
-        return try databasePool.read { database in
-            logger?.debug("fetchOne: <<<\(sql)>>> parameters: <<<\(arguments)>>>")
-            let statement = try database.cachedStatement(sql: sql)
-            guard let row = try GRDB.Row.fetchOne(statement, arguments: arguments) else {
-                return nil
-            }
-            
-            let columnReader = XLColumnValuesRowReader<Row>()
-            columnReader.reset(reader: GRDBRowAdapter(row: row))
-            let item = try reader.readRow(reader: columnReader)
-            return item
+        try databasePool.read { database in
+            try fetchOne(in: database)
         }
+    }
+
+    private func fetchOne(in database: Database) throws -> Row? {
+        logger?.debug("fetchOne: <<<\(sql)>>> parameters: <<<\(arguments)>>>")
+        let statement = try database.cachedStatement(sql: sql)
+        guard let row = try GRDB.Row.fetchOne(statement, arguments: arguments) else {
+            return nil
+        }
+
+        let columnReader = XLColumnValuesRowReader<Row>()
+        columnReader.reset(reader: GRDBRowAdapter(row: row))
+        return try reader.readRow(reader: columnReader)
     }
     
     func publish() -> AnyPublisher<[Row], Error> {
-        publisher(fetch: fetchAll)
+        publisher(fetch: fetchAll(in:))
     }
     
     func publishOne() -> AnyPublisher<Row?, Error> {
-        publisher(fetch: fetchOne)
+        publisher(fetch: fetchOne(in:))
     }
     
-    private func publisher<T>(fetch: @escaping () throws -> T) -> AnyPublisher<T, Error> {
-        let initialResult: T
-        do {
-            initialResult = try fetch()
-        }
-        catch {
-            return Fail(error: error).eraseToAnyPublisher()
-        }
-        let initialPublisher = Just(initialResult)
-            .setFailureType(to: Error.self)
-        let resultsPublisher = NotificationCenter.default
-            .sqlEntitiesChangedPublisher()
-            .receive(on: DispatchQueue.global(qos: .utility))
-            .filter { notification in
-                guard let changedEntities = notification.userInfo?[String.XLEntities] as? Set<String> else {
-                    return false
-                }
-                let changes = Set(changedEntities).intersection(entities)
-                return !changes.isEmpty
-            }
-            .tryMap { _ in
-                try fetch()
-            }
-        return Publishers.Merge(initialPublisher, resultsPublisher).eraseToAnyPublisher()
+    private func publisher<T>(fetch: @escaping (Database) throws -> T) -> AnyPublisher<T, Error> {
+        ValueObservation
+            .tracking(fetch)
+            .publisher(in: databasePool)
+            .eraseToAnyPublisher()
     }
 }
 
@@ -297,15 +282,12 @@ struct GRDBWriteRequest: XLWriteRequest {
     
     private let sql: String
     
-    private let entities: Set<String>
-    
     private var arguments = StatementArguments()
     
-    public init(databasePool: DatabasePool, logger: XLLogger?, sql: String, entities: Set<String>) {
+    public init(databasePool: DatabasePool, logger: XLLogger?, sql: String) {
         self.databasePool = databasePool
         self.logger = logger
         self.sql = sql
-        self.entities = entities
     }
     
     public mutating func set<T>(parameter reference: XLNamedBindingReference<Optional<T>>, value: T?) where T: XLBindable {
@@ -337,8 +319,6 @@ struct GRDBWriteRequest: XLWriteRequest {
             let statement = try database.cachedStatement(sql: sql)
             try statement.execute(arguments: arguments)
         }
-        NotificationCenter.default.postSQLEntitiesChangedNotification(entities: entities)
-        NotificationCenter.default.postSQLCommitNotification()
     }
 }
 
@@ -414,26 +394,26 @@ public struct GRDBDatabase: XLDatabase {
     
     public func makeRequest<Row>(with statement: any XLQueryStatement<Row>) -> any XLRequest<Row> {
         let encoding = encoder.makeSQL(statement)
-        return GRDBRequest(databasePool: databasePool, logger: logger, reader: statement, sql: encoding.sql, entities: encoding.entities)
+        return GRDBRequest(databasePool: databasePool, logger: logger, reader: statement, sql: encoding.sql)
     }
     
     public func makeRequest(with statement: any XLUpdateStatement) -> XLWriteRequest {
         let encoding = encoder.makeSQL(statement)
-        return GRDBWriteRequest(databasePool: databasePool, logger: logger, sql: encoding.sql, entities: encoding.entities)
+        return GRDBWriteRequest(databasePool: databasePool, logger: logger, sql: encoding.sql)
     }
     
     public func makeRequest(with statement: any XLInsertStatement) -> XLWriteRequest {
         let encoding = encoder.makeSQL(statement)
-        return GRDBWriteRequest(databasePool: databasePool, logger: logger, sql: encoding.sql, entities: encoding.entities)
+        return GRDBWriteRequest(databasePool: databasePool, logger: logger, sql: encoding.sql)
     }
     
     public func makeRequest(with statement: any XLCreateStatement) -> XLWriteRequest {
         let encoding = encoder.makeSQL(statement)
-        return GRDBWriteRequest(databasePool: databasePool, logger: logger, sql: encoding.sql, entities: [])
+        return GRDBWriteRequest(databasePool: databasePool, logger: logger, sql: encoding.sql)
     }
     
     public func makeRequest(with statement: any XLDeleteStatement) -> XLWriteRequest {
         let encoding = encoder.makeSQL(statement)
-        return GRDBWriteRequest(databasePool: databasePool, logger: logger, sql: encoding.sql, entities: encoding.entities)
+        return GRDBWriteRequest(databasePool: databasePool, logger: logger, sql: encoding.sql)
     }
 }
