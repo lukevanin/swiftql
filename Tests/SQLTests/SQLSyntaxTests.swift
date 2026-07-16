@@ -102,9 +102,25 @@ final class XLSyntaxTests: XCTestCase {
         let expression: Data = Data([0x01])
         XCTAssertEqual(encoder.makeSQL(expression).sql, "x'01'")
     }
-    
-    
-    
+
+
+    // MARK: - Type cast
+
+
+    func test_Text_ToData_CastsToBlob() {
+        let expression = "abc".toData()
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "CAST('abc' AS BLOB)")
+    }
+
+
+    func test_OptionalTextReference_ToData_CastsToBlob() {
+        let x = XLNamedBindingReference<Optional<String>>(name: "x")
+        let expression = x.toData()
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "CAST(:x AS BLOB)")
+    }
+
+
+
     // MARK: - Column reference
     
     
