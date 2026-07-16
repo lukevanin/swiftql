@@ -81,6 +81,21 @@ final class XLSyntaxTests: XCTestCase {
         let expression: String = ""
         XCTAssertEqual(encoder.makeSQL(expression).sql, "''")
     }
+
+
+    func test_TextLiteral_EmbeddedNulCharacter() {
+        // A NUL cannot be escaped inside a SQL string literal. Verify the
+        // quotes remain balanced so the value cannot break out of the literal.
+        let expression: String = "a\0b"
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "'a\0b'")
+    }
+
+
+    func test_TextLiteral_StaticString_EscapesSingleQuote() {
+        let formatter = XLiteFormatter(identifierFormattingOptions: .noEscape)
+        let literal: StaticString = "O'Brien"
+        XCTAssertEqual(formatter.text(literal), "'O''Brien'")
+    }
     
     
     func test_BlobLiteral() {
