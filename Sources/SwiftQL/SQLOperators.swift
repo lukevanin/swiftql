@@ -15,13 +15,16 @@ import Foundation
 ///
 /// *Swift:*
 /// ```swift
-/// +69
+/// +foo
 /// ```
 ///
 /// *SQL:*
 /// ```SQL
-/// +69
+/// +(foo)
 /// ```
+///
+/// The operand is grouped so adjacent unary operators cannot form SQL tokens such as SQLite's `--`
+/// line-comment marker.
 ///
 public struct XLUnaryOperatorExpression<T>: XLExpression {
     
@@ -35,7 +38,9 @@ public struct XLUnaryOperatorExpression<T>: XLExpression {
     }
     
     public func makeSQL(context: inout XLBuilder) {
-        context.unaryOperator(op, expression: operand.makeSQL)
+        context.unaryOperator(op) { context in
+            context.parenthesis(contents: operand.makeSQL)
+        }
     }
 }
 
@@ -409,4 +414,3 @@ public struct XLIfExpression<T>: XLExpression {
         }
     }
 }
-
