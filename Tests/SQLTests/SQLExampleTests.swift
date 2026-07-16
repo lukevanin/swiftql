@@ -144,8 +144,8 @@ extension Date: XLCustomType, XLEquatable, XLComparable {
     public typealias T = Self
     
     // Decode the date from an XL result.
-    public init(reader: XLColumnReader, at index: Int) {
-        let rawValue = reader.readReal(at: index)
+    public init(reader: XLColumnReader, at index: Int) throws {
+        let rawValue = try reader.readReal(at: index)
         self = Date(julianDay: rawValue)!
     }
     
@@ -231,10 +231,10 @@ public struct HaversineDistance: XLCustomFunction {
     // Define the implementation details for how the function works. This is called at runtime from XL, and the results
     // are returned to XL.
     public static func execute(reader: XLColumnReader) throws -> Double {
-        let latA = radians(degrees: reader.readReal(at: 0))
-        let lonA = radians(degrees: reader.readReal(at: 1))
-        let latB = radians(degrees: reader.readReal(at: 2))
-        let lonB = radians(degrees: reader.readReal(at: 3))
+        let latA = try radians(degrees: reader.readReal(at: 0))
+        let lonA = try radians(degrees: reader.readReal(at: 1))
+        let latB = try radians(degrees: reader.readReal(at: 2))
+        let lonB = try radians(degrees: reader.readReal(at: 3))
         return acos(sin(latA) * sin(latB) + cos(latA) * cos(latB) * cos(lonB - lonA)) * 6371
     }
     

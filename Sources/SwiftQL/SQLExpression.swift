@@ -257,7 +257,14 @@ extension XLEnum {
         
     public init(reader: XLColumnReader, at index: Int) throws {
         let rawValue = try RawValue(reader: reader, at: index)
-        self = Self(rawValue: rawValue) ?? Self.sqlDefault()
+        guard let value = Self(rawValue: rawValue) else {
+            throw XLColumnReadError(
+                index: index,
+                expectedType: String(describing: Self.self),
+                failure: .invalidValue(actualValue: String(reflecting: rawValue))
+            )
+        }
+        self = value
     }
     
     public func bind(context: inout XLBindingContext) {
@@ -332,7 +339,7 @@ extension Optional: XLLiteral where Wrapped: XLLiteral {
     }
 
     public init(reader: XLColumnReader, at index: Int) throws {
-        if reader.isNull(at: index) {
+        if try reader.isNull(at: index) {
             self = nil
         }
         else {
