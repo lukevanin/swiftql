@@ -45,8 +45,12 @@ let package = Package(
         .testTarget(
             name: "SQLMacrosTests",
             dependencies: [
+                "SQLMacros",
                 "SwiftQL",
                 .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftParser", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]
         ),

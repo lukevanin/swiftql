@@ -1,56 +1,631 @@
-//import SwiftSyntaxMacros
-//import SwiftSyntaxMacrosTestSupport
-//import XCTest
-//import XLMacros
-
-//let testMacros: [String: Macro.Type] = [
-//    "stringify": StringifyMacro.self,
-//    "SQLTable": SQLTableMacro.self,
-//    "SQLTable": SQLTableMacro.self,
-//]
-
-//final class XLTests: XCTestCase {
-//    func testMacro() {
-//        assertMacroExpansion(
-//            """
-//            #stringify(a + b)
-//            """,
-//            expandedSource: """
-//            (a + b, "a + b")
-//            """,
-//            macros: testMacros
-//        )
-//    }
 //
-//    func testMacroWithStringLiteral() {
-//        assertMacroExpansion(
-//            #"""
-//            #stringify("Hello, \(name)")
-//            """#,
-//            expandedSource: #"""
-//            ("Hello, \(name)", #""Hello, \(name)""#)
-//            """#,
-//            macros: testMacros
-//        )
-//    }
-    
-//    func test_SQLTable() {
-//        assertMacroExpansion(
-//            """
-//            @SQLTable
-//            struct Book {
-//                var id: Int
-//                @MyDate(format: .iso8601) var date: Date
-//            }
-//            """,
-//            expandedSource:
-//            """
-//            struct Book {
-//                var id: Int
-//                var date: Date
-//            }
-//            """,
-//            macros: testMacros
-//        )
-//    }
-//}
+//  SQLTests.swift
+//  SwiftQL
+//
+//  Tests for the `SQLTable` and `SQLResult` macros: property classification, diagnostics for
+//  unsupported property shapes, and expansion of the generated memberwise initializer.
+//
+
+import SwiftParser
+import SwiftSyntax
+import SwiftSyntaxMacros
+import SwiftSyntaxMacrosTestSupport
+import XCTest
+
+@testable import SQLMacros
+
+
+private let testMacros: [String: Macro.Type] = [
+    "SQLTable": SQLTableMacro.self,
+    "SQLResult": SQLResultMacro.self,
+]
+
+
+///
+/// Wrapper which exposes only the member role of `SQLTableMacro`, so that expansion tests can
+/// assert the generated memberwise initializer without also asserting the (very large) generated
+/// extensions.
+///
+private struct SQLTableMemberMacro: MemberMacro {
+
+    static func expansion(
+        of node: AttributeSyntax,
+        providingMembersOf declaration: some DeclGroupSyntax,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        try SQLTableMacro.expansion(of: node, providingMembersOf: declaration, in: context)
+    }
+}
+
+private let memberTestMacros: [String: Macro.Type] = [
+    "SQLTable": SQLTableMemberMacro.self,
+]
+
+
+final class SQLMacroDiagnosticTests: XCTestCase {
+
+    func test_missingTypeAnnotation_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                var count = 0
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var count = 0
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Property 'count' needs an explicit type annotation to be used as a column. The type of the initial value cannot be inferred by the macro.",
+                    line: 3,
+                    column: 9
+                )
+            ],
+            macros: testMacros
+        )
+    }
+
+    func test_computedProperty_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                var id: Int
+                var display: String {
+                    "sample"
+                }
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var id: Int
+                var display: String {
+                    "sample"
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Computed properties cannot be used as columns. Move the property to an extension of the type to exclude it from the generated columns.",
+                    line: 4,
+                    column: 9
+                )
+            ],
+            macros: testMacros
+        )
+    }
+
+    func test_staticProperty_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                var id: Int
+                static var shared: Int = 0
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var id: Int
+                static var shared: Int = 0
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'static' properties cannot be used as columns. Move the property to an extension of the type to exclude it from the generated columns.",
+                    line: 4,
+                    column: 5
+                )
+            ],
+            macros: testMacros
+        )
+    }
+
+    func test_lazyProperty_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                lazy var value: Int = 0
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                lazy var value: Int = 0
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'lazy' properties cannot be used as columns. Use a plain stored property instead.",
+                    line: 3,
+                    column: 5
+                )
+            ],
+            macros: testMacros
+        )
+    }
+
+    func test_letWithInitialValue_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                let id: Int = 0
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                let id: Int = 0
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "A 'let' property with an initial value cannot be assigned by the generated initializer. Use 'var', or remove the initial value.",
+                    line: 3,
+                    column: 9
+                )
+            ],
+            macros: testMacros
+        )
+    }
+
+    func test_tuplePattern_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                var (x, y): (Int, Int)
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var (x, y): (Int, Int)
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Pattern '(x, y)' cannot be used as a column. Declare each column as a separate property with its own name and type.",
+                    line: 3,
+                    column: 9
+                )
+            ],
+            macros: testMacros
+        )
+    }
+
+    func test_unsupportedColumnType_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                var callback: (Int) -> Int
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var callback: (Int) -> Int
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Type '(Int) -> Int' cannot be used as a column type.",
+                    line: 3,
+                    column: 19
+                )
+            ],
+            macros: testMacros
+        )
+    }
+
+    func test_reservedPropertyName_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                var _namespace: Int
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var _namespace: Int
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Property name '_namespace' conflicts with a member generated by the macro. Rename the property.",
+                    line: 3,
+                    column: 9
+                )
+            ],
+            macros: testMacros
+        )
+    }
+
+    func test_interpolatedNameArgument_emitsError() {
+        assertMacroExpansion(
+            #"""
+            @SQLTable(name: "tbl_\(1)")
+            struct Sample {
+                var id: Int
+            }
+            """#,
+            expandedSource: """
+            struct Sample {
+                var id: Int
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "The 'name' argument must be a simple string literal without interpolation. Remove the interpolation, or omit the argument to use the name of the struct.",
+                    line: 1,
+                    column: 17
+                )
+            ],
+            macros: testMacros
+        )
+    }
+
+    func test_nonStructDeclaration_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            class Sample {
+            }
+            """,
+            expandedSource: """
+            class Sample {
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLTable' and '@SQLResult' can only be applied to a struct.",
+                    line: 1,
+                    column: 1
+                )
+            ],
+            macros: testMacros
+        )
+    }
+
+    func test_sqlResult_missingTypeAnnotation_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLResult
+            struct Sample {
+                var count = 0
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var count = 0
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Property 'count' needs an explicit type annotation to be used as a column. The type of the initial value cannot be inferred by the macro.",
+                    line: 3,
+                    column: 9
+                )
+            ],
+            macros: testMacros
+        )
+    }
+
+    func test_multipleUnsupportedProperties_emitsErrorForEach() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                var count = 0
+                static var shared: Int = 0
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var count = 0
+                static var shared: Int = 0
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Property 'count' needs an explicit type annotation to be used as a column. The type of the initial value cannot be inferred by the macro.",
+                    line: 3,
+                    column: 9
+                ),
+                DiagnosticSpec(
+                    message: "'static' properties cannot be used as columns. Move the property to an extension of the type to exclude it from the generated columns.",
+                    line: 4,
+                    column: 5
+                ),
+            ],
+            macros: testMacros
+        )
+    }
+}
+
+
+final class SQLMacroExpansionTests: XCTestCase {
+
+    func test_memberwiseInitializer() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Person {
+                var id: Int
+                var name: String?
+            }
+            """,
+            expandedSource: """
+            struct Person {
+                var id: Int
+                var name: String?
+
+                public init(id: Int, name: String?) {
+                        self.id = id
+                        self.name = name
+                  }
+            }
+            """,
+            macros: memberTestMacros
+        )
+    }
+
+    func test_memberwiseInitializer_multipleBindings() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Point {
+                var x: Int, y: String
+            }
+            """,
+            expandedSource: """
+            struct Point {
+                var x: Int, y: String
+
+                public init(x: Int, y: String) {
+                        self.x = x
+                        self.y = y
+                  }
+            }
+            """,
+            macros: memberTestMacros
+        )
+    }
+
+    func test_memberwiseInitializer_backtickedName() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                var `index`: Int
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var `index`: Int
+
+                public init(`index`: Int) {
+                        self.`index` = `index`
+                  }
+            }
+            """,
+            macros: memberTestMacros
+        )
+    }
+}
+
+
+final class MetaBuilderTests: XCTestCase {
+
+    private func makeBuilder(_ source: String) throws -> MetaBuilder {
+        let file = Parser.parse(source: source)
+        let structDecl = file.statements
+            .compactMap { $0.item.as(StructDeclSyntax.self) }
+            .first
+        let attribute = structDecl?.attributes
+            .compactMap { element -> AttributeSyntax? in
+                if case let .attribute(attribute) = element {
+                    return attribute
+                }
+                return nil
+            }
+            .first
+        guard let structDecl, let attribute else {
+            throw SQLMacroError.unsupportedType
+        }
+        return try MetaBuilder(node: attribute, declaration: structDecl)
+    }
+
+    func test_multipleBindings_collectsEachProperty() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+                var x: Int, y: String
+            }
+            """
+        )
+        XCTAssertEqual(builder.properties.count, 2)
+        XCTAssertEqual(builder.properties[0].name, "x")
+        XCTAssertEqual(builder.properties[0].type, "Int")
+        XCTAssertEqual(builder.properties[1].name, "y")
+        XCTAssertEqual(builder.properties[1].type, "String")
+    }
+
+    func test_sharedTypeAnnotation_appliesToAllBindings() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+                let a, b: Int
+            }
+            """
+        )
+        XCTAssertEqual(builder.properties.count, 2)
+        XCTAssertEqual(builder.properties[0].name, "a")
+        XCTAssertEqual(builder.properties[0].type, "Int")
+        XCTAssertEqual(builder.properties[0].mutability, .immutable)
+        XCTAssertEqual(builder.properties[1].name, "b")
+        XCTAssertEqual(builder.properties[1].type, "Int")
+    }
+
+    func test_optionalSugar_isEquivalentToOptionalType() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+                var a: Optional<Int>
+                var b: Int?
+            }
+            """
+        )
+        XCTAssertEqual(builder.properties.count, 2)
+        XCTAssertEqual(builder.properties[0].type, "Int")
+        XCTAssertTrue(builder.properties[0].optional)
+        XCTAssertEqual(builder.properties[0].qualifiedType, "Int?")
+        XCTAssertEqual(builder.properties[1].type, "Int")
+        XCTAssertTrue(builder.properties[1].optional)
+    }
+
+    func test_genericType_keepsGenericArguments() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+                var a: Array<Int>
+                var b: [Int]
+                var c: Optional<Array<Int>>
+            }
+            """
+        )
+        XCTAssertEqual(builder.properties.count, 3)
+        XCTAssertEqual(builder.properties[0].type, "Array<Int>")
+        XCTAssertFalse(builder.properties[0].optional)
+        XCTAssertEqual(builder.properties[1].type, "[Int]")
+        XCTAssertEqual(builder.properties[2].type, "Array<Int>")
+        XCTAssertTrue(builder.properties[2].optional)
+    }
+
+    func test_memberType_keepsQualifiedName() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+                var date: Foundation.Date
+            }
+            """
+        )
+        XCTAssertEqual(builder.properties.count, 1)
+        XCTAssertEqual(builder.properties[0].type, "Foundation.Date")
+    }
+
+    func test_backtickedName_stripsBackticksFromColumnName() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+                var `index`: Int
+            }
+            """
+        )
+        XCTAssertEqual(builder.properties.count, 1)
+        XCTAssertEqual(builder.properties[0].name, "`index`")
+        XCTAssertEqual(builder.properties[0].alias, "index")
+        // The generated SQL never contains a backtick.
+        XCTAssertFalse(builder.makeMetaTableExtension().contains("\"`"))
+        XCTAssertTrue(builder.makeMetaTableExtension().contains("XLName(\"index\")"))
+    }
+
+    func test_varWithDefaultValue_isSupported() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+                var count: Int = 0
+            }
+            """
+        )
+        XCTAssertEqual(builder.properties.count, 1)
+        XCTAssertEqual(builder.properties[0].name, "count")
+        XCTAssertEqual(builder.properties[0].type, "Int")
+    }
+
+    func test_propertyObservers_areSupported() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+                var count: Int {
+                    didSet {
+                        print(count)
+                    }
+                }
+            }
+            """
+        )
+        XCTAssertEqual(builder.properties.count, 1)
+        XCTAssertEqual(builder.properties[0].name, "count")
+    }
+
+    func test_nonPropertyMembers_areNotColumns() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+                var id: Int
+                func compute() -> Int {
+                    0
+                }
+                init(id: Int) {
+                    self.id = id
+                }
+                struct Nested {
+                }
+            }
+            """
+        )
+        XCTAssertEqual(builder.properties.map(\.name), ["id"])
+    }
+
+    func test_nameArgument_isUsedAsTableName() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable(name: "custom_table")
+            struct Sample {
+                var id: Int
+            }
+            """
+        )
+        XCTAssertEqual(builder.tableName, "custom_table")
+    }
+
+    func test_noNameArgument_usesStructName() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+                var id: Int
+            }
+            """
+        )
+        XCTAssertEqual(builder.tableName, "Sample")
+    }
+
+    func test_emptyStruct_generatesSingleParameterlessInitializerPerType() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+            }
+            """
+        )
+        let source = builder.makeMetaTableExtension()
+        // MetaInsert, MetaUpdate and UpdateRequest each declare exactly one parameterless
+        // initializer. Before the fix, MetaUpdate declared a duplicate `init()`.
+        let count = source.components(separatedBy: "public init()").count - 1
+        XCTAssertEqual(count, 3)
+    }
+}
