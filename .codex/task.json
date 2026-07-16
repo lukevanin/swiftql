@@ -1,0 +1,11 @@
+{
+  "task_name": "QueryBuilder: render valid SQLite LIMIT and OFFSET clauses",
+  "issue_number": 107,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/107",
+  "workspace_repo": "lukevanin/swiftql",
+  "codex_session_title": "lukevanin/swiftql#107 - Render valid LIMIT and OFFSET",
+  "codex_session_id": "019f6ab7-ff93-71b2-977a-aa0d3f5c581b",
+  "codex_session_url": null,
+  "task_branch": "codex/107-querybuilder-render-valid-sqlite-limit-offset-clauses",
+  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/107-querybuilder-render-valid-sqlite-limit-offset-clauses"
+}
