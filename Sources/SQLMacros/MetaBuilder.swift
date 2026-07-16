@@ -205,8 +205,9 @@ internal struct MetaBuilder {
     /// Collects the stored properties of the struct, mapping each one to a column.
     ///
     /// Every member of the struct is either mapped faithfully to a column, ignored because it can never
-    /// be a column (methods, initializers, nested types, and static or computed properties), or reported
-    /// as an error diagnostic located at the offending declaration. No property is ever silently dropped.
+    /// be a column (methods, initializers, and nested types), or reported as an error diagnostic located
+    /// at the offending declaration (e.g. static, lazy, or computed properties). No property is ever
+    /// silently dropped.
     ///
     private static func collectProperties(
         declaration: StructDeclSyntax,
