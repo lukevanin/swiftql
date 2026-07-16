@@ -199,12 +199,24 @@ public struct XLiteFormatter: XLFormatter {
     /// Defines the escape sequence used to encode identifiers.
     ///
     /// SQLite provides compatibility for different conventions for escaping names of identifiers. SwiftQL
-    /// uses the backtick \` character for SQL statements by default.
+    /// uses SQLite's canonical double-quoted identifier syntax by default.
     ///
     public enum IdentifierFormattingOptions {
+        /// Emits the identifier without quoting or escaping it.
+        ///
+        /// Use this option only for trusted, static SQL names. Never use it with user-controlled or
+        /// otherwise untrusted input. This case remains available for source compatibility with trusted
+        /// compound fragments; prefer structured qualified-name APIs for new code.
         case noEscape
+
+        /// Uses SQLite's canonical double-quoted identifier syntax.
         case sqlite
+
+        /// Uses SQLite's MySQL-compatible backtick identifier syntax.
         case mysqlCompatible
+
+        /// Uses SQLite's Microsoft-compatible bracket syntax when possible, falling back to canonical
+        /// double quotes for names that contain a closing bracket.
         case microsoftCompatible
         
         func escape(_ name: String) -> String {
@@ -212,12 +224,21 @@ public struct XLiteFormatter: XLFormatter {
             case .noEscape:
                 name
             case .sqlite:
-                "\"\(name)\""
+                Self.doubleQuoted(name)
             case .mysqlCompatible:
-                "`\(name)`"
+                "`\(name.replacingOccurrences(of: "`", with: "``"))`"
             case .microsoftCompatible:
-                "[\(name)]"
+                if name.contains("]") {
+                    Self.doubleQuoted(name)
+                }
+                else {
+                    "[\(name)]"
+                }
             }
+        }
+
+        private static func doubleQuoted(_ name: String) -> String {
+            "\"\(name.replacingOccurrences(of: "\"", with: "\"\""))\""
         }
     }
     
