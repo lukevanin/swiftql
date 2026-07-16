@@ -479,6 +479,15 @@ public struct Join: XLTableStatement {
     public static func Left<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNullableNamedResult, U: XLBoolean {
         Join(kind: .leftJoin, table: table, constraint: constraint)
     }
+
+    ///
+    /// `Join.Outer` emitted a bare `OUTER JOIN`, which SQLite rejects ("unknown join type: OUTER"),
+    /// so no query using it could ever execute. Use ``Left(_:on:)`` with a nullable table instead.
+    ///
+    @available(*, unavailable, message: "Join.Outer emitted a bare 'OUTER JOIN', which SQLite rejects, so it could never execute. Use Join.Left with a nullable table instead.")
+    public static func Outer<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNamedResult, U: XLBoolean {
+        fatalError("Join.Outer is unavailable")
+    }
 }
 
 
