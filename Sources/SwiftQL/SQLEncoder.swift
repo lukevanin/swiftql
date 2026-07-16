@@ -240,11 +240,13 @@ public struct XLiteFormatter: XLFormatter {
     }
     
     public func text(_ text: String) -> String {
-        "'\(text)'"
+        // Embedded single quotes must be doubled per the SQL standard, otherwise
+        // the value breaks out of the literal (broken SQL at best, injection at worst).
+        "'\(text.replacingOccurrences(of: "'", with: "''"))'"
     }
-    
+
     public func text(_ text: StaticString) -> String {
-        "'\(text)'"
+        self.text(text.description)
     }
 
     public func blob(_ data: Data) -> String {
