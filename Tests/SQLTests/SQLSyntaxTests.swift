@@ -45,7 +45,25 @@ final class XLSyntaxTests: XCTestCase {
         let expression: Int = 12
         XCTAssertEqual(encoder.makeSQL(expression).sql, "12")
     }
-    
+
+
+    func test_IntegerLiteral_Int64Max() {
+        let expression: Int = Int(Int64.max)
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "9223372036854775807")
+    }
+
+
+    func test_IntegerLiteral_Int64Min() {
+        let expression: Int = Int(Int64.min)
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "-9223372036854775808")
+    }
+
+
+    func test_IntegerLiteral_MillisecondEpochTimestamp() {
+        let expression: Int = 1_752_000_000_000
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "1752000000000")
+    }
+
     
     func test_RealLiteral() {
         let expression: Double = 17.4

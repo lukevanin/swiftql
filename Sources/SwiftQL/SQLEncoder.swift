@@ -232,7 +232,7 @@ public struct XLiteFormatter: XLFormatter {
     }
     
     public func integer(_ value: Int) -> String {
-        String(format: "%d", value)
+        String(value)
     }
     
     public func real(_ value: Double) -> String {
@@ -269,7 +269,7 @@ public struct XLiteFormatter: XLFormatter {
     }
     
     public func indexedBinding(_ index: Int) -> String {
-        String(format: "?%d", index + 1)
+        "?\(index + 1)"
     }
 }
 
