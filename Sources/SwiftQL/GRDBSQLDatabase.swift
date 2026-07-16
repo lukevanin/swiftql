@@ -231,6 +231,7 @@ struct GRDBRequest<Row>: XLRequest {
                 }
                 catch {
                     logger?.error("fetchAll : Cannot decode entity: \(error)")
+                    throw error
                 }
             }
             return items

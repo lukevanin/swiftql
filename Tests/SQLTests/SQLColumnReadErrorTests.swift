@@ -47,12 +47,25 @@ struct ColumnReadIntegerFunction: XLCustomFunction {
 }
 
 
+private final class ColumnReadTestLogger: XLLogger {
+    private(set) var errorMessages: [String] = []
+
+    func log(level: XLLogLevel, message: String) {
+        if case .error = level {
+            errorMessages.append(message)
+        }
+    }
+}
+
+
 final class XLColumnReadErrorTests: XCTestCase {
     private var database: GRDBDatabase!
     private var databasePool: DatabasePool!
     private var databaseDirectoryURL: URL!
+    private var logger: ColumnReadTestLogger!
 
     override func setUpWithError() throws {
+        logger = ColumnReadTestLogger()
         databaseDirectoryURL = FileManager.default.temporaryDirectory
             .appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(
@@ -63,7 +76,7 @@ final class XLColumnReadErrorTests: XCTestCase {
         var builder = try GRDBDatabaseBuilder(
             url: fileURL,
             configuration: Configuration(),
-            logger: nil
+            logger: logger
         )
         builder.addFunction(ColumnReadIntegerFunction.self)
         database = try builder.build()
@@ -73,6 +86,7 @@ final class XLColumnReadErrorTests: XCTestCase {
     override func tearDown() {
         databasePool = nil
         database = nil
+        logger = nil
         try? FileManager.default.removeItem(at: databaseDirectoryURL)
         databaseDirectoryURL = nil
     }
@@ -203,6 +217,36 @@ final class XLColumnReadErrorTests: XCTestCase {
         )
     }
 
+    func testFetchAllFailsAtomicallyOnMiddleRowDecodeError() throws {
+        try createTestTableWithInvalidMiddleRow()
+        let statement = orderedTestTableStatement()
+        let expectedError = nullIntegerReadError()
+
+        assertColumnReadError(
+            try database.makeRequest(with: statement).fetchAll(),
+            equals: expectedError
+        )
+        XCTAssertTrue(
+            logger.errorMessages.contains { $0.contains(expectedError.localizedDescription) },
+            "Expected the decode failure to be logged before it was rethrown."
+        )
+    }
+
+    func testPublisherFailsOnMiddleRowDecodeErrorWithoutEmittingPartialResults() async throws {
+        try createTestTableWithInvalidMiddleRow()
+        let statement = orderedTestTableStatement()
+        let publisher = database.makeRequest(with: statement).publish()
+        var iterator = publisher.values.makeAsyncIterator()
+
+        do {
+            let rows = try await iterator.next()
+            XCTFail("Expected a row-decoding failure, received \(String(describing: rows)).")
+        }
+        catch {
+            XCTAssertEqual(error as? XLColumnReadError, nullIntegerReadError())
+        }
+    }
+
     func testEnumReaderRejectsUnknownRawValue() throws {
         try databasePool.write { database in
             try database.execute(sql: "CREATE TABLE ColumnReadStatus (status INTEGER NOT NULL)")
@@ -256,6 +300,37 @@ final class XLColumnReadErrorTests: XCTestCase {
         try databasePool.read { database in
             try XCTUnwrap(Row.fetchOne(database, sql: sql))
         }
+    }
+
+    private func createTestTableWithInvalidMiddleRow() throws {
+        try databasePool.write { database in
+            try database.execute(sql: "CREATE TABLE Test (id TEXT NOT NULL, value INTEGER)")
+            try database.execute(
+                sql: """
+                    INSERT INTO Test (id, value) VALUES
+                        ('1-valid', 1),
+                        ('2-invalid', NULL),
+                        ('3-valid', 3)
+                    """
+            )
+        }
+    }
+
+    private func orderedTestTableStatement() -> any XLQueryStatement<TestTable> {
+        sql { schema in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            OrderBy(table.id.ascending())
+        }
+    }
+
+    private func nullIntegerReadError() -> XLColumnReadError {
+        XLColumnReadError(
+            index: 1,
+            expectedType: "Int",
+            failure: .nullValue
+        )
     }
 
     private func assertColumnReadError<T>(
