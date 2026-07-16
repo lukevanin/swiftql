@@ -27,6 +27,9 @@ already know SwiftQL.
 See the [documentation](https://lukevanin.github.io/swiftql/documentation/swiftql/) 
 for more.
 
+See the [roadmap](ROADMAP.md) for planned reliability, SQLite conformance,
+query-declaration, Swift 6, and multi-database work.
+
 ## Installation
 
 ### Swift Package Manager
