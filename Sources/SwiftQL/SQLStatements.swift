@@ -616,6 +616,12 @@ public struct Limit: XLQueryComponent {
     public init(_ count: any XLExpression<Int>) {
         self.count = count
     }
+
+    /// Preserves QueryBuilder's type-erased API. SQLite validates at execution time that the expression
+    /// evaluates to an integer or a value that can be losslessly converted to one.
+    init(unchecked count: any XLExpression) {
+        self.count = count
+    }
     
     public init(@XLScalarExpressionBuilder _ count: () -> any XLExpression<Int>) {
         self.count = count()
@@ -638,6 +644,12 @@ public struct Offset: XLQueryComponent {
     private let count: any XLExpression
     
     public init(_ count: any XLExpression<Int>) {
+        self.count = count
+    }
+
+    /// Preserves QueryBuilder's type-erased API. SQLite validates at execution time that the expression
+    /// evaluates to an integer or a value that can be losslessly converted to one.
+    init(unchecked count: any XLExpression) {
         self.count = count
     }
     
