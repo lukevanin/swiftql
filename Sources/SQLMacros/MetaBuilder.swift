@@ -248,7 +248,7 @@ internal struct MetaBuilder {
             case "weak", "unowned":
                 return unsupported(
                     modifier, id: "reference-modifier",
-                    "'\(modifier.name.text)' properties cannot be used as columns."
+                    "'\(modifier.name.text)' properties cannot be used as columns. Use a plain stored property instead."
                 )
             default:
                 // Access control and other modifiers do not affect column generation.
@@ -392,24 +392,45 @@ internal struct MetaBuilder {
         if let identifierType = type.as(IdentifierTypeSyntax.self) {
             // Resolve the `Optional<T>` spelling to the same column type as `T?`.
             if identifierType.name.text == "Optional" {
-                guard
-                    let arguments = identifierType.genericArgumentClause?.arguments,
-                    arguments.count == 1,
-                    let argument = arguments.first?.argument,
-                    let wrapped = resolveColumnType(argument),
-                    !wrapped.optional
-                else {
-                    return nil
-                }
-                return (wrapped.type, true)
+                return resolveOptionalSugar(identifierType.genericArgumentClause)
             }
             // Keep generic arguments (e.g. `Array<Int>`) as part of the column type.
             return (identifierType.trimmedDescription, false)
         }
-        if type.is(MemberTypeSyntax.self) || type.is(ArrayTypeSyntax.self) || type.is(DictionaryTypeSyntax.self) {
+        if let memberType = type.as(MemberTypeSyntax.self) {
+            // Resolve the module qualified `Swift.Optional<T>` spelling to the same column type
+            // as `T?`.
+            if
+                memberType.name.text == "Optional",
+                memberType.baseType.as(IdentifierTypeSyntax.self)?.name.text == "Swift"
+            {
+                return resolveOptionalSugar(memberType.genericArgumentClause)
+            }
+            return (memberType.trimmedDescription, false)
+        }
+        if type.is(ArrayTypeSyntax.self) || type.is(DictionaryTypeSyntax.self) {
             return (type.trimmedDescription, false)
         }
         return nil
+    }
+
+    ///
+    /// Resolves the generic argument of an `Optional<T>` or `Swift.Optional<T>` spelling to the same
+    /// column type as `T?`. Returns `nil` if the wrapped type cannot be used as a column type.
+    ///
+    private static func resolveOptionalSugar(
+        _ genericArgumentClause: GenericArgumentClauseSyntax?
+    ) -> (type: String, optional: Bool)? {
+        guard
+            let arguments = genericArgumentClause?.arguments,
+            arguments.count == 1,
+            let argument = arguments.first?.argument,
+            let wrapped = resolveColumnType(argument),
+            !wrapped.optional
+        else {
+            return nil
+        }
+        return (wrapped.type, true)
     }
 
 

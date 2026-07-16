@@ -522,6 +522,21 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertEqual(builder.properties[0].type, "Foundation.Date")
     }
 
+    func test_qualifiedOptionalSugar_isEquivalentToOptionalType() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+                var value: Swift.Optional<Int>
+            }
+            """
+        )
+        XCTAssertEqual(builder.properties.count, 1)
+        XCTAssertEqual(builder.properties[0].type, "Int")
+        XCTAssertTrue(builder.properties[0].optional)
+        XCTAssertEqual(builder.properties[0].qualifiedType, "Int?")
+    }
+
     func test_backtickedName_stripsBackticksFromColumnName() throws {
         let builder = try makeBuilder(
             """
