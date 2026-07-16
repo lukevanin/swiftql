@@ -18,8 +18,8 @@ extension Bool: XLExpression, XLLiteral, XLEquatable, XLComparable {
     
     public typealias T = Self
     
-    public init(reader: XLColumnReader, at index: Int) {
-        self = reader.readInteger(at: index) != 0
+    public init(reader: XLColumnReader, at index: Int) throws {
+        self = try reader.readInteger(at: index) != 0
     }
     
     public func bind(context: inout XLBindingContext) {
@@ -43,8 +43,8 @@ extension Int: XLExpression, XLLiteral, XLEquatable, XLComparable {
     
     public typealias T = Self
     
-    public init(reader: XLColumnReader, at index: Int) {
-        self = reader.readInteger(at: index)
+    public init(reader: XLColumnReader, at index: Int) throws {
+        self = try reader.readInteger(at: index)
     }
     
     public func bind(context: inout XLBindingContext) {
@@ -68,8 +68,8 @@ extension Double: XLExpression, XLLiteral, XLEquatable, XLComparable {
     
     public typealias T = Self
     
-    public init(reader: XLColumnReader, at index: Int) {
-        self = reader.readReal(at: index)
+    public init(reader: XLColumnReader, at index: Int) throws {
+        self = try reader.readReal(at: index)
     }
     
     public func bind(context: inout XLBindingContext) {
@@ -97,8 +97,8 @@ extension String: XLExpression, XLLiteral, XLEquatable, XLComparable {
     
     public typealias T = Self
     
-    public init(reader: XLColumnReader, at index: Int) {
-        self = reader.readText(at: index)
+    public init(reader: XLColumnReader, at index: Int) throws {
+        self = try reader.readText(at: index)
     }
     
     public func bind(context: inout XLBindingContext) {
@@ -122,8 +122,8 @@ extension Data: XLExpression, XLLiteral, XLEquatable {
     
     public typealias T = Self
     
-    public init(reader: XLColumnReader, at index: Int) {
-        self = reader.readBlob(at: index)
+    public init(reader: XLColumnReader, at index: Int) throws {
+        self = try reader.readBlob(at: index)
     }
     
     public func bind(context: inout XLBindingContext) {

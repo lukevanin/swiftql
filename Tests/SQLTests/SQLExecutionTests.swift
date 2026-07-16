@@ -665,6 +665,10 @@ final class XLExecutionTests: XCTestCase {
     func testCreateGenericTableWithObjectValue() throws {
         
         struct Wrapper: XLCustomType, Equatable {
+
+            private enum ReadError: Error {
+                case invalidUUID(String)
+            }
             
             public typealias T = Self
             
@@ -674,8 +678,12 @@ final class XLExecutionTests: XCTestCase {
                 self.wrappedValue = wrappedValue
             }
             
-            public init(reader: XLColumnReader, at index: Int) {
-                wrappedValue = UUID(uuidString: reader.readText(at: index))!
+            public init(reader: XLColumnReader, at index: Int) throws {
+                let rawValue = try reader.readText(at: index)
+                guard let wrappedValue = UUID(uuidString: rawValue) else {
+                    throw ReadError.invalidUUID(rawValue)
+                }
+                self.wrappedValue = wrappedValue
             }
             
             public func bind(context: inout XLBindingContext) {

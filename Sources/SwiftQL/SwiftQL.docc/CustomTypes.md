@@ -53,7 +53,7 @@ extension UUID: XLCustomType, XLEquatable, XLComparable {
     
     // 3. Initialize the custom type from a database field.
     public init(reader: XLColumnReader, at index: Int) throws {
-        let rawValue = reader.readText(at: index)
+        let rawValue = try reader.readText(at: index)
         guard let uuid =  UUID(uuidString: rawValue) else {
             throw InternalError.uuidInvalid(rawValue)
         }
@@ -168,8 +168,8 @@ extension Date: SQLCustomType, SQLEquatable, SQLComparable {
     
     public typealias T = Self
     
-    public init(reader: XLColumnReader, at index: Int) {
-        let rawValue = reader.readText(at: index)
+    public init(reader: XLColumnReader, at index: Int) throws {
+        let rawValue = try reader.readText(at: index)
         guard let date = self.dateFormatter.date(from: rawValue) else {
             throw InternalError.dateInvalid(rawValue)
         }
@@ -248,6 +248,10 @@ define a custom `MyUUID` standalone type which wraps a `UUID`:
 
 ```swift
 struct MyUUID: SQLCustomType, Equatable {
+
+    private enum ReadError: Error {
+        case invalidUUID(String)
+    }
     
     public typealias T = Self
     
@@ -257,8 +261,12 @@ struct MyUUID: SQLCustomType, Equatable {
         self.wrappedValue = wrappedValue
     }
     
-    public init(reader: XLColumnReader, at index: Int) {
-        wrappedValue = UUID(uuidString: reader.readText(at: index))!
+    public init(reader: XLColumnReader, at index: Int) throws {
+        let rawValue = try reader.readText(at: index)
+        guard let wrappedValue = UUID(uuidString: rawValue) else {
+            throw ReadError.invalidUUID(rawValue)
+        }
+        self.wrappedValue = wrappedValue
     }
     
     public func bind(context: inout XLBindingContext) {

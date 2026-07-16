@@ -15,24 +15,46 @@ struct GRDBRowAdapter: XLColumnReader {
     
     let row: GRDB.Row
     
-    func isNull(at index: Int) -> Bool {
-        row.hasNull(atIndex: index)
+    func isNull(at index: Int) throws -> Bool {
+        try databaseValue(at: index, expectedType: nil).isNull
     }
     
-    func readInteger(at index: Int) -> Int {
-        row[index]
+    func readInteger(at index: Int) throws -> Int {
+        try read(Int.self, at: index)
     }
     
-    func readReal(at index: Int) -> Double {
-        row[index]
+    func readReal(at index: Int) throws -> Double {
+        try read(Double.self, at: index)
     }
     
-    func readText(at index: Int) -> String {
-        row[index]
+    func readText(at index: Int) throws -> String {
+        try read(String.self, at: index)
     }
     
-    func readBlob(at index: Int) -> Data {
-        row[index]
+    func readBlob(at index: Int) throws -> Data {
+        try read(Data.self, at: index)
+    }
+
+    private func read<Value>(_ type: Value.Type, at index: Int) throws -> Value where Value: DatabaseValueConvertible {
+        let expectedType = String(describing: type)
+        return try decode(
+            databaseValue: databaseValue(at: index, expectedType: expectedType),
+            as: type,
+            at: index
+        )
+    }
+
+    private func databaseValue(at index: Int, expectedType: String?) throws -> DatabaseValue {
+        guard index >= 0 && index < row.count else {
+            throw XLColumnReadError(
+                index: index,
+                expectedType: expectedType,
+                failure: .indexOutOfBounds(valueCount: row.count)
+            )
+        }
+        let values = row.databaseValues
+        let valueIndex = values.index(values.startIndex, offsetBy: index)
+        return values[valueIndex]
     }
 }
 
@@ -41,24 +63,82 @@ struct GRDBValuesAdapter: XLColumnReader {
     
     let values: [GRDB.DatabaseValue]
     
-    func isNull(at index: Int) -> Bool {
-        values[index].isNull
+    func isNull(at index: Int) throws -> Bool {
+        try databaseValue(at: index, expectedType: nil).isNull
     }
     
-    func readInteger(at index: Int) -> Int {
-        Int.fromDatabaseValue(values[index])!
+    func readInteger(at index: Int) throws -> Int {
+        try read(Int.self, at: index)
     }
     
-    func readReal(at index: Int) -> Double {
-        Double.fromDatabaseValue(values[index])!
+    func readReal(at index: Int) throws -> Double {
+        try read(Double.self, at: index)
     }
     
-    func readText(at index: Int) -> String {
-        String.fromDatabaseValue(values[index])!
+    func readText(at index: Int) throws -> String {
+        try read(String.self, at: index)
     }
     
-    func readBlob(at index: Int) -> Data {
-        Data.fromDatabaseValue(values[index])!
+    func readBlob(at index: Int) throws -> Data {
+        try read(Data.self, at: index)
+    }
+
+    private func read<Value>(_ type: Value.Type, at index: Int) throws -> Value where Value: DatabaseValueConvertible {
+        let expectedType = String(describing: type)
+        return try decode(
+            databaseValue: databaseValue(at: index, expectedType: expectedType),
+            as: type,
+            at: index
+        )
+    }
+
+    private func databaseValue(at index: Int, expectedType: String?) throws -> DatabaseValue {
+        guard values.indices.contains(index) else {
+            throw XLColumnReadError(
+                index: index,
+                expectedType: expectedType,
+                failure: .indexOutOfBounds(valueCount: values.count)
+            )
+        }
+        return values[index]
+    }
+}
+
+
+private func decode<Value>(databaseValue: DatabaseValue, as type: Value.Type, at index: Int) throws -> Value where Value: DatabaseValueConvertible {
+    let expectedType = String(describing: type)
+    guard !databaseValue.isNull else {
+        throw XLColumnReadError(
+            index: index,
+            expectedType: expectedType,
+            failure: .nullValue
+        )
+    }
+    guard let value = Value.fromDatabaseValue(databaseValue) else {
+        throw XLColumnReadError(
+            index: index,
+            expectedType: expectedType,
+            failure: .typeMismatch(actualType: databaseValue.storageClassName)
+        )
+    }
+    return value
+}
+
+
+private extension DatabaseValue {
+    var storageClassName: String {
+        switch storage {
+        case .null:
+            return "NULL"
+        case .int64:
+            return "INTEGER"
+        case .double:
+            return "REAL"
+        case .string:
+            return "TEXT"
+        case .blob:
+            return "BLOB"
+        }
     }
 }
 

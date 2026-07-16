@@ -64,10 +64,10 @@ public struct HaversineDistance: SQLCustomFunction {
     // Define the implementation details for how the function works. This is 
     // called at runtime from SQL, and the results are returned to SQL.
     public static func execute(reader: SQLColumnReader) throws -> Double {
-        let latA = radians(degrees: reader.readReal(at: 0))
-        let lonA = radians(degrees: reader.readReal(at: 1))
-        let latB = radians(degrees: reader.readReal(at: 2))
-        let lonB = radians(degrees: reader.readReal(at: 3))
+        let latA = try radians(degrees: reader.readReal(at: 0))
+        let lonA = try radians(degrees: reader.readReal(at: 1))
+        let latB = try radians(degrees: reader.readReal(at: 2))
+        let lonB = try radians(degrees: reader.readReal(at: 3))
         return acos(sin(latA) * sin(latB) + cos(latA) * cos(latB) * cos(lonB - lonA)) * 6371
     }
     
