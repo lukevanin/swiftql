@@ -278,16 +278,6 @@ internal struct MetaBuilder {
             return []
         }
 
-        for binding in variable.bindings {
-            if let accessorBlock = binding.accessorBlock, isComputed(accessorBlock) {
-                report(
-                    binding, id: "computed-property",
-                    "Computed properties cannot be used as columns. Move the property to an extension of the type to exclude it from the generated columns."
-                )
-                return []
-            }
-        }
-
         // The type annotation carried backwards across the bindings of the declaration. A carried
         // annotation which was already reported as unsupported is marked invalid, so that the
         // bindings covered by it are skipped without emitting a misleading cascade of errors.
@@ -305,23 +295,38 @@ internal struct MetaBuilder {
         // produces a complete set of errors.
         var reversedProperties: [MetaProperty] = []
         var carriedType: CarriedType = .none
+
+        // Carries the annotation of a binding which was already reported as invalid, without
+        // reporting the annotation again, so that the bindings covered by it are still resolved.
+        func carryAnnotation(of binding: PatternBindingSyntax) {
+            guard let annotation = binding.typeAnnotation else {
+                return
+            }
+            if let resolved = resolveColumnType(annotation.type) {
+                carriedType = .resolved(type: resolved.type, optional: resolved.optional)
+            }
+            else {
+                carriedType = .invalid
+            }
+        }
+
         for binding in variable.bindings.reversed() {
+
+            if let accessorBlock = binding.accessorBlock, isComputed(accessorBlock) {
+                report(
+                    binding, id: "computed-property",
+                    "Computed properties cannot be used as columns. Move the property to an extension of the type to exclude it from the generated columns."
+                )
+                carryAnnotation(of: binding)
+                continue
+            }
 
             guard let pattern = binding.pattern.as(IdentifierPatternSyntax.self) else {
                 report(
                     binding.pattern, id: "unsupported-pattern",
                     "Pattern '\(binding.pattern.trimmedDescription)' cannot be used as a column. Declare each column as a separate property with its own name and type."
                 )
-                if let annotation = binding.typeAnnotation {
-                    // Carry the annotation for the preceding bindings without reporting the type
-                    // again. The pattern error already covers this binding.
-                    if let resolved = resolveColumnType(annotation.type) {
-                        carriedType = .resolved(type: resolved.type, optional: resolved.optional)
-                    }
-                    else {
-                        carriedType = .invalid
-                    }
-                }
+                carryAnnotation(of: binding)
                 continue
             }
             let name = pattern.identifier.text

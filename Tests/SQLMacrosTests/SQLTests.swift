@@ -6,6 +6,7 @@
 //  unsupported property shapes, and expansion of the generated memberwise initializer.
 //
 
+import SwiftDiagnostics
 import SwiftParser
 import SwiftSyntax
 import SwiftSyntaxMacros
@@ -656,6 +657,31 @@ final class MetaBuilderTests: XCTestCase {
             """
         )
         XCTAssertEqual(builder.properties.map(\.name), ["id"])
+    }
+
+    func test_computedBindingInMultiBindingDeclaration_reportsEveryProblem() throws {
+        // A declaration which mixes a computed binding with another invalid binding reports a
+        // diagnostic for each binding instead of stopping at the first.
+        XCTAssertThrowsError(
+            try makeBuilder(
+                """
+                @SQLTable
+                struct Sample {
+                    var a: Int {
+                        0
+                    }, b = 1
+                }
+                """
+            )
+        ) { error in
+            guard let diagnosticsError = error as? DiagnosticsError else {
+                return XCTFail("Expected DiagnosticsError, got \(error)")
+            }
+            let messages = diagnosticsError.diagnostics.map(\.message)
+            XCTAssertEqual(messages.count, 2)
+            XCTAssertTrue(messages[0].contains("Computed properties cannot be used as columns"))
+            XCTAssertTrue(messages[1].contains("Property 'b' needs an explicit type annotation"))
+        }
     }
 
     func test_nameArgument_isUsedAsTableName() throws {
