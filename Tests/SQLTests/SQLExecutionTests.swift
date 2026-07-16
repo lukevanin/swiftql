@@ -73,8 +73,46 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(results.count, 1)
         XCTAssertEqual(results[0], TestTable(id: "bar", value: 42))
     }
-    
-    
+
+
+    func testSelectWhereLargeIntegerLiteral() throws {
+        try createTestTable()
+        try insertTest(TestTable(id: "max", value: Int(Int64.max)))
+        try insertTest(TestTable(id: "min", value: Int(Int64.min)))
+        try insertTest(TestTable(id: "timestamp", value: 1_752_000_000_000))
+
+        let statement = sql { s in
+            let t = s.table(TestTable.self)
+            Select(t)
+            From(t)
+            Where(t.value == 1_752_000_000_000)
+        }
+        let results = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results[0], TestTable(id: "timestamp", value: 1_752_000_000_000))
+
+        let maxStatement = sql { s in
+            let t = s.table(TestTable.self)
+            Select(t)
+            From(t)
+            Where(t.value == Int(Int64.max))
+        }
+        let maxResults = try database.makeRequest(with: maxStatement).fetchAll()
+        XCTAssertEqual(maxResults.count, 1)
+        XCTAssertEqual(maxResults[0], TestTable(id: "max", value: Int(Int64.max)))
+
+        let minStatement = sql { s in
+            let t = s.table(TestTable.self)
+            Select(t)
+            From(t)
+            Where(t.value == Int(Int64.min))
+        }
+        let minResults = try database.makeRequest(with: minStatement).fetchAll()
+        XCTAssertEqual(minResults.count, 1)
+        XCTAssertEqual(minResults[0], TestTable(id: "min", value: Int(Int64.min)))
+    }
+
+
     func testSelectWhereLike() throws {
         try createTestTable()
         try insertTest(TestTable(id: "foo", value: 9000))
