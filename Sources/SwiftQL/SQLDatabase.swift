@@ -127,10 +127,16 @@ public protocol XLRequest<Row> {
     ///
     /// Fetches all rows returned by the query.
     ///
+    /// The fetch is atomic: if executing the query or decoding any row fails, no partial result is returned.
+    ///
+    /// - Throws: The original query-execution or row-decoding error.
+    ///
     func fetchAll() throws -> [Row]
     
     ///
     /// Fetches the first row returned by the query.
+    ///
+    /// - Throws: The original query-execution or row-decoding error.
     ///
     func fetchOne() throws -> Row?
     
@@ -138,11 +144,16 @@ public protocol XLRequest<Row> {
     /// Creates a Combine Publisher that emits all rows from the query when any of the tables referenced
     /// by the query are modified.
     ///
+    /// The publisher fails with the original query-execution or row-decoding error instead of emitting a
+    /// partial result.
+    ///
     func publish() -> AnyPublisher<[Row], Error>
     
     ///
-    /// Creates a Combine Ppublisher that emits the first row from the query when any of the tables
+    /// Creates a Combine Publisher that emits the first row from the query when any of the tables
     /// referenced by the query are modified.
+    ///
+    /// The publisher fails with the original query-execution or row-decoding error.
     ///
     func publishOne() -> AnyPublisher<Row?, Error>
 }
@@ -267,7 +278,6 @@ extension XLDatabase {
         builder.build(with: self)
     }
 }
-
 
 
 
