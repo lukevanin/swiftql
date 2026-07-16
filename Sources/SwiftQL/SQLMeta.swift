@@ -450,7 +450,7 @@ public protocol XLTable: XLResult {
 ///
 public class XLNamespace {
     
-    private var usedAlises: Set<XLName> = []
+    private var usedAliases: Set<String> = []
     
     private var aliasCount = 0
     
@@ -468,7 +468,7 @@ public class XLNamespace {
     ///
     func makeAlias(alias: XLName?) -> XLName {
         let newAlias = alias ?? nextAlias()
-        usedAlises.insert(newAlias)
+        usedAliases.insert(aliasKey(newAlias))
         return newAlias
     }
     
@@ -476,10 +476,33 @@ public class XLNamespace {
     /// Creates the next alias in the sequence.
     ///
     func nextAlias() -> XLName {
-        defer {
+        var attemptedAliases: Set<String> = []
+        while true {
+            let alias = XLName(String(format: nameFormat, aliasCount))
             aliasCount += 1
+            let key = aliasKey(alias)
+            if !usedAliases.contains(key) {
+                return alias
+            }
+            if !attemptedAliases.insert(key).inserted {
+                return nextFallbackAlias(stem: alias.rawValue)
+            }
         }
-        return XLName(String(format: nameFormat, aliasCount))
+    }
+
+    private func aliasKey(_ alias: XLName) -> String {
+        alias.rawValue.lowercased()
+    }
+
+    private func nextFallbackAlias(stem: String) -> XLName {
+        var suffix = 0
+        while true {
+            let alias = XLName("\(stem)\(suffix)")
+            suffix += 1
+            if !usedAliases.contains(aliasKey(alias)) {
+                return alias
+            }
+        }
     }
     
     ///

@@ -469,6 +469,38 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertFalse(finalResult.contains("Dick"))
         XCTAssertFalse(finalResult.contains("Bob"))
     }
+
+
+    func testRecursiveCommonTableUsesDistinctAliasesForMatchingColumnNames() throws {
+        try database.makeRequest(with: sqlCreate(Org.self)).execute()
+        for value in [
+            Org(name: "Alice", boss: nil),
+            Org(name: "Jane", boss: "Alice"),
+            Org(name: "Cindy", boss: "Jane"),
+            Org(name: "Dick", boss: nil),
+        ] {
+            try database.makeRequest(with: sqlInsert(value)).execute()
+        }
+
+        let statement = sql { schema in
+            let cte = schema.recursiveCommonTableExpression(Org.self) { schema, cte in
+                let org = schema.table(Org.self)
+                Select(Org.columns(name: "Alice".toNullable(), boss: Optional<String>.none))
+                UnionAll()
+                Select(Org.columns(name: org.name, boss: org.boss))
+                From(org)
+                Join.Inner(cte, on: org.boss == cte.name)
+            }
+            let names = schema.table(cte)
+            With(cte)
+            Select(names)
+            From(names)
+        }
+
+        let result = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(result.count, 3)
+        XCTAssertEqual(Set(result.compactMap(\.name)), Set(["Alice", "Jane", "Cindy"]))
+    }
     
     
     func testRecursiveCommonTableExpressionUsingCommonTableExpression() throws {
