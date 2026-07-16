@@ -1,0 +1,10 @@
+{
+  "task": "SQLOperators: prevent unary expressions from rendering SQLite comments",
+  "issue": "https://github.com/lukevanin/swiftql/issues/108",
+  "repository": "lukevanin/swiftql",
+  "sessionTitle": "lukevanin/swiftql#108 - Prevent unary SQL comments",
+  "sessionId": "019f6ab7-ff93-71b2-977a-aa0d3f5c581b",
+  "sessionUrl": null,
+  "branch": "codex/108-sqloperators-prevent-unary-comments",
+  "worktree": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/108-sqloperators-prevent-unary-comments"
+}
