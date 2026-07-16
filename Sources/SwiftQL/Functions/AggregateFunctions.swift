@@ -42,8 +42,8 @@ extension XLExpression {
     }
 
     
-    public func groupConcat(distinct: Bool = false, separator: String) -> some XLExpression<T> where T: Numeric & XLLiteral {
-        XLFunction(name: "GROUP_CONCAT", distinct: distinct, parameters: [self, separator])
+    public func groupConcat(separator: String) -> some XLExpression<T> where T == String, T: XLLiteral {
+        XLFunction(name: "GROUP_CONCAT", parameters: [self, separator])
     }
 }
 

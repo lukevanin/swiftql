@@ -690,6 +690,33 @@ final class XLSyntaxTests: XCTestCase {
         let expression = x.count(distinct: true)
         XCTAssertEqual(encoder.makeSQL(expression).sql, "COUNT(DISTINCT :x)")
     }
+
+
+    func testGroupConcatFunction() {
+        let expression = sqlQuery { schema in
+            let company = schema.table(CompanyTable.self)
+            return select(company.name.groupConcat()).from(company)
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT GROUP_CONCAT(t0.name) FROM Company AS t0")
+    }
+
+
+    func testGroupConcatDistinctFunction() {
+        let expression = sqlQuery { schema in
+            let company = schema.table(CompanyTable.self)
+            return select(company.name.groupConcat(distinct: true)).from(company)
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT GROUP_CONCAT(DISTINCT t0.name) FROM Company AS t0")
+    }
+
+
+    func testGroupConcatSeparatorFunction() {
+        let expression = sqlQuery { schema in
+            let company = schema.table(CompanyTable.self)
+            return select(company.name.groupConcat(separator: "|")).from(company)
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT GROUP_CONCAT(t0.name, '|') FROM Company AS t0")
+    }
     
     //    func testCountFunctionArithmetic() {
     //        let x = XLIntegerColumnReference(table: SQLTableAlias(table: SQLTableReference(name: "MyTable"), as: "t"), name: "value")

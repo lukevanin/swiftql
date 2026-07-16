@@ -37,6 +37,41 @@ final class XLExecutionTests: XCTestCase {
     
     
     // MARK: - Query functions
+
+    func testGroupConcatVariants() throws {
+        try database.makeRequest(with: sqlCreate(CompanyTable.self)).execute()
+        for company in [
+            CompanyTable(id: "beta-1", name: "Beta"),
+            CompanyTable(id: "alpha", name: "Alpha"),
+            CompanyTable(id: "beta-2", name: "Beta"),
+        ] {
+            try database.makeRequest(with: sqlInsert(company)).execute()
+        }
+
+        let defaultStatement = sql { schema in
+            let company = schema.table(CompanyTable.self)
+            Select(company.name.groupConcat())
+            From(company)
+        }
+        let defaultResult = try XCTUnwrap(try database.makeRequest(with: defaultStatement).fetchOne())
+        XCTAssertEqual(defaultResult.split(separator: ",").map(String.init).sorted(), ["Alpha", "Beta", "Beta"])
+
+        let distinctStatement = sql { schema in
+            let company = schema.table(CompanyTable.self)
+            Select(company.name.groupConcat(distinct: true))
+            From(company)
+        }
+        let distinctResult = try XCTUnwrap(try database.makeRequest(with: distinctStatement).fetchOne())
+        XCTAssertEqual(distinctResult.split(separator: ",").map(String.init).sorted(), ["Alpha", "Beta"])
+
+        let separatorStatement = sql { schema in
+            let company = schema.table(CompanyTable.self)
+            Select(company.name.groupConcat(separator: "|"))
+            From(company)
+        }
+        let separatorResult = try XCTUnwrap(try database.makeRequest(with: separatorStatement).fetchOne())
+        XCTAssertEqual(separatorResult.split(separator: "|").map(String.init).sorted(), ["Alpha", "Beta", "Beta"])
+    }
     
     func testSelect() throws {
         try createTestTable()
