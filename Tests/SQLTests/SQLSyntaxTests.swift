@@ -443,7 +443,26 @@ final class XLSyntaxTests: XCTestCase {
     //        }
     //        XCTAssertEqual(encoder.makeSQL(expression), "CASE WHEN (:x == 12) THEN 'blue' ELSE 'red' END")
     //    }
-    
+
+
+    func test_SearchedCaseWhenThen_IntegerResult() {
+        let x = XLNamedBindingReference<Int>(name: "x")
+        let expression = when(x == 12, then: 42)
+        // A searched CASE without an ELSE evaluates to NULL when no condition
+        // matches, so the expression type is the optional of the result type.
+        let _: any XLExpression<Int?> = expression
+        XCTAssertTrue(VariableCaseWhenThen<Int>.T.self == Int?.self)
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "(CASE WHEN (:x == 12) THEN 42 END)")
+    }
+
+
+    func test_SearchedCaseWhenThenElse_IntegerResult() {
+        let x = XLNamedBindingReference<Int>(name: "x")
+        let expression = when(x == 12, then: 42).else(7)
+        let _: any XLExpression<Int> = expression
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "(CASE WHEN (:x == 12) THEN 42 ELSE 7 END)")
+    }
+
     
     // MARK: - IN
     

@@ -177,8 +177,8 @@ private struct VariableCaseComponents {
 
 
 public struct VariableCaseWhenThen<Result>: XLExpression {
-    
-    public typealias T = Optional<String>
+
+    public typealias T = Optional<Result>
 
     private let components: VariableCaseComponents
     
@@ -225,7 +225,7 @@ public struct VariableCaseElse<Result>: XLExpression {
 }
 
 
-public func when<Condition, Result>(_ condition: any XLExpression<Condition>, then result: any XLExpression<Result>) -> VariableCaseWhenThen<Result> {
+public func when<Condition, Result>(_ condition: any XLExpression<Condition>, then result: any XLExpression<Result>) -> VariableCaseWhenThen<Result> where Condition: XLBoolean {
     VariableCaseWhenThen(
         components: VariableCaseComponents(),
         condition: condition,

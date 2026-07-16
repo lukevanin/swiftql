@@ -69,6 +69,14 @@ import SwiftQL
     let color: String?
 }
 
+@SQLTable struct PersonOptionalScore: Equatable {
+
+    let person: String
+
+    let score: Int?
+}
+
+
 @SQLTable struct Invoice: Equatable {
     
     let id: String
@@ -657,6 +665,49 @@ final class XLDocumentationTests: XCTestCase {
         ])
     }
     
+    func testExample_IfCaseWhenThen_IntegerResult() throws {
+        let statement = sqlQuery { schema in
+            let person = schema.table(Person.self)
+            let result = result {
+                PersonOptionalScore.SQLReader(
+                    person: person.name,
+                    score: when(person.name == "Yogi Bear", then: 100)
+                )
+            }
+            return select(result).from(person)
+        }
+        let sql = encoder.makeSQL(statement).sql
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(sql, "SELECT t0.name AS person, (CASE WHEN (t0.name == 'Yogi Bear') THEN 100 END) AS score FROM Person AS t0")
+        XCTAssertEqual(rows, [
+            PersonOptionalScore(person: "John Doe", score: nil),
+            PersonOptionalScore(person: "Jane Doe", score: nil),
+            PersonOptionalScore(person: "Yogi Bear", score: 100),
+        ])
+    }
+
+    func testExample_IfCaseWhenThen_IntegerResult_MultipleConditions() throws {
+        let statement = sqlQuery { schema in
+            let person = schema.table(Person.self)
+            let result = result {
+                PersonOptionalScore.SQLReader(
+                    person: person.name,
+                    score: when(person.name == "Yogi Bear", then: 100)
+                        .when(person.name == "John Doe", then: 50)
+                )
+            }
+            return select(result).from(person)
+        }
+        let sql = encoder.makeSQL(statement).sql
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(sql, "SELECT t0.name AS person, (CASE WHEN (t0.name == 'Yogi Bear') THEN 100 WHEN (t0.name == 'John Doe') THEN 50 END) AS score FROM Person AS t0")
+        XCTAssertEqual(rows, [
+            PersonOptionalScore(person: "John Doe", score: 50),
+            PersonOptionalScore(person: "Jane Doe", score: nil),
+            PersonOptionalScore(person: "Yogi Bear", score: 100),
+        ])
+    }
+
     func testExample_Date() throws {
         let statement = sqlQuery { schema in
             let invoice = schema.table(Invoice.self)
