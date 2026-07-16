@@ -143,6 +143,36 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
         }
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t1.id AS id, t1.value AS value FROM Test AS t0 INNER JOIN Test AS t1 ON (t1.id == t0.id) WHERE (t0.id == 'foo') ORDER BY t0.id ASC")
     }
+
+
+    func testGroupConcat() {
+        let expression = sql { schema in
+            let company = schema.table(CompanyTable.self)
+            Select(company.name.groupConcat())
+            From(company)
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT GROUP_CONCAT(t0.name) FROM Company AS t0")
+    }
+
+
+    func testGroupConcatDistinct() {
+        let expression = sql { schema in
+            let company = schema.table(CompanyTable.self)
+            Select(company.name.groupConcat(distinct: true))
+            From(company)
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT GROUP_CONCAT(DISTINCT t0.name) FROM Company AS t0")
+    }
+
+
+    func testGroupConcatSeparator() {
+        let expression = sql { schema in
+            let company = schema.table(CompanyTable.self)
+            Select(company.name.groupConcat(separator: "|"))
+            From(company)
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT GROUP_CONCAT(t0.name, '|') FROM Company AS t0")
+    }
     
     func testSelectLimit() {
         let expression = sql { s in

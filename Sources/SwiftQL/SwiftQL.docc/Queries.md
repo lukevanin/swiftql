@@ -198,18 +198,27 @@ let query = sql { schema in
 
 SwiftQL currently supports the following aggregate functions:
 
-Function           | Column type    | Usage
--------------------|----------------|-------------------------------------------
-`count()`          | Any            | Number of items in the result set.
-`min()`            | Any comparable | Minimum value in the result set.
-`max()`            | Any comparable | Maximum value in the result set.
-`average()`        | Double         | Average (arithmetic mean) of values in the result set.
-`sum()`            | Int or Double  | Additive sum of values in the result set.
-`groupConcat()`    | String         | Concatenation of all values in the result set.
+Function                    | Column type    | Usage
+----------------------------|----------------|-------------------------------------------
+`count()`                   | Any            | Number of items in the result set.
+`min()`                     | Any comparable | Minimum value in the result set.
+`max()`                     | Any comparable | Maximum value in the result set.
+`average()`                 | Double         | Average (arithmetic mean) of values in the result set.
+`sum()`                     | Int or Double  | Additive sum of values in the result set.
+`groupConcat()`             | String         | Concatenation of all values in the result set.
+`groupConcat(separator:)`   | String         | Concatenation using a custom separator.
 
-All of the aggregate functions accept a `distinct` boolean parameter. When set 
-to `true`, duplicate values will be discarded and only unique values will be
-included in the result set.
+The aggregate-function forms without a custom separator accept a `distinct`
+boolean parameter. When set to `true`, duplicate values will be discarded and
+only unique values will be included in the result set.
+
+SQLite does not allow `DISTINCT` and a custom separator in the same
+`GROUP_CONCAT` call. Use either `groupConcat(distinct: true)` or
+`groupConcat(separator:)`.
+
+Earlier SwiftQL releases incorrectly exposed the custom-separator overload on
+numeric expressions. Convert a numeric expression with `toString()` before
+calling `groupConcat(separator:)`.
 
 > Important: A group by clause must include at least one aggregate term. SwiftQL
 currently does not enforce correctness of a query containing a group by clause.
