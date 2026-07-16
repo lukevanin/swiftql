@@ -41,8 +41,16 @@ import SwiftQL
 @SQLTable struct PersonOccupation: Equatable {
 
     let person: String
-    
+
     let occupation: String
+}
+
+
+@SQLTable struct PersonOptionalOccupation: Equatable {
+
+    let person: String
+
+    let occupation: String?
 }
 
 
@@ -470,6 +478,52 @@ final class XLDocumentationTests: XCTestCase {
         ])
     }
     
+    func testExample_LeftJoin_Statement_NullRows() throws {
+        let statement = sql { schema in
+            let person = schema.table(Person.self)
+            let occupation = schema.nullableTable(Occupation.self)
+            let row = result {
+                PersonOptionalOccupation.SQLReader(
+                    person: person.name,
+                    occupation: occupation.name
+                )
+            }
+            Select(row)
+            From(person)
+            Join.Left(occupation, on: occupation.id == person.occupationId)
+        }
+        let sql = encoder.makeSQL(statement).sql
+        XCTAssertEqual(sql, "SELECT t0.name AS person, t1.name AS occupation FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId)")
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows, [
+            PersonOptionalOccupation(person: "John Doe", occupation: "Engineer"),
+            PersonOptionalOccupation(person: "Jane Doe", occupation: "Scientist"),
+            PersonOptionalOccupation(person: "Yogi Bear", occupation: nil),
+        ])
+    }
+
+    func testExample_LeftJoin_Functional_NullRows() throws {
+        let statement = sqlQuery { schema in
+            let person = schema.table(Person.self)
+            let occupation = schema.nullableTable(Occupation.self)
+            let result = result {
+                PersonOptionalOccupation.SQLReader(
+                    person: person.name,
+                    occupation: occupation.name
+                )
+            }
+            return select(result).from(person).leftJoin(occupation, on: occupation.id == person.occupationId)
+        }
+        let sql = encoder.makeSQL(statement).sql
+        XCTAssertEqual(sql, "SELECT t0.name AS person, t1.name AS occupation FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId)")
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows, [
+            PersonOptionalOccupation(person: "John Doe", occupation: "Engineer"),
+            PersonOptionalOccupation(person: "Jane Doe", occupation: "Scientist"),
+            PersonOptionalOccupation(person: "Yogi Bear", occupation: nil),
+        ])
+    }
+
     func testExample_Iif() throws {
         let statement = sqlQuery { schema in
             let person = schema.table(Person.self)

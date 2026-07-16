@@ -52,9 +52,9 @@ Refer to the <doc:Expressions> guide for more details about expressions.
 ## Join
 
 The ability to join tables in a query is where relational databases really start 
-to shine. SwiftQL supports cross join, inner join, and outer join. 
+to shine. SwiftQL supports cross join, inner join, and left (outer) join. 
 
-> Note: SwiftQL does not currently support right joins.
+> Note: SwiftQL does not currently support right joins or full outer joins.
 
 First let's define an `Occupation` table that we can join to our `Person` table:
 

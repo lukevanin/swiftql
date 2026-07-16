@@ -146,6 +146,21 @@ final class XLQueryTests: XCTestCase {
         XCTAssertEqual(encoder.makeSQL(expression).sql, "WITH `cte0` AS (SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0`) SELECT `t1`.`id` AS `id`, `t1`.`value` AS `value` FROM `Test` AS `t0` LEFT JOIN `cte0` AS `t1` ON (`t1`.`id` IS `t0`.`id`)")
     }
 
+    // A bare "OUTER JOIN" is not a valid SQLite join type. SQLite only accepts
+    // OUTER as part of LEFT OUTER JOIN, RIGHT OUTER JOIN, or FULL OUTER JOIN.
+    func testJoinKind_cannotEmitBareOuterJoin() {
+        XCTAssertNil(Join.Kind(rawValue: "OUTER JOIN"))
+        for kind in Join.Kind.allCases {
+            let sql = kind.rawValue
+            if sql.contains("OUTER") {
+                XCTAssertTrue(
+                    sql.hasPrefix("LEFT ") || sql.hasPrefix("RIGHT ") || sql.hasPrefix("FULL "),
+                    "'\(sql)' is not a valid SQLite join type"
+                )
+            }
+        }
+    }
+
     
 //    func testSelectFromCommonTable() {
 //        let ct0 = with(as: "ct0") { query in
