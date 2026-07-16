@@ -113,6 +113,39 @@ final class XLExecutionTests: XCTestCase {
     }
 
 
+    func testSelectWhereStringContainingQuote() throws {
+        try createTestTable()
+        try insertTest(TestTable(id: "O'Brien", value: 1))
+        try insertTest(TestTable(id: "plain", value: 2))
+
+        let statement = sql { s in
+            let t = s.table(TestTable.self)
+            Select(t)
+            From(t)
+            Where(t.id == "O'Brien")
+        }
+        let results = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results[0], TestTable(id: "O'Brien", value: 1))
+    }
+
+
+    func testSelectWhereInjectionAttemptMatchesNothing() throws {
+        try createTestTable()
+        try insertTest(TestTable(id: "foo", value: 1))
+        try insertTest(TestTable(id: "bar", value: 2))
+
+        let statement = sql { s in
+            let t = s.table(TestTable.self)
+            Select(t)
+            From(t)
+            Where(t.id == "x' OR '1'='1")
+        }
+        let results = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(results.count, 0)
+    }
+
+
     func testSelectWhereLike() throws {
         try createTestTable()
         try insertTest(TestTable(id: "foo", value: 9000))
