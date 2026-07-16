@@ -101,7 +101,7 @@ extension XLExpression {
     }
     
     public func toData() -> some XLExpression<Data> where T == String {
-        XLTypeCastExpression(type: "NONE", expression: self)
+        XLTypeCastExpression(type: "BLOB", expression: self)
     }
 }
 
@@ -120,7 +120,7 @@ extension XLExpression {
     }
     
     public func toData() -> some XLExpression<Optional<Data>> where T == Optional<String> {
-        XLTypeCastExpression(type: "NONE", expression: self)
+        XLTypeCastExpression(type: "BLOB", expression: self)
     }
 }
 

@@ -24,6 +24,7 @@ final class XLExecutionTests: XCTestCase {
         let filename = UUID().uuidString
         let fileURL = directory.appending(path: filename, directoryHint: .notDirectory).appendingPathExtension("sqlite")
         print("Connecting to database \(fileURL.path)")
+        encoder = XLiteEncoder(formatter: formatter)
         databasePool = try! DatabasePool(path: fileURL.path)
         database = try! GRDBDatabase(databasePool: databasePool, formatter: formatter, logger: nil)
     }
@@ -347,8 +348,35 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(results[1], 42)
         XCTAssertEqual(results[2], 100)
     }
-    
-    
+
+
+    // MARK: - Type cast
+
+    func testStringToDataTypeofIsBlob() throws {
+        let castSQL = encoder.makeSQL("abc".toData()).sql
+        let typeName = try databasePool.read { db in
+            try String.fetchOne(db, sql: "SELECT typeof(\(castSQL))")
+        }
+        XCTAssertEqual(typeName, "blob")
+    }
+
+
+    func testStringToDataRoundTrip() throws {
+        try createTestTable()
+        try insertTest(TestTable(id: "foo", value: 1))
+
+        typealias Scalar = SQLScalarResult<Data>
+        let statement = sql { schema in
+            let t = schema.table(TestTable.self)
+            Select(result { Scalar.SQLReader(scalarValue: t.id.toData()) })
+            From(t)
+        }
+        let results = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results[0].scalarValue, Data("foo".utf8))
+    }
+
+
     // MARK: - Recursive Common Table Expression
     
     func testScalarRecursiveCommonTableExpression() throws {
