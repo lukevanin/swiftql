@@ -1,0 +1,10 @@
+{
+  "task": "GRDBSQLDatabase: Replace NotificationCenter-based live queries with GRDB ValueObservation",
+  "issue": "https://github.com/lukevanin/swiftql/issues/110",
+  "repository": "lukevanin/swiftql",
+  "sessionTitle": "lukevanin/swiftql#110 - Replace live queries with GRDB ValueObservation",
+  "sessionId": "019f6ab7-ff93-71b2-977a-aa0d3f5c581b",
+  "sessionUrl": null,
+  "branch": "codex/110-grdb-value-observation",
+  "worktree": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/110-grdb-value-observation"
+}
