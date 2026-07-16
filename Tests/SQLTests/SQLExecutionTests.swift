@@ -72,6 +72,68 @@ final class XLExecutionTests: XCTestCase {
         let separatorResult = try XCTUnwrap(try database.makeRequest(with: separatorStatement).fetchOne())
         XCTAssertEqual(separatorResult.split(separator: "|").map(String.init).sorted(), ["Alpha", "Beta", "Beta"])
     }
+
+
+    func testQueryBuilderLimitAndOffsetExecution() throws {
+        try createTestTable()
+        let rows = [
+            TestTable(id: "one", value: 10),
+            TestTable(id: "two", value: 20),
+            TestTable(id: "three", value: 30),
+            TestTable(id: "four", value: 40),
+        ]
+        for row in rows {
+            try insertTest(row)
+        }
+
+        let literalSchema = XLSchema()
+        let literalTable = literalSchema.table(TestTable.self)
+        let literalStatement = try QueryBuilder(select: literalTable)
+            .from(literalTable)
+            .orderBy(literalTable.value.ascending())
+            .limit(2)
+            .build()
+        let literalResult = try database.makeRequest(with: literalStatement).fetchAll()
+        XCTAssertEqual(literalResult, Array(rows[0 ..< 2]))
+
+        let numericSchema = XLSchema()
+        let numericTable = numericSchema.table(TestTable.self)
+        let numericStatement = try QueryBuilder(select: numericTable)
+            .from(numericTable)
+            .orderBy(numericTable.value.ascending())
+            .limit(2.0)
+            .offset(1.0)
+            .build()
+        let numericResult = try database.makeRequest(with: numericStatement).fetchAll()
+        XCTAssertEqual(numericResult, Array(rows[1 ... 2]))
+
+        let unboundedSchema = XLSchema()
+        let unboundedTable = unboundedSchema.table(TestTable.self)
+        let unboundedStatement = try QueryBuilder(select: unboundedTable)
+            .from(unboundedTable)
+            .orderBy(unboundedTable.value.ascending())
+            .limit(-1)
+            .offset(2)
+            .build()
+        let unboundedResult = try database.makeRequest(with: unboundedStatement).fetchAll()
+        XCTAssertEqual(unboundedResult, Array(rows[2...]))
+
+        let limit = XLNamedBindingReference<Int>(name: "limit")
+        let offset = XLNamedBindingReference<Int>(name: "offset")
+        let boundSchema = XLSchema()
+        let boundTable = boundSchema.table(TestTable.self)
+        let boundStatement = try QueryBuilder(select: boundTable)
+            .from(boundTable)
+            .orderBy(boundTable.value.ascending())
+            .limit(limit)
+            .offset(offset)
+            .build()
+        var boundRequest = database.makeRequest(with: boundStatement)
+        boundRequest.set(limit, 2)
+        boundRequest.set(offset, 1)
+        let boundResult = try boundRequest.fetchAll()
+        XCTAssertEqual(boundResult, Array(rows[1 ... 2]))
+    }
     
     func testSelect() throws {
         try createTestTable()

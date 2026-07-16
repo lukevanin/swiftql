@@ -71,6 +71,90 @@ final class QueryBuilderTests: XCTestCase {
         
         XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` ORDER BY `t0`.`name` ASC")
     }
+
+
+    func test_select_from_limit() throws {
+        let schema = XLSchema()
+        let company = schema.table(CompanyTable.self)
+        let query = QueryBuilder(select: company)
+            .from(company)
+            .limit(10)
+
+        let finalResult = try encoder.makeSQL(query.build()).sql
+
+        XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LIMIT 10")
+    }
+
+
+    func test_select_from_limit_offset() throws {
+        let schema = XLSchema()
+        let company = schema.table(CompanyTable.self)
+        let query = QueryBuilder(select: company)
+            .from(company)
+            .limit(10)
+            .offset(5)
+
+        let finalResult = try encoder.makeSQL(query.build()).sql
+
+        XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LIMIT 10 OFFSET 5")
+    }
+
+
+    func test_select_from_unbounded_limit_offset() throws {
+        let schema = XLSchema()
+        let company = schema.table(CompanyTable.self)
+        let query = QueryBuilder(select: company)
+            .from(company)
+            .limit(-1)
+            .offset(5)
+
+        let finalResult = try encoder.makeSQL(query.build()).sql
+
+        XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LIMIT -1 OFFSET 5")
+    }
+
+
+    func test_select_from_bound_limit_offset() throws {
+        let schema = XLSchema()
+        let company = schema.table(CompanyTable.self)
+        let limit = XLNamedBindingReference<Int>(name: "limit")
+        let offset = XLNamedBindingReference<Int>(name: "offset")
+        let query = QueryBuilder(select: company)
+            .from(company)
+            .limit(limit)
+            .offset(offset)
+
+        let finalResult = try encoder.makeSQL(query.build()).sql
+
+        XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LIMIT :limit OFFSET :offset")
+    }
+
+
+    func test_select_from_type_erased_numeric_limit_offset() throws {
+        let schema = XLSchema()
+        let company = schema.table(CompanyTable.self)
+        let limit: any XLExpression = 10.0
+        let offset: any XLExpression = 5.0
+        let query = QueryBuilder(select: company)
+            .from(company)
+            .limit(limit)
+            .offset(offset)
+
+        let finalResult = try encoder.makeSQL(query.build()).sql
+
+        XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LIMIT 10.0 OFFSET 5.0")
+    }
+
+
+    func test_select_from_offset_without_limit_throws() {
+        let schema = XLSchema()
+        let company = schema.table(CompanyTable.self)
+        let query = QueryBuilder(select: company)
+            .from(company)
+            .offset(5)
+
+        XCTAssertThrowsError(try query.build())
+    }
     
     
     func test_select_from_leftJoin() throws {

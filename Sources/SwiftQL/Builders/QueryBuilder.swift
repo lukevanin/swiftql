@@ -43,9 +43,9 @@ public struct QueryBuilder<Row> {
     
     private var orderBy: [any XLOrderingTerm] = []
     
-    private var limit: (any XLExpression)?
+    private var limit: Limit?
     
-    private var offset: (any XLExpression)?
+    private var offset: Offset?
     
     ///
     /// Create a query builder using a row definition. The row is typically defined using the row reader on
@@ -203,16 +203,19 @@ public struct QueryBuilder<Row> {
     ///
     public func limit(_ expression: any XLExpression) -> QueryBuilder {
         copy {
-            $0.limit = expression
+            $0.limit = Limit(unchecked: expression)
         }
     }
     
     ///
     /// Adds an offset clause.
     ///
+    /// SQLite requires an explicit limit before an offset. `build()` throws if an offset is set without a
+    /// limit. Use `limit(-1).offset(n)` to apply an offset without an upper bound.
+    ///
     public func offset(_ expression: any XLExpression) -> QueryBuilder {
         copy {
-            $0.offset = expression
+            $0.offset = Offset(unchecked: expression)
         }
     }
     
@@ -288,4 +291,3 @@ public struct QueryBuilder<Row> {
         return AbstractXLQueryStatement(components: statement)
     }
 }
-
