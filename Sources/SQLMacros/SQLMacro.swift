@@ -86,7 +86,7 @@ extension SQLTableMacro: ExtensionMacro {
         do {
             builder = try MetaBuilder(node: node, declaration: declaration)
         }
-        catch {
+        catch is DiagnosticsError, is SQLMacroError {
             // The member expansion reports the diagnostics for an invalid declaration. The same
             // errors are not reported again here to avoid emitting duplicate diagnostics.
             return []
@@ -135,7 +135,7 @@ extension SQLResultMacro: ExtensionMacro {
         do {
             builder = try MetaBuilder(node: node, declaration: declaration)
         }
-        catch {
+        catch is DiagnosticsError, is SQLMacroError {
             // The member expansion reports the diagnostics for an invalid declaration. The same
             // errors are not reported again here to avoid emitting duplicate diagnostics.
             return []

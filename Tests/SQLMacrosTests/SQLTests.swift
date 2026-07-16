@@ -314,6 +314,59 @@ final class SQLMacroDiagnosticTests: XCTestCase {
         )
     }
 
+    func test_multipleUnsupportedBindings_emitsErrorForEach() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                var a = 0, b = 1
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var a = 0, b = 1
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Property 'a' needs an explicit type annotation to be used as a column. The type of the initial value cannot be inferred by the macro.",
+                    line: 3,
+                    column: 9
+                ),
+                DiagnosticSpec(
+                    message: "Property 'b' needs an explicit type annotation to be used as a column. The type of the initial value cannot be inferred by the macro.",
+                    line: 3,
+                    column: 16
+                ),
+            ],
+            macros: testMacros
+        )
+    }
+
+    func test_sharedUnsupportedTypeAnnotation_emitsSingleError() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                var a, b: (Int) -> Int
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var a, b: (Int) -> Int
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Type '(Int) -> Int' cannot be used as a column type.",
+                    line: 3,
+                    column: 15
+                )
+            ],
+            macros: testMacros
+        )
+    }
+
     func test_multipleUnsupportedProperties_emitsErrorForEach() {
         assertMacroExpansion(
             """

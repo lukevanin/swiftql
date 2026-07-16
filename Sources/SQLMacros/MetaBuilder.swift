@@ -178,7 +178,12 @@ internal struct MetaBuilder {
         let properties = Self.collectProperties(declaration: declaration, diagnostics: &diagnostics)
 
         guard diagnostics.isEmpty else {
-            throw DiagnosticsError(diagnostics: diagnostics)
+            // Report the diagnostics in source order, regardless of the order in which the
+            // declarations were classified.
+            let sorted = diagnostics.sorted {
+                $0.node.positionAfterSkippingLeadingTrivia < $1.node.positionAfterSkippingLeadingTrivia
+            }
+            throw DiagnosticsError(diagnostics: sorted)
         }
 
         self.properties = properties
@@ -228,28 +233,30 @@ internal struct MetaBuilder {
         diagnostics: inout [Diagnostic]
     ) -> [MetaProperty] {
 
-        func unsupported(_ node: some SyntaxProtocol, id: String, _ message: String) -> [MetaProperty] {
+        func report(_ node: some SyntaxProtocol, id: String, _ message: String) {
             diagnostics.append(Diagnostic(node: node, id: id, message: message))
-            return []
         }
 
         for modifier in variable.modifiers {
             switch modifier.name.text {
             case "static", "class":
-                return unsupported(
+                report(
                     modifier, id: "static-property",
                     "'\(modifier.name.text)' properties cannot be used as columns. Move the property to an extension of the type to exclude it from the generated columns."
                 )
+                return []
             case "lazy":
-                return unsupported(
+                report(
                     modifier, id: "lazy-property",
                     "'lazy' properties cannot be used as columns. Use a plain stored property instead."
                 )
+                return []
             case "weak", "unowned":
-                return unsupported(
+                report(
                     modifier, id: "reference-modifier",
                     "'\(modifier.name.text)' properties cannot be used as columns. Use a plain stored property instead."
                 )
+                return []
             default:
                 // Access control and other modifiers do not affect column generation.
                 break
@@ -263,69 +270,108 @@ internal struct MetaBuilder {
         case "let":
             mutability = .immutable
         default:
-            return unsupported(
+            report(
                 variable.bindingSpecifier, id: "binding-specifier",
                 "'\(variable.bindingSpecifier.text)' properties cannot be used as columns. Use 'var' or 'let'."
             )
+            return []
         }
 
         for binding in variable.bindings {
             if let accessorBlock = binding.accessorBlock, isComputed(accessorBlock) {
-                return unsupported(
+                report(
                     binding, id: "computed-property",
                     "Computed properties cannot be used as columns. Move the property to an extension of the type to exclude it from the generated columns."
                 )
+                return []
             }
+        }
+
+        // The type annotation carried backwards across the bindings of the declaration. A carried
+        // annotation which was already reported as unsupported is marked invalid, so that the
+        // bindings covered by it are skipped without emitting a misleading cascade of errors.
+        enum CarriedType {
+            case none
+            case invalid
+            case resolved(type: String, optional: Bool)
         }
 
         // Resolve the name and type of each binding. A type annotation applies to the contiguous
         // preceding bindings which have neither their own annotation nor an initial value
         // (e.g. in `let a, b: Int` both properties are of type Int), so the bindings are visited in
-        // reverse order, carrying the most recently seen annotation backwards.
+        // reverse order, carrying the most recently seen annotation backwards. Every invalid
+        // binding is reported and skipped, so that a single declaration with several problems
+        // produces a complete set of errors.
         var reversedProperties: [MetaProperty] = []
-        var carriedType: (type: String, optional: Bool)?
+        var carriedType: CarriedType = .none
         for binding in variable.bindings.reversed() {
 
             guard let pattern = binding.pattern.as(IdentifierPatternSyntax.self) else {
-                return unsupported(
+                report(
                     binding.pattern, id: "unsupported-pattern",
                     "Pattern '\(binding.pattern.trimmedDescription)' cannot be used as a column. Declare each column as a separate property with its own name and type."
                 )
+                if let annotation = binding.typeAnnotation {
+                    // Carry the annotation for the preceding bindings without reporting the type
+                    // again. The pattern error already covers this binding.
+                    if let resolved = resolveColumnType(annotation.type) {
+                        carriedType = .resolved(type: resolved.type, optional: resolved.optional)
+                    }
+                    else {
+                        carriedType = .invalid
+                    }
+                }
+                continue
             }
             let name = pattern.identifier.text
 
-            let resolvedType: (type: String, optional: Bool)
             if let annotation = binding.typeAnnotation {
-                guard let resolved = resolveColumnType(annotation.type) else {
-                    return unsupported(
+                if let resolved = resolveColumnType(annotation.type) {
+                    carriedType = .resolved(type: resolved.type, optional: resolved.optional)
+                }
+                else {
+                    report(
                         annotation.type, id: "unsupported-column-type",
                         "Type '\(annotation.type.trimmedDescription)' cannot be used as a column type."
                     )
+                    carriedType = .invalid
+                    continue
                 }
-                resolvedType = resolved
-                carriedType = resolved
             }
-            else if binding.initializer != nil {
-                return unsupported(
+
+            let resolvedType: (type: String, optional: Bool)
+            switch (binding.typeAnnotation, binding.initializer, carriedType) {
+            case (.some, _, .resolved(let type, let optional)):
+                resolvedType = (type, optional)
+            case (nil, .some, _):
+                report(
                     binding, id: "missing-type-annotation",
                     "Property '\(name)' needs an explicit type annotation to be used as a column. The type of the initial value cannot be inferred by the macro."
                 )
-            }
-            else if let carried = carriedType {
-                resolvedType = carried
-            }
-            else {
-                return unsupported(
+                continue
+            case (nil, nil, .resolved(let type, let optional)):
+                resolvedType = (type, optional)
+            case (nil, nil, .invalid):
+                // The carried annotation was already reported as unsupported.
+                continue
+            case (nil, nil, .none):
+                report(
                     binding, id: "missing-type-annotation",
                     "Property '\(name)' needs an explicit type annotation to be used as a column."
                 )
+                continue
+            case (.some, _, .none), (.some, _, .invalid):
+                // Unreachable: a resolved annotation always sets the carried type, and an
+                // unsupported annotation skips the binding above.
+                continue
             }
 
             if mutability == .immutable, binding.initializer != nil {
-                return unsupported(
+                report(
                     binding, id: "immutable-initial-value",
                     "A 'let' property with an initial value cannot be assigned by the generated initializer. Use 'var', or remove the initial value."
                 )
+                continue
             }
 
             // A property name may be escaped with backticks (e.g. to use a reserved word as a
@@ -339,10 +385,11 @@ internal struct MetaBuilder {
             }
 
             if reservedPropertyNames.contains(columnName) {
-                return unsupported(
+                report(
                     pattern, id: "reserved-property-name",
                     "Property name '\(columnName)' conflicts with a member generated by the macro. Rename the property."
                 )
+                continue
             }
 
             reversedProperties.append(
