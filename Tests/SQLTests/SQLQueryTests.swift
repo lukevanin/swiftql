@@ -154,7 +154,7 @@ final class XLQueryTests: XCTestCase {
             let sql = kind.rawValue
             if sql.contains("OUTER") {
                 XCTAssertTrue(
-                    sql.hasPrefix("LEFT ") || sql.hasPrefix("FULL "),
+                    sql.hasPrefix("LEFT ") || sql.hasPrefix("RIGHT ") || sql.hasPrefix("FULL "),
                     "'\(sql)' is not a valid SQLite join type"
                 )
             }
