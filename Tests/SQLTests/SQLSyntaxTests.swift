@@ -163,18 +163,39 @@ final class XLSyntaxTests: XCTestCase {
     func testPlusOperator_IntegerExpression() {
         let x = XLNamedBindingReference<Int>(name: "x")
         let expression = +x
-        XCTAssertEqual(encoder.makeSQL(expression).sql, "+:x")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "+(:x)")
     }
     
     
     func testNegateOperator_IntegerExpression() {
         let x = XLNamedBindingReference<Int>(name: "x")
         let expression = -x
-        XCTAssertEqual(encoder.makeSQL(expression).sql, "-:x")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "-(:x)")
     }
     
     
-#warning("TODO: Test bitwise negate")
+    func testBitwiseNegateOperator_IntegerExpression() {
+        let x = XLNamedBindingReference<Int>(name: "x")
+        let expression = ~x
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "~(:x)")
+    }
+
+
+    func testNegateOperator_NestedIntegerExpression() {
+        let x = XLNamedBindingReference<Int>(name: "x")
+        let expression = -(-x)
+        let sql = encoder.makeSQL(expression).sql
+        XCTAssertEqual(sql, "-(-(:x))")
+        XCTAssertFalse(sql.contains("--"))
+    }
+
+
+    func testNegateOperator_CompoundIntegerExpression() {
+        let a = XLNamedBindingReference<Int>(name: "a")
+        let b = XLNamedBindingReference<Int>(name: "b")
+        let expression = -(a + b)
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "-((:a + :b))")
+    }
     
     
     // MARK: - Integer binary operator

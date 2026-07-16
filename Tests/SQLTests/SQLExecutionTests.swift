@@ -38,6 +38,26 @@ final class XLExecutionTests: XCTestCase {
     
     // MARK: - Query functions
 
+    func testNestedUnaryOperatorExecution() throws {
+        let x = XLNamedBindingReference<Int>(name: "x")
+        let doubleNegation = sql { _ in
+            Select(-(-x))
+        }
+        var doubleNegationRequest = database.makeRequest(with: doubleNegation)
+        doubleNegationRequest.set(x, 7)
+        XCTAssertEqual(try doubleNegationRequest.fetchOne(), 7)
+
+        let a = XLNamedBindingReference<Int>(name: "a")
+        let b = XLNamedBindingReference<Int>(name: "b")
+        let compoundNegation = sql { _ in
+            Select(-(a + b))
+        }
+        var compoundNegationRequest = database.makeRequest(with: compoundNegation)
+        compoundNegationRequest.set(a, 7)
+        compoundNegationRequest.set(b, 5)
+        XCTAssertEqual(try compoundNegationRequest.fetchOne(), -12)
+    }
+
     func testGroupConcatVariants() throws {
         try database.makeRequest(with: sqlCreate(CompanyTable.self)).execute()
         for company in [
