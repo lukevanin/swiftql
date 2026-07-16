@@ -126,7 +126,7 @@ public struct XLSchema {
         let recursiveStatement = XLRecursiveCommonTableStatement()
         let dependency = XLCommonTableDependency(alias: alias, statement: recursiveStatement)
         let commonTable = T.makeSQLCommonTable(namespace: commonTableNamespace, dependency: dependency)
-        let table = self.table(commonTable)
+        let table = schema.table(commonTable)
         recursiveStatement.statement = statement(schema, table)
         return commonTable
     }
@@ -142,7 +142,7 @@ public struct XLSchema {
         let recursiveStatement = XLRecursiveCommonTableStatement()
         let dependency = XLCommonTableDependency(alias: alias, statement: recursiveStatement)
         let commonTable = T.makeSQLCommonTable(namespace: commonTableNamespace, dependency: dependency)
-        let table = self.table(commonTable)
+        let table = schema.table(commonTable)
         recursiveStatement.statement = statement(schema, table)
         return commonTable
     }
@@ -371,7 +371,6 @@ public func delete<T>(_ table: T) -> XLDeleteTableStatement<T> where T: XLMetaWr
     let components = XLDeleteStatementComponents(delete: Delete(table))
     return XLDeleteTableStatement(components: components)
 }
-
 
 
 
