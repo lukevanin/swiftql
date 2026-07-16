@@ -1,0 +1,10 @@
+{
+  "task": "SQLEncoder: escape embedded identifier delimiters safely",
+  "issue": "https://github.com/lukevanin/swiftql/issues/111",
+  "repository": "lukevanin/swiftql",
+  "sessionTitle": "lukevanin/swiftql#111 - Escape identifier delimiters safely",
+  "sessionId": "019f6ab7-ff93-71b2-977a-aa0d3f5c581b",
+  "sessionUrl": null,
+  "branch": "codex/111-escape-identifier-delimiters",
+  "worktree": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/111-escape-identifier-delimiters"
+}
