@@ -61,12 +61,20 @@ def extract_archive(archive_path: Path, output_directory: Path) -> None:
 def create_archive(source_directory: Path, archive_path: Path) -> None:
     if not source_directory.is_dir() or source_directory.is_symlink():
         fail(f"archive source is not a safe directory: {source_directory}")
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
+    source_real = source_directory.resolve()
+    destination_real = archive_path.parent.resolve() / archive_path.name
+    if os.path.commonpath((str(source_real), str(destination_real))) == str(
+        source_real
+    ):
+        fail("archive output must be outside its source directory")
+    if archive_path.exists() or archive_path.is_symlink():
+        fail(f"archive output already exists: {archive_path}")
 
     entries = sorted(
         source_directory.rglob("*"),
         key=lambda path: path.relative_to(source_directory).as_posix().encode("utf-8"),
     )
-    archive_path.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive_path, mode="w:", format=tarfile.PAX_FORMAT) as archive:
         for path in entries:
             relative_name = path.relative_to(source_directory).as_posix()

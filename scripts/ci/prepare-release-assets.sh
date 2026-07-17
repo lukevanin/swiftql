@@ -71,19 +71,20 @@ fi
 
 temporary_directory="$(mktemp -d "${TMPDIR:-/tmp}/swiftql-release-pages.XXXXXX")"
 trap 'rm -rf "$temporary_directory"' EXIT
-python3 "$archive_tool" extract "$pages_tar" "$temporary_directory"
-if [[ ! -f "$temporary_directory/.nojekyll" ||
-      -L "$temporary_directory/.nojekyll" ]]; then
+site_directory="$temporary_directory/site"
+python3 "$archive_tool" extract "$pages_tar" "$site_directory"
+if [[ ! -f "$site_directory/.nojekyll" ||
+      -L "$site_directory/.nojekyll" ]]; then
     fail 'Pages artifact is missing .nojekyll'
 fi
-require_nonempty_file "$temporary_directory/index.html"
-require_nonempty_file "$temporary_directory/documentation/swiftql/index.html"
-require_nonempty_file "$temporary_directory/documentation/swiftql/gettingstarted/index.html"
-require_nonempty_file "$temporary_directory/data/documentation/swiftql.json"
+require_nonempty_file "$site_directory/index.html"
+require_nonempty_file "$site_directory/documentation/swiftql/index.html"
+require_nonempty_file "$site_directory/documentation/swiftql/gettingstarted/index.html"
+require_nonempty_file "$site_directory/data/documentation/swiftql.json"
 require_nonempty_file \
-    "$temporary_directory/data/documentation/swiftql/gettingstarted.json"
+    "$site_directory/data/documentation/swiftql/gettingstarted.json"
 
-pages_provenance="$temporary_directory/swiftql-pages-provenance.json"
+pages_provenance="$site_directory/swiftql-pages-provenance.json"
 require_nonempty_file "$pages_provenance"
 if ! jq -e \
     --arg commit_sha "$commit_sha" \
@@ -116,7 +117,7 @@ for output_path in "$docs_path" "$manifest_path" "$checksums_path"; do
 done
 
 normalized_tar="$temporary_directory/swiftql-documentation.tar"
-python3 "$archive_tool" create "$temporary_directory" "$normalized_tar"
+python3 "$archive_tool" create "$site_directory" "$normalized_tar"
 gzip -n -c "$normalized_tar" > "$docs_path"
 docs_sha256="$(sha256_file "$docs_path")"
 workflow_url="${GITHUB_SERVER_URL:-https://github.com}/$repository/actions/runs/$run_id"

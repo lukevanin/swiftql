@@ -28,7 +28,10 @@ compatibility matrix, and built the exact commit's validated DocC artifact.
    is insufficient because the endpoint also returns 200 while disabled:
 
    ```sh
-   gh api repos/lukevanin/swiftql/immutable-releases |
+   gh api \
+     -H 'Accept: application/vnd.github+json' \
+     -H 'X-GitHub-Api-Version: 2026-03-10' \
+     repos/lukevanin/swiftql/immutable-releases |
      jq -e '.enabled == true'
    ```
 
@@ -38,20 +41,56 @@ compatibility matrix, and built the exact commit's validated DocC artifact.
 6. Create the active repository tag ruleset
    `Protect v-prefixed release tags`. It must include `refs/tags/v*`, restrict
    updates and deletions, and have no bypass actors. Verify its full rule record
-   out of band; the summary list alone does not show all conditions and rules:
+   out of band; the summary list alone does not show all conditions and rules.
+
+   Its exact REST representation is:
+
+   ```json
+   {
+     "name": "Protect v-prefixed release tags",
+     "target": "tag",
+     "enforcement": "active",
+     "bypass_actors": [],
+     "conditions": {
+       "ref_name": {
+         "include": ["refs/tags/v*"],
+         "exclude": []
+       }
+     },
+     "rules": [
+       {"type": "deletion"},
+       {"type": "update"}
+     ]
+   }
+   ```
+
+   Require exactly one repository-owned match and exactly those two rules:
 
    ```sh
-   ruleset_id="$(gh api repos/lukevanin/swiftql/rulesets |
-     jq -er '.[] | select(.name == "Protect v-prefixed release tags") | .id')"
-   gh api "repos/lukevanin/swiftql/rulesets/$ruleset_id" |
+   rulesets="$(gh api \
+     -H 'Accept: application/vnd.github+json' \
+     -H 'X-GitHub-Api-Version: 2026-03-10' \
+     repos/lukevanin/swiftql/rulesets)"
+   test "$(jq '[.[] | select(
+     .name == "Protect v-prefixed release tags" and
+     .source == "lukevanin/swiftql"
+   )] | length' <<< "$rulesets")" -eq 1
+   ruleset_id="$(jq -er '.[] | select(
+     .name == "Protect v-prefixed release tags" and
+     .source == "lukevanin/swiftql"
+   ) | .id' <<< "$rulesets")"
+   gh api \
+     -H 'Accept: application/vnd.github+json' \
+     -H 'X-GitHub-Api-Version: 2026-03-10' \
+     "repos/lukevanin/swiftql/rulesets/$ruleset_id" |
      jq -e '
        .name == "Protect v-prefixed release tags" and
+       .source == "lukevanin/swiftql" and
        .target == "tag" and .enforcement == "active" and
        .current_user_can_bypass == "never" and
-       (.conditions.ref_name.include | index("refs/tags/v*")) != null and
-       (.conditions.ref_name.exclude | length) == 0 and
-       ([.rules[].type] | index("update")) != null and
-       ([.rules[].type] | index("deletion")) != null and
+       (.conditions.ref_name.include == ["refs/tags/v*"]) and
+       (.conditions.ref_name.exclude == []) and
+       ([.rules[].type] | sort) == ["deletion", "update"] and
        (.bypass_actors | length) == 0'
    ```
 
@@ -131,8 +170,9 @@ succeeds, independently verify:
   the exact commit marker;
 - the release API reports `immutable: true`, and the production tag ruleset is
   still active;
-- downloaded release assets pass GitHub's immutable-release attestation check
-  (for example, `gh attestation verify ASSET --repo lukevanin/swiftql`);
+- GitHub verifies the immutable release attestation with
+  `gh release verify v1.1.0 --repo lukevanin/swiftql`, and each downloaded asset
+  passes `gh release verify-asset v1.1.0 PATH --repo lukevanin/swiftql`;
 - the release has exactly the DocC archive, manifest, and checksum assets;
 - API asset digests match `SHA256SUMS`, and the manifest maps the tag to the
   exact commit and workflow run; and
