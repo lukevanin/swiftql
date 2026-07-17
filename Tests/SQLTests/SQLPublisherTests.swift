@@ -87,7 +87,7 @@ final class XLPublisherTests: XCTestCase {
         func count(containing fragment: String) -> Int {
             lock.lock()
             defer { lock.unlock() }
-            return messages.count { $0.contains(fragment) }
+            return messages.filter { $0.contains(fragment) }.count
         }
     }
 

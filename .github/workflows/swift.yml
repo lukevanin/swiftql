@@ -111,6 +111,14 @@ jobs:
           cd "$SWIFTQL_SOURCE"
           xcrun swift test --filter XLCompatibilityReportTests 2>&1 |
             tee "$RUNNER_TEMP/swift-test-build.log"
+          runtime_markers="$(
+            grep -c 'SWIFTQL_SQLITE_RUNTIME ' "$RUNNER_TEMP/swift-test-build.log" ||
+              true
+          )"
+          if [[ "$runtime_markers" -ne 1 ]]; then
+            echo "error: expected one SQLite runtime marker; found $runtime_markers" >&2
+            exit 1
+          fi
 
       - name: Classify compiler diagnostics
         if: ${{ !cancelled() }}

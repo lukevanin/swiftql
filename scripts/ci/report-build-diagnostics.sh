@@ -17,17 +17,21 @@ for log in "$@"; do
 done
 
 if [[ "${#available_logs[@]}" -eq 0 ]]; then
-    warnings=""
-else
-    warnings="$(grep -h 'warning:' "${available_logs[@]}" || true)"
+    printf '%s\n' "SWIFTQL_FIRST_PARTY_DIAGNOSTICS"
+    printf '%s\n' "<unavailable: no build logs>"
+    printf '%s\n' "SWIFTQL_DEPENDENCY_DIAGNOSTICS"
+    printf '%s\n' "<unavailable: no build logs>"
+    exit 0
 fi
+warnings="$(grep -h 'warning:' "${available_logs[@]}" || true)"
+dependency_pattern="/(\\.build|SourcePackages)/checkouts/|warning: ['\"]?(grdb\\.swift|swift-syntax|swift-docc-plugin|swift-docc-symbolkit)['\"]?:"
 dependency_warnings="$(
     printf '%s\n' "$warnings" |
-        grep -E '/(\.build|SourcePackages)/checkouts/' || true
+        grep -Ei "$dependency_pattern" || true
 )"
 first_party_warnings="$(
     printf '%s\n' "$warnings" |
-        grep -Ev '/(\.build|SourcePackages)/checkouts/' || true
+        grep -Eiv "$dependency_pattern" || true
 )"
 
 printf '%s\n' "SWIFTQL_FIRST_PARTY_DIAGNOSTICS"

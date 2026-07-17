@@ -87,10 +87,11 @@ separate, searchable sections for every cell:
   source and tests, deprecated `result` calls in sources and examples, and
   unused generated declarations. Cleanup is owned by
   [#154](https://github.com/lukevanin/swiftql/issues/154).
-- The committed dependency graph has no accepted dependency-warning exceptions.
-  Any dependency-only warning is printed under
-  `SWIFTQL_DEPENDENCY_DIAGNOSTICS` with the exact resolved versions already
-  reported by the lane.
+- Verbose builds on both support points currently emit dependency-prefixed
+  manifest compiler command lines for `swift-docc-plugin`, `grdb.swift`,
+  `swift-syntax`, and `swift-docc-symbolkit`. They are recorded separately under
+  `SWIFTQL_DEPENDENCY_DIAGNOSTICS`; no dependency source-warning exception is
+  accepted. Exact resolved versions are reported earlier in each lane.
 
 The matrix suppresses neither category.
 
