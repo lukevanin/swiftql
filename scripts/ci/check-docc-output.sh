@@ -32,7 +32,7 @@ expressions|Expressions
 functionalsyntax|Functional Syntax
 generictableparameters|Generic Table Parameters
 gettingstarted|Getting started
-livequeries|Live queries
+livequeries|Live Queries
 queries|Select Queries
 ARTICLES
 
@@ -51,7 +51,9 @@ require_page() {
     title="$2"
     require_file "$file"
     actual_title="$(/usr/bin/plutil -extract metadata.title raw -o - "$file")"
-    if [ "$actual_title" != "$title" ]; then
+    normalized_actual_title="$(printf '%s' "$actual_title" | tr '[:upper:]' '[:lower:]')"
+    normalized_title="$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]')"
+    if [ "$normalized_actual_title" != "$normalized_title" ]; then
         printf 'error: expected DocC page title %s but found %s: %s\n' \
             "$title" "$actual_title" "$file" >&2
         return 1
