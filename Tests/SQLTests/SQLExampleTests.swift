@@ -1007,15 +1007,121 @@ extension XLDocumentationTests {
     }
 
     func testDocumentationGettingStartedCRUDAndBindings() throws {
-        try testExample_Select()
-        try testExample_Variable_ExplicitAlias()
+        let createPersonStatement = sqlCreate(Person.self)
+        XCTAssertEqual(
+            encoder.makeSQL(createPersonStatement).sql,
+            "CREATE TABLE IF NOT EXISTS Person (id NOT NULL, occupationId, name NOT NULL, age NOT NULL)"
+        )
+        try database.makeRequest(with: createPersonStatement).execute()
 
-        // The full suite executes the referenced create/update/delete tests. Keeping typed method
-        // references here makes those supporting tests part of this documentation scenario at
-        // compile time, so renaming or removing one breaks the example registry.
-        let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testCreateTable
-        let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testUpdate
-        let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testDelete
+        let fredPerson = Person(
+            id: "fred",
+            occupationId: nil,
+            name: "Fred",
+            age: 31
+        )
+        try database.makeRequest(with: sqlInsert(fredPerson)).execute()
+
+        let peopleNamedFredQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.name == "Fred")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(peopleNamedFredQuery).sql,
+            "SELECT t0.id AS id, t0.occupationId AS occupationId, t0.name AS name, t0.age AS age FROM Person AS t0 WHERE (t0.name == 'Fred')"
+        )
+        XCTAssertEqual(
+            try database.makeRequest(with: peopleNamedFredQuery).fetchAll(),
+            [fredPerson]
+        )
+        XCTAssertEqual(
+            try database.makeRequest(with: peopleNamedFredQuery).fetchOne(),
+            fredPerson
+        )
+
+        let peopleNamedFredShorthandQuery = sql {
+            let person = $0.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.name == "Fred")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(peopleNamedFredShorthandQuery).sql,
+            encoder.makeSQL(peopleNamedFredQuery).sql
+        )
+
+        let workingAgeQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.age >= 21 && person.age < 65)
+        }
+        let workingAgeRequest = database.makeRequest(with: workingAgeQuery)
+        XCTAssertEqual(try workingAgeRequest.fetchAll().count, 3)
+
+        let nameParameter = XLNamedBindingReference<String>(name: "name")
+        let peopleByNameQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.name == nameParameter)
+        }
+        let peopleByNameRequest = database.makeRequest(with: peopleByNameQuery)
+        XCTAssertEqual(
+            encoder.makeSQL(peopleByNameQuery).sql,
+            "SELECT t0.id AS id, t0.occupationId AS occupationId, t0.name AS name, t0.age AS age FROM Person AS t0 WHERE (t0.name == :name)"
+        )
+        var fredRequest = peopleByNameRequest
+        fredRequest.set(nameParameter, "Fred")
+        XCTAssertEqual(try fredRequest.fetchAll(), [fredPerson])
+
+        let updateFredStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting<Person> { row in
+                row.age = 42
+            }
+            Where(person.id == "fred")
+        }
+        try database.makeRequest(with: updateFredStatement).execute()
+
+        let personIDParameter = XLNamedBindingReference<String>(name: "id")
+        let ageParameter = XLNamedBindingReference<Int>(name: "age")
+        let updateAgeStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting<Person> { row in
+                row.age = ageParameter
+            }
+            Where(person.id == personIDParameter)
+        }
+        var fredAgeRequest = database.makeRequest(with: updateAgeStatement)
+        fredAgeRequest.set(personIDParameter, "fred")
+        fredAgeRequest.set(ageParameter, 42)
+        try fredAgeRequest.execute()
+
+        var updatedFredRequest = peopleByNameRequest
+        updatedFredRequest.set(nameParameter, "Fred")
+        XCTAssertEqual(
+            try updatedFredRequest.fetchOne(),
+            Person(id: "fred", occupationId: nil, name: "Fred", age: 42)
+        )
+
+        let deleteIDParameter = XLNamedBindingReference<String>(name: "id")
+        let deletePersonStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Delete(person)
+            Where(person.id == deleteIDParameter)
+        }
+        var deleteFredRequest = database.makeRequest(with: deletePersonStatement)
+        deleteFredRequest.set(deleteIDParameter, "fred")
+        try deleteFredRequest.execute()
+
+        var deletedFredRequest = peopleByNameRequest
+        deletedFredRequest.set(nameParameter, "Fred")
+        XCTAssertNil(try deletedFredRequest.fetchOne())
     }
 
     func testDocumentationExpressions() throws {
