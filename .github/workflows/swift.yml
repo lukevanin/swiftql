@@ -81,7 +81,9 @@ jobs:
             mkdir -p "$source_directory"
             git archive --format=tar HEAD | tar -xf - -C "$source_directory"
             rm "$source_directory/Package.resolved"
+            rm "$source_directory/IntegrationTests/Swift5Client/Package.resolved"
             test ! -e "$source_directory/Package.resolved"
+            test ! -e "$source_directory/IntegrationTests/Swift5Client/Package.resolved"
           fi
           printf 'SWIFTQL_SOURCE=%s\n' "$source_directory" >> "$GITHUB_ENV"
 
@@ -160,6 +162,18 @@ jobs:
           cd "$SWIFTQL_SOURCE"
           scripts/ci/check-strict-concurrency.sh \
             "$RUNNER_TEMP/swift-strict-concurrency.log"
+
+      - name: Run downstream Swift 5 language-mode client
+        if: ${{ matrix.swift_series == '6.0' }}
+        env:
+          RESOLUTION_MODE: ${{ matrix.resolution }}
+          SWIFTQL_DOWNSTREAM_SCRATCH_PATH: ${{ runner.temp }}/swift5-client-build
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/check-downstream-swift5-client.sh \
+            "$RESOLUTION_MODE" \
+            "$RUNNER_TEMP/swift5-client.log"
 
       - name: Verify checkout remains clean
         run: |

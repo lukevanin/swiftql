@@ -77,6 +77,47 @@ xcrun swift test --skip-build -v
 
 The workflow is the canonical executable specification for both procedures.
 
+## Downstream Swift 5 language-mode client
+
+The supported Swift 6 compiler also builds and runs
+[`IntegrationTests/Swift5Client`](IntegrationTests/Swift5Client) as an external
+package. The fixture depends on the repository root through SwiftPM, imports
+only the public `SwiftQL` product, expands representative `@SQLTable` and
+`@SQLResult` macros, constructs a typed query, binds a named value, and executes
+the query against a temporary SQLite database.
+
+The fixture's manifest explicitly selects Swift 5 language mode. Compile-time
+guards fail if it is built by a pre-Swift-6 compiler or if a Swift 6 compiler
+silently enables Swift 6 language mode. Run its committed-resolution path with:
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
+SWIFTQL_DOWNSTREAM_SCRATCH_PATH="$(mktemp -d)" \
+  scripts/ci/check-downstream-swift5-client.sh committed
+```
+
+The committed fixture lockfile must remain byte-identical to the repository
+lockfile. The clean-resolution CI source export removes both lockfiles before
+resolution, then runs the same checker in `clean` mode. To reproduce that path
+without modifying the checkout:
+
+```sh
+clean_source="$(mktemp -d)"
+git archive --format=tar HEAD | tar -xf - -C "$clean_source"
+rm "$clean_source/Package.resolved"
+rm "$clean_source/IntegrationTests/Swift5Client/Package.resolved"
+cd "$clean_source"
+
+xcrun swift package resolve
+SWIFTQL_DOWNSTREAM_SCRATCH_PATH="$(mktemp -d)" \
+  scripts/ci/check-downstream-swift5-client.sh clean
+```
+
+The checker performs a clean fixture build, requires exactly one runtime success
+marker, and keeps build products outside the source tree. The compatibility
+matrix runs both fixture resolution paths only in its pinned Swift 6.0 cells;
+the ordinary package matrix continues to prove Swift 5.9 compiler support.
+
 ## Complete strict concurrency
 
 SwiftQL's supported Swift 6 compiler also checks every first-party product and
