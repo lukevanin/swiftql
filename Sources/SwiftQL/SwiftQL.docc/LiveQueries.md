@@ -45,6 +45,38 @@ let cancellable = request.publishOne().sink(
 Fetching is all-or-nothing. If the query cannot execute or any row cannot be decoded, the publisher
 finishes with the original error and does not emit a truncated result.
 
+### Retry Policy
+
+Live queries are terminal by default. Configure a GRDB database or builder with
+``GRDBLiveQueryRetryPolicy/retryBusy`` when an application should recover from transient SQLite
+contention:
+
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
+```swift
+let database = try GRDBDatabase(
+    url: databaseURL,
+    logger: nil,
+    liveQueryRetryPolicy: .retryBusy
+)
+```
+
+The retry preset starts a fresh GRDB value observation after delays of 0.1, 0.2, and 0.4 seconds,
+for at most three additional attempts. The delays are deterministic, capped below one second, and
+have no jitter. A successfully delivered value resets this consecutive retry budget.
+
+Only a GRDB `DatabaseError` whose primary result code is `SQLITE_BUSY` is retried, including extended
+BUSY result codes. `SQLITE_LOCKED`, query-decoding, schema, corruption, authorization, I/O,
+interruption, and custom errors terminate immediately with the original error. Intermediate BUSY
+errors are hidden; if the retry budget is exhausted, the publisher terminates once with the last
+BUSY error.
+
+Each subscriber owns its retry state. Retrying starts a new observation against the same configured
+database pool, so GRDB discovers and tracks the query's database region again. Attempts do not
+overlap. Cancelling during backoff cancels the pending delay and starts no new fetch; cancelling an
+active observation suppresses later values even though SQLite work already executing internally may
+finish. Writes committed during backoff may coalesce into the next snapshot because live queries are
+state streams, not commit logs.
+
 ### Observation Semantics
 
 GRDB-backed observations have these behaviors:
@@ -58,8 +90,9 @@ GRDB-backed observations have these behaviors:
   Combine's `receive(on:)` operator when a consumer needs another serial queue.
 - GRDB may coalesce transactions or emit consecutive equal values. Treat the stream as fresh database
   states, not as a log containing one event for every commit.
-- Cancelling the subscription stops its observation. Execution or decoding errors terminate the stream
-  with the original error; automatic retry or recovery is not performed.
+- Cancelling the subscription stops its observation. With the default terminal policy, execution or
+  decoding errors terminate the stream with the original error and no retry is performed.
+- Writes from another process remain outside SwiftQL's live-query observation and retry guarantees.
 
 Keep the returned cancellable alive for as long as results are needed, and cancel it when the consumer
 no longer needs updates.

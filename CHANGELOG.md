@@ -27,6 +27,10 @@
   `averageOrNull(distinct:)`, `groupConcatOrNull(distinct:)`, and
   `groupConcatOrNull(separator:)` APIs whose expression types represent SQLite
   NULL results.
+- Added an opt-in GRDB live-query retry policy for transient `SQLITE_BUSY`
+  failures. It performs three serialized retries after deterministic 0.1, 0.2,
+  and 0.4 second delays, resets after a delivered value, and preserves terminal
+  behavior by default.
 
 ### Deprecated
 

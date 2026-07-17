@@ -1101,5 +1101,8 @@ extension XLDocumentationTests {
         let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testPublishExistingEntities
         let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testPublishOneObservesDirectWrites
         let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testCancellationStopsObservationFetchesAndValues
+        let _: (XLGRDBLiveQueryRetryTests) -> () throws -> Void =
+            XLGRDBLiveQueryRetryTests
+                .testRealGRDBObservationRecoversFromInjectedBusyAndKeepsObserving
     }
 }
