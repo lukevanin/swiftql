@@ -39,6 +39,15 @@ corresponding SwiftQL statements should feel familiar.
 See the [documentation](https://lukevanin.github.io/swiftql/documentation/swiftql/)
 for more.
 
+Documentation pull requests build an isolated Pages artifact without deploying
+it. Commits on `main` publish that exact artifact and include a
+[deployment provenance record](https://lukevanin.github.io/swiftql/swiftql-pages-provenance.json).
+For a failed build or upload, choose **Re-run all jobs** on that current
+`main` run. If only deployment or site verification failed, choose
+**Re-run failed jobs** to redeploy the same artifact. Do not rerun a superseded
+`main` run; manually dispatch the Documentation workflow on current `main`
+instead.
+
 See the [roadmap](ROADMAP.md) for planned reliability, SQLite conformance,
 query-declaration, Swift 6, and multi-database work.
 
