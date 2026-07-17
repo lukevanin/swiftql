@@ -1,7 +1,0 @@
-{
-  "issue": 154,
-  "title": "Make first-party builds warning-clean under warnings-as-errors",
-  "url": "https://github.com/lukevanin/swiftql/issues/154",
-  "branch": "codex/154-warning-clean",
-  "session_id": "019f6ab7-ff93-71b2-977a-aa0d3f5c581b"
-}
