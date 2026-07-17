@@ -35,11 +35,12 @@ generated macro expansion files therefore cannot contribute to the reported
 first-party totals. Fixture tests inject each excluded category and verify that
 the totals and manifest remain unchanged.
 
-LLVM does not currently report executable regions for `Sources/SwiftQL/SQL.swift`
-or `Sources/SwiftQL/SQLScalarResult.swift`. They are explicit exceptions in the
-configuration. Any other production source missing from LLVM data fails the
-report, and an exception that starts reporting coverage also fails until the
-stale allowance is removed.
+LLVM does not currently report executable regions for `Sources/SwiftQL/SQL.swift`,
+`Sources/SwiftQL/SQLScalarResult.swift`, or the import-only
+`Sources/SwiftQL/SwiftQLCore.swift` compatibility shim. They are explicit
+exceptions in the configuration. Any other production source missing from LLVM
+data fails the report, and an exception that starts reporting coverage also
+fails until the stale allowance is removed.
 
 ## Local reproduction
 

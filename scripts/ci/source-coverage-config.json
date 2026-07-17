@@ -11,7 +11,8 @@
       "source_root": "Sources/SwiftQL",
       "allowed_uninstrumented_sources": [
         "Sources/SwiftQL/SQL.swift",
-        "Sources/SwiftQL/SQLScalarResult.swift"
+        "Sources/SwiftQL/SQLScalarResult.swift",
+        "Sources/SwiftQL/SwiftQLCore.swift"
       ]
     },
     {
