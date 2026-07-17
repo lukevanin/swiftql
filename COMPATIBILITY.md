@@ -1,8 +1,12 @@
 # Compiler compatibility
 
-SwiftQL 1.x keeps `swift-tools-version: 5.9` and supports two explicit compiler
-points. The Swift 6 compiler runs the package in Swift 5 language mode; SwiftQL
-does not opt into Swift 6 language mode.
+SwiftQL 1.x keeps `swift-tools-version: 5.9`. CI retains two pinned Apple
+support points and also runs the complete package test suite with every Swift
+series currently listed by Swift Package Index: Swift 6.0 through Swift 6.3.
+All Swift 6 compilers run the package in Swift 5 language mode; SwiftQL does not
+opt into Swift 6 language mode.
+
+## Pinned Apple support points
 
 | Support point | GitHub runner | Xcode | Swift | macOS SDK |
 | --- | --- | --- | --- | --- |
@@ -13,13 +17,31 @@ The workflow selects Xcode with an exact `DEVELOPER_DIR`, verifies the Xcode
 version and build number, verifies the compiler family and SDK, and reports the
 complete compiler, OS, runner image, and architecture details. A runner image
 update that removes or changes a selected toolchain therefore fails instead of
-silently redefining support. The compatibility test target also contains a
-compile-time `#if swift(>=6.0)` failure, which proves that the Swift 6.0 compiler
-is still compiling in Swift 5 language mode.
+silently redefining support.
+
+## Swift 6 series coverage
+
+| Swift series | Exact compiler | Official image | CI platform |
+| --- | --- | --- | --- |
+| Swift 6.0 | 6.0.3 | `swift:6.0.3-noble` | Ubuntu 24.04, x86-64 |
+| Swift 6.1 | 6.1.3 | `swift:6.1.3-noble` | Ubuntu 24.04, x86-64 |
+| Swift 6.2 | 6.2.4 | `swift:6.2.4-noble` | Ubuntu 24.04, x86-64 |
+| Swift 6.3 | 6.3.3 | `swift:6.3.3-noble` | Ubuntu 24.04, x86-64 |
+
+These release-blocking jobs use pinned Swift Docker Official Images, verify the
+exact compiler and target triple, resolve dependencies without either committed
+lockfile, install Ubuntu's SQLite development headers, run the first-party
+warning gate, execute the SQLite runtime probe, and run the complete test suite.
+This clean-resolution path mirrors how package consumers and Swift Package
+Index resolve SwiftQL.
+
+The compatibility test target contains a compile-time `#if swift(>=6.0)`
+failure. Because `swift()` tests the active language mode, every Swift 6.0–6.3
+job proves that SwiftQL remains in Swift 5 language mode.
 
 ## Dependency resolution
 
-Each compiler runs two independent dependency modes:
+Each pinned Apple support point runs two independent dependency modes:
 
 - **Committed resolution** uses the checked-in `Package.resolved` and fails if
   resolution changes it.
@@ -27,9 +49,10 @@ Each compiler runs two independent dependency modes:
   removes the exported lockfile, resolves from the manifest's declared ranges,
   and reports the resulting versions. It never modifies the checkout.
 
-All four cells run `swift build` and the complete test suite. No cell is
-conditional, allowed to fail, or represented by a skipped job. The workflow
-does not share build caches across compilers or resolution modes.
+All four Apple cells and all four Swift-series cells build every first-party
+target and run the complete test suite. No cell is conditional, allowed to
+fail, or represented by a skipped job. The workflow does not share build caches
+across compilers or resolution modes.
 
 After resolution,
 [`scripts/ci/report-resolved-dependencies.sh`](scripts/ci/report-resolved-dependencies.sh)
@@ -77,9 +100,33 @@ xcrun swift test --skip-build -v
 
 The workflow is the canonical executable specification for both procedures.
 
+To reproduce a Swift-series lane with the same official toolchain image, use
+Docker and substitute the desired tag from the table above:
+
+```sh
+docker run --rm \
+  -v "$PWD:/workspace" \
+  -w /workspace \
+  swift:6.3.3-noble \
+  bash -lc '
+    apt-get update
+    apt-get install --yes --no-install-recommends libsqlite3-dev
+    EXPECTED_SWIFT_VERSION=6.3.3 \
+    EXPECTED_SWIFT_TARGET=x86_64-unknown-linux-gnu \
+      scripts/ci/check-swift-toolchain.sh
+    swift package resolve
+    scripts/ci/report-resolved-dependencies.sh
+    scripts/ci/check-first-party-warnings.sh
+    swift test --skip-build -v
+  '
+```
+
+The CI job first exports a clean source tree and removes both lockfiles; do the
+same when reproducing dependency resolution exactly.
+
 ## Downstream Swift 5 language-mode client
 
-The supported Swift 6 compiler also builds and runs
+The pinned Swift 6.0 support point also builds and runs
 [`IntegrationTests/Swift5Client`](IntegrationTests/Swift5Client) as an external
 package. The fixture depends on the repository root through SwiftPM, imports
 only the public `SwiftQL` product, expands representative `@SQLTable` and
@@ -167,9 +214,9 @@ is a build artifact and is not tracked in Git.
 
 ## Complete strict concurrency
 
-SwiftQL's supported Swift 6 compiler also checks every first-party product and
-test target with complete strict-concurrency diagnostics while remaining in
-Swift 5 language mode. Select the pinned Xcode 16.2 support point, then run:
+The pinned Swift 6.0 support point also checks every first-party product and test
+target with complete strict-concurrency diagnostics while remaining in Swift 5
+language mode. Select Xcode 16.2, then run:
 
 ```sh
 export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
@@ -205,22 +252,23 @@ SWIFTQL_SCRATCH_PATH=/path/to/swiftql/.build \
 
 ## Diagnostics policy
 
-Compiler and test failures in either support point are release blockers.
+Compiler and test failures in any support point or Swift-series lane are release
+blockers.
 The warning gates print first-party, dependency, toolchain, and unclassified
 warnings in separate, searchable sections for every applicable cell:
 
 - First-party warnings and unclassified warning headers are release blockers;
   there is no message-based exception list.
-- Complete strict-concurrency warnings are release blockers in the Swift 6.0
-  lanes; `check-strict-concurrency.sh` enforces that boundary after the standard
-  build and tests.
-- Verbose builds on both support points currently emit dependency-prefixed
-  manifest compiler command lines for `swift-docc-plugin`, `grdb.swift`,
-  `swift-syntax`, and `swift-docc-symbolkit`. They are recorded separately under
-  the gate's dependency-warning section. The structurally identified root
-  `Package.swift` compiler invocation is reported as build-system output rather
-  than a source warning. Exact resolved versions are reported earlier in each
-  lane.
+- Complete strict-concurrency warnings are release blockers in the pinned Swift
+  6.0 cells; `check-strict-concurrency.sh` enforces that boundary after the
+  standard build and tests.
+- Verbose builds on both pinned Apple support points currently emit
+  dependency-prefixed manifest compiler command lines for `swift-docc-plugin`,
+  `grdb.swift`, `swift-syntax`, and `swift-docc-symbolkit`. They are recorded
+  separately under the gate's dependency-warning section. The structurally
+  identified root `Package.swift` compiler invocation is reported as
+  build-system output rather than a source warning. Exact resolved versions are
+  reported earlier in each lane.
 
 The matrix suppresses neither category.
 
