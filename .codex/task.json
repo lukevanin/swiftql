@@ -1,11 +1,11 @@
 {
-  "task_name": "Define orthogonal SQL dialect and database-driver contracts",
-  "issue_number": 131,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/131",
+  "task_name": "Add an immutable contextual value-codec registry and configuration",
+  "issue_number": 188,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/188",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#131 - Define orthogonal SQL dialect and database-driver contracts",
+  "codex_session_title": "lukevanin/swiftql#188 - Add an immutable contextual value-codec registry and configuration",
   "codex_session_id": "019f6fcb-bfd9-7522-9d7c-c78fefd5c7fa",
   "codex_session_url": null,
-  "task_branch": "codex/131-define-orthogonal-sql-dialect-and-database-driver-contracts",
-  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/131-define-orthogonal-sql-dialect-and-database-driver-contracts"
+  "task_branch": "codex/188-add-an-immutable-contextual-value-codec-registry-and-configuration",
+  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/188-add-an-immutable-contextual-value-codec-registry-and-configuration"
 }
