@@ -121,6 +121,38 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         )
     }
 
+    func testGettingStartedDocumentsPreparedStatementOwnershipAndFailureSemantics() throws {
+        let gettingStartedURL = documentationCatalogURL()
+            .appendingPathComponent("GettingStarted.md")
+        let contents = try String(contentsOf: gettingStartedURL, encoding: .utf8)
+
+        for heading in [
+            "#### Dialect and driver responsibilities",
+            "#### Logical and physical preparation",
+            "#### Transactions and bindings",
+        ] {
+            XCTAssertTrue(contents.contains(heading), "GettingStarted.md is missing \(heading).")
+        }
+
+        for semanticPhrase in [
+            "database- or pool-bound",
+            "depend directly on the `SwiftQLCore` library product",
+            "Physical GRDB statements are connection-bound",
+            "separately on that leased connection",
+            "reuse its own statement cache",
+            "must not re-enter the root pool",
+            "fresh bindings",
+            "normalize transport failures",
+            "keeps raw `DatabaseError` and `XLColumnReadError`",
+            "fail later on a newly leased connection",
+        ] {
+            XCTAssertTrue(
+                contents.contains(semanticPhrase),
+                "GettingStarted.md is missing prepared-statement guidance for '\(semanticPhrase)'."
+            )
+        }
+    }
+
     func testREADMERepositoryLinksResolveWithExactCase() throws {
         let repositoryRoot = repositoryRootURL()
         let readme = try String(

@@ -27,6 +27,7 @@ generated files. `scripts/ci/source-coverage-report.py` includes only tracked
 `scripts/ci/source-coverage-config.json`:
 
 - `Sources/SwiftQL`
+- `Sources/SwiftQLCore`
 - `Sources/SQLMacros`
 
 Tests, temporary fixtures, benchmarks, package checkouts, build products, and

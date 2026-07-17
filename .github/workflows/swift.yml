@@ -35,6 +35,11 @@ jobs:
           ruby -e \
             'require "yaml"; Dir[".github/workflows/*.{yml,yaml}"].sort.each { |path| YAML.parse_file(path) }'
 
+      - name: Enforce SwiftQLCore contract boundary
+        run: |
+          python3 scripts/ci/check-core-contract-boundary.py \
+            --scratch-path "$RUNNER_TEMP/swiftql-core-boundary"
+
       - name: Run release workflow fixtures
         run: scripts/ci/test-release-workflow.sh
 

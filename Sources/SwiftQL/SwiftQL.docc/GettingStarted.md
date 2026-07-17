@@ -197,6 +197,59 @@ is fetched or executed, GRDB obtains a cached SQLite statement for that SQL. The
 first execution prepares the statement, and later executions on the same
 database connection can reuse the cached statement.
 
+#### Dialect and driver responsibilities
+
+The SQLite dialect defines how SwiftQL renders valid SQLite syntax, including
+identifier quoting, placeholder spelling, value storage classes, and required
+SQLite capabilities. The database driver has a separate job: it leases a
+connection, prepares the rendered SQL, binds SQLite values to its transport,
+executes the statement, and reads SQLite values from the result. GRDB is the
+current SQLite driver, but it does not define the SQLite syntax or the logical
+policy for converting application values.
+
+Adapter packages can depend directly on the `SwiftQLCore` library product. It
+exports the dialect, dialect-value, logical-statement, and driver contracts
+without linking GRDB; the `SwiftQL` product remains the compatibility facade
+that includes the current GRDB-backed SQLite adapter.
+
+#### Logical and physical preparation
+
+Logical requests and prepared handles are database- or pool-bound. They retain
+the rendered SQL and request metadata, but they do not own one physical
+statement. Physical GRDB statements are connection-bound and must not be shared
+between connections or concurrent executions.
+
+With a connection pool, each execution leases a connection and resolves or
+caches the physical statement separately on that leased connection. Another
+execution may lease a different connection and therefore prepare the same SQL
+again. A single-connection database may reuse its own statement cache, but its
+physical statements still belong only to that connection.
+
+Preparation is therefore an execution-time operation. Successful preparation
+on one connection does not guarantee every later preparation: preparation can
+still fail later on a newly leased connection, for example when its schema,
+registered functions, or available capabilities differ.
+
+#### Transactions and bindings
+
+Transaction-scoped work pins one connection for the duration of the
+transaction. Code inside that transaction must use the pinned connection and
+must not re-enter the root pool, which could lease another connection and break
+the transaction boundary or deadlock while waiting for itself.
+
+Each request copy or invocation carries fresh bindings. Reusing a logical
+request or prepared handle does not share mutable binding state between
+concurrent executions, and obtaining a cached physical statement does not move
+bindings into the connection-wide cache.
+
+Driver integrations can use the `prepareValidated`, `bindValidated`,
+`fetchAllValidated`, `fetchOneValidated`, `executeValidated`, and
+`withValidatedTransaction` helpers to normalize transport failures into
+`XLDatabaseContractError` categories. The existing GRDB compatibility facade
+keeps raw `DatabaseError` and `XLColumnReadError` values where its retry policy
+and established decoding API need to inspect them; database and dialect
+mismatches are still rejected before physical preparation in both paths.
+
 <!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 let query = sql { schema in

@@ -96,6 +96,19 @@ public struct XLEncoding {
     /// their observed database region from the prepared query instead of this set.
     ///
     public let entities: Set<String>
+
+    /// Dialect identity and syntax capabilities required by this SQL.
+    public let dialectRequirement: XLDialectRequirement
+
+    public init(
+        sql: String,
+        entities: Set<String>,
+        dialectRequirement: XLDialectRequirement
+    ) {
+        self.sql = sql
+        self.entities = entities
+        self.dialectRequirement = dialectRequirement
+    }
 }
 
 
@@ -121,17 +134,45 @@ public protocol XLEncoder {
 public struct XLiteEncoder: XLEncoder {
     
     public var formatter: XLiteFormatter
+
+    private var dialectDescriptor: XLDialectDescriptor
     
     public init(formatter: XLiteFormatter) {
         self.formatter = formatter
+        self.dialectDescriptor = XLSQLiteDialect().descriptor
+    }
+
+    /// Creates an encoder from an explicit SQLite dialect configuration.
+    public init(dialect: XLSQLiteDialect) {
+        self.formatter = XLiteFormatter(
+            identifierFormattingOptions: dialect.identifierFormattingOptions
+        )
+        self.dialectDescriptor = dialect.descriptor
+    }
+
+    public var dialect: XLSQLiteDialect {
+        XLSQLiteDialect(
+            identifierFormattingOptions: formatter.identifierFormattingOptions,
+            version: dialectDescriptor.version,
+            capabilities: dialectDescriptor.capabilities
+        )
     }
     
     public func makeSQL(_ expression: XLEncodable) -> XLEncoding {
-        var builder: XLBuilder = XLiteBuilder(formatter: formatter)
+        let requirementRecorder = XLiteDialectRequirementRecorder()
+        let recordingFormatter = XLiteRequirementRecordingFormatter(
+            base: formatter,
+            recorder: requirementRecorder
+        )
+        var builder: XLBuilder = XLiteBuilder(formatter: recordingFormatter)
         expression.makeSQL(context: &builder)
         return XLEncoding(
             sql: builder.build(),
-            entities: builder.entities()
+            entities: builder.entities(),
+            dialectRequirement: XLDialectRequirement(
+                identity: dialect.descriptor.identity,
+                capabilities: requirementRecorder.capabilities
+            )
         )
     }
 }
@@ -190,6 +231,58 @@ public protocol XLFormatter {
 }
 
 
+private final class XLiteDialectRequirementRecorder {
+
+    var capabilities: XLDialectCapabilities = []
+}
+
+
+private struct XLiteRequirementRecordingFormatter: XLFormatter {
+
+    let base: XLFormatter
+
+    let recorder: XLiteDialectRequirementRecorder
+
+    func null() -> String {
+        base.null()
+    }
+
+    func integer(_ value: Int) -> String {
+        base.integer(value)
+    }
+
+    func real(_ value: Double) -> String {
+        base.real(value)
+    }
+
+    func text(_ value: String) -> String {
+        base.text(value)
+    }
+
+    func blob(_ value: Data) -> String {
+        base.blob(value)
+    }
+
+    func name(_ value: String) -> String {
+        base.name(value)
+    }
+
+    func scopedName(_ values: [String]) -> String {
+        base.scopedName(values)
+    }
+
+    func namedBinding(_ named: String) -> String {
+        recorder.capabilities.insert(.namedBindings)
+        return base.namedBinding(named)
+    }
+
+    func indexedBinding(_ index: Int) -> String {
+        recorder.capabilities.insert(.indexedBindings)
+        return base.indexedBinding(index)
+    }
+}
+
+
 ///
 /// Formats SwiftQL literals into SQL sub-expressions for use with SQLite.
 ///
@@ -201,46 +294,7 @@ public struct XLiteFormatter: XLFormatter {
     /// SQLite provides compatibility for different conventions for escaping names of identifiers. SwiftQL
     /// uses SQLite's canonical double-quoted identifier syntax by default.
     ///
-    public enum IdentifierFormattingOptions {
-        /// Emits the identifier without quoting or escaping it.
-        ///
-        /// Use this option only for trusted, static SQL names. Never use it with user-controlled or
-        /// otherwise untrusted input. This case remains available for source compatibility with trusted
-        /// compound fragments; prefer structured qualified-name APIs for new code.
-        case noEscape
-
-        /// Uses SQLite's canonical double-quoted identifier syntax.
-        case sqlite
-
-        /// Uses SQLite's MySQL-compatible backtick identifier syntax.
-        case mysqlCompatible
-
-        /// Uses SQLite's Microsoft-compatible bracket syntax when possible, falling back to canonical
-        /// double quotes for names that contain a closing bracket.
-        case microsoftCompatible
-        
-        func escape(_ name: String) -> String {
-            switch self {
-            case .noEscape:
-                name
-            case .sqlite:
-                Self.doubleQuoted(name)
-            case .mysqlCompatible:
-                "`\(name.replacingOccurrences(of: "`", with: "``"))`"
-            case .microsoftCompatible:
-                if name.contains("]") {
-                    Self.doubleQuoted(name)
-                }
-                else {
-                    "[\(name)]"
-                }
-            }
-        }
-
-        private static func doubleQuoted(_ name: String) -> String {
-            "\"\(name.replacingOccurrences(of: "\"", with: "\"\""))\""
-        }
-    }
+    public typealias IdentifierFormattingOptions = XLSQLiteIdentifierFormattingOptions
     
     public var identifierFormattingOptions: IdentifierFormattingOptions
     
@@ -278,7 +332,9 @@ public struct XLiteFormatter: XLFormatter {
     }
     
     public func name(_ value: String) -> String {
-        identifierFormattingOptions.escape(value)
+        XLSQLiteDialect(
+            identifierFormattingOptions: identifierFormattingOptions
+        ).formatIdentifier(value)
     }
     
     public func scopedName(_ values: [String]) -> String {

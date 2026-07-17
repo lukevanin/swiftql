@@ -1,5 +1,6 @@
 import Foundation
 import SwiftQL
+import SwiftQLCore
 
 #if compiler(<6.0)
 #error("The downstream compatibility fixture must use the supported Swift 6 compiler.")
@@ -23,7 +24,18 @@ struct PersonSummary: Equatable {
 }
 
 enum FixtureError: Error {
+    case invalidCoreContract
     case unexpectedResult(PersonSummary?)
+}
+
+private func validateCoreContractProduct() throws {
+    let dialect = XLSQLiteDialect()
+    guard dialect.descriptor.identity == XLSQLiteDialect.identity,
+          dialect.descriptor.capabilities.contains(.namedBindings),
+          dialect.formatPlaceholder(.named("id")) == ":id"
+    else {
+        throw FixtureError.invalidCoreContract
+    }
 }
 
 private func executeFixture(databaseURL: URL) throws -> PersonSummary? {
@@ -54,6 +66,8 @@ private func executeFixture(databaseURL: URL) throws -> PersonSummary? {
 }
 
 private func runFixture() throws {
+    try validateCoreContractProduct()
+
     let directory = FileManager.default.temporaryDirectory
         .appendingPathComponent("swiftql-swift5-client-\(UUID().uuidString)")
     try FileManager.default.createDirectory(

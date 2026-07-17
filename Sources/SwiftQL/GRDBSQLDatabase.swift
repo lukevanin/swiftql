@@ -12,95 +12,65 @@ import Combine
 
 
 struct GRDBRowAdapter: XLColumnReader {
-    
-    let row: GRDB.Row
+
+    private let reader: XLSQLiteValueReader
+
+    init(row: GRDB.Row) {
+        self.reader = XLSQLiteValueReader(
+            values: row.databaseValues.map(\.sqliteDialectValue)
+        )
+    }
     
     func isNull(at index: Int) throws -> Bool {
-        try databaseValue(at: index, expectedType: nil).isNull
+        try reader.isNull(at: index)
     }
     
     func readInteger(at index: Int) throws -> Int {
-        try read(Int.self, at: index)
+        try reader.readInteger(at: index)
     }
     
     func readReal(at index: Int) throws -> Double {
-        try read(Double.self, at: index)
+        try reader.readReal(at: index)
     }
     
     func readText(at index: Int) throws -> String {
-        try read(String.self, at: index)
+        try reader.readText(at: index)
     }
     
     func readBlob(at index: Int) throws -> Data {
-        try read(Data.self, at: index)
-    }
-
-    private func read<Value>(_ type: Value.Type, at index: Int) throws -> Value where Value: DatabaseValueConvertible {
-        let expectedType = String(describing: type)
-        return try decode(
-            databaseValue: databaseValue(at: index, expectedType: expectedType),
-            as: type,
-            at: index
-        )
-    }
-
-    private func databaseValue(at index: Int, expectedType: String?) throws -> DatabaseValue {
-        guard index >= 0 && index < row.count else {
-            throw XLColumnReadError(
-                index: index,
-                expectedType: expectedType,
-                failure: .indexOutOfBounds(valueCount: row.count)
-            )
-        }
-        let values = row.databaseValues
-        let valueIndex = values.index(values.startIndex, offsetBy: index)
-        return values[valueIndex]
+        try reader.readBlob(at: index)
     }
 }
 
 
 struct GRDBValuesAdapter: XLColumnReader {
-    
-    let values: [GRDB.DatabaseValue]
+
+    private let reader: XLSQLiteValueReader
+
+    init(values: [GRDB.DatabaseValue]) {
+        self.reader = XLSQLiteValueReader(
+            values: values.map(\.sqliteDialectValue)
+        )
+    }
     
     func isNull(at index: Int) throws -> Bool {
-        try databaseValue(at: index, expectedType: nil).isNull
+        try reader.isNull(at: index)
     }
     
     func readInteger(at index: Int) throws -> Int {
-        try read(Int.self, at: index)
+        try reader.readInteger(at: index)
     }
     
     func readReal(at index: Int) throws -> Double {
-        try read(Double.self, at: index)
+        try reader.readReal(at: index)
     }
     
     func readText(at index: Int) throws -> String {
-        try read(String.self, at: index)
+        try reader.readText(at: index)
     }
     
     func readBlob(at index: Int) throws -> Data {
-        try read(Data.self, at: index)
-    }
-
-    private func read<Value>(_ type: Value.Type, at index: Int) throws -> Value where Value: DatabaseValueConvertible {
-        let expectedType = String(describing: type)
-        return try decode(
-            databaseValue: databaseValue(at: index, expectedType: expectedType),
-            as: type,
-            at: index
-        )
-    }
-
-    private func databaseValue(at index: Int, expectedType: String?) throws -> DatabaseValue {
-        guard values.indices.contains(index) else {
-            throw XLColumnReadError(
-                index: index,
-                expectedType: expectedType,
-                failure: .indexOutOfBounds(valueCount: values.count)
-            )
-        }
-        return values[index]
+        try reader.readBlob(at: index)
     }
 }
 
@@ -120,83 +90,49 @@ package struct GRDBRowDecoder<Output> {
     }
 
     package func decode(_ row: GRDB.Row) throws -> Output {
-        columnReader.reset(reader: GRDBRowAdapter(row: row))
+        try decode(values: row.databaseValues.map(\.sqliteDialectValue))
+    }
+
+    func decode(values: [XLSQLiteValue]) throws -> Output {
+        columnReader.reset(reader: XLSQLiteValueReader(values: values))
         return try reader.readRow(reader: columnReader)
     }
 }
 
 
-private func decode<Value>(databaseValue: DatabaseValue, as type: Value.Type, at index: Int) throws -> Value where Value: DatabaseValueConvertible {
-    let expectedType = String(describing: type)
-    guard !databaseValue.isNull else {
-        throw XLColumnReadError(
-            index: index,
-            expectedType: expectedType,
-            failure: .nullValue
-        )
-    }
-    guard let value = Value.fromDatabaseValue(databaseValue) else {
-        throw XLColumnReadError(
-            index: index,
-            expectedType: expectedType,
-            failure: .typeMismatch(actualType: databaseValue.storageClassName)
-        )
-    }
-    return value
-}
-
-
-private extension DatabaseValue {
-    var storageClassName: String {
-        switch storage {
-        case .null:
-            return "NULL"
-        case .int64:
-            return "INTEGER"
-        case .double:
-            return "REAL"
-        case .string:
-            return "TEXT"
-        case .blob:
-            return "BLOB"
-        }
-    }
-}
-
-
 fileprivate struct BindingContext: XLBindingContext {
-    
-    var value: DatabaseValueConvertible?
+
+    var value: XLSQLiteValue = .null
     
     mutating func bindNull() {
-        self.value = nil
+        self.value = .null
     }
     
     mutating func bindInteger(value: Int) {
-        self.value = value
+        self.value = .integer(Int64(value))
     }
     
     mutating func bindReal(value: Double) {
-        self.value = value
+        self.value = .real(value)
     }
     
     mutating func bindText(value: String) {
-        self.value = value
+        self.value = .text(value)
     }
     
     mutating func bindBlob(value: Data) {
-        self.value = value
+        self.value = .blob(value)
     }
 }
 
 
 struct GRDBRequest<Row>: XLRequest {
-    
-    private let databasePool: DatabasePool
+
+    private let driver: GRDBDatabaseDriver
     
     private let logger: XLLogger?
     
-    private let sql: String
+    private let logicalStatement: XLLogicalPreparedStatement
     
     private let reader: any XLRowReadable<Row>
 
@@ -204,20 +140,20 @@ struct GRDBRequest<Row>: XLRequest {
 
     private let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
 
-    private var arguments = StatementArguments()
+    private var arguments: [XLBindingKey: XLSQLiteValue] = [:]
     
     init(
-        databasePool: DatabasePool,
+        driver: GRDBDatabaseDriver,
         logger: XLLogger?,
         reader: any XLRowReadable<Row>,
-        sql: String,
+        logicalStatement: XLLogicalPreparedStatement,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
         liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
     ) {
-        self.databasePool = databasePool
+        self.driver = driver
         self.logger = logger
         self.reader = reader
-        self.sql = sql
+        self.logicalStatement = logicalStatement
         self.liveQueryRetryPolicy = liveQueryRetryPolicy
         self.liveQueryRetryScheduler = liveQueryRetryScheduler
     }
@@ -242,26 +178,28 @@ struct GRDBRequest<Row>: XLRequest {
     private mutating func bindValue(named name: String, bind: (inout XLBindingContext) -> Void) {
         var context: any XLBindingContext = BindingContext()
         bind(&context)
-        arguments = arguments &+ [name: (context as! BindingContext).value]
+        arguments[.named(name)] = (context as! BindingContext).value
     }
     
     func fetchAll() throws -> [Row] {
-        try databasePool.read { database in
-            try fetchAll(in: database)
+        var driver = driver
+        return try driver.withReadConnection { connection in
+            try fetchAll(in: &connection)
         }
     }
 
-    private func fetchAll(in database: Database) throws -> [Row] {
-        logger?.debug("fetchAll: <<<\(sql)>>> parameters: <<<\(arguments)>>>")
-        let statement = try database.cachedStatement(sql: sql)
-        let rows = try GRDB.Row.fetchAll(statement, arguments: arguments)
+    private func fetchAll(
+        in connection: inout GRDBDatabaseDriverConnection
+    ) throws -> [Row] {
+        logger?.debug("fetchAll: <<<\(logicalStatement.sql)>>> parameters: <<<\(arguments)>>>")
+        let rows = try connection.fetchAll(boundStatement(in: &connection))
 
         let rowDecoder = GRDBRowDecoder(reader: reader)
         var items: [Row] = []
 
-        for row in rows {
+        for values in rows {
             do {
-                let item = try rowDecoder.decode(row)
+                let item = try rowDecoder.decode(values: values)
                 items.append(item)
             }
             catch {
@@ -273,34 +211,42 @@ struct GRDBRequest<Row>: XLRequest {
     }
     
     func fetchOne() throws -> Row? {
-        try databasePool.read { database in
-            try fetchOne(in: database)
+        var driver = driver
+        return try driver.withReadConnection { connection in
+            try fetchOne(in: &connection)
         }
     }
 
-    private func fetchOne(in database: Database) throws -> Row? {
-        logger?.debug("fetchOne: <<<\(sql)>>> parameters: <<<\(arguments)>>>")
-        let statement = try database.cachedStatement(sql: sql)
-        guard let row = try GRDB.Row.fetchOne(statement, arguments: arguments) else {
+    private func fetchOne(
+        in connection: inout GRDBDatabaseDriverConnection
+    ) throws -> Row? {
+        logger?.debug("fetchOne: <<<\(logicalStatement.sql)>>> parameters: <<<\(arguments)>>>")
+        guard let values = try connection.fetchOne(boundStatement(in: &connection)) else {
             return nil
         }
 
-        return try GRDBRowDecoder(reader: reader).decode(row)
+        return try GRDBRowDecoder(reader: reader).decode(values: values)
     }
     
     func publish() -> AnyPublisher<[Row], Error> {
-        publisher(fetch: fetchAll(in:))
+        publisher { database in
+            var connection = driver.makeConnection(database)
+            return try fetchAll(in: &connection)
+        }
     }
     
     func publishOne() -> AnyPublisher<Row?, Error> {
-        publisher(fetch: fetchOne(in:))
+        publisher { database in
+            var connection = driver.makeConnection(database)
+            return try fetchOne(in: &connection)
+        }
     }
     
     private func publisher<T>(fetch: @escaping (Database) throws -> T) -> AnyPublisher<T, Error> {
         let makeSource = {
             ValueObservation
                 .tracking(fetch)
-                .publisher(in: databasePool)
+                .publisher(in: driver.databasePool)
                 .eraseToAnyPublisher()
         }
 
@@ -315,23 +261,37 @@ struct GRDBRequest<Row>: XLRequest {
             )
         }
     }
+
+    private func boundStatement(
+        in connection: inout GRDBDatabaseDriverConnection
+    ) throws -> GRDBPhysicalStatement {
+        var statement = try connection.prepare(logicalStatement)
+        for (key, value) in arguments {
+            statement = try connection.bind(value, to: key, in: statement)
+        }
+        return statement
+    }
 }
 
 
 struct GRDBWriteRequest: XLWriteRequest {
-    
-    private let databasePool: DatabasePool
+
+    private let driver: GRDBDatabaseDriver
     
     private let logger: XLLogger?
     
-    private let sql: String
+    private let logicalStatement: XLLogicalPreparedStatement
     
-    private var arguments = StatementArguments()
+    private var arguments: [XLBindingKey: XLSQLiteValue] = [:]
     
-    public init(databasePool: DatabasePool, logger: XLLogger?, sql: String) {
-        self.databasePool = databasePool
+    init(
+        driver: GRDBDatabaseDriver,
+        logger: XLLogger?,
+        logicalStatement: XLLogicalPreparedStatement
+    ) {
+        self.driver = driver
         self.logger = logger
-        self.sql = sql
+        self.logicalStatement = logicalStatement
     }
     
     public mutating func set<T>(parameter reference: XLNamedBindingReference<Optional<T>>, value: T?) where T: XLBindable {
@@ -354,14 +314,18 @@ struct GRDBWriteRequest: XLWriteRequest {
     private mutating func bindValue(named name: String, bind: (inout XLBindingContext) -> Void) {
         var context: any XLBindingContext = BindingContext()
         bind(&context)
-        arguments = arguments &+ [name: (context as! BindingContext).value]
+        arguments[.named(name)] = (context as! BindingContext).value
     }
     
     func execute() throws {
-        try databasePool.write { database in
-            logger?.debug("execute: <<<\(sql)>>> parameters: <<<\(arguments)>>>")
-            let statement = try database.cachedStatement(sql: sql)
-            try statement.execute(arguments: arguments)
+        var driver = driver
+        try driver.withTransaction { connection in
+            logger?.debug("execute: <<<\(logicalStatement.sql)>>> parameters: <<<\(arguments)>>>")
+            var statement = try connection.prepare(logicalStatement)
+            for (key, value) in arguments {
+                statement = try connection.bind(value, to: key, in: statement)
+            }
+            try connection.execute(statement)
         }
     }
 }
@@ -441,6 +405,14 @@ public struct GRDBDatabase: XLDatabase {
     
     /// The encoder used to render SwiftQL statements.
     public let encoder: XLEncoder
+
+    /// Explicit SQLite syntax and value contract used by this adapter.
+    public let dialect: XLSQLiteDialect
+
+    /// Stable identity of the database transport used by this adapter.
+    public let driverIdentifier: XLDriverIdentifier
+
+    private let driver: GRDBDatabaseDriver
     
     private let logger: XLLogger?
 
@@ -502,8 +474,18 @@ public struct GRDBDatabase: XLDatabase {
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
         liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
     ) throws {
-        self.encoder = XLiteEncoder(formatter: formatter)
+        let dialect = XLSQLiteDialect(
+            identifierFormattingOptions: formatter.identifierFormattingOptions
+        )
+        let driver = GRDBDatabaseDriver(
+            databasePool: databasePool,
+            dialect: dialect
+        )
+        self.dialect = dialect
+        self.encoder = XLiteEncoder(dialect: dialect)
         self.databasePool = databasePool
+        self.driverIdentifier = driver.driverIdentifier
+        self.driver = driver
         self.logger = logger
         self.liveQueryRetryPolicy = liveQueryRetryPolicy
         self.liveQueryRetryScheduler = liveQueryRetryScheduler
@@ -512,32 +494,46 @@ public struct GRDBDatabase: XLDatabase {
     public func makeRequest<Row>(with statement: any XLQueryStatement<Row>) -> any XLRequest<Row> {
         let encoding = encoder.makeSQL(statement)
         return GRDBRequest(
-            databasePool: databasePool,
+            driver: driver,
             logger: logger,
             reader: statement,
-            sql: encoding.sql,
+            logicalStatement: logicalStatement(for: encoding),
             liveQueryRetryPolicy: liveQueryRetryPolicy,
             liveQueryRetryScheduler: liveQueryRetryScheduler
         )
     }
     
     public func makeRequest(with statement: any XLUpdateStatement) -> XLWriteRequest {
-        let encoding = encoder.makeSQL(statement)
-        return GRDBWriteRequest(databasePool: databasePool, logger: logger, sql: encoding.sql)
+        makeWriteRequest(with: statement)
     }
     
     public func makeRequest(with statement: any XLInsertStatement) -> XLWriteRequest {
-        let encoding = encoder.makeSQL(statement)
-        return GRDBWriteRequest(databasePool: databasePool, logger: logger, sql: encoding.sql)
+        makeWriteRequest(with: statement)
     }
     
     public func makeRequest(with statement: any XLCreateStatement) -> XLWriteRequest {
-        let encoding = encoder.makeSQL(statement)
-        return GRDBWriteRequest(databasePool: databasePool, logger: logger, sql: encoding.sql)
+        makeWriteRequest(with: statement)
     }
     
     public func makeRequest(with statement: any XLDeleteStatement) -> XLWriteRequest {
+        makeWriteRequest(with: statement)
+    }
+
+    private func makeWriteRequest(with statement: any XLEncodable) -> XLWriteRequest {
         let encoding = encoder.makeSQL(statement)
-        return GRDBWriteRequest(databasePool: databasePool, logger: logger, sql: encoding.sql)
+        return GRDBWriteRequest(
+            driver: driver,
+            logger: logger,
+            logicalStatement: logicalStatement(for: encoding)
+        )
+    }
+
+    private func logicalStatement(for encoding: XLEncoding) -> XLLogicalPreparedStatement {
+        XLLogicalPreparedStatement(
+            databaseIdentifier: driver.databaseIdentifier,
+            dialectRequirement: encoding.dialectRequirement,
+            sql: encoding.sql,
+            entities: encoding.entities
+        )
     }
 }
