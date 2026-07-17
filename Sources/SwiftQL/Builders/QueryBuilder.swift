@@ -220,16 +220,7 @@ public struct QueryBuilder<Row> {
     }
     
     private func copy(modifier: (inout QueryBuilder) -> Void) -> QueryBuilder {
-        var newInstance = QueryBuilder(select: select)
-        newInstance.commonTables = commonTables
-        newInstance.from = from
-        newInstance.joins = joins
-        newInstance.whereAnd = whereAnd
-        newInstance.whereOr = whereOr
-        newInstance.groupBy = groupBy
-        newInstance.orderBy = orderBy
-        newInstance.limit = limit
-        newInstance.offset = offset
+        var newInstance = self
         modifier(&newInstance)
         return newInstance
     }

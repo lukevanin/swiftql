@@ -34,10 +34,18 @@ public struct InsertBuilder<Row> {
     public init(insert: Insert<Row>) {
         self.insert = insert
     }
+
+    ///
+    /// Creates an insert using a common table expression.
+    ///
+    public func with<T>(_ commonTable: T) -> InsertBuilder where T: XLMetaCommonTable {
+        copy {
+            $0.commonTables.append(commonTable.definition)
+        }
+    }
     
     private func copy(modifier: (inout InsertBuilder) -> Void) -> InsertBuilder {
-        var newInstance = InsertBuilder(insert: insert)
-        newInstance.values = values
+        var newInstance = self
         modifier(&newInstance)
         return newInstance
     }
@@ -49,7 +57,7 @@ public struct InsertBuilder<Row> {
     }
     
     public func build() throws -> any XLInsertStatement<Row> {
-        var statement = XLInsertStatementComponents(insert: insert)
+        var statement = XLInsertStatementComponents(commonTables: commonTables, insert: insert)
         
         guard let values else {
             throw InternalError.missingValuesClause
