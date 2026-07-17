@@ -207,25 +207,6 @@ public struct With {
 
 // MARK: - Update
 
-
-//internal struct UpdateSet<Row>: XLEncodable, XLRowWritable {
-//    
-//    private let table: any XLEncodable
-//    
-//    private let set: any XLEncodable
-//    
-//    internal init<T, S>(table: T, set: S) where T: XLMetaWritableTable, S: XLMetaUpdate, T.Row == Row, S.Row == Row {
-//        self.table = table._table
-//        self.set = set
-//    }
-//
-//    internal func makeSQL(context: inout XLBuilder) {
-//        context.unaryPrefix("UPDATE", expression: table.makeSQL)
-//        set.makeSQL(context: &context)
-//    }
-//}
-
-
 ///
 /// Update statement.
 ///

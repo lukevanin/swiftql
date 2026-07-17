@@ -22,15 +22,6 @@ extension XLExpression {
 
 // MARK: - isNull
 
-//public func isNull<Wrapped>(_ expression: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Bool>  {
-//    XLPostfixOperatorExpression(op: "ISNULL", operand: expression)
-//}
-//
-//public func isNull<Wrapped>(@XLExpressionBuilder expression: () -> any XLExpression<Optional<Wrapped>>) -> some XLExpression<Bool>  {
-//    XLPostfixOperatorExpression(op: "ISNULL", operand: expression())
-//}
-
-
 extension XLExpression {
     
     public func isNull<Wrapped>() -> some XLExpression<Bool> where T == Optional<Wrapped> {
@@ -41,13 +32,6 @@ extension XLExpression {
 
 // MARK: - notNull
 
-//public func notNull<Wrapped>(_ expression: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Bool>  {
-//    XLPostfixOperatorExpression(op: "NOTNULL", operand: expression)
-//}
-//
-//public func notNull<Wrapped>(@XLExpressionBuilder expression: () -> any XLExpression<Optional<Wrapped>>) -> some XLExpression<Bool>  {
-//    XLPostfixOperatorExpression(op: "NOTNULL", operand: expression())
-//}
 extension XLExpression {
     
     public func notNull() -> some XLExpression<Bool> where T: ExpressibleByNilLiteral {

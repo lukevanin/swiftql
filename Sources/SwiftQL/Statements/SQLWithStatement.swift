@@ -29,12 +29,6 @@ public struct XLWithStatement {
        XLQuerySelectStatement(components: XLQueryStatementComponents(commonTables: commonTables, select: Select(expression)))
    }
 
-   // MARK: Update
-   
-//    public func update<T>(_ meta: T) -> XLUpdateTableStatement<T.Row> where T: SQLTable {
-//        XLUpdateTableStatement(components: XLUpdateStatementComponents(commonTables: commonTables, update: Update(meta)))
-//    }
-
    // MARK: Insert
    
     public func insert<T>(_ meta: T) -> XLInsertTableStatement<T.Row> where T: XLMetaNamedResult {

@@ -488,40 +488,6 @@ internal struct MetaBuilder {
     }
 
 
-    ///
-    /// Creates an extension for the struct with the given conformance.
-    ///
-    /// - Parameter name: Name of the protocol.
-    ///
-    /// Example:
-    ///
-    /// Given the following struct:
-    /// ```swift
-    /// @SQLTable() struct Foo {
-    /// }
-    /// ```
-    ///
-    /// We can generate conformance for the `Bar` protocol:
-    ///
-    /// ```swift
-    /// builder.makeConformanceExtension(name: "Bar")
-    /// ```
-    ///
-    /// This will generate the following code:
-    /// ```swift
-    /// extension Foo: Bar {
-    /// }
-    /// ```
-    ///
-    func makeConformanceExtension(name: String) -> String {
-        var context = SwiftSyntaxBuilder()
-        context.block("extension \(structName): \(name)") { context in
-            
-        }
-        return context.build()
-    }
-
-    
     // Build result-only meta data, used to select explicit columns without an underlying table.
     func makeMetaResultExtension(table: Bool) -> String {
         var context = SwiftSyntaxBuilder()
