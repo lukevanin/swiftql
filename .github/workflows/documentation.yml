@@ -12,87 +12,10 @@ permissions: {}
 jobs:
   build:
     name: Build Pages artifact
-    runs-on: macos-15
-    timeout-minutes: 45
     permissions:
       contents: read
       pages: read
-    outputs:
-      artifact_id: ${{ steps.pages-artifact.outputs.artifact_id }}
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
-      DOCS_OUTPUT: ${{ github.workspace }}/../swiftql-docs
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
-
-      - name: Verify exact source commit
-        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-
-      - name: Validate and report compiler environment
-        env:
-          EXPECTED_XCODE_VERSION: "16.2"
-          EXPECTED_XCODE_BUILD: 16C5032a
-          EXPECTED_SWIFT_SERIES: "6.0"
-          EXPECTED_SDK_VERSION: "15.2"
-          EXPECTED_DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
-        run: scripts/ci/check-compatibility-environment.sh
-
-      - name: Configure Pages metadata
-        id: pages
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
-
-      - name: Build and inspect DocC site
-        env:
-          PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
-        run: |
-          set -euo pipefail
-          hosting_base_path="${PAGES_BASE_PATH#/}"
-          if [[ -z "$hosting_base_path" ]]; then
-            echo "error: expected a project Pages base path" >&2
-            exit 1
-          fi
-          SWIFTQL_DOCC_HOSTING_BASE_PATH="$hosting_base_path" \
-            ./make-docs.sh "$DOCS_OUTPUT"
-
-      - name: Record artifact provenance
-        run: |
-          set -euo pipefail
-          printf '{\n  "commit_sha": "%s",\n  "run_id": "%s",\n  "run_attempt": "%s",\n  "repository": "%s",\n  "workflow_url": "https://github.com/%s/actions/runs/%s"\n}\n' \
-            "$GITHUB_SHA" \
-            "$GITHUB_RUN_ID" \
-            "$GITHUB_RUN_ATTEMPT" \
-            "$GITHUB_REPOSITORY" \
-            "$GITHUB_REPOSITORY" \
-            "$GITHUB_RUN_ID" \
-            > "$DOCS_OUTPUT/swiftql-pages-provenance.json"
-
-      - name: Verify checkout remains clean
-        run: |
-          git diff --exit-code
-          test -z "$(git status --porcelain)"
-
-      - name: Upload Pages artifact
-        id: pages-artifact
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
-        with:
-          path: ${{ env.DOCS_OUTPUT }}
-          include-hidden-files: true
-
-      - name: Record build summary
-        env:
-          ARTIFACT_ID: ${{ steps.pages-artifact.outputs.artifact_id }}
-        run: |
-          {
-            printf '### SwiftQL documentation artifact\n\n'
-            printf -- '- Commit: `%s`\n' "$GITHUB_SHA"
-            printf -- '- Artifact ID: `%s`\n' "$ARTIFACT_ID"
-            printf -- '- Run: https://github.com/%s/actions/runs/%s\n' \
-              "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
-          } >> "$GITHUB_STEP_SUMMARY"
+    uses: ./.github/workflows/documentation-build.yml
 
   deploy:
     name: Deploy GitHub Pages

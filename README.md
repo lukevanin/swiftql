@@ -57,6 +57,9 @@ toolchains and reproducible CI matrix.
 See [performance benchmarks](BENCHMARKS.md) for the reproducible query
 construction, preparation, cache, binding, execution, and decoding baselines.
 
+See [releasing SwiftQL](RELEASING.md) for the exact-tag validation, safe dry-run,
+artifact provenance, publication, verification, and recovery procedure.
+
 ## Installation
 
 ### Swift Package Manager

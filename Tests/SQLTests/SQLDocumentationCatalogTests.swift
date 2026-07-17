@@ -144,7 +144,13 @@ final class SQLDocumentationCatalogTests: XCTestCase {
 
         XCTAssertEqual(
             Set(repositoryLinks),
-            ["BENCHMARKS.md", "COMPATIBILITY.md", "LICENSE.md", "ROADMAP.md"]
+            [
+                "BENCHMARKS.md",
+                "COMPATIBILITY.md",
+                "LICENSE.md",
+                "RELEASING.md",
+                "ROADMAP.md",
+            ]
         )
         for link in repositoryLinks {
             XCTAssertTrue(
