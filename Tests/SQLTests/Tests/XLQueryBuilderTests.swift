@@ -7,7 +7,7 @@
 
 import XCTest
 import GRDB
-import SwiftQL
+@testable import SwiftQL
 
     
 final class QueryBuilderTests: XCTestCase {
@@ -38,6 +38,31 @@ final class QueryBuilderTests: XCTestCase {
         let finalResult = try encoder.makeSQL(query.build()).sql
         
         XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0`")
+    }
+
+
+    func test_select_without_from_throws_missing_from_clause() throws {
+        let schema = XLSchema()
+        let company = schema.table(CompanyTable.self)
+        let query = QueryBuilder(select: company)
+
+        XCTAssertThrowsError(try query.build()) { error in
+            guard case .missingFromClause? =
+                error as? QueryBuilder<CompanyTable>.InternalError else {
+                return XCTFail(
+                    "Expected missing FROM clause, received \(error)"
+                )
+            }
+        }
+
+        let finalResult = try encoder.makeSQL(
+            query.from(company).build()
+        ).sql
+
+        XCTAssertEqual(
+            finalResult,
+            "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0`"
+        )
     }
     
     
