@@ -36,6 +36,11 @@ main() {
         cmp "$source_root/Package.resolved" "$fixture_root/Package.resolved"
     else
         test ! -e "$fixture_root/Package.resolved"
+        xcrun swift package \
+            --package-path "$fixture_root" \
+            --scratch-path "$scratch_path" \
+            resolve
+        test -f "$fixture_root/Package.resolved"
     fi
 
     xcrun swift package \
