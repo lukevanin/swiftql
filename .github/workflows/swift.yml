@@ -187,8 +187,11 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
-      - name: Verify exact source commit
-        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Trust mounted workspace and verify exact source commit
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
       - name: Validate and report Swift toolchain
         env:
