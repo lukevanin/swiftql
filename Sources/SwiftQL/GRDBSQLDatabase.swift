@@ -200,13 +200,26 @@ struct GRDBRequest<Row>: XLRequest {
     
     private let reader: any XLRowReadable<Row>
 
+    private let liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy
+
+    private let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
+
     private var arguments = StatementArguments()
     
-    public init(databasePool: DatabasePool, logger: XLLogger?, reader: any XLRowReadable<Row>, sql: String) {
+    init(
+        databasePool: DatabasePool,
+        logger: XLLogger?,
+        reader: any XLRowReadable<Row>,
+        sql: String,
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
+        liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
+    ) {
         self.databasePool = databasePool
         self.logger = logger
         self.reader = reader
         self.sql = sql
+        self.liveQueryRetryPolicy = liveQueryRetryPolicy
+        self.liveQueryRetryScheduler = liveQueryRetryScheduler
     }
     
     public mutating func set<T>(parameter reference: XLNamedBindingReference<Optional<T>>, value: T?) where T: XLBindable {
@@ -284,10 +297,23 @@ struct GRDBRequest<Row>: XLRequest {
     }
     
     private func publisher<T>(fetch: @escaping (Database) throws -> T) -> AnyPublisher<T, Error> {
-        ValueObservation
-            .tracking(fetch)
-            .publisher(in: databasePool)
-            .eraseToAnyPublisher()
+        let makeSource = {
+            ValueObservation
+                .tracking(fetch)
+                .publisher(in: databasePool)
+                .eraseToAnyPublisher()
+        }
+
+        switch liveQueryRetryPolicy {
+        case .terminal:
+            return makeSource()
+        case .retryBusy:
+            return makeGRDBLiveQueryRetryPublisher(
+                policy: liveQueryRetryPolicy,
+                scheduler: liveQueryRetryScheduler,
+                makeSource: makeSource
+            )
+        }
     }
 }
 
@@ -351,6 +377,8 @@ public struct GRDBDatabaseBuilder {
     private let formatter: XLiteFormatter
     
     private let logger: XLLogger?
+
+    private let liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy
     
     /// Creates a database builder.
     ///
@@ -359,11 +387,20 @@ public struct GRDBDatabaseBuilder {
     ///   - configuration: The GRDB connection configuration to extend.
     ///   - formatter: The formatter used when SwiftQL renders SQL.
     ///   - logger: An optional logger for executed statements.
-    public init(url: URL, configuration: GRDB.Configuration, formatter: XLiteFormatter = XLiteFormatter(), logger: XLLogger?) throws {
+    ///   - liveQueryRetryPolicy: Recovery policy for live-query failures. The
+    ///     default is ``GRDBLiveQueryRetryPolicy/terminal``.
+    public init(
+        url: URL,
+        configuration: GRDB.Configuration,
+        formatter: XLiteFormatter = XLiteFormatter(),
+        logger: XLLogger?,
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
+    ) throws {
         self.url = url
         self.configuration = configuration
         self.formatter = formatter
         self.logger = logger
+        self.liveQueryRetryPolicy = liveQueryRetryPolicy
     }
     
     /// Registers a custom scalar function on every database connection created by the builder.
@@ -389,7 +426,8 @@ public struct GRDBDatabaseBuilder {
         try GRDBDatabase(
             databasePool: try DatabasePool(path: url.path(percentEncoded: false), configuration: configuration),
             formatter: formatter,
-            logger: logger
+            logger: logger,
+            liveQueryRetryPolicy: liveQueryRetryPolicy
         )
     }
 }
@@ -405,6 +443,10 @@ public struct GRDBDatabase: XLDatabase {
     public let encoder: XLEncoder
     
     private let logger: XLLogger?
+
+    private let liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy
+
+    private let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
     
     /// Opens a GRDB-backed SQLite database.
     ///
@@ -413,16 +455,20 @@ public struct GRDBDatabase: XLDatabase {
     ///   - configuration: The GRDB connection configuration.
     ///   - formatter: The formatter used when SwiftQL renders SQL.
     ///   - logger: An optional logger for executed statements.
+    ///   - liveQueryRetryPolicy: Recovery policy for live-query failures. The
+    ///     default is ``GRDBLiveQueryRetryPolicy/terminal``.
     public init(
         url: URL,
         configuration: GRDB.Configuration = GRDB.Configuration(),
         formatter: XLiteFormatter = XLiteFormatter(),
-        logger: XLLogger?
+        logger: XLLogger?,
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
     ) throws {
         try self.init(
             databasePool: try DatabasePool(path: url.path(percentEncoded: false), configuration: configuration),
             formatter: formatter,
-            logger: logger
+            logger: logger,
+            liveQueryRetryPolicy: liveQueryRetryPolicy
         )
     }
     
@@ -432,15 +478,47 @@ public struct GRDBDatabase: XLDatabase {
     ///   - databasePool: The pool used to execute requests.
     ///   - formatter: The formatter used when SwiftQL renders SQL.
     ///   - logger: An optional logger for executed statements.
-    public init(databasePool: DatabasePool, formatter: XLiteFormatter, logger: XLLogger?) throws {
+    ///   - liveQueryRetryPolicy: Recovery policy for live-query failures. The
+    ///     default is ``GRDBLiveQueryRetryPolicy/terminal``.
+    public init(
+        databasePool: DatabasePool,
+        formatter: XLiteFormatter,
+        logger: XLLogger?,
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
+    ) throws {
+        try self.init(
+            databasePool: databasePool,
+            formatter: formatter,
+            logger: logger,
+            liveQueryRetryPolicy: liveQueryRetryPolicy,
+            liveQueryRetryScheduler: .mainQueue
+        )
+    }
+
+    init(
+        databasePool: DatabasePool,
+        formatter: XLiteFormatter,
+        logger: XLLogger?,
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
+        liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
+    ) throws {
         self.encoder = XLiteEncoder(formatter: formatter)
         self.databasePool = databasePool
         self.logger = logger
+        self.liveQueryRetryPolicy = liveQueryRetryPolicy
+        self.liveQueryRetryScheduler = liveQueryRetryScheduler
     }
     
     public func makeRequest<Row>(with statement: any XLQueryStatement<Row>) -> any XLRequest<Row> {
         let encoding = encoder.makeSQL(statement)
-        return GRDBRequest(databasePool: databasePool, logger: logger, reader: statement, sql: encoding.sql)
+        return GRDBRequest(
+            databasePool: databasePool,
+            logger: logger,
+            reader: statement,
+            sql: encoding.sql,
+            liveQueryRetryPolicy: liveQueryRetryPolicy,
+            liveQueryRetryScheduler: liveQueryRetryScheduler
+        )
     }
     
     public func makeRequest(with statement: any XLUpdateStatement) -> XLWriteRequest {

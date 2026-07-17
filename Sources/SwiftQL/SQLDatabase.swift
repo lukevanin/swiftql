@@ -154,7 +154,8 @@ public protocol XLRequest<Row> {
     /// connection boundaries apply.
     ///
     /// The publisher fails with the original query-execution or row-decoding error instead of emitting a
-    /// partial result.
+    /// partial result. An adapter may expose an explicit retry policy; GRDB-backed requests remain terminal
+    /// by default and retry only when their database is configured to do so.
     ///
     func publish() -> AnyPublisher<[Row], Error>
     
@@ -165,7 +166,9 @@ public protocol XLRequest<Row> {
     /// value and owns an independent observation. Adapter-specific scheduling, write visibility, and
     /// connection boundaries apply.
     ///
-    /// The publisher fails with the original query-execution or row-decoding error.
+    /// The publisher fails with the original query-execution or row-decoding error. An adapter may expose
+    /// an explicit retry policy; GRDB-backed requests remain terminal by default and retry only when their
+    /// database is configured to do so.
     ///
     func publishOne() -> AnyPublisher<Row?, Error>
 }
