@@ -21,6 +21,9 @@
 
 ### Fixed
 
+- String concatenation now renders as an explicitly grouped binary expression,
+  so `COLLATE` and surrounding operators apply with unambiguous SQLite
+  precedence.
 - Empty and all-NULL aggregate results can now be modeled and decoded as Swift
   `nil` through the new optional-result APIs.
 

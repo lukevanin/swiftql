@@ -367,7 +367,7 @@ final class XLSyntaxTests: XCTestCase {
     func test_TextBindingReference_Plus_String() {
         let x = XLNamedBindingReference<String>(name: "x")
         let expression = x + "foo"
-        XCTAssertEqual(encoder.makeSQL(expression).sql, ":x || 'foo'")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "(:x || 'foo')")
     }
     
     
@@ -422,27 +422,62 @@ final class XLSyntaxTests: XCTestCase {
     func test_TextBinding_Plus_String() {
         let x = XLNamedBindingReference<String>(name: "x")
         let expression = x + "foo"
-        XCTAssertEqual(encoder.makeSQL(expression).sql, ":x || 'foo'")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "(:x || 'foo')")
     }
     
     func test_TextBinding_Plus_TextBinding() {
         let x = XLNamedBindingReference<String>(name: "x")
         let y = XLNamedBindingReference<String>(name: "y")
         let expression = x + y
-        XCTAssertEqual(encoder.makeSQL(expression).sql, ":x || :y")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "(:x || :y)")
     }
     
     func test_TextBinding_Plus_String_Plus_TextBinding() {
         let x = XLNamedBindingReference<String>(name: "x")
         let y = XLNamedBindingReference<String>(name: "y")
         let expression = x + "foo" + y
-        XCTAssertEqual(encoder.makeSQL(expression).sql, ":x || 'foo' || :y")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "((:x || 'foo') || :y)")
     }
     
     func test_OptionalTextBinding_Plus_Text() {
         let x = XLNamedBindingReference<Optional<String>>(name: "x")
         let expression = x + "foo"
-        XCTAssertEqual(encoder.makeSQL(expression).sql, ":x || 'foo'")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "(:x || 'foo')")
+    }
+
+    func test_TextConcatenation_NestedOnLeftOfEquality() {
+        let x = XLNamedBindingReference<String>(name: "x")
+        let y = XLNamedBindingReference<String>(name: "y")
+        let expression = (x + y) == "foobar"
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "((:x || :y) == 'foobar')")
+    }
+
+    func test_TextConcatenation_NestedOnRightOfEquality() {
+        let x = XLNamedBindingReference<String>(name: "x")
+        let y = XLNamedBindingReference<String>(name: "y")
+        let expression = "foobar" == (x + y)
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "('foobar' == (:x || :y))")
+    }
+
+    func test_TextConcatenation_CollatesCompleteResult() {
+        let x = XLNamedBindingReference<String>(name: "x")
+        let y = XLNamedBindingReference<String>(name: "y")
+        let expression = (x + y).collate(.nocase)
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "((:x || :y) COLLATE 'NOCASE')")
+    }
+
+    func test_TextConcatenation_PreservesCollatedLeftOperandGrouping() {
+        let x = XLNamedBindingReference<String>(name: "x")
+        let y = XLNamedBindingReference<String>(name: "y")
+        let expression = x.collate(.nocase) + y
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "((:x COLLATE 'NOCASE') || :y)")
+    }
+
+    func test_TextConcatenation_PreservesCollatedOperandGrouping() {
+        let x = XLNamedBindingReference<String>(name: "x")
+        let y = XLNamedBindingReference<String>(name: "y")
+        let expression = x + y.collate(.nocase)
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "(:x || (:y COLLATE 'NOCASE'))")
     }
     
     
@@ -1410,7 +1445,7 @@ final class XLSyntaxTests: XCTestCase {
             .from(s)
             .where(t.id == s.id)
         let result = encoder.makeSQL(expression)
-        XCTAssertEqual(result.sql, "UPDATE Temp AS t0 SET value = t0.value || ' ' || t1.name FROM (SELECT t0.id AS id, t0.name AS name FROM Company AS t0) AS t1 WHERE (t0.id == t1.id)")
+        XCTAssertEqual(result.sql, "UPDATE Temp AS t0 SET value = ((t0.value || ' ') || t1.name) FROM (SELECT t0.id AS id, t0.name AS name FROM Company AS t0) AS t1 WHERE (t0.id == t1.id)")
         XCTAssertTrue(result.entities.contains("Temp"))
     }
     
