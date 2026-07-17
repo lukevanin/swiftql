@@ -92,16 +92,17 @@ The prototype exercises both result shapes needed by later work.
 
 An `@SQLResult` with `value` and `depth` fields uses its generated
 `MetaNamedResult`. An immutable test layout creates that generated reference on
-demand from an alias-only `XLFromCommonTableDependency`; the draft itself never
+demand through `XLFromTableDependency(commonTable:alias:)`; the draft itself never
 retains the generated result or its mutable `XLNamespace`. Recursive expressions
 therefore keep their existing typed columns and result decoding shape while the
 lifecycle proof remains independent of current reference storage.
 
-The alias-only dependency contains an unrenderable sentinel body. This is a
-prototype expedient, not the proposed production representation. Its purpose is
-to prove that `XLFromCommonTableDependency` only needs the CTE alias when it
-renders a reference. A production type should store a dedicated immutable CTE
-name token instead of a fake dependency.
+The prototype supplies an alias-only dependency with an unrenderable sentinel
+body because the public compatibility initializer still accepts a complete CTE
+definition. Issue #42's unified production reference immediately snapshots only
+that alias as an immutable name token; neither the sentinel nor any real body is
+retained. The remaining lifecycle work is therefore independent of definition
+storage.
 
 ### Direct scalar result
 

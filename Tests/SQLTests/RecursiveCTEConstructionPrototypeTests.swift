@@ -483,7 +483,7 @@ private struct PrototypeScalarReference<Value>: XLMetaNamedResult where Value: X
 
     init(cteAlias: XLName, tableAlias: XLName, columnAlias: XLName) {
         let commonTable = prototypeAliasOnlyDependency(alias: cteAlias)
-        let dependency = XLFromCommonTableDependency(
+        let dependency = XLFromTableDependency(
             commonTable: commonTable,
             alias: tableAlias
         )
@@ -556,7 +556,7 @@ private func makeCompositeReference<Row>(
     cteAlias: XLName,
     tableAlias: XLName
 ) -> Row.MetaNamedResult where Row: XLResult {
-    let dependency = XLFromCommonTableDependency(
+    let dependency = XLFromTableDependency(
         commonTable: prototypeAliasOnlyDependency(alias: cteAlias),
         alias: tableAlias
     )
