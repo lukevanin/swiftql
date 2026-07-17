@@ -483,6 +483,10 @@ class CoverageWorkflowTests(unittest.TestCase):
             workflow,
         )
 
+    def test_baseline_fixture_jobs_checkout_historical_source_commit(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertEqual(workflow.count("fetch-depth: 0"), 2)
+
     def test_checked_in_initial_baseline_is_internally_consistent(self) -> None:
         report = json.loads(
             (INITIAL_BASELINE / "first-party-coverage.json").read_text(
