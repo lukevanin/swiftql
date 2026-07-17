@@ -1,0 +1,13 @@
+{
+  "workspace_repo": "lukevanin/swiftql",
+  "issue_number": 119,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/119",
+  "title": "Publish verified tagged SwiftQL releases",
+  "codex_session_title": "lukevanin/swiftql#119 - Publish verified tagged SwiftQL releases",
+  "codex_session_id": null,
+  "codex_session_url": null,
+  "branch": "codex/119-publish-verified-tagged-swiftql-releases",
+  "worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/119-publish-verified-tagged-swiftql-releases",
+  "base_commit": "c305f1368d6578184696708fac8dbddea6e24ee6",
+  "base_note": "Temporarily stacked on the issue #151 Pages workflow validation fix; rebase after dependencies land."
+}
