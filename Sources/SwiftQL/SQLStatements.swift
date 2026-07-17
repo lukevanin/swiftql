@@ -412,11 +412,9 @@ public struct From: XLTableStatement {
 /// > Note: Right joins are not supported.  A workaround is to LEFT JOIN, and swap the tables in the FROM and
 /// JOIN clauses.
 ///
-/// > Note: "INNER JOIN", "CROSS JOIN", "JOIN", "," all perform a cartesian product, which returns every
-/// possible combination of rows from the two tables.
-///
-/// > Note: CROSS JOIN is treated as a special case by XLite in that it returns the cartesian product but does
-/// not re-order the tables.
+/// Inner and left joins combine tables using an `ON` predicate. A cross join
+/// returns every combination of rows from its two tables; SQLite also preserves
+/// the left-to-right loop order for an explicit `CROSS JOIN`.
 ///
 public struct Join: XLTableStatement {
     

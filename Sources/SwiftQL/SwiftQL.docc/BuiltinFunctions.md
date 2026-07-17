@@ -11,19 +11,23 @@ functions provided natively by SQLite.
 
 ### iif()
 
-The `iif` function in SwiftQL is a conditional function that returns one of two 
-or more values based on a boolean expression. It functions similarly to a `Case` 
-statement, is logically equivalent to Swift's' `if-then-else`, and returns a 
-value based on the first true condition or a default value if all conditions are 
-false. 
+The `iif` function in SwiftQL is a conditional function that evaluates one
+boolean expression and returns one of two values. It is logically equivalent to
+Swift's `if-then-else` expression.
 
 The following SwiftQL code shows how to use the `iif` function:
 
+<!-- test: XLDocumentationTests.testDocumentationConditionalAndScalarFunctions -->
 ```swift
+@SQLResult struct EmploymentStatus {
+    let person: String
+    let occupation: String
+}
+
 let statement = sql { schema in
     let person = schema.table(Person.self)
     let occupation = schema.nullableTable(Occupation.self)
-    let result = PersonOccupation.columns(
+    let result = EmploymentStatus.columns(
         person: person.name,
         occupation: iif(
             occupation.name.isNull(), 
@@ -37,14 +41,14 @@ let statement = sql { schema in
 }
 ```
 
-This statement returns the persons name in the `person` column, and the word 
+This statement returns the person's name in the `person` column, and the word
 `Unemployed` in the `occupation` column if the person's occupation is `NULL`,
 or `Employed` if the person's occupation is not `NULL`.
 
 ### switchCase(), when(), and else()
 
-The `switchCase-when-then-else` can be used to create conditional expressions 
-matching more than one condition. SwiftSQL provides two variants. 
+The `switchCase-when-then-else` APIs create conditional expressions matching
+more than one condition. SwiftQL provides two variants.
 
 *Condition matching:*
 
@@ -52,10 +56,16 @@ The first variant uses a constant term to match and behaves similar to a
 `switch` statement in Swift, where multiple patterns are compared against a 
 single condition.
 
+<!-- test: XLDocumentationTests.testDocumentationConditionalAndScalarFunctions -->
 ```swift
+@SQLResult struct OccupationOptionalColor {
+    let occupation: String
+    let color: String?
+}
+
 let statement = sql { schema in
     let occupation = schema.table(Occupation.self)
-    let result = OccupationColor.columns(
+    let result = OccupationOptionalColor.columns(
         occupation: occupation.name,
         color: switchCase(occupation.name)
             .when("Engineer", then: "Red")
@@ -72,10 +82,16 @@ The second variant behaves like an `if` statement with multiple boolean
 conditions, and uses the result from the first boolean condition that evaluates 
 to `true`.
 
+<!-- test: XLDocumentationTests.testDocumentationConditionalAndScalarFunctions -->
 ```swift
+@SQLResult struct OccupationColor {
+    let occupation: String
+    let color: String
+}
+
 let statement = sql { schema in
     let occupation = schema.table(Occupation.self)
-    let result = OccupationColor.columns(
+    let result = OccupationOptionalColor.columns(
         occupation: occupation.name,
         color: when(occupation.name == "Artist", then: "Cyan")
     )
@@ -91,6 +107,7 @@ none of the conditions match. We can use an `else` to specify a default
 expression which is used instead, which also changes the result to a 
 non-optional type.
 
+<!-- test: XLDocumentationTests.testDocumentationConditionalAndScalarFunctions -->
 ```swift
 let statement = sql { schema in
     let occupation = schema.table(Occupation.self)
@@ -104,7 +121,7 @@ let statement = sql { schema in
     Select(result)
     From(occupation)
 }
-let sql = encoder.makeSQL(statement)
+let sql = encoder.makeSQL(statement).sql
 let rows = try database.makeRequest(with: statement).fetchAll()
 ```
 
@@ -119,20 +136,20 @@ of seconds since the unix epoch.
 
 ### abs()
 
-Returns the absolute value of a numeric field.
+Returns the absolute value of a numeric expression.
 
 ### rounded()
 
-Returns the numeric value rounded to the next integer.
+Returns a `Double` expression rounded to the nearest integral value.
 
 ### rounded(to:)
 
-Returns the numeric value rounded to the provide number of decimal places.
+Returns a `Double` expression rounded to the provided number of decimal places.
 
-### floor
+### floor()
 
-Returns the numeric value rounded to the largest integer less than or equal 
-to it.
+Returns a `Double` expression rounded to the largest integral value less than or
+equal to it.
 
 ## String functions
 
@@ -185,5 +202,3 @@ type `String`.
 ### toData()
 
 Converts an expression of type `String` to an expression of type `Data`.
-
-

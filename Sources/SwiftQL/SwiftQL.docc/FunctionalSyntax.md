@@ -19,15 +19,17 @@ an issue on GitHub.
 SwiftQL provides the convenience function `sqlQuery` that lets you compose a 
 query using functional syntax.  
 
+<!-- test: XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations -->
 ```swift
 let statement = sqlQuery { schema in
     let person = schema.table(Person.self)
     return select(person).from(person)
 }
-``` 
+```
 
 This would be equivalent to writing the statement using result builder syntax:
 
+<!-- test: XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations -->
 ```swift
 let statement = sql { schema in
     let person = schema.table(Person.self)
@@ -47,6 +49,7 @@ Statements are joined with a dot.                | Statements are written on sep
 Functional syntax can also be written without the wrapper function. In this case
 an `XLSchema` needs to be instantiated explicitly:
 
+<!-- test: XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations -->
 ```swift
 let schema = XLSchema()
 let people = schema.table(Person.self, as: "people")
@@ -56,16 +59,22 @@ let statement = select(people).from(people)
 The statement is executed in the same manner as the result builder syntax seen
 in other examples:
 
+<!-- test: XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations -->
 ```swift
-let database = GRDBDatabase(url: <url to SQLite database file>)
+import Foundation
+
+let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+let databaseURL = directory.appending(path: "my_database.sqlite")
+let database = try GRDBDatabase(url: databaseURL, logger: nil)
 let request = database.makeRequest(with: statement)
-let rows = request.fetchAll()
+let rows = try request.fetchAll()
 ```
 
 Below are additional examples using functional syntax.
 
 ### Example: Variable parameter
 
+<!-- test: XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations -->
 ```swift
 let nameParameter = XLNamedBindingReference<String>(name: "name")
 let statement = sqlQuery { schema in
@@ -76,6 +85,7 @@ let statement = sqlQuery { schema in
 
 ### Example: Where
 
+<!-- test: XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations -->
 ```swift
 let statement = sqlQuery { schema in
     let person = schema.table(Person.self)
@@ -87,6 +97,7 @@ let statement = sqlQuery { schema in
 
 ### Example: Order-by
 
+<!-- test: XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations -->
 ```swift
 let statement = sqlQuery { schema in 
     let person = schema.table(Person.self)
@@ -94,10 +105,11 @@ let statement = sqlQuery { schema in
         .from(person)
         .orderBy(person.name.ascending(), person.age.descending())
 }
-``` 
+```
 
 ### Example: Limit
 
+<!-- test: XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations -->
 ```swift
 let _ = sqlQuery { schema in 
     let person = schema.table(Person.self)
@@ -109,10 +121,11 @@ let _ = sqlQuery { schema in
 
 ### Example: Inner join
 
+<!-- test: XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations -->
 ```swift
-let statement = sqlQuery { swift 
-    let person = $0.table(Person.self)
-    let occupation = $0.table(Occupation.self)
+let statement = sqlQuery { schema in
+    let person = schema.table(Person.self)
+    let occupation = schema.table(Occupation.self)
     return select(person)
         .from(person)
         .innerJoin(occupation, on: occupation.id == person.occupationId)
@@ -121,72 +134,111 @@ let statement = sqlQuery { swift
 
 ### Example: Group-by 
 
-``` swift
+<!-- test: XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations -->
+```swift
+@SQLResult struct OccupationPopulation {
+    let occupation: String
+    let numberOfPeople: Int
+}
+
 let statement = sqlQuery { schema in
     let person = schema.table(Person.self)
-    let occupation = schema.table(Occupation.self)
+    let occupation = schema.nullableTable(Occupation.self)
 
-    let result = OccupationCount.columns(
-        occupation: occupation.name,
+    let result = OccupationPopulation.columns(
+        occupation: occupation.name.coalesce("No occupation"),
         numberOfPeople: person.id.count()
     )
 
     return select(result)
-        .from(person))
-        .leftJoin(Occupation.self, on: person.occupationId == occupation.id }
+        .from(person)
+        .leftJoin(occupation, on: occupation.id == person.occupationId)
         .groupBy(occupation.id)
 }
 ```
 
 ### Example: Left join
 
+<!-- test: XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations -->
 ```swift
-let statement = sql { schema in
+@SQLResult struct PersonOccupationName {
+    let person: String
+    let occupation: String
+}
+
+let statement = sqlQuery { schema in
     let person = schema.table(Person.self)
     let occupation = schema.nullableTable(Occupation.self)
-    let result = PersonOccupation.columns(
+    let result = PersonOccupationName.columns(
         person: person.name,
         occupation: occupation.name.coalesce("No occupation") 
     )
-    Select(result)
-    From(person)
-    Join.Left(occupation, on: occupation.id == person.occupationId)
+    return select(result)
+        .from(person)
+        .leftJoin(occupation, on: occupation.id == person.occupationId)
 }
 ```
 
 ### Example: Update
 
+<!-- test: XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations -->
 ```swift
+@SQLTable struct ExampleValue {
+    let id: String
+    let value: Int
+}
+
+try database.makeRequest(with: sqlCreate(ExampleValue.self)).execute()
+try database.makeRequest(
+    with: sqlInsert(ExampleValue(id: "example-id", value: 0))
+).execute()
+
 let idParameter = XLNamedBindingReference<String>(name: "id")
 let valueParameter = XLNamedBindingReference<Int>(name: "value")
+let id = "example-id"
+let value = 42
 
-let statement: any XLUpdateStatement<TestTable> = sqlUpdate { schema in
-    let table = schema.into(TestTable.self)
-    return update(table, set: TestTable.MetaUpdate(
+let statement: any XLUpdateStatement<ExampleValue> = sqlUpdate { schema in
+    let table = schema.into(ExampleValue.self)
+    return update(table, set: ExampleValue.MetaUpdate(
         value: valueParameter
     ))
     .where(table.id == idParameter)
 }
 
 var request = database.makeRequest(with: statement)
-request.set(Self.idParameter, id)
-request.set(Self.valueParameter, value)
+request.set(idParameter, id)
+request.set(valueParameter, value)
 try request.execute()
 ```
 
 ### Example: Create
 
+<!-- test: XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations -->
 ```swift
+@SQLTable struct EmployeeSource {
+    let id: String
+    let name: String
+}
+
+@SQLTable struct EmployeeName {
+    let id: String
+    let value: String
+}
+
+try database.makeRequest(with: sqlCreate(EmployeeSource.self)).execute()
+try database.makeRequest(
+    with: sqlInsert(EmployeeSource(id: "employee-1", name: "Ada"))
+).execute()
+
 let createStatement = sqlCreate { schema in
-    let t = schema.create(Temp.self)
+    let t = schema.create(EmployeeName.self)
     return create(t).as { schema in
-        let employee = schema.table(EmployeeTable.self)
-        let row = result {
-            Temp.SQLReader(
-                id: employee.id,
-                value: employee.name
-            )
-        }
+        let employee = schema.table(EmployeeSource.self)
+        let row = EmployeeName.columns(
+            id: employee.id,
+            value: employee.name
+        )
         return select(row).from(employee)
     }
 }

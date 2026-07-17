@@ -13,6 +13,7 @@ column values, and in where expressions.
 Standard boolean operators to combine multiple expressions, such as for a 
 boolean field or in a `Where` clause: 
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -30,25 +31,24 @@ SwiftQL supports the following Swift boolean operators: `==`, `!=`, `!`, `<`,
 SwiftQL supports the following operators for performing numeric operations with 
 `Int` and `Double` expressions: `+`, `-`, `/`, `*`.
 
-The following operators are suppported on `Int` expressions: `%` (modulo), 
+The following operators are supported on `Int` expressions: `%` (modulo),
 `~` (bitwise negate).
 
 As an example, we can compute the years each person has to retirement:
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
-@SQLResult PersonRetirement {
+@SQLResult struct PersonRetirement {
     var personId: String
     var yearsToRetirement: Int
 }
 
 let query = sql { schema in
     let person = schema.table(Person.self)
-    let row = result {
-        PersonRetirement(
-            personId: person.id,
-            yearsToRetirement: 65 - person.age
-        )
-    }
+    let row = PersonRetirement.columns(
+        personId: person.id,
+        yearsToRetirement: 65 - person.age
+    )
     Select(row)
     From(person)
     Where(row.yearsToRetirement > 0)
@@ -61,6 +61,7 @@ Expressions in SwiftQL can be grouped using parenthesis like normal Swift,
 often used to explicitly define operator precedence, or to visually separate
 sub-expressions for legibility:
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -74,6 +75,7 @@ When writing complex expressions, placing sub-expressions on separate lines with
 indentation can improve legibility. The above statement can also be written as:
 
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -99,6 +101,7 @@ SwiftQL supports the following operators for text expressions:
 
 Concatenates two or more strings:
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 
 @SQLTable struct Contact {
@@ -127,7 +130,7 @@ concatenation operator to combine two or more strings in SwiftQL.
 
 ### like operator
 
-Use the `like` operator is used for pattern matching within text values. It 
+The `like` operator is used for pattern matching within text values. It
 allows searching for strings that match a specified pattern using wildcard 
 characters.
 
@@ -136,6 +139,7 @@ statement to filter results based on a pattern.
 
 Find names starting with 'A':
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -147,6 +151,7 @@ let query = sql { schema in
 
 Find names containing 'smith'.
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -158,6 +163,7 @@ let query = sql { schema in
 
 Find names with 'a' as the second letter:
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -169,6 +175,7 @@ let query = sql { schema in
 
 Find names exactly five characters long and ending with 'e':
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -192,7 +199,7 @@ specified pattern. If a match is found, it returns `true` otherwise, it returns
 `false`.
 
 Case Sensitivity: Unlike `like`, `glob` is case-sensitive by default. This means 
-`"A".glob("A")` would return `false`.
+`"A".glob("A")` returns `true`, while `"A".glob("a")` returns `false`.
 
 Wildcards: `glob` uses Unix file globbing syntax for its wildcards:
 
@@ -203,9 +210,9 @@ Wildcards: `glob` uses Unix file globbing syntax for its wildcards:
 `[charset]` (character set): Matches any single character within the specified 
 set. For example, `[abc]` matches `'a'`, `'b'`, or `'c'`.
 
-`[^charset]` or `[!charset]`: Matches any single character not within the 
-specified set.
+`[^charset]`: Matches any single character not within the specified set.
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -217,8 +224,8 @@ let query = sql { schema in
 
 This query would return names that start with 'J', end with 'n', and have any 
 number of characters in between, such as 'John' or 'Jillian'.
-Code
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 @SQLTable struct Document {
     var id: String
@@ -253,6 +260,7 @@ The operators `isNull` and `notNull` are used to determine whether an expression
 evaluates to `ISNULL` or `NOTNULL` respectively. The SQL term `NULL` is used 
 interchangeably with `nil`.
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -272,6 +280,7 @@ value when an expression otherwise evaluates to a `nil` value. They provide
 identical functionality. `??` is preferred in adhering to Swift conventions, 
 while `coalesce` is provided for situations where parity with SQL is preferred.
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 @SQLResult struct PersonViewState {
     var name: String
@@ -282,12 +291,10 @@ let query = sql { schema in
     let person = schema.table(Person.self)
     let occupation = schema.nullableTable(Occupation.self)
     Select(
-        result {
-            PersonViewState(
-                name: person.name,
-                occupation: occupation.name ?? "No occupation"
-            )
-        }
+        PersonViewState.columns(
+            name: person.name,
+            occupation: occupation.name ?? "No occupation"
+        )
     )
     From(person)
     Join.Left(occupation, on: occupation.id == person.occupationId)
@@ -312,13 +319,16 @@ value_list: A comma-separated list of literal values (e.g., 'value1', 'value2', 
 
 subquery: A `Select` statement that returns a single column of values.
 
-The `in` operator returns `true` if the expression matches any value present in 
-the value_list or the result set of the subquery. If no match is found, it 
-returns `false`. Prefixing the expression with the `!` (not) operator reverses 
-this logic.
+The `in` operator returns `true` if the expression matches a value in the list or
+subquery. With non-`NULL` inputs it returns `false` when no match is found.
+SQLite's three-valued logic can instead produce `NULL` when the left-hand value,
+or a relevant value on the right-hand side, is `NULL`; a `Where` clause filters
+that row just as it filters `false`. Prefixing the expression with `!` negates
+`true` and `false` while preserving `NULL`.
 
 Using a value_list.
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -330,6 +340,7 @@ let query = sql { schema in
 
 This query retrieves all employees whose department is either 'eng' or 'sci'. 
 
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 @SQLTable struct Customer {
     var id: String
@@ -357,5 +368,5 @@ let query = sql { schema in
 }
 ```
 
-This query retrieves the names of customers who placed an order after January 
-1, 2024.
+This query retrieves the customer rows for customers who placed an order after
+January 1, 2034.

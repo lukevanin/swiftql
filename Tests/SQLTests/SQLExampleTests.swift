@@ -5,9 +5,138 @@
 //  Created by Luke Van In on 2023/08/22.
 //
 
+import Foundation
 import XCTest
 import GRDB
 import SwiftQL
+
+
+struct MyUUID: XLCustomType, XLComparable, Equatable {
+
+    private enum ReadError: LocalizedError {
+        case invalidUUID(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidUUID(let rawValue):
+                "Data does not represent a valid UUID: \(rawValue)"
+            }
+        }
+    }
+
+    public typealias T = Self
+
+    public let wrappedValue: UUID
+
+    public init(_ wrappedValue: UUID) {
+        self.wrappedValue = wrappedValue
+    }
+
+    public init(reader: XLColumnReader, at index: Int) throws {
+        let rawValue = try reader.readText(at: index)
+        guard let wrappedValue = UUID(uuidString: rawValue) else {
+            throw ReadError.invalidUUID(rawValue)
+        }
+        self.wrappedValue = wrappedValue
+    }
+
+    public func bind(context: inout XLBindingContext) {
+        context.bindText(value: wrappedValue.uuidString)
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        context.text(wrappedValue.uuidString)
+    }
+
+    public static func sqlDefault() -> MyUUID {
+        MyUUID(UUID(uuidString: "00000000-0000-0000-0000-000000000000")!)
+    }
+}
+
+
+struct SQLDate: XLCustomType, XLComparable, Equatable {
+
+    private enum ReadError: Error {
+        case invalidJulianDay(Double)
+    }
+
+    public typealias T = Self
+
+    public let wrappedValue: Date
+
+    public init(_ wrappedValue: Date) {
+        self.wrappedValue = wrappedValue
+    }
+
+    static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+        formatter.timeZone = .gmt
+        return formatter
+    }()
+
+    public init(reader: XLColumnReader, at index: Int) throws {
+        let rawValue = try reader.readReal(at: index)
+        guard let wrappedValue = Date(julianDay: rawValue) else {
+            throw ReadError.invalidJulianDay(rawValue)
+        }
+        self.wrappedValue = wrappedValue
+    }
+
+    public func bind(context: inout XLBindingContext) {
+        context.bindText(value: Self.dateFormatter.string(from: wrappedValue))
+    }
+
+    public static func wrapSQL(
+        context: inout XLBuilder,
+        builder: (inout XLBuilder) -> Void
+    ) {
+        context.simpleFunction(name: "julianday") { context in
+            context.listItem { context in
+                builder(&context)
+            }
+        }
+    }
+
+    public static func unwrapSQL(context: inout XLBuilder, builder: MakeExpression) {
+        context.simpleFunction(name: "strftime") { context in
+            context.listItem { context in
+                context.text("%Y-%m-%dT%H:%M:%f")
+            }
+            context.listItem { context in
+                builder(&context)
+            }
+        }
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        Self.wrapSQL(context: &context) { context in
+            context.text(Self.dateFormatter.string(from: wrappedValue))
+        }
+    }
+
+    public static func sqlDefault() -> SQLDate {
+        SQLDate(Date(timeIntervalSince1970: 0))
+    }
+}
+
+
+@SQLTable struct CustomTypeEmployee: Equatable {
+
+    let id: MyUUID
+
+    let name: String
+}
+
+
+@SQLTable struct CustomTypeInvoice: Equatable {
+
+    let id: String
+
+    let dueDate: SQLDate
+}
 
 
 @SQLTable struct Person: Equatable {
@@ -35,6 +164,14 @@ import SwiftQL
     let occupation: String
     
     let numberOfPeople: Int?
+}
+
+
+@SQLResult struct OccupationPopulation: Equatable {
+
+    let occupation: String
+
+    let numberOfPeople: Int
 }
 
 
@@ -131,11 +268,17 @@ func -(lhs: any SwiftQL.XLExpression<Date>, rhs: any SwiftQL.XLExpression<Date>)
 }
 
 
-extension Date: XLCustomType, XLEquatable, XLComparable {
+extension Date: XLCustomType, XLComparable {
+
+    private enum ReadError: Error {
+        case invalidJulianDay(Double)
+    }
     
     // Define a formatter to use to encode and decode the date.
     static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
         formatter.timeZone = .gmt
         return formatter
@@ -146,7 +289,10 @@ extension Date: XLCustomType, XLEquatable, XLComparable {
     // Decode the date from an XL result.
     public init(reader: XLColumnReader, at index: Int) throws {
         let rawValue = try reader.readReal(at: index)
-        self = Date(julianDay: rawValue)!
+        guard let value = Date(julianDay: rawValue) else {
+            throw ReadError.invalidJulianDay(rawValue)
+        }
+        self = value
     }
     
     // Bind the date to an XL expression.
@@ -235,7 +381,11 @@ public struct HaversineDistance: XLCustomFunction {
         let lonA = try radians(degrees: reader.readReal(at: 1))
         let latB = try radians(degrees: reader.readReal(at: 2))
         let lonB = try radians(degrees: reader.readReal(at: 3))
-        return acos(sin(latA) * sin(latB) + cos(latA) * cos(latB) * cos(lonB - lonA)) * 6371
+        let deltaLat = latB - latA
+        let deltaLon = lonB - lonA
+        let a = pow(sin(deltaLat / 2), 2)
+            + cos(latA) * cos(latB) * pow(sin(deltaLon / 2), 2)
+        return 2 * 6371 * asin(Swift.min(1, sqrt(a)))
     }
     
     private static func radians(degrees: Double) -> Double {
@@ -777,5 +927,165 @@ final class XLDocumentationTests: XCTestCase {
         XCTAssertEqual(try rows.element(at: 0).startDate, Date.dateFormatter.date(from: "2023-06-05T17:00:00.000")!)
         XCTAssertEqual(try rows.element(at: 0).endDate, Date.dateFormatter.date(from: "2023-06-07T17:00:00.000")!)
         XCTAssertEqual(try rows.element(at: 0).duration, 2, accuracy: 0.5)
+    }
+}
+
+
+// These named scenarios are the stable targets used by the DocC example markers. They keep
+// article examples connected to executable coverage without forcing short continuation snippets
+// to become standalone programs.
+extension XLDocumentationTests {
+
+    func testDocumentationQuickStart() throws {
+        try testExample_Select()
+    }
+
+    func testDocumentationGettingStartedCRUDAndBindings() throws {
+        try testExample_Select()
+        try testExample_Variable_ExplicitAlias()
+
+        // The full suite executes the referenced create/update/delete tests. Keeping typed method
+        // references here makes those supporting tests part of this documentation scenario at
+        // compile time, so renaming or removing one breaks the example registry.
+        let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testCreateTable
+        let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testUpdate
+        let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testDelete
+    }
+
+    func testDocumentationExpressions() throws {
+        try testExample_Coalesce()
+        try testExample_IfCaseWhenThenElse()
+
+        let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testSelectWhereLike
+        let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testSelectWhereIn
+        let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.test_TextBinding_In_Subquery
+    }
+
+    func testDocumentationFunctionalQueriesAndMutations() throws {
+        try testExample_Select()
+        try testExample_Variable_ExplicitAlias()
+        try testExample_LeftJoin_Functional_NullRows()
+
+        let groupedStatement = sqlQuery { schema in
+            let person = schema.table(Person.self)
+            let occupation = schema.nullableTable(Occupation.self)
+            let result = OccupationPopulation.columns(
+                occupation: occupation.name.coalesce("No occupation"),
+                numberOfPeople: person.id.count()
+            )
+            return select(result)
+                .from(person)
+                .leftJoin(occupation, on: occupation.id == person.occupationId)
+                .groupBy(occupation.id)
+                .orderBy(result.occupation.ascending())
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: groupedStatement).fetchAll(),
+            [
+                OccupationPopulation(occupation: "Engineer", numberOfPeople: 1),
+                OccupationPopulation(occupation: "No occupation", numberOfPeople: 1),
+                OccupationPopulation(occupation: "Scientist", numberOfPeople: 1),
+            ]
+        )
+
+        let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.testUpdateWhere
+        let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.testCreateTableUsingSelect
+    }
+
+    func testDocumentationGenericTableParameters() throws {
+        try database.makeRequest(with: sqlCreate(GenericTable<String>.self)).execute()
+
+        let nameRecord = GenericTable(id: "foo-name", type: "name", value: "Fred")
+        try database.makeRequest(with: sqlInsert(nameRecord)).execute()
+        let nameQuery = sql { schema in
+            let table = schema.table(GenericTable<String>.self)
+            Select(table)
+            From(table)
+            Where(table.type == "name")
+        }
+        XCTAssertEqual(try database.makeRequest(with: nameQuery).fetchOne()?.value, "Fred")
+
+        let uuid = MyUUID(UUID(uuidString: "72472fdd-a897-4b35-9bd9-0f23688f45f7")!)
+        let uuidRecord = GenericTable(id: "foo-id", type: "id", value: uuid)
+        try database.makeRequest(with: sqlInsert(uuidRecord)).execute()
+        let uuidQuery = sql { schema in
+            let table = schema.table(GenericTable<MyUUID>.self)
+            Select(table)
+            From(table)
+            Where(table.type == "id")
+        }
+        XCTAssertEqual(try database.makeRequest(with: uuidQuery).fetchOne()?.value, uuid)
+    }
+
+    func testDocumentationCustomTypeRoundTrips() throws {
+        try testExample_Date()
+        try testExample_DateConstant()
+        try testExample_DateParameter()
+
+        let employee = CustomTypeEmployee(
+            id: MyUUID(UUID(uuidString: "536d0033-65a0-4142-8c21-99b6b891c4e8")!),
+            name: "Ada"
+        )
+        try database.makeRequest(with: sqlCreate(CustomTypeEmployee.self)).execute()
+        try database.makeRequest(with: sqlInsert(employee)).execute()
+
+        let employeeQuery = sql { schema in
+            let employee = schema.table(CustomTypeEmployee.self)
+            Select(employee)
+            From(employee)
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: employeeQuery).fetchOne(),
+            employee
+        )
+
+        let invoice = CustomTypeInvoice(
+            id: "invoice-1",
+            dueDate: SQLDate(Date(timeIntervalSince1970: 86_400))
+        )
+        try database.makeRequest(with: sqlCreate(CustomTypeInvoice.self)).execute()
+        try database.makeRequest(with: sqlInsert(invoice)).execute()
+
+        let dateParameter = XLNamedBindingReference<SQLDate>(name: "date")
+        let invoiceQuery = sqlQuery { schema in
+            let invoice = schema.table(CustomTypeInvoice.self)
+            return select(invoice)
+                .from(invoice)
+                .where(invoice.dueDate > dateParameter)
+        }
+        var invoiceRequest = database.makeRequest(with: invoiceQuery)
+        invoiceRequest.set(dateParameter, SQLDate(Date(timeIntervalSince1970: 0)))
+        XCTAssertEqual(try invoiceRequest.fetchOne(), invoice)
+
+        let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testStringToDataRoundTrip
+    }
+
+    func testDocumentationCustomFunctionRegistrationAndExecution() throws {
+        try testExample_CustomFunction()
+    }
+
+    func testDocumentationConditionalAndScalarFunctions() throws {
+        try testExample_Iif()
+        try testExample_SwitchCaseWhenThen()
+        try testExample_SwitchCaseWhenThenElse()
+        try testExample_IfCaseWhenThen()
+        try testExample_IfCaseWhenThenElse()
+    }
+
+    func testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs() throws {
+        try testExample_LeftJoin_Statement_NullRows()
+        try testExample_Subquery()
+
+        let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testGroupConcatVariants
+        let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testQueryBuilderLimitAndOffsetExecution
+        let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testUnion
+        let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testScalarRecursiveCommonTableExpression
+        let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testRecursiveCommonTableExpressionUsingCommonTableExpression
+    }
+
+    func testDocumentationLiveQueryPublishers() {
+        let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testPublishExistingEntities
+        let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testPublishOneObservesDirectWrites
+        let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testCancellationStopsObservationFetchesAndValues
     }
 }
