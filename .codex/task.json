@@ -1,0 +1,11 @@
+{
+  "task_name": "Fix README, stale headers, and documentation typos",
+  "issue_number": 112,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/112",
+  "workspace_repo": "lukevanin/swiftql",
+  "codex_session_title": "lukevanin/swiftql#112 - Fix README, stale headers, and documentation typos",
+  "codex_session_id": null,
+  "codex_session_url": null,
+  "task_branch": "codex/112-fix-readme-stale-headers-and-documentation-typos",
+  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/112-fix-readme-stale-headers-and-documentation-typos"
+}
