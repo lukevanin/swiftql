@@ -1,0 +1,11 @@
+{
+  "task_name": "Publish SwiftQL DocC through GitHub Pages",
+  "issue_number": 151,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/151",
+  "workspace_repo": "lukevanin/swiftql",
+  "codex_session_title": "lukevanin/swiftql#151 - Publish DocC with Pages",
+  "codex_session_id": "019f6ab7-ff93-71b2-977a-aa0d3f5c581b",
+  "codex_session_url": null,
+  "task_branch": "codex/151-publish-docc-pages",
+  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/151-publish-docc-pages"
+}
