@@ -33,6 +33,9 @@ query-declaration, Swift 6, and multi-database work.
 See [compiler compatibility](COMPATIBILITY.md) for the supported Swift
 toolchains and reproducible CI matrix.
 
+See [performance benchmarks](BENCHMARKS.md) for the reproducible query
+construction, preparation, cache, binding, execution, and decoding baselines.
+
 ## Installation
 
 ### Swift Package Manager

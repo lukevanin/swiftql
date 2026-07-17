@@ -120,6 +120,26 @@ jobs:
             exit 1
           fi
 
+      - name: Smoke-test performance benchmark
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          benchmark_report="$RUNNER_TEMP/swiftql-benchmark.json"
+          xcrun swift run --skip-build swiftql-benchmark \
+            --warmups 0 \
+            --samples 1 \
+            --output "$benchmark_report" 2>&1 | \
+            tee "$RUNNER_TEMP/swiftql-benchmark.log"
+          test -s "$benchmark_report"
+          benchmark_markers="$(
+            grep -c 'SWIFTQL_BENCHMARK_REPORT ' "$RUNNER_TEMP/swiftql-benchmark.log" ||
+              true
+          )"
+          if [[ "$benchmark_markers" -ne 1 ]]; then
+            echo "error: expected one benchmark report marker; found $benchmark_markers" >&2
+            exit 1
+          fi
+
       - name: Classify compiler diagnostics
         if: ${{ !cancelled() }}
         run: |

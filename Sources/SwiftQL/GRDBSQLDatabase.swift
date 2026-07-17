@@ -105,6 +105,27 @@ struct GRDBValuesAdapter: XLColumnReader {
 }
 
 
+/// Package-scoped decoding seam shared by the GRDB adapter and performance harness.
+///
+/// Keeping the adapter and sequential column reader behind this type lets benchmarks exercise the
+/// production decoding path without exposing GRDB implementation details as public SwiftQL API.
+package final class GRDBRowDecoder<Output> {
+
+    private let reader: any XLRowReadable<Output>
+
+    private let columnReader = XLColumnValuesRowReader<Output>()
+
+    package init(reader: any XLRowReadable<Output>) {
+        self.reader = reader
+    }
+
+    package func decode(_ row: GRDB.Row) throws -> Output {
+        columnReader.reset(reader: GRDBRowAdapter(row: row))
+        return try reader.readRow(reader: columnReader)
+    }
+}
+
+
 private func decode<Value>(databaseValue: DatabaseValue, as type: Value.Type, at index: Int) throws -> Value where Value: DatabaseValueConvertible {
     let expectedType = String(describing: type)
     guard !databaseValue.isNull else {
@@ -222,13 +243,12 @@ struct GRDBRequest<Row>: XLRequest {
         let statement = try database.cachedStatement(sql: sql)
         let rows = try GRDB.Row.fetchAll(statement, arguments: arguments)
 
-        let columnReader = XLColumnValuesRowReader<Row>()
+        let rowDecoder = GRDBRowDecoder(reader: reader)
         var items: [Row] = []
 
         for row in rows {
-            columnReader.reset(reader: GRDBRowAdapter(row: row))
             do {
-                let item = try reader.readRow(reader: columnReader)
+                let item = try rowDecoder.decode(row)
                 items.append(item)
             }
             catch {
@@ -252,9 +272,7 @@ struct GRDBRequest<Row>: XLRequest {
             return nil
         }
 
-        let columnReader = XLColumnValuesRowReader<Row>()
-        columnReader.reset(reader: GRDBRowAdapter(row: row))
-        return try reader.readRow(reader: columnReader)
+        return try GRDBRowDecoder(reader: reader).decode(row)
     }
     
     func publish() -> AnyPublisher<[Row], Error> {

@@ -4,6 +4,10 @@
 
 ### Added
 
+- Added a reproducible `swiftql-benchmark` executable that reports raw samples,
+  median, and p95 for SwiftQL construction/rendering, uncached SQLite
+  preparation, statement-cache hits, reset/binding, execution, and production
+  row decoding. All supported compiler lanes run a structure-only smoke test.
 - Added `minOrNull(distinct:)`, `maxOrNull(distinct:)`, `sumOrNull(distinct:)`,
   `averageOrNull(distinct:)`, `groupConcatOrNull(distinct:)`, and
   `groupConcatOrNull(separator:)` APIs whose expression types represent SQLite
