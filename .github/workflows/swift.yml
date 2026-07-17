@@ -199,6 +199,12 @@ jobs:
           EXPECTED_SWIFT_TARGET: x86_64-unknown-linux-gnu
         run: scripts/ci/check-swift-toolchain.sh
 
+      - name: Install SQLite development headers
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install --yes --no-install-recommends libsqlite3-dev
+
       - name: Prepare clean dependency resolution
         run: |
           set -euo pipefail

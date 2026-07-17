@@ -30,9 +30,10 @@ silently redefining support.
 
 These release-blocking jobs use pinned Swift Docker Official Images, verify the
 exact compiler and target triple, resolve dependencies without either committed
-lockfile, run the first-party warning gate, execute the SQLite runtime probe,
-and run the complete test suite. This clean-resolution path mirrors how package
-consumers and Swift Package Index resolve SwiftQL.
+lockfile, install Ubuntu's SQLite development headers, run the first-party
+warning gate, execute the SQLite runtime probe, and run the complete test suite.
+This clean-resolution path mirrors how package consumers and Swift Package
+Index resolve SwiftQL.
 
 The compatibility test target contains a compile-time `#if swift(>=6.0)`
 failure. Because `swift()` tests the active language mode, every Swift 6.0–6.3
@@ -108,6 +109,8 @@ docker run --rm \
   -w /workspace \
   swift:6.3.3-noble \
   bash -lc '
+    apt-get update
+    apt-get install --yes --no-install-recommends libsqlite3-dev
     EXPECTED_SWIFT_VERSION=6.3.3 \
     EXPECTED_SWIFT_TARGET=x86_64-unknown-linux-gnu \
       scripts/ci/check-swift-toolchain.sh
