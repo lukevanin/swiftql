@@ -10,6 +10,10 @@ let package = Package(
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
+            name: "SwiftQLCore",
+            targets: ["SwiftQLCore"]
+        ),
+        .library(
             name: "SwiftQL",
             targets: ["SwiftQL"]
         ),
@@ -27,6 +31,11 @@ let package = Package(
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
+        // GRDB-free contracts shared by dialect renderers and database drivers.
+        .target(
+            name: "SwiftQLCore"
+        ),
+
         // Macro implementation that performs the source transformation of a macro.
         .macro(
             name: "SQLMacros",
@@ -40,6 +49,7 @@ let package = Package(
         .target(
             name: "SwiftQL",
             dependencies: [
+                "SwiftQLCore",
                 "SQLMacros",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
@@ -63,6 +73,11 @@ let package = Package(
         ),
 
         // A test target used to develop the macro implementation.
+        .testTarget(
+            name: "SwiftQLCoreTests",
+            dependencies: ["SwiftQLCore"]
+        ),
+
         .testTarget(
             name: "SQLMacrosTests",
             dependencies: [

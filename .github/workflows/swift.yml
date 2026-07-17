@@ -21,6 +21,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Verify exact source commit
@@ -34,6 +35,11 @@ jobs:
             'import ast, pathlib; [ast.parse(path.read_text()) for path in pathlib.Path("scripts/ci").glob("*.py")]'
           ruby -e \
             'require "yaml"; Dir[".github/workflows/*.{yml,yaml}"].sort.each { |path| YAML.parse_file(path) }'
+
+      - name: Enforce SwiftQLCore contract boundary
+        run: |
+          python3 scripts/ci/check-core-contract-boundary.py \
+            --scratch-path "$RUNNER_TEMP/swiftql-core-boundary"
 
       - name: Run release workflow fixtures
         run: scripts/ci/test-release-workflow.sh
@@ -59,6 +65,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ env.COVERAGE_SOURCE_SHA }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Verify exact source commit

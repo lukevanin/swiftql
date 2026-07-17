@@ -418,6 +418,10 @@ def build_report(
 
 
 def summary_markdown(report: Mapping[str, Any]) -> str:
+    source_roots = ", ".join(
+        f"`{target['source_root']}`"
+        for _, target in sorted(report["targets"].items())
+    )
     lines = [
         "# First-party Swift source coverage",
         "",
@@ -428,9 +432,9 @@ def summary_markdown(report: Mapping[str, Any]) -> str:
         f"- SDK: `{report['toolchain']['sdk'].replace(chr(10), ' / ')}`",
         f"- LLVM coverage: `{report['toolchain']['llvm_cov'].replace(chr(10), ' / ')}`",
         f"- Source tree: `{report['source_tree_state']}`",
-        "- Filtering: only tracked `.swift` files under `Sources/SwiftQL` and "
-        "`Sources/SQLMacros`; dependencies, tests, benchmarks, build products, "
-        "and generated expansion files are excluded.",
+        f"- Filtering: only tracked `.swift` files under {source_roots}; "
+        "dependencies, tests, benchmarks, build products, and generated "
+        "expansion files are excluded.",
         "- This report is evidence only; it does not enforce a percentage threshold.",
         "",
         "| Target | Instrumented sources | Allowed uninstrumented | Lines | Functions |",

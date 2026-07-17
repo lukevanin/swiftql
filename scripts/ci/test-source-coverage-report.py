@@ -483,6 +483,10 @@ class CoverageWorkflowTests(unittest.TestCase):
             workflow,
         )
 
+    def test_baseline_fixture_jobs_checkout_historical_source_commit(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertEqual(workflow.count("fetch-depth: 0"), 2)
+
     def test_checked_in_initial_baseline_is_internally_consistent(self) -> None:
         report = json.loads(
             (INITIAL_BASELINE / "first-party-coverage.json").read_text(
@@ -533,12 +537,15 @@ class CoverageWorkflowTests(unittest.TestCase):
         )
         self.assertEqual(set(report["targets"]), {"SQLMacros", "SwiftQL"})
 
-        tracked_result = subprocess.run(
+        baseline_tree_result = subprocess.run(
             [
                 "git",
                 "-C",
                 str(SCRIPT.parents[2]),
-                "ls-files",
+                "ls-tree",
+                "-r",
+                "--name-only",
+                report["source_commit"],
                 "--",
                 "Sources/SQLMacros",
                 "Sources/SwiftQL",
@@ -547,9 +554,9 @@ class CoverageWorkflowTests(unittest.TestCase):
             text=True,
             capture_output=True,
         )
-        tracked_sources = {
+        baseline_sources = {
             path
-            for path in tracked_result.stdout.splitlines()
+            for path in baseline_tree_result.stdout.splitlines()
             if path.endswith(".swift")
         }
         accounted_lines = included_lines + allowed
@@ -564,7 +571,7 @@ class CoverageWorkflowTests(unittest.TestCase):
             self.assertEqual(target, expected_target)
             self.assertNotIn(source, accounted_sources)
             accounted_sources.add(source)
-        self.assertEqual(accounted_sources, tracked_sources)
+        self.assertEqual(accounted_sources, baseline_sources)
         self.assertFalse(list(INITIAL_BASELINE.glob("llvm-coverage.*")))
 
 

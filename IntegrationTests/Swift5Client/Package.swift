@@ -12,6 +12,7 @@ let package = Package(
         .executableTarget(
             name: "SwiftQLSwift5Client",
             dependencies: [
+                .product(name: "SwiftQLCore", package: "SwiftQL"),
                 .product(name: "SwiftQL", package: "SwiftQL"),
             ]
         ),
