@@ -495,6 +495,7 @@ class CoverageWorkflowTests(unittest.TestCase):
             )
         )
         included = (INITIAL_BASELINE / "included-sources.txt").read_bytes()
+        included_lines = included.decode("utf-8").splitlines()
         repeated = (
             INITIAL_BASELINE / "repeated-included-sources.txt"
         ).read_bytes()
@@ -510,12 +511,20 @@ class CoverageWorkflowTests(unittest.TestCase):
         self.assertEqual(report["source_commit"], reproducibility["source_commit"])
         self.assertTrue(reproducibility["normalized_reports_match"])
         self.assertEqual(included, repeated)
+        included_sha256 = hashlib.sha256(included).hexdigest()
         self.assertEqual(
-            hashlib.sha256(included).hexdigest(),
+            included_sha256,
             report["filtering"]["included_sources_sha256"],
         )
         self.assertEqual(
-            len(included.decode("utf-8").splitlines()),
+            included_sha256, reproducibility["included_sources_sha256"]
+        )
+        self.assertEqual(
+            report["package_resolved_sha256"],
+            reproducibility["package_resolved_sha256"],
+        )
+        self.assertEqual(
+            len(included_lines),
             report["filtering"]["included_source_files"],
         )
         self.assertEqual(
@@ -523,6 +532,39 @@ class CoverageWorkflowTests(unittest.TestCase):
             report["filtering"]["allowed_uninstrumented_source_files"],
         )
         self.assertEqual(set(report["targets"]), {"SQLMacros", "SwiftQL"})
+
+        tracked_result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(SCRIPT.parents[2]),
+                "ls-files",
+                "--",
+                "Sources/SQLMacros",
+                "Sources/SwiftQL",
+            ],
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+        tracked_sources = {
+            path
+            for path in tracked_result.stdout.splitlines()
+            if path.endswith(".swift")
+        }
+        accounted_lines = included_lines + allowed
+        accounted_sources = set()
+        for line in accounted_lines:
+            target, source = line.split("\t", maxsplit=1)
+            expected_target = (
+                "SQLMacros"
+                if source.startswith("Sources/SQLMacros/")
+                else "SwiftQL"
+            )
+            self.assertEqual(target, expected_target)
+            self.assertNotIn(source, accounted_sources)
+            accounted_sources.add(source)
+        self.assertEqual(accounted_sources, tracked_sources)
         self.assertFalse(list(INITIAL_BASELINE.glob("llvm-coverage.*")))
 
 
