@@ -30,6 +30,9 @@ for more.
 See the [roadmap](ROADMAP.md) for planned reliability, SQLite conformance,
 query-declaration, Swift 6, and multi-database work.
 
+See [compiler compatibility](COMPATIBILITY.md) for the supported Swift
+toolchains and reproducible CI matrix.
+
 ## Installation
 
 ### Swift Package Manager
