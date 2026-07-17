@@ -1,0 +1,1566 @@
+{
+  "coverage_command": "xcrun swift test --scratch-path <scratch-path> --enable-code-coverage",
+  "filtering": {
+    "allowed_uninstrumented_source_files": 2,
+    "excluded_raw_file_entries": 358,
+    "excluded_raw_file_entries_by_category": {
+      "benchmarks": 6,
+      "outside_repository": 325,
+      "tests_or_fixtures": 27
+    },
+    "included_source_files": 49,
+    "included_sources_sha256": "af252c4cb1d2aa86edc0b301d1f0334b6e2032962b5a2b372899b79ed5645fe2",
+    "rule": "Only tracked .swift files under configured first-party target roots are included."
+  },
+  "largest_uncovered_files": [
+    {
+      "functions": {
+        "count": 41,
+        "covered": 9,
+        "percent": 21.95,
+        "uncovered": 32
+      },
+      "lines": {
+        "count": 140,
+        "covered": 44,
+        "percent": 31.43,
+        "uncovered": 96
+      },
+      "path": "Sources/SwiftQL/Statements/SQLInsertStatement.swift",
+      "regions": {
+        "count": 47,
+        "covered": 15,
+        "percent": 31.91,
+        "uncovered": 32
+      }
+    },
+    {
+      "functions": {
+        "count": 15,
+        "covered": 3,
+        "percent": 20.0,
+        "uncovered": 12
+      },
+      "lines": {
+        "count": 68,
+        "covered": 9,
+        "percent": 13.24,
+        "uncovered": 59
+      },
+      "path": "Sources/SwiftQL/SQLDatabase.swift",
+      "regions": {
+        "count": 15,
+        "covered": 3,
+        "percent": 20.0,
+        "uncovered": 12
+      }
+    },
+    {
+      "functions": {
+        "count": 44,
+        "covered": 31,
+        "percent": 70.45,
+        "uncovered": 13
+      },
+      "lines": {
+        "count": 198,
+        "covered": 142,
+        "percent": 71.72,
+        "uncovered": 56
+      },
+      "path": "Sources/SwiftQL/Builders/QueryBuilder.swift",
+      "regions": {
+        "count": 70,
+        "covered": 54,
+        "percent": 77.14,
+        "uncovered": 16
+      }
+    },
+    {
+      "functions": {
+        "count": 92,
+        "covered": 73,
+        "percent": 79.35,
+        "uncovered": 19
+      },
+      "lines": {
+        "count": 271,
+        "covered": 217,
+        "percent": 80.07,
+        "uncovered": 54
+      },
+      "path": "Sources/SwiftQL/SQLStatements.swift",
+      "regions": {
+        "count": 104,
+        "covered": 84,
+        "percent": 80.77,
+        "uncovered": 20
+      }
+    },
+    {
+      "functions": {
+        "count": 50,
+        "covered": 33,
+        "percent": 66.0,
+        "uncovered": 17
+      },
+      "lines": {
+        "count": 171,
+        "covered": 120,
+        "percent": 70.18,
+        "uncovered": 51
+      },
+      "path": "Sources/SwiftQL/Statements/SQLQueryStatement.swift",
+      "regions": {
+        "count": 58,
+        "covered": 41,
+        "percent": 70.69,
+        "uncovered": 17
+      }
+    },
+    {
+      "functions": {
+        "count": 22,
+        "covered": 7,
+        "percent": 31.82,
+        "uncovered": 15
+      },
+      "lines": {
+        "count": 67,
+        "covered": 22,
+        "percent": 32.84,
+        "uncovered": 45
+      },
+      "path": "Sources/SwiftQL/Expression Builder/SQLInsertExpressionBuilder.swift",
+      "regions": {
+        "count": 22,
+        "covered": 7,
+        "percent": 31.82,
+        "uncovered": 15
+      }
+    },
+    {
+      "functions": {
+        "count": 16,
+        "covered": 1,
+        "percent": 6.25,
+        "uncovered": 15
+      },
+      "lines": {
+        "count": 48,
+        "covered": 3,
+        "percent": 6.25,
+        "uncovered": 45
+      },
+      "path": "Sources/SwiftQL/Operators/RealOperators.swift",
+      "regions": {
+        "count": 16,
+        "covered": 1,
+        "percent": 6.25,
+        "uncovered": 15
+      }
+    },
+    {
+      "functions": {
+        "count": 56,
+        "covered": 43,
+        "percent": 76.79,
+        "uncovered": 13
+      },
+      "lines": {
+        "count": 235,
+        "covered": 191,
+        "percent": 81.28,
+        "uncovered": 44
+      },
+      "path": "Sources/SwiftQL/SQLExpression.swift",
+      "regions": {
+        "count": 80,
+        "covered": 65,
+        "percent": 81.25,
+        "uncovered": 15
+      }
+    },
+    {
+      "functions": {
+        "count": 69,
+        "covered": 55,
+        "percent": 79.71,
+        "uncovered": 14
+      },
+      "lines": {
+        "count": 238,
+        "covered": 198,
+        "percent": 83.19,
+        "uncovered": 40
+      },
+      "path": "Sources/SwiftQL/SQLMeta.swift",
+      "regions": {
+        "count": 95,
+        "covered": 74,
+        "percent": 77.89,
+        "uncovered": 21
+      }
+    },
+    {
+      "functions": {
+        "count": 22,
+        "covered": 9,
+        "percent": 40.91,
+        "uncovered": 13
+      },
+      "lines": {
+        "count": 66,
+        "covered": 27,
+        "percent": 40.91,
+        "uncovered": 39
+      },
+      "path": "Sources/SwiftQL/Operators/IntegerOperators.swift",
+      "regions": {
+        "count": 22,
+        "covered": 9,
+        "percent": 40.91,
+        "uncovered": 13
+      }
+    },
+    {
+      "functions": {
+        "count": 31,
+        "covered": 20,
+        "percent": 64.52,
+        "uncovered": 11
+      },
+      "lines": {
+        "count": 107,
+        "covered": 70,
+        "percent": 65.42,
+        "uncovered": 37
+      },
+      "path": "Sources/SwiftQL/Expression Builder/SQLQueryExpressionBuilder.swift",
+      "regions": {
+        "count": 31,
+        "covered": 20,
+        "percent": 64.52,
+        "uncovered": 11
+      }
+    },
+    {
+      "functions": {
+        "count": 16,
+        "covered": 4,
+        "percent": 25.0,
+        "uncovered": 12
+      },
+      "lines": {
+        "count": 48,
+        "covered": 12,
+        "percent": 25.0,
+        "uncovered": 36
+      },
+      "path": "Sources/SwiftQL/Operators/ComparableExpressionOperators.swift",
+      "regions": {
+        "count": 16,
+        "covered": 4,
+        "percent": 25.0,
+        "uncovered": 12
+      }
+    },
+    {
+      "functions": {
+        "count": 39,
+        "covered": 32,
+        "percent": 82.05,
+        "uncovered": 7
+      },
+      "lines": {
+        "count": 167,
+        "covered": 135,
+        "percent": 80.84,
+        "uncovered": 32
+      },
+      "path": "Sources/SwiftQL/SQLFunctionalSyntax.swift",
+      "regions": {
+        "count": 39,
+        "covered": 32,
+        "percent": 82.05,
+        "uncovered": 7
+      }
+    },
+    {
+      "functions": {
+        "count": 135,
+        "covered": 135,
+        "percent": 100.0,
+        "uncovered": 0
+      },
+      "lines": {
+        "count": 2093,
+        "covered": 2062,
+        "percent": 98.52,
+        "uncovered": 31
+      },
+      "path": "Sources/SQLMacros/MetaBuilder.swift",
+      "regions": {
+        "count": 345,
+        "covered": 333,
+        "percent": 96.52,
+        "uncovered": 12
+      }
+    },
+    {
+      "functions": {
+        "count": 73,
+        "covered": 69,
+        "percent": 94.52,
+        "uncovered": 4
+      },
+      "lines": {
+        "count": 297,
+        "covered": 268,
+        "percent": 90.24,
+        "uncovered": 29
+      },
+      "path": "Sources/SwiftQL/SQLEncoder.swift",
+      "regions": {
+        "count": 91,
+        "covered": 84,
+        "percent": 92.31,
+        "uncovered": 7
+      }
+    },
+    {
+      "functions": {
+        "count": 12,
+        "covered": 3,
+        "percent": 25.0,
+        "uncovered": 9
+      },
+      "lines": {
+        "count": 36,
+        "covered": 9,
+        "percent": 25.0,
+        "uncovered": 27
+      },
+      "path": "Sources/SwiftQL/Operators/TextOperators.swift",
+      "regions": {
+        "count": 12,
+        "covered": 3,
+        "percent": 25.0,
+        "uncovered": 9
+      }
+    },
+    {
+      "functions": {
+        "count": 8,
+        "covered": 5,
+        "percent": 62.5,
+        "uncovered": 3
+      },
+      "lines": {
+        "count": 64,
+        "covered": 41,
+        "percent": 64.06,
+        "uncovered": 23
+      },
+      "path": "Sources/SQLMacros/SQLMacro.swift",
+      "regions": {
+        "count": 26,
+        "covered": 13,
+        "percent": 50.0,
+        "uncovered": 13
+      }
+    },
+    {
+      "functions": {
+        "count": 66,
+        "covered": 63,
+        "percent": 95.45,
+        "uncovered": 3
+      },
+      "lines": {
+        "count": 387,
+        "covered": 366,
+        "percent": 94.57,
+        "uncovered": 21
+      },
+      "path": "Sources/SwiftQL/GRDBSQLDatabase.swift",
+      "regions": {
+        "count": 123,
+        "covered": 112,
+        "percent": 91.06,
+        "uncovered": 11
+      }
+    },
+    {
+      "functions": {
+        "count": 13,
+        "covered": 7,
+        "percent": 53.85,
+        "uncovered": 6
+      },
+      "lines": {
+        "count": 39,
+        "covered": 21,
+        "percent": 53.85,
+        "uncovered": 18
+      },
+      "path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+      "regions": {
+        "count": 13,
+        "covered": 7,
+        "percent": 53.85,
+        "uncovered": 6
+      }
+    },
+    {
+      "functions": {
+        "count": 10,
+        "covered": 4,
+        "percent": 40.0,
+        "uncovered": 6
+      },
+      "lines": {
+        "count": 30,
+        "covered": 12,
+        "percent": 40.0,
+        "uncovered": 18
+      },
+      "path": "Sources/SwiftQL/Operators/BooleanOperators.swift",
+      "regions": {
+        "count": 10,
+        "covered": 4,
+        "percent": 40.0,
+        "uncovered": 6
+      }
+    }
+  ],
+  "overall": {
+    "functions": {
+      "count": 1096,
+      "covered": 857,
+      "percent": 78.19,
+      "uncovered": 239
+    },
+    "lines": {
+      "count": 5846,
+      "covered": 4986,
+      "percent": 85.29,
+      "uncovered": 860
+    },
+    "regions": {
+      "count": 1552,
+      "covered": 1259,
+      "percent": 81.12,
+      "uncovered": 293
+    }
+  },
+  "package_resolved_sha256": "69015064d53cbf9f4682b3d690bb34fcb59f9fc229f9e20f898b6399fb6c75f6",
+  "raw_llvm_report": {
+    "file_entries": 407,
+    "type": "llvm.coverage.json.export",
+    "version": "2.0.1"
+  },
+  "schema_version": 1,
+  "source_commit": "9152d8409aa55df5bc96e9c74411b3c4fb166429",
+  "source_tree_state": "clean",
+  "targets": {
+    "SQLMacros": {
+      "allowed_uninstrumented_source_files": [],
+      "files": [
+        {
+          "functions": {
+            "count": 2,
+            "covered": 2,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 8,
+            "covered": 8,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SQLMacros/Diagnostics.swift",
+          "regions": {
+            "count": 2,
+            "covered": 2,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 135,
+            "covered": 135,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 2093,
+            "covered": 2062,
+            "percent": 98.52,
+            "uncovered": 31
+          },
+          "path": "Sources/SQLMacros/MetaBuilder.swift",
+          "regions": {
+            "count": 345,
+            "covered": 333,
+            "percent": 96.52,
+            "uncovered": 12
+          }
+        },
+        {
+          "functions": {
+            "count": 8,
+            "covered": 5,
+            "percent": 62.5,
+            "uncovered": 3
+          },
+          "lines": {
+            "count": 64,
+            "covered": 41,
+            "percent": 64.06,
+            "uncovered": 23
+          },
+          "path": "Sources/SQLMacros/SQLMacro.swift",
+          "regions": {
+            "count": 26,
+            "covered": 13,
+            "percent": 50.0,
+            "uncovered": 13
+          }
+        },
+        {
+          "functions": {
+            "count": 12,
+            "covered": 12,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 53,
+            "covered": 53,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SQLMacros/SwiftSyntaxBuilder.swift",
+          "regions": {
+            "count": 20,
+            "covered": 20,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        }
+      ],
+      "instrumented_source_files": 4,
+      "source_files": 4,
+      "source_root": "Sources/SQLMacros",
+      "totals": {
+        "functions": {
+          "count": 157,
+          "covered": 154,
+          "percent": 98.09,
+          "uncovered": 3
+        },
+        "lines": {
+          "count": 2218,
+          "covered": 2164,
+          "percent": 97.57,
+          "uncovered": 54
+        },
+        "regions": {
+          "count": 393,
+          "covered": 368,
+          "percent": 93.64,
+          "uncovered": 25
+        }
+      }
+    },
+    "SwiftQL": {
+      "allowed_uninstrumented_source_files": [
+        "Sources/SwiftQL/SQL.swift",
+        "Sources/SwiftQL/SQLScalarResult.swift"
+      ],
+      "files": [
+        {
+          "functions": {
+            "count": 9,
+            "covered": 9,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 38,
+            "covered": 38,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Builders/InsertBuilder.swift",
+          "regions": {
+            "count": 11,
+            "covered": 11,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 44,
+            "covered": 31,
+            "percent": 70.45,
+            "uncovered": 13
+          },
+          "lines": {
+            "count": 198,
+            "covered": 142,
+            "percent": 71.72,
+            "uncovered": 56
+          },
+          "path": "Sources/SwiftQL/Builders/QueryBuilder.swift",
+          "regions": {
+            "count": 70,
+            "covered": 54,
+            "percent": 77.14,
+            "uncovered": 16
+          }
+        },
+        {
+          "functions": {
+            "count": 3,
+            "covered": 3,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 12,
+            "covered": 12,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Expression Builder/SQLCreateExpressionBuilder.swift",
+          "regions": {
+            "count": 3,
+            "covered": 3,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 5,
+            "covered": 5,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 16,
+            "covered": 16,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Expression Builder/SQLDeleteExpressionBuilder.swift",
+          "regions": {
+            "count": 5,
+            "covered": 5,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 22,
+            "covered": 7,
+            "percent": 31.82,
+            "uncovered": 15
+          },
+          "lines": {
+            "count": 67,
+            "covered": 22,
+            "percent": 32.84,
+            "uncovered": 45
+          },
+          "path": "Sources/SwiftQL/Expression Builder/SQLInsertExpressionBuilder.swift",
+          "regions": {
+            "count": 22,
+            "covered": 7,
+            "percent": 31.82,
+            "uncovered": 15
+          }
+        },
+        {
+          "functions": {
+            "count": 31,
+            "covered": 20,
+            "percent": 64.52,
+            "uncovered": 11
+          },
+          "lines": {
+            "count": 107,
+            "covered": 70,
+            "percent": 65.42,
+            "uncovered": 37
+          },
+          "path": "Sources/SwiftQL/Expression Builder/SQLQueryExpressionBuilder.swift",
+          "regions": {
+            "count": 31,
+            "covered": 20,
+            "percent": 64.52,
+            "uncovered": 11
+          }
+        },
+        {
+          "functions": {
+            "count": 7,
+            "covered": 7,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 25,
+            "covered": 25,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Expression Builder/SQLUpdateExpressionBuilder.swift",
+          "regions": {
+            "count": 7,
+            "covered": 7,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 2,
+            "covered": 2,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 9,
+            "covered": 9,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/FoundationExtensions.swift",
+          "regions": {
+            "count": 2,
+            "covered": 2,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 13,
+            "covered": 7,
+            "percent": 53.85,
+            "uncovered": 6
+          },
+          "lines": {
+            "count": 39,
+            "covered": 21,
+            "percent": 53.85,
+            "uncovered": 18
+          },
+          "path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "regions": {
+            "count": 13,
+            "covered": 7,
+            "percent": 53.85,
+            "uncovered": 6
+          }
+        },
+        {
+          "functions": {
+            "count": 2,
+            "covered": 2,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 6,
+            "covered": 6,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Functions/ComparableFunctions.swift",
+          "regions": {
+            "count": 2,
+            "covered": 2,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 4,
+            "covered": 4,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 12,
+            "covered": 12,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Functions/ConditionalFunctions.swift",
+          "regions": {
+            "count": 4,
+            "covered": 4,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 4,
+            "covered": 4,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 16,
+            "covered": 16,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "regions": {
+            "count": 6,
+            "covered": 6,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 2,
+            "covered": 2,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 6,
+            "covered": 6,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Functions/ExpressionFunctions.swift",
+          "regions": {
+            "count": 2,
+            "covered": 2,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 3,
+            "covered": 3,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 9,
+            "covered": 9,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
+          "regions": {
+            "count": 3,
+            "covered": 3,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 5,
+            "covered": 5,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 15,
+            "covered": 15,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Functions/NumericFunctions.swift",
+          "regions": {
+            "count": 5,
+            "covered": 5,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 4,
+            "covered": 4,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 12,
+            "covered": 12,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Functions/StringFunctions.swift",
+          "regions": {
+            "count": 4,
+            "covered": 4,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 18,
+            "covered": 18,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 54,
+            "covered": 54,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Functions/TypeCastFunctions.swift",
+          "regions": {
+            "count": 18,
+            "covered": 18,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 25,
+            "covered": 25,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 162,
+            "covered": 161,
+            "percent": 99.38,
+            "uncovered": 1
+          },
+          "path": "Sources/SwiftQL/GRDBLiveQueryRetryPolicy.swift",
+          "regions": {
+            "count": 37,
+            "covered": 34,
+            "percent": 91.89,
+            "uncovered": 3
+          }
+        },
+        {
+          "functions": {
+            "count": 66,
+            "covered": 63,
+            "percent": 95.45,
+            "uncovered": 3
+          },
+          "lines": {
+            "count": 387,
+            "covered": 366,
+            "percent": 94.57,
+            "uncovered": 21
+          },
+          "path": "Sources/SwiftQL/GRDBSQLDatabase.swift",
+          "regions": {
+            "count": 123,
+            "covered": 112,
+            "percent": 91.06,
+            "uncovered": 11
+          }
+        },
+        {
+          "functions": {
+            "count": 10,
+            "covered": 4,
+            "percent": 40.0,
+            "uncovered": 6
+          },
+          "lines": {
+            "count": 30,
+            "covered": 12,
+            "percent": 40.0,
+            "uncovered": 18
+          },
+          "path": "Sources/SwiftQL/Operators/BooleanOperators.swift",
+          "regions": {
+            "count": 10,
+            "covered": 4,
+            "percent": 40.0,
+            "uncovered": 6
+          }
+        },
+        {
+          "functions": {
+            "count": 16,
+            "covered": 4,
+            "percent": 25.0,
+            "uncovered": 12
+          },
+          "lines": {
+            "count": 48,
+            "covered": 12,
+            "percent": 25.0,
+            "uncovered": 36
+          },
+          "path": "Sources/SwiftQL/Operators/ComparableExpressionOperators.swift",
+          "regions": {
+            "count": 16,
+            "covered": 4,
+            "percent": 25.0,
+            "uncovered": 12
+          }
+        },
+        {
+          "functions": {
+            "count": 8,
+            "covered": 4,
+            "percent": 50.0,
+            "uncovered": 4
+          },
+          "lines": {
+            "count": 24,
+            "covered": 12,
+            "percent": 50.0,
+            "uncovered": 12
+          },
+          "path": "Sources/SwiftQL/Operators/EquatableExpressionOperators.swift",
+          "regions": {
+            "count": 8,
+            "covered": 4,
+            "percent": 50.0,
+            "uncovered": 4
+          }
+        },
+        {
+          "functions": {
+            "count": 6,
+            "covered": 5,
+            "percent": 83.33,
+            "uncovered": 1
+          },
+          "lines": {
+            "count": 28,
+            "covered": 22,
+            "percent": 78.57,
+            "uncovered": 6
+          },
+          "path": "Sources/SwiftQL/Operators/InOperator.swift",
+          "regions": {
+            "count": 6,
+            "covered": 5,
+            "percent": 83.33,
+            "uncovered": 1
+          }
+        },
+        {
+          "functions": {
+            "count": 22,
+            "covered": 9,
+            "percent": 40.91,
+            "uncovered": 13
+          },
+          "lines": {
+            "count": 66,
+            "covered": 27,
+            "percent": 40.91,
+            "uncovered": 39
+          },
+          "path": "Sources/SwiftQL/Operators/IntegerOperators.swift",
+          "regions": {
+            "count": 22,
+            "covered": 9,
+            "percent": 40.91,
+            "uncovered": 13
+          }
+        },
+        {
+          "functions": {
+            "count": 4,
+            "covered": 2,
+            "percent": 50.0,
+            "uncovered": 2
+          },
+          "lines": {
+            "count": 12,
+            "covered": 6,
+            "percent": 50.0,
+            "uncovered": 6
+          },
+          "path": "Sources/SwiftQL/Operators/NumericOperators.swift",
+          "regions": {
+            "count": 4,
+            "covered": 2,
+            "percent": 50.0,
+            "uncovered": 2
+          }
+        },
+        {
+          "functions": {
+            "count": 4,
+            "covered": 4,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 12,
+            "covered": 12,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Operators/OptionalOperators.swift",
+          "regions": {
+            "count": 4,
+            "covered": 4,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 16,
+            "covered": 1,
+            "percent": 6.25,
+            "uncovered": 15
+          },
+          "lines": {
+            "count": 48,
+            "covered": 3,
+            "percent": 6.25,
+            "uncovered": 45
+          },
+          "path": "Sources/SwiftQL/Operators/RealOperators.swift",
+          "regions": {
+            "count": 16,
+            "covered": 1,
+            "percent": 6.25,
+            "uncovered": 15
+          }
+        },
+        {
+          "functions": {
+            "count": 12,
+            "covered": 3,
+            "percent": 25.0,
+            "uncovered": 9
+          },
+          "lines": {
+            "count": 36,
+            "covered": 9,
+            "percent": 25.0,
+            "uncovered": 27
+          },
+          "path": "Sources/SwiftQL/Operators/TextOperators.swift",
+          "regions": {
+            "count": 12,
+            "covered": 3,
+            "percent": 25.0,
+            "uncovered": 9
+          }
+        },
+        {
+          "functions": {
+            "count": 36,
+            "covered": 36,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 147,
+            "covered": 147,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/SQLCaseWhenThen.swift",
+          "regions": {
+            "count": 40,
+            "covered": 40,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 1,
+            "covered": 1,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 4,
+            "covered": 4,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/SQLCustomFunction.swift",
+          "regions": {
+            "count": 1,
+            "covered": 1,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 15,
+            "covered": 3,
+            "percent": 20.0,
+            "uncovered": 12
+          },
+          "lines": {
+            "count": 68,
+            "covered": 9,
+            "percent": 13.24,
+            "uncovered": 59
+          },
+          "path": "Sources/SwiftQL/SQLDatabase.swift",
+          "regions": {
+            "count": 15,
+            "covered": 3,
+            "percent": 20.0,
+            "uncovered": 12
+          }
+        },
+        {
+          "functions": {
+            "count": 73,
+            "covered": 69,
+            "percent": 94.52,
+            "uncovered": 4
+          },
+          "lines": {
+            "count": 297,
+            "covered": 268,
+            "percent": 90.24,
+            "uncovered": 29
+          },
+          "path": "Sources/SwiftQL/SQLEncoder.swift",
+          "regions": {
+            "count": 91,
+            "covered": 84,
+            "percent": 92.31,
+            "uncovered": 7
+          }
+        },
+        {
+          "functions": {
+            "count": 56,
+            "covered": 43,
+            "percent": 76.79,
+            "uncovered": 13
+          },
+          "lines": {
+            "count": 235,
+            "covered": 191,
+            "percent": 81.28,
+            "uncovered": 44
+          },
+          "path": "Sources/SwiftQL/SQLExpression.swift",
+          "regions": {
+            "count": 80,
+            "covered": 65,
+            "percent": 81.25,
+            "uncovered": 15
+          }
+        },
+        {
+          "functions": {
+            "count": 39,
+            "covered": 32,
+            "percent": 82.05,
+            "uncovered": 7
+          },
+          "lines": {
+            "count": 167,
+            "covered": 135,
+            "percent": 80.84,
+            "uncovered": 32
+          },
+          "path": "Sources/SwiftQL/SQLFunctionalSyntax.swift",
+          "regions": {
+            "count": 39,
+            "covered": 32,
+            "percent": 82.05,
+            "uncovered": 7
+          }
+        },
+        {
+          "functions": {
+            "count": 4,
+            "covered": 2,
+            "percent": 50.0,
+            "uncovered": 2
+          },
+          "lines": {
+            "count": 12,
+            "covered": 6,
+            "percent": 50.0,
+            "uncovered": 6
+          },
+          "path": "Sources/SwiftQL/SQLLogger.swift",
+          "regions": {
+            "count": 4,
+            "covered": 2,
+            "percent": 50.0,
+            "uncovered": 2
+          }
+        },
+        {
+          "functions": {
+            "count": 69,
+            "covered": 55,
+            "percent": 79.71,
+            "uncovered": 14
+          },
+          "lines": {
+            "count": 238,
+            "covered": 198,
+            "percent": 83.19,
+            "uncovered": 40
+          },
+          "path": "Sources/SwiftQL/SQLMeta.swift",
+          "regions": {
+            "count": 95,
+            "covered": 74,
+            "percent": 77.89,
+            "uncovered": 21
+          }
+        },
+        {
+          "functions": {
+            "count": 49,
+            "covered": 49,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 200,
+            "covered": 200,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/SQLOperators.swift",
+          "regions": {
+            "count": 49,
+            "covered": 49,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 92,
+            "covered": 73,
+            "percent": 79.35,
+            "uncovered": 19
+          },
+          "lines": {
+            "count": 271,
+            "covered": 217,
+            "percent": 80.07,
+            "uncovered": 54
+          },
+          "path": "Sources/SwiftQL/SQLStatements.swift",
+          "regions": {
+            "count": 104,
+            "covered": 84,
+            "percent": 80.77,
+            "uncovered": 20
+          }
+        },
+        {
+          "functions": {
+            "count": 5,
+            "covered": 4,
+            "percent": 80.0,
+            "uncovered": 1
+          },
+          "lines": {
+            "count": 27,
+            "covered": 22,
+            "percent": 81.48,
+            "uncovered": 5
+          },
+          "path": "Sources/SwiftQL/Statements/SQLCreateTableStatement.swift",
+          "regions": {
+            "count": 7,
+            "covered": 6,
+            "percent": 85.71,
+            "uncovered": 1
+          }
+        },
+        {
+          "functions": {
+            "count": 6,
+            "covered": 6,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 32,
+            "covered": 32,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Statements/SQLDeleteStatement.swift",
+          "regions": {
+            "count": 12,
+            "covered": 12,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 41,
+            "covered": 9,
+            "percent": 21.95,
+            "uncovered": 32
+          },
+          "lines": {
+            "count": 140,
+            "covered": 44,
+            "percent": 31.43,
+            "uncovered": 96
+          },
+          "path": "Sources/SwiftQL/Statements/SQLInsertStatement.swift",
+          "regions": {
+            "count": 47,
+            "covered": 15,
+            "percent": 31.91,
+            "uncovered": 32
+          }
+        },
+        {
+          "functions": {
+            "count": 50,
+            "covered": 33,
+            "percent": 66.0,
+            "uncovered": 17
+          },
+          "lines": {
+            "count": 171,
+            "covered": 120,
+            "percent": 70.18,
+            "uncovered": 51
+          },
+          "path": "Sources/SwiftQL/Statements/SQLQueryStatement.swift",
+          "regions": {
+            "count": 58,
+            "covered": 41,
+            "percent": 70.69,
+            "uncovered": 17
+          }
+        },
+        {
+          "functions": {
+            "count": 10,
+            "covered": 8,
+            "percent": 80.0,
+            "uncovered": 2
+          },
+          "lines": {
+            "count": 46,
+            "covered": 32,
+            "percent": 69.57,
+            "uncovered": 14
+          },
+          "path": "Sources/SwiftQL/Statements/SQLUpdateStatement.swift",
+          "regions": {
+            "count": 16,
+            "covered": 11,
+            "percent": 68.75,
+            "uncovered": 5
+          }
+        },
+        {
+          "functions": {
+            "count": 5,
+            "covered": 5,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "lines": {
+            "count": 16,
+            "covered": 16,
+            "percent": 100.0,
+            "uncovered": 0
+          },
+          "path": "Sources/SwiftQL/Statements/SQLWithStatement.swift",
+          "regions": {
+            "count": 5,
+            "covered": 5,
+            "percent": 100.0,
+            "uncovered": 0
+          }
+        },
+        {
+          "functions": {
+            "count": 21,
+            "covered": 18,
+            "percent": 85.71,
+            "uncovered": 3
+          },
+          "lines": {
+            "count": 63,
+            "covered": 54,
+            "percent": 85.71,
+            "uncovered": 9
+          },
+          "path": "Sources/SwiftQL/Types/Intrinsic.swift",
+          "regions": {
+            "count": 30,
+            "covered": 25,
+            "percent": 83.33,
+            "uncovered": 5
+          }
+        }
+      ],
+      "instrumented_source_files": 45,
+      "source_files": 47,
+      "source_root": "Sources/SwiftQL",
+      "totals": {
+        "functions": {
+          "count": 939,
+          "covered": 703,
+          "percent": 74.87,
+          "uncovered": 236
+        },
+        "lines": {
+          "count": 3628,
+          "covered": 2822,
+          "percent": 77.78,
+          "uncovered": 806
+        },
+        "regions": {
+          "count": 1159,
+          "covered": 891,
+          "percent": 76.88,
+          "uncovered": 268
+        }
+      }
+    }
+  },
+  "toolchain": {
+    "architecture": "arm64",
+    "llvm_cov": "/Applications/Xcode_16.2.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/llvm-cov\nApple LLVM version 16.0.0\n   (clang-1600.0.26.6)Optimized build.",
+    "llvm_profdata": "/Applications/Xcode_16.2.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/llvm-profdata\nllvm-profdata\nApple LLVM version 16.0.0\n   (clang-1600.0.26.6)Optimized build.",
+    "platform": "Darwin sjc22-bt149-2e5508f3-31b0-41fa-9aac-775963c4771c-D2602A6413A5.local 24.6.0 Darwin Kernel Version 24.6.0: Tue Apr 21 20:18:00 PDT 2026; root:xnu-11417.140.69.710.16~1/RELEASE_ARM64_VMAPPLE arm64",
+    "runner_image": "macos15 20260715.0234.1",
+    "sdk": "15.2",
+    "swift": "Apple Swift version 6.0.3 (swiftlang-6.0.3.1.10 clang-1600.0.30.1)\nTarget: arm64-apple-macosx15.0",
+    "xcode": "Xcode 16.2\nBuild version 16C5032a"
+  }
+}

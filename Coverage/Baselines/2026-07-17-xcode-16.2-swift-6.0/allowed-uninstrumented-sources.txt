@@ -1,0 +1,2 @@
+SwiftQL	Sources/SwiftQL/SQL.swift
+SwiftQL	Sources/SwiftQL/SQLScalarResult.swift
