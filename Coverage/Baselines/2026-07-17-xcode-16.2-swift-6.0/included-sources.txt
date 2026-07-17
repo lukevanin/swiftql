@@ -1,0 +1,49 @@
+SQLMacros	Sources/SQLMacros/Diagnostics.swift
+SQLMacros	Sources/SQLMacros/MetaBuilder.swift
+SQLMacros	Sources/SQLMacros/SQLMacro.swift
+SQLMacros	Sources/SQLMacros/SwiftSyntaxBuilder.swift
+SwiftQL	Sources/SwiftQL/Builders/InsertBuilder.swift
+SwiftQL	Sources/SwiftQL/Builders/QueryBuilder.swift
+SwiftQL	Sources/SwiftQL/Expression Builder/SQLCreateExpressionBuilder.swift
+SwiftQL	Sources/SwiftQL/Expression Builder/SQLDeleteExpressionBuilder.swift
+SwiftQL	Sources/SwiftQL/Expression Builder/SQLInsertExpressionBuilder.swift
+SwiftQL	Sources/SwiftQL/Expression Builder/SQLQueryExpressionBuilder.swift
+SwiftQL	Sources/SwiftQL/Expression Builder/SQLUpdateExpressionBuilder.swift
+SwiftQL	Sources/SwiftQL/FoundationExtensions.swift
+SwiftQL	Sources/SwiftQL/Functions/AggregateFunctions.swift
+SwiftQL	Sources/SwiftQL/Functions/ComparableFunctions.swift
+SwiftQL	Sources/SwiftQL/Functions/ConditionalFunctions.swift
+SwiftQL	Sources/SwiftQL/Functions/DateFunctions.swift
+SwiftQL	Sources/SwiftQL/Functions/ExpressionFunctions.swift
+SwiftQL	Sources/SwiftQL/Functions/JSONFunctions.swift
+SwiftQL	Sources/SwiftQL/Functions/NumericFunctions.swift
+SwiftQL	Sources/SwiftQL/Functions/StringFunctions.swift
+SwiftQL	Sources/SwiftQL/Functions/TypeCastFunctions.swift
+SwiftQL	Sources/SwiftQL/GRDBLiveQueryRetryPolicy.swift
+SwiftQL	Sources/SwiftQL/GRDBSQLDatabase.swift
+SwiftQL	Sources/SwiftQL/Operators/BooleanOperators.swift
+SwiftQL	Sources/SwiftQL/Operators/ComparableExpressionOperators.swift
+SwiftQL	Sources/SwiftQL/Operators/EquatableExpressionOperators.swift
+SwiftQL	Sources/SwiftQL/Operators/InOperator.swift
+SwiftQL	Sources/SwiftQL/Operators/IntegerOperators.swift
+SwiftQL	Sources/SwiftQL/Operators/NumericOperators.swift
+SwiftQL	Sources/SwiftQL/Operators/OptionalOperators.swift
+SwiftQL	Sources/SwiftQL/Operators/RealOperators.swift
+SwiftQL	Sources/SwiftQL/Operators/TextOperators.swift
+SwiftQL	Sources/SwiftQL/SQLCaseWhenThen.swift
+SwiftQL	Sources/SwiftQL/SQLCustomFunction.swift
+SwiftQL	Sources/SwiftQL/SQLDatabase.swift
+SwiftQL	Sources/SwiftQL/SQLEncoder.swift
+SwiftQL	Sources/SwiftQL/SQLExpression.swift
+SwiftQL	Sources/SwiftQL/SQLFunctionalSyntax.swift
+SwiftQL	Sources/SwiftQL/SQLLogger.swift
+SwiftQL	Sources/SwiftQL/SQLMeta.swift
+SwiftQL	Sources/SwiftQL/SQLOperators.swift
+SwiftQL	Sources/SwiftQL/SQLStatements.swift
+SwiftQL	Sources/SwiftQL/Statements/SQLCreateTableStatement.swift
+SwiftQL	Sources/SwiftQL/Statements/SQLDeleteStatement.swift
+SwiftQL	Sources/SwiftQL/Statements/SQLInsertStatement.swift
+SwiftQL	Sources/SwiftQL/Statements/SQLQueryStatement.swift
+SwiftQL	Sources/SwiftQL/Statements/SQLUpdateStatement.swift
+SwiftQL	Sources/SwiftQL/Statements/SQLWithStatement.swift
+SwiftQL	Sources/SwiftQL/Types/Intrinsic.swift

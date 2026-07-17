@@ -19,6 +19,10 @@ VERIFY_SCRIPT = Path(__file__).with_name(
     "verify-source-coverage-reproducibility.sh"
 )
 WORKFLOW = SCRIPT.parents[2] / ".github/workflows/swift.yml"
+INITIAL_BASELINE = (
+    SCRIPT.parents[2]
+    / "Coverage/Baselines/2026-07-17-xcode-16.2-swift-6.0"
+)
 
 
 def metric(count: int, covered: int) -> Dict[str, Any]:
@@ -478,6 +482,48 @@ class CoverageWorkflowTests(unittest.TestCase):
             "name: swiftql-source-coverage-${{ env.COVERAGE_SOURCE_SHA }}-",
             workflow,
         )
+
+    def test_checked_in_initial_baseline_is_internally_consistent(self) -> None:
+        report = json.loads(
+            (INITIAL_BASELINE / "first-party-coverage.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        reproducibility = json.loads(
+            (INITIAL_BASELINE / "reproducibility.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        included = (INITIAL_BASELINE / "included-sources.txt").read_bytes()
+        repeated = (
+            INITIAL_BASELINE / "repeated-included-sources.txt"
+        ).read_bytes()
+        allowed = (
+            INITIAL_BASELINE / "allowed-uninstrumented-sources.txt"
+        ).read_text(encoding="utf-8").splitlines()
+
+        self.assertEqual(
+            report["source_commit"],
+            "9152d8409aa55df5bc96e9c74411b3c4fb166429",
+        )
+        self.assertEqual(report["source_tree_state"], "clean")
+        self.assertEqual(report["source_commit"], reproducibility["source_commit"])
+        self.assertTrue(reproducibility["normalized_reports_match"])
+        self.assertEqual(included, repeated)
+        self.assertEqual(
+            hashlib.sha256(included).hexdigest(),
+            report["filtering"]["included_sources_sha256"],
+        )
+        self.assertEqual(
+            len(included.decode("utf-8").splitlines()),
+            report["filtering"]["included_source_files"],
+        )
+        self.assertEqual(
+            len(allowed),
+            report["filtering"]["allowed_uninstrumented_source_files"],
+        )
+        self.assertEqual(set(report["targets"]), {"SQLMacros", "SwiftQL"})
+        self.assertFalse(list(INITIAL_BASELINE.glob("llvm-coverage.*")))
 
 
 if __name__ == "__main__":

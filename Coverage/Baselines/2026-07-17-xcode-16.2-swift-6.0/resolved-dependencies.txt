@@ -1,0 +1,8 @@
+Resolved dependency graph:
+.
+├── swift-syntax<https://github.com/apple/swift-syntax.git@509.1.1>
+├── grdb.swift<https://github.com/groue/GRDB.swift.git@6.29.3>
+└── swift-docc-plugin<https://github.com/apple/swift-docc-plugin.git@1.4.5>
+    └── swift-docc-symbolkit<https://github.com/swiftlang/swift-docc-symbolkit@1.0.0>
+Resolved GRDB: ├── grdb.swift<https://github.com/groue/GRDB.swift.git@6.29.3>
+Resolved SwiftSyntax: ├── swift-syntax<https://github.com/apple/swift-syntax.git@509.1.1>

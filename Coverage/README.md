@@ -75,7 +75,19 @@ such reports.
 
 ## Baselines and follow-ups
 
-The initial pinned Xcode 16.2 baseline is stored under `Coverage/Baselines/`.
-Large uncovered areas are ranked as follow-up candidates, not treated as an
-automatic failure. Material gaps are tracked in linked atomic GitHub issues so
-coverage work cannot silently expand the architecture PRs.
+The [initial pinned Xcode 16.2 baseline](Baselines/2026-07-17-xcode-16.2-swift-6.0/README.md)
+records two byte-identical clean reports from source commit
+`9152d8409aa55df5bc96e9c74411b3c4fb166429`, including the source manifests,
+resolved dependencies, full toolchain provenance, target totals, retained
+artifact identity, and two-run verdict.
+
+The first baseline reports SQLMacros at 2164/2218 lines and 154/157 functions,
+and SwiftQL at 2822/3628 lines and 703/939 functions. Those numbers rank
+follow-up candidates; they are not an automatic failure threshold.
+
+Material non-duplicate gaps are tracked by
+[#195](https://github.com/lukevanin/swiftql/issues/195) for the public fluent
+`INSERT ... SELECT` transition matrix and
+[#194](https://github.com/lukevanin/swiftql/issues/194) for QueryBuilder's
+missing-`FROM` rejection. Both issues carry an explicit priority and the v1.2
+milestone so coverage work cannot silently expand unrelated architecture PRs.
