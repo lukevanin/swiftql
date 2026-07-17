@@ -1,0 +1,11 @@
+{
+  "task_name": "Establish query construction, preparation, cache, and execution performance baselines",
+  "issue_number": 128,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/128",
+  "workspace_repo": "lukevanin/swiftql",
+  "codex_session_title": "lukevanin/swiftql#128 - Establish performance baselines",
+  "codex_session_id": "019f6ab7-ff93-71b2-977a-aa0d3f5c581b",
+  "codex_session_url": null,
+  "task_branch": "codex/128-performance-baselines",
+  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/128-performance-baselines"
+}
