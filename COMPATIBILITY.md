@@ -145,6 +145,23 @@ SWIFTQL_SCRATCH_PATH=/path/to/swiftql/.build \
   scripts/ci/check-first-party-warnings.sh
 ```
 
+## DocC source validation
+
+Treat first-party DocC diagnostics as errors when changing public documentation
+or symbols:
+
+```sh
+swift package generate-documentation --target SwiftQL --warnings-as-errors
+```
+
+The source catalog contains the SwiftQL landing page and nine articles. Every
+Swift fence carries a marker for a named `XLDocumentationTests` scenario;
+`SQLDocumentationCatalogTests` verifies the complete file set, marker registry,
+fence languages, and current API spellings. After generation, inspect
+`.build/plugins/Swift-DocC/outputs/SwiftQL.doccarchive/data/documentation/` for
+`swiftql.json` and the nine article JSON files. Generated archive contents are
+build artifacts and are not committed by this validation step.
+
 ## Complete strict concurrency
 
 SwiftQL's supported Swift 6 compiler also checks every first-party product and

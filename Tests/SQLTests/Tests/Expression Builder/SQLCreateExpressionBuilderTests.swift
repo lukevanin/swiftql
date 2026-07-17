@@ -50,7 +50,7 @@ final class XLCreateExpressionBuilderTests: XCTestCase {
             let t = schema.create(GenericTable<String>.self)
             Create(t)
         }
-        XCTAssertEqual(encoder.makeSQL(expression).sql, "CREATE TABLE IF NOT EXISTS Generic (id NOT NULL, value NOT NULL)")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "CREATE TABLE IF NOT EXISTS Generic (id NOT NULL, type NOT NULL, value NOT NULL)")
     }
     
     

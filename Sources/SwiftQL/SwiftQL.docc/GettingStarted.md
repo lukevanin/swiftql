@@ -21,6 +21,7 @@ comprehensive discussion about using SQL.
 Before we can query our database we need to define the structure of our tables.
 A table is defined using a `struct`, annotated with `@SQLTable`:
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 import SwiftQL
 
@@ -32,11 +33,11 @@ import SwiftQL
 } 
 ```
 
-This defines a table named `Person` with some properties. SwiftQL supports the 
-following intrinsic (fundamental) properties which correspond to SQLite counter
-parts:
+This defines a table named `Person` with some properties. SwiftQL uses the
+following intrinsic (fundamental) Swift types when binding values to SQLite and
+reading values from SQLite:
 
-SwiftQL          | SQLite
+SwiftQL          | SQLite storage class
 -----------------|-----------------------
 Bool             | INTEGER (0 or 1)
 Int              | INTEGER
@@ -44,8 +45,11 @@ Double           | REAL
 String           | TEXT
 Data             | BLOB
 
-SwiftQL also supports optional types, which correspond to a `NULL` column in 
-SQLite.
+These mappings provide type safety for Swift expressions, bindings, and decoded
+results. The current `sqlCreate` implementation does not emit SQLite declared
+type names, so SQLite assigns the generated columns BLOB affinity. Optional
+properties can store `NULL`; non-optional properties are emitted with a
+`NOT NULL` constraint.
 
 ### Creating tables
 
@@ -53,6 +57,7 @@ Before you can use your table you need to create it. In SwiftQL we can use the
 `sqlCreate` helper function to create a basic table. SwiftQL also allows you to
 to create tables using `Select` statements, which we will look at later.
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 let createPersonStatement = sqlCreate(Person.self)
 ```
@@ -61,16 +66,15 @@ This would be equivalent to writing the following SQL:
 
 ```sql
 CREATE TABLE IF NOT EXISTS Person (
-    id TEXT NOT NULL,
-    occupationId TEXT NULL,
-    name TEXT NOT NULL,
-    age INT NOT NULL
-);
+    id NOT NULL,
+    occupationId,
+    name NOT NULL,
+    age NOT NULL
+)
 ```
 
-SwiftQL translates to the Swift types to a compatible intrinsic type in SQLite. 
-Non-optional fields are been defined as `NOT NULL`, while optional fields are 
-defined as `NULL`. 
+The generated statement omits declared SQLite types. Non-optional properties are
+defined as `NOT NULL`, while optional properties omit that constraint.
 
 > Note: The `IF NOT EXISTS` term is added by SwiftQL, and informs SQLite to 
 bypass creating the table if it already exists. This allows us to safely execute 
@@ -86,14 +90,18 @@ development.
 
 First we initialize our database:
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
+import Foundation
+
 let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
 let file = directory.appending(path: "my_database.sqlite")
-let database = try GRDBDatabase(url: file)
+let database = try GRDBDatabase(url: file, logger: nil)
 ```
 
 Once the database is initialised, we can create and execute the statement:  
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 try database.makeRequest(with: createPersonStatement).execute()
 ```
@@ -109,18 +117,20 @@ tutorial.
 Our database has been created but it is currently empty. Let's add some data.
 First we create an instance of our table struct:
 
-```
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
+```swift
 let fredPerson = Person(
     id: "fred",
     occupationId: nil,
     name: "Fred",
-    age: "31"
+    age: 31
 )
 ```
 
 We can then create and execute the request:
 
-```
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
+```swift
 try database.makeRequest(with: sqlInsert(fredPerson)).execute()
 ```
 
@@ -133,15 +143,15 @@ VALUES ('fred', NULL, 'Fred', 31)
 
 ## Running select queries
 
-Now that we have some data, we can run a select query. In the example below we 
-prepare the query and execute it:
+Now that we have some data, we can construct and execute a select query:
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
     Select(person)
     From(person)
-    Where(person.name == 'Fred')
+    Where(person.name == "Fred")
 }
 let result = try database.makeRequest(with: query).fetchAll()
 ```
@@ -152,6 +162,7 @@ We used `fetchAll` to execute a select query instead of calling  `execute`.
 Using `fetchAll` returns an array of all of the matching records for the query. 
 We can also use `fetchOne` to fetch only the first result from the query.
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 let firstResult = try database.makeRequest(with: query).fetchOne()
 ```
@@ -165,12 +176,13 @@ construct a reference to the table used in the query. A common convention is to
 omit the `schema` parameter name entirely and use the default parameter name 
 `$0` instead:
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 let query = sql { 
     let person = $0.table(Person.self)
     Select(person)
     From(person)
-    Where(person.name == 'Fred')
+    Where(person.name == "Fred")
 }
 ```
 
@@ -178,13 +190,14 @@ The guide documentation use the explicit `schema` for clarity.
 
 ### Prepared statements
 
-So far we have made the request each time we needed to execute it. Instead we 
-can store the request and reuse it later. When the request is created SwiftQL 
-will use an SQLite prepared statement. SQLite will parse the SQL string into 
-low-level byte code which can be executed efficiently, without needing to parse 
-the SQL each time. Re-using requests can potentially improve performance of
-complex queries at runtime.
+So far we have made the request each time we needed to execute it. Instead we
+can store the request and reuse it later. Creating a request translates the
+SwiftQL statement into SQL, but does not prepare it immediately. When a request
+is fetched or executed, GRDB obtains a cached SQLite statement for that SQL. The
+first execution prepares the statement, and later executions on the same
+database connection can reuse the cached statement.
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -192,11 +205,12 @@ let query = sql { schema in
     From(person)
     Where(person.age >= 21 && person.age < 65)
 }
-let request = try database.makeRequest(with: query)
+let request = database.makeRequest(with: query)
 ```
 
-Once created we can call the prepared statement whenever it is needed.
+Once created we can execute the request whenever it is needed.
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 let result = try request.fetchAll()
 ```
@@ -206,15 +220,17 @@ let result = try request.fetchAll()
 SwiftQL allows you to use variables in queries in a type-safe manner.
 
 First define a variable binding using the generic `XLNamedBindingReference`, and
-specifying the type of the variable, as well as a name. The name is used for 
-debugging SQL statements as does not affect the query:
+specifying the type of the variable as well as a name. The name appears in the
+rendered SQL placeholder and is used when binding the request:
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 let nameParameter = XLNamedBindingReference<String>(name: "name")
 ```
 
 We can include the variable parameter in a query:
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -222,15 +238,16 @@ let query = sql { schema in
     From(person)
     Where(person.name == nameParameter)
 }
-let request = try database.makeRequest(with: query)
+let request = database.makeRequest(with: query)
 ```
 
 This is equivalent to the following SQL:
 
 ```sql
-SELECT *
-FROM Person AS person
-WHERE person.name == :name
+SELECT t0.id AS id, t0.occupationId AS occupationId,
+       t0.name AS name, t0.age AS age
+FROM Person AS t0
+WHERE (t0.name == :name)
 ```
 
 The name parameter is not assigned to a value yet. We assign the parameter value
@@ -238,10 +255,11 @@ when we execute the query. A best practice when assigning parameters is to
 create a copy of the request then assign the parameter. We can take advantage of
 copy-on-write semantics for value types:
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 var newRequest = request
 newRequest.set(nameParameter, "Fred")
-return try request.fetchAll()
+let results = try newRequest.fetchAll()
 ```
 
 This binds the value "Fred" to the name parameter in the context of the request
@@ -252,6 +270,7 @@ before fetching all of the matching results.
 We can modify an existing record using an update statement. In this example we
 set the age of the person whose id is `fred` to the value `42`.
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 let updateStatement = sql { schema in
     let person = schema.into(Person.self)
@@ -260,7 +279,7 @@ let updateStatement = sql { schema in
         row.age = 42
     }
     Where(
-        person.id == 'fred'
+        person.id == "fred"
     )
 }
 
@@ -276,6 +295,7 @@ where clause to limit the scope of changes.
 We can also a prepared statement with named parameters for common update 
 operations:
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 let idParameter = XLNamedBindingReference<String>(name: "id")
 let ageParameter = XLNamedBindingReference<Int>(name: "age")
@@ -291,9 +311,9 @@ let updateStatement = sql { schema in
     )
 }
 
-let updateRequest = try database.makeRequest(with: updateStatement)
+let updateRequest = database.makeRequest(with: updateStatement)
 
-...
+// Later, when the update is needed:
 
 var newUpdateRequest = updateRequest
 newUpdateRequest.set(idParameter, "fred")
@@ -306,6 +326,7 @@ try newUpdateRequest.execute()
 We can delete records by specifying the table and a where clause for the items
 to delete. The example shows a prepared statement with parameters:
 
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
 let idParameter = XLNamedBindingReference<String>(name: "id")
 
@@ -315,9 +336,9 @@ let deleteStatement = sql { schema in
     Where(person.id == idParameter)
 }
 
-let deleteRequest = try database.makeRequest(with: deleteStatement)
+let deleteRequest = database.makeRequest(with: deleteStatement)
 
-...
+// Later, when the deletion is needed:
 
 var newDeleteRequest = deleteRequest
 newDeleteRequest.set(idParameter, "fred")

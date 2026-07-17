@@ -12,6 +12,7 @@ fetch. The observation then tracks the database region that the query actually r
 
 Use `publish()` to observe all rows returned by a request:
 
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
 ```swift
 let cancellable = request.publish().sink(
     receiveCompletion: { completion in
@@ -27,6 +28,7 @@ let cancellable = request.publish().sink(
 
 Use `publishOne()` to observe just the first result:
 
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
 ```swift
 let cancellable = request.publishOne().sink(
     receiveCompletion: { completion in

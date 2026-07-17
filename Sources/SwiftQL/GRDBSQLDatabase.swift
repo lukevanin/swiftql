@@ -341,6 +341,7 @@ struct GRDBWriteRequest: XLWriteRequest {
 }
 
 
+/// Configures a GRDB-backed SwiftQL database before its connection pool is created.
 public struct GRDBDatabaseBuilder {
     
     private let url: URL
@@ -351,6 +352,13 @@ public struct GRDBDatabaseBuilder {
     
     private let logger: XLLogger?
     
+    /// Creates a database builder.
+    ///
+    /// - Parameters:
+    ///   - url: The SQLite database file URL.
+    ///   - configuration: The GRDB connection configuration to extend.
+    ///   - formatter: The formatter used when SwiftQL renders SQL.
+    ///   - logger: An optional logger for executed statements.
     public init(url: URL, configuration: GRDB.Configuration, formatter: XLiteFormatter = XLiteFormatter(), logger: XLLogger?) throws {
         self.url = url
         self.configuration = configuration
@@ -358,6 +366,9 @@ public struct GRDBDatabaseBuilder {
         self.logger = logger
     }
     
+    /// Registers a custom scalar function on every database connection created by the builder.
+    ///
+    /// - Parameter function: The custom function type to register.
     public mutating func addFunction<F>(_ function: F.Type) where F: XLCustomFunction, F.T: DatabaseValueConvertible {
         configuration.prepareDatabase { database in
             database.add(
@@ -373,6 +384,7 @@ public struct GRDBDatabaseBuilder {
         }
     }
 
+    /// Creates the configured database and its connection pool.
     public func build() throws -> GRDBDatabase {
         try GRDBDatabase(
             databasePool: try DatabasePool(path: url.path(percentEncoded: false), configuration: configuration),
@@ -383,14 +395,24 @@ public struct GRDBDatabaseBuilder {
 }
 
 
+/// A SwiftQL database adapter backed by a GRDB `DatabasePool`.
 public struct GRDBDatabase: XLDatabase {
     
+    /// The GRDB connection pool used to execute requests.
     public let databasePool: DatabasePool
     
+    /// The encoder used to render SwiftQL statements.
     public let encoder: XLEncoder
     
     private let logger: XLLogger?
     
+    /// Opens a GRDB-backed SQLite database.
+    ///
+    /// - Parameters:
+    ///   - url: The SQLite database file URL.
+    ///   - configuration: The GRDB connection configuration.
+    ///   - formatter: The formatter used when SwiftQL renders SQL.
+    ///   - logger: An optional logger for executed statements.
     public init(
         url: URL,
         configuration: GRDB.Configuration = GRDB.Configuration(),
@@ -404,6 +426,12 @@ public struct GRDBDatabase: XLDatabase {
         )
     }
     
+    /// Wraps an existing GRDB database pool.
+    ///
+    /// - Parameters:
+    ///   - databasePool: The pool used to execute requests.
+    ///   - formatter: The formatter used when SwiftQL renders SQL.
+    ///   - logger: An optional logger for executed statements.
     public init(databasePool: DatabasePool, formatter: XLiteFormatter, logger: XLLogger?) throws {
         self.encoder = XLiteEncoder(formatter: formatter)
         self.databasePool = databasePool

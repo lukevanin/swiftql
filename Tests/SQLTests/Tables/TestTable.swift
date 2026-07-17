@@ -35,8 +35,9 @@ struct Temp: Identifiable, Equatable {
 
 
 @SQLTable(name: "Generic")
-struct GenericTable<Value>: Identifiable, Equatable where Value: XLLiteral & XLExpression & Equatable {
+struct GenericTable<Value: XLLiteral & XLExpression> {
     var id: String
+    var type: String
     var value: Value
 }
 

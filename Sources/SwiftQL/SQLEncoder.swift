@@ -24,7 +24,7 @@ public protocol XLEncodable {
     ///
     /// Wraps an SQL expression.
     ///
-    /// The `unwrapSQL` method is applied to every occurrance of the custom type in an SQL expression
+    /// The `unwrapSQL` method is applied to every occurrence of the custom type in an SQL expression
     /// when it is read.
     ///
     /// Custom types may implement this method to apply custom transformations to an intrinsic SQL value,
@@ -675,8 +675,8 @@ public struct XLiteBuilder: XLBuilder {
         append(formatter.name(value.rawValue))
     }
     
-    public mutating func qualifiedName(_ name: XLQualifiedName) {
-        append(formatter.scopedName(name.components.map { $0.rawValue }))
+    public mutating func qualifiedName(_ value: XLQualifiedName) {
+        append(formatter.scopedName(value.components.map { $0.rawValue }))
     }
     
     public mutating func namedBinding(_ name: XLName) {
@@ -885,7 +885,8 @@ public struct XLiteColumnDefinitionsBuilder: XLColumnDefinitionsBuilder {
     
     ///
     /// Append a column to a table CREATE statement.
-    /// Note: We do not include the type definition, but instead rely on XLite type affinity to cast the stored value to the type defined in Swift.
+    /// SwiftQL does not emit a declared SQLite type for the column. Values are
+    /// encoded and decoded using the column's Swift literal type.
     ///
     public mutating func column(name: XLName, nullable: Bool) {
                 

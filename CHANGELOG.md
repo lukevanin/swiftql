@@ -4,6 +4,9 @@
 
 ### Added
 
+- Added compile-time-checked scenario mappings for every Swift example in the
+  DocC landing page and source articles, with a catalog test that rejects
+  untyped fences, stale API spellings, and unknown test markers.
 - Added a provenance-aware warnings-as-errors gate for every supported compiler
   lane. It blocks SwiftQL-owned and unclassified warnings while reporting
   dependency and toolchain diagnostics separately.
@@ -27,6 +30,9 @@
 
 ### Fixed
 
+- Updated DocC examples and key public symbol documentation to the current API.
+  Source documentation now generates cleanly with DocC warnings treated as
+  errors.
 - Generated `.columns(...)` helpers no longer call the deprecated `result`
   helper, and immutable table macros no longer emit never-mutated-local
   warnings. Projection factories are emitted as nominal macro members so their

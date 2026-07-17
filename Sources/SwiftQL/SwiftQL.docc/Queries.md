@@ -19,13 +19,14 @@ guide covers:
 The <doc:GettingStarted> showed `Where` clauses being used in select statements.
 This section covers the capabilities of `Where` clauses in more detail.
 
-The result of a `Where` expression always resolves to a boolean value. Rows for
-which the boolean value resolves to `true` are included in the result, and all
-other rows are excluded.
+`Where` predicates use SQLite's three-valued logic and can evaluate to `true`,
+`false`, or `NULL`. Only rows for which the predicate is `true` are included;
+rows producing `false` or `NULL` are excluded.
 
 We have already seen a simple `Where` expression where we check if a field is 
 equal to a static value or a parameter:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -35,15 +36,16 @@ let query = sql { schema in
 }
 ```
 
-A where expression can include multiple terms. SwiftQL does not impose any limit
-on the complexity of the `Where` clause:
+A `Where` expression can include multiple terms. SwiftQL's builder does not add
+its own complexity limit; the configured SQLite engine's limits still apply:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
     Select(person)
     From(person)
-    Where(person.id == "fred" || ((person.age > 21) && (person.age < 65))
+    Where(person.id == "fred" || ((person.age > 21) && (person.age < 65)))
 }
 ```
 
@@ -58,6 +60,7 @@ to shine. SwiftQL supports cross join, inner join, and left (outer) join.
 
 First let's define an `Occupation` table that we can join to our `Person` table:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 import SwiftQL
 
@@ -69,6 +72,7 @@ import SwiftQL
 
 Let's create the table and insert some entries:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 try database.makeRequest(with: sqlCreate(Occupation.self)).execute()
 
@@ -81,8 +85,9 @@ try database.makeRequest(with: sqlInsert(scientist)).execute()
 
 Let's also create some `Person` entries linked to these occupations:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
-let joeBloggs = Person(id: "joe-bloggs", occupationId: "eng", name: "Joe Bloggs", age: "25")
+let joeBloggs = Person(id: "joe-bloggs", occupationId: "eng", name: "Joe Bloggs", age: 25)
 try database.makeRequest(with: sqlInsert(joeBloggs)).execute()
 
 let janeDoe = Person(id: "jane-doe", occupationId: "sci", name: "Jane Doe", age: 45)
@@ -92,21 +97,22 @@ let davidSmith = Person(id: "david-smith", occupationId: "sci", name: "David Smi
 try database.makeRequest(with: sqlInsert(davidSmith)).execute()
 ```
 
-When joining multiple tables the result is often, although not always, a 
-combination of columns from some or or all of the tables. To define an result
+When joining multiple tables the result is often, although not always, a
+combination of columns from some or all of the tables. To define a result
 with an arbitrary combination of columns we use a struct annotated with 
 `@SQLResult`.
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 import SwiftQL
 
-@SQLResult PersonOccupation {
+@SQLResult struct PersonOccupation {
     let personId: String
     let personName: String
     let occupationId: String?
     let occupationName: String?
 }
-``` 
+```
 
 We can now write a query that selects all of the people in the database with 
 their occupation. The `occupationId` on the `Person` table is optional so when
@@ -114,6 +120,7 @@ we join the `Occupation` table it is possible that the `Occupation` table will
 be `NULL` for that person. To handle this we need to tell SwiftQL that we expect
 a *nullable* table to be returned.
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -121,8 +128,8 @@ let query = sql { schema in
     Select(
         PersonOccupation.columns(
             personId: person.id,
-            occupationId: occupation.id,
             personName: person.name,
+            occupationId: occupation.id,
             occupationName: occupation.name
         )
     )
@@ -136,14 +143,15 @@ uses fields from both the `Person` and `Occupation` tables.
 
 We can also reference the fields of the result column set in the query:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
     let occupation = schema.nullableTable(Occupation.self)
     let row = PersonOccupation.columns(
         personId: person.id,
-        occupationId: occupation.id,
         personName: person.name,
+        occupationId: occupation.id,
         occupationName: occupation.name
     )
     Select(row)
@@ -153,8 +161,8 @@ let query = sql { schema in
 }
 ```
 
-> Tip: SwiftQL does not impose a limit on the  number of tables that can be 
-joined in a query.
+> Tip: SwiftQL's builder does not add its own limit on joined tables. The
+> configured SQLite engine's limits still apply.
 
 > Tip: Use `Join.Cross` or `Join.Inner` to perform a cross or inner 
 join respectively.
@@ -168,11 +176,12 @@ matching some criteria.
 Let's define a `@SQLResult` to return the total number of people for each 
 occupation:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 import SwiftQL
 
 @SQLResult struct OccupationAggregate {
-    var occupationId: String
+    var occupationId: String?
     var numberOfPeople: Int
 }
 ```
@@ -181,6 +190,7 @@ We can write a query to select the person records grouped by their
 `occupationId`, and use the `count()` aggregate function to compute the number
 of people for each occupation.
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -210,6 +220,7 @@ Except for `count()`, these aggregates return `nil` when SQLite evaluates an
 empty input or a group containing no non-NULL values. Model those results with
 optional properties, or choose a nonoptional fallback explicitly:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 @SQLResult struct AgeAggregate {
     var minimumAge: Int?
@@ -247,8 +258,9 @@ Earlier SwiftQL releases incorrectly exposed the custom-separator overload on
 numeric expressions. Convert a numeric expression with `toString()` before
 calling `groupConcatOrNull(separator:)`.
 
-> Important: A group by clause must include at least one aggregate term. SwiftQL
-currently does not enforce correctness of a query containing a group by clause.
+SQLite permits a `GROUP BY` clause with or without aggregate result terms.
+SwiftQL preserves the grouping expression but leaves SQLite to validate the
+complete query.
 
 ## Having
 
@@ -257,6 +269,7 @@ groups. Think of like a where clause but operating on groups instead of
 individual rows. As an example we can filter our previous query to only include 
 occupations where there are two or more people with that occupation:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -276,6 +289,7 @@ let query = sql { schema in
 Query results can be sorted using the order by clause. Use the `ascending` or
 `descending` functions on the column or columns to sort by:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -287,6 +301,7 @@ let query = sql { schema in
 
 To sort by multiple columns, include the columns in the order by clause:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -301,6 +316,7 @@ let query = sql { schema in
 Use the limit clause to specify the maximum number of items to return from a 
 query. We can write a query to return the five youngest people in the database:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -308,11 +324,13 @@ let query = sql { schema in
     From(person)
     OrderBy(person.age.ascending())
     Limit(5)
+}
 ```
 
 The offset clause is used in conjunction with the limit clause. Offset skips a 
 number of rows, and is often used to paginate results from a large result set:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -321,6 +339,7 @@ let query = sql { schema in
     OrderBy(person.age.ascending())
     Limit(5)
     Offset(10)
+}
 ```
 
 ## Subqueries
@@ -328,14 +347,16 @@ let query = sql { schema in
 Subqueries can be used anywhere that a column is used, such as in a result for
 a `Select` query:
 
-```
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
+```swift
 @SQLResult struct OccupationCount {
     let occupation: String
-    let numberOfPeople: Int
+    let numberOfPeople: Int?
 }
 ```
 
-```
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
+```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
     let occupation = schema.table(Occupation.self)
@@ -343,7 +364,7 @@ let query = sql { schema in
         OccupationCount.columns(
             occupation: occupation.name,
             numberOfPeople: subqueryExpression { _ in
-                Select(count(person.id))
+                Select(person.id.count())
                 From(person)
                 Where(person.occupationId == occupation.id)
             }
@@ -353,8 +374,9 @@ let query = sql { schema in
 }
 ```
 
-Subqueries can also be used in place of a table in a `From` or `Joine` clause:
+Subqueries can also be used in place of a table in a `From` or `Join` clause:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
@@ -375,7 +397,7 @@ subquery with the `in` operator.
 
 ## Union, Union All, Except, Intersect
 
-The result of two or more select statements can be combined into a compund query 
+The result of two or more select statements can be combined into a compound query
 using the union, union all, except, or intersect operators. 
 
 Suppose we have a table representing a family tree, and we want to select the 
@@ -383,18 +405,21 @@ mother and father of each member in the tree.
 
 We first define a table representing the family tree:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 @SQLTable struct Family {
     var name: String?
     var mom: String?
     var dad: String?
-    var born: Date?
-    var died: Date?
+    // Fixed-width UTC ISO-8601 dates retain chronological order as text.
+    var born: String?
+    var died: String?
 }
 ```
 
 We also define a result set for the name of the family member and their parent:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 @SQLResult struct FamilyMemberParent {
     let name: String?
@@ -405,6 +430,7 @@ We also define a result set for the name of the family member and their parent:
 We can select the mother and father for each family member, then combine the 
 results using a `union`.
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let query = sql { schema in
     // Define the tables used in the two queries.
@@ -414,14 +440,14 @@ let query = sql { schema in
     // Define the result that reads the person's name and their mother's name.
     let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
 
-    // Define the result that reads the person's name and their fathers's name.
+    // Define the result that reads the person's name and their father's name.
     let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
 
     // Fetch the name of the mother for each person.
     Select(momRow)
     From(familyMom)
 
-    // Use union to append the results of the second query.
+    // Use union to combine the results of the second query.
     Union()
 
     // Fetch the name of the father for each person.
@@ -430,9 +456,10 @@ let query = sql { schema in
 }
 ```
 
-Using a `UnionAll`, the final result contains the combined results of the first 
-query followed by the results of the second query. A `Union` is similar except 
-duplicate rows are excluded.
+`UnionAll` combines the rows from both queries and preserves duplicates. `Union`
+is similar except duplicate rows are excluded. SQLite does not guarantee the
+order of compound-query rows unless the compound statement has an `OrderBy`
+clause.
 
 The `Except` operator returns the results from the first query that are not also 
 in the second query, which is to say that the row is omitted if it is returned 
@@ -440,7 +467,7 @@ by both queries.
 
 The `Intersect` operator returns rows that are present in both queries.
 
-> Tip: All of the select statements used in an compound query must return the 
+> Tip: All of the select statements used in a compound query must return the
 same data type.
 
 ## Common table expressions
@@ -453,10 +480,11 @@ select statements within the same query.
 To use a common table expression:
 1. Call the `commonTableExpression` function to create the common table 
 expression, passing a closure that returns a select query.
-2. Call the `table` function to identify the common table expression as a table.
-3. Call `with` before `select`, to include the common table expression in 
+2. Call `schema.table` to identify the common table expression as a table.
+3. Call `With` before `Select` to include the common table expression in
 the query.
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let _ = sql { schema in
     let personCommonTable = schema.commonTableExpression { schema in
@@ -468,32 +496,36 @@ let _ = sql { schema in
     let person = schema.table(personCommonTable)
     With(personCommonTable)
     Select(person)
-    From(person))
+    From(person)
+}
 ```
 
 This is equivalent to the following SQL:
 
 ```sql
-WITH 
- personCommonTable AS (
+WITH cte0 AS (
   SELECT
-   person.*
+   t0.id AS id,
+   t0.occupationId AS occupationId,
+   t0.name AS name,
+   t0.age AS age
   FROM
-   Person AS person
+   Person AS t0
   WHERE
-   person.occupationId NOTNULL
+   (t0.occupationId NOTNULL)
 )
 SELECT
- person.*
+ t0.id AS id,
+ t0.occupationId AS occupationId,
+ t0.name AS name,
+ t0.age AS age
 FROM
- personCommonTable AS person
+ cte0 AS t0
 ```
 
-> Note: A common table expression cannot be used direcly in a select, from, or join:
-
-```
-let _ = select(personCommonTable) // Error, cannot select from common table expression 
-```
+> Note: A common table expression definition cannot be passed directly to
+`Select`, `From`, or `Join`. For example, `Select(personCommonTable)` is invalid;
+first obtain a table reference with `schema.table(personCommonTable)`.
 
 ### Recursive common table expressions
 
@@ -504,12 +536,13 @@ A recursive expression is written as the union of two or more queries, where the
 first query provides the base case, or starting condition, and the remaining 
 queries produce subsequent results. 
 
-To create a recursive common table expression use 
-`recursiveCommonTableExpression` to create.
+Use `recursiveCommonTableExpression` to create a recursive common table
+expression.
 
-For our example let's define a table to represent a hierarchical orag chart for 
-a company: 
+For our example, define a table that represents a company's hierarchical
+organization chart:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 @SQLTable struct Org {
     var name: String?
@@ -521,9 +554,10 @@ We will also define an `@SQLResult` that we use to refer to the result of the
 recursive common table expression. This essentially defines a 'table' with a 
 single column. 
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 @SQLResult struct ScalarString {
-    var value: String
+    var value: String?
 }
 ```
 
@@ -538,6 +572,7 @@ The `recursiveCommonTableExpression` closure provides a schema which we have
 seen before, as well as a second parameter which we can use to refer to the
 common table expression recursively.
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let query = sql { schema in
 
@@ -552,7 +587,7 @@ let query = sql { schema in
         Select(ScalarString.columns(value: org.name))
         From(org)
         Join.Cross(cte)
-        Where(org.boss == cte.scalarValue)
+        Where(org.boss == cte.value)
     }
     
     // Select members from the org whose names are returned by the common table expression.
@@ -564,15 +599,18 @@ let query = sql { schema in
 }
 ```
 
-### Combining recusive common tables with non-recursive common tables
+### Combining recursive common tables with non-recursive common tables
 
-When recursive common tables are used with other non-recursive common 
-tables, the recursive common table must appear after the other common tables in 
-the `With` statement.
+SwiftQL emits common table expressions in the order passed to `With`. The
+SQLite behavior exercised by SwiftQL's tests accepts the dependency-first order
+shown below: the ordinary common table appears before the recursive common table
+that references it. This example does not establish portable ordering
+requirements for recursive common tables across every database backend.
 
 We can now write a query to fetch all living ancestors of 'Alice', using the
 family tree table from our earlier example:
 
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
 let selectStatement = sql { schema in
     
@@ -601,7 +639,7 @@ let selectStatement = sql { schema in
     let ancestorOfAlice = schema.table(ancestorOfAliceCommonTable)
     let family = schema.table(Family.self)
     
-    // Note the order of the common tables. The recursive common table must appear after other common tables.
+    // parentOfCommonTable appears first because ancestorOfAliceCommonTable uses it.
     With(parentOfCommonTable, ancestorOfAliceCommonTable)
     Select(family.name)
     From(ancestorOfAlice)
@@ -611,12 +649,8 @@ let selectStatement = sql { schema in
 }
 ```
 
-Observe the order of definitions. We define an ordinary common table which 
-selects the mother and  father for each family member. We then use this common 
-table in the recursive common table expression. In the with clause the the 
-recursive common table expression is placed last.
-
-> Warning: SwiftQL does not currently enforce the order of common table 
-expressions in the with clause. It is the programmer's responsibility to ensure
-that the recursive common table expression is always placed last in the with 
-clause.
+Observe the dependency order. We first define an ordinary common table that
+selects the mother and father for each family member, and then reference it from
+the recursive common table. The `With` clause uses the same order. SwiftQL
+preserves this order but does not currently validate or reorder dependencies
+between common table expressions.

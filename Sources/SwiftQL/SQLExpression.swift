@@ -94,11 +94,11 @@ public protocol XLLiteral: XLBindable {
     init(reader: XLColumnReader, at index: Int) throws
     
     ///
-    /// Wraps occurances of the type with an expression.
+    /// Wraps occurrences of the type with an expression.
     ///
     /// The default behaviour is to return the expression without modification.
     ///
-    /// Custom types may implement this method to wrap occurances of the type to perform specific
+    /// Custom types may implement this method to wrap occurrences of the type to perform specific
     /// encoding, such as converting a `String` / `TEXT` value into a a date.
     ///
     static func wrapSQL(context: inout XLBuilder, builder: MakeExpression)
@@ -183,8 +183,12 @@ public protocol XLBindingReference<T>: XLExpression {
 ///
 public struct XLNamedBindingReference<T>: XLBindingReference, Sendable where T: XLLiteral {
     
+    /// The placeholder name emitted in SQL.
     public let name: XLName
     
+    /// Creates a named binding reference.
+    ///
+    /// - Parameter name: The placeholder name, without a leading colon.
     public init(name: XLName) {
         self.name = name
     }

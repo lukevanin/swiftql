@@ -842,75 +842,37 @@ final class XLExecutionTests: XCTestCase {
         let createStatement = sqlCreate(GenericTable<String>.self)
         try database.makeRequest(with: createStatement).execute()
         
-        let insertStatement = sqlInsert(GenericTable(id: "foo", value: "Foo"))
+        let insertStatement = sqlInsert(GenericTable(id: "foo", type: "name", value: "Foo"))
         try database.makeRequest(with: insertStatement).execute()
         
         let selectStatement = sql { schema in
             let table = schema.table(GenericTable<String>.self)
             Select(table)
             From(table)
+            Where(table.type == "name")
         }
         let finalResult = try database.makeRequest(with: selectStatement).fetchOne()
         XCTAssertNotNil(finalResult)
     }
     
     func testCreateGenericTableWithObjectValue() throws {
-        
-        struct Wrapper: XLCustomType, Equatable {
-
-            private enum ReadError: Error {
-                case invalidUUID(String)
-            }
-            
-            public typealias T = Self
-            
-            var wrappedValue: UUID
-            
-            public init(_ wrappedValue: UUID) {
-                self.wrappedValue = wrappedValue
-            }
-            
-            public init(reader: XLColumnReader, at index: Int) throws {
-                let rawValue = try reader.readText(at: index)
-                guard let wrappedValue = UUID(uuidString: rawValue) else {
-                    throw ReadError.invalidUUID(rawValue)
-                }
-                self.wrappedValue = wrappedValue
-            }
-            
-            public func bind(context: inout XLBindingContext) {
-                context.bindText(value: wrappedValue.uuidString)
-            }
-            
-            public func makeSQL(context: inout XLBuilder) {
-                context.text(wrappedValue.uuidString)
-            }
-            
-            public static func wrapSQL(context: inout XLBuilder, builder: (inout XLBuilder) -> Void) {
-                builder(&context)
-            }
-            
-            public static func sqlDefault() -> Wrapper {
-                Wrapper(UUID(uuidString: "00000000-0000-0000-0000-000000000000")!)
-            }
-        }
-        
         let testValue = UUID()
         
-        let createStatement = sqlCreate(GenericTable<Wrapper>.self)
+        let createStatement = sqlCreate(GenericTable<MyUUID>.self)
         try database.makeRequest(with: createStatement).execute()
         
-        let insertStatement = sqlInsert(GenericTable(id: "foo", value: Wrapper(testValue)))
+        let insertStatement = sqlInsert(GenericTable(id: "foo", type: "id", value: MyUUID(testValue)))
         try database.makeRequest(with: insertStatement).execute()
 
         let selectStatement = sql { schema in
-            let table = schema.table(GenericTable<Wrapper>.self)
+            let table = schema.table(GenericTable<MyUUID>.self)
             Select(table)
             From(table)
+            Where(table.type == "id")
         }
         let finalResult = try database.makeRequest(with: selectStatement).fetchOne()
         XCTAssertNotNil(finalResult)
-        XCTAssertEqual(finalResult?.value, Wrapper(testValue))
+        XCTAssertEqual(finalResult?.value, MyUUID(testValue))
     }
     
     
