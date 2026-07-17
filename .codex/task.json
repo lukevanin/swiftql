@@ -1,11 +1,11 @@
 {
-  "task_name": "Test QueryBuilder's documented missing-FROM failure",
-  "issue_number": 194,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/194",
+  "task_name": "Research value-semantic recursive CTE definitions and references",
+  "issue_number": 41,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/41",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#194 - Test QueryBuilder's documented missing-FROM failure",
+  "codex_session_title": "lukevanin/swiftql#41 - Research value-semantic recursive CTE definitions and references",
   "codex_session_id": "019f6fcb-bfd9-7522-9d7c-c78fefd5c7fa",
   "codex_session_url": null,
-  "task_branch": "codex/194-test-querybuilders-documented-missing-from-failure",
-  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/194-test-querybuilders-documented-missing-from-failure"
+  "task_branch": "codex/41-research-value-semantic-recursive-cte-definitions-and-references",
+  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/41-research-value-semantic-recursive-cte-definitions-and-references"
 }
