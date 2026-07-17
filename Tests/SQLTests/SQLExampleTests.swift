@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  SQLExampleTests.swift
 //  
 //
 //  Created by Luke Van In on 2023/08/22.
@@ -286,7 +286,7 @@ extension Date: XLCustomType, XLComparable {
     
     public typealias T = Self
     
-    // Decode the date from an XL result.
+    // Decode the date from a SwiftQL result.
     public init(reader: XLColumnReader, at index: Int) throws {
         let rawValue = try reader.readReal(at: index)
         guard let value = Date(julianDay: rawValue) else {
@@ -295,7 +295,7 @@ extension Date: XLCustomType, XLComparable {
         self = value
     }
     
-    // Bind the date to an XL expression.
+    // Bind the date to a SwiftQL expression.
     public func bind(context: inout XLBindingContext) {
         let rawValue = Self.dateFormatter.string(from: self)
         context.bindText(value: rawValue)
@@ -340,7 +340,7 @@ public struct HaversineDistance: XLCustomFunction {
     
     public typealias T = Double
     
-    // Define the function signature. XLite uses the name and number of parameters to differentiate functions.
+    // Define the function signature. SQLite uses the name and number of parameters to differentiate functions.
     public static let definition = XLCustomFunctionDefinition(
         name: "haversineDistance",
         numberOfArguments: 4
@@ -364,7 +364,7 @@ public struct HaversineDistance: XLCustomFunction {
         self.toLongitude = toLongitude
     }
     
-    // Define how the function is formatted into an XL expression.
+    // Define how the function is formatted into a SwiftQL expression.
     public func makeSQL(context: inout XLBuilder) {
         context.simpleFunction(name: Self.definition.name) { context in
             context.listItem(expression: fromLatitude.makeSQL)
@@ -374,8 +374,8 @@ public struct HaversineDistance: XLCustomFunction {
         }
     }
     
-    // Define the implementation details for how the function works. This is called at runtime from XL, and the results
-    // are returned to XL.
+    // Define the implementation details for how the function works. SQLite calls this at runtime, and the results
+    // are returned to SQLite.
     public static func execute(reader: XLColumnReader) throws -> Double {
         let latA = try radians(degrees: reader.readReal(at: 0))
         let lonA = try radians(degrees: reader.readReal(at: 1))
@@ -936,8 +936,22 @@ final class XLDocumentationTests: XCTestCase {
 // to become standalone programs.
 extension XLDocumentationTests {
 
+    func testDocumentationREADME() {
+        let query = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.name == "Fred")
+        }
+
+        XCTAssertEqual(
+            encoder.makeSQL(query).sql,
+            "SELECT t0.id AS id, t0.occupationId AS occupationId, t0.name AS name, t0.age AS age FROM Person AS t0 WHERE (t0.name == 'Fred')"
+        )
+    }
+
     func testDocumentationQuickStart() throws {
-        try testExample_Select()
+        testDocumentationREADME()
     }
 
     func testDocumentationGettingStartedCRUDAndBindings() throws {

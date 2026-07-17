@@ -18,6 +18,10 @@ private struct DocumentationTestReference {
 
 private let documentationTests = [
     DocumentationTestReference(
+        "XLDocumentationTests.testDocumentationREADME",
+        XLDocumentationTests.testDocumentationREADME
+    ),
+    DocumentationTestReference(
         "XLDocumentationTests.testDocumentationQuickStart",
         XLDocumentationTests.testDocumentationQuickStart
     ),
@@ -89,7 +93,9 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         )
         XCTAssertEqual(
             Set(documentationTests.map(\.name)),
-            Set(expectedMarkerByFile.values),
+            Set(expectedMarkerByFile.values).union([
+                "XLDocumentationTests.testDocumentationREADME",
+            ]),
             "Every marker must target a compile-time-checked documentation scenario."
         )
 
@@ -100,6 +106,76 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 file: articleURL.lastPathComponent,
                 expectedTest: try XCTUnwrap(expectedMarkerByFile[articleURL.lastPathComponent])
             )
+        }
+
+        let readme = repositoryRootURL().appendingPathComponent("README.md")
+        try assertExampleCoverage(
+            in: String(contentsOf: readme, encoding: .utf8),
+            file: readme.lastPathComponent,
+            expectedTest: "XLDocumentationTests.testDocumentationREADME"
+        )
+    }
+
+    func testREADMERepositoryLinksResolveWithExactCase() throws {
+        let repositoryRoot = repositoryRootURL()
+        let readme = try String(
+            contentsOf: repositoryRoot.appendingPathComponent("README.md"),
+            encoding: .utf8
+        )
+        let expression = try NSRegularExpression(pattern: #"\[[^\]]+\]\(([^)]+)\)"#)
+        let range = NSRange(readme.startIndex ..< readme.endIndex, in: readme)
+        let repositoryLinks = expression.matches(in: readme, range: range).compactMap { match -> String? in
+            guard
+                let destinationRange = Range(match.range(at: 1), in: readme)
+            else {
+                return nil
+            }
+            let destination = String(readme[destinationRange])
+            guard !destination.contains("://"), !destination.hasPrefix("#") else {
+                return nil
+            }
+            return destination
+        }
+
+        XCTAssertEqual(
+            Set(repositoryLinks),
+            ["BENCHMARKS.md", "COMPATIBILITY.md", "LICENSE.md", "ROADMAP.md"]
+        )
+        for link in repositoryLinks {
+            XCTAssertTrue(
+                try pathExistsWithExactCase(link, below: repositoryRoot),
+                "README link does not resolve with exact case: \(link)"
+            )
+        }
+    }
+
+    func testTrackedSwiftFileHeadersMatchFilenames() throws {
+        let repositoryRoot = repositoryRootURL()
+        for directoryName in ["IntegrationTests", "Sources", "Tests"] {
+            let directory = repositoryRoot.appendingPathComponent(directoryName, isDirectory: true)
+            guard let enumerator = FileManager.default.enumerator(
+                at: directory,
+                includingPropertiesForKeys: [.isRegularFileKey]
+            ) else {
+                XCTFail("Unable to enumerate \(directory.path)")
+                continue
+            }
+
+            for case let fileURL as URL in enumerator where fileURL.pathExtension == "swift" {
+                let lines = try String(contentsOf: fileURL, encoding: .utf8)
+                    .components(separatedBy: .newlines)
+                    .prefix(10)
+                guard let header = lines.first(where: {
+                    $0.hasPrefix("//  ") && $0.hasSuffix(".swift")
+                }) else {
+                    continue
+                }
+                XCTAssertEqual(
+                    String(header.dropFirst(4)),
+                    fileURL.lastPathComponent,
+                    "Stale file header in \(fileURL.path)"
+                )
+            }
         }
     }
 
@@ -186,10 +262,29 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     }
 
     private func documentationCatalogURL() -> URL {
+        repositoryRootURL()
+            .appendingPathComponent("Sources/SwiftQL/SwiftQL.docc", isDirectory: true)
+    }
+
+    private func repositoryRootURL() -> URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("Sources/SwiftQL/SwiftQL.docc", isDirectory: true)
+    }
+
+    private func pathExistsWithExactCase(_ path: String, below root: URL) throws -> Bool {
+        var directory = root
+        let components = path.split(separator: "/").map(String.init)
+        for (index, component) in components.enumerated() {
+            let entries = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+            guard entries.contains(component) else {
+                return false
+            }
+            if index < components.count - 1 {
+                directory.appendPathComponent(component, isDirectory: true)
+            }
+        }
+        return true
     }
 }

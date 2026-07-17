@@ -270,16 +270,15 @@ public protocol XLRowWritable<Row>: XLEncodable {
 ///
 /// Metadata associated with a struct annotated with `@SQLResult`.
 ///
-/// The types and method defined by this protocol  are implemented by macro code generation.
+/// The types and methods defined by this protocol are implemented by macro-generated code.
 ///
-/// The word `...anonymous...` used in method names refers to a defuct implementation detail
-/// where column names were anonymized as c0, c1, ... cN. This was done to reduce the length of the XL
-/// string that needed to be parsed. However this reduced readability for humans and this was later changed.
-///
-/// to use the proper names for columns. The word `...named...` indicates that the result is an
+/// The word `...anonymous...` used in method names refers to a defunct implementation detail
+/// where column names were anonymized as `c0`, `c1`, ... `cN`. This reduced the length of the SQL
+/// string that needed to be parsed, but also reduced readability, so columns now retain their names.
+/// The word `...named...` indicates that the result is an
 /// identifiable type such as a table, from, join, subquery, or common table, and can be used in an `IN`
 /// expression. Examples of results that are unnamed include the set of columns in a `SELECT` statement,
-/// and the result of a `UNION`, `INTERSECT`, or `EXCLUDE`.
+/// and the result of a `UNION`, `INTERSECT`, or `EXCEPT`.
 ///
 public protocol XLResult {
     typealias MetaRowIterator = (XLRowReader) throws -> Self
@@ -463,7 +462,7 @@ public class XLNamespace {
     ///
     /// Creates an alias with a given name.
     ///
-    /// Creates and returns an alias with a given name. The alias is tracked to avoid conflcits. If the alias is
+    /// Creates and returns an alias with a given name. The alias is tracked to avoid conflicts. If the alias is
     /// not specified then one is assigned automatically using `nextAlias()`.
     ///
     func makeAlias(alias: XLName?) -> XLName {
@@ -665,8 +664,8 @@ public protocol XLColumnDependency {
 ///
 ///
 /// A dependency which can be identified by an alias which can be used in an IN clause, such as a table,
-/// common table, from clause, join clause. Excludes unnammed results such as select columns, UNION,
-/// UNION ALL, INTERSECT, and EXCLUDE.
+/// common table, from clause, join clause. Excludes unnamed results such as select columns, UNION,
+/// UNION ALL, INTERSECT, and EXCEPT.
 ///
 public protocol XLNamedDependency {
     var alias: XLName { get }

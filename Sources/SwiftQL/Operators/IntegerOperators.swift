@@ -1,5 +1,5 @@
 //
-//  NumericOperators.swift
+//  IntegerOperators.swift
 //  
 //
 //  Created by Luke Van In on 2023/08/04.
@@ -106,5 +106,4 @@ public func %<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpr
 public func %<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: BinaryInteger {
     XLBinaryOperatorExpression(op: "%", lhs: lhs, rhs: rhs)
 }
-
 

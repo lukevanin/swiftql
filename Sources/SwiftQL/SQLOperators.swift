@@ -270,7 +270,7 @@ public struct XLInTableExpression<T>: XLExpression {
 
 
 ///
-/// Type case expression.
+/// Type cast expression.
 ///
 /// Example:
 ///
@@ -281,7 +281,7 @@ public struct XLInTableExpression<T>: XLExpression {
 ///
 /// *SQL:*
 /// ```SQL
-/// CASE(foo AS TEXT)
+/// CAST(foo AS TEXT)
 /// ```
 ///
 public struct XLTypeCastExpression<T>: XLExpression {
@@ -304,11 +304,11 @@ public struct XLTypeCastExpression<T>: XLExpression {
 ///
 /// Type affinity expression.
 ///
-/// Changes the type affinity of an expression. This is similar to type case in that it can be used to force a type
-/// to meet compile time type constraints.
+/// Changes the type affinity of an expression. This is similar to a type cast in that it can be used to force a type
+/// to meet compile-time type constraints.
 ///
-/// A type case is used when the data is interpreted into a different representation, such as converting an
-/// `Int` to a `String`. Type affinity is used when the  of the type does not change but the compile time
+/// A type cast is used when data is interpreted using a different representation, such as converting an
+/// `Int` to a `String`. Type affinity is used when the representation does not change but the compile-time
 /// type constraints do change, such as converting an Int to an `Optional<Int>`, or converting an
 /// `enum` with a raw value of type `Int` to an `Int`.
 ///

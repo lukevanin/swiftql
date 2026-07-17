@@ -131,7 +131,7 @@ internal struct SwiftSyntaxBuilder {
     ///
     /// Outputs the accumulated contents.
     ///
-    /// - Returns: Returns the lines added to the builder seperated by a newline `'\n'` character.
+    /// - Returns: The lines added to the builder, separated by a newline `'\n'` character.
     ///
     func build() -> String {
         return lines.joined(separator: "\n")
