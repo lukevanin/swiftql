@@ -4,6 +4,9 @@
 
 ### Added
 
+- Added an external Swift package fixture that uses SwiftQL's public macros,
+  typed queries, binding, and SQLite execution from Swift 5 language mode under
+  the supported Swift 6 compiler. CI runs it with pinned and clean resolution.
 - Added a reproducible `swiftql-benchmark` executable that reports raw samples,
   median, and p95 for SwiftQL construction/rendering, uncached SQLite
   preparation, statement-cache hits, reset/binding, execution, and production
