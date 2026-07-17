@@ -12,6 +12,14 @@ main() {
     output_argument="${1:-docs}"
     hosting_base_path="${SWIFTQL_DOCC_HOSTING_BASE_PATH:-swiftql}"
 
+    while [ "${output_argument%/}" != "$output_argument" ]; do
+        output_argument="${output_argument%/}"
+    done
+    if [ -z "$output_argument" ]; then
+        printf 'error: unsafe documentation output: %s\n' "${1:-}" >&2
+        return 64
+    fi
+
     case "$hosting_base_path" in
         ""|.|..|*/*)
             printf 'error: invalid DocC hosting base path: %s\n' \
