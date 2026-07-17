@@ -58,6 +58,32 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(try compoundNegationRequest.fetchOne(), -12)
     }
 
+    func testConcatenationCollationExecution() throws {
+        let lhs = XLNamedBindingReference<String>(name: "lhs")
+        let rhs = XLNamedBindingReference<String>(name: "rhs")
+
+        let collatedOperand = sql { _ in
+            Select((lhs.collate(.rtrim) + rhs) == "a")
+        }
+        var collatedOperandRequest = database.makeRequest(with: collatedOperand)
+        collatedOperandRequest.set(lhs, "a ")
+        collatedOperandRequest.set(rhs, "")
+        XCTAssertEqual(try collatedOperandRequest.fetchOne(), true)
+
+        let collatedResult = sql { _ in
+            Select(
+                (lhs.collate(.rtrim) + rhs)
+                    .collate(.nocase) == "a"
+            )
+        }
+        var collatedResultRequest = database.makeRequest(with: collatedResult)
+        collatedResultRequest.set(lhs, "a ")
+        collatedResultRequest.set(rhs, "")
+        // The outer NOCASE collation must override the nested RTRIM collation;
+        // unlike RTRIM, NOCASE does not ignore the trailing space.
+        XCTAssertEqual(try collatedResultRequest.fetchOne(), false)
+    }
+
     func testGroupConcatVariants() throws {
         try database.makeRequest(with: sqlCreate(CompanyTable.self)).execute()
         for company in [

@@ -152,7 +152,7 @@ public struct XLBinaryOperatorExpression<T>: XLExpression {
 
 
 ///
-/// String contatenation expression.
+/// String concatenation expression.
 ///
 /// Example:
 ///
@@ -163,8 +163,11 @@ public struct XLBinaryOperatorExpression<T>: XLExpression {
 ///
 /// *SQL:*
 /// ```SQL
-/// foo || bar
+/// (foo || bar)
 /// ```
+///
+/// The result is grouped so postfix operators such as `COLLATE` apply to the complete
+/// concatenation, and so nesting on either side of another binary operator is unambiguous.
 ///
 public struct XLConcatenationExpression<T>: XLExpression {
     
@@ -181,7 +184,9 @@ public struct XLConcatenationExpression<T>: XLExpression {
     }
     
     public func makeSQL(context: inout XLBuilder) {
-        context.binaryOperator(op, left: lhs.makeSQL, right: rhs.makeSQL)
+        context.parenthesis { context in
+            context.binaryOperator(op, left: lhs.makeSQL, right: rhs.makeSQL)
+        }
     }
 }
 
