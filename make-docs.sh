@@ -9,7 +9,7 @@ main() {
     fi
 
     source_root="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)"
-    output_argument="${1:-docs}"
+    output_argument="${1-docs}"
     hosting_base_path="${SWIFTQL_DOCC_HOSTING_BASE_PATH:-swiftql}"
 
     while [ "${output_argument%/}" != "$output_argument" ]; do
