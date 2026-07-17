@@ -9,7 +9,7 @@ public enum BenchmarkPhase: String, Codable, CaseIterable {
     case rowDecoding = "row_decoding"
 }
 
-public struct BenchmarkConfiguration: Codable, Equatable {
+public struct BenchmarkConfiguration: Codable, Equatable, Sendable {
     public var warmupCount: Int
     public var sampleCount: Int
 

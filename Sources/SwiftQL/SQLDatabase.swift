@@ -25,7 +25,7 @@ extension NotificationCenter {
     }
     
     @available(*, deprecated, message: "GRDB live queries no longer consume global entity notifications. Use XLRequest.publish() or GRDB ValueObservation.")
-    public func sqlEntitiesChangedObserver(queue: OperationQueue, observer: @escaping (Notification) -> Void) -> NSObjectProtocol {
+    public func sqlEntitiesChangedObserver(queue: OperationQueue, observer: @escaping @Sendable (Notification) -> Void) -> NSObjectProtocol {
         addObserver(
             forName: .XLEntitiesChanged,
             object: nil,
@@ -59,7 +59,7 @@ extension NotificationCenter {
     }
     
     @available(*, deprecated, message: "GRDB live queries no longer consume global commit notifications. Use XLRequest.publish() or GRDB ValueObservation.")
-    public func sqlCommitObserver(queue: OperationQueue, observer: @escaping (Notification) -> Void) -> NSObjectProtocol {
+    public func sqlCommitObserver(queue: OperationQueue, observer: @escaping @Sendable (Notification) -> Void) -> NSObjectProtocol {
         addObserver(
             forName: .XLCommit,
             object: nil,
@@ -290,5 +290,4 @@ extension XLDatabase {
         builder.build(with: self)
     }
 }
-
 

@@ -8,7 +8,7 @@
 import Foundation
 
 
-public struct XLCustomFunctionDefinition: Hashable {
+public struct XLCustomFunctionDefinition: Hashable, Sendable {
     
     public var name: String
     

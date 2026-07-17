@@ -153,6 +153,14 @@ jobs:
           cd "$SWIFTQL_SOURCE"
           xcrun swift test --skip-build -v
 
+      - name: Check complete strict concurrency
+        if: ${{ matrix.swift_series == '6.0' }}
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/check-strict-concurrency.sh \
+            "$RUNNER_TEMP/swift-strict-concurrency.log"
+
       - name: Verify checkout remains clean
         run: |
           set -euo pipefail

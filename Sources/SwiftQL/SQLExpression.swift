@@ -181,7 +181,7 @@ public protocol XLBindingReference<T>: XLExpression {
 ///
 /// A variable used in an expression that is referred to by a given name.
 ///
-public struct XLNamedBindingReference<T>: XLBindingReference where T: XLLiteral {
+public struct XLNamedBindingReference<T>: XLBindingReference, Sendable where T: XLLiteral {
     
     public let name: XLName
     
@@ -385,7 +385,7 @@ extension Optional: XLBoolean where Wrapped == Bool {
 ///
 /// `XLName` is simply a wrapper for name references.
 ///
-public struct XLName: XLEncodable, ExpressibleByStringLiteral, Equatable, Hashable {
+public struct XLName: XLEncodable, ExpressibleByStringLiteral, Equatable, Hashable, Sendable {
     
     public var rawValue: String
     
@@ -406,7 +406,7 @@ public struct XLName: XLEncodable, ExpressibleByStringLiteral, Equatable, Hashab
 ///
 /// A name of a schema used in a SwiftQL expression.
 ///
-public struct XLSchemaName: XLEncodable, Equatable {
+public struct XLSchemaName: XLEncodable, Equatable, Sendable {
     
     public static let main = XLSchemaName(name: "main")
     

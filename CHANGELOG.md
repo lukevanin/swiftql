@@ -21,6 +21,9 @@
 
 ### Fixed
 
+- All first-party product and test targets now compile without complete
+  strict-concurrency warnings under the supported Swift 6 compiler. The
+  compatibility matrix checks this without enabling Swift 6 language mode.
 - String concatenation now renders as an explicitly grouped binary expression,
   so `COLLATE` and surrounding operators apply with unambiguous SQLite
   precedence.
@@ -44,6 +47,12 @@ let total = invoice.amount.sumOrNull().coalesce(0)
 The deprecated v1 APIs retain their old result types and may still throw when
 SQLite returns NULL. Projects that treat warnings as errors must migrate
 deprecated calls when adopting SwiftQL 1.1.
+
+The deprecated `NotificationCenter.sqlEntitiesChangedObserver` and
+`sqlCommitObserver` callbacks are now explicitly `@Sendable`, matching
+Foundation's callback contract. Existing calls remain source-compatible, but
+strict-concurrency checking may require captured mutable state to gain explicit
+isolation.
 
 Scalar subqueries already add an optional layer because they may return no row.
 Until the nullable-subquery flattening API tracked by #162 is available, selecting
