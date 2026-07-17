@@ -25,8 +25,9 @@ is_known_ordinary_warning() {
 is_known_manifest_warning() {
     local warning="$1"
     local source_root="$2"
+    local package_identity="${source_root##*/}"
 
-    [[ "$warning" == "warning: 'swiftql': "* ]] && \
+    [[ "$warning" == "warning: '$package_identity': "* ]] && \
         [[ "$warning" == *" -primary-file $source_root/Package.swift "* ]] && \
         [[ "$warning" == *" -package-description-version 5.9.0 "* ]] && \
         [[ "$warning" == *" -module-name main "* ]]
@@ -127,6 +128,7 @@ classify_build_log() {
 run_classifier_self_test() {
     local source_root="$1"
     local manifest_fixture
+    local package_identity="${source_root##*/}"
     local self_test_log
     local self_test_output
 
@@ -152,7 +154,7 @@ run_classifier_self_test() {
         return 1
     fi
 
-    manifest_fixture="warning: 'swiftql': /tool/swift-frontend"
+    manifest_fixture="warning: '$package_identity': /tool/swift-frontend"
     manifest_fixture+=" -primary-file $source_root/Package.swift"
     manifest_fixture+=" -package-description-version 5.9.0 -module-name main -o /tmp/Package.o"
     printf '%s\n' "$manifest_fixture" > "$self_test_log"
@@ -167,7 +169,7 @@ run_classifier_self_test() {
 
     if ! grep -q 'SWIFTQL_STRICT_CONCURRENCY_STATUS clean' \
         <<< "$self_test_output" || \
-        ! grep -Fq "warning: 'swiftql':" <<< "$self_test_output"; then
+        ! grep -Fq "warning: '$package_identity':" <<< "$self_test_output"; then
         printf '%s\n' \
             "error: strict-concurrency classifier self-test did not accept its known fixture" \
             >&2
