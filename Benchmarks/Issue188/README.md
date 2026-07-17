@@ -52,3 +52,22 @@ not a per-field overhead claim.
 Do not copy these reports over the historical baseline. If a reviewed issue
 artifact is desired, add the new reports under this directory with their commit,
 machine, and run conditions documented separately.
+
+## Recorded evidence
+
+The checked-in reports were captured on 2026-07-17 from clean implementation
+commit `6a801ebb78e91caea547b36869f3738048867744` before the evidence files
+themselves were added. All three used the standard 50 warmups and 500 samples
+in separate release processes on a Mac16,8 (Apple M4 Pro), with Xcode 26.5,
+Swift 6.3.2, SDK 26.5, GRDB 6.29.3, and SQLite 3.51.0.
+
+| Run | Resolved codec + bind ns | Simple bind ns | Bind ratio | Contextual scalar decode ns | Wide two-row decode ns | Decode ratio |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| [run-1.json](run-1.json) | 333 | 167 | 1.994x | 209 | 2,166 | 0.096x |
+| [run-2.json](run-2.json) | 333 | 167 | 1.994x | 208 | 2,000 | 0.104x |
+| [run-3.json](run-3.json) | 292 | 167 | 1.749x | 208 | 1,958 | 0.106x |
+
+Median of per-run ratios: bind 1.994x; decode 0.104x. These are intentionally
+workload-level integration comparisons: the bind numerator adds pre-resolved
+codec conversion and validation, while the decode denominator covers two wide
+rows rather than one scalar.
