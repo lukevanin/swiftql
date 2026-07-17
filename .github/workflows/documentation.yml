@@ -1,6 +1,7 @@
 name: Documentation
 
 on:
+  workflow_call:
   push:
     branches: [main]
   pull_request:
@@ -27,6 +28,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Verify exact source commit
@@ -61,8 +63,10 @@ jobs:
       - name: Record artifact provenance
         run: |
           set -euo pipefail
-          printf '{\n  "commit_sha": "%s",\n  "run_id": "%s",\n  "run_attempt": "%s",\n  "repository": "%s",\n  "workflow_url": "https://github.com/%s/actions/runs/%s"\n}\n' \
+          printf '{\n  "commit_sha": "%s",\n  "source_ref": "%s",\n  "source_ref_name": "%s",\n  "run_id": "%s",\n  "run_attempt": "%s",\n  "repository": "%s",\n  "workflow_url": "https://github.com/%s/actions/runs/%s"\n}\n' \
             "$GITHUB_SHA" \
+            "$GITHUB_REF" \
+            "$GITHUB_REF_NAME" \
             "$GITHUB_RUN_ID" \
             "$GITHUB_RUN_ATTEMPT" \
             "$GITHUB_REPOSITORY" \

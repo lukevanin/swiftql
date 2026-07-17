@@ -4,6 +4,10 @@
 
 ### Added
 
+- Added a verified tag-release workflow that reuses the complete Swift compiler
+  matrix and DocC build, publishes deterministic provenance/checksum assets
+  through an idempotent draft-first GitHub Release, and provides read-only test
+  tags plus documented partial-release recovery.
 - Added a least-privilege GitHub Pages workflow that builds documentation on
   pull requests and deploys only authorized `main` commits, with artifact and
   deployed-site provenance tied to the exact commit SHA.

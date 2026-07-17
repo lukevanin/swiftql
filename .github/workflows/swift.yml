@@ -1,6 +1,7 @@
 name: Swift compatibility
 
 on:
+  workflow_call:
   push:
     branches: [main]
   pull_request:
@@ -58,7 +59,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
+
+      - name: Verify exact source commit
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
       - name: Validate and report compiler environment
         env:

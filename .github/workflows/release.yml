@@ -1,0 +1,247 @@
+name: Verified release
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "release-test/**"
+
+permissions: {}
+
+concurrency:
+  group: swiftql-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate exact release ref
+    if: ${{ github.event.deleted == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: read
+    outputs:
+      mode: ${{ steps.release-ref.outputs.mode }}
+      source_tag: ${{ steps.release-ref.outputs.source_tag }}
+      release_tag: ${{ steps.release-ref.outputs.release_tag }}
+      commit_sha: ${{ steps.release-ref.outputs.commit_sha }}
+
+    steps:
+      - name: Check out exact event commit and full history
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Validate tag, commit, and main reachability
+        id: release-ref
+        env:
+          SOURCE_TAG: ${{ github.ref_name }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/release-ref.outputs"
+          scripts/ci/check-release-ref.sh \
+            "$SOURCE_TAG" "$EXPECTED_SHA" > "$output"
+          cat "$output"
+          cat "$output" >> "$GITHUB_OUTPUT"
+
+      - name: Require v1.1 milestone readiness
+        env:
+          RELEASE_TAG: ${{ steps.release-ref.outputs.release_tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/ci/check-release-readiness.sh "$RELEASE_TAG"
+
+      - name: Record validation summary
+        env:
+          MODE: ${{ steps.release-ref.outputs.mode }}
+          SOURCE_TAG: ${{ steps.release-ref.outputs.source_tag }}
+          RELEASE_TAG: ${{ steps.release-ref.outputs.release_tag }}
+          COMMIT_SHA: ${{ steps.release-ref.outputs.commit_sha }}
+        run: |
+          {
+            printf '### SwiftQL release ref\n\n'
+            printf -- '- Mode: `%s`\n' "$MODE"
+            printf -- '- Source tag: `%s`\n' "$SOURCE_TAG"
+            printf -- '- Release tag: `%s`\n' "$RELEASE_TAG"
+            printf -- '- Commit: `%s`\n' "$COMMIT_SHA"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  compatibility:
+    name: Validate compiler matrix
+    needs: validate
+    permissions:
+      contents: read
+    uses: ./.github/workflows/swift.yml
+
+  documentation:
+    name: Build exact documentation artifact
+    needs: validate
+    permissions:
+      contents: read
+      pages: read
+    uses: ./.github/workflows/documentation.yml
+
+  dry-run-package:
+    name: Verify release dry run
+    if: ${{ needs.validate.outputs.mode == 'dry-run' }}
+    needs: [validate, compatibility, documentation]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out exact event commit and full history
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Revalidate exact ref after build
+        env:
+          SOURCE_TAG: ${{ needs.validate.outputs.source_tag }}
+          EXPECTED_SHA: ${{ needs.validate.outputs.commit_sha }}
+        run: >-
+          scripts/ci/check-release-ref.sh
+          "$SOURCE_TAG" "$EXPECTED_SHA" > /dev/null
+
+      - name: Download exact Pages artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: github-pages
+          path: ${{ runner.temp }}/swiftql-pages
+          digest-mismatch: error
+
+      - name: Prepare deterministic release assets
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+          COMMIT_SHA: ${{ needs.validate.outputs.commit_sha }}
+          ASSET_DIRECTORY: ${{ runner.temp }}/swiftql-release-assets
+        run: |
+          scripts/ci/prepare-release-assets.sh \
+            "$RUNNER_TEMP/swiftql-pages/artifact.tar" \
+            "$ASSET_DIRECTORY" \
+            "$RELEASE_TAG" \
+            "$COMMIT_SHA" \
+            "$GITHUB_RUN_ID" \
+            "$GITHUB_RUN_ATTEMPT" \
+            "$GITHUB_REPOSITORY"
+
+      - name: Prove release publication is read-only
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+          COMMIT_SHA: ${{ needs.validate.outputs.commit_sha }}
+          ASSET_DIRECTORY: ${{ runner.temp }}/swiftql-release-assets
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          scripts/ci/publish-release.sh --dry-run
+          "$RELEASE_TAG" "$COMMIT_SHA" "$ASSET_DIRECTORY"
+
+  publish:
+    name: Publish exact GitHub Release
+    if: ${{ needs.validate.outputs.mode == 'publish' }}
+    needs: [validate, compatibility, documentation]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      issues: read
+    concurrency:
+      group: swiftql-release-publish
+      cancel-in-progress: false
+
+    steps:
+      - name: Check out exact event commit and full history
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Revalidate exact ref after build
+        env:
+          SOURCE_TAG: ${{ needs.validate.outputs.source_tag }}
+          EXPECTED_SHA: ${{ needs.validate.outputs.commit_sha }}
+        run: >-
+          scripts/ci/check-release-ref.sh
+          "$SOURCE_TAG" "$EXPECTED_SHA" > /dev/null
+
+      - name: Recheck v1.1 milestone readiness
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/ci/check-release-readiness.sh "$RELEASE_TAG"
+
+      - name: Download exact Pages artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: github-pages
+          path: ${{ runner.temp }}/swiftql-pages
+          digest-mismatch: error
+
+      - name: Prepare deterministic release assets
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+          COMMIT_SHA: ${{ needs.validate.outputs.commit_sha }}
+          ASSET_DIRECTORY: ${{ runner.temp }}/swiftql-release-assets
+        run: |
+          scripts/ci/prepare-release-assets.sh \
+            "$RUNNER_TEMP/swiftql-pages/artifact.tar" \
+            "$ASSET_DIRECTORY" \
+            "$RELEASE_TAG" \
+            "$COMMIT_SHA" \
+            "$GITHUB_RUN_ID" \
+            "$GITHUB_RUN_ATTEMPT" \
+            "$GITHUB_REPOSITORY"
+
+      - name: Create, resume, or verify exact release
+        env:
+          SOURCE_TAG: ${{ needs.validate.outputs.source_tag }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+          COMMIT_SHA: ${{ needs.validate.outputs.commit_sha }}
+          ASSET_DIRECTORY: ${{ runner.temp }}/swiftql-release-assets
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch --force origin \
+            'refs/heads/main:refs/remotes/origin/main' \
+            "+refs/tags/$SOURCE_TAG:refs/tags/$SOURCE_TAG"
+          scripts/ci/check-release-ref.sh \
+            "$SOURCE_TAG" "$COMMIT_SHA" > /dev/null
+          scripts/ci/check-release-readiness.sh "$RELEASE_TAG"
+          scripts/ci/publish-release.sh \
+            "$RELEASE_TAG" "$COMMIT_SHA" "$ASSET_DIRECTORY"
+
+      - name: Verify release ref remains exact
+        env:
+          SOURCE_TAG: ${{ needs.validate.outputs.source_tag }}
+          EXPECTED_SHA: ${{ needs.validate.outputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --force origin \
+            'refs/heads/main:refs/remotes/origin/main' \
+            "+refs/tags/$SOURCE_TAG:refs/tags/$SOURCE_TAG"
+          scripts/ci/check-release-ref.sh \
+            "$SOURCE_TAG" "$EXPECTED_SHA" > /dev/null
+
+      - name: Record publication summary
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+          COMMIT_SHA: ${{ needs.validate.outputs.commit_sha }}
+        run: |
+          {
+            printf '### Verified SwiftQL release\n\n'
+            printf -- '- Tag: `%s`\n' "$RELEASE_TAG"
+            printf -- '- Commit: `%s`\n' "$COMMIT_SHA"
+            printf -- '- Release: https://github.com/%s/releases/tag/%s\n' \
+              "$GITHUB_REPOSITORY" "$RELEASE_TAG"
+            printf -- '- Run: https://github.com/%s/actions/runs/%s\n' \
+              "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+          } >> "$GITHUB_STEP_SUMMARY"
