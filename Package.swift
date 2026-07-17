@@ -100,6 +100,16 @@ let package = Package(
             ]
         ),
 
+        // Isolated from SQLTests so contextual Foundation codecs do not inherit
+        // the legacy test suite's retroactive literal conformances.
+        .testTarget(
+            name: "SwiftQLCodecIntegrationTests",
+            dependencies: [
+                "SwiftQL",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ]
+        ),
+
         .testTarget(
             name: "SwiftQLBenchmarkTests",
             dependencies: ["SwiftQLBenchmarks"],

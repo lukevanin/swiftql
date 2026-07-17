@@ -46,7 +46,7 @@ public enum XLSQLiteValue: XLDialectValue {
 
 
 /// SQLite syntax, capabilities, placeholders, identifiers, and value storage.
-public struct XLSQLiteDialect: XLSQLDialect, Hashable, Sendable {
+public struct XLSQLiteDialect: XLValueCodingDialect, Hashable, Sendable {
 
     public typealias Value = XLSQLiteValue
 
@@ -101,6 +101,20 @@ public struct XLSQLiteDialect: XLSQLDialect, Hashable, Sendable {
         case .indexed(let index):
             return "?\(index + 1)"
         }
+    }
+
+    public func isNull(_ value: XLSQLiteValue) -> Bool {
+        value == .null
+    }
+
+    public var nullValue: XLSQLiteValue {
+        .null
+    }
+
+    public func stableStorageIdentifier(
+        for value: XLSQLiteValue
+    ) -> XLValueStorageIdentifier {
+        XLValueStorageIdentifier(rawValue: value.storageType.rawValue)
     }
 
     private static func doubleQuoted(_ identifier: String) -> String {

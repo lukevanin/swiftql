@@ -200,6 +200,23 @@ public protocol XLSQLDialect: Sendable {
 }
 
 
+/// A dialect that exposes the stable value operations required by codecs.
+///
+/// This refinement keeps existing `XLSQLDialect` conformers source-compatible:
+/// only dialects that opt into contextual value coding must provide these rules.
+public protocol XLValueCodingDialect: XLSQLDialect {
+
+    /// Returns whether a normalized dialect value represents SQL `NULL`.
+    func isNull(_ value: Value) -> Bool
+
+    /// The normalized SQL `NULL` value.
+    var nullValue: Value { get }
+
+    /// A stable identifier for the value's dialect-owned storage representation.
+    func stableStorageIdentifier(for value: Value) -> XLValueStorageIdentifier
+}
+
+
 /// A database-bound logical statement that owns no physical connection statement.
 public struct XLLogicalPreparedStatement: Hashable, Sendable {
 

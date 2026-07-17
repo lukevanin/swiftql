@@ -2,6 +2,10 @@ import Foundation
 import GRDB
 import SwiftQL
 
+private struct BenchmarkCodecValue: Equatable {
+    let rawValue: Int64
+}
+
 public final class SwiftQLBenchmarkRunner {
     private static let simplePersonID = 257
     private static let joinedCompanyID = 3
@@ -131,6 +135,11 @@ public final class SwiftQLBenchmarkRunner {
                 consumeDecoded: Self.consumeDecodeFixture
             )
 
+            let contextualCodec = try makeContextualCodecCase(
+                configuration: configuration,
+                database: database
+            )
+
             return BenchmarkReport(
                 formatVersion: 1,
                 generatedAt: Self.timestamp(),
@@ -147,7 +156,7 @@ public final class SwiftQLBenchmarkRunner {
                     decodeFixtureRowCount: 2
                 ),
                 schemaSQL: Self.schemaSQL,
-                cases: [simple, joined, write, decode]
+                cases: [simple, joined, write, decode, contextualCodec]
             )
         }
 
@@ -341,6 +350,178 @@ public final class SwiftQLBenchmarkRunner {
             ),
             expectedResultRowCount: nil,
             expectedAffectedRowCount: Self.expectedWriteCount,
+            phases: orderedPhases(phases)
+        )
+    }
+
+    private func makeContextualCodecCase(
+        configuration benchmarkConfiguration: BenchmarkConfiguration,
+        database: Database
+    ) throws -> BenchmarkCaseReport {
+        let dialect = XLSQLiteDialect()
+        let codecKey = XLValueCodecKey(
+            id: "swiftql.benchmark.contextual-integer",
+            version: 1
+        )
+        let codec = XLValueCodec<BenchmarkCodecValue, XLSQLiteDialect>(
+            key: codecKey,
+            valueTypeIdentifier: XLValueTypeIdentifier(
+                rawValue: "swiftql.benchmark.contextual-value"
+            ),
+            dialectIdentifier: XLSQLiteDialect.identity,
+            storageIdentifier: XLValueStorageIdentifier(
+                rawValue: XLSQLiteStorageClass.integer.rawValue
+            ),
+            encode: { value, _, _ in
+                .integer(value.rawValue)
+            },
+            decode: { value, _, context in
+                guard case .integer(let rawValue) = value else {
+                    throw BenchmarkError.decoding(
+                        "contextual codec expected INTEGER at \(context)"
+                    )
+                }
+                return BenchmarkCodecValue(rawValue: rawValue)
+            }
+        )
+        let registry = try XLValueCodecRegistry().registering(codec)
+        let valueCodingConfiguration = try XLValueCodingConfiguration(
+            registry: registry,
+            defaultCodecKeys: [codecKey]
+        )
+        let input = BenchmarkCodecValue(rawValue: 257)
+        let parameterCodec = try valueCodingConfiguration.resolvedCodec(
+            for: BenchmarkCodecValue.self,
+            using: dialect,
+            context: XLValueCodingContext(
+                site: .parameter,
+                path: XLValueCodingPath("codecValue")
+            )
+        )
+        let resultCodec = try valueCodingConfiguration.resolvedCodec(
+            for: BenchmarkCodecValue.self,
+            using: dialect,
+            context: XLValueCodingContext(
+                site: .result,
+                path: XLValueCodingPath("codecValue")
+            )
+        )
+        let encodedFixture = try parameterCodec.encode(input)
+        guard encodedFixture == .integer(input.rawValue) else {
+            throw BenchmarkError.decoding(
+                "contextual codec did not produce its declared INTEGER representation"
+            )
+        }
+
+        let sql = "SELECT :codecValue AS codecValue"
+        let encodedRawValue: Int64
+        switch encodedFixture {
+        case .integer(let rawValue):
+            encodedRawValue = rawValue
+        default:
+            throw BenchmarkError.decoding(
+                "contextual codec did not normalize to INTEGER before driver binding"
+            )
+        }
+        let arguments: StatementArguments = ["codecValue": encodedRawValue]
+        let bindingStatement = try database.makeStatement(sql: sql)
+        let binding = try BenchmarkSampler(configuration: benchmarkConfiguration).measure(
+            notes: [
+                "Includes one pre-resolved contextual encode, declared-storage validation, and public Statement.setArguments for the codec-produced INTEGER.",
+                "Excludes registry/default resolution and StatementArguments construction, which are static-slot and invocation-container setup rather than repeated binding work.",
+            ],
+            operation: {
+                let encoded = try parameterCodec.encode(input)
+                try bindingStatement.setArguments(arguments)
+                return encoded
+            },
+            consume: { encoded in
+                guard encoded == encodedFixture else {
+                    throw BenchmarkError.decoding(
+                        "contextual codec changed its normalized value while sampling"
+                    )
+                }
+                guard bindingStatement.arguments == arguments else {
+                    throw BenchmarkError.invalidReport(
+                        "contextual codec binding produced unexpected arguments"
+                    )
+                }
+                return UInt64(input.rawValue)
+            }
+        )
+
+        let capturedRow = try Row.fetchOne(
+            database,
+            sql: sql,
+            arguments: arguments
+        )
+        guard let capturedRow else {
+            throw BenchmarkError.missingFixture(
+                "contextual codec SELECT did not return its deterministic row"
+            )
+        }
+        let decoding = try BenchmarkSampler(configuration: benchmarkConfiguration).measure(
+            notes: [
+                "Includes extraction of one INTEGER from a captured GRDB Row, normalization to XLSQLiteValue, pre-resolved storage validation, and throwing decode.",
+                "Excludes SQL execution, row creation, semantic verification, checksumming, and decoded-value destruction; this is a one-scalar contextual comparison, not the multi-field result-macro baseline.",
+            ],
+            operation: {
+                let rawValue: Int64 = capturedRow["codecValue"]
+                return try resultCodec.decode(.integer(rawValue))
+            },
+            consume: { decoded in
+                guard decoded == input else {
+                    throw BenchmarkError.decoding(
+                        "contextual codec produced an unexpected value while sampling"
+                    )
+                }
+                return UInt64(decoded.rawValue)
+            }
+        )
+
+        let phases: [BenchmarkPhase: BenchmarkPhaseReport] = [
+            .swiftQLConstructionAndRendering: .notApplicable(
+                .swiftQLConstructionAndRendering,
+                reason: "The case measures a prebuilt immutable codec snapshot, not SQL DSL construction or rendering."
+            ),
+            .coldStatementPreparation: .notApplicable(
+                .coldStatementPreparation,
+                reason: "Statement preparation is already isolated by the SQL cases and does not invoke value codecs."
+            ),
+            .cachedStatementLookup: .notApplicable(
+                .cachedStatementLookup,
+                reason: "Statement-cache lookup is already isolated by the SQL cases and does not invoke value codecs."
+            ),
+            .statementResetAndBinding: .measured(
+                .statementResetAndBinding,
+                measurement: binding
+            ),
+            .execution: .notApplicable(
+                .execution,
+                reason: "SQLite execution is independent of the contextual conversion isolated by this case."
+            ),
+            .rowDecoding: .measured(.rowDecoding, measurement: decoding),
+        ]
+
+        return BenchmarkCaseReport(
+            identifier: "contextual_value_codec",
+            purpose: "One deterministic INTEGER value encoded and decoded through an immutable contextual codec configuration.",
+            sql: sql,
+            parameters: [
+                Self.parameter(
+                    name: "codecValue",
+                    swiftType: "BenchmarkCodecValue",
+                    sqliteStorageClass: "INTEGER",
+                    value: String(input.rawValue)
+                ),
+            ],
+            queryPlan: try queryPlan(
+                database: database,
+                sql: sql,
+                arguments: arguments
+            ),
+            expectedResultRowCount: 1,
+            expectedAffectedRowCount: nil,
             phases: orderedPhases(phases)
         )
     }
