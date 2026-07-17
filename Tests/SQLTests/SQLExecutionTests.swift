@@ -1025,61 +1025,8 @@ final class XLExecutionTests: XCTestCase {
     }
 
     func testInsertSelectFluentCompleteClauseChain() throws {
-        try database.makeRequest(with: sqlCreate(CompanyTable.self)).execute()
-        try database.makeRequest(with: sqlCreate(EmployeeTable.self)).execute()
-        try database.makeRequest(with: sqlCreate(Temp.self)).execute()
-
-        for company in [
-            CompanyTable(id: "alpha", name: "Alpha"),
-            CompanyTable(id: "beta", name: "Beta"),
-            CompanyTable(id: "gamma", name: "Gamma"),
-        ] {
-            try database.makeRequest(with: sqlInsert(company)).execute()
-        }
-        for employee in [
-            EmployeeTable(
-                id: "employee-alpha",
-                name: "keep-alpha",
-                companyId: "alpha",
-                managerEmployeeId: nil
-            ),
-            EmployeeTable(
-                id: "employee-beta",
-                name: "skip",
-                companyId: "beta",
-                managerEmployeeId: nil
-            ),
-            EmployeeTable(
-                id: "employee-gamma",
-                name: "keep-gamma",
-                companyId: "gamma",
-                managerEmployeeId: nil
-            ),
-        ] {
-            try database.makeRequest(with: sqlInsert(employee)).execute()
-        }
-
-        let schema = XLSchema()
-        let temp = schema.table(Temp.self)
-        let company = schema.table(CompanyTable.self)
-        let employeeTable = schema.table(EmployeeTable.self)
-        // Insert-select joins accept unnamed result metadata. Reuse the named
-        // table dependency so the joined table keeps its deterministic t2 alias.
-        let employee = EmployeeTable.makeSQLTable(
-            namespace: employeeTable._namespace,
-            dependency: employeeTable._dependency
-        )
-        let row = Temp.columns(id: company.id, value: company.name)
-        let statement = insert(temp)
-            .select(row)
-            .from(company)
-            .innerJoin(employee, on: employee.companyId == company.id)
-            .where(employee.name != "skip")
-            .groupBy(company.id, company.name)
-            .having(employee.id.count() >= 1)
-            .orderBy(company.name.ascending())
-            .limit(1)
-            .offset(1)
+        try createInsertSelectFluentFixture()
+        let statement = makeInsertSelectFluentCompleteClauseChain()
 
         XCTAssertEqual(
             encoder.makeSQL(statement).sql,
@@ -1088,13 +1035,10 @@ final class XLExecutionTests: XCTestCase {
 
         try database.makeRequest(with: statement).execute()
 
-        let insertedRows = try database.makeRequest(
-            with: sqlQuery { schema in
-                let temp = schema.table(Temp.self)
-                return select(temp).from(temp)
-            }
-        ).fetchAll()
-        XCTAssertEqual(insertedRows, [Temp(id: "gamma", value: "Gamma")])
+        XCTAssertEqual(
+            try fetchInsertedTempRows(),
+            [Temp(id: "gamma", value: "Gamma")]
+        )
     }
     
     
@@ -1561,6 +1505,85 @@ final class XLExecutionTests: XCTestCase {
     private func insertEmployee(_ employee: EmployeeTable) throws {
         let insertStatement = sqlInsert(employee)
         try database.makeRequest(with: insertStatement).execute()
+    }
+
+
+    private func createInsertSelectFluentFixture() throws {
+        try database.makeRequest(with: sqlCreate(CompanyTable.self)).execute()
+        try database.makeRequest(with: sqlCreate(EmployeeTable.self)).execute()
+        try database.makeRequest(with: sqlCreate(Temp.self)).execute()
+
+        try database.makeRequest(
+            with: sqlInsert(CompanyTable(id: "alpha", name: "Alpha"))
+        ).execute()
+        try database.makeRequest(
+            with: sqlInsert(CompanyTable(id: "beta", name: "Beta"))
+        ).execute()
+        try database.makeRequest(
+            with: sqlInsert(CompanyTable(id: "gamma", name: "Gamma"))
+        ).execute()
+
+        try insertEmployee(
+            EmployeeTable(
+                id: "employee-alpha",
+                name: "keep-alpha",
+                companyId: "alpha",
+                managerEmployeeId: nil
+            )
+        )
+        try insertEmployee(
+            EmployeeTable(
+                id: "employee-beta",
+                name: "skip",
+                companyId: "beta",
+                managerEmployeeId: nil
+            )
+        )
+        try insertEmployee(
+            EmployeeTable(
+                id: "employee-gamma",
+                name: "keep-gamma",
+                companyId: "gamma",
+                managerEmployeeId: nil
+            )
+        )
+    }
+
+
+    private func makeInsertSelectFluentCompleteClauseChain()
+        -> XLInsertSelectOffsetStatement<Temp> {
+        let schema = XLSchema()
+        let temp = schema.table(Temp.self)
+        let company = schema.table(CompanyTable.self)
+        let employeeTable = schema.table(EmployeeTable.self)
+        // Insert-select joins accept unnamed result metadata. Reuse the named
+        // table dependency so the joined table keeps its deterministic t2 alias.
+        let employee = EmployeeTable.makeSQLTable(
+            namespace: employeeTable._namespace,
+            dependency: employeeTable._dependency
+        )
+        let row = Temp.columns(id: company.id, value: company.name)
+        let selected = insert(temp).select(row)
+        let sourced = selected.from(company)
+        let joined = sourced.innerJoin(
+            employee,
+            on: employee.companyId == company.id
+        )
+        let filtered = joined.where(employee.name != "skip")
+        let grouped = filtered.groupBy(company.id, company.name)
+        let constrained = grouped.having(employee.id.count() >= 1)
+        let ordered = constrained.orderBy(company.name.ascending())
+        let limited = ordered.limit(1)
+        return limited.offset(1)
+    }
+
+
+    private func fetchInsertedTempRows() throws -> [Temp] {
+        let statement = sqlQuery { schema in
+            let temp = schema.table(Temp.self)
+            return select(temp).from(temp)
+        }
+        return try database.makeRequest(with: statement).fetchAll()
     }
     
     private func getDateTestEntities(database: GRDBDatabase) throws -> [[String: String]] {
