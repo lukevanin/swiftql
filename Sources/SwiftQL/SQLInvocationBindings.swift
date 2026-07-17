@@ -54,9 +54,11 @@ public enum XLRequestBindingError: Error, Equatable, Sendable, LocalizedError {
 /// `XLContextualBindingReference<Date, String, XLSQLiteDialect>` without making
 /// `Date` conform to `XLLiteral`.
 public struct XLContextualBindingReference<Value, Literal, Dialect>:
-    XLBindingReference<Literal>,
+    XLBindingReference,
     Sendable
 where Literal: XLLiteral, Dialect: XLValueCodingDialect {
+
+    public typealias T = Literal
 
     public let declaration: XLParameterDeclaration
 
