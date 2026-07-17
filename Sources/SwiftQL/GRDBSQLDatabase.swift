@@ -845,6 +845,42 @@ public struct GRDBDatabase: XLDatabase {
             )
         )
     }
+
+    /// Prepares a database-independent static query descriptor against this
+    /// database's dialect and immutable coding snapshot.
+    ///
+    /// Validation happens before a runtime handle is returned. Physical SQLite
+    /// statements remain connection-owned and are created only while executing
+    /// through the GRDB driver.
+    public func prepareInvocation(
+        with descriptor: XLStaticQueryDescriptor
+    ) throws -> GRDBPreparedStaticQuery {
+        try descriptor.statement.dialectRequirement.validate(
+            dialect.descriptor
+        )
+        try validateStaticQueryStorage(descriptor)
+        try validateStaticQueryCodecs(descriptor)
+
+        let statement = XLLogicalPreparedStatement(
+            databaseIdentifier: driver.databaseIdentifier,
+            dialectRequirement: descriptor.statement.dialectRequirement,
+            sql: descriptor.statement.sql,
+            entities: descriptor.statement.entities,
+            parameterLayout: descriptor.statement.parameterLayout
+        )
+        let invocation = GRDBPreparedInvocation(
+            executor: GRDBInvocationExecutor(
+                driver: driver,
+                logicalStatement: statement
+            )
+        )
+        return GRDBPreparedStaticQuery(
+            descriptor: descriptor,
+            invocation: invocation,
+            codingConfiguration: codingConfiguration,
+            dialect: dialect
+        )
+    }
     
     public func makeRequest(with statement: any XLUpdateStatement) -> XLWriteRequest {
         makeWriteRequest(with: statement)
@@ -912,6 +948,96 @@ public struct GRDBDatabase: XLDatabase {
             }
         }
         return nil
+    }
+
+    private func validateStaticQueryCodecs(
+        _ descriptor: XLStaticQueryDescriptor
+    ) throws {
+        for metadata in descriptor.parameters {
+            let slot = metadata.slot
+            guard let expected = slot.codecIdentity else {
+                continue
+            }
+            guard expected.dialectIdentifier == dialect.descriptor.identity else {
+                throw XLInvocationBindingError.preparedCodecDialectMismatch(
+                    slot: slot,
+                    codecIdentity: expected,
+                    expectedDialectIdentifier: dialect.descriptor.identity
+                )
+            }
+            guard let actual = codingConfiguration.registry.identity(
+                for: expected.key
+            ) else {
+                throw XLInvocationBindingError.preparedCodecUnavailable(
+                    slot: slot,
+                    codecIdentity: expected
+                )
+            }
+            guard actual == expected else {
+                throw XLInvocationBindingError.preparedCodecIdentityMismatch(
+                    slot: slot,
+                    expected: expected,
+                    actual: actual
+                )
+            }
+        }
+
+        for slot in descriptor.results.slots {
+            guard let expected = slot.codecIdentity else {
+                continue
+            }
+            guard expected.dialectIdentifier == dialect.descriptor.identity else {
+                throw GRDBStaticQueryError.resultCodecDialectMismatch(
+                    identity: descriptor.identity,
+                    slot: slot,
+                    codecIdentity: expected,
+                    expectedDialectIdentifier: dialect.descriptor.identity
+                )
+            }
+            guard let actual = codingConfiguration.registry.identity(
+                for: expected.key
+            ) else {
+                throw GRDBStaticQueryError.resultCodecUnavailable(
+                    identity: descriptor.identity,
+                    slot: slot,
+                    codecIdentity: expected
+                )
+            }
+            guard actual == expected else {
+                throw GRDBStaticQueryError.resultCodecIdentityMismatch(
+                    identity: descriptor.identity,
+                    slot: slot,
+                    expected: expected,
+                    actual: actual
+                )
+            }
+        }
+    }
+
+    private func validateStaticQueryStorage(
+        _ descriptor: XLStaticQueryDescriptor
+    ) throws {
+        for parameter in descriptor.parameters {
+            guard XLSQLiteStorageClass(
+                rawValue: parameter.storageIdentifier.rawValue
+            ) != nil else {
+                throw GRDBStaticQueryError.unsupportedParameterStorage(
+                    identity: descriptor.identity,
+                    parameter: parameter
+                )
+            }
+        }
+
+        for slot in descriptor.results.slots {
+            guard XLSQLiteStorageClass(
+                rawValue: slot.storageIdentifier.rawValue
+            ) != nil else {
+                throw GRDBStaticQueryError.unsupportedResultStorage(
+                    identity: descriptor.identity,
+                    slot: slot
+                )
+            }
+        }
     }
 
     private func logicalStatement(for encoding: XLEncoding) -> XLLogicalPreparedStatement {

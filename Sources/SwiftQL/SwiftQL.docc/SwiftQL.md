@@ -82,6 +82,7 @@ replacing SQLite's runtime type rules.
 
 - <doc:GettingStarted>
 - <doc:Queries>
+- <doc:StaticQueries>
 - <doc:LiveQueries>
 - <doc:Expressions>
 - <doc:BuiltinFunctions>
