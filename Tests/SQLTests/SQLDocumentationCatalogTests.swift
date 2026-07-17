@@ -153,6 +153,40 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         }
     }
 
+    func testCustomTypesDocumentsContextualCodecPolicyAndV1Migration() throws {
+        let customTypesURL = documentationCatalogURL()
+            .appendingPathComponent("CustomTypes.md")
+        let contents = try String(contentsOf: customTypesURL, encoding: .utf8)
+
+        for heading in [
+            "## Contextual value codecs",
+            "### Selection and errors",
+            "### SQL NULL and optional values",
+            "## Legacy `XLCustomType` wrappers",
+            "## Migrating v1 literals",
+        ] {
+            XCTAssertTrue(contents.contains(heading), "CustomTypes.md is missing \(heading).")
+        }
+
+        for semanticPhrase in [
+            "same Swift type without changing `Date` itself",
+            "There is no process-global registry",
+            "becomes a database default only when its key is listed",
+            "Treat changes to a codec key or version",
+            "Codec selection uses one deterministic order",
+            "The first populated tier is authoritative",
+            "first resolve and validate the selected codec",
+            "The codec closure never receives either optional state",
+            "`XLV1LiteralCodec` exposes an existing `Sendable` `XLLiteral` implementation",
+            "This is a compatibility bridge",
+        ] {
+            XCTAssertTrue(
+                contents.contains(semanticPhrase),
+                "CustomTypes.md is missing contextual-codec guidance for '\(semanticPhrase)'."
+            )
+        }
+    }
+
     func testREADMERepositoryLinksResolveWithExactCase() throws {
         let repositoryRoot = repositoryRootURL()
         let readme = try String(

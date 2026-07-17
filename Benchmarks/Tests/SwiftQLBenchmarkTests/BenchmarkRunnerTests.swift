@@ -16,13 +16,14 @@ final class BenchmarkRunnerTests: XCTestCase {
                 "representative_multi_join_read",
                 "bounded_write",
                 "deterministic_row_decode",
+                "contextual_value_codec",
             ]
         )
-        XCTAssertEqual(report.cases.flatMap(\.phases).count, 24)
-        XCTAssertEqual(report.measurementCount, 23)
+        XCTAssertEqual(report.cases.flatMap(\.phases).count, 30)
+        XCTAssertEqual(report.measurementCount, 25)
         XCTAssertEqual(
             report.cases.flatMap(\.phases).filter { $0.applicability == .notApplicable }.count,
-            1
+            5
         )
         XCTAssertEqual(
             Set(report.cases.flatMap(\.phases).map(\.phase)),
@@ -35,6 +36,26 @@ final class BenchmarkRunnerTests: XCTestCase {
         XCTAssertFalse(report.environment.grdbVersion.isEmpty)
         XCTAssertEqual(report.environment.buildConfiguration, "debug")
         XCTAssertEqual(report.fixture.personCount, 512)
+
+        let contextualCodec = try XCTUnwrap(
+            report.cases.first { $0.identifier == "contextual_value_codec" }
+        )
+        XCTAssertEqual(
+            contextualCodec.phases
+                .filter { $0.applicability == .measured }
+                .map(\.phase),
+            [.statementResetAndBinding, .rowDecoding]
+        )
+        XCTAssertTrue(
+            try XCTUnwrap(
+                contextualCodec.phases.first { $0.phase == .statementResetAndBinding }?.measurement
+            ).notes.contains { $0.contains("pre-resolved contextual encode") }
+        )
+        XCTAssertTrue(
+            try XCTUnwrap(
+                contextualCodec.phases.first { $0.phase == .rowDecoding }?.measurement
+            ).notes.contains { $0.contains("normalization to XLSQLiteValue") }
+        )
 
         // Structural checks only: CI machines are intentionally not held to latency thresholds.
         for measurement in report.cases.flatMap(\.phases).compactMap(\.measurement) {

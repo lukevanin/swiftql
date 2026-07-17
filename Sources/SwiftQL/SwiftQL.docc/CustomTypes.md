@@ -4,33 +4,189 @@ Create custom scalar types for table columns.
 
 ## Overview
 
-SwiftQL has the following built in data types: `Bool`, `Int`, `Double`, 
-`String`, and `Data`.
+SwiftQL has built-in support for `Bool`, `Int`, `Double`, `String`, and `Data`.
+Use a contextual value codec for a different application type or when one Swift
+type has more than one valid database representation. A codec pairs throwing
+encode and decode closures with stable type, dialect, storage, name, and version
+metadata. It does not require a property wrapper or a retroactive conformance.
 
-It is sometimes necessary to use a more specific type to accurately represent 
-data, or to simplify common query operations. SwiftQL allows you to create 
-custom encoding for types that can be stored in the SQLite database.
+The older `XLCustomType` literal path remains source compatible. It is described
+after the contextual API so existing applications can migrate deliberately
+without silently changing persisted representations.
 
-Examples of where custom types might be used are for storing UUIDs, dates, or 
-other structured content.
+## Contextual value codecs
 
-This guide shows how to define custom types and use them in tables and queries.
-We cover two common use cases showing how to wrap Foundation `UUID` and `Date`
-values in application-owned types.
+The following example gives Foundation `Date` two named SQLite representations.
+Both codecs target the same Swift type without changing `Date` itself. The
+decimal-seconds text codec is the database default; an integer-seconds codec can
+be selected at an individual property, parameter, or result site.
 
-To use a custom scalar value in SQL, its type must satisfy the `XLCustomType`
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+import Foundation
+import SwiftQL
+
+enum DateCodecError: Error {
+    case invalidText(String)
+    case unexpectedValue(XLSQLiteValue)
+}
+
+let dateType = XLValueTypeIdentifier(rawValue: "com.example.foundation-date")
+let decimalDateCodecKey = XLValueCodecKey(
+    id: "com.example.date.decimal-seconds",
+    version: 1
+)
+let integerDateCodecKey = XLValueCodecKey(
+    id: "com.example.date.integer-seconds",
+    version: 1
+)
+
+let decimalDateCodec = XLValueCodec<Date, XLSQLiteDialect>(
+    key: decimalDateCodecKey,
+    valueTypeIdentifier: dateType,
+    dialectIdentifier: XLSQLiteDialect.identity,
+    storageIdentifier: XLValueStorageIdentifier(
+        rawValue: XLSQLiteStorageClass.text.rawValue
+    ),
+    encode: { date, _, _ in
+        .text(String(date.timeIntervalSince1970))
+    },
+    decode: { value, _, _ in
+        guard case .text(let text) = value else {
+            throw DateCodecError.unexpectedValue(value)
+        }
+        guard let seconds = Double(text) else {
+            throw DateCodecError.invalidText(text)
+        }
+        return Date(timeIntervalSince1970: seconds)
+    }
+)
+
+let integerDateCodec = XLValueCodec<Date, XLSQLiteDialect>(
+    key: integerDateCodecKey,
+    valueTypeIdentifier: dateType,
+    dialectIdentifier: XLSQLiteDialect.identity,
+    storageIdentifier: XLValueStorageIdentifier(
+        rawValue: XLSQLiteStorageClass.integer.rawValue
+    ),
+    encode: { date, _, _ in
+        .integer(Int64(date.timeIntervalSince1970))
+    },
+    decode: { value, _, _ in
+        guard case .integer(let seconds) = value else {
+            throw DateCodecError.unexpectedValue(value)
+        }
+        return Date(timeIntervalSince1970: TimeInterval(seconds))
+    }
+)
+
+let dateRegistry = try XLValueCodecRegistry()
+    .registering(decimalDateCodec)
+    .registering(integerDateCodec)
+let dateCoding = try XLValueCodingConfiguration(
+    registry: dateRegistry,
+    defaultCodecKeys: [decimalDateCodecKey]
+)
+```
+
+Registration and configuration are immutable operations. `registering` returns
+a new registry, and `XLValueCodingConfiguration` keeps that registry snapshot.
+Passing the configuration to `GRDBDatabase` snapshots it for the database; carry
+the same value into query construction, then call `resolvedCodec` once for each
+static property, parameter, or result slot retained by a prepared handle. The
+resulting `XLResolvedValueCodec` is immutable and reusable across invocations or
+rows. There is no process-global registry or mutable capture to synchronize.
+
+Registering a codec never changes an existing representation by itself. A codec
+becomes a database default only when its key is listed in `defaultCodecKeys`.
+Treat changes to a codec key or version, stable Swift type identifier, dialect,
+or storage identifier as a schema/data migration. These values are also the
+stable components available to schema and query fingerprinting; do not derive
+durable identity from Swift runtime type names or hashes.
+
+### Selection and errors
+
+Codec selection uses one deterministic order:
+
+1. An explicit property, parameter, or result codec key.
+2. A query-level codec key.
+3. The database default for the stable Swift type and dialect.
+4. A selected v1 literal adapter.
+5. A structured missing- or ambiguous-codec error.
+
+The first populated tier is authoritative. An unknown or incompatible explicit
+key throws at the explicit tier; SwiftQL does not silently fall through to a
+query key, default, or legacy adapter. Duplicate keys and duplicate defaults are
+also rejected deterministically.
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+let dialect = XLSQLiteDialect()
+let dueDate = Date(timeIntervalSince1970: 86_400)
+let parameterContext = XLValueCodingContext(
+    site: .parameter,
+    path: XLValueCodingPath("invoice.dueDate")
+)
+
+// The explicit integer codec wins over both the query codec and text default.
+let resolvedDueDateCodec = try dateCoding.resolvedCodec(
+    for: Date.self,
+    using: dialect,
+    context: parameterContext,
+    selection: XLValueCodecSelection(
+        explicitCodecKey: integerDateCodecKey,
+        queryCodecKey: decimalDateCodecKey
+    )
+)
+let storedValue = try resolvedDueDateCodec.encode(dueDate)
+```
+
+The context path is retained in structured registration, selection, storage,
+encoding, and decoding errors. Use stable paths that identify the property,
+parameter, or result field rather than transient array positions.
+
+### SQL NULL and optional values
+
+Optionality is outside a nonoptional codec. `encodeOptional` and
+`decodeOptional` first resolve and validate the selected codec, then map Swift
+`nil` directly to the dialect's SQL `NULL` or SQL `NULL` directly to Swift
+`nil`. The codec closure never receives either optional state.
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+let nullValue = try dateCoding.encodeOptional(
+    Optional<Date>.none,
+    using: dialect,
+    context: parameterContext
+)
+
+let resultContext = XLValueCodingContext(
+    site: .result,
+    path: XLValueCodingPath("invoice.dueDate")
+)
+let decodedDate: Date? = try dateCoding.decodeOptional(
+    Date.self,
+    from: .null,
+    using: dialect,
+    context: resultContext
+)
+```
+
+## Legacy `XLCustomType` wrappers
+
+For existing v1 code, a custom scalar value satisfies the `XLCustomType`
 protocol composition (`XLExpression`, `XLBindable`, and `XLLiteral`). It can also
 adopt these marker protocols to opt into operators:
 
 - `XLEquatable`: Enables equality expressions such as `==` and `!=`.
 - `XLComparable`: Refines `XLEquatable` and also enables `<`, `>`, `<=`, and `>=`.
 
-Custom types are stored in the SQL database as one of the native
+Legacy custom types are stored in the SQL database as one of the native
 representations used by SQLite: `Int`, `Double`, `String`, or `Data`. Custom 
 types need to implement support to convert to and from one of these native 
 representations when being written to and read from the database. 
 
-## UUID wrapper
+### UUID wrapper
 
 Below is an example showing how to wrap a Foundation `UUID` and store it as a
 string. Defining an application-owned type avoids a retroactive conformance on
@@ -43,7 +199,7 @@ import Foundation
 import SwiftQL
 
 // 1. Define an application-owned wrapper type.
-struct MyUUID: XLCustomType, XLComparable, Equatable {
+struct MyUUID: XLCustomType, XLComparable, Equatable, Sendable {
 
     private enum ReadError: LocalizedError {
         case invalidUUID(String)
@@ -143,7 +299,7 @@ let query = sql { schema in
 }
 ```
 
-## Date wrapper
+### Date wrapper
  
 UUIDs were quite easy to support as there is a direct mapping between the
 wrapped value (`UUID`) and the representation (`String`).
@@ -284,3 +440,45 @@ var request = database.makeRequest(with: query)
 request.set(dateParameter, SQLDate(Date(timeIntervalSince1970: 0)))
 let invoices = try request.fetchAll()
 ```
+
+## Migrating v1 literals
+
+`XLV1LiteralCodec` exposes an existing `Sendable` `XLLiteral` implementation as
+a named SQLite codec. Requiring `Sendable` keeps the immutable configuration
+safe to share between tasks; the original v1 literal path remains unchanged for
+older types. This is a compatibility bridge, not permission to change storage
+implicitly: declare the actual v1 storage class, test existing rows, and retain
+the old representation until a deliberate migration has completed.
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+let legacyKey = XLValueCodecKey(
+    id: "com.example.my-uuid.v1-literal",
+    version: 1
+)
+let legacyAdapter = XLV1LiteralCodec<MyUUID>(
+    key: legacyKey,
+    valueTypeIdentifier: XLValueTypeIdentifier(
+        rawValue: "com.example.my-uuid"
+    ),
+    storageClass: .text
+)
+let legacyRegistry = try XLValueCodecRegistry()
+    .registering(legacyAdapter.codec)
+let legacyCoding = try XLValueCodingConfiguration(registry: legacyRegistry)
+
+let encodedID = try legacyCoding.encode(
+    employeeID,
+    using: XLSQLiteDialect(),
+    context: XLValueCodingContext(
+        site: .parameter,
+        path: XLValueCodingPath("employee.id")
+    ),
+    selection: XLValueCodecSelection(legacyCodecKey: legacyKey)
+)
+```
+
+The adapter is considered only when no explicit, query, or database-default key
+was selected. Once callers have moved to a native contextual codec, remove the
+legacy selector only after stored values and prepared-query fingerprints have
+been migrated together.

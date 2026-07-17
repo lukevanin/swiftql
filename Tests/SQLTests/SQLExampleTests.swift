@@ -10,8 +10,66 @@ import XCTest
 import GRDB
 import SwiftQL
 
+private enum DocumentationDateCodecError: Error {
+    case invalidText(String)
+    case unexpectedValue(XLSQLiteValue)
+}
 
-struct MyUUID: XLCustomType, XLComparable, Equatable {
+private let documentationDateType = XLValueTypeIdentifier(
+    rawValue: "com.example.foundation-date"
+)
+
+private let decimalDateCodecKey = XLValueCodecKey(
+    id: "com.example.date.decimal-seconds",
+    version: 1
+)
+
+private let integerDateCodecKey = XLValueCodecKey(
+    id: "com.example.date.integer-seconds",
+    version: 1
+)
+
+private let decimalDateCodec = XLValueCodec<Date, XLSQLiteDialect>(
+    key: decimalDateCodecKey,
+    valueTypeIdentifier: documentationDateType,
+    dialectIdentifier: XLSQLiteDialect.identity,
+    storageIdentifier: XLValueStorageIdentifier(
+        rawValue: XLSQLiteStorageClass.text.rawValue
+    ),
+    encode: { value, _, _ in
+        .text(String(value.timeIntervalSince1970))
+    },
+    decode: { value, _, _ in
+        guard case .text(let text) = value else {
+            throw DocumentationDateCodecError.unexpectedValue(value)
+        }
+        guard let seconds = Double(text) else {
+            throw DocumentationDateCodecError.invalidText(text)
+        }
+        return Date(timeIntervalSince1970: seconds)
+    }
+)
+
+private let integerDateCodec = XLValueCodec<Date, XLSQLiteDialect>(
+    key: integerDateCodecKey,
+    valueTypeIdentifier: documentationDateType,
+    dialectIdentifier: XLSQLiteDialect.identity,
+    storageIdentifier: XLValueStorageIdentifier(
+        rawValue: XLSQLiteStorageClass.integer.rawValue
+    ),
+    encode: { value, _, _ in
+        .integer(Int64(value.timeIntervalSince1970))
+    },
+    decode: { value, _, _ in
+        guard case .integer(let seconds) = value else {
+            throw DocumentationDateCodecError.unexpectedValue(value)
+        }
+        return Date(timeIntervalSince1970: TimeInterval(seconds))
+    }
+)
+
+
+struct MyUUID: XLCustomType, XLComparable, Equatable, Sendable {
 
     private enum ReadError: LocalizedError {
         case invalidUUID(String)
@@ -1310,6 +1368,70 @@ extension XLDocumentationTests {
     }
 
     func testDocumentationCustomTypeRoundTrips() throws {
+        let dialect = XLSQLiteDialect()
+        let registry = try XLValueCodecRegistry()
+            .registering(decimalDateCodec)
+            .registering(integerDateCodec)
+        let codingConfiguration = try XLValueCodingConfiguration(
+            registry: registry,
+            defaultCodecKeys: [decimalDateCodecKey]
+        )
+        let date = Date(timeIntervalSince1970: 86_400)
+        let parameterContext = XLValueCodingContext(
+            site: .parameter,
+            path: XLValueCodingPath("invoice.dueDate")
+        )
+        let resultContext = XLValueCodingContext(
+            site: .result,
+            path: XLValueCodingPath("invoice.dueDate")
+        )
+
+        XCTAssertEqual(
+            try codingConfiguration.encode(
+                date,
+                using: dialect,
+                context: parameterContext
+            ),
+            .text("86400.0")
+        )
+        let resolvedDateCodec = try codingConfiguration.resolvedCodec(
+            for: Date.self,
+            using: dialect,
+            context: parameterContext,
+            selection: XLValueCodecSelection(
+                explicitCodecKey: integerDateCodecKey,
+                queryCodecKey: decimalDateCodecKey
+            )
+        )
+        XCTAssertEqual(try resolvedDateCodec.encode(date), .integer(86_400))
+        XCTAssertEqual(
+            try codingConfiguration.decode(
+                Date.self,
+                from: .integer(86_400),
+                using: dialect,
+                context: resultContext,
+                selection: XLValueCodecSelection(
+                    explicitCodecKey: integerDateCodecKey
+                )
+            ),
+            date
+        )
+        XCTAssertEqual(
+            try codingConfiguration.encodeOptional(
+                Optional<Date>.none,
+                using: dialect,
+                context: parameterContext
+            ),
+            .null
+        )
+        let decodedNull: Date? = try codingConfiguration.decodeOptional(
+            Date.self,
+            from: .null,
+            using: dialect,
+            context: resultContext
+        )
+        XCTAssertNil(decodedNull)
+
         try testExample_Date()
         try testExample_DateConstant()
         try testExample_DateParameter()
@@ -1348,6 +1470,42 @@ extension XLDocumentationTests {
         var invoiceRequest = database.makeRequest(with: invoiceQuery)
         invoiceRequest.set(dateParameter, SQLDate(Date(timeIntervalSince1970: 0)))
         XCTAssertEqual(try invoiceRequest.fetchOne(), invoice)
+
+        let legacyKey = XLValueCodecKey(
+            id: "com.example.my-uuid.v1-literal",
+            version: 1
+        )
+        let legacyAdapter = XLV1LiteralCodec<MyUUID>(
+            key: legacyKey,
+            valueTypeIdentifier: XLValueTypeIdentifier(
+                rawValue: "com.example.my-uuid"
+            ),
+            storageClass: .text
+        )
+        let legacyConfiguration = try XLValueCodingConfiguration(
+            registry: XLValueCodecRegistry().registering(legacyAdapter.codec)
+        )
+        let legacySelection = XLValueCodecSelection(legacyCodecKey: legacyKey)
+        let encodedEmployeeID = try legacyConfiguration.encode(
+            employee.id,
+            using: dialect,
+            context: parameterContext,
+            selection: legacySelection
+        )
+        XCTAssertEqual(
+            encodedEmployeeID,
+            .text(employee.id.wrappedValue.uuidString)
+        )
+        XCTAssertEqual(
+            try legacyConfiguration.decode(
+                MyUUID.self,
+                from: encodedEmployeeID,
+                using: dialect,
+                context: resultContext,
+                selection: legacySelection
+            ),
+            employee.id
+        )
 
         let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testStringToDataRoundTrip
     }

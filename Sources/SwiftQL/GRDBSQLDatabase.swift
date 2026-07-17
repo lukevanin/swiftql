@@ -129,6 +129,9 @@ fileprivate struct BindingContext: XLBindingContext {
 struct GRDBRequest<Row>: XLRequest {
 
     private let driver: GRDBDatabaseDriver
+
+    /// Immutable value-coding policy captured when this request is created.
+    let codingConfiguration: XLValueCodingConfiguration
     
     private let logger: XLLogger?
     
@@ -144,6 +147,7 @@ struct GRDBRequest<Row>: XLRequest {
     
     init(
         driver: GRDBDatabaseDriver,
+        codingConfiguration: XLValueCodingConfiguration,
         logger: XLLogger?,
         reader: any XLRowReadable<Row>,
         logicalStatement: XLLogicalPreparedStatement,
@@ -151,6 +155,7 @@ struct GRDBRequest<Row>: XLRequest {
         liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
     ) {
         self.driver = driver
+        self.codingConfiguration = codingConfiguration
         self.logger = logger
         self.reader = reader
         self.logicalStatement = logicalStatement
@@ -277,6 +282,9 @@ struct GRDBRequest<Row>: XLRequest {
 struct GRDBWriteRequest: XLWriteRequest {
 
     private let driver: GRDBDatabaseDriver
+
+    /// Immutable value-coding policy captured when this request is created.
+    let codingConfiguration: XLValueCodingConfiguration
     
     private let logger: XLLogger?
     
@@ -286,10 +294,12 @@ struct GRDBWriteRequest: XLWriteRequest {
     
     init(
         driver: GRDBDatabaseDriver,
+        codingConfiguration: XLValueCodingConfiguration,
         logger: XLLogger?,
         logicalStatement: XLLogicalPreparedStatement
     ) {
         self.driver = driver
+        self.codingConfiguration = codingConfiguration
         self.logger = logger
         self.logicalStatement = logicalStatement
     }
@@ -338,6 +348,8 @@ public struct GRDBDatabaseBuilder {
 
     private var configuration: GRDB.Configuration
 
+    private let codingConfiguration: XLValueCodingConfiguration
+
     private let formatter: XLiteFormatter
     
     private let logger: XLLogger?
@@ -360,8 +372,37 @@ public struct GRDBDatabaseBuilder {
         logger: XLLogger?,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
     ) throws {
+        try self.init(
+            url: url,
+            codingConfiguration: XLValueCodingConfiguration(),
+            configuration: configuration,
+            formatter: formatter,
+            logger: logger,
+            liveQueryRetryPolicy: liveQueryRetryPolicy
+        )
+    }
+
+    /// Creates a database builder with an immutable value-coding snapshot.
+    ///
+    /// - Parameters:
+    ///   - url: The SQLite database file URL.
+    ///   - codingConfiguration: Contextual codecs and defaults captured by the
+    ///     database and requests built from it.
+    ///   - configuration: The GRDB connection configuration to extend.
+    ///   - formatter: The formatter used when SwiftQL renders SQL.
+    ///   - logger: An optional logger for executed statements.
+    ///   - liveQueryRetryPolicy: Recovery policy for live-query failures.
+    public init(
+        url: URL,
+        codingConfiguration: XLValueCodingConfiguration,
+        configuration: GRDB.Configuration,
+        formatter: XLiteFormatter = XLiteFormatter(),
+        logger: XLLogger?,
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
+    ) throws {
         self.url = url
         self.configuration = configuration
+        self.codingConfiguration = codingConfiguration
         self.formatter = formatter
         self.logger = logger
         self.liveQueryRetryPolicy = liveQueryRetryPolicy
@@ -389,6 +430,7 @@ public struct GRDBDatabaseBuilder {
     public func build() throws -> GRDBDatabase {
         try GRDBDatabase(
             databasePool: try DatabasePool(path: url.path(percentEncoded: false), configuration: configuration),
+            codingConfiguration: codingConfiguration,
             formatter: formatter,
             logger: logger,
             liveQueryRetryPolicy: liveQueryRetryPolicy
@@ -408,6 +450,9 @@ public struct GRDBDatabase: XLDatabase {
 
     /// Explicit SQLite syntax and value contract used by this adapter.
     public let dialect: XLSQLiteDialect
+
+    /// Immutable contextual value-coding policy captured by this database.
+    public let codingConfiguration: XLValueCodingConfiguration
 
     /// Stable identity of the database transport used by this adapter.
     public let driverIdentifier: XLDriverIdentifier
@@ -437,7 +482,39 @@ public struct GRDBDatabase: XLDatabase {
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
     ) throws {
         try self.init(
-            databasePool: try DatabasePool(path: url.path(percentEncoded: false), configuration: configuration),
+            url: url,
+            codingConfiguration: XLValueCodingConfiguration(),
+            configuration: configuration,
+            formatter: formatter,
+            logger: logger,
+            liveQueryRetryPolicy: liveQueryRetryPolicy
+        )
+    }
+
+    /// Opens a GRDB-backed SQLite database with a value-coding snapshot.
+    ///
+    /// - Parameters:
+    ///   - url: The SQLite database file URL.
+    ///   - codingConfiguration: Contextual codecs and defaults captured by the
+    ///     database and every request it creates.
+    ///   - configuration: The GRDB connection configuration.
+    ///   - formatter: The formatter used when SwiftQL renders SQL.
+    ///   - logger: An optional logger for executed statements.
+    ///   - liveQueryRetryPolicy: Recovery policy for live-query failures.
+    public init(
+        url: URL,
+        codingConfiguration: XLValueCodingConfiguration,
+        configuration: GRDB.Configuration = GRDB.Configuration(),
+        formatter: XLiteFormatter = XLiteFormatter(),
+        logger: XLLogger?,
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
+    ) throws {
+        try self.init(
+            databasePool: try DatabasePool(
+                path: url.path(percentEncoded: false),
+                configuration: configuration
+            ),
+            codingConfiguration: codingConfiguration,
             formatter: formatter,
             logger: logger,
             liveQueryRetryPolicy: liveQueryRetryPolicy
@@ -460,6 +537,32 @@ public struct GRDBDatabase: XLDatabase {
     ) throws {
         try self.init(
             databasePool: databasePool,
+            codingConfiguration: XLValueCodingConfiguration(),
+            formatter: formatter,
+            logger: logger,
+            liveQueryRetryPolicy: liveQueryRetryPolicy
+        )
+    }
+
+    /// Wraps an existing GRDB pool with a value-coding snapshot.
+    ///
+    /// - Parameters:
+    ///   - databasePool: The pool used to execute requests.
+    ///   - codingConfiguration: Contextual codecs and defaults captured by the
+    ///     database and every request it creates.
+    ///   - formatter: The formatter used when SwiftQL renders SQL.
+    ///   - logger: An optional logger for executed statements.
+    ///   - liveQueryRetryPolicy: Recovery policy for live-query failures.
+    public init(
+        databasePool: DatabasePool,
+        codingConfiguration: XLValueCodingConfiguration,
+        formatter: XLiteFormatter,
+        logger: XLLogger?,
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
+    ) throws {
+        try self.init(
+            databasePool: databasePool,
+            codingConfiguration: codingConfiguration,
             formatter: formatter,
             logger: logger,
             liveQueryRetryPolicy: liveQueryRetryPolicy,
@@ -474,6 +577,24 @@ public struct GRDBDatabase: XLDatabase {
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
         liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
     ) throws {
+        try self.init(
+            databasePool: databasePool,
+            codingConfiguration: XLValueCodingConfiguration(),
+            formatter: formatter,
+            logger: logger,
+            liveQueryRetryPolicy: liveQueryRetryPolicy,
+            liveQueryRetryScheduler: liveQueryRetryScheduler
+        )
+    }
+
+    init(
+        databasePool: DatabasePool,
+        codingConfiguration: XLValueCodingConfiguration,
+        formatter: XLiteFormatter,
+        logger: XLLogger?,
+        liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
+        liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
+    ) throws {
         let dialect = XLSQLiteDialect(
             identifierFormattingOptions: formatter.identifierFormattingOptions
         )
@@ -482,6 +603,7 @@ public struct GRDBDatabase: XLDatabase {
             dialect: dialect
         )
         self.dialect = dialect
+        self.codingConfiguration = codingConfiguration
         self.encoder = XLiteEncoder(dialect: dialect)
         self.databasePool = databasePool
         self.driverIdentifier = driver.driverIdentifier
@@ -495,6 +617,7 @@ public struct GRDBDatabase: XLDatabase {
         let encoding = encoder.makeSQL(statement)
         return GRDBRequest(
             driver: driver,
+            codingConfiguration: codingConfiguration,
             logger: logger,
             reader: statement,
             logicalStatement: logicalStatement(for: encoding),
@@ -523,6 +646,7 @@ public struct GRDBDatabase: XLDatabase {
         let encoding = encoder.makeSQL(statement)
         return GRDBWriteRequest(
             driver: driver,
+            codingConfiguration: codingConfiguration,
             logger: logger,
             logicalStatement: logicalStatement(for: encoding)
         )
