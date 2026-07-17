@@ -21,7 +21,7 @@ jobs:
       artifact_id: ${{ steps.pages-artifact.outputs.artifact_id }}
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
-      DOCS_OUTPUT: ${{ runner.temp }}/swiftql-docs
+      DOCS_OUTPUT: ${{ github.workspace }}/../swiftql-docs
 
     steps:
       - name: Check out repository
