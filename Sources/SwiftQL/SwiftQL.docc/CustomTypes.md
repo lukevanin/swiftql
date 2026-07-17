@@ -172,6 +172,106 @@ let decodedDate: Date? = try dateCoding.decodeOptional(
 )
 ```
 
+### Contextual parameters and invocation packets
+
+Create a contextual binding from the same database that will prepare the
+request. `contextualBinding` resolves the codec once from that database's
+immutable coding snapshot. Rendering then records the declaration in the
+request's static `XLParameterLayout`; encoding a runtime value produces one
+`XLInvocationBinding` for a per-call packet.
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+let codecDatabase = try GRDBDatabase(
+    url: databaseURL,
+    codingConfiguration: dateCoding,
+    logger: nil
+)
+let cutoffDate = try codecDatabase.contextualBinding(
+    Date.self,
+    expressedAs: String.self,
+    named: "cutoffDate"
+)
+let cutoffQuery = sql { _ in
+    Select(cutoffDate)
+}
+let cutoffRequest = codecDatabase.makeRequest(with: cutoffQuery)
+let cutoffBindings = try XLInvocationBindings<XLSQLiteValue>(
+    layout: cutoffRequest.parameterLayout,
+    bindings: [
+        cutoffDate.encode(
+            Date(timeIntervalSince1970: 86_400),
+            in: cutoffRequest.parameterLayout
+        )
+    ]
+).validatingComplete()
+let storedCutoff = try cutoffRequest.fetchOne(bindings: cutoffBindings)
+```
+
+Here `Value` is `Date`, while the reference's `Literal` is `String` because the
+selected codec stores SQLite `TEXT`. The `expressedAs` literal controls SQL
+expression typing and any literal wrapping; it does not make `Date` conform to
+`XLLiteral`, choose a different codec at execution time, or become part of the
+runtime packet. SwiftQL rejects a known storage mismatch between the literal
+and codec when the contextual reference is created.
+
+Nullability is equally explicit. A nullable contextual reference must use an
+optional literal expression type, and `encodeOptional(nil, in:)` produces a
+present SQLite `.null` binding:
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+let optionalDate = try codecDatabase.contextualBinding(
+    Date.self,
+    expressedAs: Optional<String>.self,
+    named: "optionalDate",
+    nullability: .nullable
+)
+let nullQuery = sql { _ in Select(optionalDate.isNull()) }
+let nullRequest = codecDatabase.makeRequest(with: nullQuery)
+let nullBindings = try XLInvocationBindings<XLSQLiteValue>(
+    layout: nullRequest.parameterLayout,
+    bindings: [
+        optionalDate.encodeOptional(nil, in: nullRequest.parameterLayout)
+    ]
+).validatingComplete()
+let isNull = try nullRequest.fetchOne(bindings: nullBindings)
+```
+
+An empty packet for `nullRequest` is missing a binding and fails
+`validatingComplete()`; it is not interpreted as SQL `NULL`. Encoding `nil` for
+a required slot fails with parameter, codec, and coding-path context before the
+driver binds anything.
+
+Foundation `UUID` and application-owned values use the same API without
+retroactive literal conformances. Suppose `applicationCodecDatabase` was opened
+with registered defaults whose storage identifiers match `BLOB` and `INTEGER`,
+respectively:
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+struct InvoiceToken {
+    let rawValue: Int64
+}
+
+let uuidParameter = try applicationCodecDatabase.contextualBinding(
+    UUID.self,
+    expressedAs: Data.self,
+    named: "invoiceID"
+)
+let tokenParameter = try applicationCodecDatabase.contextualBinding(
+    InvoiceToken.self,
+    expressedAs: Int.self,
+    named: "token"
+)
+```
+
+Each reference retains its resolved codec identity and context. Call
+`encode(_:in:)` with the prepared request's layout, collect the returned
+bindings in one `XLInvocationBindings` value, validate completeness, and pass
+that packet to the request. Only normalized `XLSQLiteValue` values enter the
+packet; the original `Date`, `UUID`, or custom value is not retained.
+
 ## Legacy `XLCustomType` wrappers
 
 For existing v1 code, a custom scalar value satisfies the `XLCustomType`
@@ -440,6 +540,12 @@ var request = database.makeRequest(with: query)
 request.set(dateParameter, SQLDate(Date(timeIntervalSince1970: 0)))
 let invoices = try request.fetchAll()
 ```
+
+This last example deliberately shows the v1 `set` migration shim. It converts
+the `SQLDate` literal immediately into a compatibility invocation packet on the
+request copy. It cannot select or bypass a contextual codec. New code that has
+a registered `Date` codec should use `contextualBinding`, encode a fresh packet,
+and keep the prepared request immutable as shown above.
 
 ## Migrating v1 literals
 

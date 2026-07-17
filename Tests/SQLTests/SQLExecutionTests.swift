@@ -505,7 +505,6 @@ final class XLExecutionTests: XCTestCase {
         try insertEmployee(EmployeeTable(id: "emp02", name: "Whip", companyId: nil, managerEmployeeId: "emp01"))
         try insertEmployee(EmployeeTable(id: "emp03", name: "Slave", companyId: nil, managerEmployeeId: "emp01"))
         
-        let managerIdParameter = XLNamedBindingReference<String>(name: "id")
         let statement = sql { s in
             let t = s.table(EmployeeTable.self)
             Select(t)
@@ -513,8 +512,7 @@ final class XLExecutionTests: XCTestCase {
             Where(t.managerEmployeeId.notNull())
         }
         
-        var request = database.makeRequest(with: statement)
-        request.set(parameter: managerIdParameter, value: "emp01")
+        let request = database.makeRequest(with: statement)
         
         let results = try request.fetchAll()
         XCTAssertEqual(results.count, 2)
@@ -529,7 +527,6 @@ final class XLExecutionTests: XCTestCase {
         try insertEmployee(EmployeeTable(id: "emp02", name: "Whip", companyId: nil, managerEmployeeId: "emp01"))
         try insertEmployee(EmployeeTable(id: "emp03", name: "Slave", companyId: nil, managerEmployeeId: "emp01"))
         
-        let managerIdParameter = XLNamedBindingReference<String>(name: "id")
         let statement = sql { s in
             let t = s.table(EmployeeTable.self)
             Select(t)
@@ -537,8 +534,7 @@ final class XLExecutionTests: XCTestCase {
             Where(t.managerEmployeeId.isNull())
         }
         
-        var request = database.makeRequest(with: statement)
-        request.set(parameter: managerIdParameter, value: "emp01")
+        let request = database.makeRequest(with: statement)
         
         let results = try request.fetchAll()
         XCTAssertEqual(results.count, 1)

@@ -81,7 +81,23 @@ let statement = sqlQuery { schema in
     let person = schema.table(Person.self)
     return select(person).from(person).where(person.name == nameParameter)
 }
+
+let request = database.makeRequest(with: statement)
+let bindings = try XLInvocationBindings<XLSQLiteValue>(
+    layout: request.parameterLayout,
+    bindings: [
+        try XLInvocationBinding(
+            slot: request.parameterLayout.slot(for: .named("name"))!,
+            value: .text("John Doe")
+        )
+    ]
+).validatingComplete()
+let peopleNamedJohn = try request.fetchAll(bindings: bindings)
 ```
+
+Functional and result-builder statements produce the same immutable static
+parameter layout. Values are supplied separately in a per-call packet; the
+syntax used to construct the statement does not change binding semantics.
 
 ### Example: Where
 
@@ -206,11 +222,27 @@ let statement: any XLUpdateStatement<ExampleValue> = sqlUpdate { schema in
     .where(table.id == idParameter)
 }
 
-var request = database.makeRequest(with: statement)
-request.set(idParameter, id)
-request.set(valueParameter, value)
-try request.execute()
+let request = database.makeRequest(with: statement)
+let bindings = try XLInvocationBindings<XLSQLiteValue>(
+    layout: request.parameterLayout,
+    bindings: [
+        try XLInvocationBinding(
+            slot: request.parameterLayout.slot(for: .named("id"))!,
+            value: .text(id)
+        ),
+        try XLInvocationBinding(
+            slot: request.parameterLayout.slot(for: .named("value"))!,
+            value: .integer(Int64(value))
+        )
+    ]
+).validatingComplete()
+try request.execute(bindings: bindings)
 ```
+
+`validatingComplete()` distinguishes an omitted parameter from a present SQL
+`NULL` value. Use `.null` only for a slot declared nullable; leaving a slot out
+is always a missing binding. The mutating `set` API remains available as a
+source-compatible migration shim for older literal-based code.
 
 ### Example: Create
 

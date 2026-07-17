@@ -106,13 +106,19 @@ public struct XLRequestBuilder<Row> {
 ///
 /// A prepared select query statement.
 ///
-/// Use the set methods to assign variables parameters to the query.
+/// Read ``parameterLayout`` to construct an immutable `XLInvocationBindings` packet, then pass
+/// that packet to the binding-aware fetch or publish method for each execution. This keeps the
+/// prepared request's static SQL separate from its per-invocation values.
 ///
-/// Use the fetch methods to execute the query, or use the publish methods to create an adapter-backed
-/// Combine publisher that observes the query's database region.
+/// The mutating `set` methods remain available as v1 source-compatibility shims while callers migrate
+/// to invocation packets. Use the fetch methods to execute the query, or the publish methods to create
+/// an adapter-backed Combine publisher that observes the query's database region.
 ///
 public protocol XLRequest<Row> {
     associatedtype Row
+
+    /// Immutable static parameter metadata captured when the request was prepared.
+    var parameterLayout: XLParameterLayout { get }
     
     ///
     /// Assigns a literal value to an optional named variable parameter.
@@ -138,6 +144,9 @@ public protocol XLRequest<Row> {
     /// - Throws: The original query-execution or row-decoding error.
     ///
     func fetchAll() throws -> [Row]
+
+    /// Fetches all rows with one immutable per-invocation binding packet.
+    func fetchAll(bindings: any XLInvocationBindingPacket) throws -> [Row]
     
     ///
     /// Fetches the first row returned by the query.
@@ -145,6 +154,9 @@ public protocol XLRequest<Row> {
     /// - Throws: The original query-execution or row-decoding error.
     ///
     func fetchOne() throws -> Row?
+
+    /// Fetches the first row with one immutable per-invocation binding packet.
+    func fetchOne(bindings: any XLInvocationBindingPacket) throws -> Row?
     
     ///
     /// Creates a Combine Publisher that observes and emits all rows from the query.
@@ -158,6 +170,9 @@ public protocol XLRequest<Row> {
     /// by default and retry only when their database is configured to do so.
     ///
     func publish() -> AnyPublisher<[Row], Error>
+
+    /// Observes all rows using one immutable packet for every retry and refresh.
+    func publish(bindings: any XLInvocationBindingPacket) -> AnyPublisher<[Row], Error>
     
     ///
     /// Creates a Combine Publisher that observes and emits the first row from the query.
@@ -171,9 +186,77 @@ public protocol XLRequest<Row> {
     /// database is configured to do so.
     ///
     func publishOne() -> AnyPublisher<Row?, Error>
+
+    /// Observes the first row using one immutable packet for every retry and refresh.
+    func publishOne(bindings: any XLInvocationBindingPacket) -> AnyPublisher<Row?, Error>
 }
 
 extension XLRequest {
+
+    /// Compatibility default for request adapters that do not yet expose static
+    /// parameter metadata.
+    public var parameterLayout: XLParameterLayout {
+        .empty
+    }
+
+    /// Compatibility default for existing adapters. Empty packets preserve the
+    /// original zero-argument execution path; nonempty packets fail explicitly.
+    public func fetchAll(
+        bindings: any XLInvocationBindingPacket
+    ) throws -> [Row] {
+        try validateCompatibilityBindings(bindings)
+        return try fetchAll()
+    }
+
+    /// Compatibility default for existing adapters. Empty packets preserve the
+    /// original zero-argument execution path; nonempty packets fail explicitly.
+    public func fetchOne(
+        bindings: any XLInvocationBindingPacket
+    ) throws -> Row? {
+        try validateCompatibilityBindings(bindings)
+        return try fetchOne()
+    }
+
+    /// Compatibility default for existing adapters. Invalid packets fail on
+    /// subscription instead of being silently ignored.
+    public func publish(
+        bindings: any XLInvocationBindingPacket
+    ) -> AnyPublisher<[Row], Error> {
+        do {
+            try validateCompatibilityBindings(bindings)
+            return publish()
+        }
+        catch {
+            return Fail(error: error).eraseToAnyPublisher()
+        }
+    }
+
+    /// Compatibility default for existing adapters. Invalid packets fail on
+    /// subscription instead of being silently ignored.
+    public func publishOne(
+        bindings: any XLInvocationBindingPacket
+    ) -> AnyPublisher<Row?, Error> {
+        do {
+            try validateCompatibilityBindings(bindings)
+            return publishOne()
+        }
+        catch {
+            return Fail(error: error).eraseToAnyPublisher()
+        }
+    }
+
+    private func validateCompatibilityBindings(
+        _ bindings: any XLInvocationBindingPacket
+    ) throws {
+        guard bindings.layout.isEmpty,
+              bindings.bindingCount == 0,
+              bindings.isComplete else {
+            throw XLRequestBindingError.unsupportedInvocationBindings(
+                requestType: String(reflecting: Self.self),
+                layout: bindings.layout
+            )
+        }
+    }
     
     ///
     /// Convenience method used to set an optional named parameter on the request.
@@ -205,6 +288,9 @@ extension XLRequest {
 /// from executing the request.
 ///
 public protocol XLWriteRequest {
+
+    /// Immutable static parameter metadata captured when the request was prepared.
+    var parameterLayout: XLParameterLayout { get }
     
     ///
     /// Assigns a literal value to an optional named variable parameter.
@@ -226,9 +312,34 @@ public protocol XLWriteRequest {
     /// Executes the statement.
     ///
     func execute() throws
+
+    /// Executes the statement with one immutable per-invocation binding packet.
+    func execute(bindings: any XLInvocationBindingPacket) throws
 }
 
 extension XLWriteRequest {
+
+    /// Compatibility default for request adapters that do not yet expose static
+    /// parameter metadata.
+    public var parameterLayout: XLParameterLayout {
+        .empty
+    }
+
+    /// Compatibility default for existing adapters. Empty packets preserve the
+    /// original zero-argument execution path; nonempty packets fail explicitly.
+    public func execute(
+        bindings: any XLInvocationBindingPacket
+    ) throws {
+        guard bindings.layout.isEmpty,
+              bindings.bindingCount == 0,
+              bindings.isComplete else {
+            throw XLRequestBindingError.unsupportedInvocationBindings(
+                requestType: String(reflecting: Self.self),
+                layout: bindings.layout
+            )
+        }
+        try execute()
+    }
     
     ///
     /// Convenience method used to set an optional named parameter on the request.

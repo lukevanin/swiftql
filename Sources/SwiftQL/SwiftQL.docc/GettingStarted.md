@@ -191,11 +191,15 @@ This guide uses the explicit `schema` name for clarity.
 
 ### Reusing requests
 
-Requests are value types that contain the generated SQL and its bound values,
-so you can store and reuse them. Creating a request translates the SwiftQL
-statement into SQL but does not prepare it immediately. On execution, GRDB
-obtains a cached SQLite statement for that SQL on the connection performing the
-work.
+Requests retain the generated SQL and an immutable `XLParameterLayout`. The
+layout is static metadata: it records each logical parameter's deterministic
+index, binding key, value type, nullability, coding context, and selected codec
+identity. Runtime values are separate. Put them in a fresh
+`XLInvocationBindings` packet for each call, then pass that packet to
+`fetchAll(bindings:)`, `fetchOne(bindings:)`, `execute(bindings:)`, or a
+packet-backed publisher. Creating a request translates the SwiftQL statement
+into SQL but does not prepare it immediately. On execution, GRDB obtains a
+cached SQLite statement for that SQL on the connection performing the work.
 
 #### Dialect and driver responsibilities
 
@@ -237,10 +241,20 @@ transaction. Code inside that transaction must use the pinned connection and
 must not re-enter the root pool, which could lease another connection and break
 the transaction boundary or deadlock while waiting for itself.
 
-Each request copy or invocation carries fresh bindings. Reusing a logical
-request or prepared handle does not share mutable binding state between
-concurrent executions, and obtaining a cached physical statement does not move
-bindings into the connection-wide cache.
+Each invocation packet carries normalized dialect values in logical-index
+order, so every call has fresh bindings. Packet-backed execution does not move
+those values into the logical request or connection-wide statement cache.
+Packets and layouts are value-semantic and `Sendable` when their dialect values
+are. The current `XLRequest` facade itself is not `Sendable` and does not yet
+promise that one request can be shared across tasks; use packets to separate
+values across repeated calls in the request's supported isolation context.
+
+For cross-task raw-value execution with GRDB, call
+`GRDBDatabase.prepareInvocation(with:)`. Its `GRDBPreparedInvocation` result is
+`Sendable` and accepts an independent packet in `fetchAllValues`,
+`fetchOneValues`, or `execute`. It deliberately returns normalized SQLite
+values instead of retaining the legacy typed row-reader graph. A public static
+typed descriptor layer is separate from this runtime handle.
 
 Driver integrations can use the `prepareValidated`, `bindValidated`,
 `fetchAllValidated`, `fetchOneValidated`, `executeValidated`, and
@@ -300,18 +314,36 @@ FROM Person AS t0
 WHERE (t0.name == :name)
 ```
 
-The binding has no value until you set one on the request. Copy a reusable
-request before setting its values so each execution can be configured
-independently:
+The request's layout describes the placeholder, but it does not contain a
+runtime value. Build a SQLite packet from that layout and the normalized value
+for this call:
 
 <!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
-var fredRequest = peopleByNameRequest
-fredRequest.set(nameParameter, "Fred")
-let fredResults = try fredRequest.fetchAll()
+let nameSlot = peopleByNameRequest.parameterLayout
+    .slot(for: .named("name"))!
+let fredBindings = try XLInvocationBindings<XLSQLiteValue>(
+    layout: peopleByNameRequest.parameterLayout,
+    bindings: [
+        try XLInvocationBinding(slot: nameSlot, value: .text("Fred"))
+    ]
+).validatingComplete()
+let fredResults = try peopleByNameRequest.fetchAll(bindings: fredBindings)
 ```
 
-Set every binding referenced by a statement before executing its request.
+Constructing and validating a packet rejects values for the wrong layout,
+duplicate bindings, and missing parameters before driver execution. Missing is
+not the same as SQL `NULL`: omitting a binding fails completeness validation,
+while `.null` is a present value accepted only by a `.nullable` slot. Repeated
+uses of the same named reference share one logical slot and one value.
+
+The mutating `set` methods remain as a migration shim for v1 literal bindings.
+They immediately normalize each value into a compatibility packet stored in
+that request copy. Existing code can continue to copy, set, and execute a
+request, but new code should keep the prepared request immutable and pass an
+explicit packet for each call. The shim cannot override a contextual
+parameter's selected codec. A public cross-task prepared-descriptor API is
+separate from this packet migration.
 
 ## Update statements
 
@@ -356,10 +388,20 @@ let updateAgeStatement = sql { schema in
 let updateAgeRequest = database.makeRequest(with: updateAgeStatement)
 
 // Later, when the update is needed:
-var fredAgeRequest = updateAgeRequest
-fredAgeRequest.set(personIDParameter, "fred")
-fredAgeRequest.set(ageParameter, 42)
-try fredAgeRequest.execute()
+let updateBindings = try XLInvocationBindings<XLSQLiteValue>(
+    layout: updateAgeRequest.parameterLayout,
+    bindings: [
+        try XLInvocationBinding(
+            slot: updateAgeRequest.parameterLayout.slot(for: .named("id"))!,
+            value: .text("fred")
+        ),
+        try XLInvocationBinding(
+            slot: updateAgeRequest.parameterLayout.slot(for: .named("age"))!,
+            value: .integer(42)
+        )
+    ]
+).validatingComplete()
+try updateAgeRequest.execute(bindings: updateBindings)
 ```
 
 ## Delete statements
@@ -379,9 +421,17 @@ let deletePersonStatement = sql { schema in
 let deletePersonRequest = database.makeRequest(with: deletePersonStatement)
 
 // Later, when the deletion is needed:
-var deleteFredRequest = deletePersonRequest
-deleteFredRequest.set(deleteIDParameter, "fred")
-try deleteFredRequest.execute()
+let deleteBindings = try XLInvocationBindings<XLSQLiteValue>(
+    layout: deletePersonRequest.parameterLayout,
+    bindings: [
+        try XLInvocationBinding(
+            slot: deletePersonRequest.parameterLayout
+                .slot(for: .named("id"))!,
+            value: .text("fred")
+        )
+    ]
+).validatingComplete()
+try deletePersonRequest.execute(bindings: deleteBindings)
 ```
 
 > Warning: A delete without a `Where` clause removes every row in the table.

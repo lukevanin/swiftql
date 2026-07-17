@@ -142,6 +142,9 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "reuse its own statement cache",
             "must not re-enter the root pool",
             "fresh bindings",
+            "current `XLRequest` facade itself is not `Sendable`",
+            "Its `GRDBPreparedInvocation` result is",
+            "not the same as SQL `NULL`",
             "normalize transport failures",
             "keeps raw `DatabaseError` and `XLColumnReadError`",
             "fail later on a newly leased connection",
@@ -162,6 +165,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "## Contextual value codecs",
             "### Selection and errors",
             "### SQL NULL and optional values",
+            "### Contextual parameters and invocation packets",
             "## Legacy `XLCustomType` wrappers",
             "## Migrating v1 literals",
         ] {
@@ -177,6 +181,9 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "The first populated tier is authoritative",
             "first resolve and validate the selected codec",
             "The codec closure never receives either optional state",
+            "resolves the codec once from that database's",
+            "is missing a binding",
+            "compatibility invocation packet",
             "`XLV1LiteralCodec` exposes an existing `Sendable` `XLLiteral` implementation",
             "This is a compatibility bridge",
         ] {

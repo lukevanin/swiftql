@@ -195,7 +195,12 @@ public struct XLNamedBindingReference<T>: XLBindingReference, Sendable where T: 
     
     public func makeSQL(context: inout XLBuilder) {
         T.wrapSQL(context: &context) { context in
-            context.namedBinding(name)
+            context.parameter(
+                _xlLegacyParameterDeclaration(
+                    for: T.self,
+                    key: .named(name.rawValue)
+                )
+            )
         }
     }
 }

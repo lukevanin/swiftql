@@ -128,14 +128,12 @@ fileprivate struct BindingContext: XLBindingContext {
 
 struct GRDBRequest<Row>: XLRequest {
 
-    private let driver: GRDBDatabaseDriver
+    private let executor: GRDBInvocationExecutor
 
     /// Immutable value-coding policy captured when this request is created.
     let codingConfiguration: XLValueCodingConfiguration
     
     private let logger: XLLogger?
-    
-    private let logicalStatement: XLLogicalPreparedStatement
     
     private let reader: any XLRowReadable<Row>
 
@@ -143,7 +141,9 @@ struct GRDBRequest<Row>: XLRequest {
 
     private let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
 
-    private var arguments: [XLBindingKey: XLSQLiteValue] = [:]
+    private var compatibilityBindings: XLInvocationBindings<XLSQLiteValue>
+
+    private var compatibilityBindingError: XLInvocationBindingError?
     
     init(
         driver: GRDBDatabaseDriver,
@@ -151,20 +151,37 @@ struct GRDBRequest<Row>: XLRequest {
         logger: XLLogger?,
         reader: any XLRowReadable<Row>,
         logicalStatement: XLLogicalPreparedStatement,
+        parameterLayoutError: XLInvocationBindingError? = nil,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
         liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
     ) {
-        self.driver = driver
+        self.executor = GRDBInvocationExecutor(
+            driver: driver,
+            logicalStatement: logicalStatement,
+            parameterLayoutError: parameterLayoutError
+        )
         self.codingConfiguration = codingConfiguration
         self.logger = logger
         self.reader = reader
-        self.logicalStatement = logicalStatement
         self.liveQueryRetryPolicy = liveQueryRetryPolicy
         self.liveQueryRetryScheduler = liveQueryRetryScheduler
+        self.compatibilityBindings = XLInvocationBindings(
+            layout: logicalStatement.parameterLayout
+        )
+        self.compatibilityBindingError = parameterLayoutError
+    }
+
+    var parameterLayout: XLParameterLayout {
+        executor.parameterLayout
     }
     
     public mutating func set<T>(parameter reference: XLNamedBindingReference<Optional<T>>, value: T?) where T: XLBindable {
-        bindValue(named: reference.name.rawValue) { context in
+        bindValue(
+            declaration: _xlLegacyParameterDeclaration(
+                for: Optional<T>.self,
+                key: .named(reference.name.rawValue)
+            )
+        ) { context in
             if let value {
                 value.bind(context: &context)
             }
@@ -175,30 +192,71 @@ struct GRDBRequest<Row>: XLRequest {
     }
 
     public mutating func set<T>(parameter reference: XLNamedBindingReference<T>, value: T) where T: XLBindable {
-        bindValue(named: reference.name.rawValue) { context in
+        bindValue(
+            declaration: _xlLegacyParameterDeclaration(
+                for: T.self,
+                key: .named(reference.name.rawValue)
+            )
+        ) { context in
             value.bind(context: &context)
         }
     }
     
-    private mutating func bindValue(named name: String, bind: (inout XLBindingContext) -> Void) {
+    private mutating func bindValue(
+        declaration: XLParameterDeclaration,
+        bind: (inout XLBindingContext) -> Void
+    ) {
+        guard let slot = parameterLayout.slot(for: declaration.key) else {
+            if compatibilityBindingError == nil {
+                compatibilityBindingError = .parameterDeclarationNotInLayout(
+                    declaration: declaration
+                )
+            }
+            return
+        }
+        guard slot.acceptsLegacySet(declaration) else {
+            if compatibilityBindingError == nil {
+                compatibilityBindingError = .parameterMetadataMismatch(
+                    expected: slot,
+                    actual: declaration.slot(at: slot.index)
+                )
+            }
+            return
+        }
         var context: any XLBindingContext = BindingContext()
         bind(&context)
-        arguments[.named(name)] = (context as! BindingContext).value
+        let value = (context as! BindingContext).value
+        do {
+            compatibilityBindings = try replacingBinding(
+                value,
+                at: slot,
+                in: compatibilityBindings
+            )
+        }
+        catch let error as XLInvocationBindingError {
+            if compatibilityBindingError == nil {
+                compatibilityBindingError = error
+            }
+        }
+        catch {
+            preconditionFailure("Unexpected invocation binding error: \(error)")
+        }
     }
     
     func fetchAll() throws -> [Row] {
-        var driver = driver
-        return try driver.withReadConnection { connection in
-            try fetchAll(in: &connection)
-        }
+        try fetchAll(bindings: compatibilityPacket())
     }
 
-    private func fetchAll(
-        in connection: inout GRDBDatabaseDriverConnection
+    func fetchAll(
+        bindings: any XLInvocationBindingPacket
     ) throws -> [Row] {
-        logger?.debug("fetchAll: <<<\(logicalStatement.sql)>>> parameters: <<<\(arguments)>>>")
-        let rows = try connection.fetchAll(boundStatement(in: &connection))
+        let packet = try executor.sqlitePacket(bindings)
+        logger?.debug(
+            "fetchAll: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+        return try decodeRows(executor.fetchAll(bindings: packet))
+    }
 
+    private func decodeRows(_ rows: [[XLSQLiteValue]]) throws -> [Row] {
         let rowDecoder = GRDBRowDecoder(reader: reader)
         var items: [Row] = []
 
@@ -216,17 +274,16 @@ struct GRDBRequest<Row>: XLRequest {
     }
     
     func fetchOne() throws -> Row? {
-        var driver = driver
-        return try driver.withReadConnection { connection in
-            try fetchOne(in: &connection)
-        }
+        try fetchOne(bindings: compatibilityPacket())
     }
 
-    private func fetchOne(
-        in connection: inout GRDBDatabaseDriverConnection
+    func fetchOne(
+        bindings: any XLInvocationBindingPacket
     ) throws -> Row? {
-        logger?.debug("fetchOne: <<<\(logicalStatement.sql)>>> parameters: <<<\(arguments)>>>")
-        guard let values = try connection.fetchOne(boundStatement(in: &connection)) else {
+        let packet = try executor.sqlitePacket(bindings)
+        logger?.debug(
+            "fetchOne: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+        guard let values = try executor.fetchOne(bindings: packet) else {
             return nil
         }
 
@@ -234,16 +291,62 @@ struct GRDBRequest<Row>: XLRequest {
     }
     
     func publish() -> AnyPublisher<[Row], Error> {
-        publisher { database in
-            var connection = driver.makeConnection(database)
-            return try fetchAll(in: &connection)
+        do {
+            return publish(bindings: try compatibilityPacket())
+        }
+        catch {
+            return Fail(error: error).eraseToAnyPublisher()
         }
     }
-    
+
+    func publish(
+        bindings: any XLInvocationBindingPacket
+    ) -> AnyPublisher<[Row], Error> {
+        do {
+            let packet = try executor.sqlitePacket(bindings)
+            return publisher { database in
+                logger?.debug(
+                    "fetchAll: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+                var connection = executor.driver.makeConnection(database)
+                return try decodeRows(
+                    executor.fetchAll(packet: packet, in: &connection)
+                )
+            }
+        }
+        catch {
+            return Fail(error: error).eraseToAnyPublisher()
+        }
+    }
+
     func publishOne() -> AnyPublisher<Row?, Error> {
-        publisher { database in
-            var connection = driver.makeConnection(database)
-            return try fetchOne(in: &connection)
+        do {
+            return publishOne(bindings: try compatibilityPacket())
+        }
+        catch {
+            return Fail(error: error).eraseToAnyPublisher()
+        }
+    }
+
+    func publishOne(
+        bindings: any XLInvocationBindingPacket
+    ) -> AnyPublisher<Row?, Error> {
+        do {
+            let packet = try executor.sqlitePacket(bindings)
+            return publisher { database in
+                logger?.debug(
+                    "fetchOne: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+                var connection = executor.driver.makeConnection(database)
+                guard let values = try executor.fetchOne(
+                    packet: packet,
+                    in: &connection
+                ) else {
+                    return nil
+                }
+                return try GRDBRowDecoder(reader: reader).decode(values: values)
+            }
+        }
+        catch {
+            return Fail(error: error).eraseToAnyPublisher()
         }
     }
     
@@ -251,7 +354,7 @@ struct GRDBRequest<Row>: XLRequest {
         let makeSource = {
             ValueObservation
                 .tracking(fetch)
-                .publisher(in: driver.databasePool)
+                .publisher(in: executor.driver.databasePool)
                 .eraseToAnyPublisher()
         }
 
@@ -267,45 +370,59 @@ struct GRDBRequest<Row>: XLRequest {
         }
     }
 
-    private func boundStatement(
-        in connection: inout GRDBDatabaseDriverConnection
-    ) throws -> GRDBPhysicalStatement {
-        var statement = try connection.prepare(logicalStatement)
-        for (key, value) in arguments {
-            statement = try connection.bind(value, to: key, in: statement)
+    private func compatibilityPacket() throws -> XLInvocationBindings<XLSQLiteValue> {
+        if let compatibilityBindingError {
+            throw compatibilityBindingError
         }
-        return statement
+        return compatibilityBindings
     }
 }
 
 
 struct GRDBWriteRequest: XLWriteRequest {
 
-    private let driver: GRDBDatabaseDriver
+    private let executor: GRDBInvocationExecutor
 
     /// Immutable value-coding policy captured when this request is created.
     let codingConfiguration: XLValueCodingConfiguration
     
     private let logger: XLLogger?
     
-    private let logicalStatement: XLLogicalPreparedStatement
-    
-    private var arguments: [XLBindingKey: XLSQLiteValue] = [:]
+    private var compatibilityBindings: XLInvocationBindings<XLSQLiteValue>
+
+    private var compatibilityBindingError: XLInvocationBindingError?
     
     init(
         driver: GRDBDatabaseDriver,
         codingConfiguration: XLValueCodingConfiguration,
         logger: XLLogger?,
-        logicalStatement: XLLogicalPreparedStatement
+        logicalStatement: XLLogicalPreparedStatement,
+        parameterLayoutError: XLInvocationBindingError? = nil
     ) {
-        self.driver = driver
+        self.executor = GRDBInvocationExecutor(
+            driver: driver,
+            logicalStatement: logicalStatement,
+            parameterLayoutError: parameterLayoutError
+        )
         self.codingConfiguration = codingConfiguration
         self.logger = logger
-        self.logicalStatement = logicalStatement
+        self.compatibilityBindings = XLInvocationBindings(
+            layout: logicalStatement.parameterLayout
+        )
+        self.compatibilityBindingError = parameterLayoutError
+    }
+
+    var parameterLayout: XLParameterLayout {
+        executor.parameterLayout
     }
     
     public mutating func set<T>(parameter reference: XLNamedBindingReference<Optional<T>>, value: T?) where T: XLBindable {
-        bindValue(named: reference.name.rawValue) { context in
+        bindValue(
+            declaration: _xlLegacyParameterDeclaration(
+                for: Optional<T>.self,
+                key: .named(reference.name.rawValue)
+            )
+        ) { context in
             if let value {
                 value.bind(context: &context)
             }
@@ -316,28 +433,111 @@ struct GRDBWriteRequest: XLWriteRequest {
     }
 
     public mutating func set<T>(parameter reference: XLNamedBindingReference<T>, value: T) where T: XLBindable {
-        bindValue(named: reference.name.rawValue) { context in
+        bindValue(
+            declaration: _xlLegacyParameterDeclaration(
+                for: T.self,
+                key: .named(reference.name.rawValue)
+            )
+        ) { context in
             value.bind(context: &context)
         }
     }
     
-    private mutating func bindValue(named name: String, bind: (inout XLBindingContext) -> Void) {
+    private mutating func bindValue(
+        declaration: XLParameterDeclaration,
+        bind: (inout XLBindingContext) -> Void
+    ) {
+        guard let slot = parameterLayout.slot(for: declaration.key) else {
+            if compatibilityBindingError == nil {
+                compatibilityBindingError = .parameterDeclarationNotInLayout(
+                    declaration: declaration
+                )
+            }
+            return
+        }
+        guard slot.acceptsLegacySet(declaration) else {
+            if compatibilityBindingError == nil {
+                compatibilityBindingError = .parameterMetadataMismatch(
+                    expected: slot,
+                    actual: declaration.slot(at: slot.index)
+                )
+            }
+            return
+        }
         var context: any XLBindingContext = BindingContext()
         bind(&context)
-        arguments[.named(name)] = (context as! BindingContext).value
+        let value = (context as! BindingContext).value
+        do {
+            compatibilityBindings = try replacingBinding(
+                value,
+                at: slot,
+                in: compatibilityBindings
+            )
+        }
+        catch let error as XLInvocationBindingError {
+            if compatibilityBindingError == nil {
+                compatibilityBindingError = error
+            }
+        }
+        catch {
+            preconditionFailure("Unexpected invocation binding error: \(error)")
+        }
     }
     
     func execute() throws {
-        var driver = driver
-        try driver.withTransaction { connection in
-            logger?.debug("execute: <<<\(logicalStatement.sql)>>> parameters: <<<\(arguments)>>>")
-            var statement = try connection.prepare(logicalStatement)
-            for (key, value) in arguments {
-                statement = try connection.bind(value, to: key, in: statement)
-            }
-            try connection.execute(statement)
+        if let compatibilityBindingError {
+            throw compatibilityBindingError
         }
+        try execute(bindings: compatibilityBindings)
     }
+
+    func execute(
+        bindings: any XLInvocationBindingPacket
+    ) throws {
+        let packet = try executor.sqlitePacket(bindings)
+        logger?.debug(
+            "execute: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+        try executor.execute(bindings: packet)
+    }
+}
+
+
+private extension XLParameterSlot {
+
+    func acceptsLegacySet(_ declaration: XLParameterDeclaration) -> Bool {
+        self.declaration == declaration || isRendererLegacyBindingWildcard
+    }
+
+    /// `XLBuilder.namedBinding` and `indexedBinding` predate typed parameter
+    /// declarations. The renderer records this exact sentinel so the v1
+    /// mutating `set` facade can still normalize a value for custom expressions
+    /// that emit placeholders directly. Typed and contextual slots never take
+    /// this path and continue to require an exact declaration match.
+    private var isRendererLegacyBindingWildcard: Bool {
+        valueTypeIdentifier == XLValueTypeIdentifier(
+            rawValue: "swiftql.legacy-binding-value"
+        )
+            && valueTypeName == "SwiftQL.XLBindable"
+            && nullability == .nullable
+            && codecIdentity == nil
+    }
+}
+
+
+private func replacingBinding(
+    _ value: XLSQLiteValue,
+    at slot: XLParameterSlot,
+    in packet: XLInvocationBindings<XLSQLiteValue>
+) throws -> XLInvocationBindings<XLSQLiteValue> {
+    if value == .null, slot.nullability == .required {
+        throw XLInvocationBindingError.nullForRequiredParameter(slot: slot)
+    }
+    return try XLInvocationBindings(
+        layout: packet.layout,
+        bindings: packet.bindings.filter { $0.slot.index != slot.index } + [
+            XLInvocationBinding(slot: slot, value: value)
+        ]
+    )
 }
 
 
@@ -621,8 +821,28 @@ public struct GRDBDatabase: XLDatabase {
             logger: logger,
             reader: statement,
             logicalStatement: logicalStatement(for: encoding),
+            parameterLayoutError: preparedParameterLayoutError(for: encoding),
             liveQueryRetryPolicy: liveQueryRetryPolicy,
             liveQueryRetryScheduler: liveQueryRetryScheduler
+        )
+    }
+
+    /// Prepares an immutable raw-value runtime handle for concurrent
+    /// invocations of one rendered statement.
+    ///
+    /// The handle intentionally does not retain the typed v1 row-reader graph.
+    /// Callers that need typed decoding can use `makeRequest(with:)`; static
+    /// typed descriptors build on this raw execution seam separately.
+    public func prepareInvocation(
+        with statement: any XLEncodable
+    ) -> GRDBPreparedInvocation {
+        let encoding = encoder.makeSQL(statement)
+        return GRDBPreparedInvocation(
+            executor: GRDBInvocationExecutor(
+                driver: driver,
+                logicalStatement: logicalStatement(for: encoding),
+                parameterLayoutError: preparedParameterLayoutError(for: encoding)
+            )
         )
     }
     
@@ -648,8 +868,50 @@ public struct GRDBDatabase: XLDatabase {
             driver: driver,
             codingConfiguration: codingConfiguration,
             logger: logger,
-            logicalStatement: logicalStatement(for: encoding)
+            logicalStatement: logicalStatement(for: encoding),
+            parameterLayoutError: preparedParameterLayoutError(for: encoding)
         )
+    }
+
+    /// Confirms that every contextual parameter retained by the rendered
+    /// statement belongs to this database's immutable coding snapshot. A
+    /// reference resolved by another database is accepted only when the same
+    /// durable codec identity is registered for the same dialect.
+    private func preparedParameterLayoutError(
+        for encoding: XLEncoding
+    ) -> XLInvocationBindingError? {
+        if let parameterLayoutError = encoding.parameterLayoutError {
+            return parameterLayoutError
+        }
+
+        for slot in encoding.parameterLayout.slots {
+            guard let expected = slot.codecIdentity else {
+                continue
+            }
+            guard expected.dialectIdentifier == dialect.descriptor.identity else {
+                return .preparedCodecDialectMismatch(
+                    slot: slot,
+                    codecIdentity: expected,
+                    expectedDialectIdentifier: dialect.descriptor.identity
+                )
+            }
+            guard let actual = codingConfiguration.registry.identity(
+                for: expected.key
+            ) else {
+                return .preparedCodecUnavailable(
+                    slot: slot,
+                    codecIdentity: expected
+                )
+            }
+            guard actual == expected else {
+                return .preparedCodecIdentityMismatch(
+                    slot: slot,
+                    expected: expected,
+                    actual: actual
+                )
+            }
+        }
+        return nil
     }
 
     private func logicalStatement(for encoding: XLEncoding) -> XLLogicalPreparedStatement {
@@ -657,7 +919,8 @@ public struct GRDBDatabase: XLDatabase {
             databaseIdentifier: driver.databaseIdentifier,
             dialectRequirement: encoding.dialectRequirement,
             sql: encoding.sql,
-            entities: encoding.entities
+            entities: encoding.entities,
+            parameterLayout: encoding.parameterLayout
         )
     }
 }

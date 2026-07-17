@@ -100,14 +100,26 @@ public struct XLEncoding {
     /// Dialect identity and syntax capabilities required by this SQL.
     public let dialectRequirement: XLDialectRequirement
 
+    /// The immutable static parameter metadata captured while rendering SQL.
+    public let parameterLayout: XLParameterLayout
+
+    /// The first deterministic conflict encountered while capturing parameter
+    /// metadata. Legacy nonthrowing encoders retain this error so an execution
+    /// boundary can reject the statement before preparing it.
+    public let parameterLayoutError: XLInvocationBindingError?
+
     public init(
         sql: String,
         entities: Set<String>,
-        dialectRequirement: XLDialectRequirement
+        dialectRequirement: XLDialectRequirement,
+        parameterLayout: XLParameterLayout = .empty,
+        parameterLayoutError: XLInvocationBindingError? = nil
     ) {
         self.sql = sql
         self.entities = entities
         self.dialectRequirement = dialectRequirement
+        self.parameterLayout = parameterLayout
+        self.parameterLayoutError = parameterLayoutError
     }
 }
 
@@ -172,8 +184,20 @@ public struct XLiteEncoder: XLEncoder {
             dialectRequirement: XLDialectRequirement(
                 identity: dialect.descriptor.identity,
                 capabilities: requirementRecorder.capabilities
-            )
+            ),
+            parameterLayout: requirementRecorder.parameterLayout,
+            parameterLayoutError: requirementRecorder.parameterLayoutError
         )
+    }
+
+    /// Renders SQL and rejects conflicting or invalid static parameter
+    /// declarations before a prepared handle is created.
+    public func makeValidatedSQL(_ expression: XLEncodable) throws -> XLEncoding {
+        let encoding = makeSQL(expression)
+        if let error = encoding.parameterLayoutError {
+            throw error
+        }
+        return encoding
     }
 }
 
@@ -234,10 +258,164 @@ public protocol XLFormatter {
 private final class XLiteDialectRequirementRecorder {
 
     var capabilities: XLDialectCapabilities = []
+
+    private(set) var parameterLayout: XLParameterLayout = .empty
+
+    private(set) var parameterLayoutError: XLInvocationBindingError?
+
+    private var physicalIndexByKey: [XLBindingKey: Int] = [:]
+
+    private var slotByPhysicalIndex: [Int: XLParameterSlot] = [:]
+
+    private var largestPhysicalIndex = 0
+
+    func recordLegacyParameter(key: XLBindingKey) {
+        let existing = parameterLayout.slot(for: key)
+        let slot = XLParameterSlot(
+            index: existing?.index ?? nextLogicalIndex(),
+            key: key,
+            valueTypeIdentifier: XLValueTypeIdentifier(
+                rawValue: "swiftql.legacy-binding-value"
+            ),
+            valueTypeName: "SwiftQL.XLBindable",
+            nullability: .nullable,
+            codecIdentity: nil,
+            codingContext: XLValueCodingContext(
+                site: .parameter,
+                path: XLValueCodingPath(key.parameterPathComponent)
+            )
+        )
+
+        if let existing {
+            guard existing.declaration == slot.declaration else {
+                if parameterLayoutError == nil {
+                    parameterLayoutError = .conflictingParameterKey(
+                        key: key,
+                        existing: existing,
+                        incoming: slot
+                    )
+                }
+                return
+            }
+            return
+        }
+        recordParameter(slot)
+    }
+
+    func recordParameter(_ slot: XLParameterSlot) {
+        recordPhysicalParameter(slot)
+        do {
+            parameterLayout = try XLParameterLayout(
+                slots: parameterLayout.slots + [slot]
+            )
+        }
+        catch let error as XLInvocationBindingError {
+            if parameterLayoutError == nil {
+                parameterLayoutError = error
+            }
+        }
+        catch {
+            preconditionFailure("XLParameterLayout produced an unexpected error: \(error)")
+        }
+    }
+
+    func recordParameter(_ declaration: XLParameterDeclaration) {
+        let existing = parameterLayout.slot(for: declaration.key)
+        if let existing,
+           existing.isRendererLegacyBindingWildcard,
+           existing.declaration != declaration {
+            if parameterLayoutError == nil {
+                parameterLayoutError = .conflictingParameterKey(
+                    key: declaration.key,
+                    existing: existing,
+                    incoming: declaration.slot(at: existing.index)
+                )
+            }
+            return
+        }
+        let index = existing?.index ?? nextLogicalIndex()
+        recordParameter(declaration.slot(at: index))
+    }
+
+    /// SQLite assigns named parameters the next physical index, while `?NNN`
+    /// uses `NNN` directly. A named parameter followed by an explicit index can
+    /// therefore alias the same physical slot even though SwiftQL has two
+    /// distinct logical keys. Reject that shape during rendering.
+    private func recordPhysicalParameter(_ slot: XLParameterSlot) {
+        let physicalIndex: Int
+        if let recorded = physicalIndexByKey[slot.key] {
+            physicalIndex = recorded
+        }
+        else {
+            switch slot.key {
+            case .named:
+                physicalIndex = largestPhysicalIndex + 1
+            case .indexed(let zeroBasedIndex):
+                physicalIndex = zeroBasedIndex + 1
+            }
+            physicalIndexByKey[slot.key] = physicalIndex
+            largestPhysicalIndex = max(largestPhysicalIndex, physicalIndex)
+        }
+
+        if let existing = slotByPhysicalIndex[physicalIndex],
+           existing.key != slot.key {
+            if parameterLayoutError == nil {
+                parameterLayoutError = .conflictingPhysicalParameterIndex(
+                    index: physicalIndex,
+                    existing: existing,
+                    incoming: slot
+                )
+            }
+            return
+        }
+        slotByPhysicalIndex[physicalIndex] = slot
+    }
+
+    private func nextLogicalIndex() -> XLLogicalParameterIndex {
+        var rawValue = 0
+        while parameterLayout.slot(at: XLLogicalParameterIndex(rawValue)) != nil {
+            rawValue += 1
+        }
+        return XLLogicalParameterIndex(rawValue)
+    }
 }
 
 
-private struct XLiteRequirementRecordingFormatter: XLFormatter {
+private extension XLParameterSlot {
+
+    var isRendererLegacyBindingWildcard: Bool {
+        valueTypeIdentifier == XLValueTypeIdentifier(
+            rawValue: "swiftql.legacy-binding-value"
+        )
+            && valueTypeName == "SwiftQL.XLBindable"
+            && nullability == .nullable
+            && codecIdentity == nil
+    }
+}
+
+
+private extension XLBindingKey {
+
+    var parameterPathComponent: String {
+        switch self {
+        case .named(let name):
+            return name
+        case .indexed(let index):
+            return String(index)
+        }
+    }
+}
+
+
+private protocol XLiteParameterRecordingFormatter: XLFormatter {
+
+    func formatParameter(_ slot: XLParameterSlot) -> String
+
+    func formatParameter(_ declaration: XLParameterDeclaration) -> String
+}
+
+
+private struct XLiteRequirementRecordingFormatter: XLiteParameterRecordingFormatter {
 
     let base: XLFormatter
 
@@ -273,12 +451,38 @@ private struct XLiteRequirementRecordingFormatter: XLFormatter {
 
     func namedBinding(_ named: String) -> String {
         recorder.capabilities.insert(.namedBindings)
+        recorder.recordLegacyParameter(key: .named(named))
         return base.namedBinding(named)
     }
 
     func indexedBinding(_ index: Int) -> String {
         recorder.capabilities.insert(.indexedBindings)
+        recorder.recordLegacyParameter(key: .indexed(index))
         return base.indexedBinding(index)
+    }
+
+    func formatParameter(_ slot: XLParameterSlot) -> String {
+        recorder.recordParameter(slot)
+        switch slot.key {
+        case .named(let name):
+            recorder.capabilities.insert(.namedBindings)
+            return base.namedBinding(name)
+        case .indexed(let index):
+            recorder.capabilities.insert(.indexedBindings)
+            return base.indexedBinding(index)
+        }
+    }
+
+    func formatParameter(_ declaration: XLParameterDeclaration) -> String {
+        recorder.recordParameter(declaration)
+        switch declaration.key {
+        case .named(let name):
+            recorder.capabilities.insert(.namedBindings)
+            return base.namedBinding(name)
+        case .indexed(let index):
+            recorder.capabilities.insert(.indexedBindings)
+            return base.indexedBinding(index)
+        }
     }
 }
 
@@ -456,6 +660,17 @@ public protocol XLBuilder {
     /// - Parameter index: Ordinal index of the parameter.
     ///
     mutating func indexedBinding(_ index: Int)
+
+    /// Adds a variable binding with immutable static parameter metadata.
+    ///
+    /// Builders that do not capture parameter layouts remain source-compatible:
+    /// the default implementation renders the placeholder identified by
+    /// `slot.key`.
+    mutating func parameter(_ slot: XLParameterSlot)
+
+    /// Adds a parameter declaration whose deterministic logical index is
+    /// assigned from its first occurrence in the rendered statement.
+    mutating func parameter(_ declaration: XLParameterDeclaration)
     
     ///
     /// Adds a list. The list is constructed using a specialised `XLListBuilder`.
@@ -583,6 +798,24 @@ public protocol XLBuilder {
 }
 
 extension XLBuilder {
+
+    public mutating func parameter(_ slot: XLParameterSlot) {
+        switch slot.key {
+        case .named(let name):
+            namedBinding(XLName(name))
+        case .indexed(let index):
+            indexedBinding(index)
+        }
+    }
+
+    public mutating func parameter(_ declaration: XLParameterDeclaration) {
+        switch declaration.key {
+        case .named(let name):
+            namedBinding(XLName(name))
+        case .indexed(let index):
+            indexedBinding(index)
+        }
+    }
     
     ///
     /// Convenience method used to add a sub-expression with leading and trailing paranthesis.
@@ -741,6 +974,34 @@ public struct XLiteBuilder: XLBuilder {
     
     public mutating func indexedBinding(_ index: Int) {
         append(formatter.indexedBinding(index))
+    }
+
+    public mutating func parameter(_ slot: XLParameterSlot) {
+        if let recordingFormatter = formatter as? any XLiteParameterRecordingFormatter {
+            append(recordingFormatter.formatParameter(slot))
+            return
+        }
+
+        switch slot.key {
+        case .named(let name):
+            append(formatter.namedBinding(name))
+        case .indexed(let index):
+            append(formatter.indexedBinding(index))
+        }
+    }
+
+    public mutating func parameter(_ declaration: XLParameterDeclaration) {
+        if let recordingFormatter = formatter as? any XLiteParameterRecordingFormatter {
+            append(recordingFormatter.formatParameter(declaration))
+            return
+        }
+
+        switch declaration.key {
+        case .named(let name):
+            append(formatter.namedBinding(name))
+        case .indexed(let index):
+            append(formatter.indexedBinding(index))
+        }
     }
     
     public mutating func list(separator: String, items: (inout XLListBuilder) -> Void) {

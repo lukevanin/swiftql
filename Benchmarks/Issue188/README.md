@@ -42,10 +42,12 @@ python3 Benchmarks/Issue188/compare_codec.py \
 The script also rejects mixed repository revisions, toolchains, dependencies,
 SQLite sources, fixtures, schemas, and benchmark case contracts. It recomputes
 each compared median from the raw 500-sample array before printing a ratio. Its
-binding ratio compares pre-resolved contextual encode, storage validation, and
-public `Statement.setArguments` against the existing pre-encoded binding
-workload; registry/default resolution and argument construction remain outside
-that phase. Its decode ratio compares a one-scalar resolved contextual decode
+binding ratio compares pre-resolved contextual encode, storage validation,
+immutable invocation-packet construction/completeness validation,
+`StatementArguments` construction, and public `Statement.setArguments` against
+the existing pre-encoded binding workload; registry/default resolution, layout
+construction, and request construction remain outside that phase. Its decode
+ratio compares a one-scalar resolved contextual decode
 with two wide result-macro rows, so it is workload-level integration evidence,
 not a per-field overhead claim.
 
@@ -71,3 +73,9 @@ Median of per-run ratios: bind 1.994x; decode 0.104x. These are intentionally
 workload-level integration comparisons: the bind numerator adds pre-resolved
 codec conversion and validation, while the decode denominator covers two wide
 rows rather than one scalar.
+
+These recorded reports predate issue #82's immutable invocation packet. Their
+bind numerator therefore uses the earlier codec-plus-bind boundary and does not
+include packet or `StatementArguments` construction. New reports produced by
+the recipe above use the current, broader contextual binding boundary and must
+not be compared numerically with this recorded set.

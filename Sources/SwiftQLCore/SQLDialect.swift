@@ -228,16 +228,21 @@ public struct XLLogicalPreparedStatement: Hashable, Sendable {
 
     public let entities: Set<String>
 
+    /// Immutable static parameter metadata captured while rendering `sql`.
+    public let parameterLayout: XLParameterLayout
+
     public init(
         databaseIdentifier: XLDatabaseIdentifier,
         dialectRequirement: XLDialectRequirement,
         sql: String,
-        entities: Set<String> = []
+        entities: Set<String> = [],
+        parameterLayout: XLParameterLayout = .empty
     ) {
         self.databaseIdentifier = databaseIdentifier
         self.dialectRequirement = dialectRequirement
         self.sql = sql
         self.entities = entities
+        self.parameterLayout = parameterLayout
     }
 }
 

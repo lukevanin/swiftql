@@ -43,10 +43,12 @@ Each case contains all six phase slots. The current five-case harness therefore
 contains 30 slots and 25 measurements. `bounded_write × row_decoding` is not
 applicable because the UPDATE has no `RETURNING` clause. The contextual-codec
 case measures only `statement_reset_and_binding` and `row_decoding`; SQL DSL
-construction, statement preparation/cache lookup, and execution do not exercise
-the conversion contract it isolates. The three historical baseline JSON files
-predate that case and intentionally remain valid four-case, 23-measurement
-reports rather than being rewritten.
+construction and statement preparation/cache lookup do not exercise the
+conversion contract it isolates. Its execution slot is not applicable because
+the public request API necessarily decodes the scalar result and therefore
+cannot satisfy the SQLite-only execution boundary. The three historical
+baseline JSON files predate that case and intentionally remain valid four-case,
+23-measurement reports rather than being rewritten.
 
 ## Phase boundaries
 
@@ -62,8 +64,8 @@ overhead, trim outliers, or combine phases.
 | `swiftql_construction_and_rendering` | Complete schema/meta construction and `XLiteEncoder.makeSQL`. | GRDB and database work. |
 | `cold_statement_preparation` | Uncached `Database.makeStatement(sql:)` on one open, schema-warm connection. | Connection acquisition and statement finalization. This is not application cold start. |
 | `cached_statement_lookup` | A primed, same-connection `Database.cachedStatement(sql:)` hit. | Initial preparation. Returned object identity is verified. |
-| `statement_reset_and_binding` | Public `Statement.setArguments`, including validation, reset, clear, and bind. The contextual-codec case additionally includes pre-resolved encode and storage validation. | SwiftQL request construction, registry/default resolution, and argument creation. |
-| `execution` | GRDB's required pre-execution reset and SQLite stepping through all result rows, or the bounded UPDATE. | Preparation, explicit binding, GRDB row materialization, SwiftQL decoding, savepoint entry, and rollback. |
+| `statement_reset_and_binding` | Public `Statement.setArguments`, including validation, reset, clear, and bind. As an explicit contextual-case exception, `contextual_value_codec` also includes pre-resolved encode, declared-storage validation, immutable invocation-packet construction/completeness validation, and `StatementArguments` construction from the normalized packet value. | SwiftQL request construction and registry/default resolution. Argument-container construction is excluded for the four SQL cases but deliberately included for the contextual-case exception. |
+| `execution` | GRDB's required pre-execution reset and SQLite stepping through all result rows, or the bounded UPDATE. The contextual-codec case is not applicable because its public request path also decodes the scalar result. | Preparation, explicit binding, GRDB row materialization, SwiftQL decoding, savepoint entry, and rollback. |
 | `row_decoding` | For SQL result cases, the complete captured result set decoded into an output array through the production `GRDBRowAdapter` → `XLColumnValuesRowReader` path shared by a package-private decoder. For `contextual_value_codec`, one captured GRDB INTEGER is normalized to `XLSQLiteValue`, then storage-validated and decoded through a pre-resolved immutable codec slot. | SQL execution, captured GRDB-row creation, semantic verification, checksumming, and decoded-value destruction. |
 
 Phase medians are not additive. In particular, public GRDB execution performs
@@ -96,10 +98,12 @@ match. Run at least three independent release processes; use the spread of
 their medians to distinguish repeatable changes from process and system noise.
 
 The codec case resolves its parameter and result slots once before sampling.
-Its binding measurement then compares resolved encode, storage validation, and
-transport binding with the existing pre-encoded binding baseline; registry
-lookup and argument-container construction remain setup. Its decoding
-measurement is a one-scalar resolved contextual path, whereas
+Its binding measurement then compares resolved encode, storage validation,
+immutable invocation-packet construction/completeness validation,
+`StatementArguments` construction, and transport binding with the existing
+pre-encoded binding baseline; only registry/default resolution, layout
+construction, and request construction remain setup. Its decoding measurement
+is a one-scalar resolved contextual path, whereas
 `deterministic_row_decode` decodes two wide result-macro rows. Compare those
 workload medians as integration evidence, not as a per-field ratio.
 
