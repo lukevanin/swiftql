@@ -253,8 +253,10 @@ For cross-task raw-value execution with GRDB, call
 `GRDBDatabase.prepareInvocation(with:)`. Its `GRDBPreparedInvocation` result is
 `Sendable` and accepts an independent packet in `fetchAllValues`,
 `fetchOneValues`, or `execute`. It deliberately returns normalized SQLite
-values instead of retaining the legacy typed row-reader graph. A public static
-typed descriptor layer is separate from this runtime handle.
+values instead of retaining the legacy typed row-reader graph. For a durable,
+database-independent SQL and value-layout contract, create an
+`XLStaticQueryDescriptor` and prepare it through the overload described in
+<doc:StaticQueries>.
 
 Driver integrations can use the `prepareValidated`, `bindValidated`,
 `fetchAllValidated`, `fetchOneValidated`, `executeValidated`, and
@@ -342,8 +344,9 @@ They immediately normalize each value into a compatibility packet stored in
 that request copy. Existing code can continue to copy, set, and execute a
 request, but new code should keep the prepared request immutable and pass an
 explicit packet for each call. The shim cannot override a contextual
-parameter's selected codec. A public cross-task prepared-descriptor API is
-separate from this packet migration.
+parameter's selected codec. Static descriptors use the same immutable packet
+contract while adding stable identity, result metadata, cardinality, and a
+cross-task prepared handle; see <doc:StaticQueries>.
 
 ## Update statements
 

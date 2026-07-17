@@ -31,6 +31,7 @@ enum FixtureError: Error {
     case invalidCoreContract
     case invalidCodecValue(XLSQLiteValue)
     case unexpectedPacketResult(Int?)
+    case unexpectedStaticQueryResult(Int64)
     case unexpectedResult(PersonSummary?)
 }
 
@@ -153,6 +154,81 @@ private func executeFixture(
     let tokenResult = try tokenRequest.fetchOne(bindings: tokenPacket)
     guard tokenResult == 42 else {
         throw FixtureError.unexpectedPacketResult(tokenResult)
+    }
+
+    let staticDialect = XLSQLiteDialect()
+    let staticEncoding = try XLiteEncoder(dialect: staticDialect)
+        .makeValidatedSQL(sql { _ in Select(token) })
+    let staticStatement = try XLStaticStatementDefinition(
+        validating: staticEncoding
+    )
+    let staticParameterIdentity = try XLQuerySlotIdentity(
+        path: ["downstream", "parameter", "token"]
+    )
+    let staticResultIdentity = try XLQuerySlotIdentity(
+        path: ["downstream", "result", "token"]
+    )
+    let staticParameter = try token.staticQueryParameter(
+        identity: staticParameterIdentity,
+        in: staticStatement.parameterLayout
+    )
+    let staticResultContext = XLValueCodingContext(
+        site: .result,
+        path: XLValueCodingPath("downstream.token")
+    )
+    let staticResultCodec = try codingConfiguration.resolvedCodec(
+        for: DownstreamToken.self,
+        using: staticDialect,
+        context: staticResultContext
+    )
+    let staticDescriptor = try XLStaticQueryDescriptor(
+        definitionIdentity: XLQueryDefinitionIdentity(
+            path: ["downstream", "token-round-trip"],
+            version: 1
+        ),
+        statement: staticStatement,
+        parameters: [staticParameter],
+        results: try XLStaticQueryResultMetadata(slots: [
+            XLStaticQueryResultSlot(
+                index: XLLogicalResultIndex(0),
+                identity: staticResultIdentity,
+                valueTypeIdentifier: staticResultCodec.identity
+                    .valueTypeIdentifier,
+                valueTypeName: String(reflecting: DownstreamToken.self),
+                nullability: .required,
+                codecIdentity: staticResultCodec.identity,
+                storageIdentifier: staticResultCodec.identity
+                    .storageIdentifier,
+                codingContext: staticResultContext
+            )
+        ]),
+        cardinality: .exactlyOne
+    )
+    let preparedStaticQuery = try database.prepareInvocation(
+        with: staticDescriptor
+    )
+    let preparedStaticParameter = try preparedStaticQuery.preparedParameter(
+        DownstreamToken.self,
+        identifiedBy: staticParameterIdentity
+    )
+    let staticPacket = try XLInvocationBindings<XLSQLiteValue>(
+        layout: preparedStaticQuery.parameterLayout,
+        bindings: [
+            try preparedStaticParameter.encode(
+                DownstreamToken(rawValue: 84)
+            )
+        ]
+    ).validatingComplete()
+    let staticRow = try preparedStaticQuery.fetchExactlyOneValues(
+        bindings: staticPacket
+    )
+    let preparedStaticResultCodec = try preparedStaticQuery.resultCodec(
+        DownstreamToken.self,
+        identifiedBy: staticResultIdentity
+    )
+    let staticResult = try preparedStaticResultCodec.decode(staticRow[0])
+    guard staticResult == DownstreamToken(rawValue: 84) else {
+        throw FixtureError.unexpectedStaticQueryResult(staticResult.rawValue)
     }
 
     let id = XLNamedBindingReference<String>(name: "id")

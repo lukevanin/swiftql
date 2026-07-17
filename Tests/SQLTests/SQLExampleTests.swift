@@ -1710,6 +1710,190 @@ extension XLDocumentationTests {
         let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testStringToDataRoundTrip
     }
 
+    func testDocumentationStaticQueries() throws {
+        let staticQueryDialect = XLSQLiteDialect()
+        let staticDateCoding = try XLValueCodingConfiguration(
+            registry: try XLValueCodecRegistry().registering(decimalDateCodec),
+            defaultCodecKeys: [decimalDateCodecKey]
+        )
+        let cutoffContext = XLValueCodingContext(
+            site: .parameter,
+            path: XLValueCodingPath("invoice.cutoffDate")
+        )
+        let cutoffCodec = try staticDateCoding.resolvedCodec(
+            for: Date.self,
+            using: staticQueryDialect,
+            context: cutoffContext
+        )
+        let cutoffParameter = XLContextualBindingReference<
+            Date,
+            String,
+            XLSQLiteDialect
+        >(
+            key: .named("cutoffDate"),
+            codec: cutoffCodec
+        )
+
+        let cutoffEncoding = try XLiteEncoder(dialect: staticQueryDialect)
+            .makeValidatedSQL(sql { _ in Select(cutoffParameter) })
+        let cutoffStatement = try XLStaticStatementDefinition(
+            validating: cutoffEncoding
+        )
+        let cutoffParameterIdentity = try XLQuerySlotIdentity(
+            path: ["invoice", "parameter", "cutoffDate"]
+        )
+        let selectedDateIdentity = try XLQuerySlotIdentity(
+            path: ["invoice", "result", "cutoffDate"]
+        )
+        let cutoffMetadata = try cutoffParameter.staticQueryParameter(
+            identity: cutoffParameterIdentity,
+            in: cutoffStatement.parameterLayout
+        )
+        let selectedDate = XLStaticQueryResultSlot(
+            index: XLLogicalResultIndex(0),
+            identity: selectedDateIdentity,
+            valueTypeIdentifier: cutoffCodec.identity.valueTypeIdentifier,
+            valueTypeName: String(reflecting: Date.self),
+            nullability: .required,
+            codecIdentity: cutoffCodec.identity,
+            storageIdentifier: cutoffCodec.identity.storageIdentifier,
+            codingContext: XLValueCodingContext(
+                site: .result,
+                path: XLValueCodingPath("invoice.cutoffDate")
+            )
+        )
+        let cutoffDescriptor = try XLStaticQueryDescriptor(
+            definitionIdentity: XLQueryDefinitionIdentity(
+                path: ["invoice", "selected-after-cutoff"],
+                version: 1
+            ),
+            statement: cutoffStatement,
+            parameters: [cutoffMetadata],
+            results: try XLStaticQueryResultMetadata(slots: [selectedDate]),
+            cardinality: .exactlyOne
+        )
+
+        XCTAssertEqual(cutoffDescriptor.sql, "SELECT :cutoffDate")
+        XCTAssertEqual(cutoffDescriptor.parameters, [cutoffMetadata])
+        XCTAssertEqual(cutoffDescriptor.results.slots, [selectedDate])
+        let staticQueryRegistry = [
+            cutoffDescriptor.identity: cutoffDescriptor,
+        ]
+        let registeredDescriptor = try XCTUnwrap(
+            staticQueryRegistry[cutoffDescriptor.identity]
+        )
+        try registeredDescriptor.identity.validateDefinitionCompatibility(
+            with: cutoffDescriptor.identity
+        )
+
+        let staticDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swiftql-static-query-docs-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: staticDirectory,
+            withIntermediateDirectories: false
+        )
+        defer { try? FileManager.default.removeItem(at: staticDirectory) }
+        let databaseURL = staticDirectory.appendingPathComponent("fixture.sqlite")
+        let staticDatabase = try GRDBDatabase(
+            url: databaseURL,
+            codingConfiguration: staticDateCoding,
+            logger: nil
+        )
+        defer { try? staticDatabase.databasePool.close() }
+        let preparedCutoff = try staticDatabase.prepareInvocation(
+            with: cutoffDescriptor
+        )
+        let preparedCutoffParameter = try preparedCutoff.preparedParameter(
+            Date.self,
+            identifiedBy: cutoffParameterIdentity
+        )
+        let expectedDate = Date(timeIntervalSince1970: 86_400)
+        let cutoffBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: preparedCutoff.parameterLayout,
+            bindings: [
+                try preparedCutoffParameter.encode(expectedDate)
+            ]
+        ).validatingComplete()
+        let cutoffRow = try preparedCutoff.fetchExactlyOneValues(
+            bindings: cutoffBindings
+        )
+        let cutoffResultCodec = try preparedCutoff.resultCodec(
+            Date.self,
+            identifiedBy: selectedDateIdentity
+        )
+        let decodedCutoff = try cutoffResultCodec.decode(cutoffRow[0])
+        XCTAssertEqual(decodedCutoff, expectedDate)
+
+        let intrinsicParameter = XLNamedBindingReference<Int>(name: "value")
+        let intrinsicEncoding = try XLiteEncoder(dialect: staticQueryDialect)
+            .makeValidatedSQL(sql { _ in Select(intrinsicParameter) })
+        let intrinsicStatement = try XLStaticStatementDefinition(
+            validating: intrinsicEncoding
+        )
+        let intrinsicSlot = try XCTUnwrap(
+            intrinsicStatement.parameterLayout.slot(for: .named("value"))
+        )
+        let intrinsicParameterIdentity = try XLQuerySlotIdentity(
+            path: ["intrinsic", "parameter", "value"]
+        )
+        let intrinsicResultIdentity = try XLQuerySlotIdentity(
+            path: ["intrinsic", "result", "value"]
+        )
+        let integerStorage = XLValueStorageIdentifier(
+            rawValue: XLSQLiteStorageClass.integer.rawValue
+        )
+        let intrinsicDescriptor = try XLStaticQueryDescriptor(
+            definitionIdentity: XLQueryDefinitionIdentity(
+                path: ["documentation", "intrinsic-value"],
+                version: 1
+            ),
+            statement: intrinsicStatement,
+            parameters: [
+                XLStaticQueryParameterMetadata(
+                    identity: intrinsicParameterIdentity,
+                    slot: intrinsicSlot,
+                    storageIdentifier: integerStorage
+                )
+            ],
+            results: try XLStaticQueryResultMetadata(slots: [
+                XLStaticQueryResultSlot(
+                    index: XLLogicalResultIndex(0),
+                    identity: intrinsicResultIdentity,
+                    valueTypeIdentifier: XLValueTypeIdentifier(
+                        rawValue: "swift.int"
+                    ),
+                    valueTypeName: String(reflecting: Int.self),
+                    nullability: .required,
+                    codecIdentity: nil,
+                    storageIdentifier: integerStorage,
+                    codingContext: XLValueCodingContext(
+                        site: .result,
+                        path: XLValueCodingPath("intrinsic.value")
+                    )
+                )
+            ]),
+            cardinality: .exactlyOne
+        )
+        let preparedIntrinsic = try staticDatabase.prepareInvocation(
+            with: intrinsicDescriptor
+        )
+        let intrinsicBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: preparedIntrinsic.parameterLayout,
+            bindings: [
+                try XLInvocationBinding(
+                    slot: intrinsicSlot,
+                    value: .integer(7)
+                )
+            ]
+        ).validatingComplete()
+        XCTAssertEqual(
+            try preparedIntrinsic.fetchExactlyOneValues(
+                bindings: intrinsicBindings
+            ),
+            [.integer(7)]
+        )
+    }
+
     func testDocumentationCustomFunctionRegistrationAndExecution() throws {
         try testExample_CustomFunction()
     }

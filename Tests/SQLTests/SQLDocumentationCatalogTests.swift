@@ -26,6 +26,10 @@ private let documentationTests = [
         XLDocumentationTests.testDocumentationQuickStart
     ),
     DocumentationTestReference(
+        "XLDocumentationTests.testDocumentationStaticQueries",
+        XLDocumentationTests.testDocumentationStaticQueries
+    ),
+    DocumentationTestReference(
         "XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings",
         XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings
     ),
@@ -81,6 +85,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         "GettingStarted.md": "XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings",
         "LiveQueries.md": "XLDocumentationTests.testDocumentationLiveQueryPublishers",
         "Queries.md": "XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs",
+        "StaticQueries.md": "XLDocumentationTests.testDocumentationStaticQueries",
         "SwiftQL.md": "XLDocumentationTests.testDocumentationQuickStart",
     ]
 
@@ -152,6 +157,51 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             XCTAssertTrue(
                 contents.contains(semanticPhrase),
                 "GettingStarted.md is missing prepared-statement guidance for '\(semanticPhrase)'."
+            )
+        }
+    }
+
+    func testStaticQueriesDocumentsIdentityPreparationAndExecutionContracts() throws {
+        let staticQueriesURL = documentationCatalogURL()
+            .appendingPathComponent("StaticQueries.md")
+        let contents = try String(
+            contentsOf: staticQueriesURL,
+            encoding: .utf8
+        )
+
+        for heading in [
+            "## Construct a descriptor",
+            "## Stable identity",
+            "### Definition versions and registries",
+            "## Prepare and invoke",
+            "### Intrinsic and contextual slots",
+            "### Cardinality",
+        ] {
+            XCTAssertTrue(contents.contains(heading), "StaticQueries.md is missing \(heading).")
+        }
+
+        for semanticPhrase in [
+            "construct and register descriptors before opening a database",
+            "one flat `XLStaticQueryResultSlot`",
+            "owned by issue #40",
+            "Exact rendered SQL bytes",
+            "deliberately excludes invocation values",
+            "Metadata strings that participate in identity use Unicode NFC normalization",
+            "Rendered SQL is different: it remains exact UTF-8",
+            "different canonical material",
+            "`XLStaticQueryError.definitionIdentityCollision`",
+            "descriptor registry can be a value-semantic collection",
+            "retains that exact configuration snapshot",
+            "fresh `XLInvocationBindings` packet for every call",
+            "Intrinsic `Bool`, `Int`, `Double`, `String`, and `Data` slots",
+            "| `.command` | `execute(bindings:)` |",
+            "| `.exactlyOne` | `fetchExactlyOneValues(bindings:)` |",
+            "| `.zeroOrOne` | `fetchZeroOrOneValues(bindings:)` |",
+            "| `.many` | `fetchAllValues(bindings:)` |",
+        ] {
+            XCTAssertTrue(
+                contents.contains(semanticPhrase),
+                "StaticQueries.md is missing static-query guidance for '\(semanticPhrase)'."
             )
         }
     }
