@@ -851,64 +851,6 @@ public enum JoinKind: String {
 
 
 ///
-/// A table used in a JOIN clause.
-///
-final class XLJoinTableDependency: XLTableDeclaration, XLNamedDependency {
-    
-    private let name: XLEncodable
-    
-    public var alias: XLName
-    
-    public var condition: (any XLExpression)!
-    
-    private let kind: JoinKind
-
-    public init(kind: JoinKind, name: any XLEncodable, alias: XLName) {
-        self.kind = kind
-        self.name = name
-        self.alias = alias
-    }
-
-    public func makeSQL(context: inout XLBuilder) {
-        context.binaryOperator("AS", left: name.makeSQL, right: alias.makeSQL)
-    }
-    
-    public func qualifiedName(forColumn name: XLName) -> XLQualifiedName {
-        XLQualifiedTableAliasColumnName(table: alias, column: name)
-    }
-}
-
-
-///
-/// A table used in a JOIN clause in a common table expression.
-///
-final class XLJoinCommonTableDependency: XLTableDeclaration, XLNamedDependency {
-    
-    private let commonTable: XLCommonTableDependency
-
-    public var alias: XLName
-    
-    public var condition: (any XLExpression)!
-    
-    private let kind: JoinKind
-
-    public init(kind: JoinKind, commonTable: XLCommonTableDependency, alias: XLName) {
-        self.kind = kind
-        self.commonTable = commonTable
-        self.alias = alias
-    }
-
-    public func makeSQL(context: inout XLBuilder) {
-        context.binaryOperator("AS", left: commonTable.alias.makeSQL, right: alias.makeSQL)
-    }
-    
-    public func qualifiedName(forColumn name: XLName) -> XLQualifiedName {
-        XLQualifiedTableAliasColumnName(table: alias, column: name)
-    }
-}
-
-
-///
 /// A table used in a subquery.
 ///
 public struct XLSubqueryDependency: XLTableDeclaration, XLNamedDependency {

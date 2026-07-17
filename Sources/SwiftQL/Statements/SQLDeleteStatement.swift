@@ -58,10 +58,6 @@ extension XLDeleteStatement {
     public func makeSQL(context: inout XLBuilder) {
         components.makeSQL(context: &context)
     }
-
-    //    public func readRow(reader: XLRowReader) throws -> Row {
-    //        try components.readRow(reader: reader)
-    //    }
 }
 
 

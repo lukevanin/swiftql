@@ -88,37 +88,3 @@ extension XLExpression {
         XLFunction(name: "GROUP_CONCAT", parameters: [self, separator])
     }
 }
-
-//public func count<T>(distinct: Bool = false, _ expression: any XLExpression<T>) -> some XLExpression<T> where T: XLLiteral {
-//    XLFunction(name: "COUNT", distinct: distinct, parameters: [expression])
-//}
-//
-//
-//public func min<T>(distinct: Bool = false, _ expression: any XLExpression<T>) -> some XLExpression<T> where T: XLLiteral {
-//    XLFunction(name: "MIN", distinct: distinct, parameters: [expression])
-//}
-//
-//
-//public func max<T>(distinct: Bool = false, _ expression: any XLExpression<T>) -> some XLExpression<T> where T: XLLiteral {
-//    XLFunction(name: "MAX", distinct: distinct, parameters: [expression])
-//}
-//
-//
-//public func average<T>(distinct: Bool = false, _ expression: any XLExpression<T>) -> some XLExpression<T> where T: XLLiteral {
-//    XLFunction(name: "AVG", distinct: distinct, parameters: [expression])
-//}
-//
-//
-//public func sum<T>(distinct: Bool = false, _ expression: any XLExpression<T>) -> some XLExpression<T> where T: Numeric & XLLiteral {
-//    XLFunction(name: "SUM", distinct: distinct, parameters: [expression])
-//}
-//
-//
-//public func groupConcat<T>(distinct: Bool = false, _ expression: any XLExpression<T>) -> some XLExpression<T> where T: Numeric & XLLiteral {
-//    XLFunction(name: "GROUP_CONCAT", distinct: distinct, parameters: [expression])
-//}
-//
-//
-//public func groupConcat<T>(distinct: Bool = false, _ expression: any XLExpression, separator: String) -> some XLExpression<T> where T: Numeric & XLLiteral {
-//    XLFunction(name: "GROUP_CONCAT", distinct: distinct, parameters: [expression, separator])
-//}
