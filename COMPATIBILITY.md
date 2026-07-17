@@ -21,19 +21,23 @@ silently redefining support.
 
 ## Swift 6 series coverage
 
-| Swift series | Exact compiler | Official image | CI platform |
-| --- | --- | --- | --- |
-| Swift 6.0 | 6.0.3 | `swift:6.0.3-noble` | Ubuntu 24.04, x86-64 |
-| Swift 6.1 | 6.1.3 | `swift:6.1.3-noble` | Ubuntu 24.04, x86-64 |
-| Swift 6.2 | 6.2.4 | `swift:6.2.4-noble` | Ubuntu 24.04, x86-64 |
-| Swift 6.3 | 6.3.3 | `swift:6.3.3-noble` | Ubuntu 24.04, x86-64 |
+| Swift series | GitHub runner | Xcode | Swift | macOS SDK |
+| --- | --- | --- | --- | --- |
+| Swift 6.0 | `macos-15` | 16.2 (`16C5032a`) | 6.0 series | 15.2 |
+| Swift 6.1 | `macos-15` | 16.4 (`16F6`) | 6.1 series | 15.5 |
+| Swift 6.2 | `macos-15` | 26.3 (`17C529`) | 6.2.3 | 26.2 |
+| Swift 6.3 | `macos-26` | 26.5 (`17F42`) | 6.3.2 | 26.5 |
 
-These release-blocking jobs use pinned Swift Docker Official Images, verify the
-exact compiler and target triple, resolve dependencies without either committed
-lockfile, install Ubuntu's SQLite development headers, run the first-party
-warning gate, execute the SQLite runtime probe, and run the complete test suite.
-This clean-resolution path mirrors how package consumers and Swift Package
-Index resolve SwiftQL.
+The Swift 6.0 row is exercised by both pinned resolution cells above. Swift 6.1,
+6.2, and 6.3 each have an additional release-blocking clean-resolution cell.
+Every cell selects an exact Xcode version and build, verifies the compiler
+series and SDK, resolves dependencies without either committed lockfile, runs
+the first-party warning gate, executes the SQLite runtime probe, and runs the
+complete test suite.
+
+SwiftQL imports Apple Combine and supports Apple platforms, so the compiler
+series lanes use Apple SDKs. Linux Swift toolchains do not ship Combine and are
+not presented as supported-platform evidence.
 
 The compatibility test target contains a compile-time `#if swift(>=6.0)`
 failure. Because `swift()` tests the active language mode, every Swift 6.0–6.3
@@ -49,10 +53,10 @@ Each pinned Apple support point runs two independent dependency modes:
   removes the exported lockfile, resolves from the manifest's declared ranges,
   and reports the resulting versions. It never modifies the checkout.
 
-All four Apple cells and all four Swift-series cells build every first-party
-target and run the complete test suite. No cell is conditional, allowed to
-fail, or represented by a skipped job. The workflow does not share build caches
-across compilers or resolution modes.
+All four pinned support cells and all three additional Swift-series cells build
+every first-party target and run the complete test suite. No cell is
+conditional, allowed to fail, or represented by a skipped job. The workflow
+does not share build caches across compilers or resolution modes.
 
 After resolution,
 [`scripts/ci/report-resolved-dependencies.sh`](scripts/ci/report-resolved-dependencies.sh)
@@ -99,30 +103,9 @@ xcrun swift test --skip-build -v
 ```
 
 The workflow is the canonical executable specification for both procedures.
-
-To reproduce a Swift-series lane with the same official toolchain image, use
-Docker and substitute the desired tag from the table above:
-
-```sh
-docker run --rm \
-  -v "$PWD:/workspace" \
-  -w /workspace \
-  swift:6.3.3-noble \
-  bash -lc '
-    apt-get update
-    apt-get install --yes --no-install-recommends libsqlite3-dev
-    EXPECTED_SWIFT_VERSION=6.3.3 \
-    EXPECTED_SWIFT_TARGET=x86_64-unknown-linux-gnu \
-      scripts/ci/check-swift-toolchain.sh
-    swift package resolve
-    scripts/ci/report-resolved-dependencies.sh
-    scripts/ci/check-first-party-warnings.sh
-    swift test --skip-build -v
-  '
-```
-
-The CI job first exports a clean source tree and removes both lockfiles; do the
-same when reproducing dependency resolution exactly.
+Use the Xcode values in the Swift-series table to reproduce a 6.1, 6.2, or 6.3
+cell. Those jobs use the same clean-source procedure and remove both lockfiles
+before resolution.
 
 ## Downstream Swift 5 language-mode client
 

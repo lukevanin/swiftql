@@ -162,30 +162,34 @@ jobs:
           test -z "$(git status --porcelain)"
 
   swift-series:
-    name: Swift ${{ matrix.swift_series }} / Linux clean resolution
-    runs-on: ubuntu-24.04
+    name: Swift ${{ matrix.swift_series }} / Apple clean resolution
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
-    container:
-      image: swift:${{ matrix.image_tag }}
-    defaults:
-      run:
-        shell: bash
     strategy:
       fail-fast: false
       matrix:
         include:
-          - swift_series: "6.0"
-            swift_version: "6.0.3"
-            image_tag: 6.0.3-noble
           - swift_series: "6.1"
-            swift_version: "6.1.3"
-            image_tag: 6.1.3-noble
+            runner: macos-15
+            developer_dir: /Applications/Xcode_16.4.app/Contents/Developer
+            xcode_version: "16.4"
+            xcode_build: 16F6
+            sdk_version: "15.5"
           - swift_series: "6.2"
-            swift_version: "6.2.4"
-            image_tag: 6.2.4-noble
+            runner: macos-15
+            developer_dir: /Applications/Xcode_26.3.app/Contents/Developer
+            xcode_version: "26.3"
+            xcode_build: 17C529
+            sdk_version: "26.2"
           - swift_series: "6.3"
-            swift_version: "6.3.3"
-            image_tag: 6.3.3-noble
+            runner: macos-26
+            developer_dir: /Applications/Xcode_26.5.app/Contents/Developer
+            xcode_version: "26.5"
+            xcode_build: 17F42
+            sdk_version: "26.5"
+
+    env:
+      DEVELOPER_DIR: ${{ matrix.developer_dir }}
 
     steps:
       - name: Check out exact source commit
@@ -194,23 +198,17 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
-      - name: Trust mounted workspace and verify exact source commit
-        run: |
-          set -euo pipefail
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Verify exact source commit
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
-      - name: Validate and report Swift toolchain
+      - name: Validate and report compiler environment
         env:
-          EXPECTED_SWIFT_VERSION: ${{ matrix.swift_version }}
-          EXPECTED_SWIFT_TARGET: x86_64-unknown-linux-gnu
-        run: scripts/ci/check-swift-toolchain.sh
-
-      - name: Install SQLite development headers
-        run: |
-          set -euo pipefail
-          apt-get update
-          apt-get install --yes --no-install-recommends libsqlite3-dev
+          EXPECTED_XCODE_VERSION: ${{ matrix.xcode_version }}
+          EXPECTED_XCODE_BUILD: ${{ matrix.xcode_build }}
+          EXPECTED_SWIFT_SERIES: ${{ matrix.swift_series }}
+          EXPECTED_SDK_VERSION: ${{ matrix.sdk_version }}
+          EXPECTED_DEVELOPER_DIR: ${{ matrix.developer_dir }}
+        run: scripts/ci/check-compatibility-environment.sh
 
       - name: Prepare clean dependency resolution
         run: |
@@ -228,7 +226,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$SWIFTQL_SOURCE"
-          swift package resolve
+          xcrun swift package resolve
           scripts/ci/report-resolved-dependencies.sh
           test -f Package.resolved
 
@@ -243,7 +241,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$SWIFTQL_SOURCE"
-          swift test --skip-build --filter XLCompatibilityReportTests 2>&1 |
+          xcrun swift test --skip-build --filter XLCompatibilityReportTests 2>&1 |
             tee "$RUNNER_TEMP/swift-test-build.log"
           runtime_markers="$(
             grep -c 'SWIFTQL_SQLITE_RUNTIME ' "$RUNNER_TEMP/swift-test-build.log" ||
@@ -258,7 +256,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$SWIFTQL_SOURCE"
-          swift test --skip-build -v
+          xcrun swift test --skip-build -v
 
       - name: Verify checkout remains clean
         run: |
