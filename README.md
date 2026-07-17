@@ -1,6 +1,22 @@
-# SwiftQL
+<p align="center">
+  <img src=".github/assets/swiftql-logo.png" alt="SwiftQL logo" width="420">
+</p>
 
-SwiftQL lets you write SQL queries using familiar, type-safe Swift syntax.
+<h1 align="center">SwiftQL</h1>
+
+<p align="center">
+  Write SQL queries using familiar, type-safe Swift syntax.
+</p>
+
+<p align="center">
+  <a href="https://github.com/lukevanin/swiftql/actions/workflows/swift.yml?query=branch%3Amain"><img alt="Build and CI status" src="https://img.shields.io/github/actions/workflow/status/lukevanin/swiftql/swift.yml?branch=main&amp;label=build%20%26%20CI"></a>
+  <a href="https://github.com/lukevanin/swiftql/actions/workflows/documentation.yml?query=branch%3Amain"><img alt="Documentation status" src="https://img.shields.io/github/actions/workflow/status/lukevanin/swiftql/documentation.yml?branch=main&amp;label=documentation"></a>
+  <a href="COMPATIBILITY.md"><img alt="Supported Swift versions: 5.9 and 6.0" src="https://img.shields.io/badge/Swift-5.9%20%7C%206.0-F05138?logo=swift&amp;logoColor=white"></a>
+  <a href="Package.swift"><img alt="Supported platforms: iOS 16 or later and macOS 13 or later" src="https://img.shields.io/badge/platforms-iOS%2016%2B%20%7C%20macOS%2013%2B-lightgrey"></a>
+  <a href="https://swiftpackageindex.com/lukevanin/swiftql"><img alt="Swift Package Index" src="https://img.shields.io/badge/Swift%20Package%20Index-SwiftQL-5A2D81?logo=swift&amp;logoColor=white"></a>
+  <a href="https://github.com/lukevanin/swiftql/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/lukevanin/swiftql?sort=semver"></a>
+  <a href="LICENSE.md"><img alt="MIT license" src="https://img.shields.io/github/license/lukevanin/swiftql"></a>
+</p>
 
 ## Overview
  
