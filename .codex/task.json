@@ -1,0 +1,11 @@
+{
+  "task_name": "Remove unused internal code and commented-out implementation blocks",
+  "issue_number": 149,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/149",
+  "workspace_repo": "lukevanin/swiftql",
+  "codex_session_title": "lukevanin/swiftql#149 - Remove unused internal code and commented-out implementation blocks",
+  "codex_session_id": "019f6bca-feb6-7223-a3ff-f623507d4e99",
+  "codex_session_url": "unavailable",
+  "task_branch": "codex/149-remove-unused-internal-code-and-commented-out-implementation-blocks",
+  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/149-remove-unused-internal-code-and-commented-out-implementation-blocks"
+}
