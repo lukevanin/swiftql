@@ -1,0 +1,11 @@
+{
+  "task_name": "Correct concatenation and COLLATE precedence rendering",
+  "issue_number": 145,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/145",
+  "workspace_repo": "lukevanin/swiftql",
+  "codex_session_title": "lukevanin/swiftql#145 - Correct concatenation and COLLATE precedence",
+  "codex_session_id": "019f6ab7-ff93-71b2-977a-aa0d3f5c581b",
+  "codex_session_url": null,
+  "task_branch": "codex/145-concat-collate-precedence",
+  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/145-concat-collate-precedence"
+}
