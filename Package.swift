@@ -60,6 +60,7 @@ let package = Package(
             name: "SQLTests",
             dependencies: [
                 "SwiftQL",
+                .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
     ]

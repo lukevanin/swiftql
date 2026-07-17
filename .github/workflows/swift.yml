@@ -1,22 +1,141 @@
-# This workflow will build a Swift project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
-
-name: Swift
+name: Swift compatibility
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  compatibility:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Swift 5.9 / committed resolution
+            runner: macos-14
+            developer_dir: /Applications/Xcode_15.2.app/Contents/Developer
+            xcode_version: "15.2"
+            xcode_build: 15C500b
+            swift_series: "5.9"
+            sdk_version: "14.2"
+            resolution: committed
+          - name: Swift 5.9 / clean resolution
+            runner: macos-14
+            developer_dir: /Applications/Xcode_15.2.app/Contents/Developer
+            xcode_version: "15.2"
+            xcode_build: 15C500b
+            swift_series: "5.9"
+            sdk_version: "14.2"
+            resolution: clean
+          - name: Swift 6.0 / committed resolution
+            runner: macos-15
+            developer_dir: /Applications/Xcode_16.2.app/Contents/Developer
+            xcode_version: "16.2"
+            xcode_build: 16C5032a
+            swift_series: "6.0"
+            sdk_version: "15.2"
+            resolution: committed
+          - name: Swift 6.0 / clean resolution
+            runner: macos-15
+            developer_dir: /Applications/Xcode_16.2.app/Contents/Developer
+            xcode_version: "16.2"
+            xcode_build: 16C5032a
+            swift_series: "6.0"
+            sdk_version: "15.2"
+            resolution: clean
 
-    runs-on: macos-latest
+    env:
+      DEVELOPER_DIR: ${{ matrix.developer_dir }}
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: swift build -v
-    - name: Run tests
-      run: swift test -v
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Validate and report compiler environment
+        env:
+          EXPECTED_XCODE_VERSION: ${{ matrix.xcode_version }}
+          EXPECTED_XCODE_BUILD: ${{ matrix.xcode_build }}
+          EXPECTED_SWIFT_SERIES: ${{ matrix.swift_series }}
+          EXPECTED_SDK_VERSION: ${{ matrix.sdk_version }}
+          EXPECTED_DEVELOPER_DIR: ${{ matrix.developer_dir }}
+        run: scripts/ci/check-compatibility-environment.sh
+
+      - name: Prepare ${{ matrix.resolution }} dependency resolution
+        env:
+          RESOLUTION_MODE: ${{ matrix.resolution }}
+        run: |
+          set -euo pipefail
+          if [[ "$RESOLUTION_MODE" == "committed" ]]; then
+            source_directory="$GITHUB_WORKSPACE"
+          else
+            source_directory="$RUNNER_TEMP/swiftql-clean-resolution"
+            mkdir -p "$source_directory"
+            git archive --format=tar HEAD | tar -xf - -C "$source_directory"
+            rm "$source_directory/Package.resolved"
+            test ! -e "$source_directory/Package.resolved"
+          fi
+          printf 'SWIFTQL_SOURCE=%s\n' "$source_directory" >> "$GITHUB_ENV"
+
+      - name: Resolve and report dependencies
+        env:
+          RESOLUTION_MODE: ${{ matrix.resolution }}
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          xcrun swift package resolve
+          scripts/ci/report-resolved-dependencies.sh
+          if [[ "$RESOLUTION_MODE" == "committed" ]]; then
+            git diff --exit-code -- Package.resolved
+          else
+            test -f Package.resolved
+          fi
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          xcrun swift build -v 2>&1 | tee "$RUNNER_TEMP/swift-build.log"
+
+      - name: Report SQLite runtime through GRDB
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          xcrun swift test --filter XLCompatibilityReportTests 2>&1 |
+            tee "$RUNNER_TEMP/swift-test-build.log"
+          runtime_markers="$(
+            grep -c 'SWIFTQL_SQLITE_RUNTIME ' "$RUNNER_TEMP/swift-test-build.log" ||
+              true
+          )"
+          if [[ "$runtime_markers" -ne 1 ]]; then
+            echo "error: expected one SQLite runtime marker; found $runtime_markers" >&2
+            exit 1
+          fi
+
+      - name: Classify compiler diagnostics
+        if: ${{ !cancelled() }}
+        run: |
+          scripts/ci/report-build-diagnostics.sh \
+            "$RUNNER_TEMP/swift-build.log" \
+            "$RUNNER_TEMP/swift-test-build.log"
+
+      - name: Run full test suite
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          xcrun swift test --skip-build -v
+
+      - name: Verify checkout remains clean
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          git diff --exit-code
+          test -z "$(git status --porcelain)"
