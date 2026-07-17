@@ -168,6 +168,10 @@ comparison. It does not handle full Unicode case-folding.
 - `rtrim`: Similar to `binary`, but ignores trailing space characters during 
 comparison.
 
+Their names are closed grammar choices that render as `COLLATE BINARY`,
+`COLLATE NOCASE`, and `COLLATE RTRIM`, rather than as SQL string literals or
+arbitrary raw SQL fragments.
+
 ### printf()
 
 Returns a formatted string. In SwiftQL `printf()` is similar to the same 
