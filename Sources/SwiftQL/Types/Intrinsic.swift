@@ -11,7 +11,7 @@ import Foundation
 ///
 /// Adds support for `Bool` types to be used as SwiftQL columns.
 ///
-/// The boolean type is emulated in SQLite using an `Int` storage. A  literal zero represents a `false`
+/// The boolean type is emulated in SQLite using an `Int` storage. A literal zero represents a `false`
 /// value, and any other value represents `true`.
 ///
 extension Bool: XLExpression, XLLiteral, XLEquatable, XLComparable {

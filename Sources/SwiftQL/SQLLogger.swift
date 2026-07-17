@@ -1,5 +1,5 @@
 //
-//  XLLogger.swift
+//  SQLLogger.swift
 //
 
 import Foundation

@@ -1,5 +1,5 @@
 //
-//  XLQueryComposer.swift
+//  SQLFunctionalSyntax.swift
 //
 //
 //  Created by Luke Van In on 2023/08/16.
@@ -371,6 +371,5 @@ public func delete<T>(_ table: T) -> XLDeleteTableStatement<T> where T: XLMetaWr
     let components = XLDeleteStatementComponents(delete: Delete(table))
     return XLDeleteTableStatement(components: components)
 }
-
 
 

@@ -1,30 +1,42 @@
 # SwiftQL
 
-SwiftQL lets you you write SQL queries using familiar Swift type-safe syntax.
+SwiftQL lets you write SQL queries using familiar, type-safe Swift syntax.
 
 ## Overview
  
-Using SwiftQL SQL expressions look like Swift code:
+SwiftQL expressions look like Swift code:
 
+<!-- test: XLDocumentationTests.testDocumentationREADME -->
 ```swift
+import SwiftQL
+
+@SQLTable
+struct Person {
+    var id: String
+    var occupationId: String?
+    var name: String
+    var age: Int
+}
+
 let query = sql { schema in
     let person = schema.table(Person.self)
     Select(person)
     From(person)
-    Where(person.name == 'Fred')
+    Where(person.name == "Fred")
 }
 ```
 
-SQL written with SwiftQL is type checked at compile time, highlghting any syntax
-errors, typos, or missing fields.
+SwiftQL type-checks the APIs, table fields, and expression types used to
+construct a statement. SQLite remains the authority for dialect-specific syntax
+and runtime constraints.
 
-SwiftQL lets you use your IDE's code completion and refactoring tools to assist 
-you in writing error free SQL.
+SwiftQL lets you use your IDE's code completion and refactoring tools to assist
+you in writing error-free SQL.
 
-SwiftQL uses SQLite's dialect of SQL. If you have written SQL for SQLite you 
-already know SwiftQL. 
+SwiftQL uses SQLite's dialect of SQL. If you have written SQL for SQLite, the
+corresponding SwiftQL statements should feel familiar.
 
-See the [documentation](https://lukevanin.github.io/swiftql/documentation/swiftql/) 
+See the [documentation](https://lukevanin.github.io/swiftql/documentation/swiftql/)
 for more.
 
 See the [roadmap](ROADMAP.md) for planned reliability, SQLite conformance,
@@ -43,7 +55,7 @@ construction, preparation, cache, binding, execution, and decoding baselines.
 Add the following line to the `dependencies` section in your `Package.swift`
 file:
 
-```swift
+```text
 .package(url: "https://github.com/lukevanin/swiftql.git", from: "1.0.0")
 ```
 
@@ -54,4 +66,4 @@ and specify the package URL `https://github.com/lukevanin/swiftql.git`.
 
 ## License
 
-MIT license. See the [license](license.md). 
+MIT license. See [LICENSE.md](LICENSE.md).
