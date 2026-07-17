@@ -209,5 +209,38 @@ final class QueryBuilderTests: XCTestCase {
         
         XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LEFT JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`) WHERE (`t1`.`name` IS 'Tim') ORDER BY `t1`.`name` ASC")
     }
+
+    func testCopyPreservesAllStoredStateAndMutatesOnlyTheCopy() throws {
+        let schema = XLSchema()
+        let commonTable = schema.commonTable { schema in
+            let table = schema.table(TestTable.self)
+            return select(table).from(table)
+        }
+        let company = schema.table(CompanyTable.self)
+        let employee = schema.nullableTable(EmployeeTable.self)
+        let original = QueryBuilder(select: company)
+            .with(commonTable)
+            .from(company)
+            .leftJoin(employee, on: employee.companyId == company.id)
+            .and(company.name == "Apple")
+            .or(employee.name == "Tim")
+            .groupBy(company.id)
+            .orderBy(company.name.ascending())
+            .limit(10)
+            .offset(5)
+        let copy = original.orderBy(company.id.descending())
+
+        let originalSQL = try encoder.makeSQL(original.build()).sql
+        let copySQL = try encoder.makeSQL(copy.build()).sql
+
+        XCTAssertEqual(
+            originalSQL,
+            "WITH `cte0` AS (SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0`) SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LEFT JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`) WHERE ((`t0`.`name` == 'Apple') OR (`t1`.`name` IS 'Tim')) GROUP BY `t0`.`id` ORDER BY `t0`.`name` ASC LIMIT 10 OFFSET 5"
+        )
+        XCTAssertEqual(
+            copySQL,
+            "WITH `cte0` AS (SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0`) SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LEFT JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`) WHERE ((`t0`.`name` == 'Apple') OR (`t1`.`name` IS 'Tim')) GROUP BY `t0`.`id` ORDER BY `t0`.`name` ASC, `t0`.`id` DESC LIMIT 10 OFFSET 5"
+        )
+    }
     
 }
