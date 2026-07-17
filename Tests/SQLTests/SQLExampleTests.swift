@@ -123,6 +123,58 @@ struct SQLDate: XLCustomType, XLComparable, Equatable {
 }
 
 
+enum JobPriority: Int, XLEnum {
+
+    typealias T = Self
+
+    case low = 0
+
+    case high = 1
+
+    static func sqlDefault() -> JobPriority {
+        .low
+    }
+}
+
+
+enum JobState: String, XLEnum {
+
+    typealias T = Self
+
+    case queued
+
+    case running
+
+    static func sqlDefault() -> JobState {
+        .queued
+    }
+}
+
+
+@SQLTable struct Job: Equatable {
+
+    let id: String
+
+    let priority: JobPriority
+
+    let state: JobState
+
+    let previousState: JobState?
+}
+
+
+@SQLResult struct JobSummary: Equatable {
+
+    let id: String
+
+    let priority: JobPriority
+
+    let state: JobState
+
+    let previousState: JobState?
+}
+
+
 @SQLTable struct CustomTypeEmployee: Equatable {
 
     let id: MyUUID
@@ -973,6 +1025,126 @@ extension XLDocumentationTests {
         let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testSelectWhereLike
         let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testSelectWhereIn
         let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.test_TextBinding_In_Subquery
+    }
+
+    func testDocumentationEnumValues() throws {
+        try database.makeRequest(with: sqlCreate(Job.self)).execute()
+
+        let swiftQLJob = Job(
+            id: "build-docs",
+            priority: .high,
+            state: .running,
+            previousState: nil
+        )
+        try database.makeRequest(with: sqlInsert(swiftQLJob)).execute()
+
+        try databasePool.write { database in
+            try database.execute(
+                sql: "INSERT INTO Job (id, priority, state, previousState) VALUES (?, ?, ?, ?)",
+                arguments: ["raw-values", 0, "running", "queued"]
+            )
+        }
+
+        let stateParameter = XLNamedBindingReference<JobState>(name: "state")
+        let runningJobs = sql { schema in
+            let job = schema.table(Job.self)
+            let summary = JobSummary.columns(
+                id: job.id,
+                priority: job.priority,
+                state: job.state,
+                previousState: job.previousState
+            )
+            Select(summary)
+            From(job)
+            Where(job.state == stateParameter)
+            OrderBy(summary.id.ascending())
+        }
+        var request = database.makeRequest(with: runningJobs)
+        request.set(stateParameter, .running)
+
+        XCTAssertEqual(
+            try request.fetchAll(),
+            [
+                JobSummary(
+                    id: "build-docs",
+                    priority: .high,
+                    state: .running,
+                    previousState: nil
+                ),
+                JobSummary(
+                    id: "raw-values",
+                    priority: .low,
+                    state: .running,
+                    previousState: .queued
+                ),
+            ]
+        )
+
+        try databasePool.write { database in
+            try database.execute(
+                sql: """
+                    INSERT INTO Job (id, priority, state, previousState) VALUES
+                        ('invalid-priority', 99, 'queued', NULL),
+                        ('invalid-state', 0, 'retired', NULL),
+                        ('invalid-optional-state', 0, 'queued', 'retired')
+                    """
+            )
+        }
+
+        assertJobDecodeError(
+            id: "invalid-priority",
+            equals: XLColumnReadError(
+                index: 1,
+                expectedType: "JobPriority",
+                failure: .invalidValue(actualValue: "99")
+            )
+        )
+        assertJobDecodeError(
+            id: "invalid-state",
+            equals: XLColumnReadError(
+                index: 2,
+                expectedType: "JobState",
+                failure: .invalidValue(actualValue: #""retired""#)
+            )
+        )
+        assertJobDecodeError(
+            id: "invalid-optional-state",
+            equals: XLColumnReadError(
+                index: 3,
+                expectedType: "JobState",
+                failure: .invalidValue(actualValue: #""retired""#)
+            )
+        )
+
+        let allJobs = sql { schema in
+            let job = schema.table(Job.self)
+            Select(job)
+            From(job)
+        }
+        XCTAssertThrowsError(try database.makeRequest(with: allJobs).fetchAll()) { error in
+            XCTAssertTrue(error is XLColumnReadError)
+        }
+    }
+
+    private func assertJobDecodeError(
+        id: String,
+        equals expectedError: XLColumnReadError,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let jobByID = sql { schema in
+            let job = schema.table(Job.self)
+            Select(job)
+            From(job)
+            Where(job.id == id)
+        }
+        XCTAssertThrowsError(
+            try database.makeRequest(with: jobByID).fetchOne(),
+            file: file,
+            line: line
+        ) { error in
+            XCTAssertEqual(error as? XLColumnReadError, expectedError, file: file, line: line)
+        }
     }
 
     func testDocumentationFunctionalQueriesAndMutations() throws {

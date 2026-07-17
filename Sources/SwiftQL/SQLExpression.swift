@@ -246,12 +246,13 @@ public struct XLFunction<T>: XLExpression where T: XLLiteral {
 /// An enum that is used as a column on an `SQLTable` or `SQLResult`.
 ///
 /// To use an enum for a column the enum must adhere to the following conditions:
-/// - Use an intrinsic type for the `RawValue`,
-/// - Conform to the `XLEnum` protocol.
-/// - Implement the `sqlDefault` static method and return any valid enum value.
+/// - Use a supported intrinsic type for the `RawValue`.
+/// - Conform to the `XLEnum` protocol and declare `T` as `Self`.
+/// - Implement `sqlDefault()` and return any valid enum value. SwiftQL uses this value only as a
+///   construction and introspection placeholder; it is never a fallback for database decoding.
 ///
 /// The `XLEnum` protocol provides default implementations for most of the required methods which can
-/// be overriden as required.
+/// be overridden as required. Reading an unknown stored raw value throws ``XLColumnReadError``.
 ///
 public protocol XLEnum: XLLiteral, XLExpression, XLEquatable, XLComparable, RawRepresentable where T == Self, RawValue: XLExpression & XLLiteral & XLEquatable & XLComparable {
     

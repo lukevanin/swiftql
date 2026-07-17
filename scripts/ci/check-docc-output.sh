@@ -28,6 +28,7 @@ main() {
 builtinfunctions|Built-in Functions
 customfunctions|Custom Functions
 customtypes|Custom Types
+enums|Enum Values
 expressions|Expressions
 functionalsyntax|Functional Syntax
 generictableparameters|Generic Table Parameters

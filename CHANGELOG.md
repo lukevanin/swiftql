@@ -8,8 +8,10 @@
   pull requests and deploys only authorized `main` commits, with artifact and
   deployed-site provenance tied to the exact commit SHA.
 - Added a non-mutating, warnings-as-errors DocC site generator with built-in
-  validation for the SwiftQL landing page and all nine source articles. CI
+  validation for the SwiftQL landing page and all ten source articles. CI
   smoke-tests the same command used locally.
+- Added an `XLEnum` guide with compile-checked integer- and string-backed enum
+  examples and real SQLite coverage for valid and unknown stored raw values.
 - Added compile-time-checked scenario mappings for every Swift example in the
   DocC landing page and source articles, with a catalog test that rejects
   untyped fences, stale API spellings, and unknown test markers.
