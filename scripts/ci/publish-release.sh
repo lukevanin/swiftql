@@ -192,6 +192,7 @@ validate_release_record() {
 
 wait_for_immutable_release() {
     local release_json="$1"
+    local expected_release_id="$release_id"
     local attempts="${SWIFTQL_IMMUTABLE_ATTEMPTS:-12}"
     local interval="${SWIFTQL_IMMUTABLE_INTERVAL_SECONDS:-5}"
     local attempt
@@ -200,6 +201,8 @@ wait_for_immutable_release() {
     [[ "$interval" =~ ^[0-9]+$ ]] || fail 'immutable poll interval must be nonnegative'
     for ((attempt = 1; attempt <= attempts; attempt += 1)); do
         validate_release_record "$release_json"
+        [[ "$release_id" == "$expected_release_id" ]] ||
+            fail "immutable poll returned unrelated release ID $release_id"
         if [[ "$release_draft" == false &&
               "$(jq -r '.immutable // false' <<< "$release_json")" == true ]]; then
             printf '%s\n' "$release_json"
@@ -207,7 +210,7 @@ wait_for_immutable_release() {
         fi
         if [[ "$attempt" -lt "$attempts" ]]; then
             sleep "$interval"
-            release_json="$(release_api get-release "$release_id")"
+            release_json="$(release_api get-release "$expected_release_id")"
         fi
     done
     fail "published release $release_tag did not become immutable"
@@ -497,9 +500,9 @@ if [[ "$dry_run" == true ]]; then
     exit 0
 fi
 
-run_pre_publish_check
 update_payload="$temporary_directory/publish-release.json"
 jq -n '{draft: false, prerelease: false, make_latest: "legacy"}' > "$update_payload"
+run_pre_publish_check
 release_json="$(release_api update-release "$release_id" "$update_payload")"
 validate_release_record "$release_json"
 if [[ "$release_draft" != false ]]; then
