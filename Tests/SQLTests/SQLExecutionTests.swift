@@ -125,6 +125,38 @@ final class XLExecutionTests: XCTestCase {
         )
     }
 
+    func testBuiltInCollationExecution() throws {
+        let lhs = XLNamedBindingReference<String>(name: "lhs")
+        let rhs = XLNamedBindingReference<String>(name: "rhs")
+
+        func compare(
+            _ collation: XLCollation,
+            lhs lhsValue: String,
+            rhs rhsValue: String
+        ) throws -> Bool? {
+            let statement = sql { _ in
+                Select(lhs.collate(collation) == rhs)
+            }
+            var request = database.makeRequest(with: statement)
+            request.set(lhs, lhsValue)
+            request.set(rhs, rhsValue)
+            return try request.fetchOne()
+        }
+
+        XCTAssertEqual(
+            try compare(.binary, lhs: "alpha", rhs: "ALPHA"),
+            false
+        )
+        XCTAssertEqual(
+            try compare(.nocase, lhs: "alpha", rhs: "ALPHA"),
+            true
+        )
+        XCTAssertEqual(
+            try compare(.rtrim, lhs: "alpha ", rhs: "alpha"),
+            true
+        )
+    }
+
     func testConcatenationCollationExecution() throws {
         let lhs = XLNamedBindingReference<String>(name: "lhs")
         let rhs = XLNamedBindingReference<String>(name: "rhs")

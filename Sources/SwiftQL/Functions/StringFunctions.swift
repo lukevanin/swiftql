@@ -20,14 +20,49 @@ public enum XLCollation: String {
 }
 
 
+private struct XLCollationExpression<T>: XLExpression {
+
+    let operand: any XLExpression
+
+    let collation: XLCollation
+
+    func makeSQL(context: inout XLBuilder) {
+        context.parenthesis { context in
+            context.unarySuffix(
+                collation.sqlSuffix,
+                expression: operand.makeSQL
+            )
+        }
+    }
+}
+
+
+private extension XLCollation {
+
+    var sqlSuffix: String {
+        switch self {
+        case .binary:
+            "COLLATE BINARY"
+        case .nocase:
+            "COLLATE NOCASE"
+        case .rtrim:
+            "COLLATE RTRIM"
+        }
+    }
+}
+
+
 extension XLExpression {
     
     public func collate(_ collation: XLCollation) -> some XLExpression<String> where T == String {
-        XLBinaryOperatorExpression(op: "COLLATE", lhs: self, rhs: collation.rawValue)
+        XLCollationExpression<String>(operand: self, collation: collation)
     }
     
     public func collate(_ collation: XLCollation) -> some XLExpression<Optional<String>> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "COLLATE", lhs: self, rhs: collation.rawValue)
+        XLCollationExpression<Optional<String>>(
+            operand: self,
+            collation: collation
+        )
     }
 }
 
