@@ -29,8 +29,10 @@
 
 - Generated `.columns(...)` helpers no longer call the deprecated `result`
   helper, and immutable table macros no longer emit never-mutated-local
-  warnings. First-party sources, tests, benchmarks, and macro expansions now
-  build without ordinary compiler warnings.
+  warnings. Projection factories are emitted as nominal macro members so their
+  static lookup works across files on Swift 5.9. First-party sources, tests,
+  benchmarks, and macro expansions now build without ordinary compiler
+  warnings.
 - All first-party product and test targets now compile without complete
   strict-concurrency warnings under the supported Swift 6 compiler. The
   compatibility matrix checks this without enabling Swift 6 language mode.

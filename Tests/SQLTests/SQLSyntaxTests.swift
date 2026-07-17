@@ -146,6 +146,12 @@ final class XLSyntaxTests: XCTestCase {
         let table = XLSchema().table(TestTable.self, as: "sample")
         XCTAssertEqual(encoder.makeSQL(table.value).sql, "sample.value")
     }
+
+
+    func test_SQLResultColumns_AreAvailableAcrossFilesOnSwift59() {
+        let row = Swift59ColumnsLookupProjection.columns(value: 1)
+        XCTAssertEqual(encoder.makeSQL(select(row)).sql, "SELECT 1 AS value")
+    }
     
     
     // MARK: - Function

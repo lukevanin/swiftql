@@ -65,7 +65,8 @@ extension SQLTableMacro: MemberMacro {
     ) throws -> [DeclSyntax] {
         let builder = try MetaBuilder(node: node, declaration: declaration)
         return [
-            DeclSyntax(stringLiteral: builder.makeMemberwizeInitializer())
+            DeclSyntax(stringLiteral: builder.makeMemberwizeInitializer()),
+            DeclSyntax(stringLiteral: builder.makeColumnsFunction()),
         ]
     }
 }
@@ -117,7 +118,8 @@ extension SQLResultMacro: MemberMacro {
     ) throws -> [DeclSyntax] {
         let builder = try MetaBuilder(node: node, declaration: declaration)
         return [
-            DeclSyntax(stringLiteral: builder.makeMemberwizeInitializer())
+            DeclSyntax(stringLiteral: builder.makeMemberwizeInitializer()),
+            DeclSyntax(stringLiteral: builder.makeColumnsFunction()),
         ]
     }
 }

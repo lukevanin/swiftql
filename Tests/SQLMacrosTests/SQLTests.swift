@@ -25,24 +25,54 @@ private func makeTestMacros() -> [String: Macro.Type] {
 
 
 ///
-/// Wrapper which exposes only the member role of `SQLTableMacro`, so that expansion tests can
-/// assert the generated memberwise initializer without also asserting the (very large) generated
-/// extensions.
+/// Wrapper which exposes only the generated initializer so existing expansion tests stay focused
+/// on that declaration.
 ///
-private struct SQLTableMemberMacro: MemberMacro {
+private struct SQLTableInitializerMacro: MemberMacro {
 
     static func expansion(
         of node: AttributeSyntax,
         providingMembersOf declaration: some DeclGroupSyntax,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        try SQLTableMacro.expansion(of: node, providingMembersOf: declaration, in: context)
+        Array(
+            try SQLTableMacro.expansion(
+                of: node,
+                providingMembersOf: declaration,
+                in: context
+            ).prefix(1)
+        )
     }
 }
 
 private func makeMemberTestMacros() -> [String: Macro.Type] {
     [
-        "SQLTable": SQLTableMemberMacro.self,
+        "SQLTable": SQLTableInitializerMacro.self,
+    ]
+}
+
+
+/// Wrapper which isolates the generated projection factory for a focused regression test.
+private struct SQLResultColumnsMemberMacro: MemberMacro {
+
+    static func expansion(
+        of node: AttributeSyntax,
+        providingMembersOf declaration: some DeclGroupSyntax,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        Array(
+            try SQLResultMacro.expansion(
+                of: node,
+                providingMembersOf: declaration,
+                in: context
+            ).dropFirst()
+        )
+    }
+}
+
+private func makeColumnsMemberTestMacros() -> [String: Macro.Type] {
+    [
+        "SQLResult": SQLResultColumnsMemberMacro.self,
     ]
 }
 
@@ -407,6 +437,36 @@ final class SQLMacroDiagnosticTests: XCTestCase {
 
 final class SQLMacroExpansionTests: XCTestCase {
 
+    func test_columnsIsGeneratedAsANominalMemberForSwift59Lookup() {
+        assertMacroExpansion(
+            """
+            @SQLResult
+            struct Projection {
+                let id: Int
+                let name: String?
+            }
+            """,
+            expandedSource: """
+            struct Projection {
+                let id: Int
+                let name: String?
+
+                public static func columns(id: any SwiftQL.XLExpression<Int>, name: any SwiftQL.XLExpression<String?>) -> MetaResult {
+                        return Self.makeSQLAnonymousResult(
+                            namespace: XLNamespace.table(),
+                            dependency: XLSelectResultDependency(),
+                            iterator: Self.SQLReader(
+                                id: id,
+                                name: name
+                            ).readRow
+                        )
+                  }
+            }
+            """,
+            macros: makeColumnsMemberTestMacros()
+        )
+    }
+
     func test_memberwiseInitializer() {
         assertMacroExpansion(
             """
@@ -737,7 +797,8 @@ final class MetaBuilderTests: XCTestCase {
             }
             """
         )
-        let source = builder.makeMetaResultExtension(table: false)
+        let source = builder.makeColumnsFunction()
+        let extensionSource = builder.makeMetaResultExtension(table: false)
 
         XCTAssertTrue(source.contains("public static func columns(id: any SwiftQL.XLExpression<String>, result: any SwiftQL.XLExpression<Int>) -> MetaResult"))
         XCTAssertTrue(source.contains("return Self.makeSQLAnonymousResult("))
@@ -748,6 +809,7 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("result: result"))
         XCTAssertTrue(source.contains(").readRow"))
         XCTAssertFalse(source.contains("result {"))
+        XCTAssertFalse(extensionSource.contains("static func columns"))
     }
 
     func test_emptyResultColumnsGenerationIsValid() throws {
@@ -758,7 +820,7 @@ final class MetaBuilderTests: XCTestCase {
             }
             """
         )
-        let source = builder.makeMetaResultExtension(table: false)
+        let source = builder.makeColumnsFunction()
 
         XCTAssertFalse(Parser.parse(source: source).hasError)
         XCTAssertTrue(source.contains("public static func columns() -> MetaResult"))
