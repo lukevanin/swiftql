@@ -143,6 +143,31 @@ final class SQLDialectEncodingContractTests: XCTestCase {
         )
     }
 
+    func testBuilderDefaultBetweenComposesGenericBinaryOperators() {
+        var builder: XLBuilder = XLiteBuilder(formatter: XLiteFormatter())
+
+        builder.between(
+            term: { context in
+                context.name("value")
+                context.entity("term")
+            },
+            minimum: { context in
+                context.integer(1)
+                context.entity("minimum")
+            },
+            maximum: { context in
+                context.integer(3)
+                context.entity("maximum")
+            }
+        )
+
+        XCTAssertEqual(builder.build(), "\"value\" BETWEEN 1 AND 3")
+        XCTAssertEqual(
+            builder.entities(),
+            ["term", "minimum", "maximum"]
+        )
+    }
+
     func testEncoderDerivesPlaceholderCapabilitiesFromRenderedSQL() {
         let encoder = XLiteEncoder(
             dialect: XLSQLiteDialect(version: XLDialectVersion(3, 46))
