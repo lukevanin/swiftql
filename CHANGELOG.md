@@ -4,6 +4,9 @@
 
 ### Added
 
+- Added a least-privilege GitHub Pages workflow that builds documentation on
+  pull requests and deploys only authorized `main` commits, with artifact and
+  deployed-site provenance tied to the exact commit SHA.
 - Added a non-mutating, warnings-as-errors DocC site generator with built-in
   validation for the SwiftQL landing page and all nine source articles. CI
   smoke-tests the same command used locally.
