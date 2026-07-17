@@ -88,6 +88,7 @@ replacing SQLite's runtime type rules.
 - <doc:FunctionalSyntax>
 
 ### Advanced topics
+- <doc:Enums>
 - <doc:CustomFunctions>
 - <doc:CustomTypes>
 - <doc:GenericTableParameters>

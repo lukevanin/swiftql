@@ -34,6 +34,10 @@ private let documentationTests = [
         XLDocumentationTests.testDocumentationExpressions
     ),
     DocumentationTestReference(
+        "XLDocumentationTests.testDocumentationEnumValues",
+        XLDocumentationTests.testDocumentationEnumValues
+    ),
+    DocumentationTestReference(
         "XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations",
         XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations
     ),
@@ -70,6 +74,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         "BuiltinFunctions.md": "XLDocumentationTests.testDocumentationConditionalAndScalarFunctions",
         "CustomFunctions.md": "XLDocumentationTests.testDocumentationCustomFunctionRegistrationAndExecution",
         "CustomTypes.md": "XLDocumentationTests.testDocumentationCustomTypeRoundTrips",
+        "Enums.md": "XLDocumentationTests.testDocumentationEnumValues",
         "Expressions.md": "XLDocumentationTests.testDocumentationExpressions",
         "FunctionalSyntax.md": "XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations",
         "GenericTableParameters.md": "XLDocumentationTests.testDocumentationGenericTableParameters",

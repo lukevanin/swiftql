@@ -156,7 +156,7 @@ single non-mutating command:
 
 The command treats first-party DocC diagnostics as errors, writes the static
 site to the ignored `docs/` directory, and validates the SwiftQL landing page
-and all nine source articles. Pass an existing external destination when a
+and all ten source articles. Pass an existing external destination when a
 separate output is useful, for example `./make-docs.sh /tmp/swiftql-docs`.
 The command never stages or commits files.
 
