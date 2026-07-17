@@ -87,7 +87,7 @@ Add the following line to the `dependencies` section in your `Package.swift`
 file:
 
 ```text
-.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.0.0")
+.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.1.0")
 ```
 
 ### Xcode
