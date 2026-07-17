@@ -25,16 +25,20 @@ Version numbers express the intended order of work, not release dates.
 5. **Make static queries first-class.** A query declaration should describe its
    typed parameters, result shape, cardinality, dialect, and SQL without
    handwritten parameter objects or request boilerplate.
-6. **Make execution boundaries explicit.** Query definitions are
+6. **Make value coding contextual.** Paired codecs should map Swift values to
+   dialect-native values under an immutable database or query configuration.
+   Property, result, or parameter metadata may select a named override without
+   changing the Swift value type.
+7. **Make execution boundaries explicit.** Query definitions are
    database-independent, prepared handles are database-bound, and physical
    prepared statements are connection-bound.
-7. **Design for concurrency and testing.** Bindings should be immutable per
+8. **Design for concurrency and testing.** Bindings should be immutable per
    invocation, executors should define their isolation guarantees, and syntax
    should be testable separately from adapters.
-8. **Use evidence for performance work.** Establish rendering, preparation,
+9. **Use evidence for performance work.** Establish rendering, preparation,
    cache, binding, execution, and decoding baselines before adopting custom
    engine behavior.
-9. **Use semantic versioning intentionally.** Preserve v1 source compatibility
+10. **Use semantic versioning intentionally.** Preserve v1 source compatibility
    where practical. Reserve broad naming, package, concurrency, and adapter
    changes for v2.
 
@@ -63,10 +67,10 @@ Key planning and foundation issues:
 | Milestone | Live issue index or foundation |
 | --- | --- |
 | v1.1 | [test and reliability index](https://github.com/lukevanin/swiftql/issues/118), [Swift 6 readiness](https://github.com/lukevanin/swiftql/issues/127), [performance baselines](https://github.com/lukevanin/swiftql/issues/128) |
-| v1.2 | [dialect/driver contracts](https://github.com/lukevanin/swiftql/issues/131), [static query descriptors](https://github.com/lukevanin/swiftql/issues/129), [immutable bindings](https://github.com/lukevanin/swiftql/issues/82) |
-| v1.3 | [build-time SQLite validation research](https://github.com/lukevanin/swiftql/issues/132) |
-| v1.4 | [SQLite coverage index](https://github.com/lukevanin/swiftql/issues/115) |
-| v1.5 | [ergonomics index](https://github.com/lukevanin/swiftql/issues/116), [macro index](https://github.com/lukevanin/swiftql/issues/117), [prepared handles](https://github.com/lukevanin/swiftql/issues/18), [@SQLQuery prototype](https://github.com/lukevanin/swiftql/issues/26) |
+| v1.2 | [dialect/driver contracts](https://github.com/lukevanin/swiftql/issues/131), [contextual value codecs](https://github.com/lukevanin/swiftql/issues/188), [static query descriptors](https://github.com/lukevanin/swiftql/issues/129), [immutable bindings](https://github.com/lukevanin/swiftql/issues/82), [source-coverage baseline](https://github.com/lukevanin/swiftql/issues/189) |
+| v1.3 | [syntax conformance inventory](https://github.com/lukevanin/swiftql/issues/190), [combinatorial conformance cases](https://github.com/lukevanin/swiftql/issues/191), [build-time SQLite validation research](https://github.com/lukevanin/swiftql/issues/132) |
+| v1.4 | [SQLite coverage index](https://github.com/lukevanin/swiftql/issues/115), [direct scalar CTE rows](https://github.com/lukevanin/swiftql/issues/43) |
+| v1.5 | [ergonomics index](https://github.com/lukevanin/swiftql/issues/116), [macro index](https://github.com/lukevanin/swiftql/issues/117), [prepared handles](https://github.com/lukevanin/swiftql/issues/18), [@SQLQuery prototype](https://github.com/lukevanin/swiftql/issues/26), [Date text](https://github.com/lukevanin/swiftql/issues/61) and [numeric codecs](https://github.com/lukevanin/swiftql/issues/62), [UUID codecs](https://github.com/lukevanin/swiftql/issues/192), [interactive DocC tutorial](https://github.com/lukevanin/swiftql/issues/27) |
 | v2 | [Swift 6 mode](https://github.com/lukevanin/swiftql/issues/133), [typed DDL](https://github.com/lukevanin/swiftql/issues/139), [GRDB adapter boundary](https://github.com/lukevanin/swiftql/issues/113), [XL migration](https://github.com/lukevanin/swiftql/issues/33) |
 | v2.1 | [native SQLite adapter](https://github.com/lukevanin/swiftql/issues/136), [Linux CI](https://github.com/lukevanin/swiftql/issues/135), [VDBE research](https://github.com/lukevanin/swiftql/issues/138) |
 | v2.2 | [PostgreSQL vertical slice](https://github.com/lukevanin/swiftql/issues/137) |
@@ -149,6 +153,50 @@ The design must cover:
 - direct cached execution and explicitly retained handles;
 - useful macro diagnostics at the declaration site.
 
+## Scalar Rows and Contextual Value Codecs
+
+### Direct scalar rows
+
+Scalar SELECTs already have enough information to decode a direct Swift value.
+The remaining wrapper requirement comes from compound-query and common-table
+metadata that assumes every row is a macro-generated `XLResult`.
+
+v1.4 should let ordinary and recursive CTEs return `T` or `T?` directly. The
+implementation should preserve the existing row reader across compound branches
+and expose an adapter-neutral scalar CTE reference with a stable typed value
+column. `SQLScalarResult` remains source-compatible during v1; it becomes a
+legacy shim rather than a requirement. Scalar-subquery conversion and nested
+optional flattening remain separate concerns.
+
+### Contextual value codecs
+
+One Swift type may have multiple valid database representations. `Date` may be
+stored as canonical text, Unix time, or Julian day; `UUID` may be text, a
+16-byte SQLite BLOB, or a native PostgreSQL/SQL Server value. A global type
+conformance or property wrapper alone cannot model this consistently for table
+properties, query parameters, and computed results.
+
+The intended model is:
+
+```text
+Swift value
+    -> named typed codec selected by immutable query/database configuration
+        -> dialect-native value and storage metadata
+            -> driver transport binding
+```
+
+Encoding and decoding are a paired, throwing operation with a stable codec
+identity and version. Selection order is explicit property/result/parameter
+metadata, query override, database default, then the v1 legacy custom-literal
+compatibility path. Missing or ambiguous selection is an error. There is no
+process-global mutable registry.
+
+A property annotation may eventually resemble `@SQLCodec(...)`, but it carries
+metadata only: it must not wrap the property or change its initializer,
+mutability, equality, or `Codable` behavior. Codec or representation changes are
+data migrations and must affect schema fingerprints and query identity whenever
+they alter SQL, storage, or capability requirements.
+
 ## Swift 6 Compatibility
 
 Swift 6 is an immediate compatibility priority, but compiler compatibility and
@@ -227,6 +275,32 @@ demonstrates correctness, portability, invalidation, and a safe fallback.
 SwiftQL must not claim persisted or zero-parse preparation until that evidence
 exists.
 
+## Conformance and Documentation Strategy
+
+### Grammar-informed conformance tests
+
+SQLite's official syntax diagrams are an excellent reviewed source of legal
+branches and interactions, but they are not consumed as an executable grammar.
+SwiftQL will maintain a checked-in, versioned inventory that records each public
+syntax family, its support status, SQLite documentation and version provenance,
+capability requirements, and rendering/prepare/execution/compile-fail evidence.
+
+Tests generated from that inventory use deterministic, constraint-aware pairwise
+coverage plus targeted higher-order cases for risky interactions. They construct
+typed SwiftQL statements rather than concatenating SQL, prepare every positive
+case with a version-identified real SQLite engine, and execute representative
+semantic cases against seeded schemas. The suite remains bounded and does not
+claim complete SQLite grammar coverage.
+
+### Progressive documentation
+
+v1.5 will add native DocC interactive tutorials with scrollable steps and
+highlighted code evolution. Complete code snapshots for every step must
+type-check, final scenarios must execute against real SQLite, and the generated
+HTML/JSON routes and assets must be verified through the existing Pages pipeline.
+This is a guided documentation experience, not a custom JavaScript application
+or an in-browser SQLite playground.
+
 ## Milestone Outcomes
 
 ### v1.1 — Reliability, Test Coverage, Bug Fixes, and Swift 6 Readiness
@@ -251,9 +325,15 @@ backends:
   responsibilities;
 - introduce stable query descriptors and query identities;
 - define immutable typed invocation bindings;
+- define a dialect-owned value boundary plus immutable contextual codec registry
+  and coding configuration;
+- carry stable codec and storage metadata through descriptors, bindings, and
+  decoding without requiring wrapper value types;
 - define logical prepared-handle and executor contracts;
 - keep the core free of GRDB-specific public types;
 - add reusable adapter contract tests;
+- capture reproducible first-party source-coverage reports before broad internal
+  refactors;
 - make dialect selection explicit in new infrastructure.
 
 This milestone introduces multi-dialect architecture; it does not promise a
@@ -264,8 +344,11 @@ non-SQLite public syntax module.
 Verify that SwiftQL's existing public syntax renders and behaves correctly under
 supported SQLite versions:
 
-- maintain a documented syntax and conformance matrix;
+- maintain a versioned, machine-readable syntax and conformance inventory;
 - test rendered SQL with SQLite's real prepare and execution paths;
+- generate deterministic, constrained pairwise and targeted higher-order cases
+  using SQLite's syntax diagrams as reviewed provenance rather than an
+  executable grammar;
 - cover precedence, nullability, quoting, aliases, joins, subqueries, compound
   queries, common table expressions, values, functions, and statement clauses
   already exposed by SwiftQL;
@@ -284,6 +367,9 @@ Every feature issue must include:
 - capability or version behavior where applicable;
 - documentation and representative examples.
 
+This milestone also removes the one-column result wrapper requirement from
+ordinary and recursive scalar CTEs while preserving v1 compatibility.
+
 The supported subset is documented explicitly instead of implying complete
 SQLite grammar coverage.
 
@@ -298,6 +384,11 @@ Prototype and validate the future query-declaration model:
 - support direct cached execution and explicit handle retention;
 - produce declaration-site diagnostics for unsupported signatures and forms;
 - prototype build-time validation against a schema snapshot;
+- preview metadata-only property/result/parameter codec selection;
+- provide explicit SQLite Date and UUID codec presets plus JSON/user-defined
+  codec ergonomics without changing existing persisted formats;
+- publish a native DocC interactive tutorial whose displayed snapshots compile
+  and whose final scenario executes;
 - benchmark macro expansion, generated code, cold preparation, cache hits,
   binding, execution, and decoding;
 - publish the proposed v2 migration surface.
@@ -315,6 +406,8 @@ Use the major-version boundary for intentional API and package cleanup:
 - separate core abstractions, SQLite syntax, macros, and driver adapters;
 - make GRDB an adapter rather than an implementation detail of the core module;
 - introduce typed, dialect-aware DDL;
+- stabilize contextual codec naming, storage metadata, and the migration path
+  from legacy `XLLiteral`/`XLCustomType` behavior;
 - make dialect and driver capabilities explicit;
 - preserve Swift 5-language-mode client callability when using a Swift 6
   compiler;
@@ -329,6 +422,7 @@ Provide a direct SQLite C adapter that can replace the GRDB adapter:
 - per-connection statement preparation and caching;
 - binding, decoding, transactions, errors, cancellation, functions,
   collations, and observation behavior;
+- codec and dialect-value parity with the GRDB adapter;
 - schema/version invalidation and safe reprepare behavior;
 - preparation warm-up and metrics;
 - no GRDB dependency for clients selecting the native adapter.
@@ -338,20 +432,23 @@ Provide a direct SQLite C adapter that can replace the GRDB adapter:
 Add an explicitly scoped PostgreSQL syntax module and driver adapter. Model
 PostgreSQL semantics directly, publish a supported-feature matrix, use
 database-bound prepared handles, and validate against supported live PostgreSQL
-server versions.
+server versions. Native UUID, JSONB, timestamp, and other characteristic values
+use PostgreSQL mappings instead of SQLite storage conventions.
 
 ### v2.3 — MySQL Dialect and Adapter
 
 Add an explicitly scoped MySQL syntax module and driver adapter. Model MySQL
 semantics directly, publish a supported-feature matrix, use database-bound
 prepared handles, and validate against supported live MySQL server versions.
+Date/time, UUID/binary, JSON, text/collation, and numeric mappings are explicit.
 
 ### v2.4 — SQL Server Dialect and Adapter
 
 Add an explicitly scoped SQL Server syntax module and driver adapter. Model
 T-SQL semantics directly, publish a supported-feature matrix, use
 database-bound prepared handles, and validate against supported live SQL Server
-versions.
+versions. Native `uniqueidentifier`, `datetime2`, and string mappings remain
+distinct from SQLite and PostgreSQL representations.
 
 Post-v2 adapter ordering may change if research, maintainership, or driver
 maturity changes, but backend-specific public syntax remains the architectural
@@ -368,7 +465,11 @@ Every release must satisfy these gates:
 - supported compiler, platform, database, dialect, and adapter matrices are
   documented and passing;
 - syntax changes have rendering plus real parser or execution validation;
+- supported syntax claims appear in the versioned conformance inventory with
+  deterministic evidence;
 - adapters pass the shared contract suite and applicable live-engine tests;
+- adapters do not own logical codec policy and pass the shared value-codec
+  fixtures for their dialect;
 - macro changes have expansion, diagnostic, runtime, and downstream-package
   tests;
 - documentation and examples match the shipped API;
@@ -412,6 +513,10 @@ direction and release boundaries, not task status.
 - [Swift function type argument labels](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0111-remove-arg-label-type-significance.md)
 - [Incremental concurrency migration](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0337-support-incremental-migration-to-concurrency-checking.md)
 - [SQLite statement preparation](https://www.sqlite.org/c3ref/prepare.html)
+- [SQLite SQL language and syntax diagrams](https://www.sqlite.org/lang.html)
+- [SQLite syntax-diagram index](https://www.sqlite.org/syntax.html)
 - [SQLite database serialization](https://www.sqlite.org/c3ref/serialize.html)
 - [SQLite virtual machine opcodes](https://www.sqlite.org/opcode.html)
 - [SQLite query-planner stability](https://www.sqlite.org/queryplanner-ng.html)
+- [Swift DocC](https://www.swift.org/documentation/docc/)
+- [Swift DocC code steps](https://www.swift.org/documentation/docc/code)
