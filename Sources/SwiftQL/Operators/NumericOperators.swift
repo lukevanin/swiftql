@@ -30,15 +30,3 @@ public prefix func -<T>(operand: any XLExpression<T>) -> some XLExpression<T> wh
 public prefix func -<Wrapped>(operand: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: Numeric {
     XLUnaryOperatorExpression(op: "-", operand: operand)
 }
-
-
-// MARK: - Bitwise negate
-
-
-public prefix func ~<T>(operand: any XLExpression<T>) -> some XLExpression<T> where T: Numeric {
-    XLUnaryOperatorExpression(op: "~", operand: operand)
-}
-
-public prefix func ~<Wrapped>(operand: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: Numeric {
-    XLUnaryOperatorExpression(op: "~", operand: operand)
-}

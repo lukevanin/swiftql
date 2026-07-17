@@ -194,8 +194,37 @@ final class XLSyntaxTests: XCTestCase {
     }
     
     
-    func testBitwiseNegateOperator_IntegerExpression() {
+    func testBitwiseNotOperator_IntegerBindingExpression() {
         let x = XLNamedBindingReference<Int>(name: "x")
+        let expression = ~x
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "~(:x)")
+    }
+
+
+    func testBitwiseNotOperator_IntegerLiteralExpression() {
+        let operand: any XLExpression<Int> = 12
+        let expression = ~operand
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "~(12)")
+    }
+
+
+    func testBitwiseNotOperator_IntegerColumnExpression() {
+        let table = XLSchema().table(TestTable.self, as: "sample")
+        let expression = ~table.value
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "~(sample.value)")
+    }
+
+
+    func testBitwiseNotOperator_ComposedIntegerExpression() {
+        let a = XLNamedBindingReference<Int>(name: "a")
+        let b = XLNamedBindingReference<Int>(name: "b")
+        let expression = ~(a + b)
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "~((:a + :b))")
+    }
+
+
+    func testBitwiseNotOperator_OptionalIntegerExpression() {
+        let x = XLNamedBindingReference<Optional<Int>>(name: "x")
         let expression = ~x
         XCTAssertEqual(encoder.makeSQL(expression).sql, "~(:x)")
     }

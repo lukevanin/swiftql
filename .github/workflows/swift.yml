@@ -108,6 +108,12 @@ jobs:
           scripts/ci/check-first-party-warnings.sh \
             "$RUNNER_TEMP/swift-build.log"
 
+      - name: Check bitwise NOT type safety
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/check-bitwise-not-type-safety.sh
+
       - name: Report SQLite runtime through GRDB
         run: |
           set -euo pipefail

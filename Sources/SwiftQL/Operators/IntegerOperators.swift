@@ -8,6 +8,18 @@
 import Foundation
 
 
+// MARK: - Bitwise NOT
+
+
+public prefix func ~<T>(operand: any XLExpression<T>) -> some XLExpression<T> where T: BinaryInteger {
+    XLUnaryOperatorExpression(op: "~", operand: operand)
+}
+
+public prefix func ~<Wrapped>(operand: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: BinaryInteger {
+    XLUnaryOperatorExpression(op: "~", operand: operand)
+}
+
+
 // MARK: - Addition
 
 
@@ -106,5 +118,4 @@ public func %<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpr
 public func %<Wrapped>(lhs: any XLExpression<Optional<Wrapped>>, rhs: any XLExpression<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: BinaryInteger {
     XLBinaryOperatorExpression(op: "%", lhs: lhs, rhs: rhs)
 }
-
 
