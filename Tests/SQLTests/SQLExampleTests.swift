@@ -290,7 +290,7 @@ final class XLDocumentationTests: XCTestCase {
         //        )
         
         // Use a database builder to install custom functions.
-        var config = Configuration()
+        let config = Configuration()
         var builder = try! GRDBDatabaseBuilder(url: fileURL, configuration: config, logger: nil)
 
         builder.addFunction(HaversineDistance.self)
@@ -467,14 +467,12 @@ final class XLDocumentationTests: XCTestCase {
         let statement = sqlQuery { schema in
             let occupation = schema.table(Occupation.self)
             let person = schema.table(Person.self)
-            let result = result {
-                OccupationCount.SQLReader(
-                    occupation: occupation.name,
-                    numberOfPeople: subquery {
-                        select(person.id.count()).from(person).where(person.occupationId == occupation.id)
-                    }
-                )
-            }
+            let result = OccupationCount.columns(
+                occupation: occupation.name,
+                numberOfPeople: subquery {
+                    select(person.id.count()).from(person).where(person.occupationId == occupation.id)
+                }
+            )
             return select(result).from(occupation)
         }
         let rows = try database.makeRequest(with: statement).fetchAll()
@@ -490,12 +488,10 @@ final class XLDocumentationTests: XCTestCase {
         let statement = sql { schema in
             let person = schema.table(Person.self)
             let occupation = schema.nullableTable(Occupation.self)
-            let row = result {
-                PersonOptionalOccupation.SQLReader(
-                    person: person.name,
-                    occupation: occupation.name
-                )
-            }
+            let row = PersonOptionalOccupation.columns(
+                person: person.name,
+                occupation: occupation.name
+            )
             Select(row)
             From(person)
             Join.Left(occupation, on: occupation.id == person.occupationId)
@@ -514,12 +510,10 @@ final class XLDocumentationTests: XCTestCase {
         let statement = sqlQuery { schema in
             let person = schema.table(Person.self)
             let occupation = schema.nullableTable(Occupation.self)
-            let result = result {
-                PersonOptionalOccupation.SQLReader(
-                    person: person.name,
-                    occupation: occupation.name
-                )
-            }
+            let result = PersonOptionalOccupation.columns(
+                person: person.name,
+                occupation: occupation.name
+            )
             return select(result).from(person).leftJoin(occupation, on: occupation.id == person.occupationId)
         }
         let sql = encoder.makeSQL(statement).sql
@@ -536,12 +530,10 @@ final class XLDocumentationTests: XCTestCase {
         let statement = sqlQuery { schema in
             let person = schema.table(Person.self)
             let occupation = schema.nullableTable(Occupation.self)
-            let result = result {
-                PersonOccupation.SQLReader(
-                    person: person.name,
-                    occupation: iif(occupation.name.isNull(), then: "Unemployed", else: "Employed")
-                )
-            }
+            let result = PersonOccupation.columns(
+                person: person.name,
+                occupation: iif(occupation.name.isNull(), then: "Unemployed", else: "Employed")
+            )
             return select(result).from(person).leftJoin(occupation, on: occupation.id == person.occupationId)
         }
         let sql = encoder.makeSQL(statement).sql
@@ -558,12 +550,10 @@ final class XLDocumentationTests: XCTestCase {
         let statement = sqlQuery { schema in
             let person = schema.table(Person.self)
             let occupation = schema.nullableTable(Occupation.self)
-            let result = result {
-                PersonOccupation.SQLReader(
-                    person: person.name,
-                    occupation: occupation.name.coalesce("No occupation")
-                )
-            }
+            let result = PersonOccupation.columns(
+                person: person.name,
+                occupation: occupation.name.coalesce("No occupation")
+            )
             return select(result).from(person).leftJoin(occupation, on: occupation.id == person.occupationId)
         }
         let sql = encoder.makeSQL(statement).sql
@@ -579,14 +569,12 @@ final class XLDocumentationTests: XCTestCase {
     func testExample_SwitchCaseWhenThen() throws {
         let statement = sqlQuery { schema in
             let occupation = schema.table(Occupation.self)
-            let result = result {
-                OccupationOptionalColor.SQLReader(
-                    occupation: occupation.name,
-                    color: switchCase(occupation.name)
-                        .when("Engineer", then: "Red")
-                        .when("Scientist", then: "Blue")
-                )
-            }
+            let result = OccupationOptionalColor.columns(
+                occupation: occupation.name,
+                color: switchCase(occupation.name)
+                    .when("Engineer", then: "Red")
+                    .when("Scientist", then: "Blue")
+            )
             return select(result).from(occupation)
         }
         let sql = encoder.makeSQL(statement).sql
@@ -602,15 +590,13 @@ final class XLDocumentationTests: XCTestCase {
     func testExample_SwitchCaseWhenThenElse() throws {
         let statement = sqlQuery { schema in
             let occupation = schema.table(Occupation.self)
-            let result = result {
-                OccupationColor.SQLReader(
-                    occupation: occupation.name,
-                    color: switchCase(occupation.name)
-                        .when("Engineer", then: "Red")
-                        .when("Scientist", then: "Blue")
-                        .else("Green")
-                )
-            }
+            let result = OccupationColor.columns(
+                occupation: occupation.name,
+                color: switchCase(occupation.name)
+                    .when("Engineer", then: "Red")
+                    .when("Scientist", then: "Blue")
+                    .else("Green")
+            )
             return select(result).from(occupation)
         }
         let sql = encoder.makeSQL(statement).sql
@@ -626,12 +612,10 @@ final class XLDocumentationTests: XCTestCase {
     func testExample_IfCaseWhenThen() throws {
         let statement = sqlQuery { schema in
             let occupation = schema.table(Occupation.self)
-            let result = result {
-                OccupationOptionalColor.SQLReader(
-                    occupation: occupation.name,
-                    color: when(occupation.name == "Artist", then: "Cyan")
-                )
-            }
+            let result = OccupationOptionalColor.columns(
+                occupation: occupation.name,
+                color: when(occupation.name == "Artist", then: "Cyan")
+            )
             return select(result).from(occupation)
         }
         let sql = encoder.makeSQL(statement).sql
@@ -647,12 +631,10 @@ final class XLDocumentationTests: XCTestCase {
     func testExample_IfCaseWhenThenElse() throws {
         let statement = sqlQuery { schema in
             let occupation = schema.table(Occupation.self)
-            let result = result {
-                OccupationColor.SQLReader(
-                    occupation: occupation.name,
-                    color: when(occupation.name == "Artist", then: "Cyan").else("Magenta")
-                )
-            }
+            let result = OccupationColor.columns(
+                occupation: occupation.name,
+                color: when(occupation.name == "Artist", then: "Cyan").else("Magenta")
+            )
             return select(result).from(occupation)
         }
         let sql = encoder.makeSQL(statement).sql
@@ -668,12 +650,10 @@ final class XLDocumentationTests: XCTestCase {
     func testExample_IfCaseWhenThen_IntegerResult() throws {
         let statement = sqlQuery { schema in
             let person = schema.table(Person.self)
-            let result = result {
-                PersonOptionalScore.SQLReader(
-                    person: person.name,
-                    score: when(person.name == "Yogi Bear", then: 100)
-                )
-            }
+            let result = PersonOptionalScore.columns(
+                person: person.name,
+                score: when(person.name == "Yogi Bear", then: 100)
+            )
             return select(result).from(person)
         }
         let sql = encoder.makeSQL(statement).sql
@@ -689,13 +669,11 @@ final class XLDocumentationTests: XCTestCase {
     func testExample_IfCaseWhenThen_IntegerResult_MultipleConditions() throws {
         let statement = sqlQuery { schema in
             let person = schema.table(Person.self)
-            let result = result {
-                PersonOptionalScore.SQLReader(
-                    person: person.name,
-                    score: when(person.name == "Yogi Bear", then: 100)
-                        .when(person.name == "John Doe", then: 50)
-                )
-            }
+            let result = PersonOptionalScore.columns(
+                person: person.name,
+                score: when(person.name == "Yogi Bear", then: 100)
+                    .when(person.name == "John Doe", then: 50)
+            )
             return select(result).from(person)
         }
         let sql = encoder.makeSQL(statement).sql
@@ -753,17 +731,15 @@ final class XLDocumentationTests: XCTestCase {
         let myLongitude = XLNamedBindingReference<Double>(name: "myLongitude")
         let statement = sqlQuery { schema in
             let restaurant = schema.table(Restaurant.self)
-            let result = result {
-                NearbyRestaurant.SQLReader(
-                    name: restaurant.name,
-                    distance: HaversineDistance(
-                        fromLatitude: myLatitude,
-                        fromLongitude: myLongitude,
-                        toLatitude: restaurant.latitude,
-                        toLongitude: restaurant.longitude
-                    ).rounded(to: 2)
-                )
-            }
+            let result = NearbyRestaurant.columns(
+                name: restaurant.name,
+                distance: HaversineDistance(
+                    fromLatitude: myLatitude,
+                    fromLongitude: myLongitude,
+                    toLatitude: restaurant.latitude,
+                    toLongitude: restaurant.longitude
+                ).rounded(to: 2)
+            )
             // SELECT
             //  restaurant.name AS _name,
             //  ROUND(haversineDistance(:myLatitude, :myLongitude, restaurant.latitude, restaurant.longitude), 2) AS _ distance
@@ -785,14 +761,12 @@ final class XLDocumentationTests: XCTestCase {
     func testExample_CustomOperator() throws {
         let statement = sqlQuery { schema in
             let event = schema.table(Event.self)
-            let result = result {
-                EventDuration.SQLReader(
-                    name: event.name,
-                    startDate: event.startDate,
-                    endDate: event.endDate,
-                    duration: (event.endDate - event.startDate)
-                )
-            }
+            let result = EventDuration.columns(
+                name: event.name,
+                startDate: event.startDate,
+                endDate: event.endDate,
+                duration: (event.endDate - event.startDate)
+            )
             return select(result).from(event)
         }
         let sql = encoder.makeSQL(statement).sql

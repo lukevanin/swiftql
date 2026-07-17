@@ -142,19 +142,39 @@ final class XLSyntaxTests: XCTestCase {
     // MARK: - Column reference
     
     
-#warning("TODO: Test column reference")
+    func test_ColumnReference() {
+        let table = XLSchema().table(TestTable.self, as: "sample")
+        XCTAssertEqual(encoder.makeSQL(table.value).sql, "sample.value")
+    }
+
+
+    func test_SQLResultColumns_AreAvailableAcrossFilesOnSwift59() {
+        let row = Swift59ColumnsLookupProjection.columns(value: 1)
+        XCTAssertEqual(encoder.makeSQL(select(row)).sql, "SELECT 1 AS value")
+    }
     
     
     // MARK: - Function
     
     
-#warning("TODO: Test function")
+    func test_Function() {
+        let parameter = XLNamedBindingReference<Int>(name: "value")
+        let function = XLFunction<Int>(
+            name: "CUSTOM",
+            distinct: true,
+            parameters: [parameter, 1]
+        )
+        XCTAssertEqual(encoder.makeSQL(function).sql, "CUSTOM(DISTINCT :value, 1)")
+    }
     
     
     // MARK: - Bind parameter
     
     
-#warning("TODO: Test bind parameters")
+    func test_SchemaBinding_UsesRequestedName() {
+        let binding = XLSchema().binding(of: Int.self, as: "value")
+        XCTAssertEqual(encoder.makeSQL(binding).sql, ":value")
+    }
     
     
     // MARK: - Integer unary opperator
@@ -278,13 +298,29 @@ final class XLSyntaxTests: XCTestCase {
     }
     
     
-#warning("TODO: Test -, *, /, and %")
+    func test_IntegerReference_MultipliedBy_IntegerReference() {
+        let x = XLNamedBindingReference<Int>(name: "x")
+        let y = XLNamedBindingReference<Int>(name: "y")
+        XCTAssertEqual(encoder.makeSQL(x * y).sql, "(:x * :y)")
+    }
+
+
+    func test_IntegerReference_DividedBy_IntegerReference() {
+        let x = XLNamedBindingReference<Int>(name: "x")
+        let y = XLNamedBindingReference<Int>(name: "y")
+        XCTAssertEqual(encoder.makeSQL(x / y).sql, "(:x / :y)")
+    }
+
+
+    func test_IntegerReference_Remainder_IntegerReference() {
+        let x = XLNamedBindingReference<Int>(name: "x")
+        let y = XLNamedBindingReference<Int>(name: "y")
+        XCTAssertEqual(encoder.makeSQL(x % y).sql, "(:x % :y)")
+    }
     
     
     // MARK: - Unary boolean
     
-    
-#warning("TODO: Test unary boolean")
     
     func test_Not_BooleanReference() {
         let x = XLNamedBindingReference<Bool>(name: "x")
@@ -484,7 +520,8 @@ final class XLSyntaxTests: XCTestCase {
     // MARK: - Between
     
     
-#warning("TODO: Test between")
+    // Typed BETWEEN and NOT BETWEEN expressions are tracked by
+    // https://github.com/lukevanin/swiftql/issues/31.
     
     //    func testBetweenOperator_NumericExpression() {
     //        let x = XLIntegerBindingReference(name: "x")
@@ -496,7 +533,29 @@ final class XLSyntaxTests: XCTestCase {
     // MARK: -  Case expression
     
     
-#warning("TODO: Support CASE x WHEN y THEN z END")
+    func test_SimpleCaseWhenThen_StringResult() {
+        let value = XLNamedBindingReference<Int>(name: "value")
+        let expression = switchCase(value).when(1, then: "one")
+        let _: any XLExpression<String?> = expression
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "(CASE :value WHEN 1 THEN 'one' END)"
+        )
+    }
+
+
+    func test_SimpleCaseWhenThenElse_StringResult() {
+        let value = XLNamedBindingReference<Int>(name: "value")
+        let expression = switchCase(value)
+            .when(1, then: "one")
+            .when(2, then: "two")
+            .else("other")
+        let _: any XLExpression<String> = expression
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "(CASE :value WHEN 1 THEN 'one' WHEN 2 THEN 'two' ELSE 'other' END)"
+        )
+    }
     
     //    func testCaseWhenThen() {
     //        let x = XLNamedBindingReference<Int>(name: "x")
@@ -692,8 +751,6 @@ final class XLSyntaxTests: XCTestCase {
     
     // MARK: - Scalar functions
     
-#warning("TODO: Test all scalar functions")
-    
     func testAbsFunction() {
         let x = XLNamedBindingReference<Int>(name: "x")
         let expression = x.abs()
@@ -720,8 +777,6 @@ final class XLSyntaxTests: XCTestCase {
     
     
     // MARK: - Aggregate function
-    
-#warning("TODO: Test all aggregate functions")
     
     func testAverageFunction() {
         let x = XLNamedBindingReference<Double>(name: "x")
@@ -978,11 +1033,7 @@ final class XLSyntaxTests: XCTestCase {
     func testScalarCommonTableExpression() {
         let s = XLSchema()
         let cte = s.commonTable { schema in
-            let r = result {
-                SQLScalarResult<Int>.SQLReader(
-                    scalarValue: 1
-                )
-            }
+            let r = SQLScalarResult<Int>.columns(scalarValue: 1)
             return select(r)
         }
         let t = s.table(cte)
@@ -996,20 +1047,11 @@ final class XLSyntaxTests: XCTestCase {
     func testScalarResultCommonTableExpression() {
         let s = XLSchema()
         let cte = s.commonTable { schema in
-            let r = result {
-                SQLScalarResult<Int>.SQLReader(
-                    scalarValue: 1
-                )
-            }
+            let r = SQLScalarResult<Int>.columns(scalarValue: 1)
             return select(r)
         }
         let t = s.table(cte)
-        let r = result {
-            TestTable.SQLReader(
-                id: "foo",
-                value: t.scalarValue
-            )
-        }
+        let r = TestTable.columns(id: "foo", value: t.scalarValue)
         let expression = with(cte)
             .select(r)
             .from(t)
@@ -1023,12 +1065,8 @@ final class XLSyntaxTests: XCTestCase {
         let schema = XLSchema()
         let familyMom = schema.table(Family.self)
         let familyDad = schema.table(Family.self)
-        let momRow = result {
-            FamilyMemberParent.SQLReader(name: familyMom.name, parent: familyMom.mom)
-        }
-        let dadRow = result {
-            FamilyMemberParent.SQLReader(name: familyDad.name, parent: familyDad.dad)
-        }
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
         let expression = select(momRow).from(familyMom).union {
             select(dadRow).from(familyDad)
         }
@@ -1040,12 +1078,8 @@ final class XLSyntaxTests: XCTestCase {
         let schema = XLSchema()
         let familyMom = schema.table(Family.self)
         let familyDad = schema.table(Family.self)
-        let momRow = result {
-            FamilyMemberParent.SQLReader(name: familyMom.name, parent: familyMom.mom)
-        }
-        let dadRow = result {
-            FamilyMemberParent.SQLReader(name: familyDad.name, parent: familyDad.dad)
-        }
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
         let expression = select(momRow).from(familyMom).unionAll {
             select(dadRow).from(familyDad)
         }
@@ -1057,12 +1091,8 @@ final class XLSyntaxTests: XCTestCase {
         let schema = XLSchema()
         let familyMom = schema.table(Family.self)
         let familyDad = schema.table(Family.self)
-        let momRow = result {
-            FamilyMemberParent.SQLReader(name: familyMom.name, parent: familyMom.mom)
-        }
-        let dadRow = result {
-            FamilyMemberParent.SQLReader(name: familyDad.name, parent: familyDad.dad)
-        }
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
         let expression = select(momRow).from(familyMom).intersect {
             select(dadRow).from(familyDad)
         }
@@ -1074,12 +1104,8 @@ final class XLSyntaxTests: XCTestCase {
         let schema = XLSchema()
         let familyMom = schema.table(Family.self)
         let familyDad = schema.table(Family.self)
-        let momRow = result {
-            FamilyMemberParent.SQLReader(name: familyMom.name, parent: familyMom.mom)
-        }
-        let dadRow = result {
-            FamilyMemberParent.SQLReader(name: familyDad.name, parent: familyDad.dad)
-        }
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
         let expression = select(momRow).from(familyMom).except {
             select(dadRow).from(familyDad)
         }
@@ -1106,11 +1132,9 @@ final class XLSyntaxTests: XCTestCase {
         let cte = schema.recursiveCommonTable(Scalar.self) { schema, this in
             let org = schema.table(Org.self)
             
-            let initialResult = result {
-                Scalar.SQLReader(scalarValue: "Alice".toNullable())
-            }
+            let initialResult = Scalar.columns(scalarValue: "Alice".toNullable())
             return select(initialResult).union {
-                select(result { Scalar.SQLReader(scalarValue: org.name) })
+                select(Scalar.columns(scalarValue: org.name))
                     .from(org)
                     .crossJoin(this)
                     .where(org.boss == this.scalarValue)
@@ -1147,12 +1171,8 @@ final class XLSyntaxTests: XCTestCase {
         
         let parentOfCommonTable = schema.commonTable { schema in
             let family = schema.table(Family.self)
-            let momRow = result {
-                FamilyMemberParent.SQLReader(name: family.name, parent: family.mom)
-            }
-            let dadRow = result {
-                FamilyMemberParent.SQLReader(name: family.name, parent: family.dad)
-            }
+            let momRow = FamilyMemberParent.columns(name: family.name, parent: family.mom)
+            let dadRow = FamilyMemberParent.columns(name: family.name, parent: family.dad)
             return select(momRow).from(family).union {
                 select(dadRow).from(family)
             }
@@ -1160,11 +1180,11 @@ final class XLSyntaxTests: XCTestCase {
         
         let ancestorOfAliceCommonTable = schema.recursiveCommonTable(Scalar.self) { schema, this in
             let parentOf = schema.table(parentOfCommonTable)
-            return select(result { Scalar.SQLReader(scalarValue: parentOf.parent) })
+            return select(Scalar.columns(scalarValue: parentOf.parent))
                 .from(parentOf)
                 .where(parentOf.name == "Alice".toNullable())
                 .unionAll {
-                    select(result { Scalar.SQLReader(scalarValue: parentOf.parent) })
+                    select(Scalar.columns(scalarValue: parentOf.parent))
                         .from(parentOf)
                         .innerJoin(this, on: this.scalarValue == parentOf.name)
                 }
@@ -1217,17 +1237,15 @@ final class XLSyntaxTests: XCTestCase {
     func testSelectSubqueryAggregate() {
         let s = XLSchema()
         let t = s.table(TestTable.self)
-        let r = result {
-            TestColumns.SQLReader(
-                id: t.id,
-                value: XLTypeAffinityExpression<Int?>(
-                    expression: subquery {
-                        let t = s.table(TestTable.self)
-                        return select(t.value.sumOrNull()).from(t)
-                    }
-                )
+        let r = TestColumns.columns(
+            id: t.id,
+            value: XLTypeAffinityExpression<Int?>(
+                expression: subquery {
+                    let t = s.table(TestTable.self)
+                    return select(t.value.sumOrNull()).from(t)
+                }
             )
-        }
+        )
         let expression = select(r).from(t)
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, (SELECT SUM(t1.value) FROM Test AS t1) AS value FROM Test AS t0")
     }
@@ -1350,12 +1368,7 @@ final class XLSyntaxTests: XCTestCase {
         let schema = XLSchema()
         let t = schema.table(Temp.self)
         let e = schema.table(EmployeeTable.self)
-        let r = result {
-            Temp.SQLReader(
-                id: e.id,
-                value: e.name
-            )
-        }
+        let r = Temp.columns(id: e.id, value: e.name)
         let expression = insert(t).select(r).from(e)
         let finalResult = encoder.makeSQL(expression)
         XCTAssertEqual(finalResult.sql, "INSERT INTO Temp AS t0 SELECT t1.id AS id, t1.name AS value FROM Employee AS t1")
@@ -1370,12 +1383,7 @@ final class XLSyntaxTests: XCTestCase {
         }
         let t = schema.table(Temp.self)
         let e = schema.table(cte)
-        let r = result {
-            Temp.SQLReader(
-                id: e.id,
-                value: e.name
-            )
-        }
+        let r = Temp.columns(id: e.id, value: e.name)
         let expression = with(cte).insert(t).select(r).from(e)
         let finalResult = encoder.makeSQL(expression)
         XCTAssertEqual(finalResult.sql, "WITH cte0 AS (SELECT t0.id AS id, t0.name AS name FROM Company AS t0) INSERT INTO Temp AS t0 SELECT t1.id AS id, t1.name AS value FROM cte0 AS t1")
@@ -1482,12 +1490,7 @@ final class XLSyntaxTests: XCTestCase {
         let t = schema.create(Temp.self)
         let expression = create(t).as { schema in
             let t = schema.table(EmployeeTable.self)
-            let r = result {
-                Temp.SQLReader(
-                    id: t.id,
-                    value: t.name
-                )
-            }
+            let r = Temp.columns(id: t.id, value: t.name)
             return select(r).from(t)
         }
         XCTAssertEqual(encoder.makeSQL(expression).sql, "CREATE TABLE IF NOT EXISTS Temp AS SELECT t0.id AS id, t0.name AS value FROM Employee AS t0")
@@ -1505,12 +1508,7 @@ final class XLSyntaxTests: XCTestCase {
             }
             
             let t = schema.table(cte)
-            let r = result {
-                Temp.SQLReader(
-                    id: t.id,
-                    value: t.name
-                )
-            }
+            let r = Temp.columns(id: t.id, value: t.name)
             return with(cte).select(r).from(t)
         }
         XCTAssertEqual(encoder.makeSQL(expression).sql, "CREATE TABLE IF NOT EXISTS Temp AS WITH cte0 AS (SELECT t0.id AS id, t0.name AS name, t0.companyId AS companyId, t0.managerEmployeeId AS managerEmployeeId FROM Employee AS t0) SELECT t0.id AS id, t0.name AS value FROM cte0 AS t0")
@@ -1570,5 +1568,21 @@ final class XLSyntaxTests: XCTestCase {
         let result = encoder.makeSQL(expression)
         XCTAssertEqual(result.sql, "DELETE FROM Test AS t0 WHERE (t0.id IN (SELECT t1.id FROM Test AS t1))")
         XCTAssertTrue(result.entities.contains("Test"))
+    }
+
+
+    // Compile-only: the deprecated context verifies both retained v1 result helpers without adding
+    // deprecation warnings to the warning-clean test build.
+    @available(*, deprecated, message: "Exercises the source-compatible SwiftQL 1.x result helpers.")
+    private func assertLegacyResultHelpersRemainSourceCompatible() {
+        let _: SQLScalarResult<Int>.MetaResult = result {
+            SQLScalarResult<Int>.SQLReader(scalarValue: 1)
+        }
+        let _: SQLScalarResult<Int>.MetaResult = result { reader in
+            let scalarValue: Int = (try? reader.column(1, alias: "scalarValue")) ?? 0
+            return SQLScalarResult(
+                scalarValue: scalarValue
+            )
+        }
     }
 }

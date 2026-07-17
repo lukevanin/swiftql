@@ -101,11 +101,12 @@ jobs:
             test -f Package.resolved
           fi
 
-      - name: Build
+      - name: Build and check first-party warning cleanliness
         run: |
           set -euo pipefail
           cd "$SWIFTQL_SOURCE"
-          xcrun swift build -v 2>&1 | tee "$RUNNER_TEMP/swift-build.log"
+          scripts/ci/check-first-party-warnings.sh \
+            "$RUNNER_TEMP/swift-build.log"
 
       - name: Report SQLite runtime through GRDB
         run: |
@@ -141,13 +142,6 @@ jobs:
             echo "error: expected one benchmark report marker; found $benchmark_markers" >&2
             exit 1
           fi
-
-      - name: Classify compiler diagnostics
-        if: ${{ !cancelled() }}
-        run: |
-          scripts/ci/report-build-diagnostics.sh \
-            "$RUNNER_TEMP/swift-build.log" \
-            "$RUNNER_TEMP/swift-test-build.log"
 
       - name: Run full test suite
         run: |

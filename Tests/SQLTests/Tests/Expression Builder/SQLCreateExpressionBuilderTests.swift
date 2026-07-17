@@ -62,12 +62,10 @@ final class XLCreateExpressionBuilderTests: XCTestCase {
             Create(t)
             As { schema in
                 let t = schema.table(EmployeeTable.self)
-                let r = result {
-                    Temp.SQLReader(
-                        id: t.id,
-                        value: t.name
-                    )
-                }
+                let r = Temp.columns(
+                    id: t.id,
+                    value: t.name
+                )
                 Select(r)
                 From(t)
             }
@@ -88,12 +86,10 @@ final class XLCreateExpressionBuilderTests: XCTestCase {
                 }
                 
                 let t = schema.table(cte)
-                let r = result {
-                    Temp.SQLReader(
-                        id: t.id,
-                        value: t.name
-                    )
-                }
+                let r = Temp.columns(
+                    id: t.id,
+                    value: t.name
+                )
                 With(cte)
                 Select(r)
                 From(t)

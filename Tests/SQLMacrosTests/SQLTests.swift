@@ -25,24 +25,54 @@ private func makeTestMacros() -> [String: Macro.Type] {
 
 
 ///
-/// Wrapper which exposes only the member role of `SQLTableMacro`, so that expansion tests can
-/// assert the generated memberwise initializer without also asserting the (very large) generated
-/// extensions.
+/// Wrapper which exposes only the generated initializer so existing expansion tests stay focused
+/// on that declaration.
 ///
-private struct SQLTableMemberMacro: MemberMacro {
+private struct SQLTableInitializerMacro: MemberMacro {
 
     static func expansion(
         of node: AttributeSyntax,
         providingMembersOf declaration: some DeclGroupSyntax,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        try SQLTableMacro.expansion(of: node, providingMembersOf: declaration, in: context)
+        Array(
+            try SQLTableMacro.expansion(
+                of: node,
+                providingMembersOf: declaration,
+                in: context
+            ).prefix(1)
+        )
     }
 }
 
 private func makeMemberTestMacros() -> [String: Macro.Type] {
     [
-        "SQLTable": SQLTableMemberMacro.self,
+        "SQLTable": SQLTableInitializerMacro.self,
+    ]
+}
+
+
+/// Wrapper which isolates the generated projection factory for a focused regression test.
+private struct SQLResultColumnsMemberMacro: MemberMacro {
+
+    static func expansion(
+        of node: AttributeSyntax,
+        providingMembersOf declaration: some DeclGroupSyntax,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        Array(
+            try SQLResultMacro.expansion(
+                of: node,
+                providingMembersOf: declaration,
+                in: context
+            ).dropFirst()
+        )
+    }
+}
+
+private func makeColumnsMemberTestMacros() -> [String: Macro.Type] {
+    [
+        "SQLResult": SQLResultColumnsMemberMacro.self,
     ]
 }
 
@@ -407,6 +437,36 @@ final class SQLMacroDiagnosticTests: XCTestCase {
 
 final class SQLMacroExpansionTests: XCTestCase {
 
+    func test_columnsIsGeneratedAsANominalMemberForSwift59Lookup() {
+        assertMacroExpansion(
+            """
+            @SQLResult
+            struct Projection {
+                let id: Int
+                let name: String?
+            }
+            """,
+            expandedSource: """
+            struct Projection {
+                let id: Int
+                let name: String?
+
+                public static func columns(id: any SwiftQL.XLExpression<Int>, name: any SwiftQL.XLExpression<String?>) -> MetaResult {
+                        return Self.makeSQLAnonymousResult(
+                            namespace: XLNamespace.table(),
+                            dependency: XLSelectResultDependency(),
+                            iterator: Self.SQLReader(
+                                id: id,
+                                name: name
+                            ).readRow
+                        )
+                  }
+            }
+            """,
+            macros: makeColumnsMemberTestMacros()
+        )
+    }
+
     func test_memberwiseInitializer() {
         assertMacroExpansion(
             """
@@ -725,5 +785,82 @@ final class MetaBuilderTests: XCTestCase {
         // initializer. Before the fix, MetaUpdate declared a duplicate `init()`.
         let count = source.components(separatedBy: "public init()").count - 1
         XCTAssertEqual(count, 3)
+    }
+
+    func test_columnsBuildsResultWithoutDeprecatedHelper() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct Projection {
+                let id: String
+                let result: Int
+            }
+            """
+        )
+        let source = builder.makeColumnsFunction()
+        let extensionSource = builder.makeMetaResultExtension(table: false)
+
+        XCTAssertTrue(source.contains("public static func columns(id: any SwiftQL.XLExpression<String>, result: any SwiftQL.XLExpression<Int>) -> MetaResult"))
+        XCTAssertTrue(source.contains("return Self.makeSQLAnonymousResult("))
+        XCTAssertTrue(source.contains("namespace: XLNamespace.table(),"))
+        XCTAssertTrue(source.contains("dependency: XLSelectResultDependency(),"))
+        XCTAssertTrue(source.contains("iterator: Self.SQLReader("))
+        XCTAssertTrue(source.contains("id: id,"))
+        XCTAssertTrue(source.contains("result: result"))
+        XCTAssertTrue(source.contains(").readRow"))
+        XCTAssertFalse(source.contains("result {"))
+        XCTAssertFalse(extensionSource.contains("static func columns"))
+    }
+
+    func test_emptyResultColumnsGenerationIsValid() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct Projection {
+            }
+            """
+        )
+        let source = builder.makeColumnsFunction()
+
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+        XCTAssertTrue(source.contains("public static func columns() -> MetaResult"))
+        XCTAssertTrue(source.contains("iterator: Self.SQLReader("))
+        XCTAssertTrue(source.contains(").readRow"))
+    }
+
+    func test_immutableTableUpdateRequestAvoidsUnusedTemporaries() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct ImmutableRow {
+                let id: Int
+            }
+            """
+        )
+        let source = builder.makeMetaTableExtension()
+
+        XCTAssertTrue(source.contains("public func apply(to entity: Row) -> Row"))
+        XCTAssertTrue(source.contains("return entity"))
+        XCTAssertTrue(source.contains("public func makeUpdate() -> MetaUpdate"))
+        XCTAssertTrue(source.contains("return MetaUpdate()"))
+        XCTAssertFalse(source.contains("var output = entity"))
+        XCTAssertFalse(source.contains("var output = MetaUpdate()"))
+    }
+
+    func test_mutableTableUpdateRequestStillAppliesValues() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct MutableRow {
+                var id: Int
+            }
+            """
+        )
+        let source = builder.makeMetaTableExtension()
+
+        XCTAssertTrue(source.contains("var output = entity"))
+        XCTAssertTrue(source.contains("output.id = value"))
+        XCTAssertTrue(source.contains("var output = MetaUpdate()"))
+        XCTAssertTrue(source.contains("output.id = XLTypeAffinityExpression<Int>(expression: value)"))
     }
 }

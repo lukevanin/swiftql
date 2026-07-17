@@ -55,7 +55,7 @@ scripts/ci/check-compatibility-environment.sh
 
 xcrun swift package resolve
 scripts/ci/report-resolved-dependencies.sh
-xcrun swift build -v
+scripts/ci/check-first-party-warnings.sh
 xcrun swift test --filter XLCompatibilityReportTests
 xcrun swift test --skip-build -v
 ```
@@ -70,7 +70,7 @@ cd "$clean_source"
 
 xcrun swift package resolve
 scripts/ci/report-resolved-dependencies.sh
-xcrun swift build -v
+scripts/ci/check-first-party-warnings.sh
 xcrun swift test --filter XLCompatibilityReportTests
 xcrun swift test --skip-build -v
 ```
@@ -118,6 +118,33 @@ marker, and keeps build products outside the source tree. The compatibility
 matrix runs both fixture resolution paths only in its pinned Swift 6.0 cells;
 the ordinary package matrix continues to prove Swift 5.9 compiler support.
 
+## First-party warnings as errors
+
+Every supported compiler and dependency-resolution cell performs a clean build
+of all first-party products and test targets, then treats SwiftQL-owned compiler
+warnings as errors:
+
+```sh
+scripts/ci/check-first-party-warnings.sh
+```
+
+The script runs `swift build --build-tests -v` after cleaning its scratch
+directory. It classifies complete diagnostic blocks by their source origin:
+warnings from `Sources/`, `Tests/`, `Benchmarks/`, or first-party macro
+expansions fail the build; dependency and toolchain diagnostics are printed in
+separate sections; otherwise-unrecognized, non-excerpt warning headers fail
+closed. This is intentionally a first-party gate instead of a global
+`-warnings-as-errors` flag, which SwiftPM would also apply while compiling GRDB
+and SwiftSyntax.
+
+Set `SWIFTQL_SCRATCH_PATH` to keep build products in a chosen directory or to
+reuse a dependency checkout across local worktrees:
+
+```sh
+SWIFTQL_SCRATCH_PATH=/path/to/swiftql/.build \
+  scripts/ci/check-first-party-warnings.sh
+```
+
 ## Complete strict concurrency
 
 SwiftQL's supported Swift 6 compiler also checks every first-party product and
@@ -142,14 +169,11 @@ seven first-party targets, including the benchmark executable and its library,
 the macro implementation, and all test targets. Cleaning first prevents an
 incremental no-op from appearing warning-free without invoking the compiler.
 
-Until #154 removes the remaining ordinary first-party warnings, the checker
-prints and temporarily permits only that issue's known deprecation, explicit
-`#warning`, never-mutated-local, and Swift 6.0 package-manifest command
-diagnostics. It prints dependency and other build warnings separately, fails
-closed for every other first-party warning, and treats unclassifiable warning
-headers as blocking. Automatic positive and negative classifier fixtures
-protect that boundary before each build. The checker does not suppress any
-compiler output.
+The strict-concurrency check uses the same provenance-aware, fail-closed
+classifier as the ordinary warning gate. It has no first-party warning
+allowlist: any ordinary or concurrency warning owned by SwiftQL blocks the
+build. Automatic positive and negative classifier fixtures protect that
+boundary before each build. The checker does not suppress compiler output.
 
 For local worktrees that share an existing SwiftPM dependency checkout, set
 `SWIFTQL_SCRATCH_PATH` before invoking the script:
@@ -162,22 +186,21 @@ SWIFTQL_SCRATCH_PATH=/path/to/swiftql/.build \
 ## Diagnostics policy
 
 Compiler and test failures in either support point are release blockers.
-`report-build-diagnostics.sh` prints first-party and dependency warnings in
-separate, searchable sections for every cell:
+The warning gates print first-party, dependency, toolchain, and unclassified
+warnings in separate, searchable sections for every applicable cell:
 
-- Known first-party diagnostics include intentional `#warning` markers in the
-  source and tests, deprecated `result` calls in sources and examples, and
-  unused generated declarations. Swift 6.0 also reports the first-party
-  `Package.swift` compiler invocation as a warning. Cleanup is owned by
-  [#154](https://github.com/lukevanin/swiftql/issues/154).
+- First-party warnings and unclassified warning headers are release blockers;
+  there is no message-based exception list.
 - Complete strict-concurrency warnings are release blockers in the Swift 6.0
   lanes; `check-strict-concurrency.sh` enforces that boundary after the standard
   build and tests.
 - Verbose builds on both support points currently emit dependency-prefixed
   manifest compiler command lines for `swift-docc-plugin`, `grdb.swift`,
   `swift-syntax`, and `swift-docc-symbolkit`. They are recorded separately under
-  `SWIFTQL_DEPENDENCY_DIAGNOSTICS`; no dependency source-warning exception is
-  accepted. Exact resolved versions are reported earlier in each lane.
+  the gate's dependency-warning section. The structurally identified root
+  `Package.swift` compiler invocation is reported as build-system output rather
+  than a source warning. Exact resolved versions are reported earlier in each
+  lane.
 
 The matrix suppresses neither category.
 
