@@ -10,6 +10,7 @@ main() {
     local build_log
     local source_root
     local scratch_root
+    local -a swift_command
 
     if [[ "$#" -gt 1 ]]; then
         printf 'usage: %s [BUILD_LOG]\n' "$0" >&2
@@ -22,6 +23,10 @@ main() {
         swiftql_prepare_scratch_root \
             "$source_root" "${SWIFTQL_SCRATCH_PATH:-}"
     )"
+    swift_command=(swift)
+    if command -v xcrun > /dev/null 2>&1; then
+        swift_command=(xcrun swift)
+    fi
 
     swiftql_run_diagnostic_classifier_self_tests \
         "$source_root" "$scratch_root" "SWIFTQL_FIRST_PARTY_WARNING_GATE"
@@ -29,8 +34,8 @@ main() {
     # A clean --build-tests build covers every first-party product and test
     # target and prevents an incremental no-op from hiding diagnostics.
     cd "$source_root"
-    xcrun swift package --scratch-path "$scratch_root" clean
-    xcrun swift build --scratch-path "$scratch_root" --build-tests -v \
+    "${swift_command[@]}" package --scratch-path "$scratch_root" clean
+    "${swift_command[@]}" build --scratch-path "$scratch_root" --build-tests -v \
         2>&1 | tee "$build_log"
 
     if [[ ! -s "$build_log" ]]; then
