@@ -82,9 +82,20 @@ final class XLScalarFunctionTests: XCTestCase {
     func testStringFunctionsAndOrderingTerms() {
         let text = XLNamedBindingReference<String>(name: "text")
         let optionalText = XLNamedBindingReference<String?>(name: "optionalText")
+        let canonicalEncoder = XLiteEncoder(formatter: XLiteFormatter())
 
-        assertSQL(text.collate(.nocase), "(:text COLLATE 'NOCASE')")
-        assertSQL(optionalText.collate(.rtrim), "(:optionalText COLLATE 'RTRIM')")
+        XCTAssertEqual(
+            canonicalEncoder.makeSQL(text.collate(.binary)).sql,
+            "(:text COLLATE BINARY)"
+        )
+        XCTAssertEqual(
+            canonicalEncoder.makeSQL(text.collate(.nocase)).sql,
+            "(:text COLLATE NOCASE)"
+        )
+        XCTAssertEqual(
+            canonicalEncoder.makeSQL(optionalText.collate(.rtrim)).sql,
+            "(:optionalText COLLATE RTRIM)"
+        )
         assertSQL(printf(format: "%s:%d", text, 7), "printf('%s:%d', :text, 7)")
         assertSQL(
             printf(format: "%s:%d", [text, 7]),

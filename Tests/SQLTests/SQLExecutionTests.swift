@@ -125,6 +125,38 @@ final class XLExecutionTests: XCTestCase {
         )
     }
 
+    func testBuiltInCollationExecution() throws {
+        let lhs = XLNamedBindingReference<String>(name: "lhs")
+        let rhs = XLNamedBindingReference<String>(name: "rhs")
+
+        func compare(
+            _ collation: XLCollation,
+            lhs lhsValue: String,
+            rhs rhsValue: String
+        ) throws -> Bool? {
+            let statement = sql { _ in
+                Select(lhs.collate(collation) == rhs)
+            }
+            var request = database.makeRequest(with: statement)
+            request.set(lhs, lhsValue)
+            request.set(rhs, rhsValue)
+            return try request.fetchOne()
+        }
+
+        XCTAssertEqual(
+            try compare(.binary, lhs: "alpha", rhs: "ALPHA"),
+            false
+        )
+        XCTAssertEqual(
+            try compare(.nocase, lhs: "alpha", rhs: "ALPHA"),
+            true
+        )
+        XCTAssertEqual(
+            try compare(.rtrim, lhs: "alpha ", rhs: "alpha"),
+            true
+        )
+    }
+
     func testConcatenationCollationExecution() throws {
         let lhs = XLNamedBindingReference<String>(name: "lhs")
         let rhs = XLNamedBindingReference<String>(name: "rhs")
@@ -1023,6 +1055,23 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(try finalResult.element(at: 1).value, "Google Test")
         XCTAssertEqual(try finalResult.element(at: 2).value, "Microsoft Test")
     }
+
+    func testInsertSelectFluentCompleteClauseChain() throws {
+        try createInsertSelectFluentFixture()
+        let statement = makeInsertSelectFluentCompleteClauseChain()
+
+        XCTAssertEqual(
+            encoder.makeSQL(statement).sql,
+            "INSERT INTO `Temp` AS `t0` SELECT `t1`.`id` AS `id`, `t1`.`name` AS `value` FROM `Company` AS `t1` INNER JOIN `Employee` AS `t2` ON (`t2`.`companyId` IS `t1`.`id`) WHERE (`t2`.`name` != 'skip') GROUP BY `t1`.`id`, `t1`.`name` HAVING (COUNT(`t2`.`id`) >= 1) ORDER BY `t1`.`name` ASC LIMIT 1 OFFSET 1"
+        )
+
+        try database.makeRequest(with: statement).execute()
+
+        XCTAssertEqual(
+            try fetchInsertedTempRows(),
+            [Temp(id: "gamma", value: "Gamma")]
+        )
+    }
     
     
     // MARK: Update
@@ -1488,6 +1537,85 @@ final class XLExecutionTests: XCTestCase {
     private func insertEmployee(_ employee: EmployeeTable) throws {
         let insertStatement = sqlInsert(employee)
         try database.makeRequest(with: insertStatement).execute()
+    }
+
+
+    private func createInsertSelectFluentFixture() throws {
+        try database.makeRequest(with: sqlCreate(CompanyTable.self)).execute()
+        try database.makeRequest(with: sqlCreate(EmployeeTable.self)).execute()
+        try database.makeRequest(with: sqlCreate(Temp.self)).execute()
+
+        try database.makeRequest(
+            with: sqlInsert(CompanyTable(id: "alpha", name: "Alpha"))
+        ).execute()
+        try database.makeRequest(
+            with: sqlInsert(CompanyTable(id: "beta", name: "Beta"))
+        ).execute()
+        try database.makeRequest(
+            with: sqlInsert(CompanyTable(id: "gamma", name: "Gamma"))
+        ).execute()
+
+        try insertEmployee(
+            EmployeeTable(
+                id: "employee-alpha",
+                name: "keep-alpha",
+                companyId: "alpha",
+                managerEmployeeId: nil
+            )
+        )
+        try insertEmployee(
+            EmployeeTable(
+                id: "employee-beta",
+                name: "skip",
+                companyId: "beta",
+                managerEmployeeId: nil
+            )
+        )
+        try insertEmployee(
+            EmployeeTable(
+                id: "employee-gamma",
+                name: "keep-gamma",
+                companyId: "gamma",
+                managerEmployeeId: nil
+            )
+        )
+    }
+
+
+    private func makeInsertSelectFluentCompleteClauseChain()
+        -> XLInsertSelectOffsetStatement<Temp> {
+        let schema = XLSchema()
+        let temp = schema.table(Temp.self)
+        let company = schema.table(CompanyTable.self)
+        let employeeTable = schema.table(EmployeeTable.self)
+        // Insert-select joins accept unnamed result metadata. Reuse the named
+        // table dependency so the joined table keeps its deterministic t2 alias.
+        let employee = EmployeeTable.makeSQLTable(
+            namespace: employeeTable._namespace,
+            dependency: employeeTable._dependency
+        )
+        let row = Temp.columns(id: company.id, value: company.name)
+        let selected = insert(temp).select(row)
+        let sourced = selected.from(company)
+        let joined = sourced.innerJoin(
+            employee,
+            on: employee.companyId == company.id
+        )
+        let filtered = joined.where(employee.name != "skip")
+        let grouped = filtered.groupBy(company.id, company.name)
+        let constrained = grouped.having(employee.id.count() >= 1)
+        let ordered = constrained.orderBy(company.name.ascending())
+        let limited = ordered.limit(1)
+        return limited.offset(1)
+    }
+
+
+    private func fetchInsertedTempRows() throws -> [Temp] {
+        let statement = sqlQuery { schema in
+            let temp = schema.table(Temp.self)
+            return select(temp).from(temp)
+        }
+        return try database.makeRequest(with: statement).fetchAll()
     }
     
     private func getDateTestEntities(database: GRDBDatabase) throws -> [[String: String]] {
