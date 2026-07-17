@@ -169,6 +169,15 @@ jobs:
             "$RESOLUTION_MODE" \
             "$RUNNER_TEMP/swift5-client.log"
 
+      - name: Build and inspect DocC static site
+        if: ${{ matrix.swift_series == '6.0' && matrix.resolution == 'committed' }}
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          ./make-docs.sh "$RUNNER_TEMP/swiftql-docs"
+          git -C "$GITHUB_WORKSPACE" diff --exit-code
+          test -z "$(git -C "$GITHUB_WORKSPACE" status --porcelain)"
+
       - name: Verify checkout remains clean
         run: |
           set -euo pipefail

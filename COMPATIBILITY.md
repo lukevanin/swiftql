@@ -145,22 +145,25 @@ SWIFTQL_SCRATCH_PATH=/path/to/swiftql/.build \
   scripts/ci/check-first-party-warnings.sh
 ```
 
-## DocC source validation
+## DocC generation
 
-Treat first-party DocC diagnostics as errors when changing public documentation
-or symbols:
+Build and inspect the static SwiftQL documentation site with the repository's
+single non-mutating command:
 
 ```sh
-swift package generate-documentation --target SwiftQL --warnings-as-errors
+./make-docs.sh
 ```
 
-The source catalog contains the SwiftQL landing page and nine articles. Every
-Swift fence carries a marker for a named `XLDocumentationTests` scenario;
-`SQLDocumentationCatalogTests` verifies the complete file set, marker registry,
-fence languages, and current API spellings. After generation, inspect
-`.build/plugins/Swift-DocC/outputs/SwiftQL.doccarchive/data/documentation/` for
-`swiftql.json` and the nine article JSON files. Generated archive contents are
-build artifacts and are not committed by this validation step.
+The command treats first-party DocC diagnostics as errors, writes the static
+site to the ignored `docs/` directory, and validates the SwiftQL landing page
+and all nine source articles. Pass an existing external destination when a
+separate output is useful, for example `./make-docs.sh /tmp/swiftql-docs`.
+The command never stages or commits files.
+
+Every Swift fence carries a marker for a named `XLDocumentationTests` scenario.
+`SQLDocumentationCatalogTests` verifies the complete source file set, marker
+registry, fence languages, and current API spellings. Generated documentation
+is a build artifact and is not tracked in Git.
 
 ## Complete strict concurrency
 
