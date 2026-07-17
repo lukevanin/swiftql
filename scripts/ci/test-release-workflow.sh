@@ -352,6 +352,38 @@ run_publisher --dry-run release-test/v1.1.0 \
 [[ "$(jq '.releases | length' "$fake_state")" -eq 0 ]] ||
     fail 'dry run created a release'
 
+# Dry runs inspect existing draft state without creating, uploading, deleting,
+# or updating anything, including when an asset is missing or mismatched.
+initialize_fake_api dry-partial
+seed_release v1.1.0 "$main_sha" true
+dry_partial_release_id="$(jq -r '.releases[0].id' "$fake_state")"
+fake_api_command upload-asset "$dry_partial_release_id" \
+    "$assets_dry/swiftql-docc-v1.1.0.tar.gz" > /dev/null
+dry_partial_baseline="$(wc -l < "$fake_mutations" | tr -d '[:space:]')"
+run_publisher --dry-run release-test/v1.1.0 \
+    v1.1.0 "$main_sha" "$assets_dry" > "$test_root/dry-partial.log"
+[[ "$(wc -l < "$fake_mutations" | tr -d '[:space:]')" == "$dry_partial_baseline" ]] ||
+    fail 'partial-draft dry run performed a mutation'
+grep -F 'DRY-RUN would upload' "$test_root/dry-partial.log" > /dev/null ||
+    fail 'partial-draft dry run did not report its missing assets'
+
+initialize_fake_api dry-mismatch
+seed_release v1.1.0 "$main_sha" true
+dry_mismatch_release_id="$(jq -r '.releases[0].id' "$fake_state")"
+dry_wrong_directory="$test_root/dry-wrong"
+mkdir -p "$dry_wrong_directory"
+printf 'wrong dry-run documentation bytes\n' \
+    > "$dry_wrong_directory/swiftql-docc-v1.1.0.tar.gz"
+fake_api_command upload-asset "$dry_mismatch_release_id" \
+    "$dry_wrong_directory/swiftql-docc-v1.1.0.tar.gz" > /dev/null
+dry_mismatch_baseline="$(wc -l < "$fake_mutations" | tr -d '[:space:]')"
+run_publisher --dry-run release-test/v1.1.0 \
+    v1.1.0 "$main_sha" "$assets_dry" > "$test_root/dry-mismatch.log"
+[[ "$(wc -l < "$fake_mutations" | tr -d '[:space:]')" == "$dry_mismatch_baseline" ]] ||
+    fail 'mismatched-draft dry run performed a mutation'
+grep -F 'DRY-RUN would replace' "$test_root/dry-mismatch.log" > /dev/null ||
+    fail 'mismatched-draft dry run did not report its replacement plan'
+
 # First publication creates one draft, uploads three assets, publishes it, and
 # a rerun verifies that exact published state without another mutation.
 initialize_fake_api publish
