@@ -528,21 +528,21 @@ final class XLSyntaxTests: XCTestCase {
         let x = XLNamedBindingReference<String>(name: "x")
         let y = XLNamedBindingReference<String>(name: "y")
         let expression = (x + y).collate(.nocase)
-        XCTAssertEqual(encoder.makeSQL(expression).sql, "((:x || :y) COLLATE 'NOCASE')")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "((:x || :y) COLLATE NOCASE)")
     }
 
     func test_TextConcatenation_PreservesCollatedLeftOperandGrouping() {
         let x = XLNamedBindingReference<String>(name: "x")
         let y = XLNamedBindingReference<String>(name: "y")
         let expression = x.collate(.nocase) + y
-        XCTAssertEqual(encoder.makeSQL(expression).sql, "((:x COLLATE 'NOCASE') || :y)")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "((:x COLLATE NOCASE) || :y)")
     }
 
     func test_TextConcatenation_PreservesCollatedOperandGrouping() {
         let x = XLNamedBindingReference<String>(name: "x")
         let y = XLNamedBindingReference<String>(name: "y")
         let expression = x + y.collate(.nocase)
-        XCTAssertEqual(encoder.makeSQL(expression).sql, "(:x || (:y COLLATE 'NOCASE'))")
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "(:x || (:y COLLATE NOCASE))")
     }
     
     
