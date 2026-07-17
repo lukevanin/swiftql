@@ -70,26 +70,26 @@ final class XLExecutionTests: XCTestCase {
 
         let defaultStatement = sql { schema in
             let company = schema.table(CompanyTable.self)
-            Select(company.name.groupConcat())
+            Select(company.name.groupConcatOrNull())
             From(company)
         }
-        let defaultResult = try XCTUnwrap(try database.makeRequest(with: defaultStatement).fetchOne())
+        let defaultResult = try XCTUnwrap(try database.makeRequest(with: defaultStatement).fetchOne() ?? nil)
         XCTAssertEqual(defaultResult.split(separator: ",").map(String.init).sorted(), ["Alpha", "Beta", "Beta"])
 
         let distinctStatement = sql { schema in
             let company = schema.table(CompanyTable.self)
-            Select(company.name.groupConcat(distinct: true))
+            Select(company.name.groupConcatOrNull(distinct: true))
             From(company)
         }
-        let distinctResult = try XCTUnwrap(try database.makeRequest(with: distinctStatement).fetchOne())
+        let distinctResult = try XCTUnwrap(try database.makeRequest(with: distinctStatement).fetchOne() ?? nil)
         XCTAssertEqual(distinctResult.split(separator: ",").map(String.init).sorted(), ["Alpha", "Beta"])
 
         let separatorStatement = sql { schema in
             let company = schema.table(CompanyTable.self)
-            Select(company.name.groupConcat(separator: "|"))
+            Select(company.name.groupConcatOrNull(separator: "|"))
             From(company)
         }
-        let separatorResult = try XCTUnwrap(try database.makeRequest(with: separatorStatement).fetchOne())
+        let separatorResult = try XCTUnwrap(try database.makeRequest(with: separatorStatement).fetchOne() ?? nil)
         XCTAssertEqual(separatorResult.split(separator: "|").map(String.init).sorted(), ["Alpha", "Beta", "Beta"])
     }
 

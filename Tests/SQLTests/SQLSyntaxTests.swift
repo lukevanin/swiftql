@@ -690,7 +690,7 @@ final class XLSyntaxTests: XCTestCase {
     
     func testAverageFunction() {
         let x = XLNamedBindingReference<Double>(name: "x")
-        let expression = x.average()
+        let expression = x.averageOrNull()
         XCTAssertEqual(encoder.makeSQL(expression).sql, "AVG(:x)")
     }
     
@@ -716,7 +716,7 @@ final class XLSyntaxTests: XCTestCase {
     func testGroupConcatFunction() {
         let expression = sqlQuery { schema in
             let company = schema.table(CompanyTable.self)
-            return select(company.name.groupConcat()).from(company)
+            return select(company.name.groupConcatOrNull()).from(company)
         }
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT GROUP_CONCAT(t0.name) FROM Company AS t0")
     }
@@ -725,7 +725,7 @@ final class XLSyntaxTests: XCTestCase {
     func testGroupConcatDistinctFunction() {
         let expression = sqlQuery { schema in
             let company = schema.table(CompanyTable.self)
-            return select(company.name.groupConcat(distinct: true)).from(company)
+            return select(company.name.groupConcatOrNull(distinct: true)).from(company)
         }
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT GROUP_CONCAT(DISTINCT t0.name) FROM Company AS t0")
     }
@@ -734,7 +734,7 @@ final class XLSyntaxTests: XCTestCase {
     func testGroupConcatSeparatorFunction() {
         let expression = sqlQuery { schema in
             let company = schema.table(CompanyTable.self)
-            return select(company.name.groupConcat(separator: "|")).from(company)
+            return select(company.name.groupConcatOrNull(separator: "|")).from(company)
         }
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT GROUP_CONCAT(t0.name, '|') FROM Company AS t0")
     }
@@ -1185,10 +1185,12 @@ final class XLSyntaxTests: XCTestCase {
         let r = result {
             TestColumns.SQLReader(
                 id: t.id,
-                value: subquery {
-                    let t = s.table(TestTable.self)
-                    return select(t.value.sum()).from(t)
-                }
+                value: XLTypeAffinityExpression<Int?>(
+                    expression: subquery {
+                        let t = s.table(TestTable.self)
+                        return select(t.value.sumOrNull()).from(t)
+                    }
+                )
             )
         }
         let expression = select(r).from(t)
