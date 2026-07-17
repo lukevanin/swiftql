@@ -167,12 +167,34 @@ let query = sqlQuery { schema in
 let distanceToRestaurantsRequest = database.makeRequest(with: query)
 ```
 
-We can execute the query passing in our latitude and longitude:
+We can execute the query with an immutable packet containing the two values for
+this invocation:
 
 <!-- test: XLDocumentationTests.testDocumentationCustomFunctionRegistrationAndExecution -->
 ```swift
-var request = distanceToRestaurantsRequest
-request.set(myLatitude, -33.877873677687894)
-request.set(myLongitude, 18.488075015723)
-let restaurants = try request.fetchAll()
+let layout = distanceToRestaurantsRequest.parameterLayout
+let coordinates = try XLInvocationBindings<XLSQLiteValue>(
+    layout: layout,
+    bindings: [
+        try XLInvocationBinding(
+            slot: layout.slot(for: .named("myLatitude"))!,
+            value: .real(-33.877873677687894)
+        ),
+        try XLInvocationBinding(
+            slot: layout.slot(for: .named("myLongitude"))!,
+            value: .real(18.488075015723)
+        )
+    ]
+).validatingComplete()
+let restaurants = try distanceToRestaurantsRequest.fetchAll(
+    bindings: coordinates
+)
 ```
+
+The parameter layout belongs to the rendered function call and remains fixed;
+the coordinates belong only to this execution. A later call can pass another
+packet without mutating or copying `distanceToRestaurantsRequest`. The legacy
+`set` methods still work for v1 literal parameters, but an explicit packet
+makes value isolation visible. Packets are `Sendable` when their normalized
+dialect values are; the current request facade does not itself promise
+cross-task use.

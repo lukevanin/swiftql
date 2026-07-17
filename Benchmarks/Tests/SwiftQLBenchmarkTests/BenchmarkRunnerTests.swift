@@ -49,7 +49,21 @@ final class BenchmarkRunnerTests: XCTestCase {
         XCTAssertTrue(
             try XCTUnwrap(
                 contextualCodec.phases.first { $0.phase == .statementResetAndBinding }?.measurement
-            ).notes.contains { $0.contains("pre-resolved contextual encode") }
+            ).notes.contains { $0.contains("XLInvocationBindings construction") }
+        )
+        XCTAssertTrue(
+            try XCTUnwrap(
+                contextualCodec.phases.first { $0.phase == .statementResetAndBinding }?.measurement
+            ).notes.contains { $0.contains("StatementArguments construction") }
+        )
+        XCTAssertEqual(
+            contextualCodec.phases.first { $0.phase == .execution }?.applicability,
+            .notApplicable
+        )
+        XCTAssertTrue(
+            try XCTUnwrap(
+                contextualCodec.phases.first { $0.phase == .execution }?.reason
+            ).contains("decodes its scalar result")
         )
         XCTAssertTrue(
             try XCTUnwrap(

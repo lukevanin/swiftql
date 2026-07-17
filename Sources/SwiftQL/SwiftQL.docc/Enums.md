@@ -77,8 +77,9 @@ Enum columns can be required or optional. They can also appear in an
 }
 ```
 
-Use enum values when inserting rows and bind them to prepared requests in the
-same way as intrinsic values:
+Use enum values when inserting rows. For a reusable prepared request, keep the
+enum parameter in the static layout and put its normalized raw value in an
+immutable packet for each invocation:
 
 <!-- test: XLDocumentationTests.testDocumentationEnumValues -->
 ```swift
@@ -108,10 +109,31 @@ let runningJobs = sql { schema in
     Where(job.state == stateParameter)
 }
 
-var request = database.makeRequest(with: runningJobs)
-request.set(stateParameter, .running)
-let summaries = try request.fetchAll()
+let request = database.makeRequest(with: runningJobs)
+let stateSlot = request.parameterLayout.slot(for: .named("state"))!
+let runningBindings = try XLInvocationBindings<XLSQLiteValue>(
+    layout: request.parameterLayout,
+    bindings: [
+        try XLInvocationBinding(
+            slot: stateSlot,
+            value: .text(JobState.running.rawValue)
+        )
+    ]
+).validatingComplete()
+let summaries = try request.fetchAll(bindings: runningBindings)
 ```
+
+The `JobState` declaration is still the expression's literal type, so its
+operators and column comparisons remain type checked. The invocation packet
+does not carry a mutable `JobState`; it carries the SQLite `TEXT` value that the
+driver binds. The layout, including the parameter's type and nullability, does
+not change when `.queued` and `.running` are used in separate calls.
+
+The mutating `set(stateParameter, .running)` form remains available for v1
+source compatibility. It immediately normalizes the enum into a compatibility
+packet stored in that request copy. Prefer an explicit packet for repeated
+calls or when composing bindings from multiple call sites. The packet is
+`Sendable`; the current request facade does not itself promise cross-task use.
 
 For an optional enum, SQL `NULL` decodes as `nil`; a recognized non-`NULL` raw
 value decodes as the matching case.

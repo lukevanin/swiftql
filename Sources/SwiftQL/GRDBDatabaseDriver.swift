@@ -10,7 +10,7 @@ import GRDB
 ///
 /// The driver is internal to the v1 compatibility facade. Public code depends
 /// on the adapter-neutral contracts from `SwiftQLCore`.
-struct GRDBDatabaseDriver: XLDatabaseDriver {
+struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
 
     typealias Dialect = XLSQLiteDialect
 
@@ -68,6 +68,216 @@ struct GRDBDatabaseDriver: XLDatabaseDriver {
             driverIdentifier: driverIdentifier,
             dialect: dialect
         )
+    }
+}
+
+
+/// Immutable, Sendable execution seam between prepared logical statements and
+/// GRDB connections. Typed row decoding remains outside this value because the
+/// legacy row-reader graph is not Sendable.
+struct GRDBInvocationExecutor: Sendable {
+
+    let driver: GRDBDatabaseDriver
+
+    let logicalStatement: XLLogicalPreparedStatement
+
+    let parameterLayoutError: XLInvocationBindingError?
+
+    init(
+        driver: GRDBDatabaseDriver,
+        logicalStatement: XLLogicalPreparedStatement,
+        parameterLayoutError: XLInvocationBindingError? = nil
+    ) {
+        self.driver = driver
+        self.logicalStatement = logicalStatement
+        self.parameterLayoutError = parameterLayoutError
+    }
+
+    var parameterLayout: XLParameterLayout {
+        logicalStatement.parameterLayout
+    }
+
+    func fetchAll(
+        bindings: any XLInvocationBindingPacket
+    ) throws -> [[XLSQLiteValue]] {
+        let packet = try sqlitePacket(bindings)
+        var driver = driver
+        return try driver.withReadConnection { connection in
+            try fetchAll(packet: packet, in: &connection)
+        }
+    }
+
+    func fetchAll(
+        packet: XLInvocationBindings<XLSQLiteValue>,
+        in connection: inout GRDBDatabaseDriverConnection
+    ) throws -> [[XLSQLiteValue]] {
+        try connection.fetchAll(boundStatement(packet: packet, in: &connection))
+    }
+
+    func fetchOne(
+        bindings: any XLInvocationBindingPacket
+    ) throws -> [XLSQLiteValue]? {
+        let packet = try sqlitePacket(bindings)
+        var driver = driver
+        return try driver.withReadConnection { connection in
+            try fetchOne(packet: packet, in: &connection)
+        }
+    }
+
+    func fetchOne(
+        packet: XLInvocationBindings<XLSQLiteValue>,
+        in connection: inout GRDBDatabaseDriverConnection
+    ) throws -> [XLSQLiteValue]? {
+        try connection.fetchOne(boundStatement(packet: packet, in: &connection))
+    }
+
+    func execute(
+        bindings: any XLInvocationBindingPacket
+    ) throws {
+        let packet = try sqlitePacket(bindings)
+        var driver = driver
+        try driver.withTransaction { connection in
+            try execute(packet: packet, in: &connection)
+        }
+    }
+
+    func execute(
+        packet: XLInvocationBindings<XLSQLiteValue>,
+        in connection: inout GRDBDatabaseDriverConnection
+    ) throws {
+        try connection.execute(boundStatement(packet: packet, in: &connection))
+    }
+
+    func sqlitePacket(
+        _ bindings: any XLInvocationBindingPacket
+    ) throws -> XLInvocationBindings<XLSQLiteValue> {
+        if let parameterLayoutError {
+            throw parameterLayoutError
+        }
+        guard let packet = bindings as? XLInvocationBindings<XLSQLiteValue> else {
+            throw XLRequestBindingError.incompatibleInvocationPacket(
+                requestType: String(reflecting: Self.self),
+                expectedDialect: XLSQLiteDialect.identity,
+                expectedValueType: String(reflecting: XLSQLiteValue.self),
+                actualPacketType: String(reflecting: type(of: bindings))
+            )
+        }
+        guard packet.layout == parameterLayout else {
+            throw XLInvocationBindingError.packetLayoutMismatch(
+                expected: parameterLayout,
+                actual: packet.layout
+            )
+        }
+        let validatedPacket = try packet.validatingComplete()
+        for binding in validatedPacket.bindings {
+            if let codecIdentity = binding.slot.codecIdentity,
+               codecIdentity.dialectIdentifier != driver.dialect.descriptor.identity {
+                throw XLInvocationBindingError.preparedCodecDialectMismatch(
+                    slot: binding.slot,
+                    codecIdentity: codecIdentity,
+                    expectedDialectIdentifier: driver.dialect.descriptor.identity
+                )
+            }
+            if driver.dialect.isNull(binding.value) {
+                guard binding.slot.nullability == .nullable else {
+                    throw XLInvocationBindingError.nullForRequiredParameter(
+                        slot: binding.slot
+                    )
+                }
+                continue
+            }
+            if let codecIdentity = binding.slot.codecIdentity {
+                let actualStorage = driver.dialect.stableStorageIdentifier(
+                    for: binding.value
+                )
+                guard actualStorage == codecIdentity.storageIdentifier else {
+                    throw XLInvocationBindingError.dialectValueStorageMismatch(
+                        slot: binding.slot,
+                        expectedCodecIdentity: codecIdentity,
+                        actualStorageIdentifier: actualStorage
+                    )
+                }
+            }
+        }
+        return validatedPacket
+    }
+
+    private func boundStatement(
+        packet: XLInvocationBindings<XLSQLiteValue>,
+        in connection: inout GRDBDatabaseDriverConnection
+    ) throws -> GRDBPhysicalStatement {
+        let packet = try sqlitePacket(packet)
+        var statement = try connection.prepare(logicalStatement)
+        for binding in packet.bindings {
+            do {
+                statement = try connection.bindValidated(
+                    binding.value,
+                    to: binding.slot.key,
+                    in: statement
+                )
+            }
+            catch {
+                throw XLInvocationBindingError.driverBindingFailed(
+                    slot: binding.slot,
+                    codecIdentity: binding.slot.codecIdentity,
+                    context: binding.slot.codingContext,
+                    message: String(describing: error)
+                )
+            }
+        }
+        do {
+            try connection.validateBindings(in: statement)
+        }
+        catch {
+            throw XLInvocationBindingError.driverArgumentValidationFailed(
+                layout: packet.layout,
+                message: String(describing: error)
+            )
+        }
+        return statement
+    }
+}
+
+
+/// An immutable, concurrency-safe GRDB runtime handle for one rendered SQL
+/// statement.
+///
+/// This handle deliberately exposes normalized SQLite rows instead of
+/// retaining SwiftQL's legacy row-reader graph, which is not `Sendable`.
+/// Static, database-independent query identity and typed result metadata are
+/// layered on top by the descriptor API rather than captured here.
+public struct GRDBPreparedInvocation: Sendable {
+
+    private let executor: GRDBInvocationExecutor
+
+    init(executor: GRDBInvocationExecutor) {
+        self.executor = executor
+    }
+
+    /// The static parameter slots shared by every invocation of this handle.
+    public var parameterLayout: XLParameterLayout {
+        executor.parameterLayout
+    }
+
+    /// Fetches all normalized SQLite rows for one immutable binding packet.
+    public func fetchAllValues(
+        bindings: any XLInvocationBindingPacket
+    ) throws -> [[XLSQLiteValue]] {
+        try executor.fetchAll(bindings: bindings)
+    }
+
+    /// Fetches the first normalized SQLite row for one immutable binding packet.
+    public func fetchOneValues(
+        bindings: any XLInvocationBindingPacket
+    ) throws -> [XLSQLiteValue]? {
+        try executor.fetchOne(bindings: bindings)
+    }
+
+    /// Executes a command with one immutable binding packet.
+    public func execute(
+        bindings: any XLInvocationBindingPacket
+    ) throws {
+        try executor.execute(bindings: bindings)
     }
 }
 
@@ -130,13 +340,23 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
         return result
     }
 
+    /// Validates the complete logical packet against GRDB's physical
+    /// placeholder table before execution. This moves missing, extra, or
+    /// otherwise invalid driver arguments into the contextual bind boundary.
+    func validateBindings(in statement: GRDBPhysicalStatement) throws {
+        try validateOwnership(of: statement)
+        try statement.statement.validateArguments(
+            statementArguments(statement)
+        )
+    }
+
     mutating func fetchAll(
         _ statement: GRDBPhysicalStatement
     ) throws -> [[XLSQLiteValue]] {
         try validateOwnership(of: statement)
         return try Row.fetchAll(
             statement.statement,
-            arguments: statementArguments(statement.bindings)
+            arguments: statementArguments(statement)
         ).map { row in
             row.databaseValues.map(\.sqliteDialectValue)
         }
@@ -148,14 +368,14 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
         try validateOwnership(of: statement)
         return try Row.fetchOne(
             statement.statement,
-            arguments: statementArguments(statement.bindings)
+            arguments: statementArguments(statement)
         )?.databaseValues.map(\.sqliteDialectValue)
     }
 
     mutating func execute(_ statement: GRDBPhysicalStatement) throws {
         try validateOwnership(of: statement)
         try statement.statement.execute(
-            arguments: statementArguments(statement.bindings)
+            arguments: statementArguments(statement)
         )
     }
 
@@ -169,6 +389,55 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     }
 
     private func statementArguments(
+        _ statement: GRDBPhysicalStatement
+    ) -> StatementArguments {
+        let bindings = statement.bindings
+
+        // Legacy direct driver clients predate static layouts. Preserve their
+        // original argument construction when no layout metadata is present.
+        guard !statement.logicalStatement.parameterLayout.isEmpty else {
+            return legacyStatementArguments(bindings)
+        }
+
+        var physicalIndexByKey: [XLBindingKey: Int] = [:]
+        var largestPhysicalIndex = 0
+
+        for slot in statement.logicalStatement.parameterLayout.slots {
+            let physicalIndex: Int
+            switch slot.key {
+            case .named:
+                physicalIndex = largestPhysicalIndex + 1
+            case .indexed(let zeroBasedIndex):
+                physicalIndex = zeroBasedIndex + 1
+            }
+            physicalIndexByKey[slot.key] = physicalIndex
+            largestPhysicalIndex = max(largestPhysicalIndex, physicalIndex)
+        }
+
+        // SQLite's physical parameter table is positional even when the SQL
+        // spells a placeholder by name. Supplying the complete table as one
+        // positional array avoids two GRDB normalization hazards:
+        //
+        // - a named placeholder before `?NNN` must not shift `?NNN`; and
+        // - distinct `:3` and `?3` placeholders must not collapse to the same
+        //   GRDB argument name after their prefixes are stripped.
+        //
+        // Explicit-index gaps are real SQLite slots, so preserve them as NULL.
+        var positional: [(any DatabaseValueConvertible)?] = Array(
+            repeating: DatabaseValue.null,
+            count: largestPhysicalIndex
+        )
+        for (key, value) in bindings {
+            guard let physicalIndex = physicalIndexByKey[key] else {
+                continue
+            }
+            positional[physicalIndex - 1] = value.databaseValue
+        }
+
+        return StatementArguments(positional)
+    }
+
+    private func legacyStatementArguments(
         _ bindings: [XLBindingKey: XLSQLiteValue]
     ) -> StatementArguments {
         var indexed: [Int: DatabaseValue] = [:]

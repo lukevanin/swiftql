@@ -43,7 +43,7 @@ public final class SwiftQLBenchmarkRunner {
         }
 
         let environment = BenchmarkEnvironmentCollector.collect(packageRoot: packageRoot)
-        let report = try databasePool.writeWithoutTransaction { database in
+        let fixture = try databasePool.writeWithoutTransaction { database in
             try setupFixture(in: database)
 
             let databaseMetadata = try collectDatabaseMetadata(from: database)
@@ -135,30 +135,34 @@ public final class SwiftQLBenchmarkRunner {
                 consumeDecoded: Self.consumeDecodeFixture
             )
 
-            let contextualCodec = try makeContextualCodecCase(
-                configuration: configuration,
-                database: database
-            )
-
-            return BenchmarkReport(
-                formatVersion: 1,
-                generatedAt: Self.timestamp(),
-                monotonicClock: "DispatchTime.uptimeNanoseconds",
-                sampleUnit: "nanoseconds_per_operation",
-                configuration: configuration,
-                environment: environment,
-                database: databaseMetadata,
-                fixture: BenchmarkFixtureMetadata(
-                    version: 1,
-                    companyCount: 8,
-                    departmentCount: 32,
-                    personCount: 512,
-                    decodeFixtureRowCount: 2
-                ),
-                schemaSQL: Self.schemaSQL,
-                cases: [simple, joined, write, decode, contextualCodec]
+            return (
+                databaseMetadata: databaseMetadata,
+                cases: [simple, joined, write, decode]
             )
         }
+
+        let contextualCodec = try makeContextualCodecCase(
+            configuration: configuration,
+            databasePool: databasePool
+        )
+        let report = BenchmarkReport(
+            formatVersion: 1,
+            generatedAt: Self.timestamp(),
+            monotonicClock: "DispatchTime.uptimeNanoseconds",
+            sampleUnit: "nanoseconds_per_operation",
+            configuration: configuration,
+            environment: environment,
+            database: fixture.databaseMetadata,
+            fixture: BenchmarkFixtureMetadata(
+                version: 1,
+                companyCount: 8,
+                departmentCount: 32,
+                personCount: 512,
+                decodeFixtureRowCount: 2
+            ),
+            schemaSQL: Self.schemaSQL,
+            cases: fixture.cases + [contextualCodec]
+        )
 
         try report.validate()
         return report
@@ -356,9 +360,8 @@ public final class SwiftQLBenchmarkRunner {
 
     private func makeContextualCodecCase(
         configuration benchmarkConfiguration: BenchmarkConfiguration,
-        database: Database
+        databasePool: DatabasePool
     ) throws -> BenchmarkCaseReport {
-        let dialect = XLSQLiteDialect()
         let codecKey = XLValueCodecKey(
             id: "swiftql.benchmark.contextual-integer",
             version: 1
@@ -389,84 +392,115 @@ public final class SwiftQLBenchmarkRunner {
             registry: registry,
             defaultCodecKeys: [codecKey]
         )
+        let swiftQLDatabase = try GRDBDatabase(
+            databasePool: databasePool,
+            codingConfiguration: valueCodingConfiguration,
+            formatter: XLiteFormatter(),
+            logger: nil
+        )
         let input = BenchmarkCodecValue(rawValue: 257)
-        let parameterCodec = try valueCodingConfiguration.resolvedCodec(
-            for: BenchmarkCodecValue.self,
-            using: dialect,
-            context: XLValueCodingContext(
-                site: .parameter,
-                path: XLValueCodingPath("codecValue")
-            )
+        let parameterReference = try swiftQLDatabase.contextualBinding(
+            BenchmarkCodecValue.self,
+            expressedAs: Int.self,
+            named: "codecValue"
+        )
+        let query = sql { _ in Select(parameterReference) }
+        let parameterLayout = swiftQLDatabase.makeRequest(with: query).parameterLayout
+        let parameter = try parameterReference.preparedParameter(
+            in: parameterLayout
         )
         let resultCodec = try valueCodingConfiguration.resolvedCodec(
             for: BenchmarkCodecValue.self,
-            using: dialect,
+            using: swiftQLDatabase.dialect,
             context: XLValueCodingContext(
                 site: .result,
                 path: XLValueCodingPath("codecValue")
             )
         )
-        let encodedFixture = try parameterCodec.encode(input)
-        guard encodedFixture == .integer(input.rawValue) else {
+        let fixturePacket = try XLInvocationBindings(
+            layout: parameterLayout,
+            bindings: [parameter.encode(input)]
+        ).validatingComplete()
+        guard fixturePacket.bindings.map(\.value) == [.integer(input.rawValue)] else {
             throw BenchmarkError.decoding(
                 "contextual codec did not produce its declared INTEGER representation"
             )
         }
 
-        let sql = "SELECT :codecValue AS codecValue"
-        let encodedRawValue: Int64
-        switch encodedFixture {
-        case .integer(let rawValue):
-            encodedRawValue = rawValue
-        default:
-            throw BenchmarkError.decoding(
-                "contextual codec did not normalize to INTEGER before driver binding"
-            )
-        }
-        let arguments: StatementArguments = ["codecValue": encodedRawValue]
-        let bindingStatement = try database.makeStatement(sql: sql)
-        let binding = try BenchmarkSampler(configuration: benchmarkConfiguration).measure(
-            notes: [
-                "Includes one pre-resolved contextual encode, declared-storage validation, and public Statement.setArguments for the codec-produced INTEGER.",
-                "Excludes registry/default resolution and StatementArguments construction, which are static-slot and invocation-container setup rather than repeated binding work.",
-            ],
-            operation: {
-                let encoded = try parameterCodec.encode(input)
-                try bindingStatement.setArguments(arguments)
-                return encoded
-            },
-            consume: { encoded in
-                guard encoded == encodedFixture else {
-                    throw BenchmarkError.decoding(
-                        "contextual codec changed its normalized value while sampling"
-                    )
-                }
-                guard bindingStatement.arguments == arguments else {
-                    throw BenchmarkError.invalidReport(
-                        "contextual codec binding produced unexpected arguments"
-                    )
-                }
-                return UInt64(input.rawValue)
+        let sql = swiftQLDatabase.encoder.makeSQL(query).sql
+        let statementArguments = { (packet: XLInvocationBindings<XLSQLiteValue>) throws
+            -> StatementArguments in
+            guard packet.bindings.count == 1,
+                  let binding = packet.bindings.first,
+                  binding.slot.key == .named("codecValue"),
+                  case .integer(let rawValue) = binding.value else {
+                throw BenchmarkError.decoding(
+                    "contextual invocation packet did not contain its normalized named INTEGER"
+                )
             }
-        )
+            return ["codecValue": rawValue]
+        }
+        let fixtureArguments = try statementArguments(fixturePacket)
+        let rawPhases = try databasePool.read { database in
+            let bindingStatement = try database.makeStatement(sql: sql)
+            let binding = try BenchmarkSampler(
+                configuration: benchmarkConfiguration
+            ).measure(
+                notes: [
+                    "Includes pre-resolved XLPreparedParameter encode and declared-storage validation, immutable XLInvocationBindings construction/completeness validation, StatementArguments construction from the packet's normalized value, and public Statement.setArguments.",
+                    "Excludes registry/default resolution, parameter-layout construction, request construction, and execution; the measured boundary is the production invocation packet followed by direct GRDB binding.",
+                ],
+                operation: {
+                    let packet = try XLInvocationBindings(
+                        layout: parameterLayout,
+                        bindings: [parameter.encode(input)]
+                    ).validatingComplete()
+                    try bindingStatement.setArguments(statementArguments(packet))
+                    return packet
+                },
+                consume: { packet in
+                    guard packet == fixturePacket else {
+                        throw BenchmarkError.decoding(
+                            "contextual invocation packet changed while sampling"
+                        )
+                    }
+                    guard bindingStatement.arguments == fixtureArguments else {
+                        throw BenchmarkError.invalidReport(
+                            "contextual packet binding produced unexpected arguments"
+                        )
+                    }
+                    return UInt64(input.rawValue)
+                }
+            )
 
-        let capturedRow = try Row.fetchOne(
-            database,
-            sql: sql,
-            arguments: arguments
-        )
-        guard let capturedRow else {
-            throw BenchmarkError.missingFixture(
-                "contextual codec SELECT did not return its deterministic row"
+            let capturedRow = try Row.fetchOne(
+                database,
+                sql: sql,
+                arguments: fixtureArguments
+            )
+            guard let capturedRow else {
+                throw BenchmarkError.missingFixture(
+                    "contextual codec SELECT did not return its deterministic row"
+                )
+            }
+            return (
+                binding: binding,
+                capturedRow: capturedRow,
+                queryPlan: try queryPlan(
+                    database: database,
+                    sql: sql,
+                    arguments: fixtureArguments
+                )
             )
         }
+
         let decoding = try BenchmarkSampler(configuration: benchmarkConfiguration).measure(
             notes: [
                 "Includes extraction of one INTEGER from a captured GRDB Row, normalization to XLSQLiteValue, pre-resolved storage validation, and throwing decode.",
                 "Excludes SQL execution, row creation, semantic verification, checksumming, and decoded-value destruction; this is a one-scalar contextual comparison, not the multi-field result-macro baseline.",
             ],
             operation: {
-                let rawValue: Int64 = capturedRow["codecValue"]
+                let rawValue: Int64 = rawPhases.capturedRow[0]
                 return try resultCodec.decode(.integer(rawValue))
             },
             consume: { decoded in
@@ -494,11 +528,11 @@ public final class SwiftQLBenchmarkRunner {
             ),
             .statementResetAndBinding: .measured(
                 .statementResetAndBinding,
-                measurement: binding
+                measurement: rawPhases.binding
             ),
             .execution: .notApplicable(
                 .execution,
-                reason: "SQLite execution is independent of the contextual conversion isolated by this case."
+                reason: "Public request execution also decodes its scalar result, so it cannot satisfy the execution phase's SQLite-only boundary."
             ),
             .rowDecoding: .measured(.rowDecoding, measurement: decoding),
         ]
@@ -515,11 +549,7 @@ public final class SwiftQLBenchmarkRunner {
                     value: String(input.rawValue)
                 ),
             ],
-            queryPlan: try queryPlan(
-                database: database,
-                sql: sql,
-                arguments: arguments
-            ),
+            queryPlan: rawPhases.queryPlan,
             expectedResultRowCount: 1,
             expectedAffectedRowCount: nil,
             phases: orderedPhases(phases)

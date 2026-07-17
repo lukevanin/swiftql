@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 import XCTest
 import GRDB
 import SwiftQL
@@ -230,6 +231,14 @@ enum JobState: String, XLEnum {
     let state: JobState
 
     let previousState: JobState?
+}
+
+
+@SQLTable struct ExampleValue: Equatable {
+
+    let id: String
+
+    let value: Int
 }
 
 
@@ -1010,10 +1019,26 @@ final class XLDocumentationTests: XCTestCase {
             return select(result).from(restaurant).orderBy(result.distance.ascending())
         }
         let sql = encoder.makeSQL(statement).sql
-        var request = database.makeRequest(with: statement)
-        request.set(myLatitude, -33.877873677687894)
-        request.set(myLongitude, 18.488075015723)
-        let rows = try request.fetchAll()
+        let request = database.makeRequest(with: statement)
+        let layout = request.parameterLayout
+        let coordinates = try XLInvocationBindings<XLSQLiteValue>(
+            layout: layout,
+            bindings: [
+                try XLInvocationBinding(
+                    slot: try XCTUnwrap(
+                        layout.slot(for: .named("myLatitude"))
+                    ),
+                    value: .real(-33.877873677687894)
+                ),
+                try XLInvocationBinding(
+                    slot: try XCTUnwrap(
+                        layout.slot(for: .named("myLongitude"))
+                    ),
+                    value: .real(18.488075015723)
+                ),
+            ]
+        ).validatingComplete()
+        let rows = try request.fetchAll(bindings: coordinates)
         XCTAssertEqual(sql, "SELECT t0.name AS name, ROUND(haversineDistance(:myLatitude, :myLongitude, t0.latitude, t0.longitude), 2) AS distance FROM Restaurant AS t0 ORDER BY distance ASC")
         XCTAssertEqual(rows, [NearbyRestaurant(name: "Magica Roma", distance: 6.95)])
     }
@@ -1131,9 +1156,19 @@ extension XLDocumentationTests {
             encoder.makeSQL(peopleByNameQuery).sql,
             "SELECT t0.id AS id, t0.occupationId AS occupationId, t0.name AS name, t0.age AS age FROM Person AS t0 WHERE (t0.name == :name)"
         )
-        var fredRequest = peopleByNameRequest
-        fredRequest.set(nameParameter, "Fred")
-        XCTAssertEqual(try fredRequest.fetchAll(), [fredPerson])
+        let nameSlot = try XCTUnwrap(
+            peopleByNameRequest.parameterLayout.slot(for: .named("name"))
+        )
+        let fredBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: peopleByNameRequest.parameterLayout,
+            bindings: [
+                try XLInvocationBinding(slot: nameSlot, value: .text("Fred"))
+            ]
+        ).validatingComplete()
+        XCTAssertEqual(
+            try peopleByNameRequest.fetchAll(bindings: fredBindings),
+            [fredPerson]
+        )
 
         let updateFredStatement = sql { schema in
             let person = schema.into(Person.self)
@@ -1155,15 +1190,28 @@ extension XLDocumentationTests {
             }
             Where(person.id == personIDParameter)
         }
-        var fredAgeRequest = database.makeRequest(with: updateAgeStatement)
-        fredAgeRequest.set(personIDParameter, "fred")
-        fredAgeRequest.set(ageParameter, 42)
-        try fredAgeRequest.execute()
+        let updateAgeRequest = database.makeRequest(with: updateAgeStatement)
+        let updateBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: updateAgeRequest.parameterLayout,
+            bindings: [
+                try XLInvocationBinding(
+                    slot: try XCTUnwrap(
+                        updateAgeRequest.parameterLayout.slot(for: .named("id"))
+                    ),
+                    value: .text("fred")
+                ),
+                try XLInvocationBinding(
+                    slot: try XCTUnwrap(
+                        updateAgeRequest.parameterLayout.slot(for: .named("age"))
+                    ),
+                    value: .integer(42)
+                ),
+            ]
+        ).validatingComplete()
+        try updateAgeRequest.execute(bindings: updateBindings)
 
-        var updatedFredRequest = peopleByNameRequest
-        updatedFredRequest.set(nameParameter, "Fred")
         XCTAssertEqual(
-            try updatedFredRequest.fetchOne(),
+            try peopleByNameRequest.fetchOne(bindings: fredBindings),
             Person(id: "fred", occupationId: nil, name: "Fred", age: 42)
         )
 
@@ -1173,13 +1221,23 @@ extension XLDocumentationTests {
             Delete(person)
             Where(person.id == deleteIDParameter)
         }
-        var deleteFredRequest = database.makeRequest(with: deletePersonStatement)
-        deleteFredRequest.set(deleteIDParameter, "fred")
-        try deleteFredRequest.execute()
+        let deletePersonRequest = database.makeRequest(with: deletePersonStatement)
+        let deleteBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: deletePersonRequest.parameterLayout,
+            bindings: [
+                try XLInvocationBinding(
+                    slot: try XCTUnwrap(
+                        deletePersonRequest.parameterLayout.slot(for: .named("id"))
+                    ),
+                    value: .text("fred")
+                )
+            ]
+        ).validatingComplete()
+        try deletePersonRequest.execute(bindings: deleteBindings)
 
-        var deletedFredRequest = peopleByNameRequest
-        deletedFredRequest.set(nameParameter, "Fred")
-        XCTAssertNil(try deletedFredRequest.fetchOne())
+        XCTAssertNil(
+            try peopleByNameRequest.fetchOne(bindings: fredBindings)
+        )
     }
 
     func testDocumentationExpressions() throws {
@@ -1223,11 +1281,22 @@ extension XLDocumentationTests {
             Where(job.state == stateParameter)
             OrderBy(summary.id.ascending())
         }
-        var request = database.makeRequest(with: runningJobs)
-        request.set(stateParameter, .running)
+        let request = database.makeRequest(with: runningJobs)
+        let stateSlot = try XCTUnwrap(
+            request.parameterLayout.slot(for: .named("state"))
+        )
+        let runningBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: request.parameterLayout,
+            bindings: [
+                try XLInvocationBinding(
+                    slot: stateSlot,
+                    value: .text(JobState.running.rawValue)
+                )
+            ]
+        ).validatingComplete()
 
         XCTAssertEqual(
-            try request.fetchAll(),
+            try request.fetchAll(bindings: runningBindings),
             [
                 JobSummary(
                     id: "build-docs",
@@ -1313,8 +1382,35 @@ extension XLDocumentationTests {
 
     func testDocumentationFunctionalQueriesAndMutations() throws {
         try testExample_Select()
-        try testExample_Variable_ExplicitAlias()
         try testExample_LeftJoin_Functional_NullRows()
+
+        let nameParameter = XLNamedBindingReference<String>(name: "name")
+        let peopleByNameStatement = sqlQuery { schema in
+            let person = schema.table(Person.self)
+            return select(person)
+                .from(person)
+                .where(person.name == nameParameter)
+        }
+        let peopleByNameRequest = database.makeRequest(
+            with: peopleByNameStatement
+        )
+        let nameBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: peopleByNameRequest.parameterLayout,
+            bindings: [
+                try XLInvocationBinding(
+                    slot: try XCTUnwrap(
+                        peopleByNameRequest.parameterLayout.slot(
+                            for: .named("name")
+                        )
+                    ),
+                    value: .text("John Doe")
+                )
+            ]
+        ).validatingComplete()
+        XCTAssertEqual(
+            try peopleByNameRequest.fetchAll(bindings: nameBindings),
+            [johnDoe]
+        )
 
         let groupedStatement = sqlQuery { schema in
             let person = schema.table(Person.self)
@@ -1336,6 +1432,52 @@ extension XLDocumentationTests {
                 OccupationPopulation(occupation: "No occupation", numberOfPeople: 1),
                 OccupationPopulation(occupation: "Scientist", numberOfPeople: 1),
             ]
+        )
+
+        try database.makeRequest(with: sqlCreate(ExampleValue.self)).execute()
+        try database.makeRequest(
+            with: sqlInsert(ExampleValue(id: "example-id", value: 0))
+        ).execute()
+
+        let idParameter = XLNamedBindingReference<String>(name: "id")
+        let valueParameter = XLNamedBindingReference<Int>(name: "value")
+        let updateStatement: any XLUpdateStatement<ExampleValue> = sqlUpdate { schema in
+            let table = schema.into(ExampleValue.self)
+            return update(
+                table,
+                set: ExampleValue.MetaUpdate(value: valueParameter)
+            )
+            .where(table.id == idParameter)
+        }
+        let updateRequest = database.makeRequest(with: updateStatement)
+        let updateBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: updateRequest.parameterLayout,
+            bindings: [
+                try XLInvocationBinding(
+                    slot: try XCTUnwrap(
+                        updateRequest.parameterLayout.slot(for: .named("id"))
+                    ),
+                    value: .text("example-id")
+                ),
+                try XLInvocationBinding(
+                    slot: try XCTUnwrap(
+                        updateRequest.parameterLayout.slot(for: .named("value"))
+                    ),
+                    value: .integer(42)
+                ),
+            ]
+        ).validatingComplete()
+        try updateRequest.execute(bindings: updateBindings)
+
+        let updatedValue = sql { schema in
+            let table = schema.table(ExampleValue.self)
+            Select(table)
+            From(table)
+            Where(table.id == "example-id")
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: updatedValue).fetchOne(),
+            ExampleValue(id: "example-id", value: 42)
         )
 
         let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.testUpdateWhere
@@ -1431,6 +1573,64 @@ extension XLDocumentationTests {
             context: resultContext
         )
         XCTAssertNil(decodedNull)
+
+        let contextualDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swiftql-contextual-docs-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: contextualDirectory,
+            withIntermediateDirectories: false
+        )
+        defer { try? FileManager.default.removeItem(at: contextualDirectory) }
+
+        let codecDatabase = try GRDBDatabase(
+            url: contextualDirectory.appendingPathComponent("fixture.sqlite"),
+            codingConfiguration: codingConfiguration,
+            logger: nil
+        )
+        let cutoffDate = try codecDatabase.contextualBinding(
+            Date.self,
+            expressedAs: String.self,
+            named: "cutoffDate"
+        )
+        let cutoffQuery = sql { _ in
+            Select(cutoffDate)
+        }
+        let cutoffRequest = codecDatabase.makeRequest(with: cutoffQuery)
+        let cutoffBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: cutoffRequest.parameterLayout,
+            bindings: [
+                try cutoffDate.encode(date, in: cutoffRequest.parameterLayout)
+            ]
+        ).validatingComplete()
+        let storedCutoff = try cutoffRequest.fetchOne(bindings: cutoffBindings)
+        XCTAssertEqual(storedCutoff, "86400.0")
+
+        let optionalDate = try codecDatabase.contextualBinding(
+            Date.self,
+            expressedAs: Optional<String>.self,
+            named: "optionalDate",
+            nullability: .nullable
+        )
+        let nullQuery = sql { _ in Select(optionalDate.isNull()) }
+        let nullRequest = codecDatabase.makeRequest(with: nullQuery)
+        let nullBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: nullRequest.parameterLayout,
+            bindings: [
+                try optionalDate.encodeOptional(
+                    nil,
+                    in: nullRequest.parameterLayout
+                )
+            ]
+        ).validatingComplete()
+        XCTAssertEqual(
+            try nullRequest.fetchOne(bindings: nullBindings),
+            true
+        )
+        XCTAssertThrowsError(
+            try XLInvocationBindings<XLSQLiteValue>(
+                layout: nullRequest.parameterLayout
+            ).validatingComplete()
+        )
 
         try testExample_Date()
         try testExample_DateConstant()
@@ -1533,7 +1733,67 @@ extension XLDocumentationTests {
         let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testRecursiveCommonTableExpressionUsingCommonTableExpression
     }
 
-    func testDocumentationLiveQueryPublishers() {
+    func testDocumentationLiveQueryPublishers() throws {
+        let idParameter = XLNamedBindingReference<String>(name: "id")
+        let personByID = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.id == idParameter)
+        }
+        let request = database.makeRequest(with: personByID)
+        let layout = request.parameterLayout
+        let expectedPerson = johnDoe
+        let idBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: layout,
+            bindings: [
+                try XLInvocationBinding(
+                    slot: try XCTUnwrap(
+                        layout.slot(for: .named("id"))
+                    ),
+                    value: .text(expectedPerson.id)
+                )
+            ]
+        ).validatingComplete()
+
+        let initialValue = expectation(
+            description: "packet-backed publisher emits the selected person"
+        )
+        let refreshedValue = expectation(
+            description: "packet-backed publisher reuses the packet on refresh"
+        )
+        initialValue.assertForOverFulfill = false
+        refreshedValue.assertForOverFulfill = false
+
+        let cancellable = request.publish(bindings: idBindings).sink(
+            receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    XCTFail("Packet-backed observation failed: \(error)")
+                }
+            },
+            receiveValue: { rows in
+                if rows == [expectedPerson] {
+                    initialValue.fulfill()
+                }
+                else if rows.isEmpty {
+                    refreshedValue.fulfill()
+                }
+                else {
+                    XCTFail("Unexpected packet-backed rows: \(rows)")
+                }
+            }
+        )
+        defer { cancellable.cancel() }
+
+        wait(for: [initialValue], timeout: 2)
+        try databasePool.write { database in
+            try database.execute(
+                sql: "DELETE FROM Person WHERE id = ?",
+                arguments: [expectedPerson.id]
+            )
+        }
+        wait(for: [refreshedValue], timeout: 2)
+
         let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testPublishExistingEntities
         let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testPublishOneObservesDirectWrites
         let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testCancellationStopsObservationFetchesAndValues

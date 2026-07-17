@@ -30,6 +30,7 @@ private struct DownstreamToken: Equatable {
 enum FixtureError: Error {
     case invalidCoreContract
     case invalidCodecValue(XLSQLiteValue)
+    case unexpectedPacketResult(Int?)
     case unexpectedResult(PersonSummary?)
 }
 
@@ -131,6 +132,28 @@ private func executeFixture(
     try database.makeRequest(
         with: sqlInsert(Person(id: "grace", name: "Grace Hopper", age: 85))
     ).execute()
+
+    let token = try database.contextualBinding(
+        DownstreamToken.self,
+        expressedAs: Int.self,
+        named: "token"
+    )
+    let tokenRequest = database.makeRequest(
+        with: sql { _ in Select(token) }
+    )
+    let tokenPacket = try XLInvocationBindings<XLSQLiteValue>(
+        layout: tokenRequest.parameterLayout,
+        bindings: [
+            token.encode(
+                DownstreamToken(rawValue: 42),
+                in: tokenRequest.parameterLayout
+            ),
+        ]
+    )
+    let tokenResult = try tokenRequest.fetchOne(bindings: tokenPacket)
+    guard tokenResult == 42 else {
+        throw FixtureError.unexpectedPacketResult(tokenResult)
+    }
 
     let id = XLNamedBindingReference<String>(name: "id")
     let statement = sql { schema in

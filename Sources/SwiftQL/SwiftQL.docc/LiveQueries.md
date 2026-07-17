@@ -45,6 +45,54 @@ let cancellable = request.publishOne().sink(
 Fetching is all-or-nothing. If the query cannot execute or any row cannot be decoded, the publisher
 finishes with the original error and does not emit a truncated result.
 
+### Packet-backed observations
+
+A parameterized request exposes a static `parameterLayout`; its values belong
+to an immutable packet supplied to `publish(bindings:)` or
+`publishOne(bindings:)`. This observation selects one `Person` by its text ID:
+
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
+```swift
+let idParameter = XLNamedBindingReference<String>(name: "id")
+let personByID = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    Where(person.id == idParameter)
+}
+let request = database.makeRequest(with: personByID)
+let layout = request.parameterLayout
+let idBindings = try XLInvocationBindings<XLSQLiteValue>(
+    layout: layout,
+    bindings: [
+        try XLInvocationBinding(
+            slot: layout.slot(for: .named("id"))!,
+            value: .text("per-1")
+        )
+    ]
+).validatingComplete()
+
+let cancellable = request.publish(bindings: idBindings).sink(
+    receiveCompletion: { completion in
+        if case .failure(let error) = completion {
+            print("Query failed: \(error)")
+        }
+    },
+    receiveValue: { results in
+        print("Fetched results: \(results)")
+    }
+)
+```
+
+SwiftQL validates and captures the packet when it constructs the GRDB
+observation. Every initial fetch, database refresh, and BUSY retry for that
+publisher uses the same values; the request is never mutated. A separately
+constructed packet-backed publisher captures its own values without
+cross-triggering or leaking values. A missing binding fails the publisher,
+whereas `.null` is a present value and is accepted only for a nullable slot.
+This packet isolation does not make the current request facade `Sendable` or
+promise that one request can be shared directly across tasks.
+
 ### Retry Policy
 
 Live queries are terminal by default. Configure a GRDB database or builder with
@@ -75,7 +123,9 @@ database pool, so GRDB discovers and tracks the query's database region again. A
 overlap. Cancelling during backoff cancels the pending delay and starts no new fetch; cancelling an
 active observation suppresses later values even though SQLite work already executing internally may
 finish. Writes committed during backoff may coalesce into the next snapshot because live queries are
-state streams, not commit logs.
+state streams, not commit logs. For a packet-backed observation, starting that
+new GRDB observation reuses the publisher's captured packet rather than reading
+mutable values from the request or connection.
 
 ### Observation Semantics
 
@@ -84,6 +134,8 @@ GRDB-backed observations have these behaviors:
 - Observation starts on subscription, not when `publish()` or `publishOne()` creates the publisher.
 - Each subscriber owns an independent observation and receives a fresh initial value. A publisher does
   not replay a snapshot captured for an earlier subscriber.
+- Parameterized publishers retain the immutable packet passed at construction;
+  all refreshes and retries use that packet.
 - Relevant writes performed through the same `DatabasePool` are observed, including direct GRDB writes
   and migrations. Writes from another process or an unrelated connection pool are not observed.
 - Initial and updated values are delivered asynchronously on the main dispatch queue by default. Apply
