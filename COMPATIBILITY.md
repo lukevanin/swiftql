@@ -103,11 +103,12 @@ incremental no-op from appearing warning-free without invoking the compiler.
 
 Until #154 removes the remaining ordinary first-party warnings, the checker
 prints and temporarily permits only that issue's known deprecation, explicit
-`#warning`, and never-mutated-local diagnostics. It prints dependency and other
-build warnings separately, fails closed for every other first-party warning,
-and treats unclassifiable warning headers as blocking. An automatic classifier
-self-test protects that fallback before each build. The checker does not
-suppress any compiler output.
+`#warning`, never-mutated-local, and Swift 6.0 package-manifest command
+diagnostics. It prints dependency and other build warnings separately, fails
+closed for every other first-party warning, and treats unclassifiable warning
+headers as blocking. Automatic positive and negative classifier fixtures
+protect that boundary before each build. The checker does not suppress any
+compiler output.
 
 For local worktrees that share an existing SwiftPM dependency checkout, set
 `SWIFTQL_SCRATCH_PATH` before invoking the script:
@@ -125,7 +126,8 @@ separate, searchable sections for every cell:
 
 - Known first-party diagnostics include intentional `#warning` markers in the
   source and tests, deprecated `result` calls in sources and examples, and
-  unused generated declarations. Cleanup is owned by
+  unused generated declarations. Swift 6.0 also reports the first-party
+  `Package.swift` compiler invocation as a warning. Cleanup is owned by
   [#154](https://github.com/lukevanin/swiftql/issues/154).
 - Complete strict-concurrency warnings are release blockers in the Swift 6.0
   lanes; `check-strict-concurrency.sh` enforces that boundary after the standard

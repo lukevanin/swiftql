@@ -3,7 +3,9 @@
 set -euo pipefail
 
 is_known_ordinary_warning() {
-    case "$1" in
+    local warning="$1"
+
+    case "$warning" in
         *"warning: 'result' is deprecated:"*)
             return 0
             ;;
@@ -18,6 +20,16 @@ is_known_ordinary_warning() {
             ;;
     esac
     return 1
+}
+
+is_known_manifest_warning() {
+    local warning="$1"
+    local source_root="$2"
+
+    [[ "$warning" == "warning: 'swiftql': "* ]] && \
+        [[ "$warning" == *" -primary-file $source_root/Package.swift "* ]] && \
+        [[ "$warning" == *" -package-description-version 5.9.0 "* ]] && \
+        [[ "$warning" == *" -module-name main "* ]]
 }
 
 print_section() {
@@ -59,6 +71,11 @@ classify_build_log() {
                 continue
                 ;;
         esac
+
+        if is_known_manifest_warning "$warning" "$source_root"; then
+            allowed_ordinary_warnings+=("$warning")
+            continue
+        fi
 
         case "$warning" in
             /Applications/*|/Library/Developer/*|/usr/*|ld:\ warning:\ *|clang:\ warning:\ *)
@@ -109,12 +126,13 @@ classify_build_log() {
 
 run_classifier_self_test() {
     local source_root="$1"
+    local manifest_fixture
     local self_test_log
     local self_test_output
 
     self_test_log="$(mktemp "${TMPDIR:-/tmp}/swiftql-strict-concurrency-self-test.XXXXXX")"
     printf '%s\n' \
-        '<unknown>:0: warning: simulated unrecognized compiler diagnostic' \
+        '<unknown>:0: warning: TODO: simulated unrecognized compiler diagnostic' \
         > "$self_test_log"
 
     if self_test_output="$(classify_build_log "$self_test_log" "$source_root" 2>&1)"; then
@@ -124,13 +142,34 @@ run_classifier_self_test() {
             >&2
         return 1
     fi
-    rm -f "$self_test_log"
-
     if ! grep -q \
         'SWIFTQL_STRICT_CONCURRENCY_UNCLASSIFIED_WARNINGS' \
         <<< "$self_test_output"; then
+        rm -f "$self_test_log"
         printf '%s\n' \
             "error: strict-concurrency classifier self-test did not classify its fixture" \
+            >&2
+        return 1
+    fi
+
+    manifest_fixture="warning: 'swiftql': /tool/swift-frontend"
+    manifest_fixture+=" -primary-file $source_root/Package.swift"
+    manifest_fixture+=" -package-description-version 5.9.0 -module-name main -o /tmp/Package.o"
+    printf '%s\n' "$manifest_fixture" > "$self_test_log"
+    if ! self_test_output="$(classify_build_log "$self_test_log" "$source_root" 2>&1)"; then
+        rm -f "$self_test_log"
+        printf '%s\n' \
+            "error: strict-concurrency classifier self-test rejected the known package-manifest diagnostic" \
+            >&2
+        return 1
+    fi
+    rm -f "$self_test_log"
+
+    if ! grep -q 'SWIFTQL_STRICT_CONCURRENCY_STATUS clean' \
+        <<< "$self_test_output" || \
+        ! grep -Fq "warning: 'swiftql':" <<< "$self_test_output"; then
+        printf '%s\n' \
+            "error: strict-concurrency classifier self-test did not accept its known fixture" \
             >&2
         return 1
     fi
