@@ -104,8 +104,10 @@ incremental no-op from appearing warning-free without invoking the compiler.
 Until #154 removes the remaining ordinary first-party warnings, the checker
 prints and temporarily permits only that issue's known deprecation, explicit
 `#warning`, and never-mutated-local diagnostics. It prints dependency and other
-build warnings separately, and fails closed for every other first-party warning.
-It does not suppress any compiler output.
+build warnings separately, fails closed for every other first-party warning,
+and treats unclassifiable warning headers as blocking. An automatic classifier
+self-test protects that fallback before each build. The checker does not
+suppress any compiler output.
 
 For local worktrees that share an existing SwiftPM dependency checkout, set
 `SWIFTQL_SCRATCH_PATH` before invoking the script:
