@@ -6,6 +6,7 @@ enum BenchmarkEnvironmentCollector {
         let environment = processInfo.environment
         let grdb = resolvedGRDB(packageRoot: packageRoot)
         return BenchmarkEnvironment(
+            buildConfiguration: buildConfiguration,
             swiftVersion: command(["swift", "--version"]),
             xcodeVersion: command(["xcodebuild", "-version"]),
             sdkVersion: command(["--show-sdk-version"]),
@@ -50,6 +51,7 @@ enum BenchmarkEnvironmentCollector {
         currentDirectory: URL? = nil,
         allowEmptyOutput: Bool = false
     ) -> String {
+        #if os(macOS)
         guard FileManager.default.isExecutableFile(atPath: path) else {
             return "unavailable"
         }
@@ -79,6 +81,17 @@ enum BenchmarkEnvironmentCollector {
         catch {
             return "unavailable"
         }
+        #else
+        return "unavailable"
+        #endif
+    }
+
+    private static var buildConfiguration: String {
+        #if DEBUG
+        return "debug"
+        #else
+        return "release"
+        #endif
     }
 
     private static func repositoryState(packageRoot: URL) -> String {

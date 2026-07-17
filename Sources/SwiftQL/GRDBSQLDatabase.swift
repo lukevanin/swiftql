@@ -109,7 +109,7 @@ struct GRDBValuesAdapter: XLColumnReader {
 ///
 /// Keeping the adapter and sequential column reader behind this type lets benchmarks exercise the
 /// production decoding path without exposing GRDB implementation details as public SwiftQL API.
-package final class GRDBRowDecoder<Output> {
+package struct GRDBRowDecoder<Output> {
 
     private let reader: any XLRowReadable<Output>
 

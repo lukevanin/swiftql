@@ -44,11 +44,12 @@ other 23 slots contain measurements.
 
 ## Phase boundaries
 
-Each raw sample is one operation timed with
-`DispatchTime.now().uptimeNanoseconds`. Setup, correctness checks, checksum
-calculation, and result destruction occur after the end timestamp. The harness
-does not batch operations, subtract clock overhead, trim outliers, or combine
-phases.
+Each raw sample is one case/phase operation timed with
+`DispatchTime.now().uptimeNanoseconds`. For read cases, both execution and row
+decoding cover that case's complete result set (1, 32, or 2 rows). Setup,
+correctness checks, checksum calculation, and result destruction occur after
+the end timestamp. The harness does not batch operations, subtract clock
+overhead, trim outliers, or combine phases.
 
 | Phase | Included | Excluded |
 | --- | --- | --- |
@@ -57,7 +58,7 @@ phases.
 | `cached_statement_lookup` | A primed, same-connection `Database.cachedStatement(sql:)` hit. | Initial preparation. Returned object identity is verified. |
 | `statement_reset_and_binding` | Public `Statement.setArguments`, including validation, reset, clear, and bind. | SwiftQL request construction and argument creation. |
 | `execution` | GRDB's required pre-execution reset and SQLite stepping through all result rows, or the bounded UPDATE. | Preparation, explicit binding, GRDB row materialization, SwiftQL decoding, savepoint entry, and rollback. |
-| `row_decoding` | The production `GRDBRowAdapter` → `XLColumnValuesRowReader` path shared through a package-private decoder. | SQL execution, captured GRDB-row creation, checksumming, and decoded-value destruction. |
+| `row_decoding` | The complete captured result set decoded into an output array through the production `GRDBRowAdapter` → `XLColumnValuesRowReader` path shared by a package-private decoder. | SQL execution, captured GRDB-row creation, semantic verification, checksumming, and decoded-value destruction. |
 
 Phase medians are not additive. In particular, public GRDB execution performs
 its own pre-execution reset even though reset is also part of the separately
@@ -70,9 +71,9 @@ The JSON report records:
 - report format, generation time, monotonic clock, raw integer nanoseconds,
   median, and nearest-rank p95;
 - warmups and recorded sample count, with separate consumption checksums;
-- repository revision/state, Swift, Xcode, SDK, resolved GRDB version and
-  revision, OS, architecture, machine model, processor, memory, and CI runner
-  image when available;
+- repository revision/state, debug/release build configuration, Swift, Xcode,
+  SDK, resolved GRDB version and revision, OS, architecture, machine model,
+  processor, memory, and CI runner image when available;
 - SQLite version, source ID, compile options, journal mode, synchronous mode,
   and page size read from the actual measured connection;
 - complete schema SQL, fixture version/counts, rendered SQL, query plans, typed

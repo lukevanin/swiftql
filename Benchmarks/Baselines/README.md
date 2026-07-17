@@ -27,6 +27,7 @@ The four cases cover:
 The six phase slots separate SwiftQL construction/rendering, uncached statement
 preparation, same-connection statement-cache lookup, argument reset/binding,
 SQLite execution/stepping, and the production SwiftQL/GRDB row-decoding path.
+For each read case, execution and decoding both process the complete result set.
 Row decoding is intentionally not applicable to the bounded write, leaving 23
 measured case/phase combinations.
 

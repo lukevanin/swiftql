@@ -145,6 +145,7 @@ public struct BenchmarkCaseReport: Codable, Equatable {
 }
 
 public struct BenchmarkEnvironment: Codable, Equatable {
+    public let buildConfiguration: String
     public let swiftVersion: String
     public let xcodeVersion: String
     public let sdkVersion: String
@@ -211,7 +212,8 @@ public struct BenchmarkReport: Codable, Equatable {
               sampleUnit == "nanoseconds_per_operation" else {
             throw BenchmarkError.invalidReport("clock or sample unit is unsupported")
         }
-        guard !environment.swiftVersion.isEmpty,
+        guard ["debug", "release"].contains(environment.buildConfiguration),
+              !environment.swiftVersion.isEmpty,
               !environment.grdbVersion.isEmpty,
               !environment.grdbRevision.isEmpty,
               !environment.repositoryRevision.isEmpty,
@@ -295,6 +297,7 @@ public struct BenchmarkReport: Codable, Equatable {
     public func humanReadableSummary() -> String {
         var lines = [
             "SwiftQL performance baseline",
+            "Build: \(environment.buildConfiguration)",
             "Swift: \(firstLine(environment.swiftVersion))",
             "Xcode: \(firstLine(environment.xcodeVersion))",
             "SDK: \(environment.sdkVersion)",

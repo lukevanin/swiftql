@@ -74,6 +74,7 @@ public final class SwiftQLBenchmarkRunner {
                     ),
                 ],
                 expectedRowCount: 1,
+                expectedDecodedRows: [Self.expectedSimplePerson],
                 makeStatement: BenchmarkQueries.simpleLookup,
                 consumeDecoded: Self.consumePerson
             )
@@ -99,6 +100,7 @@ public final class SwiftQLBenchmarkRunner {
                     ),
                 ],
                 expectedRowCount: 32,
+                expectedDecodedRows: Self.expectedJoinedRows,
                 makeStatement: BenchmarkQueries.multiJoinRead,
                 consumeDecoded: Self.consumeJoinedRow
             )
@@ -124,6 +126,7 @@ public final class SwiftQLBenchmarkRunner {
                     ),
                 ],
                 expectedRowCount: 2,
+                expectedDecodedRows: Self.expectedDecodeRows,
                 makeStatement: BenchmarkQueries.deterministicDecode,
                 consumeDecoded: Self.consumeDecodeFixture
             )
@@ -152,7 +155,7 @@ public final class SwiftQLBenchmarkRunner {
         return report
     }
 
-    private func makeReadCase<Output>(
+    private func makeReadCase<Output: Equatable>(
         identifier: String,
         purpose: String,
         configuration: BenchmarkConfiguration,
@@ -160,6 +163,7 @@ public final class SwiftQLBenchmarkRunner {
         arguments: StatementArguments,
         parameters: [BenchmarkParameter],
         expectedRowCount: Int,
+        expectedDecodedRows: [Output],
         makeStatement: () -> any XLQueryStatement<Output>,
         consumeDecoded: (Output) throws -> UInt64
     ) throws -> BenchmarkCaseReport {
@@ -173,6 +177,14 @@ public final class SwiftQLBenchmarkRunner {
         guard capturedRows.count == expectedRowCount else {
             throw BenchmarkError.missingFixture(
                 "\(identifier) expected \(expectedRowCount) rows but fetched \(capturedRows.count)"
+            )
+        }
+
+        let decoder = GRDBRowDecoder(reader: decodingStatement)
+        let decodedFixture = try capturedRows.map { try decoder.decode($0) }
+        guard decodedFixture == expectedDecodedRows else {
+            throw BenchmarkError.decoding(
+                "\(identifier) fixture did not decode to the exact expected values"
             )
         }
 
@@ -200,22 +212,26 @@ public final class SwiftQLBenchmarkRunner {
         )
         phases[.execution] = .measured(.execution, measurement: execution)
 
-        let decoder = GRDBRowDecoder(reader: decodingStatement)
-        var rowIndex = 0
-        var currentRow = capturedRows[0]
         let decoding = try BenchmarkSampler(configuration: configuration).measure(
             notes: [
-                "Uses the production GRDBRowAdapter and XLColumnValuesRowReader path through GRDBRowDecoder.",
-                "Captured immutable GRDB rows, SQL execution, and result destruction are outside the timestamp.",
+                "Decodes the complete captured result set through the production GRDBRowAdapter, XLColumnValuesRowReader, and GRDBRowDecoder path.",
+                "Includes decoded-output array allocation; captured GRDB rows, SQL execution, semantic verification, checksumming, and result destruction are outside the timestamp.",
             ],
-            beforeSample: {
-                currentRow = capturedRows[rowIndex % capturedRows.count]
-                rowIndex += 1
-            },
             operation: {
-                try decoder.decode(currentRow)
+                try capturedRows.map { try decoder.decode($0) }
             },
-            consume: consumeDecoded
+            consume: { decodedRows in
+                guard decodedRows == expectedDecodedRows else {
+                    throw BenchmarkError.decoding(
+                        "\(identifier) produced unexpected values while sampling"
+                    )
+                }
+                var checksum: UInt64 = 0
+                for row in decodedRows {
+                    checksum &+= try consumeDecoded(row)
+                }
+                return checksum
+            }
         )
         phases[.rowDecoding] = .measured(.rowDecoding, measurement: decoding)
 
@@ -403,9 +419,9 @@ public final class SwiftQLBenchmarkRunner {
             ],
             operation: {
                 try bindingStatement.setArguments(arguments)
-                return bindingStatement.arguments
             },
-            consume: { boundArguments in
+            consume: { _ in
+                let boundArguments = bindingStatement.arguments
                 guard boundArguments == arguments else {
                     throw BenchmarkError.invalidReport("bound arguments changed")
                 }
@@ -602,6 +618,69 @@ public final class SwiftQLBenchmarkRunner {
             &+ UInt64(row.optionalInteger ?? 0)
             &+ UInt64(row.optionalText?.utf8.count ?? 0)
             &+ (row.flag ? 1 : 0)
+    }
+
+    private static var expectedSimplePerson: BenchmarkPerson {
+        let id = simplePersonID
+        return BenchmarkPerson(
+            id: id,
+            companyID: 1,
+            departmentID: 1,
+            name: "Person \(id)",
+            email: "person\(id)@example.test",
+            score: 50.9,
+            isActive: true,
+            payload: Data((0 ..< 16).map { UInt8((id + $0) % 256) })
+        )
+    }
+
+    private static var expectedJoinedRows: [BenchmarkJoinedRow] {
+        let candidates = (1 ... 512).compactMap { id -> BenchmarkJoinedRow? in
+            let departmentID = ((id - 1) % 32) + 1
+            let companyID = ((departmentID - 1) % 8) + 1
+            let score = Double((id * 37) % 1_000) / 10
+            guard companyID == joinedCompanyID, score >= joinedMinimumScore else {
+                return nil
+            }
+            return BenchmarkJoinedRow(
+                personID: id,
+                personName: "Person \(id)",
+                departmentName: "Department \(departmentID)",
+                companyName: "Company \(companyID)",
+                score: score,
+                isActive: id % 3 != 0
+            )
+        }
+        return Array(
+            candidates.sorted { lhs, rhs in
+                if lhs.score == rhs.score {
+                    return lhs.personID < rhs.personID
+                }
+                return lhs.score > rhs.score
+            }.prefix(32)
+        )
+    }
+
+    private static var expectedDecodeRows: [BenchmarkDecodeFixture] {
+        (1 ... decodeMaximumID).map { id in
+            let integerValue = id * 10
+            let realValue = Double(id) + 0.25
+            let textValue = "Decode fixture \(id)"
+            let blobValue = Data([UInt8(id), 1, 2, 3, 4, 5, 6, 7])
+            let optionalInteger: Int? = id == 1 ? nil : 42
+            let optionalText: String? = id == 1 ? nil : "present"
+            let flag = id == 2
+            return BenchmarkDecodeFixture(
+                id: id,
+                integerValue: integerValue,
+                realValue: realValue,
+                textValue: textValue,
+                blobValue: blobValue,
+                optionalInteger: optionalInteger,
+                optionalText: optionalText,
+                flag: flag
+            )
+        }
     }
 
     private static let schemaSQL = [

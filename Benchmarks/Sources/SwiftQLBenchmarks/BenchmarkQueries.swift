@@ -15,7 +15,7 @@ struct BenchmarkDepartment: Identifiable {
 }
 
 @SQLTable(name: "benchmark_person")
-struct BenchmarkPerson: Identifiable {
+struct BenchmarkPerson: Identifiable, Equatable {
     let id: Int
     let companyID: Int
     let departmentID: Int
@@ -27,7 +27,7 @@ struct BenchmarkPerson: Identifiable {
 }
 
 @SQLResult
-struct BenchmarkJoinedRow {
+struct BenchmarkJoinedRow: Equatable {
     let personID: Int
     let personName: String
     let departmentName: String
@@ -37,7 +37,7 @@ struct BenchmarkJoinedRow {
 }
 
 @SQLTable(name: "benchmark_decode_fixture")
-struct BenchmarkDecodeFixture: Identifiable {
+struct BenchmarkDecodeFixture: Identifiable, Equatable {
     let id: Int
     let integerValue: Int
     let realValue: Double
