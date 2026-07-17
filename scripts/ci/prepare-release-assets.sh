@@ -23,8 +23,8 @@ require_nonempty_file() {
     fi
 }
 
-if [[ "$#" -ne 7 ]]; then
-    printf 'usage: %s PAGES_TAR OUTPUT_DIRECTORY RELEASE_TAG COMMIT_SHA RUN_ID RUN_ATTEMPT REPOSITORY\n' \
+if [[ "$#" -ne 8 ]]; then
+    printf 'usage: %s PAGES_TAR OUTPUT_DIRECTORY RELEASE_TAG COMMIT_SHA RUN_ID RUN_ATTEMPT REPOSITORY SOURCE_TAG\n' \
         "$0" >&2
     exit 64
 fi
@@ -36,6 +36,7 @@ commit_sha="$4"
 run_id="$5"
 run_attempt="$6"
 repository="$7"
+source_tag="$8"
 
 if [[ ! "$release_tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
     fail "invalid release tag: $release_tag"
@@ -48,6 +49,10 @@ if [[ ! "$run_id" =~ ^[0-9]+$ || ! "$run_attempt" =~ ^[0-9]+$ ]]; then
 fi
 if [[ ! "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
     fail "invalid repository name: $repository"
+fi
+if [[ "$source_tag" != "$release_tag" &&
+      "$source_tag" != "release-test/$release_tag" ]]; then
+    fail "source tag does not normalize to release tag: $source_tag"
 fi
 if [[ ! -f "$pages_tar" || -L "$pages_tar" ]]; then
     fail "Pages artifact tar is missing or unsafe: $pages_tar"
@@ -93,7 +98,11 @@ if ! jq -e \
     --arg commit_sha "$commit_sha" \
     --arg run_id "$run_id" \
     --arg repository "$repository" \
+    --arg source_ref "refs/tags/$source_tag" \
+    --arg source_tag "$source_tag" \
     '.commit_sha == $commit_sha and
+     .source_ref == $source_ref and
+     .source_ref_name == $source_tag and
      .run_id == $run_id and
      (.run_attempt | type == "string" and test("^[0-9]+$")) and
      .repository == $repository' \
@@ -122,6 +131,7 @@ workflow_url="${GITHUB_SERVER_URL:-https://github.com}/$repository/actions/runs/
 jq -n \
     --arg repository "$repository" \
     --arg tag "$release_tag" \
+    --arg source_tag "$source_tag" \
     --arg commit_sha "$commit_sha" \
     --arg run_id "$run_id" \
     --arg documentation_run_attempt "$documentation_run_attempt" \
@@ -133,6 +143,7 @@ jq -n \
         schema_version: 1,
         repository: $repository,
         tag: $tag,
+        source_tag: $source_tag,
         commit_sha: $commit_sha,
         run_id: $run_id,
         documentation_run_attempt: $documentation_run_attempt,

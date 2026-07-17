@@ -131,7 +131,8 @@ jobs:
             "$COMMIT_SHA" \
             "$GITHUB_RUN_ID" \
             "$GITHUB_RUN_ATTEMPT" \
-            "$GITHUB_REPOSITORY"
+            "$GITHUB_REPOSITORY" \
+            "${{ needs.validate.outputs.source_tag }}"
 
       - name: Prove release publication is read-only
         env:
@@ -141,6 +142,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: >-
           scripts/ci/publish-release.sh --dry-run
+          "${{ needs.validate.outputs.source_tag }}"
           "$RELEASE_TAG" "$COMMIT_SHA" "$ASSET_DIRECTORY"
 
   publish:
@@ -199,7 +201,8 @@ jobs:
             "$COMMIT_SHA" \
             "$GITHUB_RUN_ID" \
             "$GITHUB_RUN_ATTEMPT" \
-            "$GITHUB_REPOSITORY"
+            "$GITHUB_REPOSITORY" \
+            "${{ needs.validate.outputs.source_tag }}"
 
       - name: Create, resume, or verify exact release
         env:
@@ -217,7 +220,8 @@ jobs:
             "$SOURCE_TAG" "$COMMIT_SHA" > /dev/null
           scripts/ci/check-release-readiness.sh "$RELEASE_TAG"
           scripts/ci/publish-release.sh \
-            "$RELEASE_TAG" "$COMMIT_SHA" "$ASSET_DIRECTORY"
+            "$SOURCE_TAG" "$RELEASE_TAG" \
+            "$COMMIT_SHA" "$ASSET_DIRECTORY"
 
       - name: Verify release ref remains exact
         env:

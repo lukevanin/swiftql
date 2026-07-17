@@ -135,12 +135,14 @@ verify_local_assets() {
     if ! jq -e \
         --arg repository "$repository" \
         --arg tag "$release_tag" \
+        --arg source_tag "$source_tag" \
         --arg commit_sha "$commit_sha" \
         --arg docs_name "$docs_name" \
         --arg docs_sha256 "$docs_sha256" \
         '.schema_version == 1 and
          .repository == $repository and
          .tag == $tag and
+         .source_tag == $source_tag and
          .commit_sha == $commit_sha and
          .documentation_asset == $docs_name and
          .documentation_sha256 == $docs_sha256' \
@@ -254,12 +256,14 @@ verify_remote_published_assets() {
     if ! jq -e \
         --arg repository "$repository" \
         --arg tag "$release_tag" \
+        --arg source_tag "$release_tag" \
         --arg commit_sha "$commit_sha" \
         --arg docs_name "$docs_name" \
         --arg docs_digest "$docs_digest" \
         '.schema_version == 1 and
          .repository == $repository and
          .tag == $tag and
+         .source_tag == $source_tag and
          .commit_sha == $commit_sha and
          .documentation_asset == $docs_name and
          .documentation_sha256 == $docs_digest' \
@@ -362,18 +366,25 @@ if [[ "${1:-}" == --dry-run ]]; then
     dry_run=true
     shift
 fi
-if [[ "$#" -ne 3 ]]; then
-    printf 'usage: %s [--dry-run] RELEASE_TAG COMMIT_SHA ASSET_DIRECTORY\n' "$0" >&2
+if [[ "$#" -ne 4 ]]; then
+    printf 'usage: %s [--dry-run] SOURCE_TAG RELEASE_TAG COMMIT_SHA ASSET_DIRECTORY\n' "$0" >&2
     exit 64
 fi
 
-release_tag="$1"
-commit_sha="$2"
-asset_directory="$3"
+source_tag="$1"
+release_tag="$2"
+commit_sha="$3"
+asset_directory="$4"
 repository="${GITHUB_REPOSITORY:?Set GITHUB_REPOSITORY}"
 
 if [[ ! "$release_tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
     fail "invalid release tag: $release_tag"
+fi
+if [[ "$dry_run" == true ]]; then
+    [[ "$source_tag" == "release-test/$release_tag" ]] ||
+        fail "dry-run source tag does not match release tag: $source_tag"
+elif [[ "$source_tag" != "$release_tag" ]]; then
+    fail "publication source tag does not match release tag: $source_tag"
 fi
 if [[ ! "$commit_sha" =~ ^[0-9a-f]{40}$ ]]; then
     fail "commit SHA is not a lowercase full object ID: $commit_sha"

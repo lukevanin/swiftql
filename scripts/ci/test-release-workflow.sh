@@ -287,6 +287,8 @@ jq -n \
     --arg commit "$main_sha" \
     '{
         commit_sha: $commit,
+        source_ref: "refs/tags/v1.1.0",
+        source_ref_name: "v1.1.0",
         run_id: "12345",
         run_attempt: "1",
         repository: "lukevanin/swiftql",
@@ -298,15 +300,30 @@ assets_a="$test_root/assets-a"
 assets_b="$test_root/assets-b"
 "$prepare_assets" \
     "$pages_tar" "$assets_a" v1.1.0 "$main_sha" \
-    12345 1 lukevanin/swiftql > /dev/null
+    12345 1 lukevanin/swiftql v1.1.0 > /dev/null
 "$prepare_assets" \
     "$pages_tar" "$assets_b" v1.1.0 "$main_sha" \
-    12345 1 lukevanin/swiftql > /dev/null
+    12345 1 lukevanin/swiftql v1.1.0 > /dev/null
 cmp "$assets_a/swiftql-docc-v1.1.0.tar.gz" \
     "$assets_b/swiftql-docc-v1.1.0.tar.gz"
 cmp "$assets_a/swiftql-release-v1.1.0.json" \
     "$assets_b/swiftql-release-v1.1.0.json"
 cmp "$assets_a/SHA256SUMS" "$assets_b/SHA256SUMS"
+
+dry_site="$test_root/dry-site"
+cp -R "$site" "$dry_site"
+jq \
+    '.source_ref = "refs/tags/release-test/v1.1.0" |
+     .source_ref_name = "release-test/v1.1.0"' \
+    "$dry_site/swiftql-pages-provenance.json" > "$test_root/dry-provenance.json"
+mv "$test_root/dry-provenance.json" \
+    "$dry_site/swiftql-pages-provenance.json"
+dry_pages_tar="$test_root/dry-artifact.tar"
+tar -cf "$dry_pages_tar" -C "$dry_site" .
+assets_dry="$test_root/assets-dry"
+"$prepare_assets" \
+    "$dry_pages_tar" "$assets_dry" v1.1.0 "$main_sha" \
+    12345 1 lukevanin/swiftql release-test/v1.1.0 > /dev/null
 
 bad_site="$test_root/bad-site"
 cp -R "$site" "$bad_site"
@@ -317,7 +334,7 @@ mv "$test_root/bad-provenance.json" \
 tar -cf "$test_root/bad-artifact.tar" -C "$bad_site" .
 expect_failure "$prepare_assets" \
     "$test_root/bad-artifact.tar" "$test_root/bad-assets" \
-    v1.1.0 "$main_sha" 12345 1 lukevanin/swiftql
+    v1.1.0 "$main_sha" 12345 1 lukevanin/swiftql v1.1.0
 
 unsafe_site="$test_root/unsafe-site"
 cp -R "$site" "$unsafe_site"
@@ -325,11 +342,12 @@ ln -s /tmp "$unsafe_site/unsafe-link"
 tar -cf "$test_root/unsafe-artifact.tar" -C "$unsafe_site" .
 expect_failure "$prepare_assets" \
     "$test_root/unsafe-artifact.tar" "$test_root/unsafe-assets" \
-    v1.1.0 "$main_sha" 12345 1 lukevanin/swiftql
+    v1.1.0 "$main_sha" 12345 1 lukevanin/swiftql v1.1.0
 
 # A dry run has no write-capable operation.
 initialize_fake_api dry
-run_publisher --dry-run v1.1.0 "$main_sha" "$assets_a" > /dev/null
+run_publisher --dry-run release-test/v1.1.0 \
+    v1.1.0 "$main_sha" "$assets_dry" > /dev/null
 [[ ! -s "$fake_mutations" ]] || fail 'dry run mutated release state'
 [[ "$(jq '.releases | length' "$fake_state")" -eq 0 ]] ||
     fail 'dry run created a release'
@@ -337,7 +355,7 @@ run_publisher --dry-run v1.1.0 "$main_sha" "$assets_a" > /dev/null
 # First publication creates one draft, uploads three assets, publishes it, and
 # a rerun verifies that exact published state without another mutation.
 initialize_fake_api publish
-run_publisher v1.1.0 "$main_sha" "$assets_a" > /dev/null
+run_publisher v1.1.0 v1.1.0 "$main_sha" "$assets_a" > /dev/null
 [[ "$(jq '.releases | length' "$fake_state")" -eq 1 ]] ||
     fail 'publisher did not create exactly one release'
 [[ "$(jq '.releases[0].draft' "$fake_state")" == false ]] ||
@@ -345,7 +363,7 @@ run_publisher v1.1.0 "$main_sha" "$assets_a" > /dev/null
 [[ "$(jq '.releases[0].assets | length' "$fake_state")" -eq 3 ]] ||
     fail 'publisher did not upload exactly three assets'
 mutation_count="$(wc -l < "$fake_mutations" | tr -d '[:space:]')"
-run_publisher v1.1.0 "$main_sha" "$assets_a" > /dev/null
+run_publisher v1.1.0 v1.1.0 "$main_sha" "$assets_a" > /dev/null
 [[ "$(wc -l < "$fake_mutations" | tr -d '[:space:]')" == "$mutation_count" ]] ||
     fail 'published rerun performed a mutation'
 
@@ -357,7 +375,7 @@ partial_release_id="$(jq -r '.releases[0].id' "$fake_state")"
 fake_api_command upload-asset "$partial_release_id" \
     "$assets_a/swiftql-docc-v1.1.0.tar.gz" > /dev/null
 partial_baseline="$(wc -l < "$fake_mutations" | tr -d '[:space:]')"
-run_publisher v1.1.0 "$main_sha" "$assets_a" > /dev/null
+run_publisher v1.1.0 v1.1.0 "$main_sha" "$assets_a" > /dev/null
 partial_added="$(tail -n "+$((partial_baseline + 1))" "$fake_mutations")"
 [[ "$partial_added" != *'delete-asset:'* ]] ||
     fail 'publisher replaced a matching partial-draft asset'
@@ -373,7 +391,7 @@ printf 'wrong documentation bytes\n' \
     > "$wrong_directory/swiftql-docc-v1.1.0.tar.gz"
 fake_api_command upload-asset "$wrong_release_id" \
     "$wrong_directory/swiftql-docc-v1.1.0.tar.gz" > /dev/null
-run_publisher v1.1.0 "$main_sha" "$assets_a" > /dev/null
+run_publisher v1.1.0 v1.1.0 "$main_sha" "$assets_a" > /dev/null
 grep -F 'delete-asset:' "$fake_mutations" > /dev/null ||
     fail 'publisher did not replace a mismatched draft asset'
 
@@ -385,7 +403,7 @@ printf 'unexpected\n' > "$test_root/unexpected.txt"
 fake_api_command upload-asset "$unexpected_release_id" \
     "$test_root/unexpected.txt" > /dev/null
 unexpected_baseline="$(wc -l < "$fake_mutations" | tr -d '[:space:]')"
-expect_failure run_publisher v1.1.0 "$main_sha" "$assets_a"
+expect_failure run_publisher v1.1.0 v1.1.0 "$main_sha" "$assets_a"
 [[ "$(wc -l < "$fake_mutations" | tr -d '[:space:]')" == "$unexpected_baseline" ]] ||
     fail 'publisher mutated a draft containing an unexpected asset'
 
@@ -394,7 +412,7 @@ expect_failure run_publisher v1.1.0 "$main_sha" "$assets_a"
 initialize_fake_api unrelated
 seed_release v9.9.9 "$main_sha" true
 unrelated_id="$(jq -r '.releases[0].id' "$fake_state")"
-run_publisher v1.1.0 "$main_sha" "$assets_a" > /dev/null
+run_publisher v1.1.0 v1.1.0 "$main_sha" "$assets_a" > /dev/null
 [[ "$(jq '.releases | length' "$fake_state")" -eq 2 ]] ||
     fail 'publisher removed or reused an unrelated release'
 [[ "$(jq --argjson id "$unrelated_id" \
@@ -404,7 +422,7 @@ run_publisher v1.1.0 "$main_sha" "$assets_a" > /dev/null
 initialize_fake_api conflict
 seed_release v1.1.0 0000000000000000000000000000000000000000 false
 conflict_baseline="$(wc -l < "$fake_mutations" | tr -d '[:space:]')"
-expect_failure run_publisher v1.1.0 "$main_sha" "$assets_a"
+expect_failure run_publisher v1.1.0 v1.1.0 "$main_sha" "$assets_a"
 [[ "$(wc -l < "$fake_mutations" | tr -d '[:space:]')" == "$conflict_baseline" ]] ||
     fail 'conflicting published release was mutated'
 
