@@ -89,6 +89,42 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(try compoundNegationRequest.fetchOne(), -12)
     }
 
+    func testBitwiseNotExecutesForIntegerLiteralsColumnsAndComposedExpressions() throws {
+        let literal: any XLExpression<Int> = 12
+        let literalStatement = sql { _ in
+            Select(~literal)
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: literalStatement).fetchOne(),
+            -13
+        )
+
+        try createTestTable()
+        try insertTest(TestTable(id: "bitwise", value: 42))
+
+        let columnStatement = sql { schema in
+            let table = schema.table(TestTable.self)
+            Select(~table.value)
+            From(table)
+            Where(table.id == "bitwise")
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: columnStatement).fetchOne(),
+            -43
+        )
+
+        let composedStatement = sql { schema in
+            let table = schema.table(TestTable.self)
+            Select(~(table.value + 5))
+            From(table)
+            Where(table.id == "bitwise")
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: composedStatement).fetchOne(),
+            -48
+        )
+    }
+
     func testConcatenationCollationExecution() throws {
         let lhs = XLNamedBindingReference<String>(name: "lhs")
         let rhs = XLNamedBindingReference<String>(name: "rhs")

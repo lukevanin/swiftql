@@ -38,6 +38,9 @@
 - Updated DocC examples and key public symbol documentation to the current API.
   Source documentation now generates cleanly with DocC warnings treated as
   errors.
+- Prefix bitwise NOT (`~`) is now constrained to integer SQL expressions.
+  Real-valued expressions such as `Double` are rejected by the Swift type
+  checker.
 - Generated `.columns(...)` helpers no longer call the deprecated `result`
   helper, and immutable table macros no longer emit never-mutated-local
   warnings. Projection factories are emitted as nominal macro members so their
