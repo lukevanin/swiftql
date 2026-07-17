@@ -1023,6 +1023,79 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(try finalResult.element(at: 1).value, "Google Test")
         XCTAssertEqual(try finalResult.element(at: 2).value, "Microsoft Test")
     }
+
+    func testInsertSelectFluentCompleteClauseChain() throws {
+        try database.makeRequest(with: sqlCreate(CompanyTable.self)).execute()
+        try database.makeRequest(with: sqlCreate(EmployeeTable.self)).execute()
+        try database.makeRequest(with: sqlCreate(Temp.self)).execute()
+
+        for company in [
+            CompanyTable(id: "alpha", name: "Alpha"),
+            CompanyTable(id: "beta", name: "Beta"),
+            CompanyTable(id: "gamma", name: "Gamma"),
+        ] {
+            try database.makeRequest(with: sqlInsert(company)).execute()
+        }
+        for employee in [
+            EmployeeTable(
+                id: "employee-alpha",
+                name: "keep-alpha",
+                companyId: "alpha",
+                managerEmployeeId: nil
+            ),
+            EmployeeTable(
+                id: "employee-beta",
+                name: "skip",
+                companyId: "beta",
+                managerEmployeeId: nil
+            ),
+            EmployeeTable(
+                id: "employee-gamma",
+                name: "keep-gamma",
+                companyId: "gamma",
+                managerEmployeeId: nil
+            ),
+        ] {
+            try database.makeRequest(with: sqlInsert(employee)).execute()
+        }
+
+        let schema = XLSchema()
+        let temp = schema.table(Temp.self)
+        let company = schema.table(CompanyTable.self)
+        let employeeTable = schema.table(EmployeeTable.self)
+        // Insert-select joins accept unnamed result metadata. Reuse the named
+        // table dependency so the joined table keeps its deterministic t2 alias.
+        let employee = EmployeeTable.makeSQLTable(
+            namespace: employeeTable._namespace,
+            dependency: employeeTable._dependency
+        )
+        let row = Temp.columns(id: company.id, value: company.name)
+        let statement = insert(temp)
+            .select(row)
+            .from(company)
+            .innerJoin(employee, on: employee.companyId == company.id)
+            .where(employee.name != "skip")
+            .groupBy(company.id, company.name)
+            .having(employee.id.count() >= 1)
+            .orderBy(company.name.ascending())
+            .limit(1)
+            .offset(1)
+
+        XCTAssertEqual(
+            encoder.makeSQL(statement).sql,
+            "INSERT INTO `Temp` AS `t0` SELECT `t1`.`id` AS `id`, `t1`.`name` AS `value` FROM `Company` AS `t1` INNER JOIN `Employee` AS `t2` ON (`t2`.`companyId` IS `t1`.`id`) WHERE (`t2`.`name` != 'skip') GROUP BY `t1`.`id`, `t1`.`name` HAVING (COUNT(`t2`.`id`) >= 1) ORDER BY `t1`.`name` ASC LIMIT 1 OFFSET 1"
+        )
+
+        try database.makeRequest(with: statement).execute()
+
+        let insertedRows = try database.makeRequest(
+            with: sqlQuery { schema in
+                let temp = schema.table(Temp.self)
+                return select(temp).from(temp)
+            }
+        ).fetchAll()
+        XCTAssertEqual(insertedRows, [Temp(id: "gamma", value: "Gamma")])
+    }
     
     
     // MARK: Update

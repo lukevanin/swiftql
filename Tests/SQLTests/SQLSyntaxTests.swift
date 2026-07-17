@@ -1418,6 +1418,97 @@ final class XLSyntaxTests: XCTestCase {
         XCTAssertEqual(finalResult.sql, "WITH cte0 AS (SELECT t0.id AS id, t0.name AS name FROM Company AS t0) INSERT INTO Temp AS t0 SELECT t1.id AS id, t1.name AS value FROM cte0 AS t1")
         XCTAssertTrue(finalResult.entities.contains("Temp"))
     }
+
+    func testInsertSelectFluentRemainingTransitions() {
+        let schema = XLSchema()
+        let temp = schema.table(Temp.self)
+        let company = schema.table(CompanyTable.self)
+        let employeeTable = schema.table(EmployeeTable.self)
+        // Insert-select joins accept unnamed result metadata. Reuse the named
+        // table dependency so every join keeps the deterministic t2 alias.
+        let employee = EmployeeTable.makeSQLTable(
+            namespace: employeeTable._namespace,
+            dependency: employeeTable._dependency
+        )
+        let nullableEmployee = EmployeeTable.makeSQLNullableResult(
+            namespace: employeeTable._namespace,
+            dependency: employeeTable._dependency
+        )
+        let row = Temp.columns(id: company.id, value: company.name)
+        let from = insert(temp).select(row).from(company)
+        let filtered = from.where(company.name != "skip")
+        let grouped = from.groupBy(company.id, company.name)
+        let having = grouped.having(company.id.count() >= 1)
+        let baseSQL = "INSERT INTO Temp AS t0 SELECT t1.id AS id, t1.name AS value FROM Company AS t1"
+        let cases: [(String, any XLEncodable, String)] = [
+            (
+                "FROM to bare INNER JOIN",
+                from.innerJoin(employee),
+                " INNER JOIN Employee AS t2"
+            ),
+            (
+                "FROM to CROSS JOIN",
+                from.crossJoin(employee),
+                " CROSS JOIN Employee AS t2"
+            ),
+            (
+                "FROM to nullable LEFT JOIN",
+                from.leftJoin(
+                    nullableEmployee,
+                    on: nullableEmployee.companyId == company.id
+                ),
+                " LEFT JOIN Employee AS t2 ON (t2.companyId IS t1.id)"
+            ),
+            (
+                "FROM to GROUP BY",
+                from.groupBy(company.id, company.name),
+                " GROUP BY t1.id, t1.name"
+            ),
+            (
+                "FROM to ORDER BY",
+                from.orderBy(company.name.ascending()),
+                " ORDER BY t1.name ASC"
+            ),
+            (
+                "FROM to LIMIT",
+                from.limit(1),
+                " LIMIT 1"
+            ),
+            (
+                "WHERE to ORDER BY",
+                filtered.orderBy(company.name.ascending()),
+                " WHERE (t1.name != 'skip') ORDER BY t1.name ASC"
+            ),
+            (
+                "WHERE to LIMIT",
+                filtered.limit(1),
+                " WHERE (t1.name != 'skip') LIMIT 1"
+            ),
+            (
+                "GROUP BY to ORDER BY",
+                grouped.orderBy(company.name.ascending()),
+                " GROUP BY t1.id, t1.name ORDER BY t1.name ASC"
+            ),
+            (
+                "GROUP BY to LIMIT",
+                grouped.limit(1),
+                " GROUP BY t1.id, t1.name LIMIT 1"
+            ),
+            (
+                "HAVING to LIMIT",
+                having.limit(1),
+                " GROUP BY t1.id, t1.name HAVING (COUNT(t1.id) >= 1) LIMIT 1"
+            ),
+        ]
+
+        for (transition, statement, suffix) in cases {
+            XCTAssertEqual(
+                encoder.makeSQL(statement).sql,
+                baseSQL + suffix,
+                transition
+            )
+        }
+    }
     
     
     // MARK: - Update
