@@ -4,6 +4,9 @@
 
 ### Added
 
+- Added a provenance-aware warnings-as-errors gate for every supported compiler
+  lane. It blocks SwiftQL-owned and unclassified warnings while reporting
+  dependency and toolchain diagnostics separately.
 - Added an external Swift package fixture that uses SwiftQL's public macros,
   typed queries, binding, and SQLite execution from Swift 5 language mode under
   the supported Swift 6 compiler. CI runs it with pinned and clean resolution.
@@ -24,6 +27,10 @@
 
 ### Fixed
 
+- Generated `.columns(...)` helpers no longer call the deprecated `result`
+  helper, and immutable table macros no longer emit never-mutated-local
+  warnings. First-party sources, tests, benchmarks, and macro expansions now
+  build without ordinary compiler warnings.
 - All first-party product and test targets now compile without complete
   strict-concurrency warnings under the supported Swift 6 compiler. The
   compatibility matrix checks this without enabling Swift 6 language mode.

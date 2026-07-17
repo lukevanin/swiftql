@@ -726,4 +726,79 @@ final class MetaBuilderTests: XCTestCase {
         let count = source.components(separatedBy: "public init()").count - 1
         XCTAssertEqual(count, 3)
     }
+
+    func test_columnsBuildsResultWithoutDeprecatedHelper() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct Projection {
+                let id: String
+                let result: Int
+            }
+            """
+        )
+        let source = builder.makeMetaResultExtension(table: false)
+
+        XCTAssertTrue(source.contains("public static func columns(id: any SwiftQL.XLExpression<String>, result: any SwiftQL.XLExpression<Int>) -> MetaResult"))
+        XCTAssertTrue(source.contains("return Self.makeSQLAnonymousResult("))
+        XCTAssertTrue(source.contains("namespace: XLNamespace.table(),"))
+        XCTAssertTrue(source.contains("dependency: XLSelectResultDependency(),"))
+        XCTAssertTrue(source.contains("iterator: Self.SQLReader("))
+        XCTAssertTrue(source.contains("id: id,"))
+        XCTAssertTrue(source.contains("result: result"))
+        XCTAssertTrue(source.contains(").readRow"))
+        XCTAssertFalse(source.contains("result {"))
+    }
+
+    func test_emptyResultColumnsGenerationIsValid() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct Projection {
+            }
+            """
+        )
+        let source = builder.makeMetaResultExtension(table: false)
+
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+        XCTAssertTrue(source.contains("public static func columns() -> MetaResult"))
+        XCTAssertTrue(source.contains("iterator: Self.SQLReader("))
+        XCTAssertTrue(source.contains(").readRow"))
+    }
+
+    func test_immutableTableUpdateRequestAvoidsUnusedTemporaries() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct ImmutableRow {
+                let id: Int
+            }
+            """
+        )
+        let source = builder.makeMetaTableExtension()
+
+        XCTAssertTrue(source.contains("public func apply(to entity: Row) -> Row"))
+        XCTAssertTrue(source.contains("return entity"))
+        XCTAssertTrue(source.contains("public func makeUpdate() -> MetaUpdate"))
+        XCTAssertTrue(source.contains("return MetaUpdate()"))
+        XCTAssertFalse(source.contains("var output = entity"))
+        XCTAssertFalse(source.contains("var output = MetaUpdate()"))
+    }
+
+    func test_mutableTableUpdateRequestStillAppliesValues() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct MutableRow {
+                var id: Int
+            }
+            """
+        )
+        let source = builder.makeMetaTableExtension()
+
+        XCTAssertTrue(source.contains("var output = entity"))
+        XCTAssertTrue(source.contains("output.id = value"))
+        XCTAssertTrue(source.contains("var output = MetaUpdate()"))
+        XCTAssertTrue(source.contains("output.id = XLTypeAffinityExpression<Int>(expression: value)"))
+    }
 }

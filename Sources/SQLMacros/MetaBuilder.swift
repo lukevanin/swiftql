@@ -70,7 +70,8 @@ internal struct MetaProperty {
 }
 
 
-#warning("TODO: Remove anonymous properties")
+// Removal of the legacy anonymous-result surface is tracked by
+// https://github.com/lukevanin/swiftql/issues/90.
 
 ///
 /// Generates code for `SQLTable` and `SQLResult` macros.
@@ -773,28 +774,38 @@ internal struct MetaBuilder {
             }
             
             context.block("public func apply(to entity: Row) -> Row") { context in
-                context.line("var output = entity")
-                for property in mutableProperties {
-                    context.block("if let value = \(property.name)") { context in
-                        context.line("output.\(property.name) = value")
-                    }
+                if mutableProperties.isEmpty {
+                    context.line("return entity")
                 }
-                context.line("return output")
+                else {
+                    context.line("var output = entity")
+                    for property in mutableProperties {
+                        context.block("if let value = \(property.name)") { context in
+                            context.line("output.\(property.name) = value")
+                        }
+                    }
+                    context.line("return output")
+                }
             }
             
             context.block("public func makeUpdate() -> MetaUpdate") { context in
-                context.line("var output = MetaUpdate()")
-                for property in mutableProperties {
-                    context.block("if let value = \(property.name)") { context in
-                        if property.optional {
-                            context.line("output.\(property.name) = XLTypeAffinityExpression<\(property.qualifiedType)>(expression: value.toNullable())")
-                        }
-                        else {
-                            context.line("output.\(property.name) = XLTypeAffinityExpression<\(property.qualifiedType)>(expression: value)")
+                if mutableProperties.isEmpty {
+                    context.line("return MetaUpdate()")
+                }
+                else {
+                    context.line("var output = MetaUpdate()")
+                    for property in mutableProperties {
+                        context.block("if let value = \(property.name)") { context in
+                            if property.optional {
+                                context.line("output.\(property.name) = XLTypeAffinityExpression<\(property.qualifiedType)>(expression: value.toNullable())")
+                            }
+                            else {
+                                context.line("output.\(property.name) = XLTypeAffinityExpression<\(property.qualifiedType)>(expression: value)")
+                            }
                         }
                     }
+                    context.line("return output")
                 }
-                context.line("return output")
             }
         }
         
@@ -1028,12 +1039,13 @@ internal struct MetaBuilder {
             columnParameters.append("\(property.name): any SwiftQL.XLExpression<\(property.qualifiedType)>")
         }
         context.block("public static func columns(\(columnParameters.joined(separator: ", "))) -> MetaResult") { context in
-            context.block("result") { context in
-                context.declaration("SQLReader") { context in
-                    for property in properties {
-                        context.item { context in
-                            context.line("\(property.name): \(property.name)")
-                        }
+            context.block("return Self.makeSQLAnonymousResult", opening: "(", closing: ")") { context in
+                context.line("namespace: XLNamespace.table(),")
+                context.line("dependency: XLSelectResultDependency(),")
+                context.block("iterator: Self.SQLReader", opening: "(", closing: ").readRow") { context in
+                    for (index, property) in properties.enumerated() {
+                        let suffix = index + 1 == properties.count ? "" : ","
+                        context.line("\(property.name): \(property.name)\(suffix)")
                     }
                 }
             }

@@ -10,6 +10,12 @@ import XCTest
 import GRDB
 import SwiftQL
 
+@SQLResult
+struct ColumnsResultShadowingProjection: Equatable {
+    let id: String
+    let result: Int
+}
+
 final class XLExecutionTests: XCTestCase {
     
     var encoder: XLiteEncoder!
@@ -37,6 +43,31 @@ final class XLExecutionTests: XCTestCase {
     
     
     // MARK: - Query functions
+
+    func testGeneratedColumnsSupportsAResultNamedPropertyAndBinding() throws {
+        try createTestTable()
+        try insertTest(TestTable(id: "bar", value: 42))
+
+        let id = XLNamedBindingReference<String>(name: "id")
+        let statement = sql { schema in
+            let table = schema.table(TestTable.self)
+            Select(
+                ColumnsResultShadowingProjection.columns(
+                    id: table.id,
+                    result: table.value
+                )
+            )
+            From(table)
+            Where(table.id == id)
+        }
+        var request = database.makeRequest(with: statement)
+        request.set(id, "bar")
+
+        XCTAssertEqual(
+            try request.fetchOne(),
+            ColumnsResultShadowingProjection(id: "bar", result: 42)
+        )
+    }
 
     func testNestedUnaryOperatorExecution() throws {
         let x = XLNamedBindingReference<Int>(name: "x")
@@ -549,7 +580,7 @@ final class XLExecutionTests: XCTestCase {
         typealias Scalar = SQLScalarResult<Data>
         let statement = sql { schema in
             let t = schema.table(TestTable.self)
-            Select(result { Scalar.SQLReader(scalarValue: t.id.toData()) })
+            Select(Scalar.columns(scalarValue: t.id.toData()))
             From(t)
         }
         let results = try database.makeRequest(with: statement).fetchAll()
@@ -585,12 +616,10 @@ final class XLExecutionTests: XCTestCase {
             let cte = schema.recursiveCommonTableExpression(Scalar.self) { schema, cte in
                 let org = schema.table(Org.self)
                 
-                let initialResult = result {
-                    Scalar.SQLReader(scalarValue: "Alice".toNullable())
-                }
+                let initialResult = Scalar.columns(scalarValue: "Alice".toNullable())
                 Select(initialResult)
                 Union()
-                Select(result { Scalar.SQLReader(scalarValue: org.name) })
+                Select(Scalar.columns(scalarValue: org.name))
                 From(org)
                 Join.Cross(cte)
                 Where(org.boss == cte.scalarValue)
@@ -674,12 +703,8 @@ final class XLExecutionTests: XCTestCase {
             
             let parentOfCommonTable = schema.commonTableExpression { schema in
                 let family = schema.table(Family.self)
-                let momRow = result {
-                    FamilyMemberParent.SQLReader(name: family.name, parent: family.mom)
-                }
-                let dadRow = result {
-                    FamilyMemberParent.SQLReader(name: family.name, parent: family.dad)
-                }
+                let momRow = FamilyMemberParent.columns(name: family.name, parent: family.mom)
+                let dadRow = FamilyMemberParent.columns(name: family.name, parent: family.dad)
                 Select(momRow)
                 From(family)
                 Union()
@@ -689,11 +714,11 @@ final class XLExecutionTests: XCTestCase {
             
             let ancestorOfAliceCommonTable = schema.recursiveCommonTableExpression(Scalar.self) { schema, this in
                 let parentOf = schema.table(parentOfCommonTable)
-                Select(result { Scalar.SQLReader(scalarValue: parentOf.parent) })
+                Select(Scalar.columns(scalarValue: parentOf.parent))
                 From(parentOf)
                 Where(parentOf.name == "Alice".toNullable())
                 UnionAll()
-                Select(result { Scalar.SQLReader(scalarValue: parentOf.parent) })
+                Select(Scalar.columns(scalarValue: parentOf.parent))
                 From(parentOf)
                 Join.Inner(this, on: this.scalarValue == parentOf.name)
             }
@@ -735,12 +760,8 @@ final class XLExecutionTests: XCTestCase {
         let selectExpression = sql { schema in
             let familyMom = schema.table(Family.self)
             let familyDad = schema.table(Family.self)
-            let momRow = result {
-                FamilyMemberParent.SQLReader(name: familyMom.name, parent: familyMom.mom)
-            }
-            let dadRow = result {
-                FamilyMemberParent.SQLReader(name: familyDad.name, parent: familyDad.dad)
-            }
+            let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+            let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
             Select(momRow)
             From(familyMom)
             Union()
@@ -767,12 +788,8 @@ final class XLExecutionTests: XCTestCase {
         let selectExpression: any XLQueryStatement<FamilyMemberParent> = sql { schema in
             let familyMom = schema.table(Family.self)
             let familyDad = schema.table(Family.self)
-            let momRow = result {
-                FamilyMemberParent.SQLReader(name: familyMom.name, parent: familyMom.mom)
-            }
-            let dadRow = result {
-                FamilyMemberParent.SQLReader(name: familyDad.name, parent: familyDad.dad)
-            }
+            let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+            let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
             Select(momRow)
             From(familyMom)
             Union()
@@ -911,12 +928,10 @@ final class XLExecutionTests: XCTestCase {
             Create(t)
             As { schema in
                 let employee = schema.table(EmployeeTable.self)
-                let result = result {
-                    Temp.SQLReader(
-                        id: employee.id,
-                        value: employee.name
-                    )
-                }
+                let result = Temp.columns(
+                    id: employee.id,
+                    value: employee.name
+                )
                 Select(result)
                 From(employee)
             }
@@ -953,12 +968,10 @@ final class XLExecutionTests: XCTestCase {
                 }
                 
                 let t = schema.table(cte)
-                let r = result {
-                    Temp.SQLReader(
-                        id: t.id,
-                        value: t.name
-                    )
-                }
+                let r = Temp.columns(
+                    id: t.id,
+                    value: t.name
+                )
                 With(cte)
                 Select(r)
                 From(t)
@@ -994,12 +1007,10 @@ final class XLExecutionTests: XCTestCase {
         let insertStatement = sql { schema in
             let temp = schema.table(Temp.self)
             let company = schema.table(CompanyTable.self)
-            let row = result {
-                Temp.SQLReader(
-                    id: company.id,
-                    value: company.name + " Test"
-                )
-            }
+            let row = Temp.columns(
+                id: company.id,
+                value: company.name + " Test"
+            )
             Insert(temp)
             Select(row)
             From(company)

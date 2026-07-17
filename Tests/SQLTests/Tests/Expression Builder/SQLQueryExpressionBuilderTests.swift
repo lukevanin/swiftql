@@ -246,9 +246,7 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
             let cte = schema.recursiveCommonTableExpression(Scalar.self) { schema, cte in
                 let org = schema.table(Org.self)
                 
-                let initialResult = result {
-                    Scalar.SQLReader(scalarValue: "Alice".toNullable())
-                }
+                let initialResult = Scalar.columns(scalarValue: "Alice".toNullable())
                 Select(initialResult)
                 Union()
                 Select(Scalar.columns(scalarValue: org.name))
@@ -275,12 +273,8 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
             
             let parentOfCommonTable = schema.commonTableExpression { schema in
                 let family = schema.table(Family.self)
-                let momRow = result {
-                    FamilyMemberParent.SQLReader(name: family.name, parent: family.mom)
-                }
-                let dadRow = result {
-                    FamilyMemberParent.SQLReader(name: family.name, parent: family.dad)
-                }
+                let momRow = FamilyMemberParent.columns(name: family.name, parent: family.mom)
+                let dadRow = FamilyMemberParent.columns(name: family.name, parent: family.dad)
                 Select(momRow)
                 From(family)
                 Union()
@@ -321,12 +315,8 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
         let expression = sql { schema in
             let familyMom = schema.table(Family.self)
             let familyDad = schema.table(Family.self)
-            let momRow = result {
-                FamilyMemberParent.SQLReader(name: familyMom.name, parent: familyMom.mom)
-            }
-            let dadRow = result {
-                FamilyMemberParent.SQLReader(name: familyDad.name, parent: familyDad.dad)
-            }
+            let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+            let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
             Select(momRow)
             From(familyMom)
             Union()
@@ -359,12 +349,8 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
         let expression = sql { schema in
             let familyMom = schema.table(Family.self)
             let familyDad = schema.table(Family.self)
-            let momRow = result {
-                FamilyMemberParent.SQLReader(name: familyMom.name, parent: familyMom.mom)
-            }
-            let dadRow = result {
-                FamilyMemberParent.SQLReader(name: familyDad.name, parent: familyDad.dad)
-            }
+            let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+            let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
             Select(momRow)
             From(familyMom)
             Intersect()
@@ -380,12 +366,8 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
         let expression = sql { schema in
             let familyMom = schema.table(Family.self)
             let familyDad = schema.table(Family.self)
-            let momRow = result {
-                FamilyMemberParent.SQLReader(name: familyMom.name, parent: familyMom.mom)
-            }
-            let dadRow = result {
-                FamilyMemberParent.SQLReader(name: familyDad.name, parent: familyDad.dad)
-            }
+            let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+            let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
             Select(momRow)
             From(familyMom)
             Except()
@@ -401,12 +383,8 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
         let expression = sql { schema in
             let familyMom = schema.table(Family.self)
             let familyDad = schema.table(Family.self)
-            let momRow = result {
-                FamilyMemberParent.SQLReader(name: familyMom.name, parent: familyMom.mom)
-            }
-            let dadRow = result {
-                FamilyMemberParent.SQLReader(name: familyDad.name, parent: familyDad.dad)
-            }
+            let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+            let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
             Select(momRow)
             From(familyMom)
             Union()
@@ -429,12 +407,8 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
                 
             let familyMom = schema.table(cte)
             let familyDad = schema.table(cte)
-            let momRow = result {
-                FamilyMemberParent.SQLReader(name: familyMom.name, parent: familyMom.mom)
-            }
-            let dadRow = result {
-                FamilyMemberParent.SQLReader(name: familyDad.name, parent: familyDad.dad)
-            }
+            let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+            let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
             
             With(cte)
             Select(momRow)
@@ -485,18 +459,16 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
     func testSelectSubqueryAggregate() {
         let expression = sql { schema in
             let t = schema.table(TestTable.self)
-            let r = result {
-                TestColumns.SQLReader(
-                    id: t.id,
-                    value: XLTypeAffinityExpression<Int?>(
-                        expression: subqueryExpression { schema in
-                            let t = schema.table(TestTable.self)
-                            Select(t.value.sumOrNull())
-                            From(t)
-                        }
-                    )
+            let r = TestColumns.columns(
+                id: t.id,
+                value: XLTypeAffinityExpression<Int?>(
+                    expression: subqueryExpression { schema in
+                        let t = schema.table(TestTable.self)
+                        Select(t.value.sumOrNull())
+                        From(t)
+                    }
                 )
-            }
+            )
             Select(r)
             From(t)
         }
