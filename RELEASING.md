@@ -184,9 +184,18 @@ release gate.
 
 ## Recovery
 
-- **Invalid or unreachable tag, before a release exists:** delete only the bad
-  tag, merge the correction to `main`, and create a fresh correct tag. Do not
-  force-move a published release tag.
+- **Invalid or unreachable test tag, before a release exists:** delete only the
+  bad `release-test/...` tag, merge the correction to `main`, and create a fresh
+  test tag. Test tags are outside the production tag ruleset.
+- **Invalid or unreachable production tag, before a release exists:** never
+  force-move the `v...` tag. Prefer abandoning that version and preparing a new
+  version. If the exact version must be recovered, treat it as an audited admin
+  incident: first prove that no release exists, temporarily alter or disable
+  only the production tag ruleset, delete only that exact unpublished tag,
+  immediately restore the ruleset, and repeat every ruleset verification in
+  the preflight section before creating the corrected annotated tag. Record the
+  incident and each verification result. Do not create the corrected tag while
+  the ruleset is relaxed.
 - **Draft creation or asset upload failed:** choose **Re-run all jobs** on the
   original tag run. GitHub retains that run's original ref and SHA, and the
   publisher resumes the exact draft. Re-running all jobs also regenerates an

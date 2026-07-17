@@ -91,7 +91,7 @@ jobs:
     permissions:
       contents: read
       pages: read
-    uses: ./.github/workflows/documentation.yml
+    uses: ./.github/workflows/documentation-build.yml
 
   dry-run-package:
     name: Verify release dry run
