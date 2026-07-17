@@ -26,12 +26,24 @@ build_arguments=(
 # immediately after the compatibility matrix's warning-clean build.
 xcrun swift build "${build_arguments[@]}" --target SwiftQL
 bin_path="$(xcrun swift build "${build_arguments[@]}" --show-bin-path)"
-modules_directory="$bin_path/Modules"
 csqlite_module_map="$scratch_path/checkouts/GRDB.swift/Sources/CSQLite/module.modulemap"
 
-if [[ ! -e "$modules_directory/SwiftQL.swiftmodule" ]]; then
-    printf 'error: expected module at %s\n' \
-        "$modules_directory/SwiftQL.swiftmodule" >&2
+module_search_paths=()
+swiftql_module=""
+
+# SwiftPM 5.9 writes target modules directly into the configuration's binary
+# directory, while newer toolchains collect them under `Modules`. Discover every
+# emitted module parent so this invocation works with either artifact layout.
+while IFS= read -r module; do
+    module_search_paths+=("$(dirname "$module")")
+    if [[ "$(basename "$module")" == "SwiftQL.swiftmodule" ]]; then
+        swiftql_module="$module"
+    fi
+done < <(find "$bin_path" -name '*.swiftmodule' -prune -print)
+
+if [[ -z "$swiftql_module" ]]; then
+    printf 'error: could not find SwiftQL.swiftmodule below %s\n' \
+        "$bin_path" >&2
     exit 1
 fi
 if [[ ! -f "$csqlite_module_map" ]]; then
@@ -44,9 +56,13 @@ compiler=(
     xcrun swiftc
     -typecheck
     -swift-version 5
-    -I "$modules_directory"
     -Xcc "-fmodule-map-file=$csqlite_module_map"
 )
+for module_search_path in "${module_search_paths[@]}"; do
+    compiler+=(
+        -I "$module_search_path"
+    )
+done
 
 # Prove that the standalone compiler invocation and valid integer overloads work
 # before interpreting a failure from the negative fixture as API evidence.
