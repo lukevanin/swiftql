@@ -18,6 +18,7 @@ SCRIPT = Path(__file__).with_name("source-coverage-report.py")
 VERIFY_SCRIPT = Path(__file__).with_name(
     "verify-source-coverage-reproducibility.sh"
 )
+WORKFLOW = SCRIPT.parents[2] / ".github/workflows/swift.yml"
 
 
 def metric(count: int, covered: int) -> Dict[str, Any]:
@@ -460,6 +461,23 @@ class SourceCoverageReportTests(unittest.TestCase):
         )
         self.assertNotEqual(failure.returncode, 0)
         self.assertIn("did not capture a clean tree", failure.stderr)
+
+
+class CoverageWorkflowTests(unittest.TestCase):
+    def test_pull_request_capture_uses_durable_head_commit(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn(
+            "COVERAGE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}",
+            workflow,
+        )
+        self.assertIn("ref: ${{ env.COVERAGE_SOURCE_SHA }}", workflow)
+        self.assertIn(
+            'test "$(git rev-parse HEAD)" = "$COVERAGE_SOURCE_SHA"', workflow
+        )
+        self.assertIn(
+            "name: swiftql-source-coverage-${{ env.COVERAGE_SOURCE_SHA }}-",
+            workflow,
+        )
 
 
 if __name__ == "__main__":

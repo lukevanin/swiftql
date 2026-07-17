@@ -52,16 +52,17 @@ jobs:
     timeout-minutes: 60
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+      COVERAGE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
     steps:
       - name: Check out exact source commit
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.COVERAGE_SOURCE_SHA }}
           persist-credentials: false
 
       - name: Verify exact source commit
-        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+        run: test "$(git rev-parse HEAD)" = "$COVERAGE_SOURCE_SHA"
 
       - name: Validate pinned Swift 6 coverage environment
         env:
@@ -128,7 +129,7 @@ jobs:
         if: ${{ always() && !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: swiftql-source-coverage-${{ github.sha }}-${{ github.run_attempt }}
+          name: swiftql-source-coverage-${{ env.COVERAGE_SOURCE_SHA }}-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/swiftql-coverage-run-1
             ${{ runner.temp }}/swiftql-coverage-run-2
