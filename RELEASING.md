@@ -19,7 +19,47 @@ compatibility matrix, and built the exact commit's validated DocC artifact.
 3. Run `scripts/ci/test-release-workflow.sh` locally. This exercises the tag,
    reachability, packaging, dry-run, partial-draft, rerun, and conflict paths
    without calling GitHub's write APIs.
-4. Record the exact remote commit. Do not release from an unpushed local commit.
+4. Run the safe test tags below while the changelog still says `Unreleased`.
+   After they pass, merge a final release-preparation change that replaces
+   `## [X.Y.Z] - Unreleased` with exactly `## [X.Y.Z] - YYYY-MM-DD`. Production
+   tags fail before the compiler matrix unless that dated heading is present.
+5. In repository settings, enable immutable releases. Verify it out of band
+   with an administrator token immediately before tagging; HTTP success alone
+   is insufficient because the endpoint also returns 200 while disabled:
+
+   ```sh
+   gh api repos/lukevanin/swiftql/immutable-releases |
+     jq -e '.enabled == true'
+   ```
+
+   The release workflow deliberately has no Administration permission and
+   cannot perform this pre-publication settings check. It polls the published
+   release and refuses to report success unless `immutable` becomes `true`.
+6. Create the active repository tag ruleset
+   `Protect v-prefixed release tags`. It must include `refs/tags/v*`, restrict
+   updates and deletions, and have no bypass actors. Verify its full rule record
+   out of band; the summary list alone does not show all conditions and rules:
+
+   ```sh
+   ruleset_id="$(gh api repos/lukevanin/swiftql/rulesets |
+     jq -er '.[] | select(.name == "Protect v-prefixed release tags") | .id')"
+   gh api "repos/lukevanin/swiftql/rulesets/$ruleset_id" |
+     jq -e '
+       .name == "Protect v-prefixed release tags" and
+       .target == "tag" and .enforcement == "active" and
+       .current_user_can_bypass == "never" and
+       (.conditions.ref_name.include | index("refs/tags/v*")) != null and
+       (.conditions.ref_name.exclude | length) == 0 and
+       ([.rules[].type] | index("update")) != null and
+       ([.rules[].type] | index("deletion")) != null and
+       (.bypass_actors | length) == 0'
+   ```
+
+   This server-side rule closes the otherwise unavoidable network-sized race
+   between the workflow's last tag check and release publication. Do not prove
+   the rule with a disposable `v...` tag: the rule intentionally prevents that
+   tag from being deleted. Its first end-to-end proof is the real `v1.1.0` tag.
+7. Record the exact remote commit. Do not release from an unpushed local commit.
 
 ```sh
 git fetch origin main --tags
@@ -66,8 +106,13 @@ The release workflow:
    `swiftql-release-v1.1.0.json` plus `SHA256SUMS`;
 6. creates a draft GitHub Release with generated notes and an exact commit/run
    marker;
-7. uploads and verifies all three assets before publishing the draft; and
-8. rechecks the tag ref after publication.
+7. uploads and verifies all three assets, then immediately refetches and
+   revalidates the tag, `main` reachability, milestone, and changelog before the
+   publication request;
+8. publishes only a draft that already contains generated notes, polls until
+   GitHub reports the release immutable, and reopens the DocC archive to verify
+   its catalog pages and embedded provenance; and
+9. rechecks the tag ref after publication.
 
 The publisher looks up only the exact tag. A rerun resumes its draft, preserves
 matching assets, replaces a mismatched asset only while the release is a draft,
@@ -84,6 +129,10 @@ succeeds, independently verify:
 - the tag still peels to that commit and remains reachable from `main`;
 - the release is published, is not a prerelease, and its generated notes contain
   the exact commit marker;
+- the release API reports `immutable: true`, and the production tag ruleset is
+  still active;
+- downloaded release assets pass GitHub's immutable-release attestation check
+  (for example, `gh attestation verify ASSET --repo lukevanin/swiftql`);
 - the release has exactly the DocC archive, manifest, and checksum assets;
 - API asset digests match `SHA256SUMS`, and the manifest maps the tag to the
   exact commit and workflow run; and
@@ -107,10 +156,19 @@ release gate.
 - **Published metadata or assets conflict:** the workflow fails closed. Do not
   delete, replace, or clobber them automatically. Review the release manually;
   if immutable releases are enabled, publish a corrected patch version instead.
-- **Tag moved while validation was running:** publication fails its second ref
-  check. Restore or replace the tag only if no release was published, then start
-  a new run.
+- **Tag moved while validation was running:** the required tag ruleset should
+  reject the move. The workflow also checks immediately before and after
+  publication. If the ruleset was disabled or bypassed, a move in the residual
+  network window can leave a release published even though the final job fails;
+  stop and audit the tag and immutable release rather than force-moving either.
+- **Release does not become immutable:** treat the run as failed even if GitHub
+  already made the draft public. Do not mutate it. Verify the repository setting
+  out of band, preserve the evidence, and use a corrected patch version if the
+  release cannot be made trustworthy without rewriting published state.
 
-Enabling GitHub immutable releases is recommended. The workflow already follows
-the required draft-first sequence, so publication can lock the tag and assets
-only after every asset has been uploaded and verified.
+Immutable releases and the production tag ruleset are mandatory prerequisites,
+not optional hardening. The draft-first sequence lets GitHub lock the tag and
+assets only after every asset has been uploaded and verified. The workflow
+performs a bounded post-publication poll for immutable state; enabling the
+setting affects only future releases and does not alter the historical `1.0.0`
+tag or release.

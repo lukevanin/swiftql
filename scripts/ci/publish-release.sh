@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+script_directory="$(cd "$(dirname "$0")" && pwd -P)"
+verify_documentation="$script_directory/verify-release-documentation.sh"
+
 fail() {
     printf 'error: %s\n' "$*" >&2
     exit 1
@@ -47,6 +50,12 @@ github_release_api() {
                 -H "$api_version" \
                 "repos/$repository/releases/$1/assets?per_page=100" |
                 jq -s 'add // []'
+            ;;
+        get-release)
+            "$gh_bin" api \
+                -H 'Accept: application/vnd.github+json' \
+                -H "$api_version" \
+                "repos/$repository/releases/$1"
             ;;
         delete-asset)
             "$gh_bin" api \
@@ -132,23 +141,9 @@ verify_local_assets() {
 
     docs_sha256="$(sha256_file "$docs_path")"
     manifest_sha256="$(sha256_file "$manifest_path")"
-    if ! jq -e \
-        --arg repository "$repository" \
-        --arg tag "$release_tag" \
-        --arg source_tag "$source_tag" \
-        --arg commit_sha "$commit_sha" \
-        --arg docs_name "$docs_name" \
-        --arg docs_sha256 "$docs_sha256" \
-        '.schema_version == 1 and
-         .repository == $repository and
-         .tag == $tag and
-         .source_tag == $source_tag and
-         .commit_sha == $commit_sha and
-         .documentation_asset == $docs_name and
-         .documentation_sha256 == $docs_sha256' \
-        "$manifest_path" > /dev/null; then
-        fail 'local release manifest does not match its tag, commit, or documentation asset'
-    fi
+    "$verify_documentation" \
+        "$docs_path" "$manifest_path" "$release_tag" \
+        "$source_tag" "$commit_sha" "$repository" > /dev/null
 
     expected_checksums="$(
         printf '%s  %s\n' "$docs_sha256" "$docs_name"
@@ -189,6 +184,43 @@ validate_release_record() {
     if [[ "$body" != *"$release_marker"* ]]; then
         fail "release $release_tag does not contain the exact commit marker"
     fi
+    if [[ "$body" != *"## What's Changed"* &&
+          "$body" != *"**Full Changelog**"* ]]; then
+        fail "release $release_tag does not contain generated release notes"
+    fi
+}
+
+wait_for_immutable_release() {
+    local release_json="$1"
+    local attempts="${SWIFTQL_IMMUTABLE_ATTEMPTS:-12}"
+    local interval="${SWIFTQL_IMMUTABLE_INTERVAL_SECONDS:-5}"
+    local attempt
+
+    [[ "$attempts" =~ ^[1-9][0-9]*$ ]] || fail 'immutable poll attempts must be positive'
+    [[ "$interval" =~ ^[0-9]+$ ]] || fail 'immutable poll interval must be nonnegative'
+    for ((attempt = 1; attempt <= attempts; attempt += 1)); do
+        validate_release_record "$release_json"
+        if [[ "$release_draft" == false &&
+              "$(jq -r '.immutable // false' <<< "$release_json")" == true ]]; then
+            printf '%s\n' "$release_json"
+            return 0
+        fi
+        if [[ "$attempt" -lt "$attempts" ]]; then
+            sleep "$interval"
+            release_json="$(release_api get-release "$release_id")"
+        fi
+    done
+    fail "published release $release_tag did not become immutable"
+}
+
+run_pre_publish_check() {
+    if [[ -n "${SWIFTQL_PRE_PUBLISH_CHECK:-}" ]]; then
+        "$SWIFTQL_PRE_PUBLISH_CHECK" pre-publish-check \
+            "$source_tag" "$release_tag" "$commit_sha"
+    else
+        "$script_directory/pre-publish-release-check.sh" \
+            "$source_tag" "$release_tag" "$commit_sha"
+    fi
 }
 
 verify_remote_published_assets() {
@@ -201,6 +233,7 @@ verify_remote_published_assets() {
     local checksums_record
     local remote_manifest
     local remote_checksums
+    local remote_docs
     local docs_digest
     local manifest_digest
     local checksums_digest
@@ -235,9 +268,12 @@ verify_remote_published_assets() {
 
     remote_manifest="$temporary_directory/remote-manifest.json"
     remote_checksums="$temporary_directory/remote-SHA256SUMS"
+    remote_docs="$temporary_directory/$docs_name"
+    release_api download-asset "$(jq -r '.id' <<< "$docs_record")" > "$remote_docs"
     release_api download-asset "$(jq -r '.id' <<< "$manifest_record")" > "$remote_manifest"
     release_api download-asset "$(jq -r '.id' <<< "$checksums_record")" > "$remote_checksums"
-    if [[ ! -s "$remote_manifest" || ! -s "$remote_checksums" ]]; then
+    if [[ ! -s "$remote_docs" || ! -s "$remote_manifest" ||
+          ! -s "$remote_checksums" ]]; then
         fail 'published provenance assets could not be downloaded'
     fi
 
@@ -247,29 +283,18 @@ verify_remote_published_assets() {
     docs_digest="${docs_digest#sha256:}"
     manifest_digest="${manifest_digest#sha256:}"
     checksums_digest="${checksums_digest#sha256:}"
+    if [[ "$(sha256_file "$remote_docs")" != "$docs_digest" ]]; then
+        fail 'published documentation bytes do not match the API digest'
+    fi
     if [[ "$(sha256_file "$remote_manifest")" != "$manifest_digest" ]]; then
         fail 'published manifest bytes do not match the API digest'
     fi
     if [[ "$(sha256_file "$remote_checksums")" != "$checksums_digest" ]]; then
         fail 'published SHA256SUMS bytes do not match the API digest'
     fi
-    if ! jq -e \
-        --arg repository "$repository" \
-        --arg tag "$release_tag" \
-        --arg source_tag "$release_tag" \
-        --arg commit_sha "$commit_sha" \
-        --arg docs_name "$docs_name" \
-        --arg docs_digest "$docs_digest" \
-        '.schema_version == 1 and
-         .repository == $repository and
-         .tag == $tag and
-         .source_tag == $source_tag and
-         .commit_sha == $commit_sha and
-         .documentation_asset == $docs_name and
-         .documentation_sha256 == $docs_digest' \
-        "$remote_manifest" > /dev/null; then
-        fail 'published manifest does not map the release tag to the exact commit and docs digest'
-    fi
+    "$verify_documentation" \
+        "$remote_docs" "$remote_manifest" "$release_tag" \
+        "$release_tag" "$commit_sha" "$repository" > /dev/null
     expected_checksums="$(
         printf '%s  %s\n' "$docs_digest" "$docs_name"
         printf '%s  %s\n' "$manifest_digest" "$manifest_name"
@@ -279,9 +304,8 @@ verify_remote_published_assets() {
     fi
 
     body="$(jq -r '.body' <<< "$release_json")"
-    if [[ "$body" != *"## What's Changed"* && "$body" != *"**Full Changelog**"* ]]; then
-        fail 'published release body does not contain generated release notes'
-    fi
+    [[ "$body" == *"$release_marker"* ]] ||
+        fail 'published release body lost its exact commit marker'
 }
 
 plan_or_sync_draft_assets() {
@@ -456,6 +480,7 @@ fi
 
 validate_release_record "$release_json"
 if [[ "$release_draft" == false ]]; then
+    release_json="$(wait_for_immutable_release "$release_json")"
     verify_remote_published_assets "$release_json"
     printf 'SWIFTQL_RELEASE_PUBLISHED ok %s %s release=%s\n' \
         "$release_tag" "$commit_sha" "$release_id"
@@ -472,6 +497,7 @@ if [[ "$dry_run" == true ]]; then
     exit 0
 fi
 
+run_pre_publish_check
 update_payload="$temporary_directory/publish-release.json"
 jq -n '{draft: false, prerelease: false, make_latest: "legacy"}' > "$update_payload"
 release_json="$(release_api update-release "$release_id" "$update_payload")"
@@ -479,6 +505,7 @@ validate_release_record "$release_json"
 if [[ "$release_draft" != false ]]; then
     fail "release $release_tag remained a draft after publication"
 fi
+release_json="$(wait_for_immutable_release "$release_json")"
 verify_remote_published_assets "$release_json"
 
 printf 'SWIFTQL_RELEASE_PUBLISHED ok %s %s release=%s\n' \

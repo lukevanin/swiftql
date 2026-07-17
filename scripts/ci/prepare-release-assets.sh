@@ -7,6 +7,10 @@ fail() {
     exit 1
 }
 
+script_directory="$(cd "$(dirname "$0")" && pwd -P)"
+archive_tool="$script_directory/release-archive.py"
+verify_documentation="$script_directory/verify-release-documentation.sh"
+
 sha256_file() {
     local file="$1"
 
@@ -65,22 +69,9 @@ if [[ ! -d "$output_directory" ]]; then
     fail "release output is not a directory: $output_directory"
 fi
 
-while IFS= read -r archive_path; do
-    case "$archive_path" in
-        /*|..|../*|*/..|*/../*)
-            fail "Pages artifact contains an unsafe path: $archive_path"
-            ;;
-    esac
-done < <(tar -tf "$pages_tar")
-
 temporary_directory="$(mktemp -d "${TMPDIR:-/tmp}/swiftql-release-pages.XXXXXX")"
 trap 'rm -rf "$temporary_directory"' EXIT
-tar -xf "$pages_tar" -C "$temporary_directory"
-
-unsafe_entries="$(find "$temporary_directory" ! -type d ! -type f -print)"
-if [[ -n "$unsafe_entries" ]]; then
-    fail "Pages artifact contains non-regular entries: $unsafe_entries"
-fi
+python3 "$archive_tool" extract "$pages_tar" "$temporary_directory"
 if [[ ! -f "$temporary_directory/.nojekyll" ||
       -L "$temporary_directory/.nojekyll" ]]; then
     fail 'Pages artifact is missing .nojekyll'
@@ -124,7 +115,9 @@ for output_path in "$docs_path" "$manifest_path" "$checksums_path"; do
     fi
 done
 
-gzip -n -c "$pages_tar" > "$docs_path"
+normalized_tar="$temporary_directory/swiftql-documentation.tar"
+python3 "$archive_tool" create "$temporary_directory" "$normalized_tar"
+gzip -n -c "$normalized_tar" > "$docs_path"
 docs_sha256="$(sha256_file "$docs_path")"
 workflow_url="${GITHUB_SERVER_URL:-https://github.com}/$repository/actions/runs/$run_id"
 
@@ -156,6 +149,10 @@ jq -n \
 manifest_sha256="$(sha256_file "$manifest_path")"
 printf '%s  %s\n' "$docs_sha256" "$docs_name" > "$checksums_path"
 printf '%s  %s\n' "$manifest_sha256" "$manifest_name" >> "$checksums_path"
+
+"$verify_documentation" \
+    "$docs_path" "$manifest_path" "$release_tag" \
+    "$source_tag" "$commit_sha" "$repository" > /dev/null
 
 printf 'SWIFTQL_RELEASE_ASSETS ok %s %s\n' "$release_tag" "$commit_sha"
 printf 'documentation_asset=%s\n' "$docs_name"

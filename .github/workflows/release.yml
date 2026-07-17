@@ -55,6 +55,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: scripts/ci/check-release-readiness.sh "$RELEASE_TAG"
 
+      - name: Require a dated production changelog
+        env:
+          SOURCE_TAG: ${{ steps.release-ref.outputs.source_tag }}
+          RELEASE_TAG: ${{ steps.release-ref.outputs.release_tag }}
+        run: >-
+          scripts/ci/check-release-changelog.sh
+          "$SOURCE_TAG" "$RELEASE_TAG"
+
       - name: Record validation summary
         env:
           MODE: ${{ steps.release-ref.outputs.mode }}

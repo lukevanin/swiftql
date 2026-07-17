@@ -11,6 +11,38 @@ permissions:
   contents: read
 
 jobs:
+  release-tooling:
+    name: Release tooling fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out exact source commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact source commit
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Validate release scripts and workflow YAML
+        run: |
+          set -euo pipefail
+          bash -n scripts/ci/*.sh
+          python3 -c \
+            'import ast, pathlib; ast.parse(pathlib.Path("scripts/ci/release-archive.py").read_text())'
+          ruby -e \
+            'require "yaml"; Dir[".github/workflows/*.{yml,yaml}"].sort.each { |path| YAML.parse_file(path) }'
+
+      - name: Run release workflow fixtures
+        run: scripts/ci/test-release-workflow.sh
+
+      - name: Verify checkout remains clean
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain)"
+
   compatibility:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
