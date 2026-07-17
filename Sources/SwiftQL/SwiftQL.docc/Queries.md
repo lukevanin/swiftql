@@ -184,12 +184,10 @@ of people for each occupation.
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
-    let row = result {
-        OccupationAggregate(
-            occupationId: person.occupationId,
-            numberOfPeople: person.id.count()
-        )
-    }
+    let row = OccupationAggregate.columns(
+        occupationId: person.occupationId,
+        numberOfPeople: person.id.count()
+    )
     Select(row)
     From(person)
     GroupBy(person.occupationId)
@@ -198,27 +196,56 @@ let query = sql { schema in
 
 SwiftQL currently supports the following aggregate functions:
 
-Function                    | Column type    | Usage
-----------------------------|----------------|-------------------------------------------
-`count()`                   | Any            | Number of items in the result set.
-`min()`                     | Any comparable | Minimum value in the result set.
-`max()`                     | Any comparable | Maximum value in the result set.
-`average()`                 | Double         | Average (arithmetic mean) of values in the result set.
-`sum()`                     | Int or Double  | Additive sum of values in the result set.
-`groupConcat()`             | String         | Concatenation of all values in the result set.
-`groupConcat(separator:)`   | String         | Concatenation using a custom separator.
+API                               | Input             | Result    | Behavior
+----------------------------------|-------------------|-----------|-------------------------------------------
+`count()`                         | Any               | `Int`     | Number of non-NULL values; zero for empty input.
+`minOrNull()`                     | Any comparable    | `T?`      | Minimum non-NULL value.
+`maxOrNull()`                     | Any comparable    | `T?`      | Maximum non-NULL value.
+`averageOrNull()`                 | `Double`          | `Double?` | Average (arithmetic mean) of non-NULL values.
+`sumOrNull()`                     | `Int` or `Double` | `T?`      | Additive sum of non-NULL values.
+`groupConcatOrNull()`             | `String`          | `String?` | Concatenation of all non-NULL values.
+`groupConcatOrNull(separator:)`   | `String`          | `String?` | Concatenation using a custom separator.
+
+Except for `count()`, these aggregates return `nil` when SQLite evaluates an
+empty input or a group containing no non-NULL values. Model those results with
+optional properties, or choose a nonoptional fallback explicitly:
+
+```swift
+@SQLResult struct AgeAggregate {
+    var minimumAge: Int?
+    var maximumAge: Int?
+    var totalAge: Int
+}
+
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    Select(
+        AgeAggregate.columns(
+            minimumAge: person.age.minOrNull(),
+            maximumAge: person.age.maxOrNull(),
+            totalAge: person.age.sumOrNull().coalesce(0)
+        )
+    )
+    From(person)
+}
+```
+
+The legacy `min`, `max`, `average`, `sum`, and `groupConcat` aggregate spellings
+remain available but deprecated throughout SwiftQL 1.x. Their canonical names
+will return optional expressions in SwiftQL 2. Migrate to the `OrNull` APIs in
+v1 so the result type accurately represents SQLite NULL.
 
 The aggregate-function forms without a custom separator accept a `distinct`
 boolean parameter. When set to `true`, duplicate values will be discarded and
 only unique values will be included in the result set.
 
 SQLite does not allow `DISTINCT` and a custom separator in the same
-`GROUP_CONCAT` call. Use either `groupConcat(distinct: true)` or
-`groupConcat(separator:)`.
+`GROUP_CONCAT` call. Use either `groupConcatOrNull(distinct: true)` or
+`groupConcatOrNull(separator:)`.
 
 Earlier SwiftQL releases incorrectly exposed the custom-separator overload on
 numeric expressions. Convert a numeric expression with `toString()` before
-calling `groupConcat(separator:)`.
+calling `groupConcatOrNull(separator:)`.
 
 > Important: A group by clause must include at least one aggregate term. SwiftQL
 currently does not enforce correctness of a query containing a group by clause.
@@ -233,12 +260,10 @@ occupations where there are two or more people with that occupation:
 ```swift
 let query = sql { schema in
     let person = schema.table(Person.self)
-    let row = result {
-        OccupationAggregate(
-            occupationId: person.occupationId,
-            numberOfPeople: person.id.count()
-        )
-    }
+    let row = OccupationAggregate.columns(
+        occupationId: person.occupationId,
+        numberOfPeople: person.id.count()
+    )
     Select(row)
     From(person)
     GroupBy(person.occupationId)

@@ -148,7 +148,7 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
     func testGroupConcat() {
         let expression = sql { schema in
             let company = schema.table(CompanyTable.self)
-            Select(company.name.groupConcat())
+            Select(company.name.groupConcatOrNull())
             From(company)
         }
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT GROUP_CONCAT(t0.name) FROM Company AS t0")
@@ -158,7 +158,7 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
     func testGroupConcatDistinct() {
         let expression = sql { schema in
             let company = schema.table(CompanyTable.self)
-            Select(company.name.groupConcat(distinct: true))
+            Select(company.name.groupConcatOrNull(distinct: true))
             From(company)
         }
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT GROUP_CONCAT(DISTINCT t0.name) FROM Company AS t0")
@@ -168,7 +168,7 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
     func testGroupConcatSeparator() {
         let expression = sql { schema in
             let company = schema.table(CompanyTable.self)
-            Select(company.name.groupConcat(separator: "|"))
+            Select(company.name.groupConcatOrNull(separator: "|"))
             From(company)
         }
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT GROUP_CONCAT(t0.name, '|') FROM Company AS t0")
@@ -488,11 +488,13 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
             let r = result {
                 TestColumns.SQLReader(
                     id: t.id,
-                    value: subqueryExpression { schema in
-                        let t = schema.table(TestTable.self)
-                        Select(t.value.sum())
-                        From(t)
-                    }
+                    value: XLTypeAffinityExpression<Int?>(
+                        expression: subqueryExpression { schema in
+                            let t = schema.table(TestTable.self)
+                            Select(t.value.sumOrNull())
+                            From(t)
+                        }
+                    )
                 )
             }
             Select(r)
