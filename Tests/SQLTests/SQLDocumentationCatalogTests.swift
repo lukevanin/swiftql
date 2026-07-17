@@ -147,6 +147,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             [
                 "BENCHMARKS.md",
                 "COMPATIBILITY.md",
+                "Coverage/README.md",
                 "LICENSE.md",
                 "RELEASING.md",
                 "ROADMAP.md",

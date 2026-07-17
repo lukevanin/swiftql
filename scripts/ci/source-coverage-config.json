@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "targets": [
+    {
+      "name": "SQLMacros",
+      "source_root": "Sources/SQLMacros",
+      "allowed_uninstrumented_sources": []
+    },
+    {
+      "name": "SwiftQL",
+      "source_root": "Sources/SwiftQL",
+      "allowed_uninstrumented_sources": [
+        "Sources/SwiftQL/SQL.swift",
+        "Sources/SwiftQL/SQLScalarResult.swift"
+      ]
+    }
+  ]
+}

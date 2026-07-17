@@ -31,12 +31,122 @@ jobs:
           set -euo pipefail
           bash -n scripts/ci/*.sh
           python3 -c \
-            'import ast, pathlib; ast.parse(pathlib.Path("scripts/ci/release-archive.py").read_text())'
+            'import ast, pathlib; [ast.parse(path.read_text()) for path in pathlib.Path("scripts/ci").glob("*.py")]'
           ruby -e \
             'require "yaml"; Dir[".github/workflows/*.{yml,yaml}"].sort.each { |path| YAML.parse_file(path) }'
 
       - name: Run release workflow fixtures
         run: scripts/ci/test-release-workflow.sh
+
+      - name: Run source coverage reporting fixtures
+        run: python3 scripts/ci/test-source-coverage-report.py
+
+      - name: Verify checkout remains clean
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain)"
+
+  coverage:
+    name: Swift 6.0 / first-party source coverage
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+
+    steps:
+      - name: Check out exact source commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact source commit
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Validate pinned Swift 6 coverage environment
+        env:
+          EXPECTED_XCODE_VERSION: "16.2"
+          EXPECTED_XCODE_BUILD: 16C5032a
+          EXPECTED_SWIFT_SERIES: "6.0"
+          EXPECTED_SDK_VERSION: "15.2"
+          EXPECTED_DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+        run: scripts/ci/check-compatibility-environment.sh
+
+      - name: Run source coverage reporting fixtures
+        run: python3 scripts/ci/test-source-coverage-report.py
+
+      - name: Capture first clean coverage run
+        id: coverage-run-1
+        env:
+          SWIFTQL_COVERAGE_SCRATCH_PATH: ${{ runner.temp }}/swiftql-coverage-build-1
+        run: |
+          scripts/ci/run-source-coverage.sh \
+            "$RUNNER_TEMP/swiftql-coverage-run-1"
+
+      - name: Capture second clean coverage run
+        id: coverage-run-2
+        env:
+          SWIFTQL_COVERAGE_SCRATCH_PATH: ${{ runner.temp }}/swiftql-coverage-build-2
+        run: |
+          scripts/ci/run-source-coverage.sh \
+            "$RUNNER_TEMP/swiftql-coverage-run-2"
+
+      - name: Verify reproducible first-party source selection
+        id: coverage-reproducibility
+        run: |
+          scripts/ci/verify-source-coverage-reproducibility.sh \
+            "$RUNNER_TEMP/swiftql-coverage-run-1" \
+            "$RUNNER_TEMP/swiftql-coverage-run-2" \
+            "$RUNNER_TEMP/swiftql-coverage-run-1/reproducibility.json"
+          cat "$RUNNER_TEMP/swiftql-coverage-run-1/summary.md" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Prepare retained source coverage evidence
+        if: ${{ always() && !cancelled() }}
+        env:
+          FIRST_CAPTURE_OUTCOME: ${{ steps.coverage-run-1.outcome }}
+          SECOND_CAPTURE_OUTCOME: ${{ steps.coverage-run-2.outcome }}
+          REPRODUCIBILITY_OUTCOME: ${{ steps.coverage-reproducibility.outcome }}
+        run: |
+          set -euo pipefail
+          for run in 1 2; do
+            directory="$RUNNER_TEMP/swiftql-coverage-run-$run"
+            mkdir -p "$directory"
+            if [[ ! -e "$directory/first-party-coverage.json" ]]; then
+              printf 'Capture did not produce a normalized report.\n' \
+                > "$directory/capture-status.txt"
+            fi
+          done
+          {
+            printf 'first_capture=%s\n' "$FIRST_CAPTURE_OUTCOME"
+            printf 'second_capture=%s\n' "$SECOND_CAPTURE_OUTCOME"
+            printf 'reproducibility=%s\n' "$REPRODUCIBILITY_OUTCOME"
+          } > "$RUNNER_TEMP/swiftql-coverage-run-1/workflow-step-outcomes.txt"
+
+      - name: Upload retained source coverage evidence
+        id: coverage-artifact
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: swiftql-source-coverage-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/swiftql-coverage-run-1
+            ${{ runner.temp }}/swiftql-coverage-run-2
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 9
+
+      - name: Link retained evidence from the job summary
+        if: ${{ always() && !cancelled() && steps.coverage-artifact.outcome == 'success' }}
+        env:
+          ARTIFACT_URL: ${{ steps.coverage-artifact.outputs.artifact-url }}
+          ARTIFACT_DIGEST: ${{ steps.coverage-artifact.outputs.artifact-digest }}
+        run: |
+          printf '\n## Retained raw evidence\n\n' >> "$GITHUB_STEP_SUMMARY"
+          printf -- '- [Download the source coverage artifact](%s)\n' \
+            "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
+          printf -- '- Artifact SHA-256: `%s`\n' \
+            "$ARTIFACT_DIGEST" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify checkout remains clean
         run: |
