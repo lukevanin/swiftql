@@ -12,7 +12,11 @@ let package = Package(
         .library(
             name: "SwiftQL",
             targets: ["SwiftQL"]
-        )
+        ),
+        .executable(
+            name: "swiftql-benchmark",
+            targets: ["SwiftQLBenchmarkCLI"]
+        ),
     ],
     dependencies: [
         // Depend on the latest Swift 5.9 prerelease of SwiftSyntax
@@ -41,6 +45,23 @@ let package = Package(
             ]
         ),
 
+        // Reusable benchmark implementation. Keeping this separate from the executable makes
+        // statistics, serialization, and smoke behavior directly testable.
+        .target(
+            name: "SwiftQLBenchmarks",
+            dependencies: [
+                "SwiftQL",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            path: "Benchmarks/Sources/SwiftQLBenchmarks"
+        ),
+
+        .executableTarget(
+            name: "SwiftQLBenchmarkCLI",
+            dependencies: ["SwiftQLBenchmarks"],
+            path: "Benchmarks/Sources/SwiftQLBenchmarkCLI"
+        ),
+
         // A test target used to develop the macro implementation.
         .testTarget(
             name: "SQLMacrosTests",
@@ -62,6 +83,12 @@ let package = Package(
                 "SwiftQL",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
+        ),
+
+        .testTarget(
+            name: "SwiftQLBenchmarkTests",
+            dependencies: ["SwiftQLBenchmarks"],
+            path: "Benchmarks/Tests/SwiftQLBenchmarkTests"
         ),
     ]
 )
