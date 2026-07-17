@@ -16,10 +16,12 @@ import XCTest
 @testable import SQLMacros
 
 
-private let testMacros: [String: Macro.Type] = [
-    "SQLTable": SQLTableMacro.self,
-    "SQLResult": SQLResultMacro.self,
-]
+private func makeTestMacros() -> [String: Macro.Type] {
+    [
+        "SQLTable": SQLTableMacro.self,
+        "SQLResult": SQLResultMacro.self,
+    ]
+}
 
 
 ///
@@ -38,9 +40,11 @@ private struct SQLTableMemberMacro: MemberMacro {
     }
 }
 
-private let memberTestMacros: [String: Macro.Type] = [
-    "SQLTable": SQLTableMemberMacro.self,
-]
+private func makeMemberTestMacros() -> [String: Macro.Type] {
+    [
+        "SQLTable": SQLTableMemberMacro.self,
+    ]
+}
 
 
 final class SQLMacroDiagnosticTests: XCTestCase {
@@ -65,7 +69,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     column: 9
                 )
             ],
-            macros: testMacros
+            macros: makeTestMacros()
         )
     }
 
@@ -95,7 +99,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     column: 9
                 )
             ],
-            macros: testMacros
+            macros: makeTestMacros()
         )
     }
 
@@ -121,7 +125,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     column: 5
                 )
             ],
-            macros: testMacros
+            macros: makeTestMacros()
         )
     }
 
@@ -145,7 +149,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     column: 5
                 )
             ],
-            macros: testMacros
+            macros: makeTestMacros()
         )
     }
 
@@ -169,7 +173,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     column: 9
                 )
             ],
-            macros: testMacros
+            macros: makeTestMacros()
         )
     }
 
@@ -193,7 +197,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     column: 9
                 )
             ],
-            macros: testMacros
+            macros: makeTestMacros()
         )
     }
 
@@ -217,7 +221,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     column: 19
                 )
             ],
-            macros: testMacros
+            macros: makeTestMacros()
         )
     }
 
@@ -241,7 +245,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     column: 9
                 )
             ],
-            macros: testMacros
+            macros: makeTestMacros()
         )
     }
 
@@ -265,7 +269,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     column: 17
                 )
             ],
-            macros: testMacros
+            macros: makeTestMacros()
         )
     }
 
@@ -287,7 +291,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     column: 1
                 )
             ],
-            macros: testMacros
+            macros: makeTestMacros()
         )
     }
 
@@ -311,7 +315,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     column: 9
                 )
             ],
-            macros: testMacros
+            macros: makeTestMacros()
         )
     }
 
@@ -340,7 +344,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     column: 16
                 ),
             ],
-            macros: testMacros
+            macros: makeTestMacros()
         )
     }
 
@@ -364,7 +368,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     column: 15
                 )
             ],
-            macros: testMacros
+            macros: makeTestMacros()
         )
     }
 
@@ -395,7 +399,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     column: 5
                 ),
             ],
-            macros: testMacros
+            macros: makeTestMacros()
         )
     }
 }
@@ -423,7 +427,7 @@ final class SQLMacroExpansionTests: XCTestCase {
                   }
             }
             """,
-            macros: memberTestMacros
+            macros: makeMemberTestMacros()
         )
     }
 
@@ -445,7 +449,7 @@ final class SQLMacroExpansionTests: XCTestCase {
                   }
             }
             """,
-            macros: memberTestMacros
+            macros: makeMemberTestMacros()
         )
     }
 
@@ -466,7 +470,7 @@ final class SQLMacroExpansionTests: XCTestCase {
                   }
             }
             """,
-            macros: memberTestMacros
+            macros: makeMemberTestMacros()
         )
     }
 }

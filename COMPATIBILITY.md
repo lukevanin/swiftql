@@ -77,6 +77,44 @@ xcrun swift test --skip-build -v
 
 The workflow is the canonical executable specification for both procedures.
 
+## Complete strict concurrency
+
+SwiftQL's supported Swift 6 compiler also checks every first-party product and
+test target with complete strict-concurrency diagnostics while remaining in
+Swift 5 language mode. Select the pinned Xcode 16.2 support point, then run:
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
+scripts/ci/check-strict-concurrency.sh
+```
+
+The script performs a clean build with the equivalent command:
+
+```sh
+xcrun swift build --build-tests -v \
+  -Xswiftc -strict-concurrency=complete \
+  -Xswiftc -warn-concurrency
+```
+
+`--build-tests` is required: together with the package's products it covers all
+seven first-party targets, including the benchmark executable and its library,
+the macro implementation, and all test targets. Cleaning first prevents an
+incremental no-op from appearing warning-free without invoking the compiler.
+
+Until #154 removes the remaining ordinary first-party warnings, the checker
+prints and temporarily permits only that issue's known deprecation, explicit
+`#warning`, and never-mutated-local diagnostics. It prints dependency and other
+build warnings separately, and fails closed for every other first-party warning.
+It does not suppress any compiler output.
+
+For local worktrees that share an existing SwiftPM dependency checkout, set
+`SWIFTQL_SCRATCH_PATH` before invoking the script:
+
+```sh
+SWIFTQL_SCRATCH_PATH=/path/to/swiftql/.build \
+  scripts/ci/check-strict-concurrency.sh
+```
+
 ## Diagnostics policy
 
 Compiler and test failures in either support point are release blockers.
@@ -87,6 +125,9 @@ separate, searchable sections for every cell:
   source and tests, deprecated `result` calls in sources and examples, and
   unused generated declarations. Cleanup is owned by
   [#154](https://github.com/lukevanin/swiftql/issues/154).
+- Complete strict-concurrency warnings are release blockers in the Swift 6.0
+  lanes; `check-strict-concurrency.sh` enforces that boundary after the standard
+  build and tests.
 - Verbose builds on both support points currently emit dependency-prefixed
   manifest compiler command lines for `swift-docc-plugin`, `grdb.swift`,
   `swift-syntax`, and `swift-docc-symbolkit`. They are recorded separately under

@@ -18,20 +18,22 @@ struct InsertTest {
 
     private static let valueParameter = XLNamedBindingReference<Int>(name: "value")
 
-    private static let statement: any XLInsertStatement<TestTable> = sqlInsert {
-        let table = $0.table(TestTable.self)
-        return insert(table).values(
-            TestTable.MetaInsert(
-                id: idParameter,
-                value: valueParameter
+    private static func makeStatement() -> any XLInsertStatement<TestTable> {
+        sqlInsert {
+            let table = $0.table(TestTable.self)
+            return insert(table).values(
+                TestTable.MetaInsert(
+                    id: idParameter,
+                    value: valueParameter
+                )
             )
-        )
+        }
     }
     
     private let request: XLWriteRequest
     
     init(database: XLDatabase) {
-        request = database.makeRequest(with: Self.statement)
+        request = database.makeRequest(with: Self.makeStatement())
     }
     
     func execute(_ entity: TestTable) throws {
@@ -49,18 +51,20 @@ struct UpdateTest {
 
     private static let valueParameter = XLNamedBindingReference<Int>(name: "value")
 
-    private static let statement: any XLUpdateStatement<TestTable> = sqlUpdate {
-        let table = $0.into(TestTable.self)
-        return update(table, set: TestTable.MetaUpdate(
-            value: valueParameter
-        ))
-        .where(table.id == idParameter)
+    private static func makeStatement() -> any XLUpdateStatement<TestTable> {
+        sqlUpdate {
+            let table = $0.into(TestTable.self)
+            return update(table, set: TestTable.MetaUpdate(
+                value: valueParameter
+            ))
+            .where(table.id == idParameter)
+        }
     }
     
     private let request: XLWriteRequest
     
     init(database: XLDatabase) {
-        request = database.makeRequest(with: Self.statement)
+        request = database.makeRequest(with: Self.makeStatement())
     }
     
     func execute(id: String, value: Int) throws {
