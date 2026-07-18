@@ -521,13 +521,28 @@ public struct GRDBPreparedStaticQuery: Sendable {
         bindings: any XLInvocationBindingPacket
     ) throws -> [[XLSQLiteValue]] {
         try requireCardinality(.many)
-        let rows = try invocation.fetchAllValues(
-            bindings: validatedBindings(bindings)
-        )
-        for (index, row) in rows.enumerated() {
-            try validate(row: row, at: index)
+        var rows: [[XLSQLiteValue]] = []
+        try forEachValueRow(bindings: bindings) { row in
+            rows.append(row)
+            return .advance
         }
         return rows
+    }
+
+    /// Visits and validates every result row for a many-row descriptor while
+    /// the underlying cursor remains inside its physical connection access.
+    package func forEachValueRow(
+        bindings: any XLInvocationBindingPacket,
+        _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
+    ) throws {
+        try requireCardinality(.many)
+        let packet = try validatedBindings(bindings)
+        var index = 0
+        try invocation.forEachValueRow(bindings: packet) { row in
+            try validate(row: row, at: index)
+            index += 1
+            return try body(row)
+        }
     }
 
     private func requireCardinality(
@@ -705,9 +720,12 @@ public struct GRDBPreparedTypedStaticQuery<Row> {
     public func fetchAll(
         bindings: any XLInvocationBindingPacket
     ) throws -> [Row] {
-        try query.fetchAllValues(bindings: bindings).map(
-            definition.layout.decode
-        )
+        var rows: [Row] = []
+        try query.forEachValueRow(bindings: bindings) { values in
+            rows.append(try definition.layout.decode(values))
+            return .advance
+        }
+        return rows
     }
 }
 

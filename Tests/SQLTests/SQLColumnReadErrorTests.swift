@@ -64,10 +64,12 @@ final class XLColumnReadErrorTests: XCTestCase {
     private var databasePool: DatabasePool!
     private var databaseDirectoryURL: URL!
     private var logger: ColumnReadTestLogger!
+    private var streamStepProbe: ColumnReadStreamStepProbe!
     private var cancellables: Set<AnyCancellable> = []
 
     override func setUpWithError() throws {
         logger = ColumnReadTestLogger()
+        streamStepProbe = ColumnReadStreamStepProbe()
         databaseDirectoryURL = FileManager.default.temporaryDirectory
             .appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(
@@ -75,9 +77,21 @@ final class XLColumnReadErrorTests: XCTestCase {
             withIntermediateDirectories: true
         )
         let fileURL = databaseDirectoryURL.appending(path: "database.sqlite", directoryHint: .notDirectory)
+        var configuration = Configuration()
+        let streamStepProbe = try XCTUnwrap(streamStepProbe)
+        configuration.prepareDatabase { database in
+            database.add(
+                function: DatabaseFunction(
+                    ColumnReadStreamStepProbe.functionName,
+                    argumentCount: 1
+                ) { values in
+                    streamStepProbe.observe(values[0])
+                }
+            )
+        }
         var builder = try GRDBDatabaseBuilder(
             url: fileURL,
-            configuration: Configuration(),
+            configuration: configuration,
             logger: logger
         )
         builder.addFunction(ColumnReadIntegerFunction.self)
@@ -90,6 +104,7 @@ final class XLColumnReadErrorTests: XCTestCase {
         databasePool = nil
         database = nil
         logger = nil
+        streamStepProbe = nil
         try? FileManager.default.removeItem(at: databaseDirectoryURL)
         databaseDirectoryURL = nil
     }
@@ -232,6 +247,54 @@ final class XLColumnReadErrorTests: XCTestCase {
         XCTAssertTrue(
             logger.errorMessages.contains { $0.contains(expectedError.localizedDescription) },
             "Expected the decode failure to be logged before it was rethrown."
+        )
+    }
+
+    func testFetchAllDecodeFailureStopsSQLiteAndLeavesPoolReusable() throws {
+        try databasePool.write { database in
+            try database.execute(
+                sql: """
+                    CREATE TABLE TestStorage (
+                        id TEXT PRIMARY KEY,
+                        value INTEGER
+                    )
+                    """
+            )
+            try database.execute(
+                sql: """
+                    INSERT INTO TestStorage (id, value) VALUES
+                        ('1-valid', 1),
+                        ('2-invalid', NULL),
+                        ('3-must-not-step', 3)
+                    """
+            )
+            try database.execute(
+                sql: """
+                    CREATE VIEW Test AS
+                    SELECT
+                        id,
+                        \(ColumnReadStreamStepProbe.functionName)(value) AS value
+                    FROM TestStorage
+                    """
+            )
+        }
+
+        assertColumnReadError(
+            try database.makeRequest(
+                with: orderedTestTableStatement()
+            ).fetchAll(),
+            equals: nullIntegerReadError()
+        )
+        XCTAssertEqual(
+            streamStepProbe.invocationCount,
+            2,
+            "Typed decoding must fail before SQLite steps the third row."
+        )
+        XCTAssertEqual(
+            try databasePool.read { database in
+                try Int.fetchOne(database, sql: "SELECT 42")
+            },
+            42
         )
     }
 
@@ -411,5 +474,28 @@ final class XLColumnReadErrorTests: XCTestCase {
         XCTAssertThrowsError(try expression(), file: file, line: line) { error in
             XCTAssertEqual(error as? XLColumnReadError, expectedError, file: file, line: line)
         }
+    }
+}
+
+
+private final class ColumnReadStreamStepProbe: @unchecked Sendable {
+
+    static let functionName = "swiftql_column_read_stream_probe"
+
+    private let lock = NSLock()
+
+    private var invocationCountValue = 0
+
+    var invocationCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return invocationCountValue
+    }
+
+    func observe(_ value: DatabaseValue) -> Int64? {
+        lock.lock()
+        invocationCountValue += 1
+        lock.unlock()
+        return Int64.fromDatabaseValue(value)
     }
 }

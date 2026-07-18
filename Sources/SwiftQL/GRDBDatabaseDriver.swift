@@ -118,6 +118,35 @@ struct GRDBInvocationExecutor: Sendable {
         try connection.fetchAll(boundStatement(packet: packet, in: &connection))
     }
 
+    /// Visits normalized rows while the GRDB cursor remains inside its owning
+    /// database access. The callback can stop SQLite stepping without exposing
+    /// the cursor or retaining a complete normalized result matrix.
+    func forEachRow(
+        bindings: any XLInvocationBindingPacket,
+        _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
+    ) throws {
+        let packet = try sqlitePacket(bindings)
+        var driver = driver
+        try driver.withReadConnection { connection in
+            try forEachRow(
+                packet: packet,
+                in: &connection,
+                body
+            )
+        }
+    }
+
+    func forEachRow(
+        packet: XLInvocationBindings<XLSQLiteValue>,
+        in connection: inout GRDBDatabaseDriverConnection,
+        _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
+    ) throws {
+        try connection.forEachRow(
+            boundStatement(packet: packet, in: &connection),
+            body
+        )
+    }
+
     func fetchOne(
         bindings: any XLInvocationBindingPacket
     ) throws -> [XLSQLiteValue]? {
@@ -281,6 +310,16 @@ public struct GRDBPreparedInvocation: Sendable {
         try executor.fetchAll(bindings: bindings)
     }
 
+    /// Visits normalized SQLite rows without exposing the GRDB cursor outside
+    /// its owning connection. Package clients use this to decode typed results
+    /// before advancing instead of first retaining a complete value matrix.
+    package func forEachValueRow(
+        bindings: any XLInvocationBindingPacket,
+        _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
+    ) throws {
+        try executor.forEachRow(bindings: bindings, body)
+    }
+
     /// Fetches the first normalized SQLite row for one immutable binding packet.
     public func fetchOneValues(
         bindings: any XLInvocationBindingPacket
@@ -297,7 +336,10 @@ public struct GRDBPreparedInvocation: Sendable {
 }
 
 
-struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
+struct GRDBDatabaseDriverConnection:
+    XLDatabaseDriverConnection,
+    XLStreamingDatabaseDriverConnection
+{
 
     typealias Dialect = XLSQLiteDialect
 
@@ -379,23 +421,34 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
     mutating func fetchAll(
         _ statement: GRDBPhysicalStatement
     ) throws -> [[XLSQLiteValue]] {
-        try validateOwnership(of: statement)
-        return try Row.fetchAll(
-            statement.statement,
-            arguments: statementArguments(statement)
-        ).map { row in
-            row.databaseValues.map(\.sqliteDialectValue)
-        }
+        try collectAllRows(statement)
     }
 
     mutating func fetchOne(
         _ statement: GRDBPhysicalStatement
     ) throws -> [XLSQLiteValue]? {
+        try collectFirstRow(statement)
+    }
+
+    mutating func forEachRow(
+        _ statement: GRDBPhysicalStatement,
+        _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
+    ) throws {
         try validateOwnership(of: statement)
-        return try Row.fetchOne(
+        let cursor = try Row.fetchCursor(
             statement.statement,
             arguments: statementArguments(statement)
-        )?.databaseValues.map(\.sqliteDialectValue)
+        )
+        while let row = try cursor.next() {
+            // RowCursor reuses its row storage. Normalize all values before
+            // invoking the callback or advancing to the next SQLite row.
+            let values = Array(
+                row.databaseValues.map(\.sqliteDialectValue)
+            )
+            if try body(values) == .stop {
+                return
+            }
+        }
     }
 
     mutating func execute(_ statement: GRDBPhysicalStatement) throws {

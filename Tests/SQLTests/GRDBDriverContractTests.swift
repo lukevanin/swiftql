@@ -68,6 +68,25 @@ final class GRDBDriverContractTests: XCTestCase {
                     )
                     return try XCTUnwrap(connection.fetchOne(statement))
                 }
+                let streamedRows = try driver.withReadConnection { connection in
+                    var statement = try connection.prepare(logicalStatement)
+                    statement = try connection.bind(
+                        testCase.value,
+                        to: .named("value"),
+                        in: statement
+                    )
+                    var rows: [[XLSQLiteValue]] = []
+                    try connection.forEachRow(statement) { values in
+                        rows.append(values)
+                        return .advance
+                    }
+                    return rows
+                }
+                XCTAssertEqual(
+                    streamedRows,
+                    [row],
+                    testCase.id.rawValue
+                )
                 XCTAssertEqual(row[0], testCase.value, testCase.id.rawValue)
                 XCTAssertEqual(
                     row[1],
@@ -124,7 +143,31 @@ final class GRDBDriverContractTests: XCTestCase {
             )
             return try XCTUnwrap(connection.fetchOne(prepared))
         }
+        let streamedRows = try driver.withReadConnection { connection in
+            var prepared = try connection.prepare(statement)
+            prepared = try connection.bind(
+                .text(composed),
+                to: .named("composed"),
+                in: prepared
+            )
+            prepared = try connection.bind(
+                .text(decomposed),
+                to: .named("decomposed"),
+                in: prepared
+            )
+            var rows: [[XLSQLiteValue]] = []
+            try connection.forEachRow(prepared) { values in
+                rows.append(values)
+                return .advance
+            }
+            return rows
+        }
 
+        XCTAssertEqual(
+            streamedRows,
+            [row],
+            SQLiteValueConformanceCaseID.unicodeText.rawValue
+        )
         XCTAssertEqual(row[0], .text(composed))
         XCTAssertEqual(row[1], .text("C3A9"))
         XCTAssertEqual(row[2], .text(decomposed))
@@ -134,6 +177,116 @@ final class GRDBDriverContractTests: XCTestCase {
             .integer(0),
             SQLiteValueConformanceCaseID.unicodeText.rawValue
         )
+    }
+
+    func testCursorStreamBoundsSteppingAndReleasesConnectionOnStopAndError() throws {
+        let probe = GRDBStreamStepProbe()
+        var configuration = Configuration()
+        configuration.prepareDatabase { database in
+            database.add(
+                function: DatabaseFunction(
+                    GRDBStreamStepProbe.functionName,
+                    argumentCount: 1
+                ) { values in
+                    probe.observe(values[0])
+                }
+            )
+        }
+        let fixture = try makeFixture(configuration: configuration)
+        defer { fixture.tearDown() }
+
+        var driver = GRDBDatabaseDriver(
+            databasePool: fixture.databasePool,
+            dialect: XLSQLiteDialect()
+        )
+        let create = makeLogicalStatement(
+            for: driver,
+            sql: "CREATE TABLE stream_rows (id INTEGER PRIMARY KEY)"
+        )
+        let insert = makeLogicalStatement(
+            for: driver,
+            sql: "INSERT INTO stream_rows (id) VALUES (1), (2), (3), (4), (5)"
+        )
+        let select = makeLogicalStatement(
+            for: driver,
+            sql: """
+                SELECT id, \(GRDBStreamStepProbe.functionName)(id)
+                FROM stream_rows
+                ORDER BY id
+                """
+        )
+        let empty = makeLogicalStatement(
+            for: driver,
+            sql: """
+                SELECT id, \(GRDBStreamStepProbe.functionName)(id)
+                FROM stream_rows
+                WHERE id < 0
+                """
+        )
+        try driver.withWriteConnection { connection in
+            try connection.execute(connection.prepare(create))
+            try connection.execute(connection.prepare(insert))
+        }
+
+        var earlyRows: [[XLSQLiteValue]] = []
+        var replayAfterStop: [[XLSQLiteValue]] = []
+        var invocationCountAtStop = 0
+        try driver.withReadConnection { connection in
+            let statement = try connection.prepare(select)
+            try connection.forEachRow(statement) { row in
+                earlyRows.append(row)
+                return earlyRows.count == 2 ? .stop : .advance
+            }
+            invocationCountAtStop = probe.invocationCount
+            replayAfterStop = try connection.fetchAll(statement)
+        }
+        XCTAssertEqual(earlyRows.map(\.first), [.integer(1), .integer(2)])
+        XCTAssertEqual(invocationCountAtStop, 2)
+        XCTAssertEqual(
+            replayAfterStop.map(\.first),
+            (1 ... 5).map { .integer(Int64($0)) }
+        )
+        XCTAssertEqual(probe.invocationCount, 7)
+
+        let countBeforeError = probe.invocationCount
+        XCTAssertThrowsError(
+            try driver.withReadConnection { connection in
+                let statement = try connection.prepare(select)
+                try connection.forEachRow(statement) { row in
+                    if row.first == .integer(3) {
+                        throw TransactionAbort.requested
+                    }
+                    return .advance
+                }
+            }
+        ) { error in
+            XCTAssertEqual(error as? TransactionAbort, .requested)
+        }
+        XCTAssertEqual(probe.invocationCount - countBeforeError, 3)
+
+        let countBeforeFirst = probe.invocationCount
+        let first = try driver.withReadConnection { connection in
+            try connection.fetchOne(connection.prepare(select))
+        }
+        XCTAssertEqual(first?.first, .integer(1))
+        XCTAssertEqual(probe.invocationCount - countBeforeFirst, 1)
+
+        let countBeforeAll = probe.invocationCount
+        let all = try driver.withReadConnection { connection in
+            try connection.fetchAll(connection.prepare(select))
+        }
+        XCTAssertEqual(
+            all.map(\.first),
+            (1 ... 5).map { .integer(Int64($0)) }
+        )
+        XCTAssertEqual(probe.invocationCount - countBeforeAll, 5)
+
+        let countBeforeEmpty = probe.invocationCount
+        let noRows = try driver.withReadConnection { connection in
+            try connection.fetchAll(connection.prepare(empty))
+        }
+        XCTAssertTrue(noRows.isEmpty)
+        XCTAssertEqual(probe.invocationCount, countBeforeEmpty)
     }
 
     func testSharedSQLiteAffinityCasesAssertValueTypeAndState() throws {
@@ -744,7 +897,9 @@ final class GRDBDriverContractTests: XCTestCase {
         )
     }
 
-    private func makeFixture() throws -> Fixture {
+    private func makeFixture(
+        configuration: Configuration = Configuration()
+    ) throws -> Fixture {
         let directoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("swiftql-grdb-driver-contract-\(UUID().uuidString)")
         try FileManager.default.createDirectory(
@@ -752,12 +907,36 @@ final class GRDBDriverContractTests: XCTestCase {
             withIntermediateDirectories: false
         )
         let databasePool = try DatabasePool(
-            path: directoryURL.appendingPathComponent("database.sqlite").path
+            path: directoryURL.appendingPathComponent("database.sqlite").path,
+            configuration: configuration
         )
         return Fixture(
             directoryURL: directoryURL,
             databasePool: databasePool
         )
+    }
+}
+
+
+private final class GRDBStreamStepProbe: @unchecked Sendable {
+
+    static let functionName = "swiftql_stream_step_probe"
+
+    private let lock = NSLock()
+
+    private var invocationCountValue = 0
+
+    var invocationCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return invocationCountValue
+    }
+
+    func observe(_ value: DatabaseValue) -> Int64? {
+        lock.lock()
+        invocationCountValue += 1
+        lock.unlock()
+        return Int64.fromDatabaseValue(value)
     }
 }
 

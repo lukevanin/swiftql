@@ -473,6 +473,24 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
         let row = try driver.withReadConnection { connection in
             try XCTUnwrap(connection.fetchOne(connection.prepare(select)))
         }
+        let streamedRows = try driver.withReadConnection { connection in
+            let statement = try connection.prepare(select)
+            var rows: [[XLSQLiteValue]] = []
+            try connection.forEachRow(statement) { values in
+                rows.append(values)
+                return .advance
+            }
+            return rows
+        }
+        XCTAssertEqual(
+            streamedRows,
+            [row],
+            [
+                SQLiteValueConformanceCaseID.namedTextCodec.rawValue,
+                SQLiteValueConformanceCaseID.defaultIntegerCodec.rawValue,
+                SQLiteValueConformanceCaseID.optionalNullVersusMissing.rawValue,
+            ].joined(separator: ", ")
+        )
         XCTAssertEqual(
             Array(row[0 ... 1]),
             [.text("ready"), .text("text")],

@@ -234,6 +234,23 @@ on one connection does not guarantee every later preparation: preparation can
 still fail later on a newly leased connection, for example when its schema,
 registered functions, or available capabilities differ.
 
+#### Incremental row lifetime
+
+The GRDB adapter steps result rows through a package-internal, driver-neutral
+callback while the leased connection is active. It copies each row into
+normalized SQLite values before advancing because GRDB reuses cursor-backed row
+storage. The synchronous callback may stop without stepping later rows, and a
+thrown decoding error releases the cursor and connection before it propagates.
+A cursor value is never returned from the database-access closure.
+
+The public v1 behavior remains eager: `fetchAll()` still returns a complete
+typed array, while `fetchOne()` returns an optional first row. Those
+compatibility APIs are layered over the same incremental primitive.
+`fetchAll()` therefore retains its typed output as required but no longer
+retains a complete intermediate array of GRDB rows or normalized SQLite-value
+rows before typed decoding. Future package adapters should implement the same
+callback lifetime rather than exposing their native cursor types.
+
 #### Transactions and bindings
 
 Transaction-scoped work pins one connection for the duration of the
