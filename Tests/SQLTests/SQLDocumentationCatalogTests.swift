@@ -38,6 +38,10 @@ private let documentationTests = [
         XLDocumentationTests.testDocumentationExpressions
     ),
     DocumentationTestReference(
+        "XLDocumentationTests.testDocumentationRealValues",
+        XLDocumentationTests.testDocumentationRealValues
+    ),
+    DocumentationTestReference(
         "XLDocumentationTests.testDocumentationEnumValues",
         XLDocumentationTests.testDocumentationEnumValues
     ),
@@ -85,6 +89,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         "GettingStarted.md": "XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings",
         "LiveQueries.md": "XLDocumentationTests.testDocumentationLiveQueryPublishers",
         "Queries.md": "XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs",
+        "RealValues.md": "XLDocumentationTests.testDocumentationRealValues",
         "StaticQueries.md": "XLDocumentationTests.testDocumentationStaticQueries",
         "SwiftQL.md": "XLDocumentationTests.testDocumentationQuickStart",
     ]

@@ -34,10 +34,19 @@ public struct XLV1LiteralCodec<Value>: Sendable where Value: XLLiteral & Sendabl
             storageIdentifier: XLValueStorageIdentifier(
                 rawValue: storageClass.rawValue
             ),
-            encode: { value, _, _ in
+            encode: { value, _, codingContext in
                 var context: any XLBindingContext = _XLV1LiteralBindingContext()
                 value.bind(context: &context)
-                return (context as! _XLV1LiteralBindingContext).value
+                let encoded = (context as! _XLV1LiteralBindingContext).value
+                if case .real(let real) = encoded,
+                   let error = XLSQLValueEncodingError.bindingFailure(
+                       for: real,
+                       valueType: String(reflecting: Value.self),
+                       context: codingContext
+                   ) {
+                    throw error
+                }
+                return encoded
             },
             decode: { value, _, _ in
                 try Value(

@@ -85,6 +85,7 @@ replacing SQLite's runtime type rules.
 - <doc:StaticQueries>
 - <doc:LiveQueries>
 - <doc:Expressions>
+- <doc:RealValues>
 - <doc:BuiltinFunctions>
 - <doc:FunctionalSyntax>
 

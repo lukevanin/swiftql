@@ -54,7 +54,8 @@ public struct XLiteEncoder: XLEncoder {
                 capabilities: requirementRecorder.capabilities
             ),
             parameterLayout: requirementRecorder.parameterLayout,
-            parameterLayoutError: requirementRecorder.parameterLayoutError
+            parameterLayoutError: requirementRecorder.parameterLayoutError,
+            valueEncodingError: requirementRecorder.valueEncodingError
         )
     }
 
@@ -62,6 +63,9 @@ public struct XLiteEncoder: XLEncoder {
     /// declarations before a prepared handle is created.
     public func makeValidatedSQL(_ expression: XLEncodable) throws -> XLEncoding {
         let encoding = makeSQL(expression)
+        if let error = encoding.valueEncodingError {
+            throw error
+        }
         if let error = encoding.parameterLayoutError {
             throw error
         }
@@ -78,11 +82,19 @@ private final class XLiteDialectRequirementRecorder {
 
     private(set) var parameterLayoutError: XLInvocationBindingError?
 
+    private(set) var valueEncodingError: XLSQLValueEncodingError?
+
     private var physicalIndexByKey: [XLBindingKey: Int] = [:]
 
     private var slotByPhysicalIndex: [Int: XLParameterSlot] = [:]
 
     private var largestPhysicalIndex = 0
+
+    func recordValueEncodingError(_ error: XLSQLValueEncodingError) {
+        if valueEncodingError == nil {
+            valueEncodingError = error
+        }
+    }
 
     func recordLegacyParameter(key: XLBindingKey) {
         let existing = parameterLayout.slot(for: key)
@@ -227,6 +239,8 @@ private protocol XLiteParameterRecordingFormatter: XLFormatter {
     func formatParameter(_ slot: XLParameterSlot) -> String
 
     func formatParameter(_ declaration: XLParameterDeclaration) -> String
+
+    func recordValueEncodingError(_ error: XLSQLValueEncodingError)
 }
 
 
@@ -299,6 +313,10 @@ private struct XLiteRequirementRecordingFormatter: XLiteParameterRecordingFormat
             return base.indexedBinding(index)
         }
     }
+
+    func recordValueEncodingError(_ error: XLSQLValueEncodingError) {
+        recorder.recordValueEncodingError(error)
+    }
 }
 
 
@@ -330,7 +348,10 @@ public struct XLiteFormatter: XLFormatter {
     }
 
     public func real(_ value: Double) -> String {
-        String(value)
+        guard value.isFinite else {
+            return ""
+        }
+        return String(value)
     }
 
     public func text(_ text: String) -> String {
@@ -410,7 +431,26 @@ public struct XLiteBuilder: XLBuilder {
     }
 
     public mutating func real(_ value: Double) {
+        if let classified = XLNonFiniteRealValue(value) {
+            valueEncodingFailed(
+                .nonFiniteRealLiteral(
+                    value: classified,
+                    expressionType: String(reflecting: Double.self)
+                )
+            )
+            return
+        }
         append(formatter.real(value))
+    }
+
+    public mutating func valueEncodingFailed(
+        _ error: XLSQLValueEncodingError
+    ) {
+        guard let recordingFormatter =
+                formatter as? any XLiteParameterRecordingFormatter else {
+            return
+        }
+        recordingFormatter.recordValueEncodingError(error)
     }
 
     public mutating func text(_ value: String) {

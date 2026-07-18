@@ -405,7 +405,7 @@ final class QueryCaptureGRDBTests: XCTestCase {
         }
     }
 
-    func testIntrinsicDoubleRejectsValuesSQLiteWouldNormalizeToNull() throws {
+    func testIntrinsicDoubleRejectsNaNAndPreservesBoundInfinities() throws {
         let fixture = try makeQueryCaptureDatabase()
         defer { fixture.tearDown() }
         let capture = try XLQueryCapture<Double, Double, XLSQLiteDialect>
@@ -418,16 +418,31 @@ final class QueryCaptureGRDBTests: XCTestCase {
             definition: ["tests", "query-capture", "non-finite"]
         )
 
-        for value in [Double.nan, .infinity, -.infinity] {
-            XCTAssertThrowsError(try prepared.makeInvocationBindings {
+        XCTAssertThrowsError(try prepared.makeInvocationBindings {
+            try $0.bind(.nan, to: capture)
+        }) { error in
+            XCTAssertNil(
+                error as? XLValueCodecError,
+                "Intrinsic captures should preserve the structured value error."
+            )
+            XCTAssertEqual(
+                error as? XLSQLValueEncodingError,
+                .realBindingWouldBecomeNull(
+                    value: .notANumber,
+                    valueType: String(reflecting: Double.self),
+                    context: capture.declaration.codingContext
+                )
+            )
+        }
+
+        for value in [Double.infinity, -.infinity] {
+            let packet = try prepared.makeInvocationBindings {
                 try $0.bind(value, to: capture)
-            }) { error in
-                guard case .nonFiniteReal(let identity, _) =
-                        error as? XLQueryCaptureError else {
-                    return XCTFail("Unexpected error: \(error)")
-                }
-                XCTAssertEqual(identity, capture.identity)
             }
+            XCTAssertEqual(
+                try prepared.fetchExactlyOneValues(bindings: packet),
+                [.real(value)]
+            )
         }
     }
 

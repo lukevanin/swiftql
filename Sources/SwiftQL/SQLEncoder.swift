@@ -108,18 +108,26 @@ public struct XLEncoding {
     /// boundary can reject the statement before preparing it.
     public let parameterLayoutError: XLInvocationBindingError?
 
+    /// The first deterministic value-rendering failure encountered while
+    /// building `sql`. The nonthrowing v1 encoder retains this error so every
+    /// validated or executable boundary can reject the statement before
+    /// SQLite parses partial SQL.
+    public let valueEncodingError: XLSQLValueEncodingError?
+
     public init(
         sql: String,
         entities: Set<String>,
         dialectRequirement: XLDialectRequirement,
         parameterLayout: XLParameterLayout = .empty,
-        parameterLayoutError: XLInvocationBindingError? = nil
+        parameterLayoutError: XLInvocationBindingError? = nil,
+        valueEncodingError: XLSQLValueEncodingError? = nil
     ) {
         self.sql = sql
         self.entities = entities
         self.dialectRequirement = dialectRequirement
         self.parameterLayout = parameterLayout
         self.parameterLayoutError = parameterLayoutError
+        self.valueEncodingError = valueEncodingError
     }
 }
 
@@ -256,6 +264,11 @@ public protocol XLBuilder {
     /// - Parameter value: Double literal.
     ///
     mutating func real(_ value: Double)
+
+    /// Records a value-rendering failure without emitting an invalid SQL
+    /// token. Builders that predate fallible rendering remain source
+    /// compatible through the default implementation.
+    mutating func valueEncodingFailed(_ error: XLSQLValueEncodingError)
     
     ///
     /// Adds a `String` literal.
@@ -436,6 +449,10 @@ public protocol XLBuilder {
 }
 
 extension XLBuilder {
+
+    public mutating func valueEncodingFailed(
+        _ error: XLSQLValueEncodingError
+    ) {}
 
     public mutating func parameter(_ slot: XLParameterSlot) {
         switch slot.key {
