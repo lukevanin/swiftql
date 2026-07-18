@@ -65,7 +65,7 @@ private struct SQLResultColumnsMemberMacro: MemberMacro {
                 of: node,
                 providingMembersOf: declaration,
                 in: context
-            ).dropFirst()
+            ).dropFirst().prefix(1)
         )
     }
 }
@@ -828,6 +828,142 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains(").readRow"))
     }
 
+    func test_staticRowLayoutGenerationCoversTypedOptionalQualifiedGenericAndBacktickedFields() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct Projection<Element> {
+                let `switch`: Swift.Optional<Element>
+                let values: Array<Element>
+            }
+            """
+        )
+        let source = builder.makeStaticRowLayoutFunction()
+
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+        XCTAssertTrue(source.contains("public static func staticRowLayout<_SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("some SwiftQL.XLStaticSelectFieldProtocol<Element?, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("some SwiftQL.XLStaticSelectFieldProtocol<Array<Element>, _SwiftQLStaticDialect>"))
+        XCTAssertFalse(source.contains("_SwiftQLStaticStorage"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField0 = `switch`.positioned(at: 0, alias: \"switch\")"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField1 = values.positioned(at: 1, alias: \"values\")"))
+        XCTAssertTrue(source.contains("try _swiftQLStaticField0.read(from: _swiftQLStaticReader)"))
+        XCTAssertTrue(source.contains("try _swiftQLStaticField1.encode(_swiftQLStaticRow.values)"))
+        XCTAssertTrue(source.contains("try _swiftQLStaticField0.erased()"))
+    }
+
+    func test_staticRowLayoutGenerationAvoidsReaderAndRowPropertyCollisions() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct Projection {
+                let reader: String
+                let row: Int
+            }
+            """
+        )
+        let source = builder.makeStaticRowLayoutFunction()
+        let metaSource = builder.makeMetaResultExtension(table: false)
+
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+        XCTAssertTrue(source.contains("let _swiftQLStaticField0 = reader.positioned"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField1 = row.positioned"))
+        XCTAssertTrue(source.contains("decode: { _swiftQLStaticReader in"))
+        XCTAssertTrue(source.contains("reader: try _swiftQLStaticField0.read(from: _swiftQLStaticReader)"))
+        XCTAssertTrue(source.contains("encode: { _swiftQLStaticRow in"))
+        XCTAssertTrue(source.contains("try _swiftQLStaticField1.encode(_swiftQLStaticRow.row)"))
+        XCTAssertFalse(source.contains("decode: { reader in"))
+        XCTAssertFalse(source.contains("encode: { row in"))
+        XCTAssertTrue(metaSource.contains("readRow(reader _swiftQLRowReader: XLRowReader)"))
+        XCTAssertTrue(metaSource.contains("reader: try _swiftQLRowReader.staticColumn(reader"))
+        XCTAssertTrue(metaSource.contains("row: try _swiftQLRowReader.staticColumn(row"))
+    }
+
+    func test_staticRowLayoutGenerationAllocatesCollisionFreeIdentifiers() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct Projection<
+                Dialect,
+                _SwiftQLStaticDialect,
+                _SwiftQLStaticStorage0
+            > {
+                let dialect: Dialect
+                let staticDialect: _SwiftQLStaticDialect
+                let storage: _SwiftQLStaticStorage0
+                let _swiftQLStaticField0: String
+                let _swiftQLStaticReader: String
+                let _swiftQLStaticRow: String
+            }
+            """
+        )
+        let source = builder.makeStaticRowLayoutFunction()
+
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+        XCTAssertTrue(source.contains("staticRowLayout<_SwiftQLStaticDialect_1>"))
+        XCTAssertTrue(source.contains("XLStaticSelectFieldProtocol<Dialect, _SwiftQLStaticDialect_1>"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField0_1 = dialect.positioned"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField3 = _swiftQLStaticField0.positioned"))
+        XCTAssertTrue(source.contains("decode: { _swiftQLStaticReader_1 in"))
+        XCTAssertTrue(source.contains("encode: { _swiftQLStaticRow_1 in"))
+        XCTAssertFalse(source.contains("staticRowLayout<Dialect>"))
+    }
+
+    func test_generatedAllocatorsReserveNominalAndPropertyTypeIdentifiers() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct _swiftQLRowReader {
+                let direct: _SwiftQLStaticDialect
+                let nested: Box<Array<_SwiftQLStaticDialect?>>
+            }
+            """
+        )
+        let staticSource = builder.makeStaticRowLayoutFunction()
+        let metaSource = builder.makeMetaResultExtension(table: false)
+
+        XCTAssertFalse(Parser.parse(source: staticSource).hasError)
+        XCTAssertTrue(
+            staticSource.contains(
+                "staticRowLayout<_SwiftQLStaticDialect_1>"
+            )
+        )
+        XCTAssertTrue(
+            staticSource.contains(
+                "XLStaticSelectFieldProtocol<_SwiftQLStaticDialect, _SwiftQLStaticDialect_1>"
+            )
+        )
+        XCTAssertTrue(
+            staticSource.contains(
+                "XLStaticSelectFieldProtocol<Box<Array<_SwiftQLStaticDialect?>>, _SwiftQLStaticDialect_1>"
+            )
+        )
+        XCTAssertTrue(
+            metaSource.contains(
+                "readRow(reader _swiftQLRowReader_1: XLRowReader) throws -> _swiftQLRowReader"
+            )
+        )
+    }
+
+    func test_emptyStaticRowLayoutGenerationDefersInitializerToDecodeClosure() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct EmptyProjection {
+            }
+            """
+        )
+        let source = builder.makeStaticRowLayoutFunction()
+
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+        XCTAssertTrue(source.contains("fields: ["))
+        XCTAssertTrue(source.contains("decode: { _swiftQLStaticReader in"))
+        XCTAssertTrue(source.contains("Self"))
+        XCTAssertTrue(source.contains("encode: { _swiftQLStaticRow in"))
+        XCTAssertFalse(source.contains("sqlDefault"))
+        XCTAssertFalse(source.contains("SQLReader"))
+    }
+
     func test_immutableTableUpdateRequestAvoidsUnusedTemporaries() throws {
         let builder = try makeBuilder(
             """
@@ -861,6 +997,6 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("var output = entity"))
         XCTAssertTrue(source.contains("output.id = value"))
         XCTAssertTrue(source.contains("var output = MetaUpdate()"))
-        XCTAssertTrue(source.contains("output.id = XLTypeAffinityExpression<Int>(expression: value)"))
+        XCTAssertTrue(source.contains("output.id = SwiftQL._xlLegacyValueExpression(value)"))
     }
 }

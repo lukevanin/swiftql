@@ -12,13 +12,21 @@ A conforming enum must:
 
 - use a supported intrinsic raw type such as `Int`, `Double`, or `String`;
 - conform to ``XLEnum`` and declare its ``XLExpression/T`` associated type as
-  `Self`; and
-- implement ``XLLiteral/sqlDefault()`` by returning any valid case.
+  `Self`.
 
-The `sqlDefault()` value is a construction and introspection placeholder.
-SwiftQL uses it while determining the typed columns of a statement. It is not a
-database default, is not written by that introspection, and is never used to
-recover from a decoding error.
+An explicit `sqlDefault()` value is needed only for legacy `SQLReader` result
+introspection. `XLLiteral` provides a default implementation that stops with a
+migration diagnostic if that legacy path reaches an enum without a placeholder.
+Generated static row layouts do not call it, and it is never used to recover
+from a decoding error.
+
+A plain Swift enum, or an `XLEnum` that retains v1 expression and operator
+behavior, does not need to declare `sqlDefault()` when it is encoded by an
+`XLValueCodec` and selected through a generated static row layout. Supply an
+intrinsic storage carrier such as `String.self` or `Int.self` to
+`staticResultField`; the layout retains that codec and decodes the enum only
+when SQLite returns a row. Override `sqlDefault()` only while the enum also uses
+legacy result introspection.
 
 ## Define integer- and string-backed enums
 
@@ -34,6 +42,7 @@ enum JobPriority: Int, XLEnum {
     case low = 0
     case high = 1
 
+    // The examples below use the legacy result path.
     static func sqlDefault() -> JobPriority {
         .low
     }
@@ -45,6 +54,7 @@ enum JobState: String, XLEnum {
     case queued
     case running
 
+    // The examples below use the legacy result path.
     static func sqlDefault() -> JobState {
         .queued
     }

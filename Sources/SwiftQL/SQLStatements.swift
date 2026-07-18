@@ -30,6 +30,17 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
     private let fields: any XLEncodable
     
     private let row: (XLRowReader) throws -> Row
+
+    /// Builds a select directly from immutable static projection metadata.
+    ///
+    /// This more-specific overload deliberately does not call `readRow` while
+    /// constructing the statement. Generated model initializers and
+    /// contextual codecs run only when a returned database row is decoded.
+    public init<T>(_ layout: T)
+    where T: XLStaticRowReadable, T.Row == Row {
+        self.fields = layout
+        self.row = layout.readRow
+    }
     
     public init<T>(_ meta: T) where T: XLRowReadable, T.Row == Row {
         let reader = XLColumnsDefinitionRowReader()

@@ -31,7 +31,11 @@ extension XLExpression {
     /// Automatically unwraps the expression.
     ///
     public func writeSQL(context: inout XLBuilder) {
-        (T.self as! XLEncodable.Type).unwrapSQL(context: &context, builder: makeSQL)
+        guard let encodableType = T.self as? any XLEncodable.Type else {
+            makeSQL(context: &context)
+            return
+        }
+        encodableType.unwrapSQL(context: &context, builder: makeSQL)
     }
 }
 
@@ -66,8 +70,9 @@ public protocol XLBindable {
 ///
 /// A value stored in the database.
 ///
-/// Custom types must implement an initializer to read an intrinsic value from the database, and provide an
-/// appropriate default placeholder value.
+/// Custom types must implement an initializer to read an intrinsic value from
+/// the database. A default placeholder is needed only when the type is decoded
+/// through the legacy result-introspection path.
 ///
 /// Custom types may optionally implement a wrapper to transform values in SQL expressions.
 ///
@@ -79,7 +84,13 @@ public protocol XLLiteral: XLBindable {
     typealias MakeExpression = (inout XLBuilder) -> Void
     
     ///
-    /// - Returns: Any valid instance of the implementation. The default value is used internally by SwiftQL when creating prepared statements.
+    /// Returns a placeholder for legacy `SQLReader` result introspection.
+    ///
+    /// Generated static row layouts never call this method. New literal types
+    /// that decode exclusively through a static layout can rely on the default
+    /// implementation, which stops with a migration diagnostic if a legacy
+    /// introspection path reaches it. Existing v1 types should keep an explicit
+    /// implementation while they still use legacy result construction.
     ///
     static func sqlDefault() -> Self
     
@@ -105,6 +116,16 @@ public protocol XLLiteral: XLBindable {
 }
 
 extension XLLiteral {
+    public static func sqlDefault() -> Self {
+        let typeName = String(reflecting: Self.self)
+        preconditionFailure(
+            "\(typeName) does not provide a legacy sqlDefault() placeholder. "
+                + "Legacy SQLReader result introspection requires an explicit "
+                + "placeholder; construct this result through the macro-generated "
+                + "staticRowLayout(using:...) path instead."
+        )
+    }
+
     public static func wrapSQL(context: inout XLBuilder, builder: MakeExpression) {
         builder(&context)
     }
@@ -131,7 +152,7 @@ public protocol XLComparable: XLEquatable {
 ///
 /// Expression that refers to a table column.
 ///
-public struct XLColumnReference<T>: XLExpression where T: XLLiteral {
+public struct XLColumnReference<T>: XLExpression {
     
     public var alias: XLName
     
@@ -143,7 +164,11 @@ public struct XLColumnReference<T>: XLExpression where T: XLLiteral {
     }
     
     public func makeSQL(context: inout XLBuilder) {
-        T.wrapSQL(context: &context) { context in
+        guard let literalType = T.self as? any XLLiteral.Type else {
+            context.qualifiedName(dependency.qualifiedName(forColumn: alias))
+            return
+        }
+        literalType.wrapSQL(context: &context) { context in
             context.qualifiedName(dependency.qualifiedName(forColumn: alias))
         }
     }    
@@ -153,7 +178,7 @@ public struct XLColumnReference<T>: XLExpression where T: XLLiteral {
 ///
 /// Expression that refers to a column in a result, such as the list of columns in a select statement.
 ///
-public struct XLColumnResult<T>: XLExpression where T: XLLiteral {
+public struct XLColumnResult<T>: XLExpression {
     
     public var alias: XLName
     
@@ -167,6 +192,73 @@ public struct XLColumnResult<T>: XLExpression where T: XLLiteral {
     public func makeSQL(context: inout XLBuilder) {
         context.qualifiedName(dependency.qualifiedName(forColumn: alias))
     }
+}
+
+
+/// An expression whose logical result type can be replaced by an explicit
+/// storage carrier for static contextual coding.
+///
+/// Column references opt in so a contextual `Date -> String`, for example,
+/// renders the bare SQL column as `String` storage even if another module has
+/// supplied a retroactive legacy `Date: XLLiteral` wrapper.
+public protocol XLStaticStorageRetypableExpression {
+    func staticStorageExpression<Storage>(
+        as storageType: Storage.Type
+    ) -> any XLExpression<Storage>
+}
+
+
+extension XLColumnReference: XLStaticStorageRetypableExpression {
+    public func staticStorageExpression<Storage>(
+        as _: Storage.Type
+    ) -> any XLExpression<Storage> {
+        XLColumnReference<Storage>(dependency: dependency, as: alias)
+    }
+}
+
+
+extension XLColumnResult: XLStaticStorageRetypableExpression {
+    public func staticStorageExpression<Storage>(
+        as _: Storage.Type
+    ) -> any XLExpression<Storage> {
+        XLColumnResult<Storage>(dependency: dependency, as: alias)
+    }
+}
+
+
+/// Source-compatibility bridge used by macro-generated v1 insert/update
+/// helpers after column declarations became unconstrained.
+///
+/// Contextual-only values can now appear in generated table metadata, but
+/// they must use a static row layout for encoding. Existing `XLLiteral` /
+/// `XLExpression` values retain their original rendering behavior through
+/// this wrapper.
+public struct XLLegacyDynamicValueExpression<Value>: XLExpression {
+    public typealias T = Value
+
+    private let value: Value
+
+    public init(_ value: Value) {
+        self.value = value
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        guard let expression = value as? any XLEncodable else {
+            preconditionFailure(
+                "\(String(reflecting: Value.self)) is a contextual-only SQL value. Encode it through XLStaticRowLayout instead of the v1 MetaInsert/MetaUpdate path."
+            )
+        }
+        expression.makeSQL(context: &context)
+    }
+}
+
+
+/// Creates the dynamic v1 expression bridge used by generated compatibility
+/// APIs. New contextual code should use ``XLStaticSelectField`` instead.
+public func _xlLegacyValueExpression<Value>(
+    _ value: Value
+) -> XLLegacyDynamicValueExpression<Value> {
+    XLLegacyDynamicValueExpression(value)
 }
 
 
@@ -253,8 +345,10 @@ public struct XLFunction<T>: XLExpression where T: XLLiteral {
 /// To use an enum for a column the enum must adhere to the following conditions:
 /// - Use a supported intrinsic type for the `RawValue`.
 /// - Conform to the `XLEnum` protocol and declare `T` as `Self`.
-/// - Implement `sqlDefault()` and return any valid enum value. SwiftQL uses this value only as a
-///   construction and introspection placeholder; it is never a fallback for database decoding.
+/// - When using legacy `SQLReader` result introspection, implement
+///   `sqlDefault()` and return any valid enum value. Static row layouts do not
+///   require or call that placeholder, and it is never a fallback for database
+///   decoding.
 ///
 /// The `XLEnum` protocol provides default implementations for most of the required methods which can
 /// be overridden as required. Reading an unknown stored raw value throws ``XLColumnReadError``.

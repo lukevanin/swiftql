@@ -67,6 +67,7 @@ extension SQLTableMacro: MemberMacro {
         return [
             DeclSyntax(stringLiteral: builder.makeMemberwizeInitializer()),
             DeclSyntax(stringLiteral: builder.makeColumnsFunction()),
+            DeclSyntax(stringLiteral: builder.makeStaticRowLayoutFunction()),
         ]
     }
 }
@@ -120,6 +121,7 @@ extension SQLResultMacro: MemberMacro {
         return [
             DeclSyntax(stringLiteral: builder.makeMemberwizeInitializer()),
             DeclSyntax(stringLiteral: builder.makeColumnsFunction()),
+            DeclSyntax(stringLiteral: builder.makeStaticRowLayoutFunction()),
         ]
     }
 }

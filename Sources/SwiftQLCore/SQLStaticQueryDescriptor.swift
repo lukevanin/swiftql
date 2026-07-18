@@ -266,8 +266,8 @@ public struct XLLogicalResultIndex:
 /// Static metadata for one value in a returned row.
 ///
 /// Each selected property or direct output column is represented by one flat
-/// result slot. Static aggregate/property graph synthesis remains deferred to
-/// issue #40.
+/// result slot. Generated static row metadata composes these slots without
+/// changing their frozen query-identity representation.
 public struct XLStaticQueryResultSlot: Hashable, Sendable {
 
     public let index: XLLogicalResultIndex
@@ -411,6 +411,127 @@ public struct XLStaticQueryResultMetadata: Hashable, Sendable {
         for identity: XLQuerySlotIdentity
     ) -> XLStaticQueryResultSlot? {
         slots.first { $0.identity == identity }
+    }
+}
+
+
+/// Structural metadata for one property in a statically described row.
+///
+/// The field carries no expression, database value, or executable closure. It
+/// is safe to retain in generated descriptors and can be inspected without
+/// constructing the model that ultimately receives the value.
+public struct XLStaticRowField: Hashable, Sendable {
+
+    /// The SQL result alias generated for the property.
+    public let alias: String
+
+    /// The complete static result-slot contract for the property.
+    public let result: XLStaticQueryResultSlot
+
+    public init(alias: String, result: XLStaticQueryResultSlot) {
+        self.alias = alias
+        self.result = result
+    }
+}
+
+
+/// An immutable, declaration-ordered structural description of a Swift row.
+///
+/// Validation deliberately happens before any operational row layout is
+/// retained. Result-slot validation is delegated to
+/// ``XLStaticQueryResultMetadata`` so a row and a static query share exactly
+/// the same index, identity, nullability, value-type, codec, and storage
+/// invariants.
+public struct XLStaticRowMetadata: Hashable, Sendable {
+
+    public static let empty = Self(
+        canonicalFields: [],
+        results: .empty
+    )
+
+    /// Fields in declaration and projection order.
+    public let fields: [XLStaticRowField]
+
+    /// Canonical result metadata for the same fields.
+    public let results: XLStaticQueryResultMetadata
+
+    public init(fields: [XLStaticRowField]) throws {
+        var aliases: [String: XLStaticRowField] = [:]
+
+        for (offset, field) in fields.enumerated() {
+            let expected = XLLogicalResultIndex(offset)
+            guard field.result.index == expected else {
+                throw XLStaticRowMetadataError.fieldPositionMismatch(
+                    field: field,
+                    expected: expected
+                )
+            }
+
+            let canonicalAlias = field.alias
+                .precomposedStringWithCanonicalMapping
+                .lowercased()
+            guard !canonicalAlias.isEmpty else {
+                throw XLStaticRowMetadataError.emptyFieldAlias(field: field)
+            }
+            if let existing = aliases[canonicalAlias] {
+                throw XLStaticRowMetadataError.duplicateFieldAlias(
+                    alias: field.alias,
+                    existing: existing,
+                    incoming: field
+                )
+            }
+            aliases[canonicalAlias] = field
+        }
+
+        self.fields = fields
+        self.results = try XLStaticQueryResultMetadata(
+            slots: fields.map(\.result)
+        )
+    }
+
+    private init(
+        canonicalFields: [XLStaticRowField],
+        results: XLStaticQueryResultMetadata
+    ) {
+        self.fields = canonicalFields
+        self.results = results
+    }
+}
+
+
+/// Deterministic row-layout validation failures.
+public enum XLStaticRowMetadataError:
+    Error,
+    Equatable,
+    Sendable,
+    LocalizedError
+{
+    case fieldPositionMismatch(
+        field: XLStaticRowField,
+        expected: XLLogicalResultIndex
+    )
+    case emptyFieldAlias(field: XLStaticRowField)
+    case duplicateFieldAlias(
+        alias: String,
+        existing: XLStaticRowField,
+        incoming: XLStaticRowField
+    )
+
+    public var errorDescription: String? {
+        switch self {
+        case .fieldPositionMismatch(let field, let expected):
+            return "Static row property '\(field.alias)' (result slot \(field.result.identity), codec \(Self.codecDescription(field.result))) is at index \(field.result.index); expected declaration position \(expected)."
+        case .emptyFieldAlias(let field):
+            return "Static row result slot \(field.result.identity) (codec \(Self.codecDescription(field.result))) requires a nonempty property/result alias."
+        case .duplicateFieldAlias(let alias, let existing, let incoming):
+            return "Static row property/result alias '\(alias)' is declared by both result slot \(existing.result.identity) (codec \(Self.codecDescription(existing.result))) and result slot \(incoming.result.identity) (codec \(Self.codecDescription(incoming.result)))."
+        }
+    }
+
+    private static func codecDescription(
+        _ result: XLStaticQueryResultSlot
+    ) -> String {
+        result.codecIdentity?.key.description ?? "intrinsic/none"
     }
 }
 

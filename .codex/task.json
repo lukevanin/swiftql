@@ -1,11 +1,11 @@
 {
-  "task_name": "Add immutable query-capture tokens and invocation packets",
-  "issue_number": 30,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/30",
+  "task_name": "Remove sqlDefault() requirements through static result descriptors",
+  "issue_number": 40,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/40",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#30 - Add immutable query-capture tokens and invocation packets",
+  "codex_session_title": "lukevanin/swiftql#40 - Remove sqlDefault() requirements through static result descriptors",
   "codex_session_id": "019f6fcb-bfd9-7522-9d7c-c78fefd5c7fa",
   "codex_session_url": null,
-  "task_branch": "codex/30-infer-immutable-query-bindings-from-swift-variables",
-  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/30-infer-immutable-query-bindings-from-swift-variables"
+  "task_branch": "codex/40-remove-sqldefault-requirements-through-static-result-descriptors",
+  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/40-remove-sqldefault-requirements-through-static-result-descriptors"
 }

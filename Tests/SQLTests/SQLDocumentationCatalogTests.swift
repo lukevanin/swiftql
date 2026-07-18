@@ -183,7 +183,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         for semanticPhrase in [
             "construct and register descriptors before opening a database",
             "one flat `XLStaticQueryResultSlot`",
-            "owned by issue #40",
+            "`staticRowLayout(using:...)` factories",
             "Exact rendered SQL bytes",
             "deliberately excludes invocation values",
             "Metadata strings that participate in identity use Unicode NFC normalization",
