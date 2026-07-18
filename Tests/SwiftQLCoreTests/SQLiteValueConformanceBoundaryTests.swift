@@ -13,15 +13,6 @@ final class SQLiteValueConformanceBoundaryTests: XCTestCase {
             grouping: manifest.records,
             by: \.id
         )
-        let pinnedCommits = [
-            "groue/GRDB.swift": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
-            "stephencelis/SQLite.swift": "ccaae3d01fd655be40f20665f1f61dc6deecec27",
-            "Lighter-swift/Lighter": "3486fc08d580aa3a87cd29ede023ba291a90de8b",
-            "marcoarment/Blackbird": "0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a",
-            "vapor/fluent-kit": "6f8844284df4f797d2a81721511d053357d97b56",
-            "lukevanin/swiftql": "03f504a1e47e0580b2c20eeeecea104cb9d7f2a9",
-        ]
-
         XCTAssertEqual(manifest.schemaVersion, 1)
         XCTAssertEqual(manifest.coordinationIssue, 190)
         XCTAssertEqual(
@@ -42,7 +33,8 @@ final class SQLiteValueConformanceBoundaryTests: XCTestCase {
             )
             XCTAssertEqual(
                 record.provenance.commit,
-                pinnedCommits[record.provenance.repository],
+                SQLiteValueConformanceFixtures
+                    .pinnedProvenanceCommitsByRepository[record.provenance.repository],
                 id.rawValue
             )
             XCTAssertFalse(record.provenance.path.isEmpty, id.rawValue)

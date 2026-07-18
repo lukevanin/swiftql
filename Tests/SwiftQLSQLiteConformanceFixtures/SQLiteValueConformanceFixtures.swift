@@ -70,6 +70,18 @@ public struct SQLiteValueConformanceCase: Sendable {
 
 public enum SQLiteValueConformanceFixtures {
 
+    /// Exact upstream revisions used by the checked-in provenance manifest.
+    /// Keeping these pins with the shared fixtures lets every adapter validate
+    /// the same evidence without introducing adapter names into core tests.
+    public static let pinnedProvenanceCommitsByRepository: [String: String] = [
+        "groue/GRDB.swift": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+        "stephencelis/SQLite.swift": "ccaae3d01fd655be40f20665f1f61dc6deecec27",
+        "Lighter-swift/Lighter": "3486fc08d580aa3a87cd29ede023ba291a90de8b",
+        "marcoarment/Blackbird": "0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a",
+        "vapor/fluent-kit": "6f8844284df4f797d2a81721511d053357d97b56",
+        "lukevanin/swiftql": "03f504a1e47e0580b2c20eeeecea104cb9d7f2a9",
+    ]
+
     /// Cases that cross both the driver-neutral SQLite dialect boundary and a
     /// real SQLite connection. NaN remains a normalized `REAL` at the pure
     /// dialect layer, while the concrete binding boundary rejects it before
