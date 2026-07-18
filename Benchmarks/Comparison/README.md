@@ -74,7 +74,7 @@ numbers.
 ## Measurement method
 
 Both dependency graphs are fully resolved and release-built before timing,
-followed by a 60-second idle cooldown. Every implementation then runs in its
+followed by a 180-second idle cooldown. Every implementation then runs in its
 own fresh process. That process opens its connection and prepares its adapter,
 performs 10 unrecorded warmup fetches, then records 100 individual full-fetch
 durations with `DispatchTime.uptimeNanoseconds`.
@@ -115,7 +115,8 @@ the output file and sibling `Runs` directory must not already exist:
 python3 Benchmarks/Comparison/run.py \
   --workspace /private/tmp/swiftql-comparison \
   --swiftql-checkout "$PWD" \
-  --output Benchmarks/Comparison/comparison-results.json
+  --output Benchmarks/Comparison/comparison-results.json \
+  --cooldown-seconds 180
 ```
 
 The runner verifies the exact fixture, copies only repository-owned templates
@@ -148,10 +149,47 @@ pins and environment compatibility, and enforces the paired-control guard.
 
 ## Recorded baseline
 
-The accepted machine, dependency pins, raw samples, and generated table will
-be recorded here with the first independently generated v3 report.
+The accepted v3 report was recorded at `2026-07-18T16:49:02Z` from clean
+SwiftQL revision `6b417ef9d09ef8a68f787903cbc9ed31bfaad47b`, after both
+release graphs were built and idled for 180 seconds. Each headline combines
+three isolated processes, with 10 warmups and 100 timed full fetches per
+process.
 
-<!-- RECORDED_BASELINE -->
+| API path | Median | p95 | Rows/s | Latency vs SwiftQL | Process spread | Peak RSS |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| SQLiteData | 7.42 ms | 7.67 ms | 2,174,691 | 0.17x | 5.62% | 39.4 MiB |
+| Generated raw SQLite | 865.91 ms | 936.53 ms | 18,643 | 19.81x | 59.07% | 563.6 MiB |
+| Lighter | 871.33 ms | 912.12 ms | 18,527 | 19.93x | 2.42% | 693.0 MiB |
+| GRDB manual | 6.88 ms | 7.43 ms | 2,345,805 | 0.16x | 3.01% | 34.6 MiB |
+| SQLite.swift manual | 37.78 ms | 55.20 ms | 427,337 | 0.86x | 63.68% | 20.0 MiB |
+| SwiftQL | 43.72 ms | 45.00 ms | 369,240 | 1.00x | 4.11% | 51.2 MiB |
+| SQLite.swift typed | 36.42 ms | 37.53 ms | 443,272 | 0.83x | 104.63% | 32.2 MiB |
+| GRDB Codable | 51.21 ms | 56.91 ms | 315,214 | 1.17x | 45.24% | 34.8 MiB |
+
+The SwiftQL graph pins GRDB 6.29.3 at `2cf6c756`, Lighter 1.4.12 at
+`77dba67c`, SQLite.swift 0.16.0 at `964c300f`, and SwiftSyntax 509.1.1 at
+`64889f0c`. The SQLiteData graph pins SQLiteData 1.7.0 at `93e05404`,
+StructuredQueries 0.33.3 at `9c2935e4`, GRDB 7.11.1 at `b83108d1`, Lighter
+1.4.12 at `77dba67c`, and SQLite.swift 0.16.0 at `964c300f`; the JSON retains
+every transitive revision.
+
+All six paired-control drifts passed the 5% guard: generated raw SQLite 0.19%,
+Lighter 0.23%, GRDB manual 1.07%, GRDB Codable 2.56%, SQLite.swift manual
+3.94%, and SQLite.swift typed 0.004%. The large process spreads for generated
+raw SQLite, both SQLite.swift paths, and GRDB Codable make those absolute
+values noisy; retain them as the recorded baseline, but do not treat small
+differences on those paths as conclusive.
+
+An initial run with the original 60-second cooldown was correctly rejected:
+its paired GRDB Codable drift was 5.047%, just above the 5% guard. No report or
+raw files from that attempt are committed. The accepted result came from a new
+workspace and the longer 180-second cooldown; the threshold was not changed.
+
+The run used a Mac16,8 with Apple M4 Pro, 14 cores, 24 GiB memory, arm64 macOS
+26.5.1 (25F80), Xcode 26.5 (17F42), Swift 6.3.2, and system SQLite 3.51.0.
+[`2026-07-18-mac16-8.json`](2026-07-18-mac16-8.json) links 42 raw
+sample TSVs and 42 `/usr/bin/time -l` resource logs under [`Runs/`](Runs/),
+preserving all 4,200 timed samples and their verified SHA-256 values.
 
 ## Interpretation and limits
 
