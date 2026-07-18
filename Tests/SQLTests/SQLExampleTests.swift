@@ -91,8 +91,8 @@ struct MyUUID: XLCustomType, XLComparable, Equatable, Sendable {
         self.wrappedValue = wrappedValue
     }
 
-    public init(reader: XLColumnReader, at index: Int) throws {
-        let rawValue = try reader.readText(at: index)
+    public init(reader: XLFieldReader) throws {
+        let rawValue = try reader.readText()
         guard let wrappedValue = UUID(uuidString: rawValue) else {
             throw ReadError.invalidUUID(rawValue)
         }
@@ -136,8 +136,8 @@ struct SQLDate: XLCustomType, XLComparable, Equatable {
         return formatter
     }()
 
-    public init(reader: XLColumnReader, at index: Int) throws {
-        let rawValue = try reader.readReal(at: index)
+    public init(reader: XLFieldReader) throws {
+        let rawValue = try reader.readReal()
         guard let wrappedValue = Date(julianDay: rawValue) else {
             throw ReadError.invalidJulianDay(rawValue)
         }
@@ -406,8 +406,8 @@ extension Date: XLCustomType, XLComparable {
     public typealias T = Self
     
     // Decode the date from a SwiftQL result.
-    public init(reader: XLColumnReader, at index: Int) throws {
-        let rawValue = try reader.readReal(at: index)
+    public init(reader: XLFieldReader) throws {
+        let rawValue = try reader.readReal()
         guard let value = Date(julianDay: rawValue) else {
             throw ReadError.invalidJulianDay(rawValue)
         }

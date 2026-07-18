@@ -95,14 +95,22 @@ public protocol XLLiteral: XLBindable {
     static func sqlDefault() -> Self
     
     ///
-    /// Initializes an instance from a database column.
+    /// Initializes an instance from one database field.
     ///
-    /// - Parameter reader: Reads values of columns.
-    /// - Parameter index: Index of the column which should be read.
+    /// - Parameter reader: Reads the single field owned by this literal.
     ///
-    /// Custom types should read the column at the provided index using the method for the relevant intrinsic type.
+    /// Custom types should use the method for the relevant intrinsic type. The
+    /// field reader already owns the correct column index.
     ///
-    init(reader: XLColumnReader, at index: Int) throws
+    init(reader: XLFieldReader) throws
+
+    /// Initializes an instance from a database column and separate index.
+    ///
+    /// This v1 compatibility requirement lets existing literal conformers keep
+    /// compiling. New conformers should implement `init(reader:)` with an
+    /// ``XLFieldReader``. The default implementations bridge in both directions,
+    /// so every conformer must implement at least one of the two initializers.
+    init(reader: any XLColumnReader, at index: Int) throws
     
     ///
     /// Wraps occurrences of the type with an expression.
@@ -116,6 +124,19 @@ public protocol XLLiteral: XLBindable {
 }
 
 extension XLLiteral {
+    public init(reader: XLFieldReader) throws {
+        self = try Self(
+            reader: reader.columnReader,
+            at: reader.index
+        )
+    }
+
+    public init(reader: any XLColumnReader, at index: Int) throws {
+        self = try Self(
+            reader: XLFieldReader(reader: reader, at: index)
+        )
+    }
+
     public static func sqlDefault() -> Self {
         let typeName = String(reflecting: Self.self)
         preconditionFailure(
@@ -359,11 +380,11 @@ public protocol XLEnum: XLLiteral, XLExpression, XLEquatable, XLComparable, RawR
 
 extension XLEnum {
         
-    public init(reader: XLColumnReader, at index: Int) throws {
-        let rawValue = try RawValue(reader: reader, at: index)
+    public init(reader: XLFieldReader) throws {
+        let rawValue = try RawValue(reader: reader)
         guard let value = Self(rawValue: rawValue) else {
             throw XLColumnReadError(
-                index: index,
+                index: reader.index,
                 expectedType: String(describing: Self.self),
                 failure: .invalidValue(actualValue: String(reflecting: rawValue))
             )
@@ -442,12 +463,12 @@ extension Optional: XLLiteral where Wrapped: XLLiteral {
         Wrapped.sqlDefault()
     }
 
-    public init(reader: XLColumnReader, at index: Int) throws {
-        if try reader.isNull(at: index) {
+    public init(reader: XLFieldReader) throws {
+        if try reader.isNull() {
             self = nil
         }
         else {
-            self = try Wrapped(reader: reader, at: index)
+            self = try Wrapped(reader: reader)
         }
     }
     

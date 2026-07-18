@@ -18,8 +18,8 @@ extension Bool: XLExpression, XLLiteral, XLEquatable, XLComparable {
     
     public typealias T = Self
     
-    public init(reader: XLColumnReader, at index: Int) throws {
-        self = try reader.readInteger(at: index) != 0
+    public init(reader: XLFieldReader) throws {
+        self = try reader.readInteger() != 0
     }
     
     public func bind(context: inout XLBindingContext) {
@@ -43,8 +43,8 @@ extension Int: XLExpression, XLLiteral, XLEquatable, XLComparable {
     
     public typealias T = Self
     
-    public init(reader: XLColumnReader, at index: Int) throws {
-        self = try reader.readInteger(at: index)
+    public init(reader: XLFieldReader) throws {
+        self = try reader.readInteger()
     }
     
     public func bind(context: inout XLBindingContext) {
@@ -68,8 +68,8 @@ extension Double: XLExpression, XLLiteral, XLEquatable, XLComparable {
     
     public typealias T = Self
     
-    public init(reader: XLColumnReader, at index: Int) throws {
-        self = try reader.readReal(at: index)
+    public init(reader: XLFieldReader) throws {
+        self = try reader.readReal()
     }
     
     public func bind(context: inout XLBindingContext) {
@@ -106,8 +106,8 @@ extension String: XLExpression, XLLiteral, XLEquatable, XLComparable {
     
     public typealias T = Self
     
-    public init(reader: XLColumnReader, at index: Int) throws {
-        self = try reader.readText(at: index)
+    public init(reader: XLFieldReader) throws {
+        self = try reader.readText()
     }
     
     public func bind(context: inout XLBindingContext) {
@@ -131,8 +131,8 @@ extension Data: XLExpression, XLLiteral, XLEquatable {
     
     public typealias T = Self
     
-    public init(reader: XLColumnReader, at index: Int) throws {
-        self = try reader.readBlob(at: index)
+    public init(reader: XLFieldReader) throws {
+        self = try reader.readBlob()
     }
     
     public func bind(context: inout XLBindingContext) {

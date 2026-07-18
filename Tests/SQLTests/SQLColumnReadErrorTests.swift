@@ -118,7 +118,9 @@ final class XLColumnReadErrorTests: XCTestCase {
         XCTAssertEqual(try reader.readText(at: 2), "text")
         XCTAssertEqual(try reader.readBlob(at: 3), Data([0x00, 0xff]))
         XCTAssertTrue(try reader.isNull(at: 4))
-        XCTAssertNil(try Int?(reader: reader, at: 4))
+        XCTAssertNil(
+            try Int?(reader: XLFieldReader(reader: reader, at: 4))
+        )
     }
 
     func testAdaptersUseStorageClassConversionsConsistently() throws {

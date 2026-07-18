@@ -163,6 +163,55 @@ public protocol XLColumnReader {
 }
 
 
+/// Reads one field from a database result or custom-function argument.
+///
+/// A field reader binds a column reader to one zero-based index. Literal
+/// decoders therefore receive only the field they own and cannot accidentally
+/// read a neighboring column by carrying or modifying a separate index.
+public struct XLFieldReader {
+
+    /// The zero-based index bound to this field.
+    public let index: Int
+
+    let columnReader: any XLColumnReader
+
+    /// Creates a reader for one field in a column-oriented value source.
+    ///
+    /// - Parameters:
+    ///   - reader: The underlying column-oriented value source.
+    ///   - index: The zero-based index this field reader owns.
+    public init(reader: any XLColumnReader, at index: Int) {
+        self.columnReader = reader
+        self.index = index
+    }
+
+    /// Returns whether this field contains SQL `NULL`.
+    public func isNull() throws -> Bool {
+        try columnReader.isNull(at: index)
+    }
+
+    /// Reads this field as an integer.
+    public func readInteger() throws -> Int {
+        try columnReader.readInteger(at: index)
+    }
+
+    /// Reads this field as a real number.
+    public func readReal() throws -> Double {
+        try columnReader.readReal(at: index)
+    }
+
+    /// Reads this field as text.
+    public func readText() throws -> String {
+        try columnReader.readText(at: index)
+    }
+
+    /// Reads this field as a BLOB.
+    public func readBlob() throws -> Data {
+        try columnReader.readBlob(at: index)
+    }
+}
+
+
 ///
 /// Reads the value for columns in rows returned by a select query statement.
 ///
@@ -346,7 +395,9 @@ final class XLColumnValuesRowReader<Output>: XLRowReader {
         defer {
             count += 1
         }
-        return try T.init(reader: reader, at: count)
+        return try T.init(
+            reader: XLFieldReader(reader: reader, at: count)
+        )
     }
 
     func dialectValue<Dialect>(

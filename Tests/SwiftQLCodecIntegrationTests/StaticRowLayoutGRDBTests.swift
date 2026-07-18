@@ -120,8 +120,8 @@ private struct TrappingDefaultLiteral:
         self.rawValue = rawValue
     }
 
-    init(reader: XLColumnReader, at index: Int) throws {
-        self.rawValue = try reader.readText(at: index)
+    init(reader: XLFieldReader) throws {
+        self.rawValue = try reader.readText()
     }
 
     func bind(context: inout XLBindingContext) {
