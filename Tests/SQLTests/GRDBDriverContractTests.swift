@@ -2,6 +2,7 @@ import Foundation
 import GRDB
 import XCTest
 @testable import SwiftQL
+import SwiftQLSQLiteConformanceFixtures
 
 
 @SQLTable(name: "GRDBDriverContractRecord")
@@ -15,6 +16,366 @@ final class GRDBDriverContractTests: XCTestCase {
 
     private enum TransactionAbort: Error, Equatable {
         case requested
+    }
+
+    func testSharedSQLiteStorageCasesRoundTripWithTypeofEvidence() throws {
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        var driver = GRDBDatabaseDriver(
+            databasePool: fixture.databasePool,
+            dialect: XLSQLiteDialect()
+        )
+        let logicalStatement = makeLogicalStatement(
+            for: driver,
+            sql: "SELECT :value, typeof(:value), length(:value)"
+        )
+
+        for testCase in SQLiteValueConformanceFixtures.storageCases {
+            switch testCase.expectation {
+            case .bindingRejected:
+                XCTAssertThrowsError(
+                    try driver.withReadConnection { connection in
+                        let statement = try connection.prepare(logicalStatement)
+                        _ = try connection.bind(
+                            testCase.value,
+                            to: .named("value"),
+                            in: statement
+                        )
+                    },
+                    testCase.id.rawValue
+                ) { error in
+                    XCTAssertEqual(
+                        error as? XLSQLValueEncodingError,
+                        .realBindingWouldBecomeNull(
+                            value: .notANumber,
+                            valueType: String(reflecting: Double.self),
+                            context: XLValueCodingContext(
+                                site: .parameter,
+                                path: XLValueCodingPath("value")
+                            )
+                        ),
+                        testCase.id.rawValue
+                    )
+                }
+            case .roundTrip:
+                let row = try driver.withReadConnection { connection in
+                    var statement = try connection.prepare(logicalStatement)
+                    statement = try connection.bind(
+                        testCase.value,
+                        to: .named("value"),
+                        in: statement
+                    )
+                    return try XCTUnwrap(connection.fetchOne(statement))
+                }
+                XCTAssertEqual(row[0], testCase.value, testCase.id.rawValue)
+                XCTAssertEqual(
+                    row[1],
+                    .text(testCase.expectedStorage.rawValue),
+                    testCase.id.rawValue
+                )
+                if case .blob(let data) = testCase.value {
+                    XCTAssertEqual(
+                        row[2],
+                        .integer(Int64(data.count)),
+                        testCase.id.rawValue
+                    )
+                }
+            }
+        }
+    }
+
+    func testSharedUnicodeCasePreservesCanonicalVariantsWithoutConflatingBytes() throws {
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        let composed = "é"
+        let decomposed = "e\u{301}"
+        XCTAssertEqual(
+            composed,
+            decomposed,
+            SQLiteValueConformanceCaseID.unicodeText.rawValue
+        )
+
+        var driver = GRDBDatabaseDriver(
+            databasePool: fixture.databasePool,
+            dialect: XLSQLiteDialect()
+        )
+        let statement = makeLogicalStatement(
+            for: driver,
+            sql: """
+                SELECT
+                    :composed, hex(:composed),
+                    :decomposed, hex(:decomposed),
+                    :composed = :decomposed
+                """
+        )
+        let row = try driver.withReadConnection { connection in
+            var prepared = try connection.prepare(statement)
+            prepared = try connection.bind(
+                .text(composed),
+                to: .named("composed"),
+                in: prepared
+            )
+            prepared = try connection.bind(
+                .text(decomposed),
+                to: .named("decomposed"),
+                in: prepared
+            )
+            return try XCTUnwrap(connection.fetchOne(prepared))
+        }
+
+        XCTAssertEqual(row[0], .text(composed))
+        XCTAssertEqual(row[1], .text("C3A9"))
+        XCTAssertEqual(row[2], .text(decomposed))
+        XCTAssertEqual(row[3], .text("65CC81"))
+        XCTAssertEqual(
+            row[4],
+            .integer(0),
+            SQLiteValueConformanceCaseID.unicodeText.rawValue
+        )
+    }
+
+    func testSharedSQLiteAffinityCasesAssertValueTypeAndState() throws {
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        var driver = GRDBDatabaseDriver(
+            databasePool: fixture.databasePool,
+            dialect: XLSQLiteDialect()
+        )
+        let create = makeLogicalStatement(
+            for: driver,
+            sql: """
+                CREATE TABLE value_affinity (
+                    id TEXT PRIMARY KEY,
+                    integer_value INTEGER,
+                    text_value TEXT,
+                    real_value REAL
+                )
+                """
+        )
+        let insert = makeLogicalStatement(
+            for: driver,
+            sql: """
+                INSERT INTO value_affinity (
+                    id, integer_value, text_value, real_value
+                ) VALUES (
+                    :id, :integer_value, :text_value, :real_value
+                )
+                """
+        )
+        let select = makeLogicalStatement(
+            for: driver,
+            sql: """
+                SELECT
+                    integer_value, typeof(integer_value),
+                    text_value, typeof(text_value),
+                    real_value, typeof(real_value)
+                FROM value_affinity
+                WHERE id = 'affinity'
+                """
+        )
+
+        try driver.withWriteConnection { connection in
+            try connection.execute(connection.prepare(create))
+            var statement = try connection.prepare(insert)
+            statement = try connection.bind(
+                .text("affinity"),
+                to: .named("id"),
+                in: statement
+            )
+            statement = try connection.bind(
+                .text("42"),
+                to: .named("integer_value"),
+                in: statement
+            )
+            statement = try connection.bind(
+                .integer(42),
+                to: .named("text_value"),
+                in: statement
+            )
+            statement = try connection.bind(
+                .integer(42),
+                to: .named("real_value"),
+                in: statement
+            )
+            try connection.execute(statement)
+        }
+
+        let row = try driver.withReadConnection { connection in
+            try XCTUnwrap(connection.fetchOne(connection.prepare(select)))
+        }
+        XCTAssertEqual(
+            Array(row[0 ... 1]),
+            [.integer(42), .text("integer")],
+            SQLiteValueConformanceCaseID.numericTextIntegerAffinity.rawValue
+        )
+        XCTAssertEqual(
+            Array(row[2 ... 3]),
+            [.text("42"), .text("text")],
+            SQLiteValueConformanceCaseID.integerTextAffinity.rawValue
+        )
+        XCTAssertEqual(
+            Array(row[4 ... 5]),
+            [.real(42), .text("real")],
+            SQLiteValueConformanceCaseID.integerRealAffinity.rawValue
+        )
+    }
+
+    func testSharedNamedRepeatedAndNullVersusMissingCases() throws {
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        var driver = GRDBDatabaseDriver(
+            databasePool: fixture.databasePool,
+            dialect: XLSQLiteDialect()
+        )
+        let repeated = makeLogicalStatement(
+            for: driver,
+            sql: "SELECT :value, :value, typeof(:value)"
+        )
+        let noRow = makeLogicalStatement(
+            for: driver,
+            sql: "SELECT NULL WHERE 0"
+        )
+
+        let repeatedRow = try driver.withReadConnection { connection in
+            var statement = try connection.prepare(repeated)
+            statement = try connection.bind(
+                .text("shared"),
+                to: .named("value"),
+                in: statement
+            )
+            return try XCTUnwrap(connection.fetchOne(statement))
+        }
+        XCTAssertEqual(
+            repeatedRow,
+            [.text("shared"), .text("shared"), .text("text")],
+            SQLiteValueConformanceCaseID.repeatedNamedBinding.rawValue
+        )
+        XCTAssertEqual(
+            repeatedRow[0],
+            .text("shared"),
+            SQLiteValueConformanceCaseID.namedBinding.rawValue
+        )
+
+        let nullRow = try driver.withReadConnection { connection in
+            var statement = try connection.prepare(repeated)
+            statement = try connection.bind(
+                .null,
+                to: .named("value"),
+                in: statement
+            )
+            return try XCTUnwrap(connection.fetchOne(statement))
+        }
+        XCTAssertEqual(
+            nullRow,
+            [.null, .null, .text("null")],
+            SQLiteValueConformanceCaseID.optionalNullVersusMissing.rawValue
+        )
+        let missingRow = try driver.withReadConnection { connection in
+            try connection.fetchOne(connection.prepare(noRow))
+        }
+        XCTAssertNil(
+            missingRow,
+            SQLiteValueConformanceCaseID.optionalNullVersusMissing.rawValue
+        )
+    }
+
+    func testSharedMalformedValueCasesReturnStructuredErrorsAfterRealSQLite() throws {
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        var driver = GRDBDatabaseDriver(
+            databasePool: fixture.databasePool,
+            dialect: XLSQLiteDialect()
+        )
+        let overflow = makeLogicalStatement(
+            for: driver,
+            sql: "SELECT :value"
+        )
+        let overflowRow = try driver.withReadConnection { connection in
+            var statement = try connection.prepare(overflow)
+            statement = try connection.bind(
+                .real(Double(Int64.max)),
+                to: .named("value"),
+                in: statement
+            )
+            return try XCTUnwrap(connection.fetchOne(statement))
+        }
+        XCTAssertThrowsError(
+            try XLSQLiteValueReader(values: overflowRow).readInteger(at: 0),
+            SQLiteValueConformanceCaseID.integerOverflow.rawValue
+        ) { error in
+            XCTAssertEqual(
+                error as? XLColumnReadError,
+                XLColumnReadError(
+                    index: 0,
+                    expectedType: "Int",
+                    failure: .typeMismatch(actualType: "REAL")
+                )
+            )
+        }
+
+        let invalidUTF8 = try XCTUnwrap(
+            SQLiteValueConformanceFixtures.storageCases.first {
+                $0.id == .invalidUTF8Blob
+            }
+        )
+        let invalidUTF8Row = try driver.withReadConnection { connection in
+            var statement = try connection.prepare(overflow)
+            statement = try connection.bind(
+                invalidUTF8.value,
+                to: .named("value"),
+                in: statement
+            )
+            return try XCTUnwrap(connection.fetchOne(statement))
+        }
+        XCTAssertThrowsError(
+            try XLSQLiteValueReader(values: invalidUTF8Row).readText(at: 0),
+            invalidUTF8.id.rawValue
+        ) { error in
+            XCTAssertEqual(
+                error as? XLColumnReadError,
+                XLColumnReadError(
+                    index: 0,
+                    expectedType: "String",
+                    failure: .typeMismatch(actualType: "BLOB")
+                )
+            )
+        }
+
+        let values = makeLogicalStatement(
+            for: driver,
+            sql: """
+                SELECT 0 AS position, 7 AS value
+                UNION ALL
+                SELECT 1 AS position, 'invalid' AS value
+                ORDER BY position
+                """
+        )
+        let rows = try driver.withReadConnection { connection in
+            try connection.fetchAll(connection.prepare(values))
+        }
+        XCTAssertEqual(
+            try XLSQLiteValueReader(values: rows[0]).readInteger(at: 1),
+            7,
+            SQLiteValueConformanceCaseID.decodeAfterValidRow.rawValue
+        )
+        XCTAssertThrowsError(
+            try XLSQLiteValueReader(values: rows[1]).readInteger(at: 1),
+            SQLiteValueConformanceCaseID.decodeAfterValidRow.rawValue
+        ) { error in
+            XCTAssertEqual(
+                error as? XLColumnReadError,
+                XLColumnReadError(
+                    index: 1,
+                    expectedType: "Int",
+                    failure: .typeMismatch(actualType: "TEXT")
+                )
+            )
+        }
     }
 
     func testAllSQLiteStorageClassesRoundTripThroughOneLogicalStatement() throws {

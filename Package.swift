@@ -36,6 +36,15 @@ let package = Package(
             name: "SwiftQLCore"
         ),
 
+        // Test-only, adapter-neutral SQLite value cases shared by core contract
+        // tests and concrete database-adapter integration tests.
+        .target(
+            name: "SwiftQLSQLiteConformanceFixtures",
+            dependencies: ["SwiftQLCore"],
+            path: "Tests/SwiftQLSQLiteConformanceFixtures",
+            resources: [.process("SQLiteValueConformanceManifest.json")]
+        ),
+
         // Macro implementation that performs the source transformation of a macro.
         .macro(
             name: "SQLMacros",
@@ -75,7 +84,10 @@ let package = Package(
         // A test target used to develop the macro implementation.
         .testTarget(
             name: "SwiftQLCoreTests",
-            dependencies: ["SwiftQLCore"]
+            dependencies: [
+                "SwiftQLCore",
+                "SwiftQLSQLiteConformanceFixtures",
+            ]
         ),
 
         .testTarget(
@@ -96,6 +108,7 @@ let package = Package(
             name: "SQLTests",
             dependencies: [
                 "SwiftQL",
+                "SwiftQLSQLiteConformanceFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
@@ -106,6 +119,7 @@ let package = Package(
             name: "SwiftQLCodecIntegrationTests",
             dependencies: [
                 "SwiftQL",
+                "SwiftQLSQLiteConformanceFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
