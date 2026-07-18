@@ -1071,7 +1071,7 @@ final class XLDocumentationTests: XCTestCase {
 // to become standalone programs.
 extension XLDocumentationTests {
 
-    func testDocumentationREADME() {
+    func testDocumentationREADME() throws {
         let query = sql { schema in
             let person = schema.table(Person.self)
             Select(person)
@@ -1083,10 +1083,18 @@ extension XLDocumentationTests {
             encoder.makeSQL(query).sql,
             "SELECT t0.id AS id, t0.occupationId AS occupationId, t0.name AS name, t0.age AS age FROM Person AS t0 WHERE (t0.name == 'Fred')"
         )
+
+        let request = database.makeRequest(with: query)
+
+        let people: [Person] = try request.fetchAll()
+        let firstPerson: Person? = try request.fetchOne()
+
+        XCTAssertTrue(people.isEmpty)
+        XCTAssertNil(firstPerson)
     }
 
     func testDocumentationQuickStart() throws {
-        testDocumentationREADME()
+        try testDocumentationREADME()
     }
 
     func testDocumentationGettingStartedCRUDAndBindings() throws {

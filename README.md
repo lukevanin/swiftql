@@ -5,7 +5,13 @@
 <h1 align="center">SwiftQL</h1>
 
 <p align="center">
-  Write SQL queries using familiar, type-safe Swift syntax.
+  <strong>SQL, as a first-class language in Swift.</strong>
+</p>
+
+<p align="center">
+  Real SQLite, written in typed, composable, refactorable Swift.<br>
+  No raw query strings for supported queries. No stringly typed columns.<br>
+  No ORM hiding the SQL.
 </p>
 
 <p align="center">
@@ -22,9 +28,15 @@
   <a href="LICENSE.md"><img alt="MIT license" src="https://img.shields.io/github/license/lukevanin/swiftql"></a>
 </p>
 
-## Overview
- 
-SwiftQL expressions look like Swift code:
+## SQL belongs in the compiler
+
+SQL is too important to bury in strings. SwiftQL takes a different approach:
+it brings SQLite into Swift's type system using macros, generics, operators,
+and result builders.
+
+Tables are Swift structs. Columns are typed properties. Statements are values
+written in SQL order. Selected rows decode back into the Swift type you asked
+for.
 
 <!-- test: XLDocumentationTests.testDocumentationREADME -->
 ```swift
@@ -46,42 +58,82 @@ let query = sql { schema in
 }
 ```
 
-SwiftQL type-checks the APIs, table fields, and expression types used to
-construct a statement. SQLite remains the authority for dialect-specific syntax
-and runtime constraints.
+That Swift expression emits recognizable SQLite:
 
-SwiftQL lets you use your IDE's code completion and refactoring tools to assist
-you in writing error-free SQL.
+```sql
+SELECT t0.id AS id, t0.occupationId AS occupationId,
+       t0.name AS name, t0.age AS age
+FROM Person AS t0
+WHERE (t0.name == 'Fred')
+```
 
-SwiftQL uses SQLite's dialect of SQL. If you have written SQL for SQLite, the
-corresponding SwiftQL statements should feel familiar.
+Create a request and execute it without leaving Swift's type system:
 
-See the [documentation](https://lukevanin.github.io/swiftql/documentation/swiftql/)
-for more.
+<!-- test: XLDocumentationTests.testDocumentationREADME -->
+```swift
+let request = database.makeRequest(with: query)
 
-Documentation pull requests build an isolated Pages artifact without deploying
-it. Commits on `main` publish that exact artifact and include a
-[deployment provenance record](https://lukevanin.github.io/swiftql/swiftql-pages-provenance.json).
-For a failed build or upload, choose **Re-run all jobs** on that current
-`main` run. If only deployment or site verification failed, choose
-**Re-run failed jobs** to redeploy the same artifact. Do not rerun a superseded
-`main` run; manually dispatch the Documentation workflow on current `main`
-instead.
+let people: [Person] = try request.fetchAll()
+let firstPerson: Person? = try request.fetchOne()
+```
 
-See the [roadmap](ROADMAP.md) for planned reliability, SQLite conformance,
-query-declaration, Swift 6, and multi-database work.
+`Select(person)` fixes the row type when the query is constructed, so both
+execution methods expose their result types directly. There are no untyped row
+dictionaries or manual result casts.
 
-See [compiler compatibility](COMPATIBILITY.md) for the supported Swift
-toolchains and reproducible CI matrix.
+The `Where` clause is ordinary Swift, too:
 
-See [performance benchmarks](BENCHMARKS.md) for the reproducible query
-construction, preparation, cache, binding, execution, and decoding baselines.
+<!-- test: XLDocumentationTests.testDocumentationREADME -->
+```swift
+Where(person.name == "Fred")
+```
 
-See [first-party source coverage](Coverage/README.md) for the pinned Swift 6
-capture, filtering contract, retained raw evidence, and checked-in baseline.
+There is no `"name"` lookup string to mistype. Xcode can complete and navigate
+the table model, while the compiler catches missing fields, incompatible
+expression types, and invalid clause ordering. Rename a model property and the
+compiler leads you to the queries affected by it.
 
-See [releasing SwiftQL](RELEASING.md) for the exact-tag validation, safe dry-run,
-artifact provenance, publication, verification, and recovery procedure.
+If you know SQLite, you already know the shape of SwiftQL: `Select`, `From`,
+`Join`, `Where`, `GroupBy`, `Having`, and `With` appear in SQL order and retain
+their SQL meaning.
+
+## What becomes first-class
+
+- **[Tables](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/)
+  and [projections](https://lukevanin.github.io/swiftql/documentation/swiftql/queries/).**
+  `@SQLTable` and `@SQLResult` derive typed table, column, and result metadata
+  at compile time. There are no generated model files to keep in sync.
+- **[Expressions](https://lukevanin.github.io/swiftql/documentation/swiftql/expressions/).**
+  Compose boolean, numeric, text, optional, conditional, and aggregate
+  expressions with Swift operators and generic constraints.
+- **[Queries](https://lukevanin.github.io/swiftql/documentation/swiftql/queries/).**
+  Build selects with inner, left, and cross joins; grouping and `HAVING`;
+  ordering and pagination; scalar and table subqueries; compound queries; and
+  ordinary or recursive common table expressions.
+- **[Writes and table creation](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/).**
+  Create basic tables and construct typed inserts, updates, and deletes with
+  the same SQL-shaped API.
+- **[Bindings and results](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/).**
+  Reuse requests with typed named bindings, then decode `fetchAll()` and
+  `fetchOne()` results directly into Swift values.
+- **[Live data](https://lukevanin.github.io/swiftql/documentation/swiftql/livequeries/).**
+  Observe typed query results through GRDB-backed Combine publishers that track
+  the database region a query reads.
+- **Your domain.** Extend SQLite with Swift enums, custom value types, and
+  type-safe custom SQL functions.
+
+## SQL-shaped, not ORM-shaped
+
+SwiftQL does not replace the relational model with an object graph, and it does
+not make SQL disappear. It preserves the database concepts that make SQL
+powerful, then gives them native Swift names, types, composition, completion,
+and refactoring support.
+
+The boundary is deliberate. Swift checks the APIs, table fields, result shapes,
+expression types, and supported statement composition that it can prove.
+SQLite remains the authority for the live schema, runtime constraints,
+coercion rules, and dialect-specific behavior. SwiftQL deliberately grows its
+SQLite coverage without blurring that line.
 
 ## Installation
 
@@ -98,6 +150,27 @@ file:
 
 Refer to Apple's documentation [Adding package dependencies to your app](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app#Add-a-package-dependency),
 and specify the package URL `https://github.com/lukevanin/swiftql.git`. 
+
+## Explore SwiftQL
+
+Start with the
+[documentation](https://lukevanin.github.io/swiftql/documentation/swiftql/).
+Its examples are connected to executable test scenarios, so the API shown in
+the guides stays aligned with the library.
+
+For project guarantees and direction:
+
+- [Compiler compatibility](COMPATIBILITY.md) records the supported Swift
+  toolchains and reproducible CI matrix.
+- [Performance benchmarks](BENCHMARKS.md) measure query construction,
+  preparation, caching, binding, execution, and decoding.
+- [First-party source coverage](Coverage/README.md) preserves the reproducible
+  coverage baseline and its raw evidence.
+- The [roadmap](ROADMAP.md) tracks reliability, SQLite conformance, query
+  declarations, Swift 6, and future database work.
+
+For maintainers, [releasing SwiftQL](RELEASING.md) documents exact-tag
+validation, artifact provenance, publication, verification, and recovery.
 
 ## License
 
