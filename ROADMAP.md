@@ -168,6 +168,9 @@ column. `SQLScalarResult` remains source-compatible during v1; it becomes a
 legacy shim rather than a requirement. Scalar-subquery conversion and nested
 optional flattening remain separate concerns.
 
+The alias-first, value-semantic lifecycle recommendation for recursive
+definitions is documented in [Value-Semantic Recursive CTE Construction](Documentation/Architecture/RecursiveCTEConstruction.md).
+
 ### Contextual value codecs
 
 One Swift type may have multiple valid database representations. `Date` may be
