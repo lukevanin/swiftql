@@ -1,0 +1,342 @@
+{
+  "schema_version": 1,
+  "coordination_issue": 190,
+  "records": [
+    {
+      "id": "storage.null",
+      "category": "storage",
+      "evidence_layers": ["dialect-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes",
+      "provenance": {
+        "repository": "groue/GRDB.swift",
+        "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+        "path": "Tests/GRDBTests/Core/DatabaseValueTests.swift",
+        "upstream_case": "DatabaseValueTests.testDatabaseValueAsDatabaseValueConvertible",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Retains the five-storage-class semantic oracle and explicit SQL NULL identity."
+      }
+    },
+    {
+      "id": "storage.integer.minimum",
+      "category": "storage",
+      "evidence_layers": ["dialect-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes",
+      "provenance": {
+        "repository": "groue/GRDB.swift",
+        "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+        "path": "Tests/GRDBTests/Core/NumericOverflowTests.swift",
+        "upstream_case": "NumericOverflowTests.testLowInt64FromDoubleOverflows",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Uses Int64.min as a direct INTEGER storage boundary before separate conversion-overflow cases."
+      }
+    },
+    {
+      "id": "storage.integer.maximum",
+      "category": "storage",
+      "evidence_layers": ["dialect-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes",
+      "provenance": {
+        "repository": "groue/GRDB.swift",
+        "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+        "path": "Tests/GRDBTests/Core/NumericOverflowTests.swift",
+        "upstream_case": "NumericOverflowTests.testHighInt64FromDoubleOverflows",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Uses Int64.max as a direct INTEGER storage boundary before separate conversion-overflow cases."
+      }
+    },
+    {
+      "id": "storage.real.finite",
+      "category": "storage",
+      "evidence_layers": ["dialect-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes",
+      "provenance": {
+        "repository": "groue/GRDB.swift",
+        "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+        "path": "Tests/GRDBTests/Core/DatabaseValueTests.swift",
+        "upstream_case": "DatabaseValueTests.testDatabaseValueAsDatabaseValueConvertible",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Preserves a non-integral IEEE 754 value and verifies SQLite REAL storage."
+      }
+    },
+    {
+      "id": "storage.real.positive-infinity",
+      "category": "storage",
+      "evidence_layers": ["dialect-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/c3ref/bind_blob.html",
+      "provenance": {
+        "repository": "lukevanin/swiftql",
+        "commit": "03f504a1e47e0580b2c20eeeecea104cb9d7f2a9",
+        "path": "Tests/SQLTests/GRDBDriverContractTests.swift",
+        "upstream_case": "GRDBDriverContractTests.testSQLiteRealBindingsPreserveInfinitiesAndFiniteEdges",
+        "license_disposition": "MIT; existing SwiftQL contract reused by stable case ID",
+        "adaptation_notes": "Promotes the issue #147 positive-infinity binding behavior into the shared matrix."
+      }
+    },
+    {
+      "id": "storage.real.negative-infinity",
+      "category": "storage",
+      "evidence_layers": ["dialect-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/c3ref/bind_blob.html",
+      "provenance": {
+        "repository": "lukevanin/swiftql",
+        "commit": "03f504a1e47e0580b2c20eeeecea104cb9d7f2a9",
+        "path": "Tests/SQLTests/GRDBDriverContractTests.swift",
+        "upstream_case": "GRDBDriverContractTests.testSQLiteRealBindingsPreserveInfinitiesAndFiniteEdges",
+        "license_disposition": "MIT; existing SwiftQL contract reused by stable case ID",
+        "adaptation_notes": "Promotes the issue #147 negative-infinity binding behavior into the shared matrix."
+      }
+    },
+    {
+      "id": "storage.real.nan-rejected",
+      "category": "structured-failure",
+      "evidence_layers": ["dialect-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/c3ref/bind_blob.html",
+      "provenance": {
+        "repository": "lukevanin/swiftql",
+        "commit": "03f504a1e47e0580b2c20eeeecea104cb9d7f2a9",
+        "path": "Tests/SQLTests/GRDBDriverContractTests.swift",
+        "upstream_case": "GRDBDriverContractTests.testRealBindingRejectsNaNBeforeSQLiteCanNormalizeItToNull",
+        "license_disposition": "MIT; existing SwiftQL contract reused by stable case ID",
+        "adaptation_notes": "Promotes issue #147's structured NaN rejection without treating SQLite NULL normalization as success."
+      }
+    },
+    {
+      "id": "storage.text.empty",
+      "category": "storage",
+      "evidence_layers": ["dialect-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes",
+      "provenance": {
+        "repository": "marcoarment/Blackbird",
+        "commit": "0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a",
+        "path": "Tests/BlackbirdTests/BlackbirdTests.swift",
+        "upstream_case": "BlackbirdTests.testValueConversions",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Extends the text conversion case to distinguish an empty TEXT value from SQL NULL."
+      }
+    },
+    {
+      "id": "storage.text.unicode",
+      "category": "storage",
+      "evidence_layers": ["dialect-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes",
+      "provenance": {
+        "repository": "marcoarment/Blackbird",
+        "commit": "0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a",
+        "path": "Tests/BlackbirdTests/BlackbirdTests.swift",
+        "upstream_case": "BlackbirdTests.testValueConversions",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Uses composed and decomposed accents plus non-Latin text and emoji in one exact round trip."
+      }
+    },
+    {
+      "id": "storage.blob.empty",
+      "category": "storage",
+      "evidence_layers": ["dialect-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/c3ref/bind_blob.html",
+      "provenance": {
+        "repository": "stephencelis/SQLite.swift",
+        "commit": "ccaae3d01fd655be40f20665f1f61dc6deecec27",
+        "path": "Tests/SQLiteTests/Core/StatementTests.swift",
+        "upstream_case": "StatementTests.test_zero_sized_blob_returns_null",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Keeps a zero-byte BLOB distinct from SQL NULL despite SQLite's null-pointer C representation."
+      }
+    },
+    {
+      "id": "storage.blob.embedded-zero",
+      "category": "storage",
+      "evidence_layers": ["dialect-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/c3ref/bind_blob.html",
+      "provenance": {
+        "repository": "stephencelis/SQLite.swift",
+        "commit": "ccaae3d01fd655be40f20665f1f61dc6deecec27",
+        "path": "Tests/SQLiteTests/Core/BlobTests.swift",
+        "upstream_case": "BlobTests.test_toHex",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Uses embedded zero and non-UTF-8 bytes to prove length-aware BLOB binding."
+      }
+    },
+    {
+      "id": "storage.blob.invalid-utf8",
+      "category": "structured-failure",
+      "evidence_layers": ["dialect-boundary", "sqlite-grdb", "column-reader"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes",
+      "provenance": {
+        "repository": "stephencelis/SQLite.swift",
+        "commit": "ccaae3d01fd655be40f20665f1f61dc6deecec27",
+        "path": "Tests/SQLiteTests/Core/BlobTests.swift",
+        "upstream_case": "BlobTests.test_equality",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Preserves arbitrary bytes as BLOB and requires structured failure when decoded as text."
+      }
+    },
+    {
+      "id": "affinity.integer.numeric-text",
+      "category": "affinity",
+      "evidence_layers": ["sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#type_affinity",
+      "provenance": {
+        "repository": "stephencelis/SQLite.swift",
+        "commit": "ccaae3d01fd655be40f20665f1f61dc6deecec27",
+        "path": "Tests/SQLiteTests/Schema/SchemaTests.swift",
+        "upstream_case": "SchemaTests.test_createTable",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Extends declared INTEGER coverage with real SQLite coercion and typeof evidence."
+      }
+    },
+    {
+      "id": "affinity.text.integer",
+      "category": "affinity",
+      "evidence_layers": ["sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#type_affinity",
+      "provenance": {
+        "repository": "Lighter-swift/Lighter",
+        "commit": "3486fc08d580aa3a87cd29ede023ba291a90de8b",
+        "path": "Tests/EntityGenTests/Fixtures.swift",
+        "upstream_case": "northwindSchema.OrderDetail",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Turns generated declared-type coverage into a semantic TEXT-affinity coercion check."
+      }
+    },
+    {
+      "id": "affinity.real.integer",
+      "category": "affinity",
+      "evidence_layers": ["sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#type_affinity",
+      "provenance": {
+        "repository": "Lighter-swift/Lighter",
+        "commit": "3486fc08d580aa3a87cd29ede023ba291a90de8b",
+        "path": "Tests/EntityGenTests/Fixtures.swift",
+        "upstream_case": "northwindSchema.OrderDetail",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Turns generated DOUBLE declared-type coverage into a semantic REAL-affinity coercion check."
+      }
+    },
+    {
+      "id": "optional.null-vs-missing",
+      "category": "optional",
+      "evidence_layers": ["codec-boundary", "invocation-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/nulls.html",
+      "provenance": {
+        "repository": "vapor/fluent-kit",
+        "commit": "6f8844284df4f797d2a81721511d053357d97b56",
+        "path": "Tests/FluentKitTests/OptionalFieldQueryTests.swift",
+        "upstream_case": "OptionalFieldQueryTests.testInsertNull",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Separates an explicit NULL row value from a query that returns no row."
+      }
+    },
+    {
+      "id": "enum.text.round-trip",
+      "category": "raw-value-enum",
+      "evidence_layers": ["codec-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes",
+      "provenance": {
+        "repository": "groue/GRDB.swift",
+        "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+        "path": "Tests/GRDBTests/Core/DatabaseValueConvertible/RawRepresentable+DatabaseValueConvertibleTests.swift",
+        "upstream_case": "RawRepresentableDatabaseValueConvertibleTests.testGrape",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Uses an application-owned text raw-value enum and SwiftQL contextual codec."
+      }
+    },
+    {
+      "id": "codec.named.text",
+      "category": "contextual-codec",
+      "evidence_layers": ["codec-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes",
+      "provenance": {
+        "repository": "vapor/fluent-kit",
+        "commit": "6f8844284df4f797d2a81721511d053357d97b56",
+        "path": "Tests/FluentKitTests/OptionalEnumQueryTests.swift",
+        "upstream_case": "OptionalEnumQueryTests.testInsertNonNull",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Exercises explicit named representation selection without importing ORM field policy."
+      }
+    },
+    {
+      "id": "codec.default.integer",
+      "category": "contextual-codec",
+      "evidence_layers": ["codec-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes",
+      "provenance": {
+        "repository": "Lighter-swift/Lighter",
+        "commit": "3486fc08d580aa3a87cd29ede023ba291a90de8b",
+        "path": "Tests/EntityGenTests/ASTRecordBindGenerationTests.swift",
+        "upstream_case": "ASTRecordBindGenerationTests.testPersonStatementBindWithLocalHelpers",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Exercises SwiftQL's configured default representation at the same pre-adapter boundary."
+      }
+    },
+    {
+      "id": "binding.named",
+      "category": "binding-identity",
+      "evidence_layers": ["invocation-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/lang_expr.html#parameters",
+      "provenance": {
+        "repository": "groue/GRDB.swift",
+        "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+        "path": "Tests/GRDBTests/Core/Statement/StatementArgumentsTests.swift",
+        "upstream_case": "StatementArgumentsTests.testNamedStatementArguments",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Uses SwiftQL's immutable binding packet and real driver instead of GRDB argument containers."
+      }
+    },
+    {
+      "id": "binding.repeated-named",
+      "category": "binding-identity",
+      "evidence_layers": ["invocation-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/lang_expr.html#parameters",
+      "provenance": {
+        "repository": "groue/GRDB.swift",
+        "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+        "path": "Tests/GRDBTests/Core/Statement/StatementArgumentsTests.swift",
+        "upstream_case": "StatementArgumentsTests.testReusedNamedStatementArguments",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Proves one logical slot supplies all occurrences of the same SQLite named parameter."
+      }
+    },
+    {
+      "id": "failure.integer-overflow",
+      "category": "structured-failure",
+      "evidence_layers": ["column-reader", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes",
+      "provenance": {
+        "repository": "groue/GRDB.swift",
+        "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+        "path": "Tests/GRDBTests/Core/NumericOverflowTests.swift",
+        "upstream_case": "NumericOverflowTests.testHighInt64FromDoubleOverflows",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Requires a structured type mismatch instead of trapping or truncating an out-of-range REAL."
+      }
+    },
+    {
+      "id": "failure.storage-mismatch",
+      "category": "structured-failure",
+      "evidence_layers": ["codec-boundary", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes",
+      "provenance": {
+        "repository": "marcoarment/Blackbird",
+        "commit": "0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a",
+        "path": "Tests/BlackbirdTests/BlackbirdTests.swift",
+        "upstream_case": "BlackbirdTests.testValueConversions",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Rejects incompatible storage through SwiftQL's contextual codec before value reinterpretation."
+      }
+    },
+    {
+      "id": "failure.decode-after-valid-row",
+      "category": "structured-failure",
+      "evidence_layers": ["column-reader", "sqlite-grdb"],
+      "sqlite_documentation_url": "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes",
+      "provenance": {
+        "repository": "marcoarment/Blackbird",
+        "commit": "0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a",
+        "path": "Tests/BlackbirdTests/BlackbirdTests.swift",
+        "upstream_case": "BlackbirdTests.testColumnTypes",
+        "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+        "adaptation_notes": "Confirms a later malformed row fails without invalidating an earlier successfully decoded row."
+      }
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import Foundation
 import GRDB
 import XCTest
 @testable import SwiftQL
+import SwiftQLSQLiteConformanceFixtures
 
 
 @SQLTable(name: "CodecSnapshotRecord")
@@ -358,6 +359,214 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
         try oldBuiltDatabase.databasePool.close()
     }
 
+    func testSharedValueCasesUseNamedDefaultEnumAndOptionalCodecsThroughGRDB() throws {
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        let textCodec = makeSharedConformanceTextCodec()
+        let integerCodec = makeSharedConformanceIntegerCodec()
+        let registry = try XLValueCodecRegistry()
+            .registering(textCodec)
+            .registering(integerCodec)
+        let codingConfiguration = try XLValueCodingConfiguration(
+            registry: registry,
+            defaultCodecKeys: [integerCodec.identity.key]
+        )
+        let dialect = XLSQLiteDialect()
+        let textParameterContext = XLValueCodingContext(
+            site: .parameter,
+            path: XLValueCodingPath(
+                SQLiteValueConformanceCaseID.namedTextCodec.rawValue
+            )
+        )
+        let integerParameterContext = XLValueCodingContext(
+            site: .parameter,
+            path: XLValueCodingPath(
+                SQLiteValueConformanceCaseID.defaultIntegerCodec.rawValue
+            )
+        )
+        let optionalParameterContext = XLValueCodingContext(
+            site: .parameter,
+            path: XLValueCodingPath(
+                SQLiteValueConformanceCaseID.optionalNullVersusMissing.rawValue
+            )
+        )
+        let textValue = try codingConfiguration.encode(
+            SharedConformanceMode.ready,
+            using: dialect,
+            context: textParameterContext,
+            selection: XLValueCodecSelection(
+                explicitCodecKey: textCodec.identity.key
+            )
+        )
+        let integerValue = try codingConfiguration.encode(
+            SharedConformanceMode.waiting,
+            using: dialect,
+            context: integerParameterContext
+        )
+        let optionalValue = try codingConfiguration.encodeOptional(
+            Optional<SharedConformanceMode>.none,
+            using: dialect,
+            context: optionalParameterContext
+        )
+
+        var driver = GRDBDatabaseDriver(
+            databasePool: fixture.databasePool,
+            dialect: dialect
+        )
+        let create = logicalStatement(
+            for: driver,
+            sql: """
+                CREATE TABLE shared_value_codecs (
+                    text_value TEXT NOT NULL,
+                    integer_value INTEGER NOT NULL,
+                    optional_value TEXT
+                )
+                """
+        )
+        let insert = logicalStatement(
+            for: driver,
+            sql: """
+                INSERT INTO shared_value_codecs (
+                    text_value, integer_value, optional_value
+                ) VALUES (
+                    :text_value, :integer_value, :optional_value
+                )
+                """
+        )
+        let select = logicalStatement(
+            for: driver,
+            sql: """
+                SELECT
+                    text_value, typeof(text_value),
+                    integer_value, typeof(integer_value),
+                    optional_value, typeof(optional_value)
+                FROM shared_value_codecs
+                """
+        )
+        let selectMismatch = logicalStatement(
+            for: driver,
+            sql: "SELECT 1, typeof(1)"
+        )
+
+        try driver.withWriteConnection { connection in
+            try connection.execute(connection.prepare(create))
+            var statement = try connection.prepare(insert)
+            statement = try connection.bind(
+                textValue,
+                to: .named("text_value"),
+                in: statement
+            )
+            statement = try connection.bind(
+                integerValue,
+                to: .named("integer_value"),
+                in: statement
+            )
+            statement = try connection.bind(
+                optionalValue,
+                to: .named("optional_value"),
+                in: statement
+            )
+            try connection.execute(statement)
+        }
+
+        let row = try driver.withReadConnection { connection in
+            try XCTUnwrap(connection.fetchOne(connection.prepare(select)))
+        }
+        XCTAssertEqual(
+            Array(row[0 ... 1]),
+            [.text("ready"), .text("text")],
+            SQLiteValueConformanceCaseID.namedTextCodec.rawValue
+        )
+        XCTAssertEqual(
+            Array(row[2 ... 3]),
+            [.integer(2), .text("integer")],
+            SQLiteValueConformanceCaseID.defaultIntegerCodec.rawValue
+        )
+        XCTAssertEqual(
+            Array(row[4 ... 5]),
+            [.null, .text("null")],
+            SQLiteValueConformanceCaseID.optionalNullVersusMissing.rawValue
+        )
+
+        let decodedText: SharedConformanceMode = try codingConfiguration.decode(
+            SharedConformanceMode.self,
+            from: row[0],
+            using: dialect,
+            context: XLValueCodingContext(
+                site: .result,
+                path: textParameterContext.path
+            ),
+            selection: XLValueCodecSelection(
+                explicitCodecKey: textCodec.identity.key
+            )
+        )
+        let decodedInteger: SharedConformanceMode = try codingConfiguration.decode(
+            SharedConformanceMode.self,
+            from: row[2],
+            using: dialect,
+            context: XLValueCodingContext(
+                site: .result,
+                path: integerParameterContext.path
+            )
+        )
+        let decodedOptional: SharedConformanceMode? = try codingConfiguration.decodeOptional(
+            SharedConformanceMode.self,
+            from: row[4],
+            using: dialect,
+            context: XLValueCodingContext(
+                site: .result,
+                path: optionalParameterContext.path
+            )
+        )
+        XCTAssertEqual(
+            decodedText,
+            .ready,
+            SQLiteValueConformanceCaseID.textRawValueEnum.rawValue
+        )
+        XCTAssertEqual(decodedInteger, .waiting)
+        XCTAssertNil(decodedOptional)
+
+        let mismatchRow = try driver.withReadConnection { connection in
+            try XCTUnwrap(
+                connection.fetchOne(connection.prepare(selectMismatch))
+            )
+        }
+        let mismatchContext = XLValueCodingContext(
+            site: .result,
+            path: XLValueCodingPath(
+                SQLiteValueConformanceCaseID.storageMismatch.rawValue
+            )
+        )
+        XCTAssertEqual(
+            mismatchRow,
+            [.integer(1), .text("integer")],
+            SQLiteValueConformanceCaseID.storageMismatch.rawValue
+        )
+        XCTAssertThrowsError(
+            try codingConfiguration.decode(
+                SharedConformanceMode.self,
+                from: mismatchRow[0],
+                using: dialect,
+                context: mismatchContext,
+                selection: XLValueCodecSelection(
+                    explicitCodecKey: textCodec.identity.key
+                )
+            ),
+            SQLiteValueConformanceCaseID.storageMismatch.rawValue
+        ) { error in
+            XCTAssertEqual(
+                error as? XLValueCodecError,
+                .storageMismatch(
+                    codec: textCodec.identity.key,
+                    expected: textCodec.identity.storageIdentifier,
+                    actual: XLValueStorageIdentifier(rawValue: "integer"),
+                    context: mismatchContext
+                )
+            )
+        }
+    }
+
     private func makeDateCodecs() -> (
         text: XLValueCodec<Date, XLSQLiteDialect>,
         integer: XLValueCodec<Date, XLSQLiteDialect>
@@ -435,6 +644,65 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
 private enum DateCodecFixtureError: Error {
     case invalidText
     case invalidInteger
+}
+
+
+private enum SharedConformanceMode: String, Equatable, Sendable {
+    case ready
+    case waiting
+}
+
+
+private func makeSharedConformanceTextCodec() -> XLValueCodec<
+    SharedConformanceMode,
+    XLSQLiteDialect
+> {
+    XLValueCodec(
+        key: XLValueCodecKey(id: "conformance.shared-mode-text", version: 1),
+        valueTypeIdentifier: XLValueTypeIdentifier(
+            rawValue: "swiftql.conformance.shared-mode"
+        ),
+        dialectIdentifier: XLSQLiteDialect.identity,
+        storageIdentifier: XLValueStorageIdentifier(rawValue: "text"),
+        encode: { value, _, _ in
+            .text(value.rawValue)
+        },
+        decode: { value, _, _ in
+            guard case .text(let rawValue) = value,
+                  let mode = SharedConformanceMode(rawValue: rawValue) else {
+                throw DateCodecFixtureError.invalidText
+            }
+            return mode
+        }
+    )
+}
+
+
+private func makeSharedConformanceIntegerCodec() -> XLValueCodec<
+    SharedConformanceMode,
+    XLSQLiteDialect
+> {
+    XLValueCodec(
+        key: XLValueCodecKey(id: "conformance.shared-mode-integer", version: 1),
+        valueTypeIdentifier: XLValueTypeIdentifier(
+            rawValue: "swiftql.conformance.shared-mode"
+        ),
+        dialectIdentifier: XLSQLiteDialect.identity,
+        storageIdentifier: XLValueStorageIdentifier(rawValue: "integer"),
+        encode: { value, _, _ in
+            .integer(value == .ready ? 1 : 2)
+        },
+        decode: { value, _, _ in
+            switch value {
+            case .integer(1):
+                return .ready
+            case .integer(2):
+                return .waiting
+            default:
+                throw DateCodecFixtureError.invalidInteger
+            }
+        }
+    )
 }
 
 
