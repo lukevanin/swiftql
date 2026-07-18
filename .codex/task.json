@@ -1,11 +1,11 @@
 {
-  "task_name": "Stream and decode GRDB result rows incrementally",
-  "issue_number": 248,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/248",
+  "task_name": "Use a FieldReader instead of a column reader & index",
+  "issue_number": 35,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/35",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#248 - Stream GRDB result rows incrementally",
+  "codex_session_title": "lukevanin/swiftql#35 - Use a FieldReader",
   "codex_session_id": "019f7610-5766-7ab1-b223-e1aaedeaff74",
   "codex_session_url": null,
-  "task_branch": "codex/248-stream-and-decode-grdb-result-rows-incrementally",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/248-stream-and-decode-grdb-result-rows-incrementally"
+  "task_branch": "codex/35-use-a-fieldreader-instead-of-a-column-reader-index",
+  "task_worktree_path": "/private/tmp/swiftql-worktrees/35-use-a-fieldreader-instead-of-a-column-reader-index"
 }
