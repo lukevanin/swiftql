@@ -1,11 +1,11 @@
 {
-  "task_name": "Compare coverage source topology without requiring identical concurrent counters",
-  "issue_number": 208,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/208",
+  "task_name": "Add real SQLite coverage for fluent INSERT ... SELECT clause chains",
+  "issue_number": 195,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/195",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#208 - Compare coverage source topology without requiring identical concurrent counters",
+  "codex_session_title": "lukevanin/swiftql#195 - Add real SQLite coverage for fluent INSERT ... SELECT clause chains",
   "codex_session_id": "019f6fcb-bfd9-7522-9d7c-c78fefd5c7fa",
   "codex_session_url": null,
-  "task_branch": "codex/208-compare-coverage-source-topology",
-  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/208-compare-coverage-source-topology"
+  "task_branch": "codex/195-add-real-sqlite-coverage-for-fluent-insert-select-clause-chains",
+  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/195-add-real-sqlite-coverage-for-fluent-insert-select-clause-chains"
 }
