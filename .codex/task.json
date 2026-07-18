@@ -1,11 +1,11 @@
 {
-  "task_name": "Replace specialised `between` method in XLBuilder with generic methods.",
-  "issue_number": 32,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/32",
+  "task_name": "Compare coverage source topology without requiring identical concurrent counters",
+  "issue_number": 208,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/208",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#32 - Replace specialised `between` method in XLBuilder with generic methods.",
+  "codex_session_title": "lukevanin/swiftql#208 - Compare coverage source topology without requiring identical concurrent counters",
   "codex_session_id": "019f6fcb-bfd9-7522-9d7c-c78fefd5c7fa",
   "codex_session_url": null,
-  "task_branch": "codex/32-replace-specialised-between-method-in-xlbuilder-with-generic-methods",
-  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/32-replace-specialised-between-method-in-xlbuilder-with-generic-methods"
+  "task_branch": "codex/208-compare-coverage-source-topology",
+  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/208-compare-coverage-source-topology"
 }
