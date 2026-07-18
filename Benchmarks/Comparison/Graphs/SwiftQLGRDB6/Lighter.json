@@ -1,0 +1,16 @@
+{
+  "SwiftMapping": {
+    "databaseTypeName": "NorthwindPerformance"
+  },
+  "CodeGeneration": {
+    "omitCreationSQL": true,
+    "readOnly": true,
+    "generateAsyncFunctions": false,
+    "embedRecordTypesInDatabaseType": false,
+    "Lighter": {
+      "import": "import",
+      "relationships": false
+    },
+    "Raw": "RecordType"
+  }
+}
