@@ -1,11 +1,11 @@
 {
-  "task_name": "Add a shared SQLite storage and value conformance suite",
-  "issue_number": 252,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/252",
+  "task_name": "Add a cross-library SQLite performance comparison baseline",
+  "issue_number": 250,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/250",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#252 - Add SQLite value conformance suite",
-  "codex_session_id": "019f7610-5766-7ab1-b223-e1aaedeaff74",
+  "codex_session_title": "lukevanin/swiftql#250 - Add cross-library SQLite performance baseline",
+  "codex_session_id": "019f750a-12ae-7991-8d2c-bb201b326ffb",
   "codex_session_url": null,
-  "task_branch": "codex/252-add-a-shared-sqlite-storage-and-value-conformance-suite",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/252-add-a-shared-sqlite-storage-and-value-conformance-suite"
+  "task_branch": "codex/250-independent-sqlite-performance-baseline",
+  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/250-independent-sqlite-performance-baseline"
 }

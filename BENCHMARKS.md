@@ -116,3 +116,14 @@ The first checked-in measurements and their cross-run variance are documented
 in [Benchmarks/Baselines/README.md](Benchmarks/Baselines/README.md). Optimize a
 phase only after repeatable measurements and profiling identify a material
 cost. CI intentionally has no absolute time threshold.
+
+## Cross-library full-fetch comparison
+
+The independent harness in
+[Benchmarks/Comparison](Benchmarks/Comparison/README.md) records a separate
+Northwind `Orders` full-fetch baseline against SQLiteData, Lighter, GRDB,
+SQLite.swift, and raw SQLite. It uses two isolated dependency graphs, paired
+controls, one implementation per fresh process, raw per-iteration samples,
+and an exact 16,143-row fixture. The comparison is a before/after reference
+for execution-path work, not a general database-library ranking or an absolute
+CI performance gate.
