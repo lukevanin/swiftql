@@ -751,47 +751,35 @@ public struct XLSelectResultDependency: XLTableDeclaration {
 ///
 public struct XLFromTableDependency: XLTableDeclaration, XLNamedDependency {
 
-    private var qualifiedName: XLQualifiedName
+    internal let source: any XLEncodable
 
     public var alias: XLName
+
+    internal init(source: any XLEncodable, alias: XLName) {
+        self.source = source
+        self.alias = alias
+    }
 
     public init(qualifiedName: XLQualifiedName, alias: XLName) {
-        self.qualifiedName = qualifiedName
-        self.alias = alias
+        self.init(source: qualifiedName, alias: alias)
     }
 
-    public func makeSQL(context: inout XLBuilder) {
-        context.binaryOperator("AS", left: qualifiedName.makeSQL, right: alias.makeSQL)
-    }
-    
-    public func qualifiedName(forColumn name: XLName) -> XLQualifiedName {
-        XLQualifiedTableAliasColumnName(table: alias, column: name)
-    }
-}
-
-
-///
-/// A table used in a FROM clause in a common table expression.
-///
-public struct XLFromCommonTableDependency: XLTableDeclaration, XLNamedDependency {
-    
-    public var alias: XLName
-    
-    private let commonTable: XLCommonTableDependency
-    
     public init(commonTable: XLCommonTableDependency, alias: XLName) {
-        self.alias = alias
-        self.commonTable = commonTable
+        self.init(source: commonTable.alias, alias: alias)
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        context.binaryOperator("AS", left: source.makeSQL, right: alias.makeSQL)
     }
     
     public func qualifiedName(forColumn name: XLName) -> XLQualifiedName {
         XLQualifiedTableAliasColumnName(table: alias, column: name)
     }
-    
-    public func makeSQL(context: inout XLBuilder) {
-        context.binaryOperator("AS", left: commonTable.alias.makeSQL, right: alias.makeSQL)
-    }
 }
+
+
+@available(*, deprecated, renamed: "XLFromTableDependency")
+public typealias XLFromCommonTableDependency = XLFromTableDependency
 
 
 ///

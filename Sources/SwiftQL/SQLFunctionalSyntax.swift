@@ -161,7 +161,7 @@ public struct XLSchema {
     ///
     public func table<T>(_ commonTable: T, as alias: XLName? = nil) -> T.Result.MetaNamedResult where T: XLMetaCommonTable, T.Result: XLResult {
         let alias = tableNamespace.makeAlias(alias: alias)
-        let dependency = XLFromCommonTableDependency(commonTable: commonTable.definition, alias: alias)
+        let dependency = XLFromTableDependency(commonTable: commonTable.definition, alias: alias)
         return T.Result.makeSQLAnonymousNamedResult(namespace: tableNamespace, dependency: dependency)
     }
 
@@ -179,7 +179,7 @@ public struct XLSchema {
     ///
     public func nullableTable<T>(_ commonTable: T, as alias: XLName? = nil) -> T.Result.MetaNullableNamedResult where T: XLMetaCommonTable, T.Result: XLResult {
         let alias = tableNamespace.makeAlias(alias: alias)
-        let dependency = XLFromCommonTableDependency(commonTable: commonTable.definition, alias: alias)
+        let dependency = XLFromTableDependency(commonTable: commonTable.definition, alias: alias)
         return T.Result.makeSQLAnonymousNullableNamedResult(namespace: tableNamespace, dependency: dependency)
     }
     
@@ -371,5 +371,4 @@ public func delete<T>(_ table: T) -> XLDeleteTableStatement<T> where T: XLMetaWr
     let components = XLDeleteStatementComponents(delete: Delete(table))
     return XLDeleteTableStatement(components: components)
 }
-
 

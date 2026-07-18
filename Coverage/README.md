@@ -16,8 +16,20 @@ platform and architecture; dependency graph; package-resolution digest; and
 exact coverage command in its retained artifact.
 
 Every coverage job performs two clean builds in independent SwiftPM scratch
-directories. The job fails if their normalized first-party source manifests
-differ.
+directories. The reproducibility identity requires the same source commit,
+clean-tree state, toolchain and dependency provenance, coverage command,
+filtering metadata, target membership, included and allowed-source manifests,
+and per-file, per-target, and overall static line/function/region counts.
+
+Covered and uncovered hit counters, their derived percentages, and the ranked
+largest-gap list are retained as diagnostic evidence but are not part of that
+identity. Concurrent tests can legitimately merge a different number of hits
+into two otherwise equivalent LLVM profiles. The gate records whether the
+complete dynamic reports matched, but it does not turn that observation into a
+percentage threshold or source-selection failure.
+`reproducibility.json` preserves `normalized_reports_match` as the exact-report
+equality observation, so it can be `false` while
+`reproducibility_identity_matches` remains `true` and the gate succeeds.
 
 ## Filtering contract
 
@@ -50,13 +62,22 @@ Run the fixture tests first:
 python3 scripts/ci/test-source-coverage-report.py
 ```
 
-Then run the real package tests with coverage into a clean output and scratch
-directory:
+Then run two real package-test captures with independent clean output and
+scratch directories and compare their reproducibility identities:
 
 ```bash
-SWIFTQL_COVERAGE_SCRATCH_PATH="${TMPDIR}/swiftql-coverage-build" \
-  scripts/ci/run-source-coverage.sh \
-  "${TMPDIR}/swiftql-coverage-report"
+coverage_root="$(mktemp -d "${TMPDIR:-/tmp}/swiftql-coverage.XXXXXX")"
+
+SWIFTQL_COVERAGE_SCRATCH_PATH="$coverage_root/build-1" \
+  scripts/ci/run-source-coverage.sh "$coverage_root/run-1"
+
+SWIFTQL_COVERAGE_SCRATCH_PATH="$coverage_root/build-2" \
+  scripts/ci/run-source-coverage.sh "$coverage_root/run-2"
+
+scripts/ci/verify-source-coverage-reproducibility.sh \
+  "$coverage_root/run-1" \
+  "$coverage_root/run-2" \
+  "$coverage_root/run-1/reproducibility.json"
 ```
 
 The output directory contains:
@@ -68,6 +89,11 @@ The output directory contains:
 - `allowed-uninstrumented-sources.txt`: explicit zero-region exceptions;
 - `summary.md`: the same concise target totals shown in the GitHub job summary;
 - toolchain, dependency, command, source-commit, and test-log provenance.
+
+After a successful comparison, the first output also contains
+`reproducibility.json` and a copy of the second run's manifest as
+`repeated-included-sources.txt`. Both run directories retain their complete raw
+JSON, LCOV, normalized report, summary, and test log.
 
 Use a new output directory for every run. The script refuses to overwrite a
 prior report and refuses to assign a commit to dirty source content. During
