@@ -175,6 +175,131 @@ final class ValueCodecContractTests: XCTestCase {
         )
     }
 
+    func testQueryInferenceFiltersByStorageBeforeApplyingDefaults() throws {
+        let text = makeMarkerCodec("query-text-default")
+        let integer = makeCodec(
+            key: key("query-integer"),
+            storage: .integer,
+            encode: { .integer($0.rawValue) },
+            decode: { value in
+                guard case .integer(let rawValue) = value else {
+                    throw CodecTestFailure.invalidValue
+                }
+                return CodecToken(rawValue: rawValue)
+            }
+        )
+        let configuration = try XLValueCodingConfiguration(
+            registry: try register([text, integer]),
+            defaultCodecKeys: [text.identity.key]
+        )
+
+        let resolved = try configuration.resolvedCodec(
+            for: CodecToken.self,
+            using: dialect,
+            context: parameterContext,
+            requiringStorage: storageIdentifier(.integer)
+        )
+
+        XCTAssertEqual(resolved.identity, integer.identity)
+        XCTAssertEqual(
+            try resolved.encode(CodecToken(rawValue: 42)),
+            .integer(42)
+        )
+        // The existing selection API remains default-driven and unchanged.
+        XCTAssertEqual(
+            try configuration.encode(
+                CodecToken(rawValue: 42),
+                using: dialect,
+                context: parameterContext
+            ),
+            .text("query-text-default")
+        )
+
+        let alternateText = makeMarkerCodec("query-text-alternate")
+        let ambiguousTextConfiguration = try XLValueCodingConfiguration(
+            registry: try register([alternateText, integer, text]),
+            defaultCodecKeys: [text.identity.key]
+        )
+        XCTAssertEqual(
+            try ambiguousTextConfiguration.resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: parameterContext,
+                requiringStorage: storageIdentifier(.text)
+            ).identity,
+            text.identity,
+            "A storage-matching default must disambiguate matching candidates"
+        )
+    }
+
+    func testQuerySelectionReportsStorageConstrainedMissingAndAmbiguity() throws {
+        let textA = makeMarkerCodec("query-a")
+        let textB = makeMarkerCodec("query-b")
+        let configuration = try XLValueCodingConfiguration(
+            registry: try register([textB, textA])
+        )
+
+        assertQueryCodecSelectionError(
+            try configuration.resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: parameterContext,
+                requiringStorage: storageIdentifier(.integer)
+            ),
+            equals: .missingCodecForStorage(
+                valueType: String(reflecting: CodecToken.self),
+                dialect: CodecTestDialect.identity,
+                storage: storageIdentifier(.integer),
+                context: parameterContext
+            )
+        )
+        assertQueryCodecSelectionError(
+            try configuration.resolvedCodec(
+                for: CodecToken.self,
+                using: dialect,
+                context: parameterContext,
+                requiringStorage: storageIdentifier(.text)
+            ),
+            equals: .ambiguousCodecForStorage(
+                valueType: String(reflecting: CodecToken.self),
+                dialect: CodecTestDialect.identity,
+                storage: storageIdentifier(.text),
+                candidates: [textA.identity.key, textB.identity.key].sorted(
+                    by: codecKeyOrder
+                ),
+                context: parameterContext
+            )
+        )
+    }
+
+    func testExplicitQuerySelectionFailsOnStorageConflict() throws {
+        let text = makeMarkerCodec("query-explicit-text")
+        let configuration = try XLValueCodingConfiguration(
+            registry: try register([text])
+        )
+
+        for selection in [
+            XLQueryCodecSelection.explicit(text.identity.key),
+            XLQueryCodecSelection.query(text.identity.key),
+        ] {
+            assertCodecError(
+                try configuration.resolvedCodec(
+                    for: CodecToken.self,
+                    using: dialect,
+                    context: parameterContext,
+                    requiringStorage: storageIdentifier(.integer),
+                    selection: selection
+                ),
+                equals: .storageMismatch(
+                    codec: text.identity.key,
+                    expected: storageIdentifier(.text),
+                    actual: storageIdentifier(.integer),
+                    context: parameterContext
+                )
+            )
+        }
+    }
+
     func testOptionalNullResolvesSelectionButBypassesNonoptionalClosures() throws {
         let codec = XLValueCodec<CodecToken, CodecTestDialect>(
             key: key("null-bypass"),
@@ -726,6 +851,27 @@ final class ValueCodecContractTests: XCTestCase {
         XCTAssertThrowsError(try expression(), file: file, line: line) { error in
             XCTAssertEqual(error as? XLValueCodecError, expected, file: file, line: line)
             XCTAssertFalse(error.localizedDescription.isEmpty, file: file, line: line)
+        }
+    }
+
+    private func assertQueryCodecSelectionError<T>(
+        _ expression: @autoclosure () throws -> T,
+        equals expected: XLQueryCodecSelectionError,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertThrowsError(try expression(), file: file, line: line) { error in
+            XCTAssertEqual(
+                error as? XLQueryCodecSelectionError,
+                expected,
+                file: file,
+                line: line
+            )
+            XCTAssertFalse(
+                error.localizedDescription.isEmpty,
+                file: file,
+                line: line
+            )
         }
     }
 }

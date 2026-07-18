@@ -191,6 +191,65 @@ public struct XLValueCodecSelection: Hashable, Sendable {
 }
 
 
+/// Query-declaration codec selection constrained by the SQL expression's
+/// stable storage representation.
+///
+/// Unlike ``XLValueCodecSelection``, inference never consults a legacy codec.
+/// A query may either request inference from its immutable configuration
+/// snapshot or select one codec explicitly at the declaration/query tier.
+public enum XLQueryCodecSelection: Hashable, Sendable {
+    case inferred
+    case explicit(XLValueCodecKey)
+    case query(XLValueCodecKey)
+}
+
+
+/// Storage-constrained inference failures for static query declarations.
+///
+/// This is separate from ``XLValueCodecError`` so query inference can add
+/// storage-specific diagnostics without changing that existing public enum.
+public enum XLQueryCodecSelectionError:
+    Error,
+    Equatable,
+    Sendable,
+    LocalizedError
+{
+    case missingCodecForStorage(
+        valueType: String,
+        dialect: XLDialectIdentifier,
+        storage: XLValueStorageIdentifier,
+        context: XLValueCodingContext
+    )
+    case ambiguousCodecForStorage(
+        valueType: String,
+        dialect: XLDialectIdentifier,
+        storage: XLValueStorageIdentifier,
+        candidates: [XLValueCodecKey],
+        context: XLValueCodingContext
+    )
+
+    public var errorDescription: String? {
+        switch self {
+        case .missingCodecForStorage(
+            let valueType,
+            let dialect,
+            let storage,
+            let context
+        ):
+            return "No codec represents \(valueType) as \(storage) for \(dialect) at \(context)."
+        case .ambiguousCodecForStorage(
+            let valueType,
+            let dialect,
+            let storage,
+            let candidates,
+            let context
+        ):
+            return "Codecs \(candidates.map(\.description).joined(separator: ", ")) are ambiguous for \(valueType) as \(storage) for \(dialect) at \(context)."
+        }
+    }
+}
+
+
 /// Deterministic failures from codec registration, selection, and conversion.
 public enum XLValueCodecError: Error, Equatable, Sendable, LocalizedError {
     case duplicateCodec(key: XLValueCodecKey, context: XLValueCodingContext)
@@ -585,6 +644,24 @@ public struct XLValueCodingConfiguration: Sendable {
         ).identity
     }
 
+    /// Selects stable query codec metadata after constraining candidates to
+    /// the storage representation required by the SQL expression.
+    public func codecIdentity<Value, Dialect>(
+        for valueType: Value.Type,
+        using dialect: Dialect,
+        context: XLValueCodingContext,
+        requiringStorage storage: XLValueStorageIdentifier,
+        selection: XLQueryCodecSelection = .inferred
+    ) throws -> XLValueCodecIdentity where Dialect: XLValueCodingDialect {
+        try resolvedCodec(
+            for: valueType,
+            using: dialect,
+            context: context,
+            requiringStorage: storage,
+            selection: selection
+        ).identity
+    }
+
     /// Resolves one static coding slot against this immutable configuration.
     ///
     /// Retain the returned value on a query descriptor or prepared handle and
@@ -600,6 +677,34 @@ public struct XLValueCodingConfiguration: Sendable {
             valueType: valueType,
             dialect: dialect,
             context: context,
+            selection: selection
+        )
+        return XLResolvedValueCodec(
+            codec: codec,
+            dialect: dialect,
+            context: context
+        )
+    }
+
+    /// Resolves a query parameter codec after filtering by the SQL
+    /// expression's stable storage contract.
+    ///
+    /// This overload deliberately has no legacy fallback. For inference, a
+    /// matching configuration default wins; otherwise exactly one registered
+    /// codec for the runtime type, dialect, and storage is required.
+    public func resolvedCodec<Value, Dialect>(
+        for valueType: Value.Type,
+        using dialect: Dialect,
+        context: XLValueCodingContext,
+        requiringStorage storage: XLValueStorageIdentifier,
+        selection: XLQueryCodecSelection = .inferred
+    ) throws -> XLResolvedValueCodec<Value, Dialect>
+    where Dialect: XLValueCodingDialect {
+        let codec = try resolveQueryCodec(
+            valueType: valueType,
+            dialect: dialect,
+            context: context,
+            storage: storage,
             selection: selection
         )
         return XLResolvedValueCodec(
@@ -736,6 +841,85 @@ public struct XLValueCodingConfiguration: Sendable {
                 context: context
             )
         }
+    }
+
+    private func resolveQueryCodec<Value, Dialect>(
+        valueType: Value.Type,
+        dialect: Dialect,
+        context: XLValueCodingContext,
+        storage: XLValueStorageIdentifier,
+        selection: XLQueryCodecSelection
+    ) throws -> _XLAnyValueCodec where Dialect: XLValueCodingDialect {
+        let target = _XLValueCodecTarget(
+            valueType,
+            Dialect.self,
+            dialectIdentifier: dialect.descriptor.identity
+        )
+
+        let selected: _XLAnyValueCodec
+        switch selection {
+        case .explicit(let key):
+            selected = try resolve(
+                key,
+                source: .explicit,
+                target: target,
+                dialect: dialect,
+                context: context
+            )
+        case .query(let key):
+            selected = try resolve(
+                key,
+                source: .query,
+                target: target,
+                dialect: dialect,
+                context: context
+            )
+        case .inferred:
+            let candidates = registry.codecs.values
+                .filter {
+                    $0.runtimeTarget == target
+                        && $0.identity.storageIdentifier == storage
+                }
+                .sorted { lhs, rhs in
+                    _xlCodecKeyIsOrdered(lhs.identity.key, before: rhs.identity.key)
+                }
+            if let defaultKey = defaults[target],
+               let defaultCodec = registry.codecs[defaultKey],
+               defaultCodec.identity.storageIdentifier == storage {
+                selected = defaultCodec
+            }
+            else {
+                switch candidates.count {
+                case 1:
+                    selected = candidates[0]
+                case 0:
+                    throw XLQueryCodecSelectionError.missingCodecForStorage(
+                        valueType: String(reflecting: Value.self),
+                        dialect: dialect.descriptor.identity,
+                        storage: storage,
+                        context: context
+                    )
+                default:
+                    throw XLQueryCodecSelectionError.ambiguousCodecForStorage(
+                        valueType: String(reflecting: Value.self),
+                        dialect: dialect.descriptor.identity,
+                        storage: storage,
+                        candidates: candidates.map { $0.identity.key },
+                        context: context
+                    )
+                }
+            }
+        }
+
+        guard selected.identity.storageIdentifier == storage else {
+            throw XLValueCodecError.storageMismatch(
+                codec: selected.identity.key,
+                expected: selected.identity.storageIdentifier,
+                actual: storage,
+                context: context
+            )
+        }
+        return selected
     }
 
     private func resolve<Dialect>(
