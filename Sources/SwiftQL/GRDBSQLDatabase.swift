@@ -152,13 +152,15 @@ struct GRDBRequest<Row>: XLRequest {
         reader: any XLRowReadable<Row>,
         logicalStatement: XLLogicalPreparedStatement,
         parameterLayoutError: XLInvocationBindingError? = nil,
+        valueEncodingError: XLSQLValueEncodingError? = nil,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
         liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
     ) {
         self.executor = GRDBInvocationExecutor(
             driver: driver,
             logicalStatement: logicalStatement,
-            parameterLayoutError: parameterLayoutError
+            parameterLayoutError: parameterLayoutError,
+            valueEncodingError: valueEncodingError
         )
         self.codingConfiguration = codingConfiguration
         self.logger = logger
@@ -397,12 +399,14 @@ struct GRDBWriteRequest: XLWriteRequest {
         codingConfiguration: XLValueCodingConfiguration,
         logger: XLLogger?,
         logicalStatement: XLLogicalPreparedStatement,
-        parameterLayoutError: XLInvocationBindingError? = nil
+        parameterLayoutError: XLInvocationBindingError? = nil,
+        valueEncodingError: XLSQLValueEncodingError? = nil
     ) {
         self.executor = GRDBInvocationExecutor(
             driver: driver,
             logicalStatement: logicalStatement,
-            parameterLayoutError: parameterLayoutError
+            parameterLayoutError: parameterLayoutError,
+            valueEncodingError: valueEncodingError
         )
         self.codingConfiguration = codingConfiguration
         self.logger = logger
@@ -822,6 +826,7 @@ public struct GRDBDatabase: XLDatabase {
             reader: statement,
             logicalStatement: logicalStatement(for: encoding),
             parameterLayoutError: preparedParameterLayoutError(for: encoding),
+            valueEncodingError: encoding.valueEncodingError,
             liveQueryRetryPolicy: liveQueryRetryPolicy,
             liveQueryRetryScheduler: liveQueryRetryScheduler
         )
@@ -841,7 +846,8 @@ public struct GRDBDatabase: XLDatabase {
             executor: GRDBInvocationExecutor(
                 driver: driver,
                 logicalStatement: logicalStatement(for: encoding),
-                parameterLayoutError: preparedParameterLayoutError(for: encoding)
+                parameterLayoutError: preparedParameterLayoutError(for: encoding),
+                valueEncodingError: encoding.valueEncodingError
             )
         )
     }
@@ -905,7 +911,8 @@ public struct GRDBDatabase: XLDatabase {
             codingConfiguration: codingConfiguration,
             logger: logger,
             logicalStatement: logicalStatement(for: encoding),
-            parameterLayoutError: preparedParameterLayoutError(for: encoding)
+            parameterLayoutError: preparedParameterLayoutError(for: encoding),
+            valueEncodingError: encoding.valueEncodingError
         )
     }
 

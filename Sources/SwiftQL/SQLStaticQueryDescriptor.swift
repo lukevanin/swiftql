@@ -10,6 +10,9 @@ extension XLStaticStatementDefinition {
     /// descriptors retain only deterministic SQL, dialect requirements,
     /// referenced entities, and immutable parameter metadata.
     public init(validating encoding: XLEncoding) throws {
+        if let valueEncodingError = encoding.valueEncodingError {
+            throw valueEncodingError
+        }
         if let parameterLayoutError = encoding.parameterLayoutError {
             throw parameterLayoutError
         }

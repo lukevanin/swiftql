@@ -9,6 +9,15 @@ import XCTest
 import SwiftQL
 
 
+private struct RawRealRenderingProbe: XLEncodable {
+    let value: Double
+
+    func makeSQL(context: inout XLBuilder) {
+        context.real(value)
+    }
+}
+
+
 final class XLSyntaxTests: XCTestCase {
     
     
@@ -68,6 +77,86 @@ final class XLSyntaxTests: XCTestCase {
     func test_RealLiteral() {
         let expression: Double = 17.4
         XCTAssertEqual(encoder.makeSQL(expression).sql, "17.4")
+    }
+
+
+    func test_NonFiniteRealLiteralsFailWithoutRenderingBareTokens() {
+        let cases: [(Double, XLNonFiniteRealValue)] = [
+            (.nan, .notANumber),
+            (.infinity, .positiveInfinity),
+            (-.infinity, .negativeInfinity),
+        ]
+
+        for (value, classified) in cases {
+            let encoding = encoder.makeSQL(value)
+            let loweredSQL = encoding.sql.lowercased()
+
+            XCTAssertFalse(loweredSQL.contains("nan"))
+            XCTAssertFalse(loweredSQL.contains("inf"))
+            XCTAssertEqual(
+                encoding.valueEncodingError,
+                .nonFiniteRealLiteral(
+                    value: classified,
+                    expressionType: String(reflecting: Double.self)
+                )
+            )
+            XCTAssertThrowsError(try encoder.makeValidatedSQL(value)) { error in
+                XCTAssertEqual(
+                    error as? XLSQLValueEncodingError,
+                    encoding.valueEncodingError
+                )
+            }
+            XCTAssertThrowsError(
+                try XLStaticStatementDefinition(validating: encoding)
+            ) { error in
+                XCTAssertEqual(
+                    error as? XLSQLValueEncodingError,
+                    encoding.valueEncodingError
+                )
+            }
+        }
+    }
+
+
+    func test_FormatterNeverReturnsInvalidNonFiniteRealTokens() {
+        let formatter = XLiteFormatter()
+        for value in [Double.nan, .infinity, -.infinity] {
+            let token = formatter.real(value).lowercased()
+            XCTAssertFalse(token.contains("nan"))
+            XCTAssertFalse(token.contains("inf"))
+        }
+    }
+
+
+    func test_BuilderRejectsNonFiniteRealFromCustomExpression() {
+        XCTAssertThrowsError(
+            try encoder.makeValidatedSQL(
+                RawRealRenderingProbe(value: .infinity)
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? XLSQLValueEncodingError,
+                .nonFiniteRealLiteral(
+                    value: .positiveInfinity,
+                    expressionType: String(reflecting: Double.self)
+                )
+            )
+        }
+    }
+
+
+    func test_FiniteRealEdgeLiteralsRemainRenderable() throws {
+        for value in [
+            Double.greatestFiniteMagnitude,
+            -Double.greatestFiniteMagnitude,
+            Double.leastNonzeroMagnitude,
+            -Double.leastNonzeroMagnitude,
+            -0.0,
+        ] {
+            let encoding = try encoder.makeValidatedSQL(value)
+            XCTAssertNil(encoding.valueEncodingError)
+            XCTAssertFalse(encoding.sql.isEmpty)
+        }
     }
     
     

@@ -83,14 +83,18 @@ struct GRDBInvocationExecutor: Sendable {
 
     let parameterLayoutError: XLInvocationBindingError?
 
+    let valueEncodingError: XLSQLValueEncodingError?
+
     init(
         driver: GRDBDatabaseDriver,
         logicalStatement: XLLogicalPreparedStatement,
-        parameterLayoutError: XLInvocationBindingError? = nil
+        parameterLayoutError: XLInvocationBindingError? = nil,
+        valueEncodingError: XLSQLValueEncodingError? = nil
     ) {
         self.driver = driver
         self.logicalStatement = logicalStatement
         self.parameterLayoutError = parameterLayoutError
+        self.valueEncodingError = valueEncodingError
     }
 
     var parameterLayout: XLParameterLayout {
@@ -151,6 +155,9 @@ struct GRDBInvocationExecutor: Sendable {
     func sqlitePacket(
         _ bindings: any XLInvocationBindingPacket
     ) throws -> XLInvocationBindings<XLSQLiteValue> {
+        if let valueEncodingError {
+            throw valueEncodingError
+        }
         if let parameterLayoutError {
             throw parameterLayoutError
         }
@@ -170,6 +177,14 @@ struct GRDBInvocationExecutor: Sendable {
         }
         let validatedPacket = try packet.validatingComplete()
         for binding in validatedPacket.bindings {
+            if case .real(let value) = binding.value,
+               let error = XLSQLValueEncodingError.bindingFailure(
+                   for: value,
+                   valueType: binding.slot.valueTypeName,
+                   context: binding.slot.codingContext
+               ) {
+                throw error
+            }
             if let codecIdentity = binding.slot.codecIdentity,
                codecIdentity.dialectIdentifier != driver.dialect.descriptor.identity {
                 throw XLInvocationBindingError.preparedCodecDialectMismatch(
@@ -334,6 +349,17 @@ struct GRDBDatabaseDriverConnection: XLDatabaseDriverConnection {
                 key: key,
                 message: "Indexed binding positions must be zero or greater."
             )
+        }
+        if case .real(let real) = value,
+           let error = XLSQLValueEncodingError.bindingFailure(
+               for: real,
+               valueType: String(reflecting: Double.self),
+               context: XLValueCodingContext(
+                   site: .parameter,
+                   path: XLValueCodingPath(key.valueEncodingPathComponent)
+               )
+           ) {
+            throw error
         }
         var result = statement
         result.bindings[key] = value
@@ -512,6 +538,18 @@ extension XLSQLiteValue {
             return value.databaseValue
         case .blob(let value):
             return value.databaseValue
+        }
+    }
+}
+
+
+private extension XLBindingKey {
+    var valueEncodingPathComponent: String {
+        switch self {
+        case .named(let name):
+            return name
+        case .indexed(let index):
+            return String(index)
         }
     }
 }

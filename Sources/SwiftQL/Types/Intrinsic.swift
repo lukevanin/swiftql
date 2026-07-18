@@ -81,6 +81,15 @@ extension Double: XLExpression, XLLiteral, XLEquatable, XLComparable {
     }
     
     public func makeSQL(context: inout XLBuilder) {
+        if let value = XLNonFiniteRealValue(self) {
+            context.valueEncodingFailed(
+                .nonFiniteRealLiteral(
+                    value: value,
+                    expressionType: String(reflecting: Self.self)
+                )
+            )
+            return
+        }
         context.real(self)
     }
     

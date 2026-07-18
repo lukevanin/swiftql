@@ -218,6 +218,9 @@ where Literal: XLLiteral, Dialect: XLValueCodingDialect {
     public func staticQueryParameter(
         in encoding: XLEncoding
     ) throws -> XLStaticQueryParameterMetadata {
+        if let error = encoding.valueEncodingError {
+            throw error
+        }
         if let error = encoding.parameterLayoutError {
             throw error
         }
@@ -292,11 +295,12 @@ extension XLQueryCapture where Dialect == XLSQLiteDialect {
                 return .integer(Int64(value))
             }
             if let value = value as? Double {
-                guard value.isFinite else {
-                    throw XLQueryCaptureError.nonFiniteReal(
-                        identity: identity,
-                        value: String(describing: value)
-                    )
+                if let error = XLSQLValueEncodingError.bindingFailure(
+                    for: value,
+                    valueType: inputTypeName,
+                    context: codingContext
+                ) {
+                    throw error
                 }
                 return .real(value)
             }
