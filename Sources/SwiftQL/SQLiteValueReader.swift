@@ -7,7 +7,7 @@ import Foundation
 
 /// Reads legacy SwiftQL literals from SQLite dialect values without depending
 /// on a database-driver transport.
-public struct XLSQLiteValueReader: XLColumnReader {
+public struct XLSQLiteValueReader: XLStaticColumnReader {
 
     public let values: [XLSQLiteValue]
 
@@ -91,6 +91,21 @@ public struct XLSQLiteValueReader: XLColumnReader {
         case .integer, .real:
             throw typeMismatch(value, at: index, expectedType: "Data")
         }
+    }
+
+    public func dialectValue<Dialect>(
+        at index: Int,
+        using _: Dialect
+    ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
+        let value = try value(at: index, expectedType: String(reflecting: Dialect.Value.self))
+        guard let typed = value as? Dialect.Value else {
+            throw XLStaticRowReadError.dialectValueTypeMismatch(
+                index: index,
+                expected: String(reflecting: Dialect.Value.self),
+                actual: String(reflecting: XLSQLiteValue.self)
+            )
+        }
+        return typed
     }
 
     private func value(at index: Int, expectedType: String?) throws -> XLSQLiteValue {

@@ -70,6 +70,26 @@ internal struct MetaProperty {
 }
 
 
+private struct GeneratedIdentifierAllocator {
+    private var used: Set<String>
+
+    init(used: Set<String>) {
+        self.used = used
+    }
+
+    mutating func allocate(_ base: String) -> String {
+        var candidate = base
+        var suffix = 0
+        while used.contains(candidate) {
+            suffix += 1
+            candidate = "\(base)_\(suffix)"
+        }
+        used.insert(candidate)
+        return candidate
+    }
+}
+
+
 // Removal of the legacy anonymous-result surface is tracked by
 // https://github.com/lukevanin/swiftql/issues/90.
 
@@ -120,6 +140,35 @@ internal struct MetaBuilder {
 
     /// Mutable properties defined on the struct.
     let mutableProperties: [MetaProperty]
+
+    /// Identifiers that generated method generics and locals must not shadow.
+    ///
+    /// Property types are included because a generated generic named like a
+    /// concrete type would silently change the meaning of that type inside the
+    /// generated signature. The nominal name is included because a generated
+    /// local can otherwise shadow a return type with the same spelling.
+    private var generatedIdentifierReservations: Set<String> {
+        var identifiers: Set<String> = [structName]
+        if let clause = declaration.genericParameterClause {
+            identifiers.formUnion(clause.parameters.map { $0.name.text })
+        }
+        for property in properties {
+            identifiers.insert(property.alias)
+            identifiers.formUnion(Self.identifiers(in: property.type))
+            identifiers.formUnion(Self.identifiers(in: property.qualifiedType))
+        }
+        return identifiers
+    }
+
+    private static func identifiers(in source: String) -> Set<String> {
+        Set(
+            source.split { character in
+                character != "_"
+                    && !character.isLetter
+                    && !character.isNumber
+            }.map(String.init)
+        )
+    }
 
     ///
     /// Convenience initializer used to initialise the builder with a `DeclGroupSyntax`.
@@ -522,6 +571,77 @@ internal struct MetaBuilder {
         }
         return context.build()
     }
+
+    // Generate the static layout factory as a nominal member for the same
+    // Swift 5.9 cross-file lookup reason as `columns(...)`. The caller supplies
+    // one immutable typed field per property, allowing each use to select its
+    // own expression and codec without constructing the model or SQLReader.
+    func makeStaticRowLayoutFunction() -> String {
+        var context = SwiftSyntaxBuilder()
+        var allocator = GeneratedIdentifierAllocator(
+            used: generatedIdentifierReservations
+        )
+        let dialect = allocator.allocate("_SwiftQLStaticDialect")
+        let positionedFields = properties.indices.map { index in
+            allocator.allocate("_swiftQLStaticField\(index)")
+        }
+        let reader = allocator.allocate("_swiftQLStaticReader")
+        let row = allocator.allocate("_swiftQLStaticRow")
+
+        var parameters = ["using _: \(dialect).Type"]
+        for property in properties {
+            parameters.append(
+                "\(property.name): some SwiftQL.XLStaticSelectFieldProtocol<\(property.qualifiedType), \(dialect)>"
+            )
+        }
+
+        context.block(
+            "public static func staticRowLayout<\(dialect)>(\(parameters.joined(separator: ", "))) throws -> SwiftQL.XLStaticRowLayout<Self, \(dialect)> where \(dialect): SwiftQL.XLValueCodingDialect"
+        ) { context in
+            for (index, property) in properties.enumerated() {
+                context.line(
+                    "let \(positionedFields[index]) = \(property.name).positioned(at: \(index), alias: \(quoted(property.alias)))"
+                )
+            }
+
+            context.block("return try SwiftQL.XLStaticRowLayout", opening: "(", closing: ")") { context in
+                context.block("fields: [", opening: "", closing: "],") { context in
+                    for field in positionedFields {
+                        context.line("try \(field).erased(),")
+                    }
+                }
+                context.block(
+                    "decode: { \(reader) in",
+                    opening: "",
+                    closing: "},"
+                ) { context in
+                    context.declaration("Self") { context in
+                        for (index, property) in properties.enumerated() {
+                            context.item { context in
+                                context.line(
+                                    "\(property.name): try \(positionedFields[index]).read(from: \(reader))"
+                                )
+                            }
+                        }
+                    }
+                }
+                context.block(
+                    "encode: { \(row) in",
+                    opening: "",
+                    closing: "}"
+                ) { context in
+                    context.block("[", opening: "", closing: "]") { context in
+                        for (index, property) in properties.enumerated() {
+                            context.line(
+                                "try \(positionedFields[index]).encode(\(row).\(property.name)),"
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        return context.build()
+    }
     
     // Build table meta data, used to select from concrete tables and views which are defined by the database schema.
     func makeMetaTableExtension() -> String {
@@ -542,11 +662,14 @@ internal struct MetaBuilder {
                 for property in properties {
                     parameters.append(property.name + ": " + property.makeInstance(kind: .reference, dependency: "dependency"))
                 }
-                context.block("MetaResult(" + parameters.joined(separator: ", ") + ")") { context in
+                context.block(
+                    "MetaResult(" + parameters.joined(separator: ", ") + ")",
+                    opening: properties.isEmpty ? " { _ in" : " {"
+                ) { context in
                     context.declaration("\(structName)") { context in
                         for property in properties {
                             context.item { context in
-                                context.line("\(property.name): try $0.column(\(property.makeInstance(kind: .reference, dependency: "dependency")), alias: \(quoted(property.alias)))")
+                                context.line("\(property.name): try $0.staticColumn(\(property.makeInstance(kind: .reference, dependency: "dependency")), alias: \(quoted(property.alias)))")
                             }
                         }
                     }
@@ -560,11 +683,14 @@ internal struct MetaBuilder {
                 for property in properties {
                     parameters.append(property.name + ": " + property.makeInstance(kind: .reference, dependency: "dependency"))
                 }
-                context.block("MetaNamedResult(" + parameters.joined(separator: ", ") + ")") { context in
+                context.block(
+                    "MetaNamedResult(" + parameters.joined(separator: ", ") + ")",
+                    opening: properties.isEmpty ? " { _ in" : " {"
+                ) { context in
                     context.declaration("\(structName)") { context in
                         for property in properties {
                             context.item { context in
-                                context.line("\(property.name): try $0.column(\(property.makeInstance(kind: .reference, dependency: "dependency")), alias: \(quoted(property.alias)))")
+                                context.line("\(property.name): try $0.staticColumn(\(property.makeInstance(kind: .reference, dependency: "dependency")), alias: \(quoted(property.alias)))")
                             }
                         }
                     }
@@ -578,11 +704,14 @@ internal struct MetaBuilder {
                 for property in optionalProperties {
                     parameters.append(property.name + ": " + property.makeInstance(kind: .reference, dependency: "dependency"))
                 }
-                context.block("return MetaNullableResult(" + parameters.joined(separator: ", ") + ")") { context in
+                context.block(
+                    "return MetaNullableResult(" + parameters.joined(separator: ", ") + ")",
+                    opening: optionalProperties.isEmpty ? " { _ in" : " {"
+                ) { context in
                     context.declaration("Nullable") { context in
                         for property in optionalProperties {
                             context.item { context in
-                                context.line("\(property.name): try $0.column(\(property.makeInstance(kind: .reference, dependency: "dependency")), alias: \(quoted(property.alias)))")
+                                context.line("\(property.name): try $0.staticColumn(\(property.makeInstance(kind: .reference, dependency: "dependency")), alias: \(quoted(property.alias)))")
                             }
                         }
                     }
@@ -596,11 +725,14 @@ internal struct MetaBuilder {
                 for property in optionalProperties {
                     parameters.append(property.name + ": " + property.makeInstance(kind: .reference, dependency: "dependency"))
                 }
-                context.block("return MetaNullableNamedResult(" + parameters.joined(separator: ", ") + ")") { context in
+                context.block(
+                    "return MetaNullableNamedResult(" + parameters.joined(separator: ", ") + ")",
+                    opening: optionalProperties.isEmpty ? " { _ in" : " {"
+                ) { context in
                     context.declaration("Nullable") { context in
                         for property in optionalProperties {
                             context.item { context in
-                                context.line("\(property.name): try $0.column(\(property.makeInstance(kind: .reference, dependency: "dependency")), alias: \(quoted(property.alias)))")
+                                context.line("\(property.name): try $0.staticColumn(\(property.makeInstance(kind: .reference, dependency: "dependency")), alias: \(quoted(property.alias)))")
                             }
                         }
                     }
@@ -665,7 +797,7 @@ internal struct MetaBuilder {
             // Instance parameter.
             context.block("public init(_ instance: \(structName))") { context in
                 for property in properties {
-                    context.line("\(property.name) = XLTypeAffinityExpression<\(property.qualifiedType)>(expression: instance.\(property.name))")
+                    context.line("\(property.name) = SwiftQL._xlLegacyValueExpression(instance.\(property.name))")
                 }
             }
             
@@ -788,10 +920,10 @@ internal struct MetaBuilder {
                     for property in mutableProperties {
                         context.block("if let value = \(property.name)") { context in
                             if property.optional {
-                                context.line("output.\(property.name) = XLTypeAffinityExpression<\(property.qualifiedType)>(expression: value.toNullable())")
+                                context.line("output.\(property.name) = SwiftQL._xlLegacyValueExpression(value).toNullable()")
                             }
                             else {
-                                context.line("output.\(property.name) = XLTypeAffinityExpression<\(property.qualifiedType)>(expression: value)")
+                                context.line("output.\(property.name) = SwiftQL._xlLegacyValueExpression(value)")
                             }
                         }
                     }
@@ -994,6 +1126,10 @@ internal struct MetaBuilder {
         }
 
         // Reader
+        var readerAllocator = GeneratedIdentifierAllocator(
+            used: generatedIdentifierReservations
+        )
+        let rowReader = readerAllocator.allocate("_swiftQLRowReader")
         context.block("public struct SQLReader: XLRowReadable") { context in
 
             context.line("public typealias Row = \(structName)")
@@ -1012,11 +1148,11 @@ internal struct MetaBuilder {
                 }
             }
 
-            context.block("public func readRow(reader: XLRowReader) throws -> \(structName)") { context in
+            context.block("public func readRow(reader \(rowReader): XLRowReader) throws -> \(structName)") { context in
                 context.declaration("\(structName)") { context in
                     for property in properties {
                         context.item { context in
-                            context.line("\(property.name): try reader.column(\(property.name), alias: \(quoted(property.alias)))")
+                            context.line("\(property.name): try \(rowReader).staticColumn(\(property.name), alias: \(quoted(property.alias)))")
                         }
                     }
                 }
@@ -1058,11 +1194,14 @@ internal struct MetaBuilder {
             for property in anonymousProperties {
                 parameters.append(property.name + ": " + property.makeInstance(kind: columnKind, dependency: "dependency"))
             }
-            context.block("return MetaResult(" + parameters.joined(separator: ", ") + ")") { context in
+            context.block(
+                "return MetaResult(" + parameters.joined(separator: ", ") + ")",
+                opening: anonymousProperties.isEmpty ? " { _ in" : " {"
+            ) { context in
                 context.declaration("\(structName)") { context in
                     for property in anonymousProperties {
                         context.item { context in
-                            context.line("\(property.name): try $0.column(\(property.makeInstance(kind: .result, dependency: "dependency")), alias: \(quoted(property.alias)))")
+                            context.line("\(property.name): try $0.staticColumn(\(property.makeInstance(kind: .result, dependency: "dependency")), alias: \(quoted(property.alias)))")
                         }
                     }
                 }
@@ -1076,11 +1215,14 @@ internal struct MetaBuilder {
             for property in anonymousProperties {
                 parameters.append(property.name + ": " + property.makeInstance(kind: columnKind, dependency: "dependency"))
             }
-            context.block("return MetaNamedResult(" + parameters.joined(separator: ", ") + ")") { context in
+            context.block(
+                "return MetaNamedResult(" + parameters.joined(separator: ", ") + ")",
+                opening: anonymousProperties.isEmpty ? " { _ in" : " {"
+            ) { context in
                 context.declaration("\(structName)") { context in
                     for property in anonymousProperties {
                         context.item { context in
-                            context.line("\(property.name): try $0.column(\(property.makeInstance(kind: .result, dependency: "dependency")), alias: \(quoted(property.alias)))")
+                            context.line("\(property.name): try $0.staticColumn(\(property.makeInstance(kind: .result, dependency: "dependency")), alias: \(quoted(property.alias)))")
                         }
                     }
                 }
@@ -1094,11 +1236,14 @@ internal struct MetaBuilder {
             for property in anonymousOptionalProperties {
                 parameters.append(property.name + ": " + property.makeInstance(kind: columnKind, dependency: "dependency"))
             }
-            context.block("return MetaNullableResult(" + parameters.joined(separator: ", ") + ")") { context in
+            context.block(
+                "return MetaNullableResult(" + parameters.joined(separator: ", ") + ")",
+                opening: anonymousOptionalProperties.isEmpty ? " { _ in" : " {"
+            ) { context in
                 context.declaration("Nullable") { context in
                     for property in anonymousOptionalProperties {
                         context.item { context in
-                            context.line("\(property.name): try $0.column(\(property.makeInstance(kind: .result, dependency: "dependency")), alias: \(quoted(property.alias)))")
+                            context.line("\(property.name): try $0.staticColumn(\(property.makeInstance(kind: .result, dependency: "dependency")), alias: \(quoted(property.alias)))")
                         }
                     }
                 }
@@ -1112,11 +1257,14 @@ internal struct MetaBuilder {
             for property in anonymousOptionalProperties {
                 parameters.append(property.name + ": " + property.makeInstance(kind: columnKind, dependency: "dependency"))
             }
-            context.block("return MetaNullableNamedResult(" + parameters.joined(separator: ", ") + ")") { context in
+            context.block(
+                "return MetaNullableNamedResult(" + parameters.joined(separator: ", ") + ")",
+                opening: anonymousOptionalProperties.isEmpty ? " { _ in" : " {"
+            ) { context in
                 context.declaration("Nullable") { context in
                     for property in anonymousOptionalProperties {
                         context.item { context in
-                            context.line("\(property.name): try $0.column(\(property.makeInstance(kind: .result, dependency: "dependency")), alias: \(quoted(property.alias)))")
+                            context.line("\(property.name): try $0.staticColumn(\(property.makeInstance(kind: .result, dependency: "dependency")), alias: \(quoted(property.alias)))")
                         }
                     }
                 }

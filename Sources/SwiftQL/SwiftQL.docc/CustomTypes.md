@@ -10,8 +10,10 @@ type has more than one valid database representation. A codec pairs throwing
 encode and decode closures with stable type, dialect, storage, name, and version
 metadata. It does not require a property wrapper or a retroactive conformance.
 
-The older `XLCustomType` literal path remains source compatible. It is described
-after the contextual API so existing applications can migrate deliberately
+The older `XLCustomType` literal path remains source compatible. Existing types
+can keep an explicit legacy introspection placeholder, while new types that use
+generated static row layouts do not need to invent one. The compatibility path
+is described after the contextual API so applications can migrate deliberately
 without silently changing persisted representations.
 
 ## Contextual value codecs
@@ -281,6 +283,13 @@ adopt these marker protocols to opt into operators:
 - `XLEquatable`: Enables equality expressions such as `==` and `!=`.
 - `XLComparable`: Refines `XLEquatable` and also enables `<`, `>`, `<=`, and `>=`.
 
+`XLLiteral` retains the `sqlDefault()` requirement so existing implementations
+remain protocol witnesses. Its default implementation stops with a migration
+diagnostic if legacy `SQLReader` introspection reaches a type that did not
+provide a placeholder. Override it only while the type still uses that legacy
+result path. A generated static row layout decodes from raw dialect values and
+never calls `sqlDefault()`.
+
 Legacy custom types are stored in the SQL database as one of the native
 representations used by SQLite: `Int`, `Double`, `String`, or `Data`. Custom 
 types need to implement support to convert to and from one of these native 
@@ -340,7 +349,7 @@ struct MyUUID: XLCustomType, XLComparable, Equatable, Sendable {
         context.text(wrappedValue.uuidString)
     }
 
-    // 6. Provide a default value.
+    // 6. Opt into legacy SQLReader result introspection.
     public static func sqlDefault() -> MyUUID {
         MyUUID(UUID(uuidString: "00000000-0000-0000-0000-000000000000")!)
     }
@@ -375,10 +384,20 @@ a `Text` value, we can bind the string representation.
 5. Implement the `makeSQL` method. This method is used to encode our custom type
 when it is used as a literal value in an expression. 
 
-6. Implement `sqlDefault`. SwiftQL uses this placeholder while it determines a
-result type's column expressions. The only requirement is to return a valid
-instance of the custom type; the placeholder value is not read from or written
-to the database.
+6. This example continues to use the legacy query/result APIs, so it overrides
+`sqlDefault`. SwiftQL uses the placeholder while it determines that result
+type's column expressions. The placeholder is not read from or written to the
+database. A type used only through a generated static row layout omits this
+override instead of inventing a semantically fake value.
+
+Steps 2 through 5 define the literal behavior; step 6 opts into legacy result
+introspection. New domain values can instead remain plain Swift structs, enums,
+`Date`, or `UUID` values, or retain `XLCustomType` expression behavior without a
+placeholder: register an `XLValueCodec`, create each projected field with
+`staticResultField`, and pass those fields to the macro-generated
+`staticRowLayout(using:...)` factory. That path constructs result metadata and
+renders projections without calling a model initializer, `SQLReader`, or
+`sqlDefault()`.
 
 This conformance allows `MyUUID` to be used in SQL expressions, such as a column
 in a table or a condition in a `WHERE` clause:
@@ -555,6 +574,12 @@ safe to share between tasks; the original v1 literal path remains unchanged for
 older types. This is a compatibility bridge, not permission to change storage
 implicitly: declare the actual v1 storage class, test existing rows, and retain
 the old representation until a deliberate migration has completed.
+
+The adapter calls the literal's existing `bind(context:)` and
+`init(reader:at:)` implementations; it does not call `sqlDefault()`. A new
+`XLCustomType` can therefore omit an explicit placeholder when all of its result
+decoding uses generated static layouts. Keep an explicit placeholder on older
+types for as long as legacy result introspection remains in use.
 
 <!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
 ```swift

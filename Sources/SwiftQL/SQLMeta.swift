@@ -174,7 +174,106 @@ public protocol XLRowReader: AnyObject {
     /// Columns are read sequentially in order starting at the first column in the result set. This method
     /// should be called multiple times, to read each column in sequence.
     ///
-    func column<T>(_ expression: any XLExpression<T>, alias: XLName) throws -> T where T: XLLiteral
+    func column<T>(
+        _ expression: any XLExpression<T>,
+        alias: XLName
+    ) throws -> T where T: XLLiteral
+
+    /// Reads a value through the static-row compatibility seam.
+    ///
+    /// The default implementation preserves existing `XLRowReader`
+    /// conformances by reopening legacy `XLLiteral` types through `column`.
+    /// Contextual-only types fail with a structured migration diagnostic;
+    /// generated static layouts decode those types from `dialectValue`
+    /// instead.
+    func staticColumn<T>(
+        _ expression: any XLExpression<T>,
+        alias: XLName
+    ) throws -> T
+
+    /// Reads one raw dialect value for a statically described row field.
+    ///
+    /// Legacy row readers may rely on the default implementation. Database
+    /// adapters that support static layouts expose raw values through
+    /// ``XLStaticColumnReader`` instead of fabricating a Swift placeholder.
+    func dialectValue<Dialect>(
+        at index: Int,
+        using dialect: Dialect
+    ) throws -> Dialect.Value where Dialect: XLValueCodingDialect
+}
+
+
+extension XLRowReader {
+    public func staticColumn<T>(
+        _ expression: any XLExpression<T>,
+        alias: XLName
+    ) throws -> T {
+        guard let literalType = T.self as? any XLLiteral.Type else {
+            throw XLStaticRowReadError.staticLayoutRequired(
+                valueType: String(reflecting: T.self),
+                alias: alias.rawValue
+            )
+        }
+        return try _xlReadLegacyStaticColumn(
+            literalType,
+            expression: expression,
+            alias: alias,
+            reader: self
+        )
+    }
+
+    public func dialectValue<Dialect>(
+        at index: Int,
+        using dialect: Dialect
+    ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
+        throw XLStaticRowReadError.rawDialectValuesUnavailable(
+            index: index,
+            dialect: dialect.descriptor.identity,
+            readerType: String(reflecting: type(of: self))
+        )
+    }
+}
+
+
+/// A column transport that can expose the dialect-owned value required by a
+/// static row layout.
+public protocol XLStaticColumnReader: XLColumnReader {
+    func dialectValue<Dialect>(
+        at index: Int,
+        using dialect: Dialect
+    ) throws -> Dialect.Value where Dialect: XLValueCodingDialect
+}
+
+
+/// Failures at the static row-reading compatibility boundary.
+public enum XLStaticRowReadError:
+    Error,
+    Equatable,
+    Sendable,
+    LocalizedError
+{
+    case staticLayoutRequired(valueType: String, alias: String)
+    case rawDialectValuesUnavailable(
+        index: Int,
+        dialect: XLDialectIdentifier,
+        readerType: String
+    )
+    case dialectValueTypeMismatch(
+        index: Int,
+        expected: String,
+        actual: String
+    )
+
+    public var errorDescription: String? {
+        switch self {
+        case .staticLayoutRequired(let valueType, let alias):
+            return "Property/result slot '\(alias)' has contextual Swift type \(valueType); construct it through a static row layout instead of the legacy SQLReader/sqlDefault path."
+        case .rawDialectValuesUnavailable(let index, let dialect, let readerType):
+            return "Static result slot at index \(index) requires a raw \(dialect) value, but row reader \(readerType) does not expose dialect values."
+        case .dialectValueTypeMismatch(let index, let expected, let actual):
+            return "Static result slot at index \(index) expected raw value type \(expected), but the column transport exposes \(actual)."
+        }
+    }
 }
 
 
@@ -186,7 +285,10 @@ final class XLColumnsDefinitionRowReader: XLRowReader, XLEncodable {
     private var expressions: [any XLEncodable] = []
     private var names: [XLName] = []
     
-    func column<T>(_ expression: any XLExpression<T>, alias: XLName) -> T where T: XLLiteral {
+    func column<T>(
+        _ expression: any XLExpression<T>,
+        alias: XLName
+    ) -> T where T: XLLiteral {
         names.append(alias)
         if expression is any XLQueryStatement {
             expressions.append(XLParenthesis<T>(expression: expression))
@@ -233,7 +335,10 @@ final class XLColumnValuesRowReader<Output>: XLRowReader {
     ///
     /// Reads the value of the current column from the row, then advances the state to the next column.
     ///
-    func column<T>(_ expression: any XLExpression<T>, alias: XLName) throws -> T where T: XLLiteral {
+    func column<T>(
+        _ expression: any XLExpression<T>,
+        alias: XLName
+    ) throws -> T where T: XLLiteral {
         try readValue()
     }
 
@@ -244,6 +349,41 @@ final class XLColumnValuesRowReader<Output>: XLRowReader {
         return try T.init(reader: reader, at: count)
     }
 
+    func dialectValue<Dialect>(
+        at index: Int,
+        using dialect: Dialect
+    ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
+        guard let staticReader = reader as? any XLStaticColumnReader else {
+            throw XLStaticRowReadError.rawDialectValuesUnavailable(
+                index: index,
+                dialect: dialect.descriptor.identity,
+                readerType: String(reflecting: type(of: reader as Any))
+            )
+        }
+        return try staticReader.dialectValue(at: index, using: dialect)
+    }
+
+}
+
+
+private func _xlReadLegacyStaticColumn<Literal, Value>(
+    _ literalType: Literal.Type,
+    expression: any XLExpression<Value>,
+    alias: XLName,
+    reader: any XLRowReader
+) throws -> Value where Literal: XLLiteral {
+    guard let retyped = expression as? any XLExpression<Literal> else {
+        preconditionFailure(
+            "Reopened literal expression type \(String(reflecting: Literal.self)) does not match \(String(reflecting: Value.self))."
+        )
+    }
+    let literal = try reader.column(retyped, alias: alias)
+    guard let value = literal as? Value else {
+        preconditionFailure(
+            "Reopened literal type \(String(reflecting: Literal.self)) does not match \(String(reflecting: Value.self))."
+        )
+    }
+    return value
 }
 
 
