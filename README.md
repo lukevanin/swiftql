@@ -81,11 +81,17 @@ let firstPerson: Person? = try request.fetchOne()
 execution methods expose their result types directly. There are no untyped row
 dictionaries or manual result casts.
 
-The same is true inside the statement: `person.name` in the `Where` clause is a
-typed Swift expression, not a column name hidden in a string. Xcode can complete
-and navigate the table model, while the compiler catches missing fields,
-incompatible expression types, and invalid clause ordering. Rename a model
-property and the compiler leads you to the queries affected by it.
+The `Where` clause is ordinary Swift, too:
+
+<!-- test: XLDocumentationTests.testDocumentationREADME -->
+```swift
+Where(person.name == "Fred")
+```
+
+There is no `"name"` lookup string to mistype. Xcode can complete and navigate
+the table model, while the compiler catches missing fields, incompatible
+expression types, and invalid clause ordering. Rename a model property and the
+compiler leads you to the queries affected by it.
 
 If you know SQLite, you already know the shape of SwiftQL: `Select`, `From`,
 `Join`, `Where`, `GroupBy`, `Having`, and `With` appear in SQL order and retain
@@ -93,20 +99,26 @@ their SQL meaning.
 
 ## What becomes first-class
 
-- **Tables and projections.** `@SQLTable` and `@SQLResult` derive typed table,
-  column, and result metadata at compile time. There are no generated model
-  files to keep in sync.
-- **Expressions.** Compose boolean, numeric, text, optional, conditional, and
-  aggregate expressions with Swift operators and generic constraints.
-- **Queries.** Build selects with inner, left, and cross joins; grouping and
-  `HAVING`; ordering and pagination; scalar and table subqueries; compound
-  queries; and ordinary or recursive common table expressions.
-- **Writes and table creation.** Create basic tables and construct typed
-  inserts, updates, and deletes with the same SQL-shaped API.
-- **Bindings and results.** Reuse requests with typed named bindings, then
-  decode `fetchAll()` and `fetchOne()` results directly into Swift values.
-- **Live data.** Observe typed query results through GRDB-backed Combine
-  publishers that track the database region a query reads.
+- **[Tables](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/)
+  and [projections](https://lukevanin.github.io/swiftql/documentation/swiftql/queries/).**
+  `@SQLTable` and `@SQLResult` derive typed table, column, and result metadata
+  at compile time. There are no generated model files to keep in sync.
+- **[Expressions](https://lukevanin.github.io/swiftql/documentation/swiftql/expressions/).**
+  Compose boolean, numeric, text, optional, conditional, and aggregate
+  expressions with Swift operators and generic constraints.
+- **[Queries](https://lukevanin.github.io/swiftql/documentation/swiftql/queries/).**
+  Build selects with inner, left, and cross joins; grouping and `HAVING`;
+  ordering and pagination; scalar and table subqueries; compound queries; and
+  ordinary or recursive common table expressions.
+- **[Writes and table creation](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/).**
+  Create basic tables and construct typed inserts, updates, and deletes with
+  the same SQL-shaped API.
+- **[Bindings and results](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/).**
+  Reuse requests with typed named bindings, then decode `fetchAll()` and
+  `fetchOne()` results directly into Swift values.
+- **[Live data](https://lukevanin.github.io/swiftql/documentation/swiftql/livequeries/).**
+  Observe typed query results through GRDB-backed Combine publishers that track
+  the database region a query reads.
 - **Your domain.** Extend SQLite with Swift enums, custom value types, and
   type-safe custom SQL functions.
 
