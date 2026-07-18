@@ -1,9 +1,9 @@
 {
-  "task_name": "Infer immutable query bindings from Swift variables",
+  "task_name": "Add immutable query-capture tokens and invocation packets",
   "issue_number": 30,
   "issue_url": "https://github.com/lukevanin/swiftql/issues/30",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#30 - Infer immutable query bindings from Swift variables",
+  "codex_session_title": "lukevanin/swiftql#30 - Add immutable query-capture tokens and invocation packets",
   "codex_session_id": "019f6fcb-bfd9-7522-9d7c-c78fefd5c7fa",
   "codex_session_url": null,
   "task_branch": "codex/30-infer-immutable-query-bindings-from-swift-variables",

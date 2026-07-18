@@ -5,6 +5,12 @@ import XCTest
 @testable import SwiftQL
 
 
+@SQLTable(name: "QueryCaptureDateRecord")
+private struct QueryCaptureDateRecord: Equatable {
+    let storedDate: String
+}
+
+
 final class QueryCaptureGRDBTests: XCTestCase {
 
     func testIntrinsicValuesAndNullRoundTripWithoutInterpolation() throws {
@@ -123,9 +129,9 @@ final class QueryCaptureGRDBTests: XCTestCase {
         let preparedRepeated = try fixture.database.prepareInvocation(
             with: repeatedDescriptor
         )
-        let repeatedPacket = try preparedRepeated.makeInvocationBindings {
-            try $0.bind("same", to: repeated)
-        }
+        let repeatedPacket = try preparedRepeated.makeInvocationBindings(
+            repeated.argument("same")
+        )
         XCTAssertEqual(repeatedPacket.bindingCount, 1)
         XCTAssertEqual(preparedRepeated.parameterLayout.count, 1)
         XCTAssertEqual(
@@ -157,12 +163,14 @@ final class QueryCaptureGRDBTests: XCTestCase {
         let preparedDistinct = try fixture.database.prepareInvocation(
             with: distinctDescriptor
         )
-        let distinctPacket = try preparedDistinct.makeInvocationBindings {
-            // Supply out of order; the immutable packet canonicalizes by the
-            // renderer's first-use logical order.
-            try $0.bind(7, to: second)
-            try $0.bind(7, to: first)
-        }
+        let distinctPacket = try preparedDistinct.makeInvocationBindings(
+            arguments: [
+                // Supply out of order; the immutable packet canonicalizes by
+                // the renderer's first-use logical order.
+                second.argument(7),
+                first.argument(7),
+            ]
+        )
         XCTAssertEqual(distinctPacket.bindingCount, 2)
         XCTAssertEqual(
             distinctPacket.bindings.map(\.slot.key),
@@ -261,6 +269,77 @@ final class QueryCaptureGRDBTests: XCTestCase {
         // A collection remains one scalar logical parameter. Runtime size does
         // not alter SQL text, placeholder count, or static query identity.
         XCTAssertEqual(prepared.parameterLayout.count, 3)
+    }
+
+    func testTypedColumnCaptureExecutesWithFreshImmutableArguments() throws {
+        let codecs = makeContextualCodecs()
+        let configuration = try XLValueCodingConfiguration(
+            registry: try XLValueCodecRegistry()
+                .registering(codecs.dateInteger)
+                .registering(codecs.dateText)
+        )
+        let fixture = try makeQueryCaptureDatabase(configuration: configuration)
+        defer { fixture.tearDown() }
+        let firstDate = Date(timeIntervalSince1970: 1_700_000_111)
+        let secondDate = Date(timeIntervalSince1970: 1_700_000_222)
+        try fixture.database.databasePool.write { database in
+            try database.execute(
+                sql: "CREATE TABLE QueryCaptureDateRecord (storedDate TEXT NOT NULL)"
+            )
+            try database.execute(
+                sql: "INSERT INTO QueryCaptureDateRecord (storedDate) VALUES (?), (?)",
+                arguments: [
+                    String(firstDate.timeIntervalSince1970),
+                    String(secondDate.timeIntervalSince1970),
+                ]
+            )
+        }
+
+        let schema = XLSchema()
+        let record = schema.table(QueryCaptureDateRecord.self)
+        let capture = try fixture.database.queryCapture(
+            Date.self,
+            matching: record.storedDate,
+            identifiedBy: XLQuerySlotIdentity(
+                path: ["typed-column", "stored-date"]
+            )
+        )
+        let expression = select(record.storedDate)
+            .from(record)
+            .where(record.storedDate == capture)
+        let encoding = try XLiteEncoder(dialect: XLSQLiteDialect())
+            .makeValidatedSQL(expression)
+        let queryDescriptor = try descriptor(
+            definition: ["tests", "query-capture", "typed-column"],
+            encoding: encoding,
+            parameters: [capture.staticQueryParameter(in: encoding)],
+            resultStorage: [.text]
+        )
+        let prepared = try fixture.database.prepareInvocation(
+            with: queryDescriptor
+        )
+        let stableIdentity = prepared.identity
+
+        let firstPacket = try prepared.makeInvocationBindings(
+            capture.argument(firstDate)
+        )
+        XCTAssertEqual(
+            try prepared.fetchExactlyOneValues(bindings: firstPacket),
+            [.text(String(firstDate.timeIntervalSince1970))]
+        )
+        let secondPacket = try prepared.makeInvocationBindings(
+            capture.argument(secondDate)
+        )
+        XCTAssertEqual(
+            try prepared.fetchExactlyOneValues(bindings: secondPacket),
+            [.text(String(secondDate.timeIntervalSince1970))]
+        )
+
+        XCTAssertEqual(prepared.identity, stableIdentity)
+        XCTAssertEqual(prepared.parameterLayout.count, 1)
+        XCTAssertEqual(capture.storageIdentifier.rawValue, "text")
+        XCTAssertEqual(capture.declaration.codecIdentity, codecs.dateText.identity)
+        XCTAssertNotEqual(firstPacket.bindings[0].value, secondPacket.bindings[0].value)
     }
 
     func testBuilderReportsMissingDuplicateAndForeignCaptures() throws {
@@ -370,9 +449,9 @@ final class QueryCaptureGRDBTests: XCTestCase {
         ) { group in
             for value in 0 ..< 32 {
                 group.addTask {
-                    let packet = try prepared.makeInvocationBindings {
-                        try $0.bind(value, to: capture)
-                    }
+                    let packet = try prepared.makeInvocationBindings(
+                        capture.argument(value)
+                    )
                     guard packet.bindingCount == 1,
                           case .integer(let result) = try prepared
                             .fetchExactlyOneValues(bindings: packet)[0] else {
@@ -522,9 +601,7 @@ private func executeScalar<Input, Literal>(
         database: database,
         definition: definition
     )
-    let packet = try prepared.makeInvocationBindings {
-        try $0.bind(value, to: capture)
-    }
+    let packet = try prepared.makeInvocationBindings(capture.argument(value))
     XCTAssertEqual(packet.bindingCount, 1)
     return try prepared.fetchExactlyOneValues(bindings: packet)[0]
 }
@@ -541,9 +618,7 @@ private func executeNullableScalar<Input, Wrapped>(
         database: database,
         definition: definition
     )
-    let packet = try prepared.makeInvocationBindings {
-        try $0.bind(value, to: capture)
-    }
+    let packet = try prepared.makeInvocationBindings(capture.argument(value))
     return try prepared.fetchExactlyOneValues(bindings: packet)[0]
 }
 

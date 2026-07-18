@@ -167,10 +167,19 @@ final class SQLQueryCaptureTests: XCTestCase {
             identifiedBy: identity,
             using: XLSQLiteDialect()
         )) { error in
-            guard case .ambiguousCodecForStorage(_, _, _, let candidates, _) =
-                    error as? XLQueryCodecSelectionError else {
+            guard case .codecSelectionFailed(
+                let actualIdentity,
+                _,
+                _,
+                _,
+                .inferred,
+                let candidates,
+                _,
+                _
+            ) = error as? XLQueryCaptureError else {
                 return XCTFail("Unexpected error: \(error)")
             }
+            XCTAssertEqual(actualIdentity, identity)
             XCTAssertEqual(
                 candidates,
                 [firstCodec.identity.key, secondCodec.identity.key]
@@ -205,6 +214,140 @@ final class SQLQueryCaptureTests: XCTestCase {
         }
         XCTAssertEqual(existing.codecIdentity, firstCodec.identity)
         XCTAssertEqual(incoming.codecIdentity, secondCodec.identity)
+    }
+
+    func testExpressionMetadataInfersRequiredAndNullableCaptureStorage() throws {
+        let codec = captureTokenCodec(id: "tests.capture.expression")
+        let configuration = try XLValueCodingConfiguration(
+            registry: try XLValueCodecRegistry().registering(codec)
+        )
+        let requiredIdentity = try XLQuerySlotIdentity(
+            path: ["expression", "required"]
+        )
+        let nullableIdentity = try XLQuerySlotIdentity(
+            path: ["expression", "nullable"]
+        )
+
+        let required = try configuration.queryCapture(
+            CaptureToken.self,
+            matching: CaptureTypedExpression<String>(),
+            identifiedBy: requiredIdentity,
+            using: XLSQLiteDialect()
+        )
+        let nullable = try configuration.queryCapture(
+            CaptureToken.self,
+            matching: CaptureTypedExpression<String?>(),
+            identifiedBy: nullableIdentity,
+            using: XLSQLiteDialect()
+        )
+
+        XCTAssertEqual(required.declaration.nullability, .required)
+        XCTAssertEqual(nullable.declaration.nullability, .nullable)
+        XCTAssertEqual(required.storageIdentifier, codec.identity.storageIdentifier)
+        XCTAssertEqual(nullable.storageIdentifier, codec.identity.storageIdentifier)
+        XCTAssertEqual(required.declaration.codecIdentity, codec.identity)
+        XCTAssertEqual(nullable.declaration.codecIdentity, codec.identity)
+    }
+
+    func testCodecSelectionFailuresRetainCaptureSpecificMetadata() throws {
+        let identity = try XLQuerySlotIdentity(
+            path: ["diagnostic", "captured-value"]
+        )
+        let context = XLValueCodingContext(
+            site: .parameter,
+            path: XLValueCodingPath(["custom", "context"])
+        )
+        let first = captureTokenCodec(id: "tests.capture.z-second")
+        let second = captureTokenCodec(id: "tests.capture.a-first")
+        let expectedText = XLValueStorageIdentifier(rawValue: "text")
+
+        func assertFailure(
+            _ error: Error,
+            expectedStorage: XLValueStorageIdentifier,
+            selection: XLQueryCodecSelection,
+            candidates: [XLValueCodecKey]
+        ) {
+            guard case .codecSelectionFailed(
+                let actualIdentity,
+                let valueType,
+                let expectedDialect,
+                let actualStorage,
+                let actualSelection,
+                let actualCandidates,
+                let actualContext,
+                let detail
+            ) = error as? XLQueryCaptureError else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+            XCTAssertEqual(actualIdentity, identity)
+            XCTAssertEqual(valueType, String(reflecting: CaptureToken.self))
+            XCTAssertEqual(expectedDialect, XLSQLiteDialect.identity)
+            XCTAssertEqual(actualStorage, expectedStorage)
+            XCTAssertEqual(actualSelection, selection)
+            XCTAssertEqual(actualCandidates, candidates)
+            XCTAssertEqual(actualContext, context)
+            XCTAssertFalse(detail.isEmpty)
+            let description = (error as? LocalizedError)?.errorDescription ?? ""
+            XCTAssertTrue(description.contains(identity.description))
+            XCTAssertTrue(description.contains(expectedDialect.description))
+            XCTAssertTrue(description.contains(expectedStorage.description))
+            XCTAssertTrue(description.contains(context.description))
+        }
+
+        let empty = try XLValueCodingConfiguration()
+        XCTAssertThrowsError(try empty.queryCapture(
+            CaptureToken.self,
+            expressedAs: String.self,
+            identifiedBy: identity,
+            using: XLSQLiteDialect(),
+            context: context
+        )) { error in
+            assertFailure(
+                error,
+                expectedStorage: expectedText,
+                selection: .inferred,
+                candidates: []
+            )
+        }
+
+        let ambiguous = try XLValueCodingConfiguration(
+            registry: try XLValueCodecRegistry()
+                .registering(first)
+                .registering(second)
+        )
+        XCTAssertThrowsError(try ambiguous.queryCapture(
+            CaptureToken.self,
+            expressedAs: String.self,
+            identifiedBy: identity,
+            using: XLSQLiteDialect(),
+            context: context
+        )) { error in
+            assertFailure(
+                error,
+                expectedStorage: expectedText,
+                selection: .inferred,
+                candidates: [second.identity.key, first.identity.key]
+            )
+        }
+
+        let explicit = try XLValueCodingConfiguration(
+            registry: try XLValueCodecRegistry().registering(first)
+        )
+        XCTAssertThrowsError(try explicit.queryCapture(
+            CaptureToken.self,
+            expressedAs: Int.self,
+            identifiedBy: identity,
+            using: XLSQLiteDialect(),
+            context: context,
+            selection: .explicit(first.identity.key)
+        )) { error in
+            assertFailure(
+                error,
+                expectedStorage: XLValueStorageIdentifier(rawValue: "integer"),
+                selection: .explicit(first.identity.key),
+                candidates: [first.identity.key]
+            )
+        }
     }
 
     func testSameIdentityWithConflictingStorageFailsRendering() throws {
@@ -314,6 +457,16 @@ private struct CaptureProbe: XLEncodable {
 
     func makeSQL(context: inout XLBuilder) {
         render(&context)
+    }
+}
+
+
+private struct CaptureTypedExpression<Literal>: XLExpression
+where Literal: XLLiteral {
+    typealias T = Literal
+
+    func makeSQL(context: inout XLBuilder) {
+        context.null()
     }
 }
 

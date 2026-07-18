@@ -144,9 +144,59 @@ private extension XLQueryCardinality {
 }
 
 
+/// One immutable, per-call value assignment for a static query capture.
+///
+/// The argument temporarily retains its source value until all copies of the
+/// argument are released. Applying it is synchronous and copies only the
+/// encoded dialect value into a fresh packet. The prepared query never stores
+/// the argument or its source value.
+public struct GRDBStaticQueryArgument {
+
+    private let applyValue: (
+        inout GRDBStaticQueryInvocationBuilder
+    ) throws -> Void
+
+    fileprivate init(
+        applyValue: @escaping (
+            inout GRDBStaticQueryInvocationBuilder
+        ) throws -> Void
+    ) {
+        self.applyValue = applyValue
+    }
+
+    fileprivate func apply(
+        to builder: inout GRDBStaticQueryInvocationBuilder
+    ) throws {
+        try applyValue(&builder)
+    }
+}
+
+
+extension XLQueryCapture where Dialect == XLSQLiteDialect {
+
+    /// Pairs a required invocation value with this value-free capture.
+    public func argument(_ value: Input) -> GRDBStaticQueryArgument {
+        GRDBStaticQueryArgument { builder in
+            try builder.bind(value, to: self)
+        }
+    }
+
+    /// Pairs a nullable invocation value with an optional SQL capture.
+    /// `nil` remains a present SQL `NULL` argument.
+    public func argument<Wrapped>(
+        _ value: Input?
+    ) -> GRDBStaticQueryArgument
+    where Literal == Wrapped?, Wrapped: XLLiteral {
+        GRDBStaticQueryArgument { builder in
+            try builder.bind(value, to: self)
+        }
+    }
+}
+
+
 /// A short-lived assembler for one immutable static-query invocation packet.
 ///
-/// Builders are created only by ``GRDBPreparedStaticQuery/makeInvocationBindings(_:)``.
+/// Builders are created only by `GRDBPreparedStaticQuery.makeInvocationBindings`.
 /// They own a fresh packet and never mutate the prepared handle.
 public struct GRDBStaticQueryInvocationBuilder {
 
@@ -277,6 +327,27 @@ public struct GRDBPreparedStaticQuery: Sendable {
         var builder = GRDBStaticQueryInvocationBuilder(query: self)
         try build(&builder)
         return try builder.completedPacket()
+    }
+
+    /// Builds one fresh packet from immutable per-call capture arguments.
+    public func makeInvocationBindings(
+        _ arguments: GRDBStaticQueryArgument...
+    ) throws -> XLInvocationBindings<XLSQLiteValue> {
+        try makeInvocationBindings(arguments: arguments)
+    }
+
+    /// Builds one fresh packet from a dynamically assembled argument list.
+    ///
+    /// Application order does not affect the completed packet: bindings are
+    /// canonicalized by the renderer-assigned logical parameter order.
+    public func makeInvocationBindings(
+        arguments: [GRDBStaticQueryArgument]
+    ) throws -> XLInvocationBindings<XLSQLiteValue> {
+        try makeInvocationBindings { builder in
+            for argument in arguments {
+                try argument.apply(to: &builder)
+            }
+        }
     }
 
     /// Resolves one typed parameter from the immutable database coding

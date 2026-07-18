@@ -30,6 +30,16 @@ public enum XLQueryCaptureError: Error, Equatable, Sendable, LocalizedError {
         expected: XLValueStorageIdentifier,
         actual: XLValueStorageIdentifier
     )
+    case codecSelectionFailed(
+        identity: XLQuerySlotIdentity,
+        valueType: String,
+        expectedDialect: XLDialectIdentifier,
+        expectedStorage: XLValueStorageIdentifier,
+        selection: XLQueryCodecSelection,
+        candidates: [XLValueCodecKey],
+        context: XLValueCodingContext,
+        detail: String
+    )
     case descriptorMetadataMismatch(
         query: XLQueryIdentity,
         identity: XLQuerySlotIdentity,
@@ -53,6 +63,29 @@ public enum XLQueryCaptureError: Error, Equatable, Sendable, LocalizedError {
             return "Query capture \(identity) expected dialect \(expected), but received \(actual)."
         case .storageMismatch(let identity, let expected, let actual):
             return "Query capture \(identity) requires storage \(expected), not \(actual)."
+        case .codecSelectionFailed(
+            let identity,
+            let valueType,
+            let expectedDialect,
+            let expectedStorage,
+            let selection,
+            let candidates,
+            let context,
+            let detail
+        ):
+            let selectionDescription: String
+            switch selection {
+            case .inferred:
+                selectionDescription = "inferred selection"
+            case .explicit(let key):
+                selectionDescription = "explicit codec \(key)"
+            case .query(let key):
+                selectionDescription = "query codec \(key)"
+            }
+            let candidateDescription = candidates.isEmpty
+                ? "no candidate codecs"
+                : "candidate codecs \(candidates.map(\.description).joined(separator: ", "))"
+            return "Query capture \(identity) could not select a codec for \(valueType) using storage \(expectedStorage) for expected dialect \(expectedDialect) at \(context). Selection: \(selectionDescription); \(candidateDescription). \(detail)"
         case .descriptorMetadataMismatch(
             let query,
             let identity,
@@ -323,19 +356,75 @@ extension XLValueCodingConfiguration {
             site: .parameter,
             path: XLValueCodingPath(identity.path)
         )
-        let codecIdentity = try codecIdentity(
-            for: inputType,
-            using: dialect,
-            context: codingContext,
-            requiringStorage: storage,
-            selection: selection
-        )
+        let codecIdentity: XLValueCodecIdentity
+        do {
+            codecIdentity = try self.codecIdentity(
+                for: inputType,
+                using: dialect,
+                context: codingContext,
+                requiringStorage: storage,
+                selection: selection
+            )
+        }
+        catch let error as XLQueryCodecSelectionError {
+            throw XLQueryCaptureError.codecSelectionFailed(
+                identity: identity,
+                valueType: String(reflecting: Input.self),
+                expectedDialect: dialect.descriptor.identity,
+                expectedStorage: storage,
+                selection: selection,
+                candidates: _xlQueryCaptureCodecCandidates(from: error),
+                context: codingContext,
+                detail: _xlQueryCaptureErrorDetail(error)
+            )
+        }
+        catch let error as XLValueCodecError {
+            throw XLQueryCaptureError.codecSelectionFailed(
+                identity: identity,
+                valueType: String(reflecting: Input.self),
+                expectedDialect: dialect.descriptor.identity,
+                expectedStorage: storage,
+                selection: selection,
+                candidates: _xlQueryCaptureCodecCandidates(from: error),
+                context: codingContext,
+                detail: _xlQueryCaptureErrorDetail(error)
+            )
+        }
         return try XLQueryCapture(
             identity: identity,
             dialectIdentifier: dialect.descriptor.identity,
             storageIdentifier: storage,
             codecIdentity: codecIdentity,
             context: codingContext
+        )
+    }
+
+    /// Declares a contextual SQLite capture whose literal type, nullability,
+    /// and storage contract are inferred from a typed SQL expression.
+    ///
+    /// The expression is only a declaration-time type witness. It is neither
+    /// rendered nor retained. Its associated `Literal` supplies SQL
+    /// nullability and SQLite storage; `selection` resolves matching codec
+    /// candidates.
+    ///
+    /// Use ``queryCapture(_:expressedAs:identifiedBy:using:context:selection:)``
+    /// when no representative expression is available.
+    public func queryCapture<Input, Literal>(
+        _ inputType: Input.Type,
+        matching _: any XLExpression<Literal>,
+        identifiedBy identity: XLQuerySlotIdentity,
+        using dialect: XLSQLiteDialect,
+        context: XLValueCodingContext? = nil,
+        selection: XLQueryCodecSelection = .inferred
+    ) throws -> XLQueryCapture<Input, Literal, XLSQLiteDialect>
+    where Literal: XLLiteral {
+        try queryCapture(
+            inputType,
+            expressedAs: Literal.self,
+            identifiedBy: identity,
+            using: dialect,
+            context: context,
+            selection: selection
         )
     }
 }
@@ -357,6 +446,26 @@ extension GRDBDatabase {
         try codingConfiguration.queryCapture(
             inputType,
             expressedAs: literalType,
+            identifiedBy: identity,
+            using: dialect,
+            context: context,
+            selection: selection
+        )
+    }
+
+    /// Declares a contextual capture using a typed SQL expression as the
+    /// source of literal type, nullability, and SQLite storage metadata.
+    public func queryCapture<Input, Literal>(
+        _ inputType: Input.Type,
+        matching expression: any XLExpression<Literal>,
+        identifiedBy identity: XLQuerySlotIdentity,
+        context: XLValueCodingContext? = nil,
+        selection: XLQueryCodecSelection = .inferred
+    ) throws -> XLQueryCapture<Input, Literal, XLSQLiteDialect>
+    where Literal: XLLiteral {
+        try codingConfiguration.queryCapture(
+            inputType,
+            matching: expression,
             identifiedBy: identity,
             using: dialect,
             context: context,
@@ -420,4 +529,55 @@ private func _xlAppendUInt64(_ value: UInt64, to bytes: inout [UInt8]) {
     for shift in stride(from: 56, through: 0, by: -8) {
         bytes.append(UInt8(truncatingIfNeeded: value >> UInt64(shift)))
     }
+}
+
+
+private func _xlQueryCaptureCodecCandidates(
+    from error: Error
+) -> [XLValueCodecKey] {
+    let candidates: [XLValueCodecKey]
+    if let error = error as? XLQueryCodecSelectionError {
+        switch error {
+        case .missingCodecForStorage:
+            candidates = []
+        case .ambiguousCodecForStorage(_, _, _, let candidates, _):
+            return _xlOrderedQueryCaptureCodecCandidates(candidates)
+        }
+    }
+    else if let error = error as? XLValueCodecError {
+        switch error {
+        case .unknownCodec(let key, _, _),
+             .storageMismatch(let key, _, _, _):
+            candidates = [key]
+        case .duplicateDefault(_, _, let keys, _),
+             .ambiguousCodec(_, _, let keys, _):
+            candidates = keys
+        default:
+            candidates = []
+        }
+    }
+    else {
+        candidates = []
+    }
+    return _xlOrderedQueryCaptureCodecCandidates(candidates)
+}
+
+
+private func _xlOrderedQueryCaptureCodecCandidates(
+    _ candidates: [XLValueCodecKey]
+) -> [XLValueCodecKey] {
+    candidates.sorted { lhs, rhs in
+        if lhs.id != rhs.id {
+            return lhs.id < rhs.id
+        }
+        return lhs.version < rhs.version
+    }
+}
+
+
+private func _xlQueryCaptureErrorDetail(_ error: Error) -> String {
+    if let description = (error as? LocalizedError)?.errorDescription {
+        return description
+    }
+    return String(describing: error)
 }

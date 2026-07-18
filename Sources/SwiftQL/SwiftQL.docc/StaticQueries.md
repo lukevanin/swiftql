@@ -116,22 +116,37 @@ exactly one matching codec is required. Use `.explicit(codecKey)` or
 that storage class. This query-specific path never consults a legacy or
 process-global fallback.
 
+When a typed column or other `XLExpression` is available, use
+`queryCapture(_:matching:identifiedBy:)`. Its associated literal type supplies
+the SQL nullability and storage contract, so a `Date` matched to an expression
+of `String` selects only `TEXT` codecs. Keep the `expressedAs:` factory as the
+explicit fallback when declaration-time expression metadata is unavailable.
+Generated domain-property metadata beyond an expression's literal type belongs
+to the typed row-layout layer.
+
 `staticQueryParameter(in:)` validates the rendered dialect as well as the
 capture's complete parameter declaration. This is important for codec-free
 intrinsic captures, whose metadata otherwise has no codec dialect to verify.
 The token's stable binding name uses NFC-normalized, length-prefixed identity
 components; it does not use `hashValue` or a slash-joined path.
 
-After the descriptor is prepared, build a fresh packet by binding values to
-their captures. Contextual conversion is resolved from the prepared handle's
+After the descriptor is prepared, build a fresh packet from immutable per-call
+arguments such as `cutoffCapture.argument(cutoffDate)`, or use the builder
+closure for dynamic assembly. Arguments are intended for immediate packet
+construction. Applying one copies only its encoded dialect value into the
+packet; the reusable prepared handle stores neither arguments nor completed
+packets. Contextual conversion is resolved from the prepared handle's
 snapshotted configuration, not from whichever configuration happens to be
 current when the call runs.
 
-The nonoptional `bind` overload accepts required or nullable captures. Passing
-`nil` is available only for a capture whose SQL expression type is optional,
-such as `XLQueryCapture<String, String?, XLSQLiteDialect>`; `nil` becomes a
-present SQL `NULL`, never an omitted binding. The completed packet rejects
-missing, duplicate, foreign, or metadata-conflicting captures.
+The nonoptional `argument` and `bind` overloads accept required or nullable
+captures. Passing `nil` is available only for a capture whose SQL expression
+type is optional, such as
+`XLQueryCapture<String, String?, XLSQLiteDialect>`; `nil` becomes a present SQL
+`NULL`, never an omitted binding. The completed packet rejects missing,
+duplicate, foreign, or metadata-conflicting captures. Codec-selection failures
+retain the capture identity, expected dialect and storage, selection tier,
+ordered candidates, coding context, and the underlying deterministic detail.
 
 Collections do not expand into a runtime-dependent number of placeholders.
 Represent a collection as one dialect scalar through a contextual codec, such
@@ -220,12 +235,9 @@ let staticDatabase = try GRDBDatabase(
 let preparedCutoff = try staticDatabase.prepareInvocation(
     with: cutoffDescriptor
 )
-let cutoffBindings = try preparedCutoff.makeInvocationBindings {
-    try $0.bind(
-        Date(timeIntervalSince1970: 86_400),
-        to: cutoffParameter
-    )
-}
+let cutoffBindings = try preparedCutoff.makeInvocationBindings(
+    cutoffParameter.argument(Date(timeIntervalSince1970: 86_400))
+)
 let cutoffRow = try preparedCutoff.fetchExactlyOneValues(
     bindings: cutoffBindings
 )
