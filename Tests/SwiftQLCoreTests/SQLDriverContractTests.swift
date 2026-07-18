@@ -2,6 +2,7 @@ import Foundation
 import XCTest
 
 import SwiftQLCore
+import SwiftQLSQLiteConformanceFixtures
 
 
 final class SQLDriverContractTests: XCTestCase {
@@ -163,6 +164,131 @@ final class SQLDriverContractTests: XCTestCase {
             }
         ) { error in
             XCTAssertEqual(error as? OperationAbort, .requested)
+        }
+    }
+
+    func testSharedTransactionFixturesCoverEveryStableCaseAndCapability() throws {
+        let fixtures = SQLiteTransactionConformanceFixtures.cases
+
+        XCTAssertEqual(
+            Set(fixtures.map(\.id)),
+            Set(SQLiteTransactionConformanceCaseID.allCases)
+        )
+        XCTAssertEqual(fixtures.count, SQLiteTransactionConformanceCaseID.allCases.count)
+        XCTAssertNoThrow(
+            try SQLiteTransactionConformanceFixtures.require(
+                .explicitRollbackByError
+            )
+        )
+        for (capability, disposition) in
+            SQLiteTransactionConformanceFixtures.capabilities
+            where !disposition.isSupported
+        {
+            XCTAssertNotNil(
+                disposition.blockingIssue,
+                capability.rawValue
+            )
+        }
+
+        let nestedDisposition = try XCTUnwrap(
+            SQLiteTransactionConformanceFixtures.capabilities[
+                .nestedTransactionOrSavepoint
+            ]
+        )
+        XCTAssertFalse(nestedDisposition.isSupported)
+        XCTAssertEqual(nestedDisposition.blockingIssue, 113)
+        XCTAssertThrowsError(
+            try SQLiteTransactionConformanceFixtures.require(
+                .nestedTransactionOrSavepoint
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? SQLiteTransactionCapabilityError,
+                .unsupported(
+                    capability: .nestedTransactionOrSavepoint,
+                    blockingIssue: 113,
+                    reason: nestedDisposition.reason
+                ),
+                SQLiteTransactionConformanceCaseID
+                    .nestedTransactionCapability.rawValue
+            )
+        }
+    }
+
+    func testSharedTransactionStateOracleRejectsBrokenCommitAndRollback() throws {
+        let before = SQLiteTransactionStateSnapshot(rowIDs: ["seed"])
+        let commit = try XCTUnwrap(
+            SQLiteTransactionConformanceFixtures.casesByID[
+                .multipleStatementCommit
+            ]
+        )
+        let rollback = try XCTUnwrap(
+            SQLiteTransactionConformanceFixtures.casesByID[
+                .bodyErrorRollback
+            ]
+        )
+
+        XCTAssertNoThrow(
+            try commit.validate(
+                before: before,
+                after: commit.expectedState(from: before)
+            )
+        )
+        XCTAssertNoThrow(
+            try rollback.validate(before: before, after: before)
+        )
+
+        XCTAssertThrowsError(
+            try commit.validate(before: before, after: before)
+        ) { error in
+            XCTAssertEqual(
+                error as? SQLiteTransactionStateViolation,
+                .unexpectedState(
+                    caseID: commit.id,
+                    expected: commit.expectedState(from: before),
+                    actual: before
+                )
+            )
+        }
+
+        let leakedRollbackRows = rollback.expectedState(from: before)
+            .rows + rollback.insertedRows
+        XCTAssertThrowsError(
+            try rollback.validate(
+                before: before,
+                after: SQLiteTransactionStateSnapshot(
+                    rows: leakedRollbackRows
+                )
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? SQLiteTransactionStateViolation,
+                .unexpectedState(
+                    caseID: rollback.id,
+                    expected: before,
+                    actual: SQLiteTransactionStateSnapshot(
+                        rows: leakedRollbackRows
+                    )
+                )
+            )
+        }
+
+        let leakedUpdateState = SQLiteTransactionStateSnapshot(
+            rows: [
+                SQLiteTransactionStateRow(id: "seed", value: 999),
+            ]
+        )
+        XCTAssertThrowsError(
+            try rollback.validate(before: before, after: leakedUpdateState)
+        ) { error in
+            XCTAssertEqual(
+                error as? SQLiteTransactionStateViolation,
+                .unexpectedState(
+                    caseID: rollback.id,
+                    expected: before,
+                    actual: leakedUpdateState
+                )
+            )
         }
     }
 
