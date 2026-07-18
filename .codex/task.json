@@ -1,11 +1,11 @@
 {
-  "task_name": "Add a shared SQLite transaction invariant contract suite",
-  "issue_number": 253,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/253",
+  "task_name": "Stream and decode GRDB result rows incrementally",
+  "issue_number": 248,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/248",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#253 - Add SQLite transaction invariant suite",
+  "codex_session_title": "lukevanin/swiftql#248 - Stream GRDB result rows incrementally",
   "codex_session_id": "019f7610-5766-7ab1-b223-e1aaedeaff74",
   "codex_session_url": null,
-  "task_branch": "codex/253-add-a-shared-sqlite-transaction-invariant-contract-suite",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/253-add-a-shared-sqlite-transaction-invariant-contract-suite"
+  "task_branch": "codex/248-stream-and-decode-grdb-result-rows-incrementally",
+  "task_worktree_path": "/private/tmp/swiftql-worktrees/248-stream-and-decode-grdb-result-rows-incrementally"
 }
