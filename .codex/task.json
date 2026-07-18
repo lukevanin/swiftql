@@ -1,11 +1,11 @@
 {
-  "task_name": "Render COLLATE collation names as grammar tokens",
-  "issue_number": 169,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/169",
+  "task_name": "Replace specialised `between` method in XLBuilder with generic methods.",
+  "issue_number": 32,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/32",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#169 - Render COLLATE collation names as grammar tokens",
+  "codex_session_title": "lukevanin/swiftql#32 - Replace specialised `between` method in XLBuilder with generic methods.",
   "codex_session_id": "019f6fcb-bfd9-7522-9d7c-c78fefd5c7fa",
   "codex_session_url": null,
-  "task_branch": "codex/169-render-collate-collation-names-as-grammar-tokens",
-  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/169-render-collate-collation-names-as-grammar-tokens"
+  "task_branch": "codex/32-replace-specialised-between-method-in-xlbuilder-with-generic-methods",
+  "task_worktree_path": "/Users/lukevanin/Developer/Luke/swiftql-worktrees/32-replace-specialised-between-method-in-xlbuilder-with-generic-methods"
 }
