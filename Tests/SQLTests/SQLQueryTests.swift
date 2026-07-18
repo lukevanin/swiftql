@@ -108,7 +108,9 @@ final class XLQueryTests: XCTestCase {
         }
         let t = s.table(ct0)
         let expression = with(ct0).select(t).from(t)
-        XCTAssertEqual(encoder.makeSQL(expression).sql, "WITH `cte0` AS (SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0`) SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `cte0` AS `t0`")
+        let encoding = encoder.makeSQL(expression)
+        XCTAssertEqual(encoding.sql, "WITH `cte0` AS (SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `Test` AS `t0`) SELECT `t0`.`id` AS `id`, `t0`.`value` AS `value` FROM `cte0` AS `t0`")
+        XCTAssertEqual(encoding.entities, ["Test"])
     }
     
     func testSelectWhereCommonTable() {
