@@ -618,7 +618,16 @@ where Dialect == XLSQLiteDialect, Value: XLLiteral, Storage == Value {
             encode: { value in
                 var context: any XLBindingContext = _XLStaticLiteralBindingContext()
                 value.bind(context: &context)
-                return (context as! _XLStaticLiteralBindingContext).value
+                let encoded = (context as! _XLStaticLiteralBindingContext).value
+                if case .real(let real) = encoded,
+                   let error = XLSQLValueEncodingError.bindingFailure(
+                       for: real,
+                       valueType: metadata.typeName,
+                       context: codingContext
+                   ) {
+                    throw error
+                }
+                return encoded
             }
         )
     }

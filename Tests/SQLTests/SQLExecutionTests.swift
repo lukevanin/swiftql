@@ -89,6 +89,54 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(try compoundNegationRequest.fetchOne(), -12)
     }
 
+    func testInlineNonFiniteRealFailsBeforeSQLitePreparation() {
+        for (value, classified) in [
+            (Double.nan, XLNonFiniteRealValue.notANumber),
+            (.infinity, .positiveInfinity),
+            (-.infinity, .negativeInfinity),
+        ] {
+            let statement = sql { _ in Select(value) }
+            XCTAssertThrowsError(
+                try database.makeRequest(with: statement).fetchOne()
+            ) { error in
+                XCTAssertEqual(
+                    error as? XLSQLValueEncodingError,
+                    .nonFiniteRealLiteral(
+                        value: classified,
+                        expressionType: String(reflecting: Double.self)
+                    )
+                )
+            }
+        }
+    }
+
+    func testLegacyDoubleBindingRejectsNaNAndPreservesInfinities() throws {
+        let value = XLNamedBindingReference<Double>(name: "value")
+        let statement = sql { _ in Select(value) }
+        var rejected = database.makeRequest(with: statement)
+        rejected.set(value, .nan)
+
+        XCTAssertThrowsError(try rejected.fetchOne()) { error in
+            XCTAssertEqual(
+                error as? XLSQLValueEncodingError,
+                .realBindingWouldBecomeNull(
+                    value: .notANumber,
+                    valueType: String(reflecting: Double.self),
+                    context: XLValueCodingContext(
+                        site: .parameter,
+                        path: XLValueCodingPath("value")
+                    )
+                )
+            )
+        }
+
+        for expected in [Double.infinity, -.infinity] {
+            var request = database.makeRequest(with: statement)
+            request.set(value, expected)
+            XCTAssertEqual(try request.fetchOne(), expected)
+        }
+    }
+
     func testBitwiseNotExecutesForIntegerLiteralsColumnsAndComposedExpressions() throws {
         let literal: any XLExpression<Int> = 12
         let literalStatement = sql { _ in

@@ -63,6 +63,83 @@ final class GRDBDriverContractTests: XCTestCase {
         )
     }
 
+    func testRealBindingRejectsNaNBeforeSQLiteCanNormalizeItToNull() throws {
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        var driver = GRDBDatabaseDriver(
+            databasePool: fixture.databasePool,
+            dialect: XLSQLiteDialect()
+        )
+        let logicalStatement = makeLogicalStatement(
+            for: driver,
+            sql: "SELECT :value"
+        )
+
+        try driver.withReadConnection { connection in
+            let statement = try connection.prepare(logicalStatement)
+            XCTAssertThrowsError(
+                try connection.bind(
+                    .real(.nan),
+                    to: .named("value"),
+                    in: statement
+                )
+            ) { error in
+                XCTAssertEqual(
+                    error as? XLSQLValueEncodingError,
+                    .realBindingWouldBecomeNull(
+                        value: .notANumber,
+                        valueType: String(reflecting: Double.self),
+                        context: XLValueCodingContext(
+                            site: .parameter,
+                            path: XLValueCodingPath("value")
+                        )
+                    )
+                )
+            }
+        }
+    }
+
+    func testSQLiteRealBindingsPreserveInfinitiesAndFiniteEdges() throws {
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        var driver = GRDBDatabaseDriver(
+            databasePool: fixture.databasePool,
+            dialect: XLSQLiteDialect()
+        )
+        let logicalStatement = makeLogicalStatement(
+            for: driver,
+            sql: "SELECT :value, typeof(:value)"
+        )
+        let values = [
+            Double.infinity,
+            -Double.infinity,
+            Double.greatestFiniteMagnitude,
+            -Double.greatestFiniteMagnitude,
+            Double.leastNonzeroMagnitude,
+            -Double.leastNonzeroMagnitude,
+            -0.0,
+        ]
+
+        for value in values {
+            let row = try driver.withReadConnection { connection in
+                var statement = try connection.prepare(logicalStatement)
+                statement = try connection.bind(
+                    .real(value),
+                    to: .named("value"),
+                    in: statement
+                )
+                return try XCTUnwrap(connection.fetchOne(statement))
+            }
+            guard case .real(let actual) = row[0] else {
+                return XCTFail("Expected REAL for \(value), received \(row[0]).")
+            }
+            XCTAssertEqual(actual, value)
+            XCTAssertEqual(row[1], .text("real"))
+        }
+    }
+
     func testConnectionRejectsMismatchesBeforePhysicalPreparation() throws {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }

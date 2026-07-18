@@ -1257,6 +1257,23 @@ extension XLDocumentationTests {
         let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.test_TextBinding_In_Subquery
     }
 
+    func testDocumentationRealValues() throws {
+        do {
+            _ = try XLiteEncoder(dialect: XLSQLiteDialect())
+                .makeValidatedSQL(Double.infinity)
+            XCTFail("Expected inline infinity to fail validation.")
+        }
+        catch let error as XLSQLValueEncodingError {
+            XCTAssertEqual(
+                error,
+                .nonFiniteRealLiteral(
+                    value: .positiveInfinity,
+                    expressionType: String(reflecting: Double.self)
+                )
+            )
+        }
+    }
+
     func testDocumentationEnumValues() throws {
         try database.makeRequest(with: sqlCreate(Job.self)).execute()
 
