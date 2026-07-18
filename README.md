@@ -67,15 +67,25 @@ FROM Person AS t0
 WHERE (t0.name == 'Fred')
 ```
 
-The query carries `Person` all the way through execution: `fetchAll()` returns
-`[Person]`, while `fetchOne()` returns `Person?`. There are no untyped row
+Create a request and execute it without leaving Swift's type system:
+
+<!-- test: XLDocumentationTests.testDocumentationREADME -->
+```swift
+let request = database.makeRequest(with: query)
+
+let people: [Person] = try request.fetchAll()
+let firstPerson: Person? = try request.fetchOne()
+```
+
+`Select(person)` fixes the row type when the query is constructed, so both
+execution methods expose their result types directly. There are no untyped row
 dictionaries or manual result casts.
 
-But `person.name` is not a column name hidden in a string. It is a typed Swift
-expression derived from `Person`. Xcode can complete and navigate the table
-model, and the compiler can catch missing fields, incompatible expression
-types, and invalid clause ordering while the statement is being built. Rename
-a model property and the compiler leads you to the queries affected by it.
+The same is true inside the statement: `person.name` in the `Where` clause is a
+typed Swift expression, not a column name hidden in a string. Xcode can complete
+and navigate the table model, while the compiler catches missing fields,
+incompatible expression types, and invalid clause ordering. Rename a model
+property and the compiler leads you to the queries affected by it.
 
 If you know SQLite, you already know the shape of SwiftQL: `Select`, `From`,
 `Join`, `Where`, `GroupBy`, `Having`, and `With` appear in SQL order and retain
