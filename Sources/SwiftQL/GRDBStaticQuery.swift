@@ -630,3 +630,101 @@ public struct GRDBPreparedStaticQuery: Sendable {
         }
     }
 }
+
+
+/// A GRDB prepared handle that decodes through a generated static row layout.
+///
+/// The driver-specific wrapper is intentionally separate from
+/// ``XLTypedStaticQueryDescriptor`` so the descriptor and layout APIs remain
+/// free of GRDB types.
+public struct GRDBPreparedTypedStaticQuery<Row> {
+
+    public let definition: XLTypedStaticQueryDescriptor<
+        Row,
+        XLSQLiteDialect
+    >
+
+    private let query: GRDBPreparedStaticQuery
+
+    init(
+        definition: XLTypedStaticQueryDescriptor<Row, XLSQLiteDialect>,
+        query: GRDBPreparedStaticQuery
+    ) {
+        self.definition = definition
+        self.query = query
+    }
+
+    public var descriptor: XLStaticQueryDescriptor {
+        definition.descriptor
+    }
+
+    public var identity: XLQueryIdentity {
+        query.identity
+    }
+
+    public var parameterLayout: XLParameterLayout {
+        query.parameterLayout
+    }
+
+    public func makeInvocationBindings(
+        _ build: (inout GRDBStaticQueryInvocationBuilder) throws -> Void
+    ) throws -> XLInvocationBindings<XLSQLiteValue> {
+        try query.makeInvocationBindings(build)
+    }
+
+    public func makeInvocationBindings(
+        _ arguments: GRDBStaticQueryArgument...
+    ) throws -> XLInvocationBindings<XLSQLiteValue> {
+        try query.makeInvocationBindings(arguments: arguments)
+    }
+
+    public func makeInvocationBindings(
+        arguments: [GRDBStaticQueryArgument]
+    ) throws -> XLInvocationBindings<XLSQLiteValue> {
+        try query.makeInvocationBindings(arguments: arguments)
+    }
+
+    public func fetchExactlyOne(
+        bindings: any XLInvocationBindingPacket
+    ) throws -> Row {
+        try definition.layout.decode(
+            query.fetchExactlyOneValues(bindings: bindings)
+        )
+    }
+
+    public func fetchZeroOrOne(
+        bindings: any XLInvocationBindingPacket
+    ) throws -> Row? {
+        guard let values = try query.fetchZeroOrOneValues(bindings: bindings)
+        else {
+            return nil
+        }
+        return try definition.layout.decode(values)
+    }
+
+    public func fetchAll(
+        bindings: any XLInvocationBindingPacket
+    ) throws -> [Row] {
+        try query.fetchAllValues(bindings: bindings).map(
+            definition.layout.decode
+        )
+    }
+}
+
+
+extension GRDBDatabase {
+
+    /// Prepares a typed static query only after its generated row layout has
+    /// been proven equal to the descriptor's complete result metadata.
+    public func prepareInvocation<Row>(
+        with definition: XLTypedStaticQueryDescriptor<
+            Row,
+            XLSQLiteDialect
+        >
+    ) throws -> GRDBPreparedTypedStaticQuery<Row> {
+        GRDBPreparedTypedStaticQuery(
+            definition: definition,
+            query: try prepareInvocation(with: definition.descriptor)
+        )
+    }
+}

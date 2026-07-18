@@ -12,10 +12,15 @@ physical statement, codec registry, or invocation value. You can therefore
 construct and register descriptors before opening a database, then prepare the
 same descriptor against a compatible database when it is needed.
 
-Static descriptors complement ordinary SwiftQL requests. Use a request when
-you want the existing typed row-reader facade. Use a descriptor when you need a
-durable query identity, an immutable cross-task prepared handle, an explicit
-result contract, or a registry of query definitions.
+Static descriptors complement ordinary SwiftQL requests. Existing v1 requests
+remain source compatible. Use a generated static row layout when a model has
+contextual-codec properties that do not conform to `XLLiteral`, or whenever
+query construction must not execute a model initializer, `SQLReader`, or
+`sqlDefault()`. Pair that layout with a descriptor when you also need a durable
+query identity, an explicit result contract, typed fetch operations, or a
+registry of query definitions. The raw `GRDBPreparedStaticQuery` handle is
+`Sendable`; the closure-backed typed row layout and its prepared wrapper are
+currently task-local.
 
 ## Construct a descriptor
 
@@ -157,10 +162,55 @@ SwiftQL expression graph.
 
 Each selected property or direct output column is one flat `XLStaticQueryResultSlot`.
 A selection with three columns therefore declares
-three slots, even when a typed request would decode those columns into one
-Swift value. Automatic synthesis of aggregate or nested property/result graphs
-is owned by issue #40; static descriptors currently describe the flat values
-that cross the driver boundary.
+three slots, even when those columns decode into one Swift row. Generated
+`staticRowLayout(using:...)` factories position those slots in declaration
+order and retain the corresponding typed encode/decode behavior.
+
+## Generate a typed row layout
+
+`@SQLTable` and `@SQLResult` generate a nominal
+`staticRowLayout(using:...)` factory alongside the existing `columns(...)`
+factory. Supply one `XLStaticSelectField` for each property. Intrinsic v1
+literals can use `XLStaticSelectField.intrinsic`; contextual values use
+`XLValueCodingConfiguration.staticResultField`, with an explicit intrinsic
+storage carrier such as `String.self` and a codec selection when needed.
+
+The public field type is
+`XLStaticSelectField<Value, Storage, Dialect>`. It retains a storage-typed
+`expression`, `storageIdentifier`, `codecSelection`, and the resolved
+`selectedCodecIdentity`. This makes the result-to-parameter handoff explicit:
+pass `field.expression` to `queryCapture(_:matching:identifiedBy:)` and reuse
+`field.codecSelection`. The resulting capture must have the same storage and
+selected codec identity as the field. Generated layout factories accept each
+concrete field through a primary-associated-type protocol, so every property
+keeps its independently inferred `Storage` without synthesized generic names
+that can shadow model generics.
+
+The factory assigns declaration indices and SQL aliases, validates them through
+`XLStaticRowMetadata`, and returns `XLStaticRowLayout`. Constructing that layout
+or `Select(layout)` only inspects immutable metadata and expressions. The
+generated model initializer and codec decode closures run only when a row is
+actually decoded. Empty rows follow the same rule: `Self()` appears inside the
+decode closure, not in layout construction.
+
+Optionality belongs to the generated field, not to its codec. A `Date?`
+property therefore uses the same selected `Date` codec as a required `Date`,
+while the layout maps SQL `NULL` to and from `nil`. Two properties of the same
+Swift type can select different codec keys; their projection metadata,
+layout-based encoding, and decoding remain distinct.
+
+`XLTypedStaticQueryDescriptor` pairs the operational layout with an existing
+structural descriptor and requires exact equality between
+`descriptor.results` and `layout.metadata.results`. The type contains no GRDB
+API. Preparing it through `GRDBDatabase` returns a
+`GRDBPreparedTypedStaticQuery`, whose typed fetch operations decode raw SQLite
+rows through the retained layout.
+
+The existing `XLResult`, `SQLReader`, `columns(...)`, table, union, and common
+table APIs remain the v1 compatibility path. Their `XLLiteral` behavior,
+including `wrapSQL`, is unchanged. Contextual-only properties compile in
+generated metadata, but must use a static layout for value encoding and row
+decoding instead of the v1 `MetaInsert`/`MetaUpdate` and introspection path.
 
 ## Stable identity
 
@@ -214,10 +264,11 @@ prepared.
 ## Prepare and invoke
 
 Preparing binds the database-independent descriptor to one `GRDBDatabase` and
-returns a `Sendable` `GRDBPreparedStaticQuery`. Preparation validates dialect
-requirements and every contextual codec against the database's immutable coding
-configuration. The handle retains that exact configuration snapshot; it never
-consults process-global mutable state and does not own a connection-bound
+returns a `Sendable` `GRDBPreparedStaticQuery`. Preparing a matching typed
+descriptor instead returns `GRDBPreparedTypedStaticQuery`. Preparation validates
+dialect requirements and every contextual codec against the database's immutable
+coding configuration. The handle retains that exact configuration snapshot; it
+never consults process-global mutable state and does not own a connection-bound
 SQLite statement.
 
 Create a fresh `XLInvocationBindings` packet for every call. The packet owns
