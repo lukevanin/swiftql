@@ -95,6 +95,61 @@ public protocol XLDatabaseDriverConnection {
 }
 
 
+/// Package-scoped control returned by one streamed-row callback.
+///
+/// The callback is synchronous so a driver cursor and its owning connection
+/// cannot escape through this value.
+package enum XLRowStreamControl: Sendable {
+    case advance
+    case stop
+}
+
+
+/// Package-internal incremental row execution for database-driver adapters.
+///
+/// This refines the public v1 connection contract without adding a new public
+/// requirement. Implementations must keep the physical cursor inside the
+/// current connection access, copy or normalize every value before advancing,
+/// stop immediately when requested, and release cursor resources on return or
+/// throw.
+package protocol XLStreamingDatabaseDriverConnection:
+    XLDatabaseDriverConnection
+{
+    mutating func forEachRow(
+        _ statement: PhysicalStatement,
+        _ body: ([Dialect.Value]) throws -> XLRowStreamControl
+    ) throws
+}
+
+
+extension XLStreamingDatabaseDriverConnection {
+
+    /// Compatibility collection layered over the incremental execution seam.
+    package mutating func collectAllRows(
+        _ statement: PhysicalStatement
+    ) throws -> [[Dialect.Value]] {
+        var rows: [[Dialect.Value]] = []
+        try forEachRow(statement) { row in
+            rows.append(row)
+            return .advance
+        }
+        return rows
+    }
+
+    /// Compatibility first-row lookup that does not step later rows.
+    package mutating func collectFirstRow(
+        _ statement: PhysicalStatement
+    ) throws -> [Dialect.Value]? {
+        var first: [Dialect.Value]?
+        try forEachRow(statement) { row in
+            first = row
+            return .stop
+        }
+        return first
+    }
+}
+
+
 extension XLDatabaseDriverConnection {
 
     /// Rejects database and dialect requirement mismatches before preparation.

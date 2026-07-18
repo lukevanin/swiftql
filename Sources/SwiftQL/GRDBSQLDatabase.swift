@@ -255,17 +255,30 @@ struct GRDBRequest<Row>: XLRequest {
         let packet = try executor.sqlitePacket(bindings)
         logger?.debug(
             "fetchAll: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-        return try decodeRows(executor.fetchAll(bindings: packet))
+        return try decodeRows(packet: packet)
     }
 
-    private func decodeRows(_ rows: [[XLSQLiteValue]]) throws -> [Row] {
+    private func decodeRows(
+        packet: XLInvocationBindings<XLSQLiteValue>
+    ) throws -> [Row] {
+        var driver = executor.driver
+        return try driver.withReadConnection { connection in
+            try decodeRows(packet: packet, in: &connection)
+        }
+    }
+
+    private func decodeRows(
+        packet: XLInvocationBindings<XLSQLiteValue>,
+        in connection: inout GRDBDatabaseDriverConnection
+    ) throws -> [Row] {
         let rowDecoder = GRDBRowDecoder(reader: reader)
         var items: [Row] = []
 
-        for values in rows {
+        try executor.forEachRow(packet: packet, in: &connection) { values in
             do {
                 let item = try rowDecoder.decode(values: values)
                 items.append(item)
+                return .advance
             }
             catch {
                 logger?.error("fetchAll : Cannot decode entity: \(error)")
@@ -310,9 +323,7 @@ struct GRDBRequest<Row>: XLRequest {
                 logger?.debug(
                     "fetchAll: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
                 var connection = executor.driver.makeConnection(database)
-                return try decodeRows(
-                    executor.fetchAll(packet: packet, in: &connection)
-                )
+                return try decodeRows(packet: packet, in: &connection)
             }
         }
         catch {

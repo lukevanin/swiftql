@@ -38,6 +38,55 @@ final class SQLDriverContractTests: XCTestCase {
         XCTAssertEqual(recorder.boundConnectionIDs, [7])
     }
 
+    func testDriverNeutralRowStreamStopsWithoutVisitingLaterRowsAndRemainsReusable() throws {
+        let recorder = DriverRecorder()
+        let databaseIdentifier = databaseID(10)
+        let rows: [[XLSQLiteValue]] = [
+            [.integer(1), .text("first")],
+            [.integer(2), .text("second")],
+            [.integer(3), .text("third")],
+        ]
+        var connection = FakeConnection(
+            connectionID: 8,
+            databaseIdentifier: databaseIdentifier,
+            recorder: recorder,
+            resultRows: rows
+        )
+        let statement = try connection.prepareValidated(
+            logicalStatement(databaseIdentifier: databaseIdentifier)
+        )
+        var visited: [[XLSQLiteValue]] = []
+
+        try connection.forEachRow(statement) { row in
+            visited.append(row)
+            return visited.count == 2 ? .stop : .advance
+        }
+
+        XCTAssertEqual(visited, Array(rows.prefix(2)))
+        XCTAssertEqual(recorder.streamedRows, Array(rows.prefix(2)))
+
+        recorder.streamedRows.removeAll()
+        XCTAssertThrowsError(
+            try connection.forEachRow(statement) { row in
+                if row == rows[1] {
+                    throw OperationAbort.requested
+                }
+                return .advance
+            }
+        ) { error in
+            XCTAssertEqual(error as? OperationAbort, .requested)
+        }
+        XCTAssertEqual(recorder.streamedRows, Array(rows.prefix(2)))
+
+        recorder.streamedRows.removeAll()
+        XCTAssertEqual(try connection.fetchOne(statement), rows[0])
+        XCTAssertEqual(recorder.streamedRows, [rows[0]])
+
+        recorder.streamedRows.removeAll()
+        XCTAssertEqual(try connection.fetchAll(statement), rows)
+        XCTAssertEqual(recorder.streamedRows, rows)
+    }
+
     func testLogicalStatementCreatesConnectionOwnedPhysicalStatements() throws {
         let recorder = DriverRecorder()
         let databaseIdentifier = databaseID(2)
@@ -520,6 +569,7 @@ private final class DriverRecorder {
     var boundConnectionIDs: [Int] = []
     var executedConnectionIDs: [Int] = []
     var transactionConnectionIDs: [Int] = []
+    var streamedRows: [[XLSQLiteValue]] = []
 }
 
 
@@ -547,7 +597,10 @@ private enum FakeFailure: Error, Equatable, CustomStringConvertible {
 }
 
 
-private struct FakeConnection: XLDatabaseDriverConnection {
+private struct FakeConnection:
+    XLDatabaseDriverConnection,
+    XLStreamingDatabaseDriverConnection
+{
 
     static let driverID = XLDriverIdentifier(rawValue: "fake-second-transport")
 
@@ -555,6 +608,7 @@ private struct FakeConnection: XLDatabaseDriverConnection {
     let databaseIdentifier: XLDatabaseIdentifier
     let recorder: DriverRecorder
     var failure: FakeFailure?
+    let resultRows: [[XLSQLiteValue]]?
 
     let driverIdentifier = FakeConnection.driverID
     let dialect = XLSQLiteDialect(
@@ -566,12 +620,14 @@ private struct FakeConnection: XLDatabaseDriverConnection {
         connectionID: Int,
         databaseIdentifier: XLDatabaseIdentifier,
         recorder: DriverRecorder,
-        failure: FakeFailure? = nil
+        failure: FakeFailure? = nil,
+        resultRows: [[XLSQLiteValue]]? = nil
     ) {
         self.connectionID = connectionID
         self.databaseIdentifier = databaseIdentifier
         self.recorder = recorder
         self.failure = failure
+        self.resultRows = resultRows
     }
 
     mutating func preparePhysical(
@@ -621,16 +677,32 @@ private struct FakeConnection: XLDatabaseDriverConnection {
     mutating func fetchAll(
         _ statement: FakePhysicalStatement
     ) throws -> [[XLSQLiteValue]] {
-        if failure == .execute {
-            throw FakeFailure.execute
-        }
-        return [orderedValues(in: statement)]
+        try collectAllRows(statement)
     }
 
     mutating func fetchOne(
         _ statement: FakePhysicalStatement
     ) throws -> [XLSQLiteValue]? {
-        try fetchAll(statement).first
+        try collectFirstRow(statement)
+    }
+
+    mutating func forEachRow(
+        _ statement: FakePhysicalStatement,
+        _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
+    ) throws {
+        guard statement.connectionID == connectionID else {
+            throw FakeFailure.execute
+        }
+        if failure == .execute {
+            throw FakeFailure.execute
+        }
+        let rows = resultRows ?? [orderedValues(in: statement)]
+        for row in rows {
+            recorder.streamedRows.append(row)
+            if try body(row) == .stop {
+                return
+            }
+        }
     }
 
     mutating func execute(_ statement: FakePhysicalStatement) throws {

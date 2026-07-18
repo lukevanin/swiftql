@@ -49,6 +49,17 @@ private struct ManualStaticLayoutRow: Equatable {
 }
 
 
+@SQLTable(name: "StaticStreamSource")
+private struct StaticStreamSource: Equatable {
+    let id: Int
+}
+
+
+private struct StaticStreamRow: Equatable {
+    let id: Int
+}
+
+
 private struct _SwiftQLStaticDialect: Equatable, Sendable {
     let value: String
 }
@@ -560,6 +571,110 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
         XCTAssertEqual(try prepared.fetchAll(bindings: bindings), [expected])
     }
 
+    func testTypedStaticFetchAllStopsSteppingAtMiddleRowDecodeFailure() throws {
+        let probe = StaticRowLayoutStepProbe()
+        var poolConfiguration = Configuration()
+        poolConfiguration.prepareDatabase { database in
+            database.add(
+                function: DatabaseFunction(
+                    StaticRowLayoutStepProbe.functionName,
+                    argumentCount: 1
+                ) { values in
+                    probe.observe(values[0])
+                }
+            )
+        }
+        let fixture = try StaticRowLayoutFixture(
+            configuration: poolConfiguration
+        )
+        defer { fixture.tearDown() }
+
+        try fixture.pool.write { database in
+            try database.execute(
+                sql: "CREATE TABLE StaticStreamSource (id INTEGER PRIMARY KEY)"
+            )
+            try database.execute(
+                sql: "INSERT INTO StaticStreamSource (id) VALUES (1), (2), (3)"
+            )
+        }
+
+        let database = try GRDBDatabase(
+            databasePool: fixture.pool,
+            codingConfiguration: XLValueCodingConfiguration(),
+            formatter: XLiteFormatter(),
+            logger: nil
+        )
+        let table = XLSchema().table(StaticStreamSource.self, as: "source")
+        let field = try XLStaticSelectField<
+            Int,
+            Int,
+            XLSQLiteDialect
+        >.intrinsic(
+            selecting: XLFunction<Int>(
+                name: StaticRowLayoutStepProbe.functionName,
+                parameters: [table.id]
+            ),
+            identifiedBy: XLQuerySlotIdentity(
+                path: ["static-layout", "streamed-id"]
+            )
+        ).positioned(at: 0, alias: "id")
+        let layout = try XLStaticRowLayout<
+            StaticStreamRow,
+            XLSQLiteDialect
+        >(
+            fields: [try field.erased()],
+            decode: { reader in
+                let id = try field.read(from: reader)
+                guard id != 2 else {
+                    throw StaticRowLayoutTestError.decodeRejected
+                }
+                return StaticStreamRow(id: id)
+            },
+            encode: { [.integer(Int64($0.id))] }
+        )
+        let statement = sql { _ in
+            Select(layout)
+            From(table)
+            OrderBy(table.id.ascending())
+        }
+        let encoding = try XLiteEncoder(dialect: database.dialect)
+            .makeValidatedSQL(statement)
+        let descriptor = try XLStaticQueryDescriptor(
+            definitionIdentity: XLQueryDefinitionIdentity(
+                path: ["tests", "static-layout", "streaming-decode-failure"],
+                version: 1
+            ),
+            statement: XLStaticStatementDefinition(validating: encoding),
+            parameters: [],
+            results: layout.metadata.results,
+            cardinality: .many
+        )
+        let prepared = try database.prepareInvocation(
+            with: XLTypedStaticQueryDescriptor(
+                descriptor: descriptor,
+                layout: layout
+            )
+        )
+
+        XCTAssertThrowsError(
+            try prepared.fetchAll(
+                bindings: prepared.makeInvocationBindings()
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? StaticRowLayoutTestError,
+                .decodeRejected
+            )
+        }
+        XCTAssertEqual(probe.invocationCount, 2)
+        XCTAssertEqual(
+            try fixture.pool.read { database in
+                try Int.fetchOne(database, sql: "SELECT 42")
+            },
+            42
+        )
+    }
+
     func testGeneratedConstructionCallsNeitherSQLDefaultNorDecodeInitializer() throws {
         let key = XLValueCodecKey(
             id: "tests.static-layout.trapping",
@@ -690,8 +805,9 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
 }
 
 
-private enum StaticRowLayoutTestError: Error {
+private enum StaticRowLayoutTestError: Error, Equatable {
     case invalidValue
+    case decodeRejected
 }
 
 
@@ -699,16 +815,42 @@ private struct StaticRowLayoutFixture {
     let url: URL
     let pool: DatabasePool
 
-    init() throws {
+    init(configuration: Configuration = Configuration()) throws {
         url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("sqlite")
-        pool = try DatabasePool(path: url.path)
+        pool = try DatabasePool(
+            path: url.path,
+            configuration: configuration
+        )
     }
 
     func tearDown() {
         try? pool.close()
         try? FileManager.default.removeItem(at: url)
+    }
+}
+
+
+private final class StaticRowLayoutStepProbe: @unchecked Sendable {
+
+    static let functionName = "swiftql_static_row_layout_step_probe"
+
+    private let lock = NSLock()
+
+    private var invocationCountValue = 0
+
+    var invocationCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return invocationCountValue
+    }
+
+    func observe(_ value: DatabaseValue) -> Int64? {
+        lock.lock()
+        invocationCountValue += 1
+        lock.unlock()
+        return Int64.fromDatabaseValue(value)
     }
 }
 
