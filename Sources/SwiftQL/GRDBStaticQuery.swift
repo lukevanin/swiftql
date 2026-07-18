@@ -144,6 +144,143 @@ private extension XLQueryCardinality {
 }
 
 
+/// One immutable, per-call value assignment for a static query capture.
+///
+/// The argument temporarily retains its source value until all copies of the
+/// argument are released. Applying it is synchronous and copies only the
+/// encoded dialect value into a fresh packet. The prepared query never stores
+/// the argument or its source value.
+public struct GRDBStaticQueryArgument {
+
+    private let applyValue: (
+        inout GRDBStaticQueryInvocationBuilder
+    ) throws -> Void
+
+    fileprivate init(
+        applyValue: @escaping (
+            inout GRDBStaticQueryInvocationBuilder
+        ) throws -> Void
+    ) {
+        self.applyValue = applyValue
+    }
+
+    fileprivate func apply(
+        to builder: inout GRDBStaticQueryInvocationBuilder
+    ) throws {
+        try applyValue(&builder)
+    }
+}
+
+
+extension XLQueryCapture where Dialect == XLSQLiteDialect {
+
+    /// Pairs a required invocation value with this value-free capture.
+    public func argument(_ value: Input) -> GRDBStaticQueryArgument {
+        GRDBStaticQueryArgument { builder in
+            try builder.bind(value, to: self)
+        }
+    }
+
+    /// Pairs a nullable invocation value with an optional SQL capture.
+    /// `nil` remains a present SQL `NULL` argument.
+    public func argument<Wrapped>(
+        _ value: Input?
+    ) -> GRDBStaticQueryArgument
+    where Literal == Wrapped?, Wrapped: XLLiteral {
+        GRDBStaticQueryArgument { builder in
+            try builder.bind(value, to: self)
+        }
+    }
+}
+
+
+/// A short-lived assembler for one immutable static-query invocation packet.
+///
+/// Builders are created only by `GRDBPreparedStaticQuery.makeInvocationBindings`.
+/// They own a fresh packet and never mutate the prepared handle.
+public struct GRDBStaticQueryInvocationBuilder {
+
+    private let query: GRDBPreparedStaticQuery
+
+    private var packet: XLInvocationBindings<XLSQLiteValue>
+
+    fileprivate init(query: GRDBPreparedStaticQuery) {
+        self.query = query
+        self.packet = XLInvocationBindings(layout: query.parameterLayout)
+    }
+
+    /// Encodes and adds one required capture value.
+    public mutating func bind<Input, Literal>(
+        _ value: Input,
+        to capture: XLQueryCapture<Input, Literal, XLSQLiteDialect>
+    ) throws where Literal: XLLiteral {
+        let metadata = try query.validatedMetadata(for: capture)
+        try requireUnbound(metadata.slot)
+        let binding: XLInvocationBinding<XLSQLiteValue>
+        switch capture.encoding {
+        case .contextual:
+            binding = try query.preparedParameter(
+                Input.self,
+                identifiedBy: capture.identity
+            ).encode(value)
+        case .intrinsic(let encode):
+            binding = try XLInvocationBinding(
+                slot: metadata.slot,
+                value: encode(value)
+            )
+        }
+        packet = try packet.binding(binding)
+    }
+
+    /// Encodes and adds one nullable capture value. `nil` is a present SQL
+    /// `NULL` binding; it is never treated as an omitted argument.
+    public mutating func bind<Input, Wrapped>(
+        _ value: Input?,
+        to capture: XLQueryCapture<Input, Wrapped?, XLSQLiteDialect>
+    ) throws where Wrapped: XLLiteral {
+        let metadata = try query.validatedMetadata(for: capture)
+        try requireUnbound(metadata.slot)
+        let binding: XLInvocationBinding<XLSQLiteValue>
+        switch capture.encoding {
+        case .contextual:
+            binding = try query.preparedParameter(
+                Input.self,
+                identifiedBy: capture.identity
+            ).encodeOptional(value)
+        case .intrinsic(let encode):
+            guard let value else {
+                guard metadata.slot.nullability == .nullable else {
+                    throw XLInvocationBindingError.nullForRequiredParameter(
+                        slot: metadata.slot
+                    )
+                }
+                binding = try XLInvocationBinding(
+                    slot: metadata.slot,
+                    value: .null
+                )
+                packet = try packet.binding(binding)
+                return
+            }
+            binding = try XLInvocationBinding(
+                slot: metadata.slot,
+                value: encode(value)
+            )
+        }
+        packet = try packet.binding(binding)
+    }
+
+    fileprivate func completedPacket() throws -> XLInvocationBindings<XLSQLiteValue> {
+        try packet.validatingComplete()
+    }
+
+    private func requireUnbound(_ slot: XLParameterSlot) throws {
+        guard packet.binding(at: slot.index) == nil else {
+            throw XLInvocationBindingError.duplicateBinding(slot: slot)
+        }
+    }
+}
+
+
 /// A database-bound, concurrency-safe GRDB executor for one immutable static
 /// query descriptor.
 ///
@@ -178,6 +315,39 @@ public struct GRDBPreparedStaticQuery: Sendable {
 
     public var parameterLayout: XLParameterLayout {
         descriptor.statement.parameterLayout
+    }
+
+    /// Builds one fresh, immutable invocation packet from stable captures.
+    ///
+    /// The builder resolves contextual codecs only from this prepared handle's
+    /// snapshotted configuration. Values and packets are local to this call.
+    public func makeInvocationBindings(
+        _ build: (inout GRDBStaticQueryInvocationBuilder) throws -> Void
+    ) throws -> XLInvocationBindings<XLSQLiteValue> {
+        var builder = GRDBStaticQueryInvocationBuilder(query: self)
+        try build(&builder)
+        return try builder.completedPacket()
+    }
+
+    /// Builds one fresh packet from immutable per-call capture arguments.
+    public func makeInvocationBindings(
+        _ arguments: GRDBStaticQueryArgument...
+    ) throws -> XLInvocationBindings<XLSQLiteValue> {
+        try makeInvocationBindings(arguments: arguments)
+    }
+
+    /// Builds one fresh packet from a dynamically assembled argument list.
+    ///
+    /// Application order does not affect the completed packet: bindings are
+    /// canonicalized by the renderer-assigned logical parameter order.
+    public func makeInvocationBindings(
+        arguments: [GRDBStaticQueryArgument]
+    ) throws -> XLInvocationBindings<XLSQLiteValue> {
+        try makeInvocationBindings { builder in
+            for argument in arguments {
+                try argument.apply(to: &builder)
+            }
+        }
     }
 
     /// Resolves one typed parameter from the immutable database coding
@@ -263,6 +433,38 @@ public struct GRDBPreparedStaticQuery: Sendable {
             )
         }
         return codec
+    }
+
+    fileprivate func validatedMetadata<Input, Literal>(
+        for capture: XLQueryCapture<Input, Literal, XLSQLiteDialect>
+    ) throws -> XLStaticQueryParameterMetadata where Literal: XLLiteral {
+        guard capture.dialectIdentifier == dialect.descriptor.identity else {
+            throw XLQueryCaptureError.dialectMismatch(
+                identity: capture.identity,
+                expected: dialect.descriptor.identity,
+                actual: capture.dialectIdentifier
+            )
+        }
+        guard let metadata = descriptor.parameters.first(where: {
+            $0.identity == capture.identity
+        }) else {
+            throw GRDBStaticQueryError.parameterNotFound(
+                identity: descriptor.identity,
+                parameter: capture.identity
+            )
+        }
+        guard metadata.slot == capture.declaration.slot(at: metadata.slot.index),
+              metadata.storageIdentifier == capture.storageIdentifier else {
+            throw XLQueryCaptureError.descriptorMetadataMismatch(
+                query: descriptor.identity,
+                identity: capture.identity,
+                expectedSlot: metadata.slot,
+                expectedStorage: metadata.storageIdentifier,
+                actualDeclaration: capture.declaration,
+                actualStorage: capture.storageIdentifier
+            )
+        }
+        return metadata
     }
 
     /// Executes a descriptor declared with command cardinality.

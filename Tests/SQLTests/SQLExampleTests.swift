@@ -1733,13 +1733,15 @@ extension XLDocumentationTests {
             using: staticQueryDialect,
             context: cutoffContext
         )
-        let cutoffParameter = XLContextualBindingReference<
-            Date,
-            String,
-            XLSQLiteDialect
-        >(
-            key: .named("cutoffDate"),
-            codec: cutoffCodec
+        let cutoffParameterIdentity = try XLQuerySlotIdentity(
+            path: ["invoice", "parameter", "cutoffDate"]
+        )
+        let cutoffParameter = try staticDateCoding.queryCapture(
+            Date.self,
+            expressedAs: String.self,
+            identifiedBy: cutoffParameterIdentity,
+            using: staticQueryDialect,
+            context: cutoffContext
         )
 
         let cutoffEncoding = try XLiteEncoder(dialect: staticQueryDialect)
@@ -1747,15 +1749,11 @@ extension XLDocumentationTests {
         let cutoffStatement = try XLStaticStatementDefinition(
             validating: cutoffEncoding
         )
-        let cutoffParameterIdentity = try XLQuerySlotIdentity(
-            path: ["invoice", "parameter", "cutoffDate"]
-        )
         let selectedDateIdentity = try XLQuerySlotIdentity(
             path: ["invoice", "result", "cutoffDate"]
         )
         let cutoffMetadata = try cutoffParameter.staticQueryParameter(
-            identity: cutoffParameterIdentity,
-            in: cutoffStatement.parameterLayout
+            in: cutoffEncoding
         )
         let selectedDate = XLStaticQueryResultSlot(
             index: XLLogicalResultIndex(0),
@@ -1781,7 +1779,10 @@ extension XLDocumentationTests {
             cardinality: .exactlyOne
         )
 
-        XCTAssertEqual(cutoffDescriptor.sql, "SELECT :cutoffDate")
+        guard case .named(let cutoffBindingName) = cutoffParameter.declaration.key else {
+            return XCTFail("Query captures must use stable named keys")
+        }
+        XCTAssertEqual(cutoffDescriptor.sql, "SELECT :\(cutoffBindingName)")
         XCTAssertEqual(cutoffDescriptor.parameters, [cutoffMetadata])
         XCTAssertEqual(cutoffDescriptor.results.slots, [selectedDate])
         let staticQueryRegistry = [
@@ -1831,6 +1832,10 @@ extension XLDocumentationTests {
         )
         let decodedCutoff = try cutoffResultCodec.decode(cutoffRow[0])
         XCTAssertEqual(decodedCutoff, expectedDate)
+        let capturedCutoffBindings = try preparedCutoff.makeInvocationBindings {
+            try $0.bind(expectedDate, to: cutoffParameter)
+        }
+        XCTAssertEqual(capturedCutoffBindings.bindings, cutoffBindings.bindings)
 
         let intrinsicParameter = XLNamedBindingReference<Int>(name: "value")
         let intrinsicEncoding = try XLiteEncoder(dialect: staticQueryDialect)

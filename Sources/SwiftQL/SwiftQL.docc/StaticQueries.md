@@ -40,13 +40,15 @@ let cutoffCodec = try staticDateCoding.resolvedCodec(
     using: staticQueryDialect,
     context: cutoffContext
 )
-let cutoffParameter = XLContextualBindingReference<
-    Date,
-    String,
-    XLSQLiteDialect
->(
-    key: .named("cutoffDate"),
-    codec: cutoffCodec
+let cutoffParameterIdentity = try XLQuerySlotIdentity(
+    path: ["invoice", "parameter", "cutoffDate"]
+)
+let cutoffParameter = try staticDateCoding.queryCapture(
+    Date.self,
+    expressedAs: String.self,
+    identifiedBy: cutoffParameterIdentity,
+    using: staticQueryDialect,
+    context: cutoffContext
 )
 
 let cutoffEncoding = try XLiteEncoder(dialect: staticQueryDialect)
@@ -54,15 +56,11 @@ let cutoffEncoding = try XLiteEncoder(dialect: staticQueryDialect)
 let cutoffStatement = try XLStaticStatementDefinition(
     validating: cutoffEncoding
 )
-let cutoffParameterIdentity = try XLQuerySlotIdentity(
-    path: ["invoice", "parameter", "cutoffDate"]
-)
 let selectedDateIdentity = try XLQuerySlotIdentity(
     path: ["invoice", "result", "cutoffDate"]
 )
 let cutoffMetadata = try cutoffParameter.staticQueryParameter(
-    identity: cutoffParameterIdentity,
-    in: cutoffStatement.parameterLayout
+    in: cutoffEncoding
 )
 let selectedDate = XLStaticQueryResultSlot(
     index: XLLogicalResultIndex(0),
@@ -92,6 +90,70 @@ let cutoffDescriptor = try XLStaticQueryDescriptor(
 The renderer owns placeholder discovery and logical parameter order. Parameter
 metadata must match the resulting `XLParameterLayout` exactly. Result indices
 are also zero-based, contiguous, and in SQL output-column order.
+
+### Capture Swift invocation values
+
+Use `XLQueryCapture` when a static query gets an immutable value from its Swift
+caller. A capture is a value-free declaration token: it stores a durable slot
+identity, expression nullability, dialect storage, and selected codec metadata,
+but never the caller's value or a database. Referencing the same capture more
+than once emits the same named placeholder and creates one logical binding in
+first-traversal order.
+
+The runtime DSL cannot distinguish a bare Swift variable from an inline SQL
+literal, so capture inference is explicit at this bridge today: put the
+`XLQueryCapture` in the expression and supply its value only when building the
+invocation packet. The syntax-aware query macro planned by issue #26 can
+generate these same stable tokens and packets for bare captured variables; it
+does not require a second runtime binding model.
+
+Intrinsic `Bool`, `Int`, finite `Double`, `String`, and `Data` inputs use
+`intrinsic(identifiedBy:)`. Contextual inputs use an immutable coding
+configuration or database factory. Contextual inference filters codecs by the
+SQL literal's storage first. A matching configuration default wins; otherwise
+exactly one matching codec is required. Use `.explicit(codecKey)` or
+`.query(codecKey)` when more than one codec represents the same Swift type in
+that storage class. This query-specific path never consults a legacy or
+process-global fallback.
+
+When a typed column or other `XLExpression` is available, use
+`queryCapture(_:matching:identifiedBy:)`. Its associated literal type supplies
+the SQL nullability and storage contract, so a `Date` matched to an expression
+of `String` selects only `TEXT` codecs. Keep the `expressedAs:` factory as the
+explicit fallback when declaration-time expression metadata is unavailable.
+Generated domain-property metadata beyond an expression's literal type belongs
+to the typed row-layout layer.
+
+`staticQueryParameter(in:)` validates the rendered dialect as well as the
+capture's complete parameter declaration. This is important for codec-free
+intrinsic captures, whose metadata otherwise has no codec dialect to verify.
+The token's stable binding name uses NFC-normalized, length-prefixed identity
+components; it does not use `hashValue` or a slash-joined path.
+
+After the descriptor is prepared, build a fresh packet from immutable per-call
+arguments such as `cutoffCapture.argument(cutoffDate)`, or use the builder
+closure for dynamic assembly. Arguments are intended for immediate packet
+construction. Applying one copies only its encoded dialect value into the
+packet; the reusable prepared handle stores neither arguments nor completed
+packets. Contextual conversion is resolved from the prepared handle's
+snapshotted configuration, not from whichever configuration happens to be
+current when the call runs.
+
+The nonoptional `argument` and `bind` overloads accept required or nullable
+captures. Passing `nil` is available only for a capture whose SQL expression
+type is optional, such as
+`XLQueryCapture<String, String?, XLSQLiteDialect>`; `nil` becomes a present SQL
+`NULL`, never an omitted binding. The completed packet rejects missing,
+duplicate, foreign, or metadata-conflicting captures. Codec-selection failures
+retain the capture identity, expected dialect and storage, selection tier,
+ordered candidates, coding context, and the underlying deterministic detail.
+
+Collections do not expand into a runtime-dependent number of placeholders.
+Represent a collection as one dialect scalar through a contextual codec, such
+as a JSON `TEXT` value consumed by SQLite's `json_each(?)`, or declare a fixed
+number of element captures in the query structure. Runtime identifiers are not
+bindable values: table, column, and ordering choices must remain in the static
+SwiftQL expression graph.
 
 Each selected property or direct output column is one flat `XLStaticQueryResultSlot`.
 A selection with three columns therefore declares
@@ -173,18 +235,9 @@ let staticDatabase = try GRDBDatabase(
 let preparedCutoff = try staticDatabase.prepareInvocation(
     with: cutoffDescriptor
 )
-let preparedCutoffParameter = try preparedCutoff.preparedParameter(
-    Date.self,
-    identifiedBy: cutoffParameterIdentity
+let cutoffBindings = try preparedCutoff.makeInvocationBindings(
+    cutoffParameter.argument(Date(timeIntervalSince1970: 86_400))
 )
-let cutoffBindings = try XLInvocationBindings<XLSQLiteValue>(
-    layout: preparedCutoff.parameterLayout,
-    bindings: [
-        try preparedCutoffParameter.encode(
-            Date(timeIntervalSince1970: 86_400)
-        )
-    ]
-).validatingComplete()
 let cutoffRow = try preparedCutoff.fetchExactlyOneValues(
     bindings: cutoffBindings
 )
@@ -208,11 +261,13 @@ operations fail if the exact selected codec is absent or incompatible in the
 prepared snapshot.
 
 Intrinsic `Bool`, `Int`, `Double`, `String`, and `Data` slots have no contextual
-codec identity. Build their packet bindings directly from `.integer`, `.real`,
-`.text`, or `.blob` `XLSQLiteValue` values and consume their result values in
-the same raw form. The prepared handle still enforces declared storage and
-nullability. `NULL` must be a present `.null` binding for a nullable slot;
-omitting a binding is an incomplete packet.
+codec identity. Prefer an `XLQueryCapture` and `makeInvocationBindings` for new
+static queries. The explicit packet API remains available and source-compatible:
+you can still build bindings directly from `.integer`, `.real`, `.text`, or
+`.blob` `XLSQLiteValue` values and consume result values in the same raw form.
+The prepared handle enforces declared storage and nullability either way.
+`NULL` must be a present `.null` binding for a nullable slot; omitting a binding
+is an incomplete packet.
 
 ### Cardinality
 

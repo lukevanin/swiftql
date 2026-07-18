@@ -259,7 +259,7 @@ func _xlLegacyParameterDeclaration<Value>(
 }
 
 
-private protocol _XLOptionalLiteralType {
+protocol _XLOptionalLiteralType {
     static var wrappedType: Any.Type { get }
 }
 
@@ -271,7 +271,7 @@ extension Optional: _XLOptionalLiteralType {
 }
 
 
-private func sqliteStorageClass(
+func sqliteStorageClass(
     for type: Any.Type
 ) -> XLSQLiteStorageClass? {
     if let optional = type as? any _XLOptionalLiteralType.Type {
@@ -293,7 +293,7 @@ private func sqliteStorageClass(
 }
 
 
-private func legacyValueMetadata(
+func legacyValueMetadata(
     for type: Any.Type
 ) -> (identifier: XLValueTypeIdentifier, typeName: String, isOptional: Bool) {
     if let optional = type as? any _XLOptionalLiteralType.Type {
