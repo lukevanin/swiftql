@@ -454,6 +454,24 @@ extension XLBuilder {
             indexedBinding(index)
         }
     }
+
+    public mutating func between(
+        term: Builder,
+        minimum: Builder,
+        maximum: Builder
+    ) {
+        binaryOperator(
+            "BETWEEN",
+            left: term,
+            right: { context in
+                context.binaryOperator(
+                    "AND",
+                    left: minimum,
+                    right: maximum
+                )
+            }
+        )
+    }
     
     ///
     /// Convenience method used to add a sub-expression with leading and trailing paranthesis.
