@@ -22,23 +22,27 @@ Version numbers express the intended order of work, not release dates.
 4. **Share semantics, not a lowest common denominator.** Common expression,
    rendering, binding, and codec infrastructure should be reused internally,
    while backend-specific features remain available through dialect modules.
-5. **Make static queries first-class.** A query declaration should describe its
+5. **Make database membership explicit.** A generated database catalog should
+   register the tables available to an application, expose only those tables to
+   its typed query scope, and give every table reference an identity independent
+   of its rendered SQL alias.
+6. **Make static queries first-class.** A query declaration should describe its
    typed parameters, result shape, cardinality, dialect, and SQL without
    handwritten parameter objects or request boilerplate.
-6. **Make value coding contextual.** Paired codecs should map Swift values to
+7. **Make value coding contextual.** Paired codecs should map Swift values to
    dialect-native values under an immutable database or query configuration.
    Property, result, or parameter metadata may select a named override without
    changing the Swift value type.
-7. **Make execution boundaries explicit.** Query definitions are
+8. **Make execution boundaries explicit.** Query definitions are
    database-independent, prepared handles are database-bound, and physical
    prepared statements are connection-bound.
-8. **Design for concurrency and testing.** Bindings should be immutable per
+9. **Design for concurrency and testing.** Bindings should be immutable per
    invocation, executors should define their isolation guarantees, and syntax
    should be testable separately from adapters.
-9. **Use evidence for performance work.** Establish rendering, preparation,
+10. **Use evidence for performance work.** Establish rendering, preparation,
    cache, binding, execution, and decoding baselines before adopting custom
    engine behavior.
-10. **Use semantic versioning intentionally.** Preserve v1 source compatibility
+11. **Use semantic versioning intentionally.** Preserve v1 source compatibility
    where practical. Reserve broad naming, package, concurrency, and adapter
    changes for v2.
 
@@ -51,7 +55,7 @@ Version numbers express the intended order of work, not release dates.
 | [v1.3](https://github.com/lukevanin/swiftql/milestone/8) | Existing SQLite-surface conformance | Current public syntax proven against real SQLite |
 | [v1.4](https://github.com/lukevanin/swiftql/milestone/9) | Common SQLite feature coverage | A documented, useful SQLite subset |
 | [v1.5](https://github.com/lukevanin/swiftql/milestone/1) | Query declarations, ergonomics, and v2 preview | The future API validated without silently raising the v1 toolchain floor |
-| [v2](https://github.com/lukevanin/swiftql/milestone/10) | Swift 6 and stable dialect-aware API | Intentional naming, package, DDL, and adapter cleanup |
+| [v2](https://github.com/lukevanin/swiftql/milestone/10) | Generated database catalogs, Swift 6, and a stable dialect-aware API | Fluent catalog-scoped queries plus intentional naming, package, DDL, and adapter cleanup |
 | [v2.1](https://github.com/lukevanin/swiftql/milestone/2) | Native SQLite adapter | Direct SQLite C execution as an alternative to GRDB |
 | [v2.2](https://github.com/lukevanin/swiftql/milestone/5) | PostgreSQL | Native PostgreSQL syntax and adapter |
 | [v2.3](https://github.com/lukevanin/swiftql/milestone/4) | MySQL | Native MySQL syntax and adapter |
@@ -67,15 +71,86 @@ Key planning and foundation issues:
 | Milestone | Live issue index or foundation |
 | --- | --- |
 | v1.1 | [test and reliability index](https://github.com/lukevanin/swiftql/issues/118), [Swift 6 readiness](https://github.com/lukevanin/swiftql/issues/127), [performance baselines](https://github.com/lukevanin/swiftql/issues/128) |
-| v1.2 | [dialect/driver contracts](https://github.com/lukevanin/swiftql/issues/131), [contextual value codecs](https://github.com/lukevanin/swiftql/issues/188), [static query descriptors](https://github.com/lukevanin/swiftql/issues/129), [immutable bindings](https://github.com/lukevanin/swiftql/issues/82), [source-coverage baseline](https://github.com/lukevanin/swiftql/issues/189) |
-| v1.3 | [syntax conformance inventory](https://github.com/lukevanin/swiftql/issues/190), [combinatorial conformance cases](https://github.com/lukevanin/swiftql/issues/191), [build-time SQLite validation research](https://github.com/lukevanin/swiftql/issues/132) |
+| v1.2 | [dialect/driver contracts](https://github.com/lukevanin/swiftql/issues/131), [streaming row decoding](https://github.com/lukevanin/swiftql/issues/248), [contextual value codecs](https://github.com/lukevanin/swiftql/issues/188), [static query descriptors](https://github.com/lukevanin/swiftql/issues/129), [immutable bindings](https://github.com/lukevanin/swiftql/issues/82), [source-coverage baseline](https://github.com/lukevanin/swiftql/issues/189), [SQLite value conformance](https://github.com/lukevanin/swiftql/issues/252), [transaction invariants](https://github.com/lukevanin/swiftql/issues/253) |
+| v1.3 | [syntax conformance inventory](https://github.com/lukevanin/swiftql/issues/190), [combinatorial conformance cases](https://github.com/lukevanin/swiftql/issues/191), [build-time SQLite validation research](https://github.com/lukevanin/swiftql/issues/132), [Northwind correctness corpus](https://github.com/lukevanin/swiftql/issues/254), [observation stress contracts](https://github.com/lukevanin/swiftql/issues/255) |
 | v1.4 | [SQLite coverage index](https://github.com/lukevanin/swiftql/issues/115), [direct scalar CTE rows](https://github.com/lukevanin/swiftql/issues/43) |
-| v1.5 | [ergonomics index](https://github.com/lukevanin/swiftql/issues/116), [macro index](https://github.com/lukevanin/swiftql/issues/117), [prepared handles](https://github.com/lukevanin/swiftql/issues/18), [@SQLQuery prototype](https://github.com/lukevanin/swiftql/issues/26), [Date text](https://github.com/lukevanin/swiftql/issues/61) and [numeric codecs](https://github.com/lukevanin/swiftql/issues/62), [UUID codecs](https://github.com/lukevanin/swiftql/issues/192), [interactive DocC tutorial](https://github.com/lukevanin/swiftql/issues/27) |
-| v2 | [Swift 6 mode](https://github.com/lukevanin/swiftql/issues/133), [typed DDL](https://github.com/lukevanin/swiftql/issues/139), [GRDB adapter boundary](https://github.com/lukevanin/swiftql/issues/113), [XL migration](https://github.com/lukevanin/swiftql/issues/33) |
-| v2.1 | [native SQLite adapter](https://github.com/lukevanin/swiftql/issues/136), [Linux CI](https://github.com/lukevanin/swiftql/issues/135), [VDBE research](https://github.com/lukevanin/swiftql/issues/138) |
+| v1.5 | [ergonomics index](https://github.com/lukevanin/swiftql/issues/116), [macro index](https://github.com/lukevanin/swiftql/issues/117), [prepared handles](https://github.com/lukevanin/swiftql/issues/18), [lazy typed result set](https://github.com/lukevanin/swiftql/issues/249), [@SQLQuery prototype](https://github.com/lukevanin/swiftql/issues/26), [Date text](https://github.com/lukevanin/swiftql/issues/61) and [numeric codecs](https://github.com/lukevanin/swiftql/issues/62), [UUID codecs](https://github.com/lukevanin/swiftql/issues/192), [interactive DocC tutorial](https://github.com/lukevanin/swiftql/issues/27), [macro regression corpus](https://github.com/lukevanin/swiftql/issues/256), [compile scalability benchmarks](https://github.com/lukevanin/swiftql/issues/257), [runtime workload research](https://github.com/lukevanin/swiftql/issues/259) |
+| v2 | [generated database catalogs and fluent table references](https://github.com/lukevanin/swiftql/issues/217), [Swift 6 mode](https://github.com/lukevanin/swiftql/issues/133), [typed DDL](https://github.com/lukevanin/swiftql/issues/139), [GRDB adapter boundary](https://github.com/lukevanin/swiftql/issues/113), [XL migration](https://github.com/lukevanin/swiftql/issues/33), [catalog stress fixtures](https://github.com/lukevanin/swiftql/issues/258) |
+| v2.1 | [native SQLite adapter](https://github.com/lukevanin/swiftql/issues/136), [Linux CI](https://github.com/lukevanin/swiftql/issues/135), [VDBE research](https://github.com/lukevanin/swiftql/issues/138), [shared-corpus adapter parity](https://github.com/lukevanin/swiftql/issues/260) |
 | v2.2 | [PostgreSQL vertical slice](https://github.com/lukevanin/swiftql/issues/137) |
 | v2.3 | [MySQL vertical slice](https://github.com/lukevanin/swiftql/issues/130) |
 | v2.4 | [SQL Server vertical slice](https://github.com/lukevanin/swiftql/issues/134) |
+
+## Generated Database Catalogs and Fluent Table References
+
+Generated database catalogs are a headline v2 feature. A catalog is the typed
+definition of the tables available to an application; it remains distinct from
+a runtime database, connection, pool, or executor. The live task graph is
+maintained in the
+[v2 database-catalog tracking issue](https://github.com/lukevanin/swiftql/issues/217).
+Its declaration may resemble:
+
+```swift
+@SQLDatabase
+struct AppDatabase {
+    private static let person = Person.self
+    private static let company = Company.self
+}
+```
+
+Exact registration spelling remains subject to macro prototyping. Registration
+declarations are inputs to the catalog macro, not public table references.
+
+The macro generates catalog-owned table factories and a database-specific query
+scope. Only registered tables are exposed, so `AppDatabase.sql` can reject a
+reference from another catalog or an unregistered table. The intended query
+surface is:
+
+```swift
+let query = AppDatabase.sql { schema in
+    let person = schema.person
+    let manager = schema.person(as: "manager")
+    let company = schema.company.nullable
+
+    Select(person, manager, company)
+    From(person)
+    Join(manager, on: person.managerID == manager.id)
+    Join.Left(company, on: person.companyID == company.id)
+}
+```
+
+The reference model has deliberately visible rules:
+
+- `AppDatabase.person()` and `schema.person()` each create a new table
+  reference;
+- `schema.person` is a lazily created default reference, stable only within one
+  query scope;
+- `person(as: "manager")` still creates a new reference; `as:` supplies only a
+  preferred rendered alias and never defines identity;
+- `.nullable` is an identity-preserving typed view whose columns reflect outer
+  join nullability;
+- insert, update, and delete statements should infer their write role from a
+  normal registered table reference; an explicit identity-preserving
+  `.writeTarget` view remains available only where a generic API needs it.
+
+Internally, a factory creates an unbound reference with an opaque identity. The
+query binding pass assigns deterministic SQL aliases and preserves the identity
+through copies and typed views. It must not depend on process-global or
+task-local "current schema" state.
+
+Database-scoped query construction performs structural reference validation.
+Every table identity used by a select, predicate, grouping, ordering, or write
+must be bound in the appropriate query scope by a `FROM` or `JOIN` source, the
+statement's write target, or a permitted correlated outer scope. Common-table
+and derived-table references are still introduced through `FROM` or `JOIN`.
+For example, separate factory calls in `Select(AppDatabase.person())` and
+`From(AppDatabase.person())` produce distinct identities and therefore an
+unbound-reference error. Explicit alias collisions, incorrect nullable views,
+and cross-catalog references are also diagnosed.
+
+A catalog generates a typed bootstrap operation that creates missing registered
+tables when explicitly requested. Bootstrap is not a migration system: changing
+an existing table still requires an explicit, versioned migration strategy.
 
 ## Query Declarations and Prepared Handles
 
@@ -105,8 +180,8 @@ and macro spelling remain subject to the v1.5 prototype.
 extension SomeSQLiteDatabase {
     @SQLQuery(dialect: SQLite.self)
     func personByID(id: UUID) async throws -> Person? {
-        SQLite.sql { schema in
-            let person = schema.table(Person.self)
+        AppDatabase.sql { schema in
+            let person = schema.person
 
             Select(person)
             From(person)
@@ -152,6 +227,29 @@ The design must cover:
 - cancellation, transactions, and database isolation;
 - direct cached execution and explicitly retained handles;
 - useful macro diagnostics at the declaration site.
+
+### Streaming rows and lazy result sets
+
+v1.2 adds a source-compatible, package-scoped streaming row-decoding seam and
+implements it with GRDB's connection-scoped cursor APIs. GRDB rows are normalized
+and decoded before the cursor advances, so many-row execution does not first
+materialize both every GRDB row and a complete `[[XLSQLiteValue]]` matrix. The
+existing eager `fetchAll()` and `fetchOne()` APIs remain compatible and should
+share the streaming execution path where practical. This work is tracked by
+[incremental GRDB row decoding](https://github.com/lukevanin/swiftql/issues/248)
+and does not depend on the native SQLite adapter.
+
+v1.5 previews a typed, single-pass `XLResultSet<Row>` final reference type for
+callers that want to process only the rows they request. Its synchronous
+`withResultSet` API is scoped to one database access, uses throwing `next()`
+iteration, and closes retained references when the scope ends. It is neither
+`Sendable` nor a replayable `Collection`; an ordinary copyable struct cannot
+honestly represent its live connection-bound cursor state on Swift 5.9. A future
+struct may instead represent an immutable deferred query recipe. Demand-driven
+asynchronous iteration remains separate work because it needs an explicit
+backpressure, cancellation, and connection-lifetime contract. The v1.5 preview
+is tracked by the
+[lazy typed result-set issue](https://github.com/lukevanin/swiftql/issues/249).
 
 ## Scalar Rows and Contextual Value Codecs
 
@@ -285,8 +383,10 @@ exists.
 SQLite's official syntax diagrams are an excellent reviewed source of legal
 branches and interactions, but they are not consumed as an executable grammar.
 SwiftQL will maintain a checked-in, versioned inventory that records each public
-syntax family, its support status, SQLite documentation and version provenance,
-capability requirements, and rendering/prepare/execution/compile-fail evidence.
+syntax family and adopted upstream behavior case, its support status, SQLite
+documentation and version provenance, upstream repository/commit/path/license
+provenance where applicable, capability requirements, blocking issue and target
+milestone when deferred, and rendering/prepare/execution/compile-fail evidence.
 
 Tests generated from that inventory use deterministic, constraint-aware pairwise
 coverage plus targeted higher-order cases for risky interactions. They construct
@@ -294,6 +394,110 @@ typed SwiftQL statements rather than concatenating SQL, prepare every positive
 case with a version-identified real SQLite engine, and execute representative
 semantic cases against seeded schemas. The suite remains bounded and does not
 claim complete SQLite grammar coverage.
+
+### Open-source behavioral test adoption
+
+SwiftQL will adapt behavior matrices from mature MIT-licensed SQLite libraries
+instead of copying their APIs or test harnesses literally. The initial reviewed
+sources are pinned snapshots of
+[GRDB.swift](https://github.com/groue/GRDB.swift/tree/b83108d10f42680d78f23fe4d4d80fc88dab3212),
+[SQLite.swift](https://github.com/stephencelis/SQLite.swift/tree/ccaae3d01fd655be40f20665f1f61dc6deecec27),
+[Lighter](https://github.com/Lighter-swift/Lighter/tree/3486fc08d580aa3a87cd29ede023ba291a90de8b),
+[Blackbird](https://github.com/MarcoArment/Blackbird/tree/0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a),
+and
+[FluentBenchmark](https://github.com/vapor/fluent-kit/tree/6f8844284df4f797d2a81721511d053357d97b56/Sources/FluentBenchmark/Tests).
+An upstream attribution manifest records the repository, commit, path, original
+test or workload, adaptation, and license notice for every adopted family.
+Substantial copied material retains its upstream copyright and permission
+notice; otherwise tests are rewritten around SwiftQL's public contracts.
+
+The adoption inventory classifies each surveyed case as already covered,
+adoptable now, syntax-gated, adapter/API-gated, or intentionally out of scope.
+Every gated case names its blocking issue and target milestone once planned.
+Deferred cases remain visible in the conformance inventory and move into the
+executable suite only when the required typed surface exists; they do not become
+permanently skipped tests. ORM associations, persistence callbacks, eager
+loading, soft deletes, and other record-lifecycle behavior remain out of scope
+unless SwiftQL deliberately adopts an equivalent abstraction.
+
+The first adoptable families are:
+
+- SQLite storage-class, affinity, numeric-boundary, optional, Unicode, BLOB,
+  enum, and contextual-codec behavior;
+- literal, identifier, positional/named binding, repeated-parameter, empty
+  sequence, and injection-shaped input behavior;
+- `IN` edge cases, nullable comparison symmetry, precedence, collation,
+  aggregates, clause composition, subqueries, compounds, and CTEs already
+  represented by the public DSL;
+- CRUD, structured failures, transaction-contract, observation, cancellation,
+  and bounded concurrency behavior exposed by current adapters;
+- macro diagnostics, awkward identifiers and schema shapes, high-arity
+  generation, and downstream compile-only compatibility.
+
+Each positive case asserts the strongest applicable evidence layers: Swift
+type-checking, deterministic rendering and bindings, successful preparation by
+the real SQLite parser, and semantic execution. Negative cases use compile-fail,
+diagnostic, preparation-failure, or structured runtime-error assertions at the
+boundary that owns the rule. Exact SQL copied from another library is not an
+oracle when aliases or binding syntax intentionally differ; raw SQL and SQLite
+results provide the semantic oracle.
+
+### Northwind real-database corpus
+
+Current-surface integration tests use the MIT-licensed
+[Northwind SQLite fixture](https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/dist/northwind.db)
+at commit `865de0872e61692a49cd6069cd2df8f9ac04541e`, initially pinned by SHA-256
+`cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8`.
+The canonical fixture is immutable and read-only. Mutation, transaction,
+rollback, and observation tests use unique, parallel-safe temporary copies and
+never modify the checked-in artifact.
+
+Fixture validation records the upstream revision and license, verifies the
+checksum and `PRAGMA integrity_check`, and asserts the expected 13 application
+tables, 17 views, 93 customers, 830 orders, 2,155 order-detail rows, and 77
+products. The first semantic corpus covers quoted names such as `Order Details`,
+nullable shipping fields, Unicode and BLOB values, compound keys, stable
+pagination, customer/order/employee/product joins, left joins, grouped
+aggregates and `HAVING`, packaged views, subqueries, compounds, and CTEs. Typed
+SwiftQL results are compared with raw SQL or the fixture's views, including
+fixed sentinels such as order `10248` having three details totalling `440.0`.
+
+The small pinned fixture is a correctness corpus, not evidence of production
+scale or concurrent throughput. Large-read, write, and concurrency benchmarks
+use separate deterministic databases with recorded checksums, schemas,
+generator revisions, seeds, and fixed clocks. The upstream unseeded,
+current-date population script is not a reproducible baseline.
+
+### Comparative runtime and compile-time evidence
+
+Cross-library runtime comparisons use current pinned dependency versions,
+identical selected columns and value representations, equivalent statement and
+connection lifecycles, correctness checksums, and explicit setup boundaries.
+Unavoidable representation or API differences are recorded with the result.
+Reports separate construction/rendering, cold preparation, cached lookup,
+binding, execution, and decoding where the compared APIs expose those seams.
+Correctness checks and fixture setup remain outside timed intervals. Reports
+record raw samples, median, p95, cross-process spread, rows or operations per
+second, and peak resident memory alongside exact hardware, toolchain, library,
+SQLite build/configuration, and pragma provenance. Read throughput, point
+lookup, joins/aggregates, writes in a transaction, observation, concurrency,
+and cold startup remain distinct workload-specific API comparisons rather than
+one universal library ranking.
+
+Compile-time comparisons use isolated consumer packages with equivalent raw
+SQL, GRDB, SQLite.swift, Lighter, and SwiftQL workloads. The matrix scales table
+and representative query declarations independently through 1, 10, 100, and
+500 cases and measures dependency-warm clean builds, no-op incremental builds,
+and an incremental rebuild after changing one query. Reports include wall,
+user, and system time, peak memory, build-timing summaries, generated-source
+size, and binary size under an exact toolchain and dependency lock. Results
+describe whole consumer builds unless separate compiler traces isolate macro
+expansion, and no hard regression threshold is set until repeatable baselines
+exist.
+
+Lighter's separate `PerformanceTestSuite` provides a useful Northwind workload
+idea but has no repository license. SwiftQL independently implements the
+scenario and does not copy that harness without permission.
 
 ### Progressive documentation
 
@@ -312,6 +516,9 @@ Establish a trustworthy baseline before broadening the API:
 
 - reproduce and fix known correctness bugs;
 - expand macro, rendering, binding, execution, decoding, and regression tests;
+- establish the pinned upstream-behavior inventory and attribution manifest,
+  then adopt immediately supported value, binding, expression, CRUD,
+  transaction, observation, macro, and compile-only regression families;
 - replace warning markers and unverified behavior with tests or tracked issues;
 - improve naming, visibility, documentation, diagnostics, and code hygiene
   without unnecessary source breaks;
@@ -335,6 +542,10 @@ backends:
 - define logical prepared-handle and executor contracts;
 - keep the core free of GRDB-specific public types;
 - add reusable adapter contract tests;
+- run shared storage-class, affinity, numeric-boundary, structured-error, and
+  contextual-codec fixtures through the core and GRDB adapter boundaries;
+- add a package-scoped streaming row-decoding seam and decode GRDB results with
+  bounded intermediate storage while preserving the eager public APIs;
 - capture reproducible first-party source-coverage reports before broad internal
   refactors;
 - make dialect selection explicit in new infrastructure.
@@ -355,6 +566,11 @@ supported SQLite versions:
 - cover precedence, nullability, quoting, aliases, joins, subqueries, compound
   queries, common table expressions, values, functions, and statement clauses
   already exposed by SwiftQL;
+- execute the pinned Northwind corpus through typed SwiftQL queries and raw-SQL
+  or packaged-view oracles, using temporary copies for mutation tests;
+- record each adopted behavior as implemented, feature-gated, or intentionally
+  out of scope, with every planned deferral linked to its blocking issue and
+  target milestone;
 - add version and capability expectations;
 - establish a representative schema-snapshot validation harness;
 - track every known deviation explicitly.
@@ -369,6 +585,11 @@ Every feature issue must include:
 - prepare and execution coverage against supported SQLite versions;
 - capability or version behavior where applicable;
 - documentation and representative examples.
+
+Feature-gated cases discovered in the upstream survey are promoted from the
+conformance inventory as their typed Swift surfaces land. A feature is not
+accepted by merely enabling or unskipping an upstream-shaped test: it must meet
+the same rendering, real-parser, semantic, version, and documentation gates.
 
 This milestone also removes the one-column result wrapper requirement from
 ordinary and recursive scalar CTEs while preserving v1 compatibility.
@@ -385,6 +606,8 @@ Prototype and validate the future query-declaration model:
 - eliminate explicit parameter-reference and mutable request boilerplate;
 - generate database-bound callable handles with labeled `callAsFunction` APIs;
 - support direct cached execution and explicit handle retention;
+- preview a connection-scoped, typed, single-pass result set that decodes only
+  requested rows while preserving eager `fetchAll()` compatibility;
 - produce declaration-site diagnostics for unsupported signatures and forms;
 - prototype build-time validation against a schema snapshot;
 - preview metadata-only property/result/parameter codec selection;
@@ -392,18 +615,28 @@ Prototype and validate the future query-declaration model:
   codec ergonomics without changing existing persisted formats;
 - publish a native DocC interactive tutorial whose displayed snapshots compile
   and whose final scenario executes;
-- benchmark macro expansion, generated code, cold preparation, cache hits,
-  binding, execution, and decoding;
+- benchmark macro expansion, generated code, clean and incremental consumer
+  compilation, cold preparation, cache hits, binding, execution, decoding,
+  memory, and representative cross-library workloads;
 - publish the proposed v2 migration surface.
 
 Swift 6-only functionality remains a preview if it cannot be packaged without
 silently raising the v1.x compiler minimum.
 
-### v2 — Swift 6 and Stable Dialect-Aware API
+### v2 — Generated Database Catalogs, Swift 6, and Stable API
 
 Use the major-version boundary for intentional API and package cleanup:
 
 - require the selected Swift 6 toolchain and enable Swift 6 language mode;
+- ship generated database catalogs and their fluent, catalog-scoped table
+  reference API as the primary v2 query entry point;
+- enforce reference identity, binding, alias, nullability, write-role, and
+  catalog-membership invariants with actionable diagnostics;
+- validate catalog generation and compilation against pinned awkward and
+  high-arity schema shapes, including quoted names, compound keys, BLOBs,
+  optionals, self-references, alias collisions, and large table sets;
+- provide an explicit typed bootstrap path for creating missing registered
+  tables without presenting bootstrap as schema migration;
 - ship the stable query-declaration API;
 - remove the legacy `XL` public prefix and publish a migration guide;
 - separate core abstractions, SQLite syntax, macros, and driver adapters;
@@ -427,6 +660,8 @@ Provide a direct SQLite C adapter that can replace the GRDB adapter:
   collations, and observation behavior;
 - codec and dialect-value parity with the GRDB adapter;
 - schema/version invalidation and safe reprepare behavior;
+- execute the shared adopted correctness and workload corpus against both the
+  GRDB and native SQLite adapters;
 - preparation warm-up and metrics;
 - no GRDB dependency for clients selecting the native adapter.
 
@@ -470,14 +705,29 @@ Every release must satisfy these gates:
 - syntax changes have rendering plus real parser or execution validation;
 - supported syntax claims appear in the versioned conformance inventory with
   deterministic evidence;
+- adopted third-party behavior has pinned source and license provenance, and
+  any substantial copied material retains the required notice;
+- real-database fixtures have pinned upstream identity, license, checksum,
+  integrity and row-count assertions, plus an immutable-source/temp-copy policy;
+- feature-gated and intentionally out-of-scope surveyed cases remain explicit
+  inventory entries, and each planned deferral names a blocking issue and target
+  milestone rather than becoming a silent exclusion or permanent skip;
 - adapters pass the shared contract suite and applicable live-engine tests;
 - adapters do not own logical codec policy and pass the shared value-codec
   fixtures for their dialect;
 - macro changes have expansion, diagnostic, runtime, and downstream-package
   tests;
-- documentation and examples match the shipped API;
+- the README, DocC catalog, changelog, compatibility guidance, and examples
+  match the shipped API;
+- the repository's agent `SKILL.md` is updated and validated against the
+  shipped API;
+- the milestone release-readiness audit is complete, with every unresolved
+  gap recorded as an atomic follow-up issue;
 - performance-sensitive changes include comparable baseline and post-change
   measurements;
+- comparative runtime and compile-time reports use equivalent workloads,
+  correctness checksums, explicit timing boundaries, pinned toolchains and
+  dependencies, and machine-readable raw samples;
 - compatibility and migration impact is documented;
 - limitations and unsupported syntax are explicit.
 
