@@ -1,11 +1,11 @@
 {
-  "task_name": "Add a shared SQLite storage and value conformance suite",
-  "issue_number": 252,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/252",
+  "task_name": "Add a shared SQLite transaction invariant contract suite",
+  "issue_number": 253,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/253",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#252 - Add SQLite value conformance suite",
+  "codex_session_title": "lukevanin/swiftql#253 - Add SQLite transaction invariant suite",
   "codex_session_id": "019f7610-5766-7ab1-b223-e1aaedeaff74",
   "codex_session_url": null,
-  "task_branch": "codex/252-add-a-shared-sqlite-storage-and-value-conformance-suite",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/252-add-a-shared-sqlite-storage-and-value-conformance-suite"
+  "task_branch": "codex/253-add-a-shared-sqlite-transaction-invariant-contract-suite",
+  "task_worktree_path": "/private/tmp/swiftql-worktrees/253-add-a-shared-sqlite-transaction-invariant-contract-suite"
 }
