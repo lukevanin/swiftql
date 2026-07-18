@@ -510,19 +510,6 @@ public struct XLiteBuilder: XLBuilder {
         _entities.formUnion(rhsExpressionBuilder.entities())
     }
 
-    public mutating func between(term: (inout XLBuilder) -> Void, minimum: (inout XLBuilder) -> Void, maximum: (inout XLBuilder) -> Void) {
-        var termExpressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter)
-        var minimumExpressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter)
-        var maximumExpressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter)
-        term(&termExpressionBuilder)
-        minimum(&minimumExpressionBuilder)
-        maximum(&maximumExpressionBuilder)
-        append(termExpressionBuilder.build() + " BETWEEN " + minimumExpressionBuilder.build() + " AND " + maximumExpressionBuilder.build())
-        _entities.formUnion(termExpressionBuilder.entities())
-        _entities.formUnion(minimumExpressionBuilder.entities())
-        _entities.formUnion(maximumExpressionBuilder.entities())
-    }
-
     public mutating func cast(type: String, expression: (inout XLBuilder) -> Void) {
         var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter)
         expression(&expressionBuilder)
