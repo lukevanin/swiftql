@@ -17,13 +17,13 @@ introduction to SQL, see the
 Add the latest published SwiftQL package to your dependencies:
 
 ```text
-.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.1.0")
+.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.2.0")
 ```
 
-Version 1.1.0 remains the published package while the v1.2 changelog is marked
-`Unreleased`. This guide's basic request path is retained by v1.2. Use the new
-static-query and contextual-codec APIs from `main` only when pinning a source
-revision intentionally, or after the `1.2.0` tag is published.
+Version 1.2.0 is the published package. This guide's basic request path remains
+supported in v1.2, and its static-query and contextual-codec APIs are available
+from version 1.2.0 or later. Pin a source revision only when intentionally
+testing later changes from `main`.
 
 Then add `SwiftQL` to the dependencies of your target and import the module in
 files that use it. The package requires Swift tools 5.9 and targets iOS 16 or

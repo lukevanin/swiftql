@@ -22,8 +22,8 @@ checked-out package version before editing consumer code.
   or later. SwiftQL v1.2 supports Apple platforms, SQLite syntax, and the GRDB
   driver only.
 - Read [the changelog](CHANGELOG.md) before choosing a package requirement.
-  While `1.2.0` is `Unreleased`, pin an intentional source revision for v1.2
-  APIs; use the published semantic version only after that tag exists.
+  Use the published `1.2.0` semantic version for v1.2 APIs. Pin a source
+  revision only when intentionally testing later changes from `main`.
 
 ## Follow the preferred application workflow
 

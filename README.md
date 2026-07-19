@@ -173,13 +173,13 @@ Add the following line to the `dependencies` section in your `Package.swift`
 file:
 
 ```text
-.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.1.0")
+.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.2.0")
 ```
 
-`1.1.0` is the latest published package while the v1.2 changelog is marked
-`Unreleased`. The examples above use APIs retained by v1.2. Adopt the new v1.2
-static-query surface only after pinning a source revision intentionally or
-after the `1.2.0` tag is published.
+`1.2.0` is the latest published package. The examples above use APIs retained
+by v1.2, and the v1.2 static-query surface is available from that semantic
+version. Pin a source revision only when intentionally testing later changes
+from `main`.
 
 ### Xcode
 
@@ -197,8 +197,8 @@ For project guarantees and direction:
 
 - [Compiler compatibility](COMPATIBILITY.md) records the supported Swift
   toolchains and reproducible CI matrix.
-- [Changelog](CHANGELOG.md) distinguishes released behavior from the v1.2
-  surface currently on `main` and records migration guidance.
+- [Changelog](CHANGELOG.md) records released behavior and v1.2 migration
+  guidance.
 - [Performance benchmarks](BENCHMARKS.md) measure query construction,
   preparation, caching, binding, execution, and decoding.
 - [First-party source coverage](Coverage/README.md) preserves the reproducible
