@@ -12,9 +12,10 @@ definitions the execution source of truth. Schema diffs may produce read-only
 reports and confirmation-required proposals, but a live schema difference or a
 changed Swift model must never execute a migration by itself.
 
-Migration support remains future P4 work. It does not block
-[catalog bootstrap #215](https://github.com/lukevanin/swiftql/issues/215) or the
-v2 catalog release.
+Migration support is scheduled for the post-v2
+[v2.x milestone](https://github.com/lukevanin/swiftql/milestone/11). It does not
+block [catalog bootstrap #215](https://github.com/lukevanin/swiftql/issues/215)
+or the v2 catalog release.
 
 ## Decision summary
 

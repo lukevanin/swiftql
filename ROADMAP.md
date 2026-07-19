@@ -56,6 +56,7 @@ Version numbers express the intended order of work, not release dates.
 | [v1.4](https://github.com/lukevanin/swiftql/milestone/9) | Common SQLite feature coverage | A documented, useful SQLite subset |
 | [v1.5](https://github.com/lukevanin/swiftql/milestone/1) | Query declarations, ergonomics, and v2 preview | The future API validated without silently raising the v1 toolchain floor |
 | [v2](https://github.com/lukevanin/swiftql/milestone/10) | Generated database catalogs, Swift 6, and a stable dialect-aware API | Fluent catalog-scoped queries plus intentional naming, package, DDL, and adapter cleanup |
+| [v2.x](https://github.com/lukevanin/swiftql/milestone/11) | Explicit versioned schema migrations | A post-v2 additive release; its exact minor is assigned after v2 stabilizes without renumbering the existing adapter and backend milestones |
 | [v2.1](https://github.com/lukevanin/swiftql/milestone/2) | Native SQLite adapter | Direct SQLite C execution as an alternative to GRDB |
 | [v2.2](https://github.com/lukevanin/swiftql/milestone/5) | PostgreSQL | Native PostgreSQL syntax and adapter |
 | [v2.3](https://github.com/lukevanin/swiftql/milestone/4) | MySQL | Native MySQL syntax and adapter |
@@ -76,6 +77,7 @@ Key planning and foundation issues:
 | v1.4 | [SQLite coverage index](https://github.com/lukevanin/swiftql/issues/115), [direct scalar CTE rows](https://github.com/lukevanin/swiftql/issues/43) |
 | v1.5 | [ergonomics index](https://github.com/lukevanin/swiftql/issues/116), [macro index](https://github.com/lukevanin/swiftql/issues/117), [prepared handles](https://github.com/lukevanin/swiftql/issues/18), [lazy typed result set](https://github.com/lukevanin/swiftql/issues/249), [@SQLQuery prototype](https://github.com/lukevanin/swiftql/issues/26), [Date text](https://github.com/lukevanin/swiftql/issues/61) and [numeric codecs](https://github.com/lukevanin/swiftql/issues/62), [UUID codecs](https://github.com/lukevanin/swiftql/issues/192), [interactive DocC tutorial](https://github.com/lukevanin/swiftql/issues/27), [macro regression corpus](https://github.com/lukevanin/swiftql/issues/256), [compile scalability benchmarks](https://github.com/lukevanin/swiftql/issues/257), [runtime workload research](https://github.com/lukevanin/swiftql/issues/259) |
 | v2 | [generated database catalogs and fluent table references](https://github.com/lukevanin/swiftql/issues/217), [Swift 6 mode](https://github.com/lukevanin/swiftql/issues/133), [typed DDL](https://github.com/lukevanin/swiftql/issues/139), [GRDB adapter boundary](https://github.com/lukevanin/swiftql/issues/113), [XL migration](https://github.com/lukevanin/swiftql/issues/33), [catalog stress fixtures](https://github.com/lukevanin/swiftql/issues/258) |
+| v2.x | [schema-migration research](https://github.com/lukevanin/swiftql/issues/216), [semantic snapshots and fingerprints](https://github.com/lukevanin/swiftql/issues/276), [immutable registry and history](https://github.com/lukevanin/swiftql/issues/277), [atomic SQLite executor](https://github.com/lukevanin/swiftql/issues/278), [typed SQLite rebuilds](https://github.com/lukevanin/swiftql/issues/279), [catalog lifecycle integration](https://github.com/lukevanin/swiftql/issues/280), [read-only diffs and proposals](https://github.com/lukevanin/swiftql/issues/281) |
 | v2.1 | [native SQLite adapter](https://github.com/lukevanin/swiftql/issues/136), [Linux CI](https://github.com/lukevanin/swiftql/issues/135), [VDBE research](https://github.com/lukevanin/swiftql/issues/138), [shared-corpus adapter parity](https://github.com/lukevanin/swiftql/issues/260) |
 | v2.2 | [PostgreSQL vertical slice](https://github.com/lukevanin/swiftql/issues/137) |
 | v2.3 | [MySQL vertical slice](https://github.com/lukevanin/swiftql/issues/130) |
@@ -649,6 +651,29 @@ Use the major-version boundary for intentional API and package cleanup:
   compiler;
 - document source migration, concurrency behavior, and compatibility
   boundaries.
+
+### v2.x — Explicit Versioned Schema Migrations
+
+Ship schema evolution as an additive post-v2 release built on the stable v2
+catalog, typed DDL, codec metadata, dialect capability, and adapter boundaries.
+The exact minor number remains deliberately unassigned until v2 stabilizes;
+this milestone does not delay v2 or renumber the existing v2.1-v2.4 adapter and
+backend milestones.
+
+- compare catalog-owned live schema with deterministic semantic snapshots and
+  fingerprints before and after every migration;
+- execute only immutable, explicitly ordered, forward-only migration
+  definitions with an auditable history contract;
+- apply each SQLite migration and its history record in one atomic transaction,
+  with explicit foreign-key, validation, recovery, and too-new database policy;
+- provide typed SQLite table rebuilds with explicit column mappings, data
+  transforms, dependent-object recreation, and copy validation;
+- keep bootstrap, validation, baseline adoption, and migration as separate
+  catalog lifecycle operations;
+- support external migration runners without double journaling or nested
+  transaction ownership; and
+- generate schema differences and migration proposals only as read-only,
+  confirmation-required authoring aids, never as model-drift execution.
 
 ### v2.1 — Native SQLite Adapter
 
