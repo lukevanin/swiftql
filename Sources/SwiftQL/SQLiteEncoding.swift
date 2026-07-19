@@ -411,7 +411,7 @@ public struct XLiteBuilder: XLBuilder {
     }
 
     public func build() -> String {
-        _tokens.joined(separator: XLSeparator.space.rawValue)
+        _tokens.joined(separator: XLSeparator.tuple.rawValue)
     }
 
     public func entities() -> Set<String> {
@@ -558,14 +558,14 @@ public struct XLiteBuilder: XLBuilder {
     }
 
     public mutating func simpleFunction(name: String, parameters: (inout XLListBuilder) -> Void) {
-        var listBuilder: XLListBuilder = XLiteListBuilder(formatter: formatter, separator: ", ")
+        var listBuilder: XLListBuilder = XLiteListBuilder(formatter: formatter, separator: .list)
         parameters(&listBuilder)
         append(name + "(" + listBuilder.build() + ")")
         _entities.formUnion(listBuilder.entities())
     }
 
     public mutating func aggregateFunction(name: String, distinct: Bool, parameters: (inout XLListBuilder) -> Void) {
-        var listBuilder: XLListBuilder = XLiteListBuilder(formatter: formatter, separator: ", ")
+        var listBuilder: XLListBuilder = XLiteListBuilder(formatter: formatter, separator: .list)
         parameters(&listBuilder)
         if distinct {
             append(name + "(DISTINCT " + listBuilder.build() + ")")
@@ -622,6 +622,10 @@ public struct XLiteListBuilder: XLListBuilder {
         self.formatter = formatter
     }
 
+    init(formatter: XLFormatter, separator: XLSeparator) {
+        self.init(formatter: formatter, separator: separator.rawValue)
+    }
+
     public func build() -> String {
         _tokens.joined(separator: separator)
     }
@@ -655,7 +659,7 @@ public struct XLiteCommonTablesBuilder: XLCommonTablesBuilder {
     }
 
     public func build() -> String {
-        _tokens.joined(separator: ", ")
+        _tokens.joined(separator: XLSeparator.list.rawValue)
     }
 
     public func entities() -> Set<String> {
@@ -685,7 +689,7 @@ public struct XLiteColumnDefinitionsBuilder: XLColumnDefinitionsBuilder {
     }
 
     public func build() -> String {
-        _tokens.joined(separator: ", ")
+        _tokens.joined(separator: XLSeparator.list.rawValue)
     }
 
     ///
@@ -700,6 +704,6 @@ public struct XLiteColumnDefinitionsBuilder: XLColumnDefinitionsBuilder {
         if !nullable {
             components.append("NOT NULL")
         }
-        _tokens.append(components.joined(separator: " "))
+        _tokens.append(components.joined(separator: XLSeparator.tuple.rawValue))
     }
 }

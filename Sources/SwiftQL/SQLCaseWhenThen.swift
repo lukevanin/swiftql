@@ -31,7 +31,7 @@ private struct ConstantCaseComponents {
 
     public func makeSQL(context: inout XLBuilder) {
         context.parenthesis { context in
-            context.block(beginsWith: "CASE", endsWith: "END", separator: .space) { context in
+            context.block(beginsWith: "CASE", endsWith: "END", separator: .tuple) { context in
                 condition.makeSQL(context: &context)
                 for expression in expressions {
                     expression(&context)
@@ -166,7 +166,7 @@ private struct VariableCaseComponents {
 
     func makeSQL(context: inout XLBuilder) {
         context.parenthesis { context in
-            context.block(beginsWith: "CASE", endsWith: "END", separator: .space) { context in
+            context.block(beginsWith: "CASE", endsWith: "END", separator: .tuple) { context in
                 for expression in expressions {
                     expression(&context)
                 }

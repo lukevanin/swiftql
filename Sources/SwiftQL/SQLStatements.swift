@@ -580,7 +580,7 @@ public struct Descending: XLOrderingTerm {
 ///
 @resultBuilder public struct XLOrderingTermsBuilder {
     public static func buildBlock(_ components: XLOrderingTerm...) -> any XLEncodable {
-        XLEncodableList(separator: ", ", expressions: components)
+        XLEncodableList(separator: .list, expressions: components)
     }
 }
 
@@ -597,7 +597,7 @@ public struct OrderBy: XLQueryComponent {
     }
     
     internal init(terms: [any XLOrderingTerm]) {
-        self.orderingTerms = XLEncodableList(separator: .comma, expressions: terms)
+        self.orderingTerms = XLEncodableList(separator: .list, expressions: terms)
     }
 
     public func makeSQL(context: inout XLBuilder) {
@@ -677,11 +677,11 @@ public struct GroupBy: XLQueryComponent {
     private let columns: any XLEncodable
     
     public init(_ columns: any XLExpression...) {
-        self.columns = XLEncodableList(separator: .comma, expressions: columns)
+        self.columns = XLEncodableList(separator: .list, expressions: columns)
     }
 
     public init(_ columns: [any XLExpression]) {
-        self.columns = XLEncodableList(separator: .comma, expressions: columns)
+        self.columns = XLEncodableList(separator: .list, expressions: columns)
     }
 
     public func makeSQL(context: inout XLBuilder) {

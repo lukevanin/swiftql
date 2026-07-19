@@ -95,7 +95,56 @@ private struct MixedLegacyAndTypedParameterProbe: XLEncodable {
 }
 
 
+private struct SemanticSeparatorProbe: XLEncodable {
+
+    let separator: XLSeparator
+
+    func makeSQL(context: inout XLBuilder) {
+        context.list(separator: separator) { list in
+            list.listItem { $0.integer(1) }
+            list.listItem { $0.integer(2) }
+        }
+    }
+}
+
+
+private struct LiteralSeparatorProbe: XLEncodable {
+
+    func makeSQL(context: inout XLBuilder) {
+        context.list(separator: " | ") { list in
+            list.listItem { $0.integer(1) }
+            list.listItem { $0.integer(2) }
+        }
+    }
+}
+
+
 final class SQLDialectEncodingContractTests: XCTestCase {
+
+    func testSemanticSeparatorsPreserveEstablishedSQLiteSpellings() {
+        func requireSendable<T: Sendable>(_ value: T) {}
+
+        requireSendable(XLSeparator.list)
+        XCTAssertEqual(XLSeparator.list, .comma)
+        XCTAssertEqual(XLSeparator.list.rawValue, ", ")
+        XCTAssertEqual(XLSeparator.tuple, .space)
+        XCTAssertEqual(XLSeparator.tuple.rawValue, " ")
+        XCTAssertEqual(XLSeparator(rawValue: ", "), .comma)
+
+        let encoder = XLiteEncoder(formatter: XLiteFormatter())
+        XCTAssertEqual(
+            encoder.makeSQL(SemanticSeparatorProbe(separator: .list)).sql,
+            "1, 2"
+        )
+        XCTAssertEqual(
+            encoder.makeSQL(SemanticSeparatorProbe(separator: .tuple)).sql,
+            "1 2"
+        )
+        XCTAssertEqual(
+            encoder.makeSQL(LiteralSeparatorProbe()).sql,
+            "1 | 2"
+        )
+    }
 
     private func parameterSlot(
         index: Int,
