@@ -381,6 +381,8 @@ public enum SQLiteObservationTraceValidator {
 
 public enum SQLiteObservationConformanceFixtures {
 
+    public static let pinnedGRDBRepository = "groue/GRDB.swift"
+
     public static let pinnedGRDBCommit =
         "b83108d10f42680d78f23fe4d4d80fc88dab3212"
 
@@ -492,7 +494,7 @@ public enum SQLiteObservationConformanceFixtures {
         testCase: String
     ) -> SQLiteObservationUpstreamCase {
         SQLiteObservationUpstreamCase(
-            repository: "groue/GRDB.swift",
+            repository: pinnedGRDBRepository,
             commit: pinnedGRDBCommit,
             path: path,
             testCase: testCase

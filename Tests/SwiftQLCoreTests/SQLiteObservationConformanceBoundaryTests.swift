@@ -33,7 +33,10 @@ final class SQLiteObservationConformanceBoundaryTests: XCTestCase {
         XCTAssertEqual(adopted[.incrementalDemand]?.count, 2)
         for references in adopted.values {
             for reference in references {
-                XCTAssertEqual(reference.repository, "groue/GRDB.swift")
+                XCTAssertEqual(
+                    reference.repository,
+                    SQLiteObservationConformanceFixtures.pinnedGRDBRepository
+                )
                 XCTAssertEqual(
                     reference.commit,
                     SQLiteObservationConformanceFixtures.pinnedGRDBCommit
