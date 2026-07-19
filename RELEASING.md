@@ -16,8 +16,8 @@ matrix, and built the exact commit's validated DocC artifact.
    milestone 8 with no open issues. Verify the live milestone rather than a
    local planning file. Audit issue
    [#226](https://github.com/lukevanin/swiftql/issues/226) must produce the
-   checked-in v1.3 release-readiness audit and record the pre-tag verdict and
-   evidence:
+   checked-in [v1.3 release-readiness audit](Documentation/ReleaseAudits/v1.3.md)
+   and record the pre-tag verdict and evidence:
 
    ```sh
    gh api repos/lukevanin/swiftql/milestones/8 |
@@ -169,8 +169,10 @@ The release workflow:
 6. creates a draft GitHub Release with generated notes and an exact commit/run
    marker;
 7. uploads and verifies all three assets, then immediately refetches and
-   revalidates the tag, `main` reachability, milestone, and changelog before the
-   publication request;
+   revalidates the exact tag and `main` reachability before publication; the
+   dated changelog was validated from that same exact tag commit in the initial
+   validation job; for v1.3, #298 owns the separate authenticated live milestone
+   check because the retained readiness script is intentionally v1.1-only;
 8. publishes only a draft that already contains generated notes, polls until
    GitHub reports the release immutable, and reopens the DocC archive to verify
    its catalog pages and embedded provenance; and
