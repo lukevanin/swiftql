@@ -1,11 +1,11 @@
 {
-  "task_name": "Release SwiftQL v1.2.0",
-  "issue_number": 274,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/274",
+  "task_name": "Research explicit versioned schema migrations beyond catalog bootstrap",
+  "issue_number": 216,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/216",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#274 - Release SwiftQL v1.2.0",
-  "codex_session_id": "019f7610-5766-7ab1-b223-e1aaedeaff74",
+  "codex_session_title": "lukevanin/swiftql#216 - Research explicit versioned schema migrations",
+  "codex_session_id": "019f7a20-d672-7c92-8899-b1f5e051e808",
   "codex_session_url": null,
-  "task_branch": "codex/274-release-swiftql-v1-2-0",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/274-release-swiftql-v1-2-0"
+  "task_branch": "codex/216-research-explicit-versioned-schema-migrations",
+  "task_worktree_path": "/private/tmp/swiftql-worktrees/216-research-explicit-versioned-schema-migrations"
 }

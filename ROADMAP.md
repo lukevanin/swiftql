@@ -60,6 +60,7 @@ Version numbers express the intended order of work, not release dates.
 | [v2.2](https://github.com/lukevanin/swiftql/milestone/5) | PostgreSQL | Native PostgreSQL syntax and adapter |
 | [v2.3](https://github.com/lukevanin/swiftql/milestone/4) | MySQL | Native MySQL syntax and adapter |
 | [v2.4](https://github.com/lukevanin/swiftql/milestone/3) | SQL Server | Native T-SQL syntax and adapter |
+| [v2.5](https://github.com/lukevanin/swiftql/milestone/11) | Explicit versioned schema migrations | Catalog-owned, forward-only schema evolution after the v2 catalog and adapter foundations are established |
 
 The v1 milestones are sequential quality and architecture layers. Work on a
 small PostgreSQL proof may start before v2 is frozen so the shared core is
@@ -80,6 +81,7 @@ Key planning and foundation issues:
 | v2.2 | [PostgreSQL vertical slice](https://github.com/lukevanin/swiftql/issues/137) |
 | v2.3 | [MySQL vertical slice](https://github.com/lukevanin/swiftql/issues/130) |
 | v2.4 | [SQL Server vertical slice](https://github.com/lukevanin/swiftql/issues/134) |
+| v2.5 | [schema-migration research](https://github.com/lukevanin/swiftql/issues/216), [semantic snapshots and fingerprints](https://github.com/lukevanin/swiftql/issues/276), [immutable registry and history](https://github.com/lukevanin/swiftql/issues/277), [atomic SQLite executor](https://github.com/lukevanin/swiftql/issues/278), [typed SQLite rebuilds](https://github.com/lukevanin/swiftql/issues/279), [catalog lifecycle integration](https://github.com/lukevanin/swiftql/issues/280), [read-only diffs and proposals](https://github.com/lukevanin/swiftql/issues/281) |
 
 ## Generated Database Catalogs and Fluent Table References
 
@@ -687,6 +689,26 @@ T-SQL semantics directly, publish a supported-feature matrix, use
 database-bound prepared handles, and validate against supported live SQL Server
 versions. Native `uniqueidentifier`, `datetime2`, and string mappings remain
 distinct from SQLite and PostgreSQL representations.
+
+### v2.5 — Explicit Versioned Schema Migrations
+
+Ship schema evolution on the stable v2 catalog, typed DDL, codec metadata,
+dialect capability, and adapter boundaries:
+
+- compare catalog-owned live schema with deterministic semantic snapshots and
+  fingerprints before and after every migration;
+- execute only immutable, explicitly ordered, forward-only migration
+  definitions with an auditable history contract;
+- apply each SQLite migration and its history record in one atomic transaction,
+  with explicit foreign-key, validation, recovery, and too-new database policy;
+- provide typed SQLite table rebuilds with explicit column mappings, data
+  transforms, dependent-object recreation, and copy validation;
+- keep bootstrap, validation, baseline adoption, and migration as separate
+  catalog lifecycle operations;
+- support external migration runners without double journaling or nested
+  transaction ownership; and
+- generate schema differences and migration proposals only as read-only,
+  confirmation-required authoring aids, never as model-drift execution.
 
 Post-v2 adapter ordering may change if research, maintainership, or driver
 maturity changes, but backend-specific public syntax remains the architectural
