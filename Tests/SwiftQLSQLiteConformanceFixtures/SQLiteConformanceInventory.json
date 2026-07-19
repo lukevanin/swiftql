@@ -1,0 +1,5336 @@
+{
+  "schema_version": 1,
+  "inventory_version": "1.3.0",
+  "coordination_issue": 190,
+  "scope": {
+    "claim": "Evidence-backed conformance for SwiftQL's existing public SQLite syntax and adopted behavior surface; not complete SQLite grammar coverage.",
+    "limits": [
+      "SQLite's reviewed syntax documentation is a dimension checklist, not an executable grammar.",
+      "Only public SwiftQL constructors named by feature records are in scope.",
+      "Supported syntax requires deterministic rendering and successful preparation by a version-identified real SQLite engine.",
+      "Representative execution proves selected semantics; it does not enumerate every legal SQLite interaction.",
+      "Planned suites and deferred features carry no invented evidence and are not counted as supported."
+    ],
+    "required_families": [
+      "select",
+      "expression",
+      "join",
+      "subquery",
+      "compound",
+      "cte",
+      "dml",
+      "ddl"
+    ]
+  },
+  "sqlite_environments": [
+    {
+      "id": "sqlite-3.51.0-macos-arm64",
+      "sqlite_version": "3.51.0",
+      "sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "source": "Benchmarks/Baselines/2026-07-17-mac16-8-run-1.json",
+      "captured_at": "2026-07-17T01:41:33.709Z",
+      "toolchain": "Xcode 26.5 (17F42); Apple Swift 6.3.2 (swiftlang-6.3.2.1.108 clang-2100.1.1.101); macOS SDK 26.5; GRDB 6.29.3",
+      "architecture": "arm64",
+      "capabilities": [
+        "collation:BINARY",
+        "collation:NOCASE",
+        "collation:RTRIM",
+        "compile-option:ENABLE_COLUMN_METADATA",
+        "compile-option:ENABLE_FTS5",
+        "compile-option:ENABLE_MATH_FUNCTIONS",
+        "compile-option:ENABLE_RTREE",
+        "compile-option:ENABLE_SESSION",
+        "compile-option:OMIT_LOAD_EXTENSION",
+        "compound-select",
+        "database-pool-driver",
+        "named-bindings",
+        "recursive-cte",
+        "sqlite-core-parser",
+        "sqlite-storage-classes",
+        "transactions"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "evidence.environment.sqlite-runtime-metadata",
+      "source_path": "Tests/SQLTests/SQLCompatibilityReportTests.swift",
+      "test_case": "XLCompatibilityReportTests.testSQLiteRuntimeVersionIsReported",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "runtime-metadata",
+        "semantic-oracle"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.compound.render-except",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLQueryExpressionBuilderTests.swift",
+      "test_case": "XLQueryExpressionBuilderTests.testExcept",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.compound.render-intersect",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLQueryExpressionBuilderTests.swift",
+      "test_case": "XLQueryExpressionBuilderTests.testIntersect",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.compound.render-union",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLQueryExpressionBuilderTests.swift",
+      "test_case": "XLQueryExpressionBuilderTests.testUnion",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.compound.sqlite-union",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testUnion",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.cte.sqlite-recursive",
+      "source_path": "Tests/SQLTests/RecursiveCTEConstructionPrototypeTests.swift",
+      "test_case": "RecursiveCTEConstructionPrototypeTests.testGeneratedCompositeReferenceRendersAndExecutesRecursiveCTE",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.ddl.render-create",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLCreateExpressionBuilderTests.swift",
+      "test_case": "XLCreateExpressionBuilderTests.testCreateTable",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.ddl.sqlite-create",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testCreateTable",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.ddl.sqlite-create-as-select",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testCreateTableAsSelect",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-delete",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testDelete",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-insert-select",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testInsertSelectFluentCompleteClauseChain",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-update",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testUpdate",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.compile-fail-bitwise-not-double",
+      "source_path": "Tests/CompileFail/BitwiseNotDouble.swift",
+      "test_case": "compile-fail.bitwise-not-double",
+      "runner_path": "scripts/ci/check-bitwise-not-type-safety.sh",
+      "layers": [
+        "compile-fail",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-aggregate-functions",
+      "source_path": "Tests/SQLTests/SQLAggregateTests.swift",
+      "test_case": "XLAggregateTests.testOptionalAggregateTypesAndRendering",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-collation",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.test_TextConcatenation_PreservesCollatedOperandGrouping",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-coalescing-operator",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.test_OptionalIntegerBinding_CoalescingOperator_Integer",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-conditional-functions",
+      "source_path": "Tests/SQLTests/SQLScalarFunctionTests.swift",
+      "test_case": "XLScalarFunctionTests.testConditionalFunctionOverloads",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-date-json-functions",
+      "source_path": "Tests/SQLTests/SQLScalarFunctionTests.swift",
+      "test_case": "XLScalarFunctionTests.testDateAndJSONFunctions",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-numeric-comparable-functions",
+      "source_path": "Tests/SQLTests/SQLScalarFunctionTests.swift",
+      "test_case": "XLScalarFunctionTests.testNumericAndComparableFunctions",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-operator-divide",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.test_IntegerReference_DividedBy_IntegerReference",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-operator-logical-not",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.test_Not_BooleanReference",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-operator-logical-or",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.testOrBinaryBooleanOperator_BooleanExpression",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-operator-remainder",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.test_IntegerReference_Remainder_IntegerReference",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-string-ordering-functions",
+      "source_path": "Tests/SQLTests/SQLScalarFunctionTests.swift",
+      "test_case": "XLScalarFunctionTests.testStringFunctionsAndOrderingTerms",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-type-casts",
+      "source_path": "Tests/SQLTests/SQLScalarFunctionTests.swift",
+      "test_case": "XLScalarFunctionTests.testTypeCastOverloadsAndRendering",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-unary-plus",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.testPlusOperator_IntegerExpression",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-aggregate-functions",
+      "source_path": "Tests/SQLTests/SQLAggregateTests.swift",
+      "test_case": "XLAggregateTests.testOptionalAggregatesWithPopulatedInput",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-aggregates-all-null",
+      "source_path": "Tests/SQLTests/SQLAggregateTests.swift",
+      "test_case": "XLAggregateTests.testOptionalAggregatesWithPhysicalAllNullInput",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-aggregates-empty",
+      "source_path": "Tests/SQLTests/SQLAggregateTests.swift",
+      "test_case": "XLAggregateTests.testOptionalAggregatesWithEmptyInput",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-bitwise-not",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testBitwiseNotExecutesForIntegerLiteralsColumnsAndComposedExpressions",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-built-in-collations",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testBuiltInCollationExecution",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-case",
+      "source_path": "Tests/SQLTests/SQLExampleTests.swift",
+      "test_case": "XLDocumentationTests.testExample_SwitchCaseWhenThenElse",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-collation",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testConcatenationCollationExecution",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-coalesce",
+      "source_path": "Tests/SQLTests/SQLExampleTests.swift",
+      "test_case": "XLDocumentationTests.testExample_Coalesce",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-group-concat",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testGroupConcatVariants",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-iif",
+      "source_path": "Tests/SQLTests/SQLExampleTests.swift",
+      "test_case": "XLDocumentationTests.testExample_Iif",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-in",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testSelectWhereIn",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-like",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testSelectWhereLike",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-nested-unary",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testNestedUnaryOperatorExecution",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-null-is",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testSelectWhereOptionalIsNull",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-null-not",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testSelectWhereOptionalIsNotNull",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-optional-equality",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testSelectWhereEqualToOptionalParameter",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-searched-case",
+      "source_path": "Tests/SQLTests/SQLExampleTests.swift",
+      "test_case": "XLDocumentationTests.testExample_IfCaseWhenThenElse",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-type-cast-blob",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testStringToDataTypeofIsBlob",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-type-cast-blob-round-trip",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testStringToDataRoundTrip",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.join.sqlite-inner-cross-recursive",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testRecursiveCommonTableExpressionUsingCommonTableExpression",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.join.sqlite-left",
+      "source_path": "Tests/SQLTests/SQLExampleTests.swift",
+      "test_case": "XLDocumentationTests.testExample_LeftJoin_Statement_NullRows",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.select.sqlite-limit-offset",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testQueryBuilderLimitAndOffsetExecution",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.select.sqlite-named-binding",
+      "source_path": "Tests/SQLTests/SQLExampleTests.swift",
+      "test_case": "XLDocumentationTests.testExample_Variable_ExplicitAlias",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.subquery.render-in",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.testScalarSelectWhereIn",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.subquery.render-table",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.testSubquery",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.subquery.sqlite-correlated",
+      "source_path": "Tests/SQLTests/SQLExampleTests.swift",
+      "test_case": "XLDocumentationTests.testExample_Subquery",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.transaction.commit.sqlite",
+      "source_path": "Tests/SQLTests/SQLiteTransactionInvariantGRDBTests.swift",
+      "test_case": "GRDBDriverContractTests_TransactionInvariants.testSharedCommitCasesVerifyDurableStateReturnValuesAndVisibility",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.transaction.fixture-contract",
+      "source_path": "Tests/SwiftQLCoreTests/SQLDriverContractTests.swift",
+      "test_case": "SQLDriverContractTests.testSharedTransactionFixturesCoverEveryStableCaseAndCapability",
+      "runner_path": null,
+      "layers": [
+        "structured-error",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.transaction.independent-databases.sqlite",
+      "source_path": "Tests/SQLTests/SQLiteTransactionInvariantGRDBTests.swift",
+      "test_case": "GRDBDriverContractTests_TransactionInvariants.testIndependentDatabasesCommitWithoutCrossContamination",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.transaction.rollback.sqlite",
+      "source_path": "Tests/SQLTests/SQLiteTransactionInvariantGRDBTests.swift",
+      "test_case": "GRDBDriverContractTests_TransactionInvariants.testSharedRollbackCasesPreserveCauseStateAndConnectionReuse",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "structured-error",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.transaction.unsupported.sqlite",
+      "source_path": "Tests/SQLTests/SQLiteTransactionInvariantGRDBTests.swift",
+      "test_case": "GRDBDriverContractTests_TransactionInvariants.testUnsupportedCapabilitiesFailBeforePoolReentryAndLeaveStateUnchanged",
+      "runner_path": null,
+      "layers": [
+        "semantic-oracle",
+        "structured-error",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.value.affinity.sqlite",
+      "source_path": "Tests/SQLTests/GRDBDriverContractTests.swift",
+      "test_case": "GRDBDriverContractTests.testSharedSQLiteAffinityCasesAssertValueTypeAndState",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.value.bindings.sqlite",
+      "source_path": "Tests/SQLTests/GRDBDriverContractTests.swift",
+      "test_case": "GRDBDriverContractTests.testSharedNamedRepeatedAndNullVersusMissingCases",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.value.codecs.sqlite",
+      "source_path": "Tests/SwiftQLCodecIntegrationTests/ContextualValueCodecGRDBTests.swift",
+      "test_case": "ContextualValueCodecGRDBTests.testSharedValueCasesUseNamedDefaultEnumAndOptionalCodecsThroughGRDB",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.value.fixture-contract",
+      "source_path": "Tests/SwiftQLCoreTests/SQLiteValueConformanceBoundaryTests.swift",
+      "test_case": "SQLiteValueConformanceBoundaryTests.testInventoryAccountsForEveryStableCaseAndPinnedProvenance",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "structured-error",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.value.malformed.sqlite",
+      "source_path": "Tests/SQLTests/GRDBDriverContractTests.swift",
+      "test_case": "GRDBDriverContractTests.testSharedMalformedValueCasesReturnStructuredErrorsAfterRealSQLite",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "prepare",
+        "semantic-oracle",
+        "structured-error",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.value.nan.sqlite",
+      "source_path": "Tests/SQLTests/GRDBDriverContractTests.swift",
+      "test_case": "GRDBDriverContractTests.testRealBindingRejectsNaNBeforeSQLiteCanNormalizeItToNull",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "prepare",
+        "structured-error",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.value.storage.sqlite",
+      "source_path": "Tests/SQLTests/GRDBDriverContractTests.swift",
+      "test_case": "GRDBDriverContractTests.testSharedSQLiteStorageCasesRoundTripWithTypeofEvidence",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.value.unicode.sqlite",
+      "source_path": "Tests/SQLTests/GRDBDriverContractTests.swift",
+      "test_case": "GRDBDriverContractTests.testSharedUnicodeCasePreservesCanonicalVariantsWithoutConflatingBytes",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    }
+  ],
+  "suites": [
+    {
+      "id": "suite.191.combinatorial-syntax",
+      "issue": 191,
+      "milestone": "v1.3",
+      "status": "planned",
+      "case_ids": [
+        "syntax.compound.current-set-operators",
+        "syntax.compound.direct-scalar-gap",
+        "syntax.compound.intersect-except-prepare-gap",
+        "syntax.cte.materialization-hints-gap",
+        "syntax.cte.recursive",
+        "syntax.ddl.create-table",
+        "syntax.ddl.typed-model-gap",
+        "syntax.dml.current-crud",
+        "syntax.dml.returning-gap",
+        "syntax.expression.aggregate-functions",
+        "syntax.expression.conditional-functions",
+        "syntax.expression.current-operators",
+        "syntax.expression.date-functions",
+        "syntax.expression.json-functions",
+        "syntax.expression.like-escape-gap",
+        "syntax.expression.numeric-comparable-functions",
+        "syntax.expression.operator-prepare-gap",
+        "syntax.expression.string-functions",
+        "syntax.expression.type-casts",
+        "syntax.join.current-inner-left-cross",
+        "syntax.join.natural-using-gap",
+        "syntax.select.core",
+        "syntax.select.count-star-gap",
+        "syntax.select.ordering-terms",
+        "syntax.subquery.correlated-scalar",
+        "syntax.subquery.nullable-shape-gap",
+        "syntax.subquery.table-and-in-prepare-gap"
+      ],
+      "evidence_ids": [
+
+      ]
+    },
+    {
+      "id": "suite.252.sqlite-value-boundaries",
+      "issue": 252,
+      "milestone": "v1.2",
+      "status": "completed",
+      "case_ids": [
+        "affinity.integer.numeric-text",
+        "affinity.real.integer",
+        "affinity.text.integer",
+        "binding.named",
+        "binding.repeated-named",
+        "codec.default.integer",
+        "codec.named.text",
+        "enum.text.round-trip",
+        "failure.decode-after-valid-row",
+        "failure.integer-overflow",
+        "failure.storage-mismatch",
+        "optional.null-vs-missing",
+        "storage.blob.embedded-zero",
+        "storage.blob.empty",
+        "storage.blob.invalid-utf8",
+        "storage.integer.maximum",
+        "storage.integer.minimum",
+        "storage.null",
+        "storage.real.finite",
+        "storage.real.nan-rejected",
+        "storage.real.negative-infinity",
+        "storage.real.positive-infinity",
+        "storage.text.empty",
+        "storage.text.unicode"
+      ],
+      "evidence_ids": [
+        "evidence.value.affinity.sqlite",
+        "evidence.value.bindings.sqlite",
+        "evidence.value.codecs.sqlite",
+        "evidence.value.fixture-contract",
+        "evidence.value.malformed.sqlite",
+        "evidence.value.nan.sqlite",
+        "evidence.value.storage.sqlite",
+        "evidence.value.unicode.sqlite"
+      ]
+    },
+    {
+      "id": "suite.253.transaction-invariants",
+      "issue": 253,
+      "milestone": "v1.2",
+      "status": "completed",
+      "case_ids": [
+        "capability.nested-transaction",
+        "capability.single-connection-visibility",
+        "cleanup.post-failure-reuse",
+        "commit.empty",
+        "commit.multiple-statements",
+        "commit.return-value",
+        "isolation.independent-databases",
+        "ownership.connection-pinning",
+        "rollback.bind-failure",
+        "rollback.body-error",
+        "rollback.constraint-failure",
+        "rollback.decode-failure",
+        "rollback.driver-failure",
+        "rollback.early-exit",
+        "rollback.explicit-request",
+        "visibility.pinned-connection",
+        "visibility.pool-after-commit",
+        "visibility.pool-after-rollback"
+      ],
+      "evidence_ids": [
+        "evidence.transaction.commit.sqlite",
+        "evidence.transaction.fixture-contract",
+        "evidence.transaction.independent-databases.sqlite",
+        "evidence.transaction.rollback.sqlite",
+        "evidence.transaction.unsupported.sqlite"
+      ]
+    },
+    {
+      "id": "suite.254.northwind-correctness",
+      "issue": 254,
+      "milestone": "v1.3",
+      "status": "planned",
+      "case_ids": [
+
+      ],
+      "evidence_ids": [
+
+      ]
+    },
+    {
+      "id": "suite.255.observation-stress",
+      "issue": 255,
+      "milestone": "v1.3",
+      "status": "planned",
+      "case_ids": [
+
+      ],
+      "evidence_ids": [
+
+      ]
+    },
+    {
+      "id": "suite.256.macro-downstream-regressions",
+      "issue": 256,
+      "milestone": "v1.5",
+      "status": "planned",
+      "case_ids": [
+
+      ],
+      "evidence_ids": [
+
+      ]
+    }
+  ],
+  "features": [
+    {
+      "id": "affinity.integer.numeric-text",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "INTEGER affinity converts numeric text",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#type_affinity"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real table column declares the target SQLite affinity and exposes typeof after insertion."
+      ],
+      "evidence_ids": [
+        "evidence.value.affinity.sqlite",
+        "evidence.value.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "stephencelis/SQLite.swift",
+          "commit": "ccaae3d01fd655be40f20665f1f61dc6deecec27",
+          "path": "Tests/SQLiteTests/Schema/SchemaTests.swift",
+          "upstream_case": "SchemaTests.test_createTable",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Extends declared INTEGER coverage with real SQLite coercion and typeof evidence.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE.txt",
+          "license_file_url": "https://github.com/stephencelis/SQLite.swift/blob/ccaae3d01fd655be40f20665f1f61dc6deecec27/LICENSE.txt",
+          "license_blob_sha": "13303c1135db7e9589fd1b66edffbb5a4fb6f2bc",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "affinity.real.integer",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "REAL affinity converts integer input",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#type_affinity"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real table column declares the target SQLite affinity and exposes typeof after insertion."
+      ],
+      "evidence_ids": [
+        "evidence.value.affinity.sqlite",
+        "evidence.value.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Lighter-swift/Lighter",
+          "commit": "3486fc08d580aa3a87cd29ede023ba291a90de8b",
+          "path": "Tests/EntityGenTests/Fixtures.swift",
+          "upstream_case": "northwindSchema.OrderDetail",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Turns generated DOUBLE declared-type coverage into a semantic REAL-affinity coercion check.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Lighter-swift/Lighter/blob/3486fc08d580aa3a87cd29ede023ba291a90de8b/LICENSE",
+          "license_blob_sha": "296b99ddbe6b225a8e901fb4ae69bdf3c5c729bf",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "affinity.text.integer",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "TEXT affinity converts integer input",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#type_affinity"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real table column declares the target SQLite affinity and exposes typeof after insertion."
+      ],
+      "evidence_ids": [
+        "evidence.value.affinity.sqlite",
+        "evidence.value.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Lighter-swift/Lighter",
+          "commit": "3486fc08d580aa3a87cd29ede023ba291a90de8b",
+          "path": "Tests/EntityGenTests/Fixtures.swift",
+          "upstream_case": "northwindSchema.OrderDetail",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Turns generated declared-type coverage into a semantic TEXT-affinity coercion check.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Lighter-swift/Lighter/blob/3486fc08d580aa3a87cd29ede023ba291a90de8b/LICENSE",
+          "license_blob_sha": "296b99ddbe6b225a8e901fb4ae69bdf3c5c729bf",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "binding.named",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Named binding identity",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_expr.html#parameters"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "named-bindings",
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement exposes the selected value and typeof result."
+      ],
+      "evidence_ids": [
+        "evidence.value.bindings.sqlite",
+        "evidence.value.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "groue/GRDB.swift",
+          "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+          "path": "Tests/GRDBTests/Core/Statement/StatementArgumentsTests.swift",
+          "upstream_case": "StatementArgumentsTests.testNamedStatementArguments",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Uses SwiftQL's immutable binding packet and real driver instead of GRDB argument containers.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/groue/GRDB.swift/blob/b83108d10f42680d78f23fe4d4d80fc88dab3212/LICENSE",
+          "license_blob_sha": "550890c8912ca08ff000249777b9eeb46411f189",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "binding.repeated-named",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Repeated named binding identity",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_expr.html#parameters"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "named-bindings",
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement exposes the selected value and typeof result."
+      ],
+      "evidence_ids": [
+        "evidence.value.bindings.sqlite",
+        "evidence.value.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "groue/GRDB.swift",
+          "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+          "path": "Tests/GRDBTests/Core/Statement/StatementArgumentsTests.swift",
+          "upstream_case": "StatementArgumentsTests.testReusedNamedStatementArguments",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Proves one logical slot supplies all occurrences of the same SQLite named parameter.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/groue/GRDB.swift/blob/b83108d10f42680d78f23fe4d4d80fc88dab3212/LICENSE",
+          "license_blob_sha": "550890c8912ca08ff000249777b9eeb46411f189",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "capability.nested-transaction",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Nested transaction or savepoint capability boundary",
+      "status": "capability-gated",
+      "adoption_status": "adapter/API-gated",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_savepoint.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "nested-transaction-or-savepoint"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.fixture-contract",
+        "evidence.transaction.unsupported.sqlite"
+      ],
+      "deviations": [
+        "The v1 driver has no nested transaction or savepoint hook."
+      ],
+      "follow_up_issues": [
+        113
+      ],
+      "deferral": {
+        "blocking_issue": 113,
+        "target_milestone": "v2",
+        "reason": "Issue #113 owns the required GRDB adapter and transaction capability hooks."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "capability.single-connection-visibility",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Single-connection visibility capability boundary",
+      "status": "capability-gated",
+      "adoption_status": "adapter/API-gated",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/isolation.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "single-connection-driver"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.fixture-contract",
+        "evidence.transaction.unsupported.sqlite"
+      ],
+      "deviations": [
+        "The v1 GRDB adapter accepts a DatabasePool, not a single-connection writer."
+      ],
+      "follow_up_issues": [
+        113
+      ],
+      "deferral": {
+        "blocking_issue": 113,
+        "target_milestone": "v2",
+        "reason": "Issue #113 owns the required GRDB adapter and transaction capability hooks."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "cleanup.post-failure-reuse",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Connection remains reusable after transaction failure",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.fixture-contract",
+        "evidence.transaction.rollback.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "codec.default.integer",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Default contextual integer codec",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A contextual codec registry selects a stable SQLite storage representation."
+      ],
+      "evidence_ids": [
+        "evidence.value.codecs.sqlite",
+        "evidence.value.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Lighter-swift/Lighter",
+          "commit": "3486fc08d580aa3a87cd29ede023ba291a90de8b",
+          "path": "Tests/EntityGenTests/ASTRecordBindGenerationTests.swift",
+          "upstream_case": "ASTRecordBindGenerationTests.testPersonStatementBindWithLocalHelpers",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Exercises SwiftQL's configured default representation at the same pre-adapter boundary.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Lighter-swift/Lighter/blob/3486fc08d580aa3a87cd29ede023ba291a90de8b/LICENSE",
+          "license_blob_sha": "296b99ddbe6b225a8e901fb4ae69bdf3c5c729bf",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "codec.named.text",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Explicit named contextual text codec",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A contextual codec registry selects a stable SQLite storage representation."
+      ],
+      "evidence_ids": [
+        "evidence.value.codecs.sqlite",
+        "evidence.value.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "vapor/fluent-kit",
+          "commit": "6f8844284df4f797d2a81721511d053357d97b56",
+          "path": "Tests/FluentKitTests/OptionalEnumQueryTests.swift",
+          "upstream_case": "OptionalEnumQueryTests.testInsertNonNull",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Exercises explicit named representation selection without importing ORM field policy.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/vapor/fluent-kit/blob/6f8844284df4f797d2a81721511d053357d97b56/LICENSE",
+          "license_blob_sha": "1593c318fc2f73ac09d08dbb4bb70e2a5ae20643",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "commit.empty",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Empty transaction commit",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.commit.sqlite",
+        "evidence.transaction.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "commit.multiple-statements",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Multiple-statement transaction commit",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.commit.sqlite",
+        "evidence.transaction.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "commit.return-value",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Transaction body return value",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.commit.sqlite",
+        "evidence.transaction.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "enum.text.round-trip",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Text raw-value enum round trip",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A contextual codec registry selects a stable SQLite storage representation."
+      ],
+      "evidence_ids": [
+        "evidence.value.codecs.sqlite",
+        "evidence.value.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "groue/GRDB.swift",
+          "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+          "path": "Tests/GRDBTests/Core/DatabaseValueConvertible/RawRepresentable+DatabaseValueConvertibleTests.swift",
+          "upstream_case": "RawRepresentableDatabaseValueConvertibleTests.testGrape",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Uses an application-owned text raw-value enum and SwiftQL contextual codec.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/groue/GRDB.swift/blob/b83108d10f42680d78f23fe4d4d80fc88dab3212/LICENSE",
+          "license_blob_sha": "550890c8912ca08ff000249777b9eeb46411f189",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "failure.decode-after-valid-row",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Structured decode failure after a valid row",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A prepared real SQLite statement reaches the binding or decoding boundary that owns the structured failure."
+      ],
+      "evidence_ids": [
+        "evidence.value.fixture-contract",
+        "evidence.value.malformed.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "marcoarment/Blackbird",
+          "commit": "0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a",
+          "path": "Tests/BlackbirdTests/BlackbirdTests.swift",
+          "upstream_case": "BlackbirdTests.testColumnTypes",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Confirms a later malformed row fails without invalidating an earlier successfully decoded row.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/marcoarment/Blackbird/blob/0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a/LICENSE",
+          "license_blob_sha": "bf1da41607515bf39040c85a4a314fe5a3a76fc2",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "failure.integer-overflow",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Structured integer overflow failure",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A prepared real SQLite statement reaches the binding or decoding boundary that owns the structured failure."
+      ],
+      "evidence_ids": [
+        "evidence.value.fixture-contract",
+        "evidence.value.malformed.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "groue/GRDB.swift",
+          "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+          "path": "Tests/GRDBTests/Core/NumericOverflowTests.swift",
+          "upstream_case": "NumericOverflowTests.testHighInt64FromDoubleOverflows",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Requires a structured type mismatch instead of trapping or truncating an out-of-range REAL.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/groue/GRDB.swift/blob/b83108d10f42680d78f23fe4d4d80fc88dab3212/LICENSE",
+          "license_blob_sha": "550890c8912ca08ff000249777b9eeb46411f189",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "failure.storage-mismatch",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Structured codec storage mismatch",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A prepared real SQLite statement reaches the binding or decoding boundary that owns the structured failure."
+      ],
+      "evidence_ids": [
+        "evidence.value.codecs.sqlite",
+        "evidence.value.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "marcoarment/Blackbird",
+          "commit": "0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a",
+          "path": "Tests/BlackbirdTests/BlackbirdTests.swift",
+          "upstream_case": "BlackbirdTests.testValueConversions",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Rejects incompatible storage through SwiftQL's contextual codec before value reinterpretation.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/marcoarment/Blackbird/blob/0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a/LICENSE",
+          "license_blob_sha": "bf1da41607515bf39040c85a4a314fe5a3a76fc2",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "isolation.independent-databases",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Independent databases do not cross-contaminate",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.fixture-contract",
+        "evidence.transaction.independent-databases.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "optional.null-vs-missing",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Explicit NULL versus a missing row",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/nulls.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "named-bindings",
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement exposes the selected value and typeof result."
+      ],
+      "evidence_ids": [
+        "evidence.value.bindings.sqlite",
+        "evidence.value.codecs.sqlite",
+        "evidence.value.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "vapor/fluent-kit",
+          "commit": "6f8844284df4f797d2a81721511d053357d97b56",
+          "path": "Tests/FluentKitTests/OptionalFieldQueryTests.swift",
+          "upstream_case": "OptionalFieldQueryTests.testInsertNull",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Separates an explicit NULL row value from a query that returns no row.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/vapor/fluent-kit/blob/6f8844284df4f797d2a81721511d053357d97b56/LICENSE",
+          "license_blob_sha": "1593c318fc2f73ac09d08dbb4bb70e2a5ae20643",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "ownership.connection-pinning",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Transaction prepare, bind, and execute connection pinning",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.commit.sqlite",
+        "evidence.transaction.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "rollback.bind-failure",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Rollback after binding failure",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.fixture-contract",
+        "evidence.transaction.rollback.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "rollback.body-error",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Rollback after body error",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.fixture-contract",
+        "evidence.transaction.rollback.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "rollback.constraint-failure",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Rollback after SQLite constraint failure",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.fixture-contract",
+        "evidence.transaction.rollback.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "rollback.decode-failure",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Rollback after decoding failure",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.fixture-contract",
+        "evidence.transaction.rollback.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "rollback.driver-failure",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Rollback after driver failure",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.fixture-contract",
+        "evidence.transaction.rollback.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "rollback.early-exit",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Rollback after early row-stream exit",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.fixture-contract",
+        "evidence.transaction.rollback.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "rollback.explicit-request",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Explicit rollback request preserves caller error",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.fixture-contract",
+        "evidence.transaction.rollback.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "storage.blob.embedded-zero",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "BLOB with embedded zero bytes",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/c3ref/bind_blob.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement exposes the selected value and typeof result."
+      ],
+      "evidence_ids": [
+        "evidence.value.fixture-contract",
+        "evidence.value.storage.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "stephencelis/SQLite.swift",
+          "commit": "ccaae3d01fd655be40f20665f1f61dc6deecec27",
+          "path": "Tests/SQLiteTests/Core/BlobTests.swift",
+          "upstream_case": "BlobTests.test_toHex",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Uses embedded zero and non-UTF-8 bytes to prove length-aware BLOB binding.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE.txt",
+          "license_file_url": "https://github.com/stephencelis/SQLite.swift/blob/ccaae3d01fd655be40f20665f1f61dc6deecec27/LICENSE.txt",
+          "license_blob_sha": "13303c1135db7e9589fd1b66edffbb5a4fb6f2bc",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "storage.blob.empty",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Empty BLOB remains distinct from NULL",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/c3ref/bind_blob.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement exposes the selected value and typeof result."
+      ],
+      "evidence_ids": [
+        "evidence.value.fixture-contract",
+        "evidence.value.storage.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "stephencelis/SQLite.swift",
+          "commit": "ccaae3d01fd655be40f20665f1f61dc6deecec27",
+          "path": "Tests/SQLiteTests/Core/StatementTests.swift",
+          "upstream_case": "StatementTests.test_zero_sized_blob_returns_null",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Keeps a zero-byte BLOB distinct from SQL NULL despite SQLite's null-pointer C representation.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE.txt",
+          "license_file_url": "https://github.com/stephencelis/SQLite.swift/blob/ccaae3d01fd655be40f20665f1f61dc6deecec27/LICENSE.txt",
+          "license_blob_sha": "13303c1135db7e9589fd1b66edffbb5a4fb6f2bc",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "storage.blob.invalid-utf8",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Invalid UTF-8 remains BLOB and fails text decoding",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement exposes the selected value and typeof result."
+      ],
+      "evidence_ids": [
+        "evidence.value.fixture-contract",
+        "evidence.value.malformed.sqlite",
+        "evidence.value.storage.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "stephencelis/SQLite.swift",
+          "commit": "ccaae3d01fd655be40f20665f1f61dc6deecec27",
+          "path": "Tests/SQLiteTests/Core/BlobTests.swift",
+          "upstream_case": "BlobTests.test_equality",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Preserves arbitrary bytes as BLOB and requires structured failure when decoded as text.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE.txt",
+          "license_file_url": "https://github.com/stephencelis/SQLite.swift/blob/ccaae3d01fd655be40f20665f1f61dc6deecec27/LICENSE.txt",
+          "license_blob_sha": "13303c1135db7e9589fd1b66edffbb5a4fb6f2bc",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "storage.integer.maximum",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Maximum SQLite INTEGER boundary",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement exposes the selected value and typeof result."
+      ],
+      "evidence_ids": [
+        "evidence.value.fixture-contract",
+        "evidence.value.storage.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "groue/GRDB.swift",
+          "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+          "path": "Tests/GRDBTests/Core/NumericOverflowTests.swift",
+          "upstream_case": "NumericOverflowTests.testHighInt64FromDoubleOverflows",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Uses Int64.max as a direct INTEGER storage boundary before separate conversion-overflow cases.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/groue/GRDB.swift/blob/b83108d10f42680d78f23fe4d4d80fc88dab3212/LICENSE",
+          "license_blob_sha": "550890c8912ca08ff000249777b9eeb46411f189",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "storage.integer.minimum",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Minimum SQLite INTEGER boundary",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement exposes the selected value and typeof result."
+      ],
+      "evidence_ids": [
+        "evidence.value.fixture-contract",
+        "evidence.value.storage.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "groue/GRDB.swift",
+          "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+          "path": "Tests/GRDBTests/Core/NumericOverflowTests.swift",
+          "upstream_case": "NumericOverflowTests.testLowInt64FromDoubleOverflows",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Uses Int64.min as a direct INTEGER storage boundary before separate conversion-overflow cases.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/groue/GRDB.swift/blob/b83108d10f42680d78f23fe4d4d80fc88dab3212/LICENSE",
+          "license_blob_sha": "550890c8912ca08ff000249777b9eeb46411f189",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "storage.null",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "SQLite NULL storage identity",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement exposes the selected value and typeof result."
+      ],
+      "evidence_ids": [
+        "evidence.value.fixture-contract",
+        "evidence.value.storage.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "groue/GRDB.swift",
+          "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+          "path": "Tests/GRDBTests/Core/DatabaseValueTests.swift",
+          "upstream_case": "DatabaseValueTests.testDatabaseValueAsDatabaseValueConvertible",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Retains the five-storage-class semantic oracle and explicit SQL NULL identity.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/groue/GRDB.swift/blob/b83108d10f42680d78f23fe4d4d80fc88dab3212/LICENSE",
+          "license_blob_sha": "550890c8912ca08ff000249777b9eeb46411f189",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "storage.real.finite",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Finite SQLite REAL round trip",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement exposes the selected value and typeof result."
+      ],
+      "evidence_ids": [
+        "evidence.value.fixture-contract",
+        "evidence.value.storage.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "groue/GRDB.swift",
+          "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+          "path": "Tests/GRDBTests/Core/DatabaseValueTests.swift",
+          "upstream_case": "DatabaseValueTests.testDatabaseValueAsDatabaseValueConvertible",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Preserves a non-integral IEEE 754 value and verifies SQLite REAL storage.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/groue/GRDB.swift/blob/b83108d10f42680d78f23fe4d4d80fc88dab3212/LICENSE",
+          "license_blob_sha": "550890c8912ca08ff000249777b9eeb46411f189",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "storage.real.nan-rejected",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "NaN binding is rejected before NULL normalization",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/c3ref/bind_blob.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A prepared real SQLite statement reaches the binding or decoding boundary that owns the structured failure."
+      ],
+      "evidence_ids": [
+        "evidence.value.fixture-contract",
+        "evidence.value.nan.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "lukevanin/swiftql",
+          "commit": "03f504a1e47e0580b2c20eeeecea104cb9d7f2a9",
+          "path": "Tests/SQLTests/GRDBDriverContractTests.swift",
+          "upstream_case": "GRDBDriverContractTests.testRealBindingRejectsNaNBeforeSQLiteCanNormalizeItToNull",
+          "license_disposition": "MIT; existing SwiftQL contract reused by stable case ID",
+          "adaptation_notes": "Promotes issue #147's structured NaN rejection without treating SQLite NULL normalization as success.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE.md",
+          "license_file_url": "https://github.com/lukevanin/swiftql/blob/03f504a1e47e0580b2c20eeeecea104cb9d7f2a9/LICENSE.md",
+          "license_blob_sha": "861b0a43904862ea6c3db3c227377a9b15687a99",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "storage.real.negative-infinity",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Negative infinity SQLite REAL binding",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/c3ref/bind_blob.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement exposes the selected value and typeof result."
+      ],
+      "evidence_ids": [
+        "evidence.value.fixture-contract",
+        "evidence.value.storage.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "lukevanin/swiftql",
+          "commit": "03f504a1e47e0580b2c20eeeecea104cb9d7f2a9",
+          "path": "Tests/SQLTests/GRDBDriverContractTests.swift",
+          "upstream_case": "GRDBDriverContractTests.testSQLiteRealBindingsPreserveInfinitiesAndFiniteEdges",
+          "license_disposition": "MIT; existing SwiftQL contract reused by stable case ID",
+          "adaptation_notes": "Promotes the issue #147 negative-infinity binding behavior into the shared matrix.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE.md",
+          "license_file_url": "https://github.com/lukevanin/swiftql/blob/03f504a1e47e0580b2c20eeeecea104cb9d7f2a9/LICENSE.md",
+          "license_blob_sha": "861b0a43904862ea6c3db3c227377a9b15687a99",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "storage.real.positive-infinity",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Positive infinity SQLite REAL binding",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/c3ref/bind_blob.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement exposes the selected value and typeof result."
+      ],
+      "evidence_ids": [
+        "evidence.value.fixture-contract",
+        "evidence.value.storage.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "lukevanin/swiftql",
+          "commit": "03f504a1e47e0580b2c20eeeecea104cb9d7f2a9",
+          "path": "Tests/SQLTests/GRDBDriverContractTests.swift",
+          "upstream_case": "GRDBDriverContractTests.testSQLiteRealBindingsPreserveInfinitiesAndFiniteEdges",
+          "license_disposition": "MIT; existing SwiftQL contract reused by stable case ID",
+          "adaptation_notes": "Promotes the issue #147 positive-infinity binding behavior into the shared matrix.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE.md",
+          "license_file_url": "https://github.com/lukevanin/swiftql/blob/03f504a1e47e0580b2c20eeeecea104cb9d7f2a9/LICENSE.md",
+          "license_blob_sha": "861b0a43904862ea6c3db3c227377a9b15687a99",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "storage.text.empty",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Empty SQLite TEXT remains distinct from NULL",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement exposes the selected value and typeof result."
+      ],
+      "evidence_ids": [
+        "evidence.value.fixture-contract",
+        "evidence.value.storage.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "marcoarment/Blackbird",
+          "commit": "0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a",
+          "path": "Tests/BlackbirdTests/BlackbirdTests.swift",
+          "upstream_case": "BlackbirdTests.testValueConversions",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Extends the text conversion case to distinguish an empty TEXT value from SQL NULL.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/marcoarment/Blackbird/blob/0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a/LICENSE",
+          "license_blob_sha": "bf1da41607515bf39040c85a4a314fe5a3a76fc2",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "storage.text.unicode",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Unicode TEXT exact byte-preserving round trip",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSQLiteValue",
+          "source_path": "Sources/SwiftQLCore/SQLiteDialect.swift",
+          "source_tokens": [
+            "XLSQLiteValue"
+          ]
+        },
+        {
+          "symbol": "XLValueCodingConfiguration",
+          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_tokens": [
+            "XLValueCodingConfiguration"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement exposes the selected value and typeof result."
+      ],
+      "evidence_ids": [
+        "evidence.value.fixture-contract",
+        "evidence.value.storage.sqlite",
+        "evidence.value.unicode.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "marcoarment/Blackbird",
+          "commit": "0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a",
+          "path": "Tests/BlackbirdTests/BlackbirdTests.swift",
+          "upstream_case": "BlackbirdTests.testValueConversions",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Uses composed and decomposed accents plus non-Latin text and emoji in one exact round trip.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/marcoarment/Blackbird/blob/0960ffc7649e9c35cfdb5f6b0b98216a34e8c09a/LICENSE",
+          "license_blob_sha": "bf1da41607515bf39040c85a4a314fe5a3a76fc2",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "syntax.compound.current-set-operators",
+      "kind": "syntax",
+      "family": "compound",
+      "title": "UNION and UNION ALL over compatible typed rows",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLQueryStatement.union/unionAll",
+          "source_path": "Sources/SwiftQL/Statements/SQLQueryStatement.swift",
+          "source_tokens": [
+            "union",
+            "unionAll"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html#compound_select_statements"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "compound-select",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Both compound branches expose compatible typed row layouts."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.compound.render-union",
+        "evidence.syntax.compound.sqlite-union",
+        "evidence.syntax.cte.sqlite-recursive"
+      ],
+      "deviations": [
+        "INTERSECT and EXCEPT render today but are not counted as supported until stable real-SQLite prepare evidence is registered."
+      ],
+      "follow_up_issues": [
+        191
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.compound.direct-scalar-gap",
+      "kind": "syntax",
+      "family": "compound",
+      "title": "Direct scalar compound rows without SQLScalarResult wrappers",
+      "status": "unimplemented",
+      "adoption_status": "syntax-gated",
+      "public_api": [
+        {
+          "symbol": "XLQueryStatement.union/unionAll/intersect/except",
+          "source_path": "Sources/SwiftQL/Statements/SQLQueryStatement.swift",
+          "source_tokens": [
+            "union",
+            "unionAll",
+            "intersect",
+            "except"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html#compound_select_statements"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "compound-select",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A stable one-column scalar row layout and alias are required across every branch."
+      ],
+      "evidence_ids": [
+
+      ],
+      "deviations": [
+        "Current compound APIs rebuild row metadata through XLResult and require a wrapper for scalar rows."
+      ],
+      "follow_up_issues": [
+        43
+      ],
+      "deferral": {
+        "blocking_issue": 43,
+        "target_milestone": "v1.4",
+        "reason": "Issue #43 owns direct scalar compound and CTE row support."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.compound.intersect-except-prepare-gap",
+      "kind": "syntax",
+      "family": "compound",
+      "title": "INTERSECT and EXCEPT real-SQLite prepare coverage",
+      "status": "partial",
+      "adoption_status": "syntax-gated",
+      "public_api": [
+        {
+          "symbol": "XLQueryStatement.intersect/except",
+          "source_path": "Sources/SwiftQL/Statements/SQLQueryStatement.swift",
+          "source_tokens": [
+            "intersect",
+            "except"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html#compound_select_statements"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "compound-select",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Both compound branches expose compatible typed row layouts."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.compound.render-except",
+        "evidence.syntax.compound.render-intersect"
+      ],
+      "deviations": [
+        "Deterministic rendering exists, but stable real-SQLite prepare and execution evidence is not registered."
+      ],
+      "follow_up_issues": [
+        191
+      ],
+      "deferral": {
+        "blocking_issue": 191,
+        "target_milestone": "v1.3",
+        "reason": "Issue #191 owns generated real-SQLite prepare coverage for current compound branches."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.cte.materialization-hints-gap",
+      "kind": "syntax",
+      "family": "cte",
+      "title": "MATERIALIZED and NOT MATERIALIZED CTE hints",
+      "status": "unimplemented",
+      "adoption_status": "syntax-gated",
+      "public_api": [
+        {
+          "symbol": "XLWithStatement",
+          "source_path": "Sources/SwiftQL/Statements/SQLWithStatement.swift",
+          "source_tokens": [
+            "XLWithStatement"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_with.html#materialization_hints"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.35.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "recursive-cte",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A typed CTE definition with an explicit materialization policy is required."
+      ],
+      "evidence_ids": [
+
+      ],
+      "deviations": [
+        "SwiftQL does not currently expose SQLite materialization hints."
+      ],
+      "follow_up_issues": [
+        10
+      ],
+      "deferral": {
+        "blocking_issue": 10,
+        "target_milestone": "v1.4",
+        "reason": "Issue #10 owns materialized and non-materialized common tables."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.cte.recursive",
+      "kind": "syntax",
+      "family": "cte",
+      "title": "Named and recursive common table expressions",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSchema.recursiveCommonTableExpression",
+          "source_path": "Sources/SwiftQL/SQLFunctionalSyntax.swift",
+          "source_tokens": [
+            "recursiveCommonTableExpression"
+          ]
+        },
+        {
+          "symbol": "XLWithStatement",
+          "source_path": "Sources/SwiftQL/Statements/SQLWithStatement.swift",
+          "source_tokens": [
+            "XLWithStatement"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_with.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.8.3",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "recursive-cte",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Recursive branches expose a stable alias, compatible columns, and a terminating predicate."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.cte.sqlite-recursive"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.ddl.create-table",
+      "kind": "syntax",
+      "family": "ddl",
+      "title": "CREATE TABLE and CREATE TABLE AS SELECT",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "sqlCreate",
+          "source_path": "Sources/SwiftQL/SQLFunctionalSyntax.swift",
+          "source_tokens": [
+            "sqlCreate"
+          ]
+        },
+        {
+          "symbol": "XLCreateTableStatement",
+          "source_path": "Sources/SwiftQL/Statements/SQLCreateTableStatement.swift",
+          "source_tokens": [
+            "XLCreateTableStatement"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_createtable.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Generated table metadata supplies names and SQLite storage declarations."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.ddl.render-create",
+        "evidence.syntax.ddl.sqlite-create",
+        "evidence.syntax.ddl.sqlite-create-as-select"
+      ],
+      "deviations": [
+        "This record covers the existing create-table surface, not a complete typed SQLite DDL model."
+      ],
+      "follow_up_issues": [
+        139
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.ddl.typed-model-gap",
+      "kind": "syntax",
+      "family": "ddl",
+      "title": "Typed dialect-aware constraints, indexes, alter, and drop model",
+      "status": "unimplemented",
+      "adoption_status": "syntax-gated",
+      "public_api": [
+        {
+          "symbol": "XLCreateTableStatement",
+          "source_path": "Sources/SwiftQL/Statements/SQLCreateTableStatement.swift",
+          "source_tokens": [
+            "XLCreateTableStatement"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_altertable.html",
+        "https://www.sqlite.org/lang_createindex.html",
+        "https://www.sqlite.org/lang_droptable.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Stable dialect-aware table, column, constraint, index, and schema-object metadata are required."
+      ],
+      "evidence_ids": [
+
+      ],
+      "deviations": [
+        "The existing public DDL surface is centered on generated CREATE TABLE statements."
+      ],
+      "follow_up_issues": [
+        139
+      ],
+      "deferral": {
+        "blocking_issue": 139,
+        "target_milestone": "v2",
+        "reason": "Issue #139 owns the typed dialect-aware DDL foundation."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.dml.current-crud",
+      "kind": "syntax",
+      "family": "dml",
+      "title": "Current INSERT, INSERT SELECT, UPDATE, and DELETE statement clauses",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Insert",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Insert"
+          ]
+        },
+        {
+          "symbol": "Update",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Update"
+          ]
+        },
+        {
+          "symbol": "Delete",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Delete"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_delete.html",
+        "https://www.sqlite.org/lang_insert.html",
+        "https://www.sqlite.org/lang_update.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A generated writable table supplies insert, update, and delete metadata."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.dml.sqlite-delete",
+        "evidence.syntax.dml.sqlite-insert-select",
+        "evidence.syntax.dml.sqlite-update"
+      ],
+      "deviations": [
+        "Conflict algorithms, UPSERT, and RETURNING are separate deferred sub-surfaces."
+      ],
+      "follow_up_issues": [
+        8,
+        9,
+        53,
+        55,
+        56,
+        57,
+        58,
+        59
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.dml.returning-gap",
+      "kind": "syntax",
+      "family": "dml",
+      "title": "INSERT, UPDATE, and DELETE RETURNING clauses",
+      "status": "unimplemented",
+      "adoption_status": "syntax-gated",
+      "public_api": [
+        {
+          "symbol": "XLInsertStatement",
+          "source_path": "Sources/SwiftQL/Statements/SQLInsertStatement.swift",
+          "source_tokens": [
+            "XLInsertStatement"
+          ]
+        },
+        {
+          "symbol": "XLUpdateStatement",
+          "source_path": "Sources/SwiftQL/Statements/SQLUpdateStatement.swift",
+          "source_tokens": [
+            "XLUpdateStatement"
+          ]
+        },
+        {
+          "symbol": "XLDeleteStatement",
+          "source_path": "Sources/SwiftQL/Statements/SQLDeleteStatement.swift",
+          "source_tokens": [
+            "XLDeleteStatement"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_returning.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.35.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "DML statements need typed result-row and cardinality metadata."
+      ],
+      "evidence_ids": [
+
+      ],
+      "deviations": [
+        "The current DML statement protocols are write-only and do not expose RETURNING rows."
+      ],
+      "follow_up_issues": [
+        53,
+        57,
+        58
+      ],
+      "deferral": {
+        "blocking_issue": 57,
+        "target_milestone": "v1.4",
+        "reason": "Issue #57 is the first atomic RETURNING implementation; #53 and #58 cover DELETE and UPDATE."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.expression.aggregate-functions",
+      "kind": "syntax",
+      "family": "expression",
+      "title": "COUNT, MIN, MAX, SUM, AVG, and GROUP_CONCAT aggregate expression constructors",
+      "status": "partial",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLExpression.average",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "average"
+          ]
+        },
+        {
+          "symbol": "XLExpression.averageOrNull",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "averageOrNull"
+          ]
+        },
+        {
+          "symbol": "XLExpression.count",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "count"
+          ]
+        },
+        {
+          "symbol": "XLExpression.groupConcat",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "groupConcat"
+          ]
+        },
+        {
+          "symbol": "XLExpression.groupConcatOrNull",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "groupConcatOrNull"
+          ]
+        },
+        {
+          "symbol": "XLExpression.max",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "max"
+          ]
+        },
+        {
+          "symbol": "XLExpression.maxOrNull",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "maxOrNull"
+          ]
+        },
+        {
+          "symbol": "XLExpression.min",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "min"
+          ]
+        },
+        {
+          "symbol": "XLExpression.minOrNull",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "minOrNull"
+          ]
+        },
+        {
+          "symbol": "XLExpression.sum",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "sum"
+          ]
+        },
+        {
+          "symbol": "XLExpression.sumOrNull",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "sumOrNull"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_aggfunc.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Aggregate input columns use compatible numeric, comparable, or text expression types; nullable-result constructors preserve empty-input semantics."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.expression.render-aggregate-functions",
+        "evidence.syntax.expression.sqlite-aggregate-functions",
+        "evidence.syntax.expression.sqlite-aggregates-all-null",
+        "evidence.syntax.expression.sqlite-aggregates-empty",
+        "evidence.syntax.expression.sqlite-group-concat"
+      ],
+      "deviations": [
+        "Real-SQLite evidence covers every aggregate family on populated, empty, and all-NULL input plus GROUP_CONCAT DISTINCT and separator variants; remaining DISTINCT and deprecated nonoptional combinations await the #191 matrix."
+      ],
+      "follow_up_issues": [
+        191
+      ],
+      "deferral": {
+        "blocking_issue": 191,
+        "target_milestone": "v1.3",
+        "reason": "Issue #191 owns real preparation and execution combinations for DISTINCT and the remaining aggregate overloads."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.expression.conditional-functions",
+      "kind": "syntax",
+      "family": "expression",
+      "title": "IIF, COALESCE, and simple and searched CASE expression constructors",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "iif",
+          "source_path": "Sources/SwiftQL/Functions/ConditionalFunctions.swift",
+          "source_tokens": [
+            "iif"
+          ]
+        },
+        {
+          "symbol": "XLExpression.coalesce",
+          "source_path": "Sources/SwiftQL/Operators/OptionalOperators.swift",
+          "source_tokens": [
+            "coalesce"
+          ]
+        },
+        {
+          "symbol": "switchCase",
+          "source_path": "Sources/SwiftQL/SQLCaseWhenThen.swift",
+          "source_tokens": [
+            "switchCase"
+          ]
+        },
+        {
+          "symbol": "when",
+          "source_path": "Sources/SwiftQL/SQLCaseWhenThen.swift",
+          "source_tokens": [
+            "when"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_corefunc.html#coalesce",
+        "https://www.sqlite.org/lang_corefunc.html#iif",
+        "https://www.sqlite.org/lang_expr.html#the_case_expression"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.32.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Conditional branches resolve to compatible SwiftQL result and optionality types."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.expression.render-conditional-functions",
+        "evidence.syntax.expression.sqlite-case",
+        "evidence.syntax.expression.sqlite-coalesce",
+        "evidence.syntax.expression.sqlite-iif",
+        "evidence.syntax.expression.sqlite-searched-case"
+      ],
+      "deviations": [
+        "The SQLite 3.32.0 minimum is set by IIF; CASE and COALESCE are available in older releases.",
+        "Real execution is representative rather than every branch-count and optionality combination; issue #191 retains those combinations."
+      ],
+      "follow_up_issues": [
+        191
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.expression.current-operators",
+      "kind": "syntax",
+      "family": "expression",
+      "title": "Prepared bitwise NOT, unary negation, equality, NULL predicate, text concatenation, LIKE, IN-list, and collation expressions",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "prefix ~",
+          "source_path": "Sources/SwiftQL/Operators/IntegerOperators.swift",
+          "source_tokens": [
+            "~"
+          ]
+        },
+        {
+          "symbol": "infix ==",
+          "source_path": "Sources/SwiftQL/Operators/EquatableExpressionOperators.swift",
+          "source_tokens": [
+            "=="
+          ]
+        },
+        {
+          "symbol": "infix integer +",
+          "source_path": "Sources/SwiftQL/Operators/IntegerOperators.swift",
+          "source_tokens": [
+            "+"
+          ]
+        },
+        {
+          "symbol": "XLExpression.in(_ expressions:)",
+          "source_path": "Sources/SwiftQL/Operators/InOperator.swift",
+          "source_tokens": [
+            "in"
+          ]
+        },
+        {
+          "symbol": "prefix numeric -",
+          "source_path": "Sources/SwiftQL/Operators/NumericOperators.swift",
+          "source_tokens": [
+            "-"
+          ]
+        },
+        {
+          "symbol": "XLExpression.isNull/notNull",
+          "source_path": "Sources/SwiftQL/Operators/OptionalOperators.swift",
+          "source_tokens": [
+            "isNull",
+            "notNull"
+          ]
+        },
+        {
+          "symbol": "infix text + and XLExpression.like",
+          "source_path": "Sources/SwiftQL/Operators/TextOperators.swift",
+          "source_tokens": [
+            "+",
+            "like"
+          ]
+        },
+        {
+          "symbol": "XLCollation and XLExpression.collate",
+          "source_path": "Sources/SwiftQL/Functions/StringFunctions.swift",
+          "source_tokens": [
+            "XLCollation",
+            "collate"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#collation",
+        "https://www.sqlite.org/lang_expr.html",
+        "https://www.sqlite.org/lang_expr.html#the_like_glob_regexp_match_and_extract_operators"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "collation:BINARY",
+        "collation:NOCASE",
+        "collation:RTRIM",
+        "named-bindings",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Column references, literals, and bindings use the exact compatible SwiftQL expression and optionality overloads named by this record."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.expression.compile-fail-bitwise-not-double",
+        "evidence.syntax.expression.render-collation",
+        "evidence.syntax.expression.sqlite-bitwise-not",
+        "evidence.syntax.expression.sqlite-built-in-collations",
+        "evidence.syntax.expression.sqlite-collation",
+        "evidence.syntax.expression.sqlite-in",
+        "evidence.syntax.expression.sqlite-like",
+        "evidence.syntax.expression.sqlite-nested-unary",
+        "evidence.syntax.expression.sqlite-null-is",
+        "evidence.syntax.expression.sqlite-null-not",
+        "evidence.syntax.expression.sqlite-optional-equality"
+      ],
+      "deviations": [
+        "Support is limited to the named and evidenced constructors; Boolean combinators, comparison ordering, remaining arithmetic, GLOB, and query-backed IN overloads are recorded separately as partial."
+      ],
+      "follow_up_issues": [
+        21,
+        191
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.expression.date-functions",
+      "kind": "syntax",
+      "family": "expression",
+      "title": "UNIXEPOCH date conversion constructors and subsecond modifier",
+      "status": "partial",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "unixepoch(date:modifiers:)",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "unixepoch"
+          ]
+        },
+        {
+          "symbol": "XLExpression.toUnixTimestamp",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "toUnixTimestamp"
+          ]
+        },
+        {
+          "symbol": "XLDateFunctionModifiers.subseconds",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "XLDateFunctionModifiers",
+            "subseconds"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_datefunc.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.42.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Date inputs are ISO-8601 text expressions or constant strings accepted by SQLite's date parser."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.expression.render-date-json-functions"
+      ],
+      "deviations": [
+        "The constructors and optional result shape are typechecked and rendered, but the UNIXEPOCH and subsecond variants lack pinned real-SQLite prepare and semantic evidence."
+      ],
+      "follow_up_issues": [
+        191
+      ],
+      "deferral": {
+        "blocking_issue": 191,
+        "target_milestone": "v1.3",
+        "reason": "Issue #191 owns real-SQLite date-function preparation, version gating, and result checks."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.expression.json-functions",
+      "kind": "syntax",
+      "family": "expression",
+      "title": "JSON_ARRAY_LENGTH and JSON_VALID expression constructors",
+      "status": "capability-gated",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLExpression.jsonArrayLength",
+          "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
+          "source_tokens": [
+            "jsonArrayLength"
+          ]
+        },
+        {
+          "symbol": "XLExpression.validJSON",
+          "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
+          "source_tokens": [
+            "validJSON"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/json1.html#jarraylen",
+        "https://www.sqlite.org/json1.html#jvalid"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.9.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-json-functions"
+      ],
+      "schema_requirements": [
+        "JSON inputs are SQLite text expressions; path overloads require a valid SQLite JSON path string."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.expression.render-date-json-functions"
+      ],
+      "deviations": [
+        "The pinned environment record does not yet attest the JSON-function capability, so renderer coverage is not promoted to a support claim."
+      ],
+      "follow_up_issues": [
+        191
+      ],
+      "deferral": {
+        "blocking_issue": 191,
+        "target_milestone": "v1.3",
+        "reason": "Issue #191 must capture the JSON capability and run real preparation and result checks for both constructors."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.expression.like-escape-gap",
+      "kind": "syntax",
+      "family": "expression",
+      "title": "LIKE expressions with an explicit ESCAPE clause",
+      "status": "unimplemented",
+      "adoption_status": "syntax-gated",
+      "public_api": [
+        {
+          "symbol": "XLExpression.like",
+          "source_path": "Sources/SwiftQL/Operators/TextOperators.swift",
+          "source_tokens": [
+            "like"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_expr.html#the_like_glob_regexp_match_and_extract_operators"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A typed text expression, pattern, and single-character escape expression are required."
+      ],
+      "evidence_ids": [
+
+      ],
+      "deviations": [
+        "Current LIKE construction does not expose SQLite's ESCAPE clause."
+      ],
+      "follow_up_issues": [
+        21
+      ],
+      "deferral": {
+        "blocking_issue": 21,
+        "target_milestone": "v1.4",
+        "reason": "Issue #21 owns the LIKE ESCAPE clause."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.expression.numeric-comparable-functions",
+      "kind": "syntax",
+      "family": "expression",
+      "title": "ABS, ROUND, FLOOR, and scalar MIN and MAX expression constructors",
+      "status": "partial",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLExpression.abs",
+          "source_path": "Sources/SwiftQL/Functions/NumericFunctions.swift",
+          "source_tokens": [
+            "abs"
+          ]
+        },
+        {
+          "symbol": "XLExpression.rounded",
+          "source_path": "Sources/SwiftQL/Functions/NumericFunctions.swift",
+          "source_tokens": [
+            "rounded"
+          ]
+        },
+        {
+          "symbol": "XLExpression.floor",
+          "source_path": "Sources/SwiftQL/Functions/NumericFunctions.swift",
+          "source_tokens": [
+            "floor"
+          ]
+        },
+        {
+          "symbol": "min",
+          "source_path": "Sources/SwiftQL/Functions/ComparableFunctions.swift",
+          "source_tokens": [
+            "min"
+          ]
+        },
+        {
+          "symbol": "max",
+          "source_path": "Sources/SwiftQL/Functions/ComparableFunctions.swift",
+          "source_tokens": [
+            "max"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_corefunc.html#abs",
+        "https://www.sqlite.org/lang_corefunc.html#max_scalar",
+        "https://www.sqlite.org/lang_corefunc.html#min_scalar",
+        "https://www.sqlite.org/lang_corefunc.html#round",
+        "https://www.sqlite.org/lang_mathfunc.html#floor"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.35.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "compile-option:ENABLE_MATH_FUNCTIONS",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Arguments satisfy the public numeric or comparable SwiftQL expression constraints."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.expression.render-numeric-comparable-functions"
+      ],
+      "deviations": [
+        "All constructors are typechecked and rendered, but the scalar functions and math-extension FLOOR constructor lack pinned real-SQLite prepare and result checks."
+      ],
+      "follow_up_issues": [
+        191
+      ],
+      "deferral": {
+        "blocking_issue": 191,
+        "target_milestone": "v1.3",
+        "reason": "Issue #191 owns capability-aware real-SQLite cases for numeric and comparable scalar functions."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.expression.operator-prepare-gap",
+      "kind": "syntax",
+      "family": "expression",
+      "title": "Remaining public Boolean, comparison, arithmetic, GLOB, and optional operator overloads",
+      "status": "partial",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Boolean expression operators (!, &&, ||)",
+          "source_path": "Sources/SwiftQL/Operators/BooleanOperators.swift",
+          "source_tokens": [
+            "!",
+            "&&",
+            "||"
+          ]
+        },
+        {
+          "symbol": "Comparable expression operators (<, <=, >, >=)",
+          "source_path": "Sources/SwiftQL/Operators/ComparableExpressionOperators.swift",
+          "source_tokens": [
+            "<",
+            "<=",
+            ">",
+            ">="
+          ]
+        },
+        {
+          "symbol": "Remaining equality and inequality overloads (==, !=)",
+          "source_path": "Sources/SwiftQL/Operators/EquatableExpressionOperators.swift",
+          "source_tokens": [
+            "==",
+            "!="
+          ]
+        },
+        {
+          "symbol": "Remaining integer operators and optional overloads (-, *, /, %)",
+          "source_path": "Sources/SwiftQL/Operators/IntegerOperators.swift",
+          "source_tokens": [
+            "-",
+            "*",
+            "/",
+            "%"
+          ]
+        },
+        {
+          "symbol": "prefix numeric + and optional numeric overloads (+, -)",
+          "source_path": "Sources/SwiftQL/Operators/NumericOperators.swift",
+          "source_tokens": [
+            "+",
+            "-"
+          ]
+        },
+        {
+          "symbol": "XLExpression.??",
+          "source_path": "Sources/SwiftQL/Operators/OptionalOperators.swift",
+          "source_tokens": [
+            "??"
+          ]
+        },
+        {
+          "symbol": "Floating-point expression operators (+, -, *, /)",
+          "source_path": "Sources/SwiftQL/Operators/RealOperators.swift",
+          "source_tokens": [
+            "+",
+            "-",
+            "*",
+            "/"
+          ]
+        },
+        {
+          "symbol": "XLExpression.glob and optional text +/like/glob overloads (+, like, glob)",
+          "source_path": "Sources/SwiftQL/Operators/TextOperators.swift",
+          "source_tokens": [
+            "+",
+            "like",
+            "glob"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_expr.html",
+        "https://www.sqlite.org/lang_expr.html#the_like_glob_regexp_match_and_extract_operators"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "named-bindings",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Operands satisfy the public SwiftQL numeric, Boolean, comparable, text, and optional type constraints."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.expression.render-coalescing-operator",
+        "evidence.syntax.expression.render-operator-divide",
+        "evidence.syntax.expression.render-operator-logical-not",
+        "evidence.syntax.expression.render-operator-logical-or",
+        "evidence.syntax.expression.render-operator-remainder",
+        "evidence.syntax.expression.render-unary-plus"
+      ],
+      "deviations": [
+        "Unary plus, coalescing operator, division, remainder, logical NOT, and logical OR have active renderer tests, but no direct active GLOB or less-than-or-equal test exists.",
+        "Floating-point, optional, comparison, and remaining Boolean and arithmetic overloads do not yet have systematic real-SQLite prepare coverage."
+      ],
+      "follow_up_issues": [
+        17,
+        22,
+        29,
+        76,
+        78,
+        84,
+        191
+      ],
+      "deferral": {
+        "blocking_issue": 191,
+        "target_milestone": "v1.3",
+        "reason": "Issue #191 owns the generated render, prepare, and execution matrix for every remaining current operator family."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.expression.string-functions",
+      "kind": "syntax",
+      "family": "expression",
+      "title": "PRINTF string expression constructors",
+      "status": "partial",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "printf",
+          "source_path": "Sources/SwiftQL/Functions/StringFunctions.swift",
+          "source_tokens": [
+            "printf"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_corefunc.html#format"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.8.3",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "PRINTF arguments are SwiftQL expressions accepted by SQLite formatting."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.expression.render-string-ordering-functions"
+      ],
+      "deviations": [
+        "Both public PRINTF overloads are typechecked and rendered but remain without pinned preparation and result evidence."
+      ],
+      "follow_up_issues": [
+        191
+      ],
+      "deferral": {
+        "blocking_issue": 191,
+        "target_milestone": "v1.3",
+        "reason": "Issue #191 owns real-SQLite PRINTF preparation, binding, and result cases."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.expression.type-casts",
+      "kind": "syntax",
+      "family": "expression",
+      "title": "Typed INTEGER, REAL, TEXT, and BLOB CAST expression constructors",
+      "status": "partial",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLExpression.toData",
+          "source_path": "Sources/SwiftQL/Functions/TypeCastFunctions.swift",
+          "source_tokens": [
+            "toData"
+          ]
+        },
+        {
+          "symbol": "XLExpression.toDouble",
+          "source_path": "Sources/SwiftQL/Functions/TypeCastFunctions.swift",
+          "source_tokens": [
+            "toDouble"
+          ]
+        },
+        {
+          "symbol": "XLExpression.toInt",
+          "source_path": "Sources/SwiftQL/Functions/TypeCastFunctions.swift",
+          "source_tokens": [
+            "toInt"
+          ]
+        },
+        {
+          "symbol": "XLExpression.toString",
+          "source_path": "Sources/SwiftQL/Functions/TypeCastFunctions.swift",
+          "source_tokens": [
+            "toString"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_expr.html#castexpr"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Only the public Bool, integer, real, text, data, and optional overloads are in scope."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.expression.render-type-casts",
+        "evidence.syntax.expression.sqlite-type-cast-blob",
+        "evidence.syntax.expression.sqlite-type-cast-blob-round-trip"
+      ],
+      "deviations": [
+        "Boolean-to-integer conversion is represented by the stored expression without an emitted CAST; all other exposed conversions render SQLite CAST expressions.",
+        "Text-to-BLOB storage and round-trip semantics are proven by real SQLite; the remaining cast directions do not yet have a pinned conversion-result matrix."
+      ],
+      "follow_up_issues": [
+        191
+      ],
+      "deferral": {
+        "blocking_issue": 191,
+        "target_milestone": "v1.3",
+        "reason": "Issue #191 owns real-SQLite prepare and conversion-result cases for every exposed cast direction."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.join.current-inner-left-cross",
+      "kind": "syntax",
+      "family": "join",
+      "title": "INNER JOIN, LEFT JOIN, and CROSS JOIN with typed table references",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Join",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Join"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html#rjoin"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Outer-joined rows use nullable metadata and ON predicates use typed Boolean expressions."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.join.sqlite-inner-cross-recursive",
+        "evidence.syntax.join.sqlite-left"
+      ],
+      "deviations": [
+        "NATURAL, USING, RIGHT, and FULL joins are excluded from this supported sub-surface."
+      ],
+      "follow_up_issues": [
+        45,
+        46,
+        95
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.join.natural-using-gap",
+      "kind": "syntax",
+      "family": "join",
+      "title": "NATURAL JOIN and JOIN USING",
+      "status": "unimplemented",
+      "adoption_status": "syntax-gated",
+      "public_api": [
+        {
+          "symbol": "Join",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Join"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html#rjoin"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "USING needs typed shared-column identity; NATURAL JOIN needs an explicit overlap policy."
+      ],
+      "evidence_ids": [
+
+      ],
+      "deviations": [
+        "Join constraints currently use ON expressions or no constraint for CROSS JOIN."
+      ],
+      "follow_up_issues": [
+        45
+      ],
+      "deferral": {
+        "blocking_issue": 45,
+        "target_milestone": "v1.4",
+        "reason": "Issue #45 owns NATURAL JOIN and USING."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.select.core",
+      "kind": "syntax",
+      "family": "select",
+      "title": "Typed SELECT projections with FROM, WHERE, ORDER BY, LIMIT, and OFFSET",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Select",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Select"
+          ]
+        },
+        {
+          "symbol": "select",
+          "source_path": "Sources/SwiftQL/SQLFunctionalSyntax.swift",
+          "source_tokens": [
+            "select"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "named-bindings",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Selected row metadata and table references belong to the same query construction scope."
+      ],
+      "evidence_ids": [
+        "evidence.environment.sqlite-runtime-metadata",
+        "evidence.syntax.select.sqlite-limit-offset",
+        "evidence.syntax.select.sqlite-named-binding"
+      ],
+      "deviations": [
+        "This record does not claim every SQLite SELECT branch or every aggregate form."
+      ],
+      "follow_up_issues": [
+        17
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.select.ordering-terms",
+      "kind": "syntax",
+      "family": "select",
+      "title": "Typed ascending and descending ORDER BY terms",
+      "status": "partial",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLExpression.ascending",
+          "source_path": "Sources/SwiftQL/Functions/ExpressionFunctions.swift",
+          "source_tokens": [
+            "ascending"
+          ]
+        },
+        {
+          "symbol": "XLExpression.descending",
+          "source_path": "Sources/SwiftQL/Functions/ExpressionFunctions.swift",
+          "source_tokens": [
+            "descending"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html#orderby"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Ordering terms wrap a typed expression in a SELECT ORDER BY clause."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.expression.render-string-ordering-functions"
+      ],
+      "deviations": [
+        "Both directions are typechecked and rendered, but no stable real-SQLite case isolates each public ordering constructor."
+      ],
+      "follow_up_issues": [
+        191
+      ],
+      "deferral": {
+        "blocking_issue": 191,
+        "target_milestone": "v1.3",
+        "reason": "Issue #191 owns isolated real-SQLite preparation and ordering-result checks for ASC and DESC."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.select.count-star-gap",
+      "kind": "syntax",
+      "family": "select",
+      "title": "COUNT(*) projection",
+      "status": "unimplemented",
+      "adoption_status": "syntax-gated",
+      "public_api": [
+        {
+          "symbol": "count",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "count"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_aggfunc.html#count"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A typed all-columns expression must render as an unqualified asterisk."
+      ],
+      "evidence_ids": [
+
+      ],
+      "deviations": [
+        "Current count helpers require an explicit expression and do not expose count(*)."
+      ],
+      "follow_up_issues": [
+        17
+      ],
+      "deferral": {
+        "blocking_issue": 17,
+        "target_milestone": "v1.4",
+        "reason": "Issue #17 owns an all-columns expression and COUNT(*)."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.subquery.correlated-scalar",
+      "kind": "syntax",
+      "family": "subquery",
+      "title": "Correlated scalar subqueries",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "subquery",
+          "source_path": "Sources/SwiftQL/SQLFunctionalSyntax.swift",
+          "source_tokens": [
+            "subquery"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_expr.html#subquery_expressions"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "The inner query has a typed row reader and may reference a visible outer table dependency."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.subquery.sqlite-correlated"
+      ],
+      "deviations": [
+        "The registered real-SQLite evidence covers a correlated scalar aggregate; table and IN-subquery preparation remain separate."
+      ],
+      "follow_up_issues": [
+        70
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.subquery.nullable-shape-gap",
+      "kind": "syntax",
+      "family": "subquery",
+      "title": "Nullable-table and direct-scalar subquery result shapes",
+      "status": "unimplemented",
+      "adoption_status": "syntax-gated",
+      "public_api": [
+        {
+          "symbol": "subquery",
+          "source_path": "Sources/SwiftQL/SQLFunctionalSyntax.swift",
+          "source_tokens": [
+            "subquery"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_expr.html#subquery_expressions"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Nullable table references and scalar cardinality must preserve typed result metadata."
+      ],
+      "evidence_ids": [
+
+      ],
+      "deviations": [
+        "The current overload set cannot represent every nullable-table and scalar result shape."
+      ],
+      "follow_up_issues": [
+        70
+      ],
+      "deferral": {
+        "blocking_issue": 70,
+        "target_milestone": "v1.4",
+        "reason": "Issue #70 owns nullable-table and scalar subquery shapes."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.subquery.table-and-in-prepare-gap",
+      "kind": "syntax",
+      "family": "subquery",
+      "title": "Table and IN-subquery real-SQLite prepare coverage",
+      "status": "partial",
+      "adoption_status": "syntax-gated",
+      "public_api": [
+        {
+          "symbol": "subquery",
+          "source_path": "Sources/SwiftQL/SQLFunctionalSyntax.swift",
+          "source_tokens": [
+            "subquery"
+          ]
+        },
+        {
+          "symbol": "XLExpression.in(expression:)",
+          "source_path": "Sources/SwiftQL/Operators/InOperator.swift",
+          "source_tokens": [
+            "in"
+          ]
+        },
+        {
+          "symbol": "XLExpression.in(_ table:)",
+          "source_path": "Sources/SwiftQL/Operators/InOperator.swift",
+          "source_tokens": [
+            "in"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_expr.html#subquery_expressions"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "The subquery exposes a compatible typed row or scalar layout to the enclosing query."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.subquery.render-in",
+        "evidence.syntax.subquery.render-table"
+      ],
+      "deviations": [
+        "Deterministic rendering exists, but stable real-SQLite prepare and execution evidence is not registered."
+      ],
+      "follow_up_issues": [
+        191
+      ],
+      "deferral": {
+        "blocking_issue": 191,
+        "target_milestone": "v1.3",
+        "reason": "Issue #191 owns generated real-SQLite prepare coverage for current subquery branches."
+      },
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "upstream.fluent.soft-delete-lifecycle",
+      "kind": "adopted-behavior",
+      "family": "dml",
+      "title": "Fluent model soft-delete, restore, force-delete, and default-filter lifecycle",
+      "status": "intentionally-unsupported",
+      "adoption_status": "intentionally-out-of-scope",
+      "public_api": [
+
+      ],
+      "sqlite_documentation_urls": [
+
+      ],
+      "not_sqlite_syntax_reason": "Soft-delete filtering and restore semantics are ORM record-lifecycle policy, not SQLite syntax.",
+      "minimum_sqlite_version": null,
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+
+      ],
+      "schema_requirements": [
+        "Fluent model lifecycle metadata, default query scopes, and restore semantics would be required."
+      ],
+      "evidence_ids": [
+
+      ],
+      "deviations": [
+        "SwiftQL is a typed SQL construction library and does not implement ORM soft-delete lifecycle behavior."
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "vapor/fluent-kit",
+          "commit": "6f8844284df4f797d2a81721511d053357d97b56",
+          "path": "Sources/FluentBenchmark/Tests/SoftDeleteTests.swift",
+          "upstream_case": "FluentBenchmarker.testSoftDelete",
+          "license_disposition": "MIT; behavior reviewed and intentionally excluded; no source copied",
+          "adaptation_notes": "The model, query, timestamp, bulk, force-delete, restore, and eager-parent subcases remain visible as deliberate ORM-scope exclusions.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/vapor/fluent-kit/blob/6f8844284df4f797d2a81721511d053357d97b56/LICENSE",
+          "license_blob_sha": "1593c318fc2f73ac09d08dbb4bb70e2a5ae20643",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "visibility.pinned-connection",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Writes are visible inside the pinned transaction connection",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.commit.sqlite",
+        "evidence.transaction.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "visibility.pool-after-commit",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Committed writes are visible after pool reentry",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.commit.sqlite",
+        "evidence.transaction.fixture-contract"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "visibility.pool-after-rollback",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Rolled-back writes remain absent after pool reentry",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDatabaseDriver.withTransaction",
+          "source_path": "Sources/SwiftQLCore/SQLDatabaseDriver.swift",
+          "source_tokens": [
+            "withTransaction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A transaction-owned table records stable logical row IDs before and after the operation."
+      ],
+      "evidence_ids": [
+        "evidence.transaction.fixture-contract",
+        "evidence.transaction.rollback.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    }
+  ]
+}
