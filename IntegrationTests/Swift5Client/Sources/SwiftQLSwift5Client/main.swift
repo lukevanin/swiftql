@@ -30,6 +30,7 @@ private struct DownstreamToken: Equatable {
 enum FixtureError: Error {
     case invalidCoreContract
     case invalidLiteralReaderBridge
+    case invalidRowReaderCompatibility
     case invalidCodecValue(XLSQLiteValue)
     case unexpectedPacketResult(Int?)
     case unexpectedStaticQueryResult(Int64)
@@ -44,6 +45,15 @@ private struct DownstreamColumnReader: XLColumnReader {
     func readReal(at index: Int) -> Double { Double(value + index) }
     func readText(at index: Int) -> String { String(value + index) }
     func readBlob(at index: Int) -> Data { Data() }
+}
+
+private struct DownstreamRowReader: XLRowReader {
+    func column<T>(
+        _ expression: any XLExpression<T>,
+        alias: XLName
+    ) -> T where T: XLLiteral {
+        T.sqlDefault()
+    }
 }
 
 private struct LegacyReaderLiteral: XLLiteral {
@@ -77,6 +87,13 @@ private func validateLiteralReaderCompatibility() throws {
     let current = try FieldReaderLiteral(reader: columns, at: 2)
     guard legacy.value == 42, current.value == 42 else {
         throw FixtureError.invalidLiteralReaderBridge
+    }
+}
+
+private func validateRowReaderCompatibility() throws {
+    let value = try Select(42).readRow(reader: DownstreamRowReader())
+    guard value == Int.sqlDefault() else {
+        throw FixtureError.invalidRowReaderCompatibility
     }
 }
 
@@ -295,6 +312,7 @@ private func executeFixture(
 
 private func runFixture() throws {
     try validateLiteralReaderCompatibility()
+    try validateRowReaderCompatibility()
     let codingConfiguration = try validateCoreContractProduct()
 
     let directory = FileManager.default.temporaryDirectory

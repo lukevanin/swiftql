@@ -60,7 +60,10 @@ public struct QueryBuilder<Row> {
     /// Creates a query builder using an expression. The expression should use one or more fields in one or
     /// more tables in the from clause.
     ///
-    public init(select expression: any XLExpression<Row>) where Row: XLExpression & XLLiteral {
+    /// The logical result type is unconstrained. Contextual-only values still
+    /// require a static row layout to supply result codec metadata.
+    ///
+    public init(select expression: any XLExpression<Row>) {
         self.init(select: Select(expression))
     }
     

@@ -1,11 +1,11 @@
 {
-  "task_name": "Change column reader implementation to a struct to avoid runtime heap allocation.",
-  "issue_number": 39,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/39",
+  "task_name": "Research: Remove Row type constraint from Select",
+  "issue_number": 44,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/44",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#39 - Make the row reader a struct",
+  "codex_session_title": "lukevanin/swiftql#44 - Remove Select row constraints",
   "codex_session_id": "019f7610-5766-7ab1-b223-e1aaedeaff74",
   "codex_session_url": null,
-  "task_branch": "codex/39-change-column-reader-implementation-to-a-struct",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/39-change-column-reader-implementation-to-a-struct"
+  "task_branch": "codex/44-research-remove-row-type-constraint-from-select",
+  "task_worktree_path": "/private/tmp/swiftql-worktrees/44-research-remove-row-type-constraint-from-select"
 }
