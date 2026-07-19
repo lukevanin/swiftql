@@ -40,6 +40,7 @@ for.
 
 <!-- test: XLDocumentationTests.testDocumentationREADME -->
 ```swift
+import Foundation
 import SwiftQL
 
 @SQLTable
@@ -50,6 +51,13 @@ struct Person {
     var age: Int
 }
 
+let databaseURL = FileManager.default.temporaryDirectory
+    .appendingPathComponent(UUID().uuidString)
+    .appendingPathExtension("sqlite")
+let database = try GRDBDatabase(url: databaseURL, logger: nil)
+
+try database.makeRequest(with: sqlCreate(Person.self)).execute()
+
 let query = sql { schema in
     let person = schema.table(Person.self)
     Select(person)
@@ -57,6 +65,11 @@ let query = sql { schema in
     Where(person.name == "Fred")
 }
 ```
+
+The temporary file keeps this example self-contained. In an application, use
+your durable database URL and reuse one `GRDBDatabase` for that path. The basic
+`sqlCreate` call uses `CREATE TABLE IF NOT EXISTS`; it creates this first table
+but does not migrate an existing schema when `Person` changes.
 
 That Swift expression emits recognizable SQLite:
 
@@ -126,14 +139,15 @@ their SQL meaning.
 - **Your domain.** Extend SQLite with Swift enums, custom value types, and
   type-safe custom SQL functions.
 
-## The v1.2 reusable-query boundary
+## Reusable queries and the v1.3 evidence boundary
 
-SwiftQL v1.2 separates the reusable SQL contract from each database invocation.
-An `XLStaticQueryDescriptor` contains rendered SQL, dialect requirements,
-parameter and result layouts, stable identity, and cardinality; it contains no
-database, connection, statement, or runtime value. Prepare that descriptor
-against a `GRDBDatabase`, then create a fresh `XLInvocationBindings` value for
-every call. Invocation values never become identifiers or SQL grammar tokens.
+The reusable-query contract introduced in SwiftQL v1.2 remains the runtime
+boundary for v1.3. An `XLStaticQueryDescriptor` contains rendered SQL, dialect
+requirements, parameter and result layouts, stable identity, and cardinality;
+it contains no database, connection, statement, or runtime value. Prepare that
+descriptor against a `GRDBDatabase`, then create a fresh
+`XLInvocationBindings` value for every call. Invocation values never become
+identifiers or SQL grammar tokens.
 
 The products have distinct roles:
 
@@ -151,6 +165,16 @@ raw-value invocation matters. See the
 [prepared-statement boundaries](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/),
 and [contextual-codec migration](https://lukevanin.github.io/swiftql/documentation/swiftql/customtypes/)
 for the complete contracts and current limitations.
+
+SwiftQL v1.3 adds evidence around that public surface rather than claiming
+complete SQLite grammar coverage. The canonical inventory records 101 features:
+82 supported, 7 partial, 3 capability-gated, 1 intentionally unsupported, and
+8 unimplemented. Of its 98 evidence records, 66 exercise real SQLite and
+cite one recorded SQLite 3.51.0 environment. See
+[SQLite conformance](COMPATIBILITY.md#sqlite-conformance-inventory) for what
+those counts prove, how the #191 combinatorial cases, #254 Northwind corpus,
+and #255 observation stress suite contribute evidence, and why the #132
+build-validation prototype remains research rather than a public v1.3 API.
 
 ## SQL-shaped, not ORM-shaped
 
@@ -177,9 +201,9 @@ file:
 ```
 
 `1.2.0` is the latest published package. The examples above use APIs retained
-by v1.2, and the v1.2 static-query surface is available from that semantic
-version. Pin a source revision only when intentionally testing later changes
-from `main`.
+by v1.2 and the forthcoming v1.3, and the static-query surface is available
+from version 1.2.0. Pin a source revision only when intentionally testing
+unreleased v1.3 changes from `main`.
 
 ### Xcode
 
@@ -199,8 +223,8 @@ For project guarantees and direction:
   toolchains and reproducible CI matrix.
 - [SQLite conformance](COMPATIBILITY.md#sqlite-conformance-inventory) records
   the evidence boundary for SwiftQL's currently supported public subset.
-- [Changelog](CHANGELOG.md) records released behavior and v1.2 migration
-  guidance.
+- [Changelog](CHANGELOG.md) records released behavior and the unreleased v1.3
+  evidence milestone.
 - [Performance benchmarks](BENCHMARKS.md) measure query construction,
   preparation, caching, binding, execution, and decoding.
 - [First-party source coverage](Coverage/README.md) preserves the reproducible

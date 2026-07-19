@@ -25,6 +25,14 @@ supported in v1.2, and its static-query and contextual-codec APIs are available
 from version 1.2.0 or later. Pin a source revision only when intentionally
 testing later changes from `main`.
 
+The repository's v1.3 work validates the existing SQLite surface against
+recorded real-engine, Northwind, and stress evidence; it does not replace the
+published 1.2.0 package with a new public syntax or validation API. In
+particular, issue [#132](https://github.com/lukevanin/swiftql/issues/132) is a
+research-only schema-snapshot preparation prototype. Applications still own
+their schema lifecycle and perform physical preparation on the runtime
+connection that executes each statement.
+
 Then add `SwiftQL` to the dependencies of your target and import the module in
 files that use it. The package requires Swift tools 5.9 and targets iOS 16 or
 later and macOS 13 or later. The supported compiler configurations are listed

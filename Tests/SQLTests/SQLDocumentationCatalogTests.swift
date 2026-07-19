@@ -16,6 +16,40 @@ private struct DocumentationTestReference {
 }
 
 
+private struct DocumentationConformanceInventory: Decodable {
+
+    struct Feature: Decodable {
+        let status: String
+    }
+
+    struct Evidence: Decodable {
+        let realSQLite: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case realSQLite = "real_sqlite"
+        }
+    }
+
+    struct SQLiteEnvironment: Decodable {
+        let sqliteVersion: String
+
+        enum CodingKeys: String, CodingKey {
+            case sqliteVersion = "sqlite_version"
+        }
+    }
+
+    let features: [Feature]
+    let evidence: [Evidence]
+    let sqliteEnvironments: [SQLiteEnvironment]
+
+    enum CodingKeys: String, CodingKey {
+        case features
+        case evidence
+        case sqliteEnvironments = "sqlite_environments"
+    }
+}
+
+
 private let documentationTests = [
     DocumentationTestReference(
         "XLDocumentationTests.testDocumentationREADME",
@@ -249,53 +283,139 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         }
     }
 
-    func testV12PublicDocumentsShareReleaseAndBoundaryContract() throws {
+    func testV13PublicDocumentsShareReleaseAndBoundaryContract() throws {
         let repositoryRoot = repositoryRootURL()
+        let inventory = try JSONDecoder().decode(
+            DocumentationConformanceInventory.self,
+            from: Data(
+                contentsOf: repositoryRoot.appendingPathComponent(
+                    "Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json"
+                )
+            )
+        )
+        let statusCounts = Dictionary(
+            grouping: inventory.features,
+            by: \.status
+        ).mapValues(\.count)
+        let realSQLiteEvidenceCount = inventory.evidence.count(where: \.realSQLite)
+        let environmentCount = inventory.sqliteEnvironments.count
+        let environmentCountText = environmentCount == 1
+            ? "one"
+            : String(environmentCount)
+        let environmentNoun = environmentCount == 1
+            ? "environment"
+            : "environments"
+        let sqliteVersions = Set(
+            inventory.sqliteEnvironments.map(\.sqliteVersion)
+        ).sorted().joined(separator: ", ")
+        let supportedCount = statusCounts["supported", default: 0]
+        let partialCount = statusCounts["partial", default: 0]
+        let capabilityGatedCount = statusCounts["capability-gated", default: 0]
+        let intentionallyUnsupportedCount = statusCounts[
+            "intentionally-unsupported",
+            default: 0
+        ]
+        let unimplementedCount = statusCounts["unimplemented", default: 0]
+        XCTAssertEqual(
+            statusCounts.values.reduce(0, +),
+            inventory.features.count,
+            "Every inventory feature must contribute to the documented status totals."
+        )
+
         let requiredPhrasesByPath = [
             "README.md": [
-                "## The v1.2 reusable-query boundary",
+                "## Reusable queries and the v1.3 evidence boundary",
                 "An `XLStaticQueryDescriptor` contains rendered SQL",
-                "fresh `XLInvocationBindings` value",
-                "every call. Invocation values never become identifiers",
+                "then create a fresh",
+                "`XLInvocationBindings` value for every call.",
+                "Invocation values never become",
                 "`SwiftQLCore` exposes GRDB-free",
+                "build-validation prototype remains research rather than a public v1.3 API",
                 "`1.2.0` is the latest published package",
             ],
             "COMPATIBILITY.md": [
-                "## v1.2 public products and runtime boundaries",
+                "## v1.3 public products and runtime boundaries",
                 "iOS 16 or later and macOS 13 or later",
                 "SwiftSyntax 509.0.0, GRDB 6.29.3",
                 "The high-level `XLRequest` facade",
                 "only a SQLite dialect and a GRDB database driver",
-                "all twelve source articles",
+                "seven release-blocking compiler cells",
+                "It ships no",
+                "public validator, build plugin, macro, schema system, or new v1.3 API",
             ],
             "CHANGELOG.md": [
+                "## [1.3.0] - Unreleased",
+                "141 stable generated",
+                "deliberately broken-renderer",
+                "internal research, not a",
+                "No migration is required for v1.3",
                 "## [1.2.0] - 2026-07-19",
-                "Added the GRDB-free `SwiftQLCore` product",
-                "Added immutable `XLStaticQueryDescriptor` definitions",
-                "GRDB result rows are stepped and decoded incrementally",
-                "Existing `makeRequest(with:)`",
             ],
             "RELEASING.md": [
-                "complete audit issue #223",
-                ".title == \"v1.2\"",
-                "not proof of v1.2 milestone readiness",
-                "uses the `v1.2.0` release as its concrete example",
-                "dedicated v1.2 release issue",
+                "uses the forthcoming `v1.3.0` release as its concrete example",
+                "`v1.2.0` remained the latest published package",
+                "complete audit issue #226",
+                "milestone 8 with no open issues",
+                ".title == \"v1.3\"",
+                "not proof of v1.3 milestone readiness",
+                "must contain all seven",
+                "release-blocking compiler cells",
+                "dedicated v1.3 release issue",
             ],
             "Sources/SwiftQL/SwiftQL.docc/SwiftQL.md": [
-                "## v1.2 boundaries",
+                "## v1.3 conformance evidence",
                 "database-independent query definitions",
                 "`SwiftQLCore` contains the GRDB-free",
                 "The current `XLRequest` facade is",
+                "not a claim of complete SQLite",
+                "v1.3 does not ship a public",
+                "validator, build plugin, query macro, schema system",
+                "Version 1.2.0 remains the latest published",
             ],
             "Sources/SwiftQL/SwiftQL.docc/GettingStarted.md": [
                 "Version 1.2.0 is the published package",
                 "This guide's basic request path remains",
                 "from version 1.2.0 or later",
+                "research-only schema-snapshot preparation prototype",
+                "perform physical preparation on the runtime",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/StaticQueries.md": [
+                "### Build-validation research boundary",
+                "not a public SwiftQL",
+                "product or API",
+                "runtime execution still",
+                "prepares or retrieves a cached physical statement",
             ],
             "scripts/ci/check-docc-output.sh": [
                 "realvalues|Real Values",
                 "staticqueries|Static queries",
+            ],
+        ]
+        let inventoryPhrasesByPath = [
+            "README.md": [
+                "The canonical inventory records \(inventory.features.count) features",
+                "\(supportedCount) supported, \(partialCount) partial, \(capabilityGatedCount) capability-gated",
+                "\(intentionallyUnsupportedCount) intentionally unsupported, and",
+                "\(unimplementedCount) unimplemented",
+                "Of its \(inventory.evidence.count) evidence records, \(realSQLiteEvidenceCount) exercise real SQLite",
+                "cite \(environmentCountText) recorded SQLite \(sqliteVersions) \(environmentNoun)",
+            ],
+            "COMPATIBILITY.md": [
+                "The v1.3 inventory contains \(inventory.features.count) feature records and \(inventory.evidence.count) evidence records",
+                "| Supported | \(supportedCount) |",
+                "| Partial | \(partialCount) |",
+                "| Capability-gated | \(capabilityGatedCount) |",
+                "| Intentionally unsupported | \(intentionallyUnsupportedCount) |",
+                "| Unimplemented | \(unimplementedCount) |",
+                "Of those \(inventory.evidence.count) evidence records, \(realSQLiteEvidenceCount) exercise real SQLite",
+                "cite \(environmentCountText) captured \(environmentNoun), SQLite \(sqliteVersions)",
+            ],
+            "CHANGELOG.md": [
+                "\(inventory.features.count) public-surface feature records: \(supportedCount)",
+                "supported, \(partialCount) partial, \(capabilityGatedCount) capability-gated, \(intentionallyUnsupportedCount) intentionally unsupported, and",
+                "\(unimplementedCount) unimplemented",
+                "Of the \(inventory.evidence.count) evidence records, \(realSQLiteEvidenceCount) exercise real SQLite",
+                "cite \(environmentCountText) captured SQLite \(sqliteVersions) \(environmentNoun)",
             ],
         ]
 
@@ -307,7 +427,19 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             for phrase in requiredPhrases {
                 XCTAssertTrue(
                     contents.contains(phrase),
-                    "\(path) is missing the v1.2 contract phrase '\(phrase)'."
+                    "\(path) is missing the v1.3 contract phrase '\(phrase)'."
+                )
+            }
+        }
+        for (path, inventoryPhrases) in inventoryPhrasesByPath {
+            let contents = try String(
+                contentsOf: repositoryRoot.appendingPathComponent(path),
+                encoding: .utf8
+            )
+            for phrase in inventoryPhrases {
+                XCTAssertTrue(
+                    contents.contains(phrase),
+                    "\(path) is stale against the canonical inventory phrase '\(phrase)'."
                 )
             }
         }
@@ -319,7 +451,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         let firstReleaseHeading = changelog
             .components(separatedBy: .newlines)
             .first(where: { $0.hasPrefix("## [") })
-        XCTAssertEqual(firstReleaseHeading, "## [1.2.0] - 2026-07-19")
+        XCTAssertEqual(firstReleaseHeading, "## [1.3.0] - Unreleased")
     }
 
     func testREADMERepositoryLinksResolveWithExactCase() throws {
