@@ -1,11 +1,11 @@
 {
-  "task_name": "[v1.2 Housekeeping] Audit release readiness and milestone closure",
-  "issue_number": 223,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/223",
+  "task_name": "Release SwiftQL v1.2.0",
+  "issue_number": 274,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/274",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#223 - Audit v1.2 release readiness and milestone closure",
+  "codex_session_title": "lukevanin/swiftql#274 - Release SwiftQL v1.2.0",
   "codex_session_id": "019f7610-5766-7ab1-b223-e1aaedeaff74",
   "codex_session_url": null,
-  "task_branch": "codex/223-v12-audit",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/223-v12-audit"
+  "task_branch": "codex/274-release-swiftql-v1-2-0",
+  "task_worktree_path": "/private/tmp/swiftql-worktrees/274-release-swiftql-v1-2-0"
 }

@@ -258,7 +258,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "fresh `XLInvocationBindings` value",
                 "every call. Invocation values never become identifiers",
                 "`SwiftQLCore` exposes GRDB-free",
-                "latest published package while the v1.2 changelog is marked",
+                "`1.2.0` is the latest published package",
             ],
             "COMPATIBILITY.md": [
                 "## v1.2 public products and runtime boundaries",
@@ -269,7 +269,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "all twelve source articles",
             ],
             "CHANGELOG.md": [
-                "## [1.2.0] - Unreleased",
+                "## [1.2.0] - 2026-07-19",
                 "Added the GRDB-free `SwiftQLCore` product",
                 "Added immutable `XLStaticQueryDescriptor` definitions",
                 "GRDB result rows are stepped and decoded incrementally",
@@ -279,7 +279,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "complete audit issue #223",
                 ".title == \"v1.2\"",
                 "not proof of v1.2 milestone readiness",
-                "the pending `v1.2.0` release",
+                "uses the `v1.2.0` release as its concrete example",
                 "dedicated v1.2 release issue",
             ],
             "Sources/SwiftQL/SwiftQL.docc/SwiftQL.md": [
@@ -289,9 +289,9 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "The current `XLRequest` facade is",
             ],
             "Sources/SwiftQL/SwiftQL.docc/GettingStarted.md": [
-                "v1.2 changelog is marked",
-                "basic request path is retained by v1.2",
-                "after the `1.2.0` tag is published",
+                "Version 1.2.0 is the published package",
+                "This guide's basic request path remains",
+                "from version 1.2.0 or later",
             ],
             "scripts/ci/check-docc-output.sh": [
                 "realvalues|Real Values",
@@ -319,7 +319,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         let firstReleaseHeading = changelog
             .components(separatedBy: .newlines)
             .first(where: { $0.hasPrefix("## [") })
-        XCTAssertEqual(firstReleaseHeading, "## [1.2.0] - Unreleased")
+        XCTAssertEqual(firstReleaseHeading, "## [1.2.0] - 2026-07-19")
     }
 
     func testREADMERepositoryLinksResolveWithExactCase() throws {
