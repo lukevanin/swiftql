@@ -549,6 +549,55 @@ jobs:
           retention-days: 30
           compression-level: 9
 
+      - name: Run bounded live-query stress loop
+        id: live-query-stress
+        if: ${{ matrix.swift_series == '6.0' && matrix.resolution == 'committed' }}
+        env:
+          SWIFTQL_LIVE_QUERY_STRESS_ITERATIONS: "10"
+          SWIFTQL_LIVE_QUERY_STRESS_SKIP_BUILD: "1"
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/run-live-query-stress.sh \
+            "$RUNNER_TEMP/swiftql-live-query-stress"
+          cat "$RUNNER_TEMP/swiftql-live-query-stress/summary.md" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Prepare retained live-query stress evidence
+        if: ${{ always() && !cancelled() && matrix.swift_series == '6.0' && matrix.resolution == 'committed' }}
+        env:
+          LIVE_QUERY_STRESS_OUTCOME: ${{ steps.live-query-stress.outcome }}
+        run: |
+          set -euo pipefail
+          output_directory="$RUNNER_TEMP/swiftql-live-query-stress"
+          mkdir -p "$output_directory"
+          printf 'workflow_step=%s\n' "$LIVE_QUERY_STRESS_OUTCOME" \
+            > "$output_directory/workflow-step-outcome.txt"
+
+      - name: Upload retained live-query stress evidence
+        id: live-query-stress-artifact
+        if: ${{ always() && !cancelled() && matrix.swift_series == '6.0' && matrix.resolution == 'committed' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: swiftql-live-query-stress-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/swiftql-live-query-stress
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 9
+
+      - name: Link retained live-query stress evidence
+        if: ${{ always() && !cancelled() && steps.live-query-stress-artifact.outcome == 'success' }}
+        env:
+          ARTIFACT_URL: ${{ steps.live-query-stress-artifact.outputs.artifact-url }}
+          ARTIFACT_DIGEST: ${{ steps.live-query-stress-artifact.outputs.artifact-digest }}
+        run: |
+          printf '\n### Retained live-query stress evidence\n\n' \
+            >> "$GITHUB_STEP_SUMMARY"
+          printf -- '- [Download the clean-process logs](%s)\n' \
+            "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
+          printf -- '- Artifact SHA-256: `%s`\n' \
+            "$ARTIFACT_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Run full test suite
         run: |
           set -euo pipefail

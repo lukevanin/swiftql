@@ -161,9 +161,9 @@ public protocol XLRequest<Row> {
     ///
     /// Creates a Combine Publisher that observes and emits all rows from the query.
     ///
-    /// Observation starts when the publisher is subscribed to. Each subscriber receives a fresh initial
-    /// value and owns an independent observation. Adapter-specific scheduling, write visibility, and
-    /// connection boundaries apply.
+    /// Observation starts when a subscriber first requests positive demand. Each subscriber receives a
+    /// fresh initial value and owns an independent observation. Subscribing with zero demand performs no
+    /// database work. Adapter-specific scheduling, write visibility, and connection boundaries apply.
     ///
     /// The publisher fails with the original query-execution or row-decoding error instead of emitting a
     /// partial result. An adapter may expose an explicit retry policy; GRDB-backed requests remain terminal
@@ -177,9 +177,9 @@ public protocol XLRequest<Row> {
     ///
     /// Creates a Combine Publisher that observes and emits the first row from the query.
     ///
-    /// Observation starts when the publisher is subscribed to. Each subscriber receives a fresh initial
-    /// value and owns an independent observation. Adapter-specific scheduling, write visibility, and
-    /// connection boundaries apply.
+    /// Observation starts when a subscriber first requests positive demand. Each subscriber receives a
+    /// fresh initial value and owns an independent observation. Subscribing with zero demand performs no
+    /// database work. Adapter-specific scheduling, write visibility, and connection boundaries apply.
     ///
     /// The publisher fails with the original query-execution or row-decoding error. An adapter may expose
     /// an explicit retry policy; GRDB-backed requests remain terminal by default and retry only when their

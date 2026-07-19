@@ -250,7 +250,7 @@ final class OtherTests {
             (255, "operator-property"),
             (256, "observation"),
         ]:
-            status = "completed" if issue == 254 else "planned"
+            status = "completed" if issue in {254, 255} else "planned"
             suites.append(
                 {
                     "id": f"suite.{name}",
@@ -703,7 +703,7 @@ public static func ??<Wrapped>(lhs: Self, rhs: Wrapped) -> Wrapped { rhs }
     def test_suite_snapshot_status_and_evidence_rules_are_enforced(self) -> None:
         planned_claim = self.valid_inventory()
         planned_suite = next(
-            suite for suite in planned_claim["suites"] if suite["issue"] == 255
+            suite for suite in planned_claim["suites"] if suite["issue"] == 256
         )
         planned_suite["evidence_ids"] = ["evidence.real-prepare"]
         self.assert_invalid(planned_claim, "planned and must not claim suite evidence")

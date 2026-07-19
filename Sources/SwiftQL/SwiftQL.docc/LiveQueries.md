@@ -5,8 +5,9 @@ Use Combine publishers to observe query results as a database changes.
 ## Overview
 
 SwiftQL requests expose `publish()` and `publishOne()` alongside their synchronous fetch methods.
-With the GRDB adapter, each subscription starts a GRDB value observation and begins a fresh database
-fetch. The observation then tracks the database region that the query actually reads.
+With the GRDB adapter, each subscriber's first positive demand starts a GRDB value observation and
+begins a fresh database fetch. The observation then tracks the database region that the query
+actually reads.
 
 ### Combine
 
@@ -131,20 +132,36 @@ mutable values from the request or connection.
 
 GRDB-backed observations have these behaviors:
 
-- Observation starts on subscription, not when `publish()` or `publishOne()` creates the publisher.
+- Observation starts when a subscriber first requests positive demand, not when `publish()` or
+  `publishOne()` creates the publisher. Subscribing with zero demand does not start SQLite work.
 - Each subscriber owns an independent observation and receives a fresh initial value. A publisher does
   not replay a snapshot captured for an earlier subscriber.
+- Combine demand is a delivery bound. Finite demand limits the number of snapshots delivered, and
+  values received by the publisher with no outstanding demand are dropped. Fetching and main-queue
+  delivery are asynchronous, however, so a snapshot already in flight can consume demand requested
+  later. Do not treat a new demand request as a "fetch latest" operation; keep demand outstanding for
+  a later relevant commit when the consumer needs a current durable snapshot.
 - Parameterized publishers retain the immutable packet passed at construction;
   all refreshes and retries use that packet.
-- Relevant writes performed through the same `DatabasePool` are observed, including direct GRDB writes
-  and migrations. Writes from another process or an unrelated connection pool are not observed.
+- Relevant writes performed through the same `DatabasePool` are observed, including direct GRDB
+  writes and migrations. A transaction with multiple relevant writes exposes a committed state, not
+  each intermediate write. A rolled-back transaction never appears as durable observed state, and a
+  write outside the query's tracked region does not expose a changed snapshot.
+- Every delivered value is a complete committed snapshot. GRDB may coalesce multiple transactions or
+  emit consecutive equal snapshots, so do not interpret one delivery as one commit.
+- A write through another process or another `DatabasePool` does not trigger this observation, even
+  when it targets the same SQLite file. Once that external write is durable, a later relevant commit
+  through the observed pool can trigger a fetch whose snapshot includes the externally committed
+  state.
 - Initial and updated values are delivered asynchronously on the main dispatch queue by default. Apply
   Combine's `receive(on:)` operator when a consumer needs another serial queue.
-- GRDB may coalesce transactions or emit consecutive equal values. Treat the stream as fresh database
-  states, not as a log containing one event for every commit.
-- Cancelling the subscription stops its observation. With the default terminal policy, execution or
-  decoding errors terminate the stream with the original error and no retry is performed.
-- Writes from another process remain outside SwiftQL's live-query observation and retry guarantees.
+- Cancelling the subscription stops future delivery. Cancellation cannot synchronously interrupt an
+  SQLite call already in flight, but the value or completion from that work is suppressed after
+  cancellation.
+- The demand, transaction, and cancellation rules do not change the configured retry policy. With the
+  default terminal policy, execution or decoding errors terminate the stream with the original error
+  and no retry is performed; ``GRDBLiveQueryRetryPolicy/retryBusy`` still retries only qualifying BUSY
+  errors with the delays and limit described above.
 
 Keep the returned cancellable alive for as long as results are needed, and cancel it when the consumer
 no longer needs updates.
