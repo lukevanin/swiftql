@@ -480,7 +480,7 @@ private struct UnknownLiteral: XLExpression, XLLiteral {
 
     init() {}
 
-    init(reader: XLColumnReader, at index: Int) throws {
+    init(reader: XLFieldReader) throws {
         self.init()
     }
 

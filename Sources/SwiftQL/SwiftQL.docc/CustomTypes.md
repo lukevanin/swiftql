@@ -331,8 +331,8 @@ struct MyUUID: XLCustomType, XLComparable, Equatable, Sendable {
     }
 
     // 3. Initialize the custom type from a database field.
-    public init(reader: XLColumnReader, at index: Int) throws {
-        let rawValue = try reader.readText(at: index)
+    public init(reader: XLFieldReader) throws {
+        let rawValue = try reader.readText()
         guard let wrappedValue = UUID(uuidString: rawValue) else {
             throw ReadError.invalidUUID(rawValue)
         }
@@ -369,9 +369,16 @@ into SwiftQL's generic comparison operators.
 2. Add `public typealias T = Self`. This tells the compiler that SQL expressions
 using this type produce `MyUUID` values.
 
-3. Implement the initializer. The initializer takes an `XLColumnReader` and an 
-index. The `XLColumnReader` lets us read the native data from the database. The
-`index` represents the column which we need to read.
+3. Implement the initializer. The initializer takes an `XLFieldReader`, which
+is already bound to the result field owned by this literal. It lets us read the
+native data without accepting or forwarding a separate column index.
+
+Existing v1 literal types that implement
+`init(reader: XLColumnReader, at: Int)` remain source compatible. A bridge wraps
+that column reader and index in an `XLFieldReader` when SwiftQL decodes a row.
+New literal types should implement the field-reader initializer shown above;
+the reverse bridge also keeps the older call shape working. Every literal type
+must implement at least one of those initializers.
 
 Our UUID is encoded as a `String`, which translates to a SQLite `TEXT` value. We
 read the text value, validate it as a Foundation `UUID`, then instantiate our
@@ -467,8 +474,8 @@ struct SQLDate: XLCustomType, XLComparable, Equatable {
         return formatter
     }()
 
-    public init(reader: XLColumnReader, at index: Int) throws {
-        let rawValue = try reader.readReal(at: index)
+    public init(reader: XLFieldReader) throws {
+        let rawValue = try reader.readReal()
         guard let wrappedValue = Date(julianDay: rawValue) else {
             throw ReadError.invalidJulianDay(rawValue)
         }
@@ -576,7 +583,7 @@ implicitly: declare the actual v1 storage class, test existing rows, and retain
 the old representation until a deliberate migration has completed.
 
 The adapter calls the literal's existing `bind(context:)` and
-`init(reader:at:)` implementations; it does not call `sqlDefault()`. A new
+`init(reader:)` implementations; it does not call `sqlDefault()`. A new
 `XLCustomType` can therefore omit an explicit placeholder when all of its result
 decoding uses generated static layouts. Keep an explicit placeholder on older
 types for as long as legacy result introspection remains in use.

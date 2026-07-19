@@ -17,8 +17,8 @@ private struct NoDefaultCustomLiteral:
         self.value = value
     }
 
-    init(reader: XLColumnReader, at index: Int) throws {
-        let stored = try reader.readText(at: index)
+    init(reader: XLFieldReader) throws {
+        let stored = try reader.readText()
         guard stored.hasPrefix("v1:") else {
             throw NoDefaultLiteralTestError.invalidCustomLiteral(stored)
         }
@@ -59,8 +59,8 @@ private struct ExplicitLegacyDefaultLiteral:
         self.value = value
     }
 
-    init(reader: XLColumnReader, at index: Int) throws {
-        self.value = try reader.readText(at: index)
+    init(reader: XLFieldReader) throws {
+        self.value = try reader.readText()
     }
 
     func bind(context: inout XLBindingContext) {

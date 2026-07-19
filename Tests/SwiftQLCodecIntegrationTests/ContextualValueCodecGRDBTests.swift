@@ -740,8 +740,8 @@ private struct LegacyEpoch: Equatable, XLLiteral, Sendable {
         self.value = value
     }
 
-    init(reader: XLColumnReader, at index: Int) throws {
-        self.value = try reader.readInteger(at: index)
+    init(reader: XLFieldReader) throws {
+        self.value = try reader.readInteger()
     }
 }
 

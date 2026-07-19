@@ -62,7 +62,7 @@ enum JobState: String, XLEnum {
 ```
 
 The raw-value declaration supplies `RawRepresentable`. `XLEnum` supplies
-``XLLiteral/init(reader:at:)``, ``XLBindable/bind(context:)``, and SQL literal
+``XLLiteral/init(reader:)``, ``XLBindable/bind(context:)``, and SQL literal
 encoding by delegating to the enum's raw value.
 
 ## Use enums in tables and query results

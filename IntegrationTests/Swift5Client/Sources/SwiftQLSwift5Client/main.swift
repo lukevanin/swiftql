@@ -29,10 +29,55 @@ private struct DownstreamToken: Equatable {
 
 enum FixtureError: Error {
     case invalidCoreContract
+    case invalidLiteralReaderBridge
     case invalidCodecValue(XLSQLiteValue)
     case unexpectedPacketResult(Int?)
     case unexpectedStaticQueryResult(Int64)
     case unexpectedResult(PersonSummary?)
+}
+
+private struct DownstreamColumnReader: XLColumnReader {
+    let value: Int
+
+    func isNull(at index: Int) -> Bool { false }
+    func readInteger(at index: Int) -> Int { value + index }
+    func readReal(at index: Int) -> Double { Double(value + index) }
+    func readText(at index: Int) -> String { String(value + index) }
+    func readBlob(at index: Int) -> Data { Data() }
+}
+
+private struct LegacyReaderLiteral: XLLiteral {
+    let value: Int
+
+    init(reader: XLColumnReader, at index: Int) throws {
+        self.value = try reader.readInteger(at: index)
+    }
+
+    func bind(context: inout XLBindingContext) {
+        context.bindInteger(value: value)
+    }
+}
+
+private struct FieldReaderLiteral: XLLiteral {
+    let value: Int
+
+    init(reader: XLFieldReader) throws {
+        self.value = try reader.readInteger()
+    }
+
+    func bind(context: inout XLBindingContext) {
+        context.bindInteger(value: value)
+    }
+}
+
+private func validateLiteralReaderCompatibility() throws {
+    let columns = DownstreamColumnReader(value: 40)
+    let field = XLFieldReader(reader: columns, at: 2)
+    let legacy = try LegacyReaderLiteral(reader: field)
+    let current = try FieldReaderLiteral(reader: columns, at: 2)
+    guard legacy.value == 42, current.value == 42 else {
+        throw FixtureError.invalidLiteralReaderBridge
+    }
 }
 
 private func validateCoreContractProduct() throws -> XLValueCodingConfiguration {
@@ -249,6 +294,7 @@ private func executeFixture(
 }
 
 private func runFixture() throws {
+    try validateLiteralReaderCompatibility()
     let codingConfiguration = try validateCoreContractProduct()
 
     let directory = FileManager.default.temporaryDirectory
