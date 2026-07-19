@@ -47,6 +47,11 @@ jobs:
       - name: Run source coverage reporting fixtures
         run: python3 scripts/ci/test-source-coverage-report.py
 
+      - name: Validate SQLite conformance inventory
+        run: |
+          python3 scripts/ci/test-sqlite-conformance-inventory.py
+          python3 scripts/ci/sqlite-conformance-inventory.py check
+
       - name: Verify checkout remains clean
         run: |
           git diff --exit-code

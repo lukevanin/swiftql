@@ -197,6 +197,8 @@ For project guarantees and direction:
 
 - [Compiler compatibility](COMPATIBILITY.md) records the supported Swift
   toolchains and reproducible CI matrix.
+- [SQLite conformance](COMPATIBILITY.md#sqlite-conformance-inventory) records
+  the evidence boundary for SwiftQL's currently supported public subset.
 - [Changelog](CHANGELOG.md) records released behavior and v1.2 migration
   guidance.
 - [Performance benchmarks](BENCHMARKS.md) measure query construction,

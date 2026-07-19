@@ -7,40 +7,97 @@ import SwiftQLSQLiteConformanceFixtures
 
 final class SQLiteValueConformanceBoundaryTests: XCTestCase {
 
-    func testManifestAccountsForEveryStableCaseAndPinnedProvenance() throws {
-        let manifest = try SQLiteValueConformanceManifest.load()
-        let recordsByID = Dictionary(
-            grouping: manifest.records,
-            by: \.id
-        )
-        XCTAssertEqual(manifest.schemaVersion, 1)
-        XCTAssertEqual(manifest.coordinationIssue, 190)
+    func testInventoryAccountsForEveryStableCaseAndPinnedProvenance() throws {
+        let inventory = try SQLiteConformanceInventory.load()
+        var featuresByID: [
+            SQLiteValueConformanceCaseID: [SQLiteConformanceInventory.Feature]
+        ] = [:]
+        for feature in inventory.features {
+            guard let id = SQLiteValueConformanceCaseID(rawValue: feature.id) else {
+                continue
+            }
+            featuresByID[id, default: []].append(feature)
+        }
+        let valueFeatureCount = featuresByID.values.reduce(0) { $0 + $1.count }
+        XCTAssertEqual(inventory.schemaVersion, 1)
+        XCTAssertEqual(inventory.inventoryVersion, "1.3.0")
+        XCTAssertEqual(inventory.coordinationIssue, 190)
+        XCTAssertEqual(valueFeatureCount, 24)
         XCTAssertEqual(
-            Set(recordsByID.keys),
+            Set(featuresByID.keys),
             Set(SQLiteValueConformanceCaseID.allCases)
         )
 
         for id in SQLiteValueConformanceCaseID.allCases {
-            let records = try XCTUnwrap(recordsByID[id], id.rawValue)
-            XCTAssertEqual(records.count, 1, "Duplicate manifest ID: \(id.rawValue)")
-            let record = try XCTUnwrap(records.first)
-            XCTAssertFalse(record.category.isEmpty, id.rawValue)
-            XCTAssertFalse(record.evidenceLayers.isEmpty, id.rawValue)
-            XCTAssertEqual(
-                URL(string: record.sqliteDocumentationURL)?.scheme,
-                "https",
-                id.rawValue
+            let features = try XCTUnwrap(featuresByID[id], id.rawValue)
+            XCTAssertEqual(features.count, 1, "Duplicate inventory ID: \(id.rawValue)")
+            let feature = try XCTUnwrap(features.first)
+            XCTAssertFalse(feature.evidenceIDs.isEmpty, id.rawValue)
+            XCTAssertFalse(feature.sqliteDocumentationURLs.isEmpty, id.rawValue)
+            XCTAssertFalse(feature.provenance.isEmpty, id.rawValue)
+
+            for documentationURL in feature.sqliteDocumentationURLs {
+                XCTAssertEqual(
+                    URL(string: documentationURL)?.scheme,
+                    "https",
+                    id.rawValue
+                )
+            }
+
+            for provenance in feature.provenance {
+                XCTAssertEqual(
+                    provenance.commit,
+                    SQLiteValueConformanceFixtures
+                        .pinnedProvenanceCommitsByRepository[provenance.repository],
+                    id.rawValue
+                )
+                XCTAssertFalse(provenance.path.isEmpty, id.rawValue)
+                XCTAssertFalse(provenance.upstreamCase.isEmpty, id.rawValue)
+                XCTAssertFalse(provenance.licenseSPDX.isEmpty, id.rawValue)
+                XCTAssertFalse(provenance.licenseFilePath.isEmpty, id.rawValue)
+                XCTAssertEqual(
+                    URL(string: provenance.licenseFileURL)?.scheme,
+                    "https",
+                    id.rawValue
+                )
+                XCTAssertFalse(provenance.licenseBlobSHA.isEmpty, id.rawValue)
+                XCTAssertFalse(provenance.licenseDisposition.isEmpty, id.rawValue)
+                XCTAssertFalse(provenance.adaptationNotes.isEmpty, id.rawValue)
+                if provenance.copiedMaterial {
+                    XCTAssertFalse(
+                        provenance.noticePath?.isEmpty ?? true,
+                        id.rawValue
+                    )
+                }
+            }
+        }
+    }
+
+    func testInventoryRegistersEnvironmentAndSuiteReferences() throws {
+        let inventory = try SQLiteConformanceInventory.load()
+        let environmentIDs = Set(inventory.sqliteEnvironments.map(\.id))
+        let evidenceIDs = Set(inventory.evidence.map(\.id))
+        let featureIDs = Set(inventory.features.map(\.id))
+        let suiteIDs = Set(inventory.suites.map(\.id))
+
+        XCTAssertFalse(environmentIDs.isEmpty)
+        XCTAssertFalse(evidenceIDs.isEmpty)
+        XCTAssertFalse(featureIDs.isEmpty)
+        XCTAssertFalse(suiteIDs.isEmpty)
+        XCTAssertEqual(environmentIDs.count, inventory.sqliteEnvironments.count)
+        XCTAssertEqual(evidenceIDs.count, inventory.evidence.count)
+        XCTAssertEqual(featureIDs.count, inventory.features.count)
+        XCTAssertEqual(suiteIDs.count, inventory.suites.count)
+
+        for evidence in inventory.evidence {
+            XCTAssertTrue(
+                Set(evidence.environmentIDs).isSubset(of: environmentIDs),
+                evidence.id
             )
-            XCTAssertEqual(
-                record.provenance.commit,
-                SQLiteValueConformanceFixtures
-                    .pinnedProvenanceCommitsByRepository[record.provenance.repository],
-                id.rawValue
-            )
-            XCTAssertFalse(record.provenance.path.isEmpty, id.rawValue)
-            XCTAssertFalse(record.provenance.upstreamCase.isEmpty, id.rawValue)
-            XCTAssertFalse(record.provenance.licenseDisposition.isEmpty, id.rawValue)
-            XCTAssertFalse(record.provenance.adaptationNotes.isEmpty, id.rawValue)
+        }
+        for suite in inventory.suites {
+            XCTAssertTrue(Set(suite.caseIDs).isSubset(of: featureIDs), suite.id)
+            XCTAssertTrue(Set(suite.evidenceIDs).isSubset(of: evidenceIDs), suite.id)
         }
     }
 

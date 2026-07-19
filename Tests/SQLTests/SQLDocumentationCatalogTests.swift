@@ -349,6 +349,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "BENCHMARKS.md",
                 "CHANGELOG.md",
                 "COMPATIBILITY.md",
+                "COMPATIBILITY.md#sqlite-conformance-inventory",
                 "Coverage/README.md",
                 "LICENSE.md",
                 "RELEASING.md",
@@ -356,10 +357,32 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             ]
         )
         for link in repositoryLinks {
-            XCTAssertTrue(
-                try pathExistsWithExactCase(link, below: repositoryRoot),
-                "README link does not resolve with exact case: \(link)"
+            let components = link.split(
+                separator: "#",
+                maxSplits: 1,
+                omittingEmptySubsequences: false
             )
+            let path = String(components[0])
+            XCTAssertTrue(
+                try pathExistsWithExactCase(path, below: repositoryRoot),
+                "README link does not resolve with exact case: \(path)"
+            )
+            if components.count == 2 {
+                let fragment = String(components[1])
+                let contents = try String(
+                    contentsOf: repositoryRoot.appendingPathComponent(path),
+                    encoding: .utf8
+                )
+                let anchors = Set(
+                    contents
+                        .components(separatedBy: .newlines)
+                        .compactMap(markdownHeadingAnchor)
+                )
+                XCTAssertTrue(
+                    anchors.contains(fragment),
+                    "README link does not resolve to a heading: \(link)"
+                )
+            }
         }
     }
 
@@ -485,6 +508,23 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
+    }
+
+    private func markdownHeadingAnchor(_ line: String) -> String? {
+        let heading = line.drop(while: { $0 == "#" })
+        guard heading.count < line.count, heading.first == " " else {
+            return nil
+        }
+
+        var anchor = ""
+        for scalar in heading.dropFirst().lowercased().unicodeScalars {
+            if CharacterSet.alphanumerics.contains(scalar) || scalar == "-" || scalar == "_" {
+                anchor.unicodeScalars.append(scalar)
+            } else if CharacterSet.whitespaces.contains(scalar) {
+                anchor.append("-")
+            }
+        }
+        return anchor.isEmpty ? nil : anchor
     }
 
     private func pathExistsWithExactCase(_ path: String, below root: URL) throws -> Bool {

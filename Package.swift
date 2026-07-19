@@ -42,7 +42,7 @@ let package = Package(
             name: "SwiftQLSQLiteConformanceFixtures",
             dependencies: ["SwiftQLCore"],
             path: "Tests/SwiftQLSQLiteConformanceFixtures",
-            resources: [.process("SQLiteValueConformanceManifest.json")]
+            resources: [.process("SQLiteConformanceInventory.json")]
         ),
 
         // Macro implementation that performs the source transformation of a macro.

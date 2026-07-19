@@ -42,6 +42,28 @@ core protocols are extension seams, not claims that another dialect, driver,
 Linux runtime, nested transaction/savepoint API, asynchronous cursor, or
 Swift 6 language mode is supported in v1.2.
 
+## SQLite conformance inventory
+
+The [SQLite conformance report](Conformance/SQLite/REPORT.md) summarizes the
+evidence recorded in the canonical, versioned
+[SQLite conformance inventory](Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json).
+The report is evidence for SwiftQL's existing public SQLite subset; it is not a
+claim of complete SQLite grammar coverage. The inventory remains the source of
+truth, while the report is its readable generated view.
+
+An inventory entry is counted as supported only when it links to successful
+preparation by a real SQLite engine whose version and source ID are recorded.
+Capability-gated, syntax-gated, adapter/API-gated, intentionally unsupported,
+and intentionally out-of-scope entries remain visible with their requirements
+or rationale, but are excluded from supported totals.
+
+From the repository root, reproduce the validation and confirm that the report
+matches the canonical inventory with:
+
+```sh
+python3 scripts/ci/sqlite-conformance-inventory.py check
+```
+
 ## Pinned Apple support points
 
 | Support point | GitHub runner | Xcode | Swift | macOS SDK |
