@@ -106,6 +106,25 @@ let package = Package(
             path: "Benchmarks/Sources/SwiftQLBenchmarkCLI"
         ),
 
+        // Package-private research engine for issue #132. This deliberately
+        // remains outside the package's public products while the descriptor
+        // sidecar and build lifecycle are being evaluated.
+        .target(
+            name: "SwiftQLSQLiteBuildValidationPrototype",
+            dependencies: [
+                "SwiftQLCore",
+                .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "CSQLite", package: "GRDB.swift"),
+            ],
+            path: "Research/SQLiteBuildValidation/Sources/SwiftQLSQLiteBuildValidationPrototype"
+        ),
+
+        .executableTarget(
+            name: "SwiftQLSQLiteBuildValidationPrototypeCLI",
+            dependencies: ["SwiftQLSQLiteBuildValidationPrototype"],
+            path: "Research/SQLiteBuildValidation/Sources/SwiftQLSQLiteBuildValidationPrototypeCLI"
+        ),
+
         // A test target used to develop the macro implementation.
         .testTarget(
             name: "SwiftQLCoreTests",
@@ -173,6 +192,20 @@ let package = Package(
             name: "SwiftQLBenchmarkTests",
             dependencies: ["SwiftQLBenchmarks"],
             path: "Benchmarks/Tests/SwiftQLBenchmarkTests"
+        ),
+
+        .testTarget(
+            name: "SwiftQLSQLiteBuildValidationPrototypeTests",
+            dependencies: [
+                "SwiftQLCore",
+                "SwiftQL",
+                "SwiftQLSQLiteBuildValidationPrototype",
+                "SwiftQLNorthwindFixtures",
+                "SwiftQLSQLiteConformanceFixtures",
+                "SwiftQLSQLiteCombinatorialSupport",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            path: "Research/SQLiteBuildValidation/Tests/SwiftQLSQLiteBuildValidationPrototypeTests"
         ),
     ]
 )
