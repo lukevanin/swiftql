@@ -297,7 +297,9 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             grouping: inventory.features,
             by: \.status
         ).mapValues(\.count)
-        let realSQLiteEvidenceCount = inventory.evidence.count(where: \.realSQLite)
+        let realSQLiteEvidenceCount = inventory.evidence.filter {
+            $0.realSQLite
+        }.count
         let environmentCount = inventory.sqliteEnvironments.count
         let environmentCountText = environmentCount == 1
             ? "one"
