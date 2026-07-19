@@ -31,6 +31,7 @@ enum FixtureError: Error {
     case invalidCoreContract
     case invalidLiteralReaderBridge
     case invalidRowReaderCompatibility
+    case invalidSeparatorCompatibility
     case invalidCodecValue(XLSQLiteValue)
     case unexpectedPacketResult(Int?)
     case unexpectedStaticQueryResult(Int64)
@@ -94,6 +95,36 @@ private func validateRowReaderCompatibility() throws {
     let value = try Select(42).readRow(reader: DownstreamRowReader())
     guard value == Int.sqlDefault() else {
         throw FixtureError.invalidRowReaderCompatibility
+    }
+}
+
+private struct DownstreamSeparatorProbe: XLEncodable {
+    let separator: XLSeparator
+
+    func makeSQL(context: inout XLBuilder) {
+        context.list(separator: separator) { list in
+            list.listItem { $0.integer(1) }
+            list.listItem { $0.integer(2) }
+        }
+    }
+}
+
+private func validateSeparatorCompatibility() throws {
+    let legacy = XLSeparator(rawValue: ", ")
+    let encoder = XLiteEncoder(formatter: XLiteFormatter())
+    let listSQL = encoder.makeSQL(
+        DownstreamSeparatorProbe(separator: .list)
+    ).sql
+    let tupleSQL = encoder.makeSQL(
+        DownstreamSeparatorProbe(separator: .tuple)
+    ).sql
+    guard legacy == .comma,
+          XLSeparator.comma.rawValue == ", ",
+          XLSeparator.space.rawValue == " ",
+          listSQL == "1, 2",
+          tupleSQL == "1 2"
+    else {
+        throw FixtureError.invalidSeparatorCompatibility
     }
 }
 
@@ -313,6 +344,7 @@ private func executeFixture(
 private func runFixture() throws {
     try validateLiteralReaderCompatibility()
     try validateRowReaderCompatibility()
+    try validateSeparatorCompatibility()
     let codingConfiguration = try validateCoreContractProduct()
 
     let directory = FileManager.default.temporaryDirectory

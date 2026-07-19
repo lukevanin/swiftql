@@ -647,13 +647,23 @@ public struct XLQualifiedSelectColumnName: XLQualifiedName, Equatable {
 
 
 ///
-/// Delimiter used to encode SQLite expressions.
+/// A semantic delimiter used to encode SQL expressions.
 ///
-public enum XLSeparator: String {
+/// Use ``list`` for comma-delimited SQL items and ``tuple`` for adjacent
+/// grammar tokens. The literal-named enum cases remain available for source
+/// compatibility with existing builders.
+///
+public enum XLSeparator: String, Sendable {
     case elided = ""
     case space = " "
     case comma = ", "
     case newline = "\n"
+
+    /// Separates adjacent SQL grammar tokens with whitespace.
+    public static let tuple: Self = .space
+
+    /// Separates entries in an SQL list with a comma and whitespace.
+    public static let list: Self = .comma
 }
 
 
@@ -675,7 +685,7 @@ struct XLCompoundExpression<T>: XLExpression {
     }
     
     public func makeSQL(context: inout XLBuilder) {
-        context.list(separator: separator.rawValue) { listBuilder in
+        context.list(separator: separator) { listBuilder in
             for expression in expressions {
                 listBuilder.listItem { builder in
                     expression.makeSQL(context: &builder)

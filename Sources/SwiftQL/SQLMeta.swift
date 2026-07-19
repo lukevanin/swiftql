@@ -353,7 +353,7 @@ final class XLColumnsDefinitionRowReader: XLRowReader, XLEncodable {
     }
     
     func makeSQL(context: inout XLBuilder) {
-        context.list(separator: ", ") { listBuilder in
+        context.list(separator: .list) { listBuilder in
             for (name, expression) in zip(names, expressions) {
                 listBuilder.listItem { builder in
                     builder.alias(name, expression: expression.makeSQL)

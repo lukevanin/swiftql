@@ -51,15 +51,11 @@ extension XLEncodable {
 ///
 struct XLEncodableList: XLEncodable {
 
-    var separator: String
+    var separator: XLSeparator
     
     var expressions: [any XLEncodable]
     
     init(separator: XLSeparator, expressions: [any XLEncodable]) {
-        self.init(separator: separator.rawValue, expressions: expressions)
-    }
-
-    init(separator: String, expressions: [any XLEncodable]) {
         self.separator = separator
         self.expressions = expressions
     }
@@ -449,6 +445,18 @@ public protocol XLBuilder {
 }
 
 extension XLBuilder {
+
+    /// Adds a list whose delimiter communicates its SQL grammar role.
+    ///
+    /// The existing string-based protocol requirement remains the compatibility
+    /// seam for external builders. This overload maps semantic separators onto
+    /// that established spelling.
+    public mutating func list(
+        separator: XLSeparator,
+        items: ListBuilder
+    ) {
+        list(separator: separator.rawValue, items: items)
+    }
 
     public mutating func valueEncodingFailed(
         _ error: XLSQLValueEncodingError

@@ -29,14 +29,14 @@ extension XLExpression {
     public func `in`(_ expressions: [any XLExpression<T>]) -> some XLExpression<Bool> {
         XLInValueExpression(
             lhs: self,
-            rhs: XLCompoundExpression<Any>(separator: .comma, expressions: expressions)
+            rhs: XLCompoundExpression<Any>(separator: .list, expressions: expressions)
         )
     }
 
     public func `in`<Wrapped>(_ expressions: [any XLExpression<Wrapped>]) -> some XLExpression<Optional<Bool>> where T == Optional<Wrapped> {
         XLInValueExpression(
             lhs: self,
-            rhs: XLCompoundExpression<Any>(separator: .comma, expressions: expressions)
+            rhs: XLCompoundExpression<Any>(separator: .list, expressions: expressions)
         )
     }
 

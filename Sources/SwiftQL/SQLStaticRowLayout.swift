@@ -386,7 +386,7 @@ where Dialect: XLValueCodingDialect {
     }
 
     public func makeSQL(context: inout XLBuilder) {
-        context.list(separator: ", ") { list in
+        context.list(separator: .list) { list in
             for field in fields {
                 list.listItem { builder in
                     builder.alias(
