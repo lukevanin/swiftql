@@ -79,6 +79,28 @@ database-bound and not `Sendable`; prepared raw static-query handles are
 Use <doc:CustomTypes> when one Swift type needs contextual or multiple SQLite
 representations.
 
+## v1.3 conformance evidence
+
+The v1.3 source-tree milestone validates SwiftQL's existing public SQLite
+surface rather than adding another syntax layer. Its versioned inventory,
+generated report, bounded combinatorial cases, pinned Northwind corpus, and
+observation stress contracts exercise rendering, real SQLite preparation, and
+behavior. Evidence is tied to the recorded SQLite version, source ID, compile
+options, and available capabilities; it is not a claim of complete SQLite
+grammar coverage. See the repository's
+[compatibility matrix](https://github.com/lukevanin/swiftql/blob/main/COMPATIBILITY.md)
+and
+[conformance report](https://github.com/lukevanin/swiftql/blob/main/Conformance/SQLite/REPORT.md)
+for the canonical scope and current evidence.
+
+Issue [#132](https://github.com/lukevanin/swiftql/issues/132) is research only.
+Its internal prototype prepares static SQL against a pinned, read-only schema
+snapshot and emits deterministic diagnostics, but v1.3 does not ship a public
+validator, build plugin, query macro, schema system, or new query-declaration
+API. It neither persists prepared statements nor removes runtime preparation
+on each physical connection. Version 1.2.0 remains the latest published
+package.
+
 ## When to use SwiftQL
 
 SwiftQL provides a safer way to write SQL to interact with an SQLite database, 

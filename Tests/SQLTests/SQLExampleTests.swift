@@ -1072,25 +1072,40 @@ final class XLDocumentationTests: XCTestCase {
 extension XLDocumentationTests {
 
     func testDocumentationREADME() throws {
-        let query = sql { schema in
-            let person = schema.table(Person.self)
-            Select(person)
-            From(person)
-            Where(person.name == "Fred")
-        }
-
-        XCTAssertEqual(
-            encoder.makeSQL(query).sql,
-            "SELECT t0.id AS id, t0.occupationId AS occupationId, t0.name AS name, t0.age AS age FROM Person AS t0 WHERE (t0.name == 'Fred')"
+        let databaseDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: databaseDirectory,
+            withIntermediateDirectories: false
         )
+        defer { try? FileManager.default.removeItem(at: databaseDirectory) }
+        let databaseURL = databaseDirectory.appendingPathComponent("readme.sqlite")
 
-        let request = database.makeRequest(with: query)
+        do {
+            let database = try GRDBDatabase(url: databaseURL, logger: nil)
 
-        let people: [Person] = try request.fetchAll()
-        let firstPerson: Person? = try request.fetchOne()
+            try database.makeRequest(with: sqlCreate(Person.self)).execute()
 
-        XCTAssertTrue(people.isEmpty)
-        XCTAssertNil(firstPerson)
+            let query = sql { schema in
+                let person = schema.table(Person.self)
+                Select(person)
+                From(person)
+                Where(person.name == "Fred")
+            }
+
+            XCTAssertEqual(
+                encoder.makeSQL(query).sql,
+                "SELECT t0.id AS id, t0.occupationId AS occupationId, t0.name AS name, t0.age AS age FROM Person AS t0 WHERE (t0.name == 'Fred')"
+            )
+
+            let request = database.makeRequest(with: query)
+
+            let people: [Person] = try request.fetchAll()
+            let firstPerson: Person? = try request.fetchOne()
+
+            XCTAssertTrue(people.isEmpty)
+            XCTAssertNil(firstPerson)
+        }
     }
 
     func testDocumentationQuickStart() throws {

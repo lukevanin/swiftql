@@ -6,7 +6,7 @@ series currently listed by Swift Package Index: Swift 6.0 through Swift 6.3.
 All Swift 6 compilers run the package in Swift 5 language mode; SwiftQL does not
 opt into Swift 6 language mode.
 
-## v1.2 public products and runtime boundaries
+## v1.3 public products and runtime boundaries
 
 The package supports iOS 16 or later and macOS 13 or later. Its public products
 have separate responsibilities:
@@ -28,7 +28,8 @@ pass. The exact resolved versions and loaded SQLite source ID are CI evidence,
 not a promise that every future dependency version in those ranges is already
 supported.
 
-In v1.2, an `XLStaticQueryDescriptor` and `XLInvocationBindings` are immutable,
+The reusable-query ownership model introduced in v1.2 remains unchanged in
+v1.3. An `XLStaticQueryDescriptor` and `XLInvocationBindings` are immutable,
 database-independent values. A raw `GRDBPreparedStaticQuery` or
 `GRDBPreparedInvocation` is `Sendable` and database-bound without owning a
 connection-bound statement. The high-level `XLRequest` facade and
@@ -40,7 +41,7 @@ not only implementation details.
 SwiftQL currently ships only a SQLite dialect and a GRDB database driver. The
 core protocols are extension seams, not claims that another dialect, driver,
 Linux runtime, nested transaction/savepoint API, asynchronous cursor, or
-Swift 6 language mode is supported in v1.2.
+Swift 6 language mode is supported in v1.3.
 
 ## SQLite conformance inventory
 
@@ -51,11 +52,48 @@ The report is evidence for SwiftQL's existing public SQLite subset; it is not a
 claim of complete SQLite grammar coverage. The inventory remains the source of
 truth, while the report is its readable generated view.
 
-An inventory entry is counted as supported only when it links to successful
-preparation by a real SQLite engine whose version and source ID are recorded.
-Capability-gated, syntax-gated, adapter/API-gated, intentionally unsupported,
-and intentionally out-of-scope entries remain visible with their requirements
-or rationale, but are excluded from supported totals.
+The v1.3 inventory contains 101 feature records and 98 evidence records. Its
+support-status totals are exact and mutually exclusive:
+
+| Support status | Features |
+| --- | ---: |
+| Supported | 82 |
+| Partial | 7 |
+| Capability-gated | 3 |
+| Intentionally unsupported | 1 |
+| Unimplemented | 8 |
+
+Of those 98 evidence records, 66 exercise real SQLite and
+cite one captured environment, SQLite 3.51.0. An inventory entry is counted in
+the 82 supported features only when it links to successful preparation by a
+real SQLite engine whose version and source ID are recorded. Partial,
+capability-gated, intentionally unsupported, and unimplemented entries remain
+visible with their evidence, requirements, or rationale, but are excluded
+from the supported total. Evidence records are reusable proofs, so the count
+of 98 is not intended to match the feature count one for one.
+
+The v1.3 work has distinct ownership and claims:
+
+- [#190](https://github.com/lukevanin/swiftql/issues/190) owns the canonical
+  feature taxonomy, status decisions, evidence references, generated report,
+  and the totals above.
+- [#191](https://github.com/lukevanin/swiftql/issues/191) supplies a bounded,
+  deterministic 141-case combinatorial manifest for joins, subqueries, common
+  table expressions, grouping, bindings, and related interactions, plus a
+  deliberately broken-renderer negative control. It contributes real-SQLite
+  evidence to the inventory without claiming exhaustive SQL combinations.
+- [#254](https://github.com/lukevanin/swiftql/issues/254) supplies the pinned
+  Northwind SQLite snapshot and 18 stable correctness scenarios over realistic
+  joins, aggregates, subqueries, compound queries, common table expressions,
+  decoding, CRUD, and rollback behavior.
+- [#255](https://github.com/lukevanin/swiftql/issues/255) supplies 12 stable
+  observation-stress cases and their evidence for concurrent writes,
+  invalidation, delivery, cancellation, retries, and database isolation.
+- [#132](https://github.com/lukevanin/swiftql/issues/132) is research only. Its
+  internal prototype prepares static descriptors against the checked-in
+  Northwind snapshot and emits a deterministic validation report. It ships no
+  public validator, build plugin, macro, schema system, or new v1.3 API, and it
+  does not expand the supported inventory total.
 
 From the repository root, reproduce the validation and confirm that the report
 matches the canonical inventory with:
@@ -111,8 +149,9 @@ Each pinned Apple support point runs two independent dependency modes:
   removes the exported lockfile, resolves from the manifest's declared ranges,
   and reports the resulting versions. It never modifies the checkout.
 
-All four pinned support cells and all three additional Swift-series cells build
-every first-party target and run the complete test suite. No cell is
+All four pinned support cells and all three additional Swift-series cells form
+seven release-blocking compiler cells. Every cell builds every first-party
+target and runs the complete test suite. No cell is
 conditional, allowed to fail, or represented by a skipped job. The workflow
 does not share build caches across compilers or resolution modes.
 

@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.3.0] - Unreleased
+
+### Added
+
+- Added the #190 canonical SQLite conformance inventory and deterministic
+  generated report. It records 101 public-surface feature records: 82
+  supported, 7 partial, 3 capability-gated, 1 intentionally unsupported, and
+  8 unimplemented. Of the 98 evidence records, 66 exercise real SQLite and
+  cite one captured SQLite 3.51.0 environment.
+- Added the #191 bounded combinatorial SQLite corpus with 141 stable generated
+  cases across joins, subqueries, common table expressions, grouping,
+  bindings, and related interactions, plus a deliberately broken-renderer
+  negative control. Deterministic manifests and runtime provenance keep the
+  exercised combinations reviewable without presenting them as exhaustive
+  SQL coverage.
+- Added the #254 immutable Northwind SQLite snapshot and 18 stable correctness
+  scenarios for realistic joins, aggregates, subqueries, compound queries,
+  common table expressions, decoding, CRUD, and rollback behavior.
+- Added the #255 live-query observation stress suite with 12 stable cases for
+  concurrent writes, invalidation, delivery, cancellation, transient-busy
+  retries, and database isolation.
+- Added the #132 research prototype for deterministic build-time preparation
+  of static query descriptors against the checked-in Northwind snapshot. The
+  prototype owns a read-only validation connection, finalizes every prepared
+  statement, and emits a reproducible report; it is internal research, not a
+  public validator, build plugin, macro, schema system, or v1.3 API.
+
+### Migration
+
+No migration is required for v1.3. The milestone adds conformance evidence,
+correctness and stress coverage, internal research artifacts, and refreshed
+documentation while preserving the v1.2 public source and runtime contracts.
+
 ## [1.2.0] - 2026-07-19
 
 ### Added

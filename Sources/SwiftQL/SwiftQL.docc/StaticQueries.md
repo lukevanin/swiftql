@@ -23,6 +23,24 @@ registry of query definitions. The raw `GRDBPreparedStaticQuery` handle is
 `Sendable`; the closure-backed typed row layout and its prepared wrapper are
 currently task-local.
 
+### Build-validation research boundary
+
+A static descriptor contains the stable SQL and parameter/result metadata that
+future build validation can consume, but it does not validate a schema by
+itself. The v1.3 research for issue
+[#132](https://github.com/lukevanin/swiftql/issues/132) pairs descriptors with
+an explicit sidecar plan and a pinned SQLite snapshot, then uses a private
+prototype to prepare and inspect each statement on a validator-owned read-only
+connection. The prototype is conformance evidence, not a public SwiftQL
+product or API.
+
+Successful prototype validation applies only to the recorded snapshot, SQLite
+build, and registered capabilities. It does not prove result values,
+cardinality, dynamic storage classes, codec behavior, or application semantics.
+The inspected statement is finalized immediately; runtime execution still
+prepares or retrieves a cached physical statement on its own connection. A
+standalone validator and SwiftPM plugin remain separate v1.5 follow-up work.
+
 ## Construct a descriptor
 
 First render a statement and convert its validated encoding into an
