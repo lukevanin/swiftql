@@ -249,6 +249,79 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         }
     }
 
+    func testV12PublicDocumentsShareReleaseAndBoundaryContract() throws {
+        let repositoryRoot = repositoryRootURL()
+        let requiredPhrasesByPath = [
+            "README.md": [
+                "## The v1.2 reusable-query boundary",
+                "An `XLStaticQueryDescriptor` contains rendered SQL",
+                "fresh `XLInvocationBindings` value",
+                "every call. Invocation values never become identifiers",
+                "`SwiftQLCore` exposes GRDB-free",
+                "latest published package while the v1.2 changelog is marked",
+            ],
+            "COMPATIBILITY.md": [
+                "## v1.2 public products and runtime boundaries",
+                "iOS 16 or later and macOS 13 or later",
+                "SwiftSyntax 509.0.0, GRDB 6.29.3",
+                "The high-level `XLRequest` facade",
+                "only a SQLite dialect and a GRDB database driver",
+                "all twelve source articles",
+            ],
+            "CHANGELOG.md": [
+                "## [1.2.0] - Unreleased",
+                "Added the GRDB-free `SwiftQLCore` product",
+                "Added immutable `XLStaticQueryDescriptor` definitions",
+                "GRDB result rows are stepped and decoded incrementally",
+                "Existing `makeRequest(with:)`",
+            ],
+            "RELEASING.md": [
+                "complete audit issue #223",
+                ".title == \"v1.2\"",
+                "not proof of v1.2 milestone readiness",
+                "the pending `v1.2.0` release",
+                "dedicated v1.2 release issue",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/SwiftQL.md": [
+                "## v1.2 boundaries",
+                "database-independent query definitions",
+                "`SwiftQLCore` contains the GRDB-free",
+                "The current `XLRequest` facade is",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/GettingStarted.md": [
+                "v1.2 changelog is marked",
+                "basic request path is retained by v1.2",
+                "after the `1.2.0` tag is published",
+            ],
+            "scripts/ci/check-docc-output.sh": [
+                "realvalues|Real Values",
+                "staticqueries|Static queries",
+            ],
+        ]
+
+        for (path, requiredPhrases) in requiredPhrasesByPath {
+            let contents = try String(
+                contentsOf: repositoryRoot.appendingPathComponent(path),
+                encoding: .utf8
+            )
+            for phrase in requiredPhrases {
+                XCTAssertTrue(
+                    contents.contains(phrase),
+                    "\(path) is missing the v1.2 contract phrase '\(phrase)'."
+                )
+            }
+        }
+
+        let changelog = try String(
+            contentsOf: repositoryRoot.appendingPathComponent("CHANGELOG.md"),
+            encoding: .utf8
+        )
+        let firstReleaseHeading = changelog
+            .components(separatedBy: .newlines)
+            .first(where: { $0.hasPrefix("## [") })
+        XCTAssertEqual(firstReleaseHeading, "## [1.2.0] - Unreleased")
+    }
+
     func testREADMERepositoryLinksResolveWithExactCase() throws {
         let repositoryRoot = repositoryRootURL()
         let readme = try String(
@@ -274,6 +347,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             Set(repositoryLinks),
             [
                 "BENCHMARKS.md",
+                "CHANGELOG.md",
                 "COMPATIBILITY.md",
                 "Coverage/README.md",
                 "LICENSE.md",

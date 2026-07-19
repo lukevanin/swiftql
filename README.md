@@ -114,13 +114,43 @@ their SQL meaning.
   Create basic tables and construct typed inserts, updates, and deletes with
   the same SQL-shaped API.
 - **[Bindings and results](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/).**
-  Reuse requests with typed named bindings, then decode `fetchAll()` and
-  `fetchOne()` results directly into Swift values.
+  Keep invocation values in fresh immutable binding packets, then decode
+  `fetchAll()` and `fetchOne()` results directly into Swift values.
+- **[Static query contracts](https://lukevanin.github.io/swiftql/documentation/swiftql/staticqueries/).**
+  Define database-independent SQL, parameter, result, identity, and cardinality
+  metadata before opening a database, then prepare it against a compatible
+  driver.
 - **[Live data](https://lukevanin.github.io/swiftql/documentation/swiftql/livequeries/).**
   Observe typed query results through GRDB-backed Combine publishers that track
   the database region a query reads.
 - **Your domain.** Extend SQLite with Swift enums, custom value types, and
   type-safe custom SQL functions.
+
+## The v1.2 reusable-query boundary
+
+SwiftQL v1.2 separates the reusable SQL contract from each database invocation.
+An `XLStaticQueryDescriptor` contains rendered SQL, dialect requirements,
+parameter and result layouts, stable identity, and cardinality; it contains no
+database, connection, statement, or runtime value. Prepare that descriptor
+against a `GRDBDatabase`, then create a fresh `XLInvocationBindings` value for
+every call. Invocation values never become identifiers or SQL grammar tokens.
+
+The products have distinct roles:
+
+- `SwiftQLCore` exposes GRDB-free dialect, value, statement, binding, and driver
+  contracts for adapter authors.
+- `SwiftQL` is the application-facing product. It includes the macros, typed SQL
+  DSL, contextual codecs, and the current GRDB-backed SQLite driver.
+
+The existing `makeRequest(with:)`, named-binding, `XLCustomType`, and raw-value
+APIs remain source-compatible throughout v1. High-level requests are
+database-bound and the current `XLRequest` facade is not `Sendable`. Prefer a
+static descriptor and its prepared handle when durable identity or cross-task
+raw-value invocation matters. See the
+[static-query guide](https://lukevanin.github.io/swiftql/documentation/swiftql/staticqueries/),
+[prepared-statement boundaries](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/),
+and [contextual-codec migration](https://lukevanin.github.io/swiftql/documentation/swiftql/customtypes/)
+for the complete contracts and current limitations.
 
 ## SQL-shaped, not ORM-shaped
 
@@ -146,6 +176,11 @@ file:
 .package(url: "https://github.com/lukevanin/swiftql.git", from: "1.1.0")
 ```
 
+`1.1.0` is the latest published package while the v1.2 changelog is marked
+`Unreleased`. The examples above use APIs retained by v1.2. Adopt the new v1.2
+static-query surface only after pinning a source revision intentionally or
+after the `1.2.0` tag is published.
+
 ### Xcode
 
 Refer to Apple's documentation [Adding package dependencies to your app](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app#Add-a-package-dependency),
@@ -162,6 +197,8 @@ For project guarantees and direction:
 
 - [Compiler compatibility](COMPATIBILITY.md) records the supported Swift
   toolchains and reproducible CI matrix.
+- [Changelog](CHANGELOG.md) distinguishes released behavior from the v1.2
+  surface currently on `main` and records migration guidance.
 - [Performance benchmarks](BENCHMARKS.md) measure query construction,
   preparation, caching, binding, execution, and decoding.
 - [First-party source coverage](Coverage/README.md) preserves the reproducible

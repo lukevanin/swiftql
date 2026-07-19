@@ -1,18 +1,32 @@
 # Releasing SwiftQL
 
-SwiftQL releases use `vMAJOR.MINOR.PATCH` tags beginning with `v1.1.0`. The
-historical `1.0.0` tag and release are intentionally unchanged.
+SwiftQL releases use `vMAJOR.MINOR.PATCH` tags beginning with `v1.1.0`. This
+guide uses the pending `v1.2.0` release as its concrete example. The historical
+`1.0.0` tag and release are intentionally unchanged.
 
 The [Verified release workflow](.github/workflows/release.yml) treats a tag as
 an untrusted request. It publishes only after it has proved that the exact tag
-commit is still reachable from `main`, run the complete Swift 5.9 and Swift 6.0
-compatibility matrix, and built the exact commit's validated DocC artifact.
+commit is still reachable from `main`, run the complete Swift compatibility
+matrix, and built the exact commit's validated DocC artifact.
 
 ## Before a release
 
-1. Merge every retained issue for the release. For `v1.1.0`, milestone 7 must
-   have only tracking issue #118 and release issue #119 open. The workflow
-   checks this before validation and again immediately before publication.
+1. Merge every retained v1.2 issue, complete audit issue #223, and close
+   milestone 6 with no open issues. Verify the live milestone rather than a
+   local planning file:
+
+   ```sh
+   gh api repos/lukevanin/swiftql/milestones/6 |
+     jq -e '
+       .title == "v1.2" and
+       .state == "closed" and
+       .open_issues == 0'
+   ```
+
+   `scripts/ci/check-release-readiness.sh` retains the historical one-time
+   server-side gate for `v1.1.0` and deliberately skips later versions. It is
+   not proof of v1.2 milestone readiness; preserve the command output and #223
+   audit evidence in the v1.2 release issue.
 2. Confirm the latest `main` runs of **Swift compatibility** and
    **Documentation** pass. Verify the deployed documentation provenance names
    that `main` commit.
@@ -97,7 +111,8 @@ compatibility matrix, and built the exact commit's validated DocC artifact.
    This server-side rule closes the otherwise unavoidable network-sized race
    between the workflow's last tag check and release publication. Do not prove
    the rule with a disposable `v...` tag: the rule intentionally prevents that
-   tag from being deleted. Its first end-to-end proof is the real `v1.1.0` tag.
+   tag from being deleted. Its first end-to-end proof was the historical
+   `v1.1.0` tag; verify that the same rule remains active before `v1.2.0`.
 7. Record the exact remote commit. Do not release from an unpushed local commit.
 
 ```sh
@@ -114,11 +129,11 @@ They can never enter the write-capable publication job.
 
 Run these one at a time after the release workflow has landed on `main`:
 
-- `release-test/v1.1.999` at `origin/main` must pass through the dry-run job and
+- `release-test/v1.2.999` at `origin/main` must pass through the dry-run job and
   create no GitHub Release.
 - `release-test/not-semver` must fail tag validation before compiler or
   documentation jobs start.
-- A valid test tag such as `release-test/v1.1.998` on a temporary commit that is
+- A valid test tag such as `release-test/v1.2.998` on a temporary commit that is
   not reachable from `main` must fail the reachability gate.
 
 After recording the workflow URLs and confirming that no release was created,
@@ -131,8 +146,8 @@ Create one annotated tag at the recorded `origin/main` commit and push only
 that tag:
 
 ```sh
-git tag -a v1.1.0 "$release_sha" -m "SwiftQL v1.1.0"
-git push origin refs/tags/v1.1.0
+git tag -a v1.2.0 "$release_sha" -m "SwiftQL v1.2.0"
+git push origin refs/tags/v1.2.0
 ```
 
 The release workflow:
@@ -141,8 +156,8 @@ The release workflow:
 2. proves the commit is reachable from current `origin/main`;
 3. invokes the reusable four-lane compatibility workflow;
 4. invokes the reusable documentation workflow without deploying Pages;
-5. packages the Pages tar as `swiftql-docc-v1.1.0.tar.gz` and creates
-   `swiftql-release-v1.1.0.json` plus `SHA256SUMS`;
+5. packages the Pages tar as `swiftql-docc-v1.2.0.tar.gz` and creates
+   `swiftql-release-v1.2.0.json` plus `SHA256SUMS`;
 6. creates a draft GitHub Release with generated notes and an exact commit/run
    marker;
 7. uploads and verifies all three assets, then immediately refetches and
@@ -171,16 +186,19 @@ succeeds, independently verify:
 - the release API reports `immutable: true`, and the production tag ruleset is
   still active;
 - GitHub verifies the immutable release attestation with
-  `gh release verify v1.1.0 --repo lukevanin/swiftql`, and each downloaded asset
-  passes `gh release verify-asset v1.1.0 PATH --repo lukevanin/swiftql`;
+  `gh release verify v1.2.0 --repo lukevanin/swiftql`, and each downloaded asset
+  passes `gh release verify-asset v1.2.0 PATH --repo lukevanin/swiftql`;
 - the release has exactly the DocC archive, manifest, and checksum assets;
 - API asset digests match `SHA256SUMS`, and the manifest maps the tag to the
   exact commit and workflow run; and
 - the historical `1.0.0` tag and release are unchanged.
 
-For `v1.1.0`, post the evidence on #119 and close #119 first. Re-fetch it to
-confirm closure, then close tracking issue #118. This order is part of the
-release gate.
+For `v1.2.0`, #223 is the pre-tag milestone audit, not proof that a release was
+published. Before tagging, create or identify one dedicated v1.2 release issue
+outside the closed milestone. Post the tag-run, release, asset, attestation, and
+ruleset evidence there; close it only after every check above passes. Re-fetch
+the issue to confirm closure. Do not reopen #223 or the v1.2 milestone merely to
+store post-tag evidence.
 
 ## Recovery
 

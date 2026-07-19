@@ -5,9 +5,10 @@ typed parameter metadata, flat result layouts, and explicit row cardinality.
 
 ## Overview
 
-An `XLStaticQueryDescriptor` is the complete static contract for one rendered
-statement. It retains SQL, dialect requirements, referenced entities, parameter
-slots, result slots, and cardinality. It does not retain a database, connection,
+Introduced in v1.2, an `XLStaticQueryDescriptor` is the complete static contract
+for one rendered statement. It retains SQL, dialect requirements, referenced
+entities, parameter slots, result slots, and cardinality. It does not retain a
+database, connection,
 physical statement, codec registry, or invocation value. You can therefore
 construct and register descriptors before opening a database, then prepare the
 same descriptor against a compatible database when it is needed.
