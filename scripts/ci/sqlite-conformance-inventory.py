@@ -30,7 +30,7 @@ REQUIRED_FAMILIES = {
     "ddl",
 }
 REQUIRED_SUITE_STATUSES = {
-    191: "planned",
+    191: "completed",
     252: "completed",
     253: "completed",
     254: "completed",
@@ -1147,8 +1147,20 @@ def validate_cross_references(
     del environments  # Environment references are checked while validating evidence/features.
     evidence_ids = {item["id"] for item in evidence}
     feature_ids = {item["id"] for item in features}
+    completed_suite_issues = {
+        item["issue"] for item in suites if item["status"] == "completed"
+    }
     referenced_evidence: Set[str] = set()
-    for feature in features:
+    for index, feature in enumerate(features):
+        deferral = feature["deferral"]
+        if (
+            deferral is not None
+            and deferral["blocking_issue"] in completed_suite_issues
+        ):
+            raise InventoryError(
+                f"features[{index}].deferral.blocking_issue references completed "
+                f"suite issue #{deferral['blocking_issue']}"
+            )
         referenced_evidence.update(feature["evidence_ids"])
     for index, suite in enumerate(suites):
         path = f"suites[{index}]"

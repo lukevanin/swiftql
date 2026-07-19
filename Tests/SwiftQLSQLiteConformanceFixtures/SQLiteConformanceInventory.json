@@ -43,6 +43,7 @@
         "compile-option:OMIT_LOAD_EXTENSION",
         "compound-select",
         "database-pool-driver",
+        "indexed-bindings",
         "named-bindings",
         "recursive-cte",
         "sqlite-core-parser",
@@ -52,6 +53,110 @@
     }
   ],
   "evidence": [
+    {
+      "id": "evidence.combinatorial.broken-renderer.sqlite",
+      "source_path": "Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift",
+      "test_case": "SQLiteCombinatorialConformanceTests.testDeliberatelyBrokenRendererProducesStableFailureEvidence",
+      "runner_path": null,
+      "layers": [
+        "runtime-metadata",
+        "structured-error"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.combinatorial.compile-fail-having-without-group-by",
+      "source_path": "Tests/CompileFail/HavingWithoutGroupBy.swift",
+      "test_case": "compile-fail.query-clause-ordering.having-without-group-by",
+      "runner_path": "scripts/ci/check-query-clause-ordering-type-safety.sh",
+      "layers": [
+        "compile-fail",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.combinatorial.compile-fail-offset-without-limit",
+      "source_path": "Tests/CompileFail/OffsetWithoutLimit.swift",
+      "test_case": "compile-fail.query-clause-ordering.offset-without-limit",
+      "runner_path": "scripts/ci/check-query-clause-ordering-type-safety.sh",
+      "layers": [
+        "compile-fail",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.combinatorial.compile-fail-where-after-order-by",
+      "source_path": "Tests/CompileFail/WhereAfterOrderBy.swift",
+      "test_case": "compile-fail.query-clause-ordering.where-after-order-by",
+      "runner_path": "scripts/ci/check-query-clause-ordering-type-safety.sh",
+      "layers": [
+        "compile-fail",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.combinatorial.compile-fail-where-requires-boolean",
+      "source_path": "Tests/CompileFail/WhereRequiresBoolean.swift",
+      "test_case": "compile-fail.query-clause-ordering.where-requires-boolean",
+      "runner_path": "scripts/ci/check-query-clause-ordering-type-safety.sh",
+      "layers": [
+        "compile-fail",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.combinatorial.manifest-determinism",
+      "source_path": "Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift",
+      "test_case": "SQLiteCombinatorialConformanceTests.testGeneratedManifestIsDeterministicAndMatchesCheckedInArtifacts",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.combinatorial.positive.sqlite",
+      "source_path": "Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift",
+      "test_case": "SQLiteCombinatorialConformanceTests.testEveryPositiveCasePreparesAndSemanticOraclesExecute",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "rendering",
+        "runtime-metadata",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
     {
       "id": "evidence.environment.sqlite-runtime-metadata",
       "source_path": "Tests/SQLTests/SQLCompatibilityReportTests.swift",
@@ -1188,19 +1293,19 @@
       "id": "suite.191.combinatorial-syntax",
       "issue": 191,
       "milestone": "v1.3",
-      "status": "planned",
+      "status": "completed",
       "case_ids": [
+        "binding.indexed",
+        "binding.named",
+        "binding.repeated-named",
         "syntax.compound.current-set-operators",
         "syntax.compound.direct-scalar-gap",
         "syntax.compound.intersect-except-prepare-gap",
         "syntax.cte.materialization-hints-gap",
         "syntax.cte.recursive",
-        "syntax.ddl.create-table",
         "syntax.ddl.typed-model-gap",
-        "syntax.dml.current-crud",
         "syntax.dml.returning-gap",
         "syntax.expression.aggregate-functions",
-        "syntax.expression.conditional-functions",
         "syntax.expression.current-operators",
         "syntax.expression.date-functions",
         "syntax.expression.json-functions",
@@ -1214,12 +1319,17 @@
         "syntax.select.core",
         "syntax.select.count-star-gap",
         "syntax.select.ordering-terms",
-        "syntax.subquery.correlated-scalar",
         "syntax.subquery.nullable-shape-gap",
         "syntax.subquery.table-and-in-prepare-gap"
       ],
       "evidence_ids": [
-
+        "evidence.combinatorial.broken-renderer.sqlite",
+        "evidence.combinatorial.compile-fail-having-without-group-by",
+        "evidence.combinatorial.compile-fail-offset-without-limit",
+        "evidence.combinatorial.compile-fail-where-after-order-by",
+        "evidence.combinatorial.compile-fail-where-requires-boolean",
+        "evidence.combinatorial.manifest-determinism",
+        "evidence.combinatorial.positive.sqlite"
       ]
     },
     {
@@ -1547,6 +1657,80 @@
           "license_file_path": "LICENSE",
           "license_file_url": "https://github.com/Lighter-swift/Lighter/blob/3486fc08d580aa3a87cd29ede023ba291a90de8b/LICENSE",
           "license_blob_sha": "296b99ddbe6b225a8e901fb4ae69bdf3c5c729bf",
+          "copied_material": false,
+          "notice_path": null
+        }
+      ]
+    },
+    {
+      "id": "binding.indexed",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Indexed positional binding identity",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLBindingReference",
+          "source_path": "Sources/SwiftQL/SQLExpression.swift",
+          "source_tokens": [
+            "XLBindingReference"
+          ]
+        },
+        {
+          "symbol": "XLParameterDeclaration",
+          "source_path": "Sources/SwiftQLCore/SQLInvocationBindings.swift",
+          "source_tokens": [
+            "XLParameterDeclaration"
+          ]
+        },
+        {
+          "symbol": "XLBuilder.indexedBinding",
+          "source_path": "Sources/SwiftQL/SQLEncoder.swift",
+          "source_tokens": [
+            "XLBuilder",
+            "indexedBinding"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_expr.html#parameters"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "indexed-bindings",
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement binds one typed value to an indexed positional placeholder and returns that value."
+      ],
+      "evidence_ids": [
+        "evidence.combinatorial.manifest-determinism",
+        "evidence.combinatorial.positive.sqlite"
+      ],
+      "deviations": [
+
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "groue/GRDB.swift",
+          "commit": "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+          "path": "Tests/GRDBTests/Core/Statement/StatementArgumentsTests.swift",
+          "upstream_case": "StatementArgumentsTests.testPositionalStatementArguments",
+          "license_disposition": "MIT; behavior rewritten against SwiftQL public contracts; no source copied",
+          "adaptation_notes": "Uses SwiftQL's typed parameter declaration and indexed renderer path with a real SQLite positional argument.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/groue/GRDB.swift/blob/b83108d10f42680d78f23fe4d4d80fc88dab3212/LICENSE",
+          "license_blob_sha": "550890c8912ca08ff000249777b9eeb46411f189",
           "copied_material": false,
           "notice_path": null
         }
@@ -4665,17 +4849,17 @@
       "schema_requirements": [
         "Both compound branches expose compatible typed row layouts."
       ],
-      "evidence_ids": [
-        "evidence.syntax.compound.render-union",
-        "evidence.syntax.compound.sqlite-union",
-        "evidence.syntax.cte.sqlite-recursive"
-      ],
-      "deviations": [
-        "INTERSECT and EXCEPT render today but are not counted as supported until stable real-SQLite prepare evidence is registered."
-      ],
-      "follow_up_issues": [
-        191
-      ],
+  "evidence_ids": [
+    "evidence.syntax.compound.render-union",
+    "evidence.syntax.compound.sqlite-union",
+    "evidence.syntax.cte.sqlite-recursive"
+  ],
+  "deviations": [
+
+  ],
+  "follow_up_issues": [
+
+  ],
       "deferral": null,
       "provenance": [
 
@@ -4737,8 +4921,8 @@
       "kind": "syntax",
       "family": "compound",
       "title": "INTERSECT and EXCEPT real-SQLite prepare coverage",
-      "status": "partial",
-      "adoption_status": "syntax-gated",
+  "status": "supported",
+  "adoption_status": "already-covered",
       "public_api": [
         {
           "symbol": "XLQueryStatement.intersect/except",
@@ -4763,21 +4947,18 @@
       "schema_requirements": [
         "Both compound branches expose compatible typed row layouts."
       ],
-      "evidence_ids": [
-        "evidence.syntax.compound.render-except",
-        "evidence.syntax.compound.render-intersect"
-      ],
-      "deviations": [
-        "Deterministic rendering exists, but stable real-SQLite prepare and execution evidence is not registered."
-      ],
-      "follow_up_issues": [
-        191
-      ],
-      "deferral": {
-        "blocking_issue": 191,
-        "target_milestone": "v1.3",
-        "reason": "Issue #191 owns generated real-SQLite prepare coverage for current compound branches."
-      },
+  "evidence_ids": [
+    "evidence.combinatorial.positive.sqlite",
+    "evidence.syntax.compound.render-except",
+    "evidence.syntax.compound.render-intersect"
+  ],
+  "deviations": [
+
+  ],
+  "follow_up_issues": [
+
+  ],
+  "deferral": null,
       "provenance": [
 
       ]
@@ -5213,6 +5394,7 @@
         "Aggregate input columns use compatible numeric, comparable, or text expression types; nullable-result constructors preserve empty-input semantics."
       ],
       "evidence_ids": [
+        "evidence.combinatorial.positive.sqlite",
         "evidence.syntax.expression.render-aggregate-functions",
         "evidence.syntax.expression.sqlite-aggregate-functions",
         "evidence.syntax.expression.sqlite-aggregates-all-null",
@@ -5220,15 +5402,15 @@
         "evidence.syntax.expression.sqlite-group-concat"
       ],
       "deviations": [
-        "Real-SQLite evidence covers every aggregate family on populated, empty, and all-NULL input plus GROUP_CONCAT DISTINCT and separator variants; remaining DISTINCT and deprecated nonoptional combinations await the #191 matrix."
+        "Real-SQLite evidence covers every aggregate family on populated, empty, and all-NULL input plus GROUP_CONCAT DISTINCT and separator variants; the generated matrix adds a typed COUNT projection, while remaining DISTINCT and deprecated nonoptional combinations stay deferred."
       ],
       "follow_up_issues": [
-        191
+        286
       ],
       "deferral": {
-        "blocking_issue": 191,
-        "target_milestone": "v1.3",
-        "reason": "Issue #191 owns real preparation and execution combinations for DISTINCT and the remaining aggregate overloads."
+        "blocking_issue": 286,
+        "target_milestone": "v1.4",
+        "reason": "Issue #286 owns exhaustive real preparation and execution combinations for DISTINCT and the remaining aggregate overloads."
       },
       "provenance": [
 
@@ -5294,11 +5476,10 @@
         "evidence.syntax.expression.sqlite-searched-case"
       ],
       "deviations": [
-        "The SQLite 3.32.0 minimum is set by IIF; CASE and COALESCE are available in older releases.",
-        "Real execution is representative rather than every branch-count and optionality combination; issue #191 retains those combinations."
+        "The SQLite 3.32.0 minimum is set by IIF; CASE and COALESCE are available in older releases."
       ],
       "follow_up_issues": [
-        191
+
       ],
       "deferral": null,
       "provenance": [
@@ -5409,8 +5590,7 @@
         "Support is limited to the named and evidenced constructors; Boolean combinators, comparison ordering, remaining arithmetic, GLOB, and query-backed IN overloads are recorded separately as partial."
       ],
       "follow_up_issues": [
-        21,
-        191
+        21
       ],
       "deferral": null,
       "provenance": [
@@ -5462,18 +5642,19 @@
         "Date inputs are ISO-8601 text expressions or constant strings accepted by SQLite's date parser."
       ],
       "evidence_ids": [
+        "evidence.combinatorial.positive.sqlite",
         "evidence.syntax.expression.render-date-json-functions"
       ],
       "deviations": [
-        "The constructors and optional result shape are typechecked and rendered, but the UNIXEPOCH and subsecond variants lack pinned real-SQLite prepare and semantic evidence."
+        "UNIXEPOCH is typechecked, rendered, prepared, and executed in the generated suite; exhaustive subsecond modifier and optional-result combinations remain deferred."
       ],
       "follow_up_issues": [
-        191
+        76
       ],
       "deferral": {
-        "blocking_issue": 191,
-        "target_milestone": "v1.3",
-        "reason": "Issue #191 owns real-SQLite date-function preparation, version gating, and result checks."
+        "blocking_issue": 76,
+        "target_milestone": "v1.4",
+        "reason": "Issue #76 owns exhaustive subsecond modifier, version-gating, and optional-result checks."
       },
       "provenance": [
 
@@ -5517,18 +5698,19 @@
         "JSON inputs are SQLite text expressions; path overloads require a valid SQLite JSON path string."
       ],
       "evidence_ids": [
+        "evidence.combinatorial.positive.sqlite",
         "evidence.syntax.expression.render-date-json-functions"
       ],
       "deviations": [
-        "The pinned environment record does not yet attest the JSON-function capability, so renderer coverage is not promoted to a support claim."
+        "The generated suite prepares and executes representative JSON_VALID and JSON_ARRAY_LENGTH cases, but the pinned environment record does not yet attest the JSON-function capability, so the feature remains capability-gated."
       ],
       "follow_up_issues": [
-        191
+        286
       ],
       "deferral": {
-        "blocking_issue": 191,
-        "target_milestone": "v1.3",
-        "reason": "Issue #191 must capture the JSON capability and run real preparation and result checks for both constructors."
+        "blocking_issue": 286,
+        "target_milestone": "v1.4",
+        "reason": "Issue #286 owns explicit JSON capability attestation and exhaustive preparation and result checks for both constructors."
       },
       "provenance": [
 
@@ -5644,18 +5826,19 @@
         "Arguments satisfy the public numeric or comparable SwiftQL expression constraints."
       ],
       "evidence_ids": [
+        "evidence.combinatorial.positive.sqlite",
         "evidence.syntax.expression.render-numeric-comparable-functions"
       ],
       "deviations": [
-        "All constructors are typechecked and rendered, but the scalar functions and math-extension FLOOR constructor lack pinned real-SQLite prepare and result checks."
+        "Representative ABS, ROUND, FLOOR, and scalar MIN cases are typechecked, rendered, prepared, and executed; exhaustive overload and optionality combinations, including scalar MAX execution, remain deferred."
       ],
       "follow_up_issues": [
-        191
+        286
       ],
       "deferral": {
-        "blocking_issue": 191,
-        "target_milestone": "v1.3",
-        "reason": "Issue #191 owns capability-aware real-SQLite cases for numeric and comparable scalar functions."
+        "blocking_issue": 286,
+        "target_milestone": "v1.4",
+        "reason": "Issue #286 owns exhaustive capability-aware overload and optionality combinations for numeric and comparable scalar functions."
       },
       "provenance": [
 
@@ -5757,6 +5940,7 @@
         "Operands satisfy the public SwiftQL numeric, Boolean, comparable, text, and optional type constraints."
       ],
       "evidence_ids": [
+        "evidence.combinatorial.positive.sqlite",
         "evidence.syntax.expression.render-coalescing-operator",
         "evidence.syntax.expression.render-operator-divide",
         "evidence.syntax.expression.render-operator-logical-not",
@@ -5765,8 +5949,8 @@
         "evidence.syntax.expression.render-unary-plus"
       ],
       "deviations": [
-        "Unary plus, coalescing operator, division, remainder, logical NOT, and logical OR have active renderer tests, but no direct active GLOB or less-than-or-equal test exists.",
-        "Floating-point, optional, comparison, and remaining Boolean and arithmetic overloads do not yet have systematic real-SQLite prepare coverage."
+        "The generated suite adds prepared and executed arithmetic-precedence and GLOB cases to the existing renderer checks.",
+        "Floating-point, optional, comparison, and remaining Boolean and arithmetic overloads do not yet have exhaustive real-SQLite prepare coverage."
       ],
       "follow_up_issues": [
         17,
@@ -5775,12 +5959,12 @@
         76,
         78,
         84,
-        191
+        287
       ],
       "deferral": {
-        "blocking_issue": 191,
-        "target_milestone": "v1.3",
-        "reason": "Issue #191 owns the generated render, prepare, and execution matrix for every remaining current operator family."
+        "blocking_issue": 287,
+        "target_milestone": "v1.4",
+        "reason": "Issue #287 owns exhaustive render, prepare, and execution coverage for every remaining public operator overload."
       },
       "provenance": [
 
@@ -5816,18 +6000,19 @@
         "PRINTF arguments are SwiftQL expressions accepted by SQLite formatting."
       ],
       "evidence_ids": [
+        "evidence.combinatorial.positive.sqlite",
         "evidence.syntax.expression.render-string-ordering-functions"
       ],
       "deviations": [
-        "Both public PRINTF overloads are typechecked and rendered but remain without pinned preparation and result evidence."
+        "PRINTF is typechecked, rendered, prepared, and executed with named bindings in the generated suite; exhaustive overload and formatting combinations remain deferred."
       ],
       "follow_up_issues": [
-        191
+        286
       ],
       "deferral": {
-        "blocking_issue": 191,
-        "target_milestone": "v1.3",
-        "reason": "Issue #191 owns real-SQLite PRINTF preparation, binding, and result cases."
+        "blocking_issue": 286,
+        "target_milestone": "v1.4",
+        "reason": "Issue #286 owns exhaustive real-SQLite PRINTF overload, formatting, binding, and result combinations."
       },
       "provenance": [
 
@@ -5884,21 +6069,22 @@
         "Only the public Bool, integer, real, text, data, and optional overloads are in scope."
       ],
       "evidence_ids": [
+        "evidence.combinatorial.positive.sqlite",
         "evidence.syntax.expression.render-type-casts",
         "evidence.syntax.expression.sqlite-type-cast-blob",
         "evidence.syntax.expression.sqlite-type-cast-blob-round-trip"
       ],
       "deviations": [
         "Boolean-to-integer conversion is represented by the stored expression without an emitted CAST; all other exposed conversions render SQLite CAST expressions.",
-        "Text-to-BLOB storage and round-trip semantics are proven by real SQLite; the remaining cast directions do not yet have a pinned conversion-result matrix."
+        "Text-to-BLOB and text-to-INTEGER semantics are proven by real SQLite; the remaining cast directions do not yet have an exhaustive conversion-result matrix."
       ],
       "follow_up_issues": [
-        191
+        286
       ],
       "deferral": {
-        "blocking_issue": 191,
-        "target_milestone": "v1.3",
-        "reason": "Issue #191 owns real-SQLite prepare and conversion-result cases for every exposed cast direction."
+        "blocking_issue": 286,
+        "target_milestone": "v1.4",
+        "reason": "Issue #286 owns exhaustive real-SQLite prepare and conversion-result cases for every exposed cast direction."
       },
       "provenance": [
 
@@ -6055,7 +6241,7 @@
       "kind": "syntax",
       "family": "select",
       "title": "Typed ascending and descending ORDER BY terms",
-      "status": "partial",
+      "status": "supported",
       "adoption_status": "already-covered",
       "public_api": [
         {
@@ -6087,19 +6273,16 @@
         "Ordering terms wrap a typed expression in a SELECT ORDER BY clause."
       ],
       "evidence_ids": [
+        "evidence.combinatorial.positive.sqlite",
         "evidence.syntax.expression.render-string-ordering-functions"
       ],
       "deviations": [
-        "Both directions are typechecked and rendered, but no stable real-SQLite case isolates each public ordering constructor."
+
       ],
       "follow_up_issues": [
-        191
+
       ],
-      "deferral": {
-        "blocking_issue": 191,
-        "target_milestone": "v1.3",
-        "reason": "Issue #191 owns isolated real-SQLite preparation and ordering-result checks for ASC and DESC."
-      },
+      "deferral": null,
       "provenance": [
 
       ]
@@ -6285,19 +6468,20 @@
         "The subquery exposes a compatible typed row or scalar layout to the enclosing query."
       ],
       "evidence_ids": [
+        "evidence.combinatorial.positive.sqlite",
         "evidence.syntax.subquery.render-in",
         "evidence.syntax.subquery.render-table"
       ],
       "deviations": [
-        "Deterministic rendering exists, but stable real-SQLite prepare and execution evidence is not registered."
+        "The generated suite prepares typed table-subquery branches; exhaustive table and IN-subquery overload combinations remain deferred."
       ],
       "follow_up_issues": [
-        191
+        288
       ],
       "deferral": {
-        "blocking_issue": 191,
-        "target_milestone": "v1.3",
-        "reason": "Issue #191 owns generated real-SQLite prepare coverage for current subquery branches."
+        "blocking_issue": 288,
+        "target_milestone": "v1.4",
+        "reason": "Issue #288 owns exhaustive real-SQLite prepare and execution coverage for table and IN-subquery overloads."
       },
       "provenance": [
 

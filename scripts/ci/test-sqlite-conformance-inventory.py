@@ -224,9 +224,9 @@ final class OtherTests {
                 "id": "suite.syntax-matrix",
                 "issue": 191,
                 "milestone": "v1.3",
-                "status": "planned",
+                "status": "completed",
                 "case_ids": [feature["id"] for feature in features],
-                "evidence_ids": [],
+                "evidence_ids": ["evidence.real-prepare"],
             },
             {
                 "id": "suite.value-conformance",
@@ -616,6 +616,21 @@ public static func ??<Wrapped>(lhs: Self, rhs: Wrapped) -> Wrapped { rhs }
         }
         self.assert_invalid(inventory, "must include deferral.blocking_issue")
 
+    def test_deferral_blocker_must_not_reference_a_completed_suite(self) -> None:
+        inventory = self.valid_inventory()
+        feature = inventory["features"][0]
+        feature["status"] = "partial"
+        feature["follow_up_issues"] = [191]
+        feature["deferral"] = {
+            "blocking_issue": 191,
+            "target_milestone": "v1.4",
+            "reason": "A completed suite cannot remain a live blocker.",
+        }
+        self.assert_invalid(
+            inventory,
+            "deferral.blocking_issue references completed suite issue #191",
+        )
+
     def test_intentionally_out_of_scope_pair_and_reason_are_enforced(self) -> None:
         inventory = self.valid_inventory()
         feature = inventory["features"][0]
@@ -687,7 +702,10 @@ public static func ??<Wrapped>(lhs: Self, rhs: Wrapped) -> Wrapped { rhs }
 
     def test_suite_snapshot_status_and_evidence_rules_are_enforced(self) -> None:
         planned_claim = self.valid_inventory()
-        planned_claim["suites"][0]["evidence_ids"] = ["evidence.real-prepare"]
+        planned_suite = next(
+            suite for suite in planned_claim["suites"] if suite["issue"] == 255
+        )
+        planned_suite["evidence_ids"] = ["evidence.real-prepare"]
         self.assert_invalid(planned_claim, "planned and must not claim suite evidence")
 
         incomplete = self.valid_inventory()
@@ -695,15 +713,15 @@ public static func ??<Wrapped>(lhs: Self, rhs: Wrapped) -> Wrapped { rhs }
         self.assert_invalid(incomplete, "completed and must register non-empty")
 
         wrong_snapshot_status = self.valid_inventory()
-        northwind_suite = next(
+        combinatorial_suite = next(
             suite
             for suite in wrong_snapshot_status["suites"]
-            if suite["issue"] == 254
+            if suite["issue"] == 191
         )
-        northwind_suite["status"] = "planned"
+        combinatorial_suite["status"] = "planned"
         self.assert_invalid(
             wrong_snapshot_status,
-            "must be 'completed' for issue #254",
+            "must be 'completed' for issue #191",
         )
 
         incomplete_northwind = self.valid_inventory()

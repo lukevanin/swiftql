@@ -378,6 +378,12 @@ jobs:
           cd "$SWIFTQL_SOURCE"
           scripts/ci/check-bitwise-not-type-safety.sh
 
+      - name: Check query clause ordering type safety
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/check-query-clause-ordering-type-safety.sh
+
       - name: Report SQLite runtime through GRDB
         run: |
           set -euo pipefail
@@ -412,6 +418,136 @@ jobs:
             echo "error: expected one benchmark report marker; found $benchmark_markers" >&2
             exit 1
           fi
+
+      - name: Run bounded combinatorial SQLite conformance suite
+        id: combinatorial-conformance
+        env:
+          SWIFTQL_COMBINATORIAL_MANIFEST_PATH: ${{ runner.temp }}/swiftql-combinatorial/manifest.json
+          SWIFTQL_COMBINATORIAL_SUMMARY_PATH: ${{ runner.temp }}/swiftql-combinatorial/summary.md
+          SWIFTQL_COMBINATORIAL_RUNTIME_REPORT_PATH: ${{ runner.temp }}/swiftql-combinatorial/runtime-report.json
+        run: |
+          set -uo pipefail
+          output_directory="$RUNNER_TEMP/swiftql-combinatorial"
+          mkdir -p "$output_directory"
+          cd "$SWIFTQL_SOURCE"
+
+          # Two independent test processes must emit byte-identical ordered
+          # case manifests (including every rendered SQL string) and summaries.
+          set -e
+          for run_index in 1 2; do
+            determinism_directory="$output_directory/determinism-run-$run_index"
+            mkdir -p "$determinism_directory"
+            SWIFTQL_COMBINATORIAL_MANIFEST_PATH="$determinism_directory/manifest.json" \
+            SWIFTQL_COMBINATORIAL_SUMMARY_PATH="$determinism_directory/summary.md" \
+              xcrun swift test --skip-build \
+                --filter SQLiteCombinatorialConformanceTests/testGeneratedManifestIsDeterministicAndMatchesCheckedInArtifacts \
+                2>&1 | tee "$determinism_directory/test.log"
+            test -s "$determinism_directory/manifest.json"
+            test -s "$determinism_directory/summary.md"
+          done
+          cmp \
+            "$output_directory/determinism-run-1/manifest.json" \
+            "$output_directory/determinism-run-2/manifest.json"
+          cmp \
+            "$output_directory/determinism-run-1/summary.md" \
+            "$output_directory/determinism-run-2/summary.md"
+          printf 'SWIFTQL_COMBINATORIAL_CLEAN_PROCESS_DETERMINISM PASS\n' | \
+            tee "$output_directory/determinism-result.txt"
+
+          set +e
+          xcrun swift test --skip-build \
+            --filter SQLiteCombinatorialConformanceTests 2>&1 | \
+            tee "$output_directory/test.log"
+          test_status="${PIPESTATUS[0]}"
+          set -e
+
+          missing_evidence=0
+          for evidence_path in \
+            "$SWIFTQL_COMBINATORIAL_MANIFEST_PATH" \
+            "$SWIFTQL_COMBINATORIAL_SUMMARY_PATH" \
+            "$SWIFTQL_COMBINATORIAL_RUNTIME_REPORT_PATH"; do
+            if [[ ! -s "$evidence_path" ]]; then
+              printf 'error: combinatorial test did not produce nonempty evidence: %s\n' \
+                "$evidence_path" >&2
+              missing_evidence=1
+            fi
+          done
+
+          if [[ -s "$SWIFTQL_COMBINATORIAL_SUMMARY_PATH" ]]; then
+            printf '\n' >> "$GITHUB_STEP_SUMMARY"
+            cat "$SWIFTQL_COMBINATORIAL_SUMMARY_PATH" \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [[ "$test_status" -ne 0 ]]; then
+            exit "$test_status"
+          fi
+          if [[ "$missing_evidence" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Prepare retained combinatorial SQLite evidence
+        if: ${{ always() && !cancelled() }}
+        env:
+          COMBINATORIAL_STEP_OUTCOME: ${{ steps.combinatorial-conformance.outcome }}
+        run: |
+          set -euo pipefail
+          output_directory="$RUNNER_TEMP/swiftql-combinatorial"
+          mkdir -p "$output_directory"
+          {
+            printf 'combinatorial_step=%s\n' "$COMBINATORIAL_STEP_OUTCOME"
+            for evidence_name in \
+              manifest.json \
+              summary.md \
+              runtime-report.json \
+              determinism-result.txt \
+              test.log; do
+              evidence_path="$output_directory/$evidence_name"
+              if [[ -s "$evidence_path" ]]; then
+                printf '%s=nonempty\n' "$evidence_name"
+              elif [[ -e "$evidence_path" ]]; then
+                printf '%s=empty\n' "$evidence_name"
+              else
+                printf '%s=missing\n' "$evidence_name"
+              fi
+            done
+          } > "$output_directory/workflow-step-outcomes.txt"
+
+          if [[ -s "$output_directory/runtime-report.json" ]]; then
+            if runtime_summary="$(
+              /usr/bin/python3 -c '
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as source:
+              report = json.load(source)
+          print(
+              "Cases: {} / {}; runtime: {:.1f} ms / {} ms.".format(
+                  report["manifest_case_count"],
+                  report["hard_bounds"]["maximum_case_count"],
+                  report["total_elapsed_ms"],
+                  report["maximum_runtime_ms"],
+              )
+          )
+          ' "$output_directory/runtime-report.json"
+            )"; then
+              printf '\n### Combinatorial SQLite runtime bound\n\n%s\n' \
+                "$runtime_summary" >> "$GITHUB_STEP_SUMMARY"
+            else
+              printf '\nRuntime summary extraction failed; the retained JSON artifact is authoritative.\n' \
+                >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+
+      - name: Upload retained combinatorial SQLite evidence
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: swiftql-combinatorial-${{ matrix.swift_series }}-${{ matrix.resolution }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/swiftql-combinatorial
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 9
 
       - name: Run full test suite
         run: |
