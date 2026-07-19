@@ -1,11 +1,11 @@
 {
-  "task_name": "[v1.2 Housekeeping] Refresh README and public documentation",
-  "issue_number": 221,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/221",
+  "task_name": "[v1.2 Housekeeping] Update the SwiftQL agent SKILL.md",
+  "issue_number": 222,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/222",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#221 - Refresh v1.2 public documentation",
+  "codex_session_title": "lukevanin/swiftql#222 - Update the SwiftQL agent SKILL.md",
   "codex_session_id": "019f7610-5766-7ab1-b223-e1aaedeaff74",
   "codex_session_url": null,
-  "task_branch": "codex/221-v12-docs",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/221-v12-docs"
+  "task_branch": "codex/222-v12-skill",
+  "task_worktree_path": "/private/tmp/swiftql-worktrees/222-v12-skill"
 }
