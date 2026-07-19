@@ -24,8 +24,12 @@ public struct XLWithStatement {
    public func select<T>(_ t: T) -> XLQuerySelectStatement<T.Row> where T: XLRowReadable {
        XLQuerySelectStatement(components: XLQueryStatementComponents(commonTables: commonTables, select: Select(t)))
    }
-   
-   public func select<T>(_ expression: any XLExpression<T>) -> XLQuerySelectStatement<T> where T: XLExpression & XLLiteral {
+
+   /// Builds a factored scalar select without constraining its logical result
+   /// type. Contextual-only values still need a static row layout for decoding.
+   public func select<T>(
+       _ expression: any XLExpression<T>
+   ) -> XLQuerySelectStatement<T> {
        XLQuerySelectStatement(components: XLQueryStatementComponents(commonTables: commonTables, select: Select(expression)))
    }
 

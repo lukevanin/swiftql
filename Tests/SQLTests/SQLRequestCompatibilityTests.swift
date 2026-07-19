@@ -7,6 +7,45 @@ import XCTest
 
 final class SQLRequestCompatibilityTests: XCTestCase {
 
+    func testScalarSelectAcceptsAnUnconstrainedLogicalResultType() throws {
+        let expression = LegacyContextOnlyExpression()
+        let direct: Select<LegacyContextOnlyValue> = Select(expression)
+        let built: Select<LegacyContextOnlyValue> = Select { expression }
+        let functional: XLQuerySelectStatement<LegacyContextOnlyValue> =
+            select(expression)
+        let factored: XLQuerySelectStatement<LegacyContextOnlyValue> =
+            XLWithStatement([]).select(expression)
+        let dynamic: QueryBuilder<LegacyContextOnlyValue> = QueryBuilder(
+            select: expression
+        )
+        let encoder = XLiteEncoder(dialect: XLSQLiteDialect())
+
+        XCTAssertEqual(encoder.makeSQL(direct).sql, "SELECT NULL")
+        XCTAssertEqual(encoder.makeSQL(built).sql, "SELECT NULL")
+        XCTAssertEqual(encoder.makeSQL(functional).sql, "SELECT NULL")
+        XCTAssertEqual(encoder.makeSQL(factored).sql, "SELECT NULL")
+        _ = dynamic
+
+        XCTAssertThrowsError(
+            try direct.readRow(reader: LegacyManualRowReader())
+        ) { error in
+            guard case .staticLayoutRequired(let valueType, let alias) =
+                    error as? XLStaticRowReadError else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+            XCTAssertTrue(valueType.contains("LegacyContextOnlyValue"))
+            XCTAssertEqual(alias, "c0")
+        }
+    }
+
+    func testScalarSelectKeepsLegacyLiteralRowDecoding() throws {
+        let reader = LegacyManualRowReader()
+        let statement = Select(42)
+
+        XCTAssertEqual(try statement.readRow(reader: reader), Int.sqlDefault())
+        XCTAssertEqual(reader.readCount, 1)
+    }
+
     func testLegacyRowReaderConformerKeepsOriginalColumnRequirement() throws {
         let reader = LegacyManualRowReader()
 

@@ -307,7 +307,13 @@ public func select<T>(_ result: T) -> XLQuerySelectStatement<T.Row> where T: XLR
 ///
 /// Constructs a select statement that returns a scalar value.
 ///
-public func select<T>(_ expression: any XLExpression<T>) -> XLQuerySelectStatement<T> where T: XLExpression & XLLiteral {
+/// The logical result type is unconstrained. Bare contextual values can be
+/// rendered here, but decoding them requires an ``XLStaticRowLayout`` carrying
+/// result codec metadata.
+///
+public func select<T>(
+    _ expression: any XLExpression<T>
+) -> XLQuerySelectStatement<T> {
     makeQuery(select: Select(expression))
 }
 
@@ -371,4 +377,3 @@ public func delete<T>(_ table: T) -> XLDeleteTableStatement<T> where T: XLMetaWr
     let components = XLDeleteStatementComponents(delete: Delete(table))
     return XLDeleteTableStatement(components: components)
 }
-

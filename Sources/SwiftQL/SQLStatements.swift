@@ -57,17 +57,30 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
         try row(reader)
     }
     
-    public init(@XLScalarExpressionBuilder _ expression: @escaping () -> some XLExpression<Row>) where Row: XLExpression & XLLiteral {
+    /// Builds a scalar select without requiring the logical result type to
+    /// adopt the legacy expression and literal protocols.
+    ///
+    /// Bare contextual values can be rendered by this initializer, but their
+    /// row decoding still requires an ``XLStaticRowLayout`` carrying codec
+    /// metadata. The legacy path reports ``XLStaticRowReadError/staticLayoutRequired(valueType:alias:)``
+    /// instead of fabricating a value.
+    public init(
+        @XLScalarExpressionBuilder _ expression: @escaping () -> some XLExpression<Row>
+    ) {
         self.fields = expression()
         self.row = { reader in
-            try reader.column(expression(), alias: "c0")
+            try reader.staticColumn(expression(), alias: "c0")
         }
     }
-    
-    public init(_ expression: any XLExpression<Row>) where Row: XLExpression & XLLiteral {
+
+    /// Builds an unconstrained scalar select.
+    ///
+    /// Bare contextual values still require an ``XLStaticRowLayout`` to carry
+    /// the codec metadata needed during row decoding.
+    public init(_ expression: any XLExpression<Row>) {
         self.fields = expression
         self.row = { reader in
-            try reader.column(expression, alias: "c0")
+            try reader.staticColumn(expression, alias: "c0")
         }
     }
 }
