@@ -50,11 +50,110 @@ final class SQLSkillDocumentationTests: XCTestCase {
             "`sqlCreate` is not a migration engine",
             "SwiftQL exposes no general raw-fragment API",
             "`XLRequest` across tasks; it is not `Sendable`",
+            "checked-out public v1 contract",
+            "forthcoming v1.3 adds conformance evidence rather than new public syntax or validation APIs",
+            "`1.2.0` is the latest published package",
+            "Keep those five statuses distinct",
+            "recorded SQLite version, source ID, compile options, capabilities",
+            "#132 remains package-private research",
+            "neither persists prepared statements nor removes runtime preparation",
             "Swift 5.9 and Swift 6.0-6.3 evidence",
         ] {
             XCTAssertTrue(
                 normalizedContents.contains(required),
                 "SKILL.md is missing '\(required)'."
+            )
+        }
+    }
+
+    func testV13GuidanceMatchesCanonicalConformanceInventory() throws {
+        let inventory = try JSONDecoder().decode(
+            SkillConformanceInventory.self,
+            from: Data(
+                contentsOf: repositoryRootURL().appendingPathComponent(
+                    "Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json"
+                )
+            )
+        )
+        let combinatorialManifest = try JSONDecoder().decode(
+            SkillCombinatorialManifest.self,
+            from: Data(
+                contentsOf: repositoryRootURL().appendingPathComponent(
+                    "Conformance/SQLite/COMBINATORIAL_CASES.json"
+                )
+            )
+        )
+        let statusCounts = Dictionary(
+            grouping: inventory.features,
+            by: \.status
+        ).mapValues(\.count)
+        let realSQLiteEvidenceCount = inventory.evidence.filter {
+            $0.realSQLite
+        }.count
+        let environmentCountText = inventory.sqliteEnvironments.count == 1
+            ? "one"
+            : String(inventory.sqliteEnvironments.count)
+        let environmentNoun = inventory.sqliteEnvironments.count == 1
+            ? "environment"
+            : "environments"
+        let sqliteVersions = Set(
+            inventory.sqliteEnvironments.map(\.sqliteVersion)
+        ).sorted().joined(separator: ", ")
+        let supportedCount = statusCounts["supported", default: 0]
+        let partialCount = statusCounts["partial", default: 0]
+        let capabilityGatedCount = statusCounts[
+            "capability-gated",
+            default: 0
+        ]
+        let intentionallyUnsupportedCount = statusCounts[
+            "intentionally-unsupported",
+            default: 0
+        ]
+        let unimplementedCount = statusCounts["unimplemented", default: 0]
+        let combinatorialSuite = try XCTUnwrap(
+            inventory.suites.first { $0.issue == 191 }
+        )
+        let northwindSuite = try XCTUnwrap(
+            inventory.suites.first { $0.issue == 254 }
+        )
+        let observationSuite = try XCTUnwrap(
+            inventory.suites.first { $0.issue == 255 }
+        )
+        let normalizedContents = normalizedWhitespace(try skillContents())
+
+        XCTAssertEqual(
+            statusCounts.values.reduce(0, +),
+            inventory.features.count,
+            "Every inventory feature must contribute to the skill's status totals."
+        )
+        for suite in [combinatorialSuite, northwindSuite, observationSuite] {
+            XCTAssertEqual(suite.status, "completed")
+        }
+        XCTAssertTrue(
+            combinatorialSuite.evidenceIDs.contains(
+                "evidence.combinatorial.broken-renderer.sqlite"
+            )
+        )
+        for required in [
+            "It records \(inventory.features.count) feature records: "
+                + "\(supportedCount) supported, \(partialCount) partial, "
+                + "\(capabilityGatedCount) capability-gated, "
+                + "\(intentionallyUnsupportedCount) intentionally unsupported, "
+                + "and \(unimplementedCount) unimplemented.",
+            "Of the \(inventory.evidence.count) evidence records, "
+                + "\(realSQLiteEvidenceCount) exercise real SQLite against "
+                + "\(environmentCountText) captured \(environmentNoun), SQLite "
+                + "\(sqliteVersions).",
+            "Evidence is reusable, so evidence and feature counts do not map one to one",
+            "#191 contributes \(combinatorialManifest.cases.count) generated positive cases "
+                + "plus a separate broken-renderer negative control; #254 contributes "
+                + "\(northwindSuite.caseIDs.count) Northwind scenarios; #255 contributes "
+                + "\(observationSuite.caseIDs.count) observation-stress cases.",
+            "It ships no public validator, build plugin, query macro, schema system, or new v1.3 API. It neither persists prepared statements nor removes runtime preparation on a physical connection.",
+        ] {
+            XCTAssertTrue(
+                normalizedContents.contains(required),
+                "SKILL.md is stale against the canonical inventory phrase '\(required)'."
             )
         }
     }
@@ -89,7 +188,13 @@ final class SQLSkillDocumentationTests: XCTestCase {
         let root = repositoryRootURL()
         let contents = try skillContents()
 
-        for path in ["README.md", "CHANGELOG.md", "COMPATIBILITY.md"] {
+        for path in [
+            "README.md",
+            "CHANGELOG.md",
+            "COMPATIBILITY.md",
+            "Conformance/SQLite/REPORT.md",
+            "Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json",
+        ] {
             XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent(path).path))
             XCTAssertTrue(contents.contains("](\(path))"), "SKILL.md must link \(path).")
         }
@@ -100,12 +205,18 @@ final class SQLSkillDocumentationTests: XCTestCase {
         ] {
             XCTAssertTrue(contents.contains(canonicalURL))
         }
+        XCTAssertTrue(
+            contents.contains(
+                "](COMPATIBILITY.md#sqlite-conformance-inventory)"
+            )
+        )
 
         let shell = try text(between: "```sh\n", and: "\n```", in: contents)
         XCTAssertEqual(
             shell.components(separatedBy: .newlines),
             [
                 "swift test --filter SQLSkillDocumentationTests",
+                "python3 scripts/ci/sqlite-conformance-inventory.py check",
                 "scripts/ci/check-downstream-swift5-client.sh committed",
                 "swift test",
                 "./make-docs.sh docs",
@@ -149,4 +260,64 @@ final class SQLSkillDocumentationTests: XCTestCase {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
     }
+}
+
+
+private struct SkillConformanceInventory: Decodable {
+
+    struct Feature: Decodable {
+        let status: String
+    }
+
+    struct Evidence: Decodable {
+        let realSQLite: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case realSQLite = "real_sqlite"
+        }
+    }
+
+    struct SQLiteEnvironment: Decodable {
+        let sqliteVersion: String
+
+        enum CodingKeys: String, CodingKey {
+            case sqliteVersion = "sqlite_version"
+        }
+    }
+
+    struct Suite: Decodable {
+        let issue: Int
+        let status: String
+        let caseIDs: [String]
+        let evidenceIDs: [String]
+
+        enum CodingKeys: String, CodingKey {
+            case issue
+            case status
+            case caseIDs = "case_ids"
+            case evidenceIDs = "evidence_ids"
+        }
+    }
+
+    let features: [Feature]
+    let evidence: [Evidence]
+    let sqliteEnvironments: [SQLiteEnvironment]
+    let suites: [Suite]
+
+    enum CodingKeys: String, CodingKey {
+        case features
+        case evidence
+        case sqliteEnvironments = "sqlite_environments"
+        case suites
+    }
+}
+
+
+private struct SkillCombinatorialManifest: Decodable {
+
+    struct Case: Decodable {
+        let id: String
+    }
+
+    let cases: [Case]
 }
