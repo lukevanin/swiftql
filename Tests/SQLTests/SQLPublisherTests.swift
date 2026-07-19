@@ -645,6 +645,7 @@ final class XLPublisherTests: XCTestCase {
         let values = PublisherLockedValue<[[TestTable]]>([])
         let didFulfillInitial = PublisherLockedValue(false)
         let didFulfillFinal = PublisherLockedValue(false)
+        let didGrantIntermediateDemand = PublisherLockedValue(false)
         let initialRows = [TestTable(id: "initial", value: 1)]
         let intermediateRows = [
             TestTable(id: "initial", value: 1),
@@ -678,9 +679,15 @@ final class XLPublisherTests: XCTestCase {
             },
             receiveAdditionalDemand: { rows in
                 // A refresh that was already in flight when demand ran out may
-                // consume newly requested demand. Keep one unit available so
-                // the later liveness commit can still publish current state.
-                rows == intermediateRows ? .max(1) : .none
+                // consume newly requested demand. Replenish exactly once so
+                // the later liveness commit can still publish current state
+                // without turning finite demand into an open-ended loop.
+                guard rows == intermediateRows else { return .none }
+                return didGrantIntermediateDemand.withValue { didGrant in
+                    guard !didGrant else { return .none }
+                    didGrant = true
+                    return .max(1)
+                }
             },
             receiveCompletion: { completion in
                 XCTFail("Unexpected incremental-demand publisher completion: \(completion)")
@@ -696,15 +703,16 @@ final class XLPublisherTests: XCTestCase {
 
         try insertDirect(TestTable(id: "undemanded", value: 2))
         waitForFetchCount(atLeast: initialFetchCount + 1, containing: "fetchAll:")
+        drainMainQueue(description: "finite-demand delivery barrier")
+        XCTAssertEqual(values.read(), [initialRows])
 
         subscriber.request(.max(1))
         try insertDirect(TestTable(id: "demanded", value: 3))
         wait(for: [finalExpectation], timeout: 2)
         let observed = values.read()
-        XCTAssertEqual(observed.first, initialRows)
-        XCTAssertEqual(observed.last, finalRows)
         XCTAssertTrue(
-            observed.dropFirst().dropLast().allSatisfy { $0 == intermediateRows },
+            observed == [initialRows, finalRows]
+                || observed == [initialRows, intermediateRows, finalRows],
             "Unexpected incremental-demand snapshots: \(observed)"
         )
         subscriber.cancel()
