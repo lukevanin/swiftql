@@ -69,6 +69,110 @@
       ]
     },
     {
+      "id": "evidence.northwind.crud-rollback.sqlite",
+      "source_path": "Tests/SQLTests/NorthwindSemanticCorpusTests.swift",
+      "test_case": "NorthwindSemanticCorpusTests.testTemporaryCopyCRUDAndThrowingRollback",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "structured-error",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.northwind.fixture-contract.sqlite",
+      "source_path": "Tests/SwiftQLNorthwindFixturesTests/NorthwindFixtureTests.swift",
+      "test_case": "NorthwindFixtureContractTests.testPinnedFixtureChecksumIntegrityCatalogAndRowSentinels",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "runtime-metadata",
+        "semantic-oracle"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.northwind.fixture-failures.sqlite",
+      "source_path": "Tests/SwiftQLNorthwindFixturesTests/NorthwindFixtureTests.swift",
+      "test_case": "NorthwindFixtureContractTests.testFixtureValidationRejectsTamperingAndWritableCanonicalAccess",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "structured-error"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.northwind.joins-aggregates-views.sqlite",
+      "source_path": "Tests/SQLTests/NorthwindSemanticCorpusTests.swift",
+      "test_case": "NorthwindSemanticCorpusTests.testJoinsAggregatesHavingAndPackagedView",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.northwind.reads.sqlite",
+      "source_path": "Tests/SQLTests/NorthwindSemanticCorpusTests.swift",
+      "test_case": "NorthwindSemanticCorpusTests.testPinnedCorpusSelectionsQuotedIdentifiersAndValues",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.northwind.subquery-compound-cte.sqlite",
+      "source_path": "Tests/SQLTests/NorthwindSemanticCorpusTests.swift",
+      "test_case": "NorthwindSemanticCorpusTests.testSubqueryCompoundAndCommonTableExpression",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
       "id": "evidence.syntax.compound.render-except",
       "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLQueryExpressionBuilderTests.swift",
       "test_case": "XLQueryExpressionBuilderTests.testExcept",
@@ -1197,12 +1301,34 @@
       "id": "suite.254.northwind-correctness",
       "issue": 254,
       "milestone": "v1.3",
-      "status": "planned",
+      "status": "completed",
       "case_ids": [
-
+        "northwind.fixture.pinned-corpus",
+        "northwind.select.quoted-order-details",
+        "northwind.key.order-details-compound",
+        "northwind.select.nullable-shipping",
+        "northwind.value.unicode-blob",
+        "northwind.select.deterministic-pagination",
+        "northwind.select.empty-result",
+        "northwind.join.customer-order-employee-product",
+        "northwind.join.left-null-manager",
+        "northwind.aggregate.order-10248-total",
+        "northwind.aggregate.grouped-having",
+        "northwind.aggregate.empty-null",
+        "northwind.view.packaged-decoding",
+        "northwind.subquery.products-above-average",
+        "northwind.compound.customer-supplier-cities",
+        "northwind.cte.order-subtotals",
+        "northwind.dml.crud-temporary-copy",
+        "northwind.transaction.throwing-rollback"
       ],
       "evidence_ids": [
-
+        "evidence.northwind.crud-rollback.sqlite",
+        "evidence.northwind.fixture-contract.sqlite",
+        "evidence.northwind.fixture-failures.sqlite",
+        "evidence.northwind.joins-aggregates-views.sqlite",
+        "evidence.northwind.reads.sqlite",
+        "evidence.northwind.subquery-compound-cte.sqlite"
       ]
     },
     {
@@ -2267,6 +2393,1036 @@
       "deferral": null,
       "provenance": [
 
+      ]
+    },
+    {
+      "id": "northwind.fixture.pinned-corpus",
+      "kind": "adopted-behavior",
+      "family": "select",
+      "title": "Pinned immutable Northwind correctness corpus",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "GRDBDatabase",
+          "source_path": "Sources/SwiftQL/GRDBSQLDatabase.swift",
+          "source_tokens": [
+            "GRDBDatabase"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/fileformat.html",
+        "https://www.sqlite.org/pragma.html#pragma_integrity_check"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "The immutable northwind.db resource matches SHA-256 cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8, passes PRAGMA integrity_check, and exposes exactly 13 application tables, 17 views, 93 customers, 830 orders, 2,155 order-detail rows, and 77 products."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.fixture-contract.sqlite",
+        "evidence.northwind.fixture-failures.sqlite",
+        "evidence.northwind.reads.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "dist/northwind.db",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.fixture.pinned-corpus case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.select.quoted-order-details",
+      "kind": "adopted-behavior",
+      "family": "select",
+      "title": "Quoted Order Details table selection",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Select",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Select"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_keywords.html",
+        "https://www.sqlite.org/lang_select.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "named-bindings",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "The pinned schema contains the space-bearing table name Order Details and deterministic rows for OrderID 10248."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.reads.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "table Order Details",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.select.quoted-order-details case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.key.order-details-compound",
+      "kind": "adopted-behavior",
+      "family": "select",
+      "title": "Order Details compound-key identity",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Select",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Select"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_createtable.html#the_primary_key"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "named-bindings",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Order Details declares the compound primary key (OrderID, ProductID), and order 10248 has the pinned ProductID set 11, 42, and 72."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.reads.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "table Order Details primary key",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.key.order-details-compound case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.select.nullable-shipping",
+      "kind": "adopted-behavior",
+      "family": "select",
+      "title": "Nullable Northwind shipping-field decoding",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Select",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Select"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/nulls.html",
+        "https://www.sqlite.org/lang_select.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "named-bindings",
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "Orders exposes nullable shipping metadata and a pinned unshipped order has a NULL ShippedDate."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.reads.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "table Orders nullable shipping columns",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.select.nullable-shipping case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.value.unicode-blob",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Northwind Unicode text and BLOB decoding",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLRequest.fetchOne",
+          "source_path": "Sources/SwiftQL/SQLDatabase.swift",
+          "source_tokens": [
+            "fetchOne"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "named-bindings",
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "Pinned customer and product rows contain UTF-8 text, and Employees.Photo contains a non-empty JPEG BLOB with a fixed byte count."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.reads.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "Customers and Products Unicode values plus Employees.Photo",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.value.unicode-blob case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.select.deterministic-pagination",
+      "kind": "adopted-behavior",
+      "family": "select",
+      "title": "Deterministic ordered Northwind pagination",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "OrderBy",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "OrderBy"
+          ]
+        },
+        {
+          "symbol": "Limit",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Limit"
+          ]
+        },
+        {
+          "symbol": "Offset",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Offset"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html#orderby",
+        "https://www.sqlite.org/lang_select.html#limitoffset"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Products provides a deterministic ProductName then ProductID ordering for a fixed LIMIT 7 OFFSET 11 page."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.reads.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "Products ordered page",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.select.deterministic-pagination case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.select.empty-result",
+      "kind": "adopted-behavior",
+      "family": "select",
+      "title": "Typed empty-result behavior on Northwind",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLRequest.fetchAll",
+          "source_path": "Sources/SwiftQL/SQLDatabase.swift",
+          "source_tokens": [
+            "fetchAll"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "named-bindings",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "The pinned Customers table has no __SWIFTQL_MISSING__ identifier."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.reads.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "Customers absent identifier",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.select.empty-result case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.join.customer-order-employee-product",
+      "kind": "adopted-behavior",
+      "family": "join",
+      "title": "Customer, order, employee, detail, and product join",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Join.Inner",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Inner"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html#rjoin"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "named-bindings",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "The pinned foreign-key graph joins order 10248 through Customers, Employees, Order Details, and Products."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.joins-aggregates-views.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "order 10248 relational join graph",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.join.customer-order-employee-product case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.join.left-null-manager",
+      "kind": "adopted-behavior",
+      "family": "join",
+      "title": "Employee left join preserves a NULL manager",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Join.Left",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Left"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html#rjoin"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "The Employees self-reference contains a root employee whose nullable manager columns remain NULL after LEFT JOIN."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.joins-aggregates-views.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "Employees.ReportsTo root row",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.join.left-null-manager case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.aggregate.order-10248-total",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Order 10248 detail count and 440.0 subtotal",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLExpression.sumOrNull",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "sumOrNull"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_aggfunc.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "named-bindings",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Order 10248 has exactly three detail rows whose discounted line totals sum to 440.0."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.joins-aggregates-views.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "order 10248 detail rows",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.aggregate.order-10248-total case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.aggregate.grouped-having",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Grouped customer-order counts with HAVING",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "GroupBy",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "GroupBy"
+          ]
+        },
+        {
+          "symbol": "Having",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Having"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html#resultset",
+        "https://www.sqlite.org/lang_select.html#bareagg"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Orders provides multiple customer groups with at least ten rows and a deterministic count-descending, customer-ID ordering."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.joins-aggregates-views.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "Orders grouped by CustomerID",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.aggregate.grouped-having case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.aggregate.empty-null",
+      "kind": "adopted-behavior",
+      "family": "expression",
+      "title": "Empty Northwind aggregate returns NULL",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLExpression.sumOrNull",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "sumOrNull"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_aggfunc.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "sqlite-core-parser",
+        "sqlite-storage-classes"
+      ],
+      "schema_requirements": [
+        "The pinned Order Details table has no OrderID -1, so SUM over that filtered input returns SQL NULL."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.joins-aggregates-views.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "Order Details empty aggregate",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.aggregate.empty-null case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.view.packaged-decoding",
+      "kind": "adopted-behavior",
+      "family": "select",
+      "title": "Packaged Northwind view decoding",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Select",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Select"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_createview.html",
+        "https://www.sqlite.org/lang_select.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "named-bindings",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "The pinned Order Subtotals view exposes order 10248 with subtotal 440.0."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.joins-aggregates-views.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "view Order Subtotals",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.view.packaged-decoding case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.subquery.products-above-average",
+      "kind": "adopted-behavior",
+      "family": "subquery",
+      "title": "Products above average price scalar subquery",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "subquery",
+          "source_path": "Sources/SwiftQL/SQLFunctionalSyntax.swift",
+          "source_tokens": [
+            "subquery"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_expr.html#subquery_expressions"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Products contains deterministic prices for a scalar AVG subquery and ordered outer result."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.subquery-compound-cte.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "view Products Above Average Price",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.subquery.products-above-average case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.compound.customer-supplier-cities",
+      "kind": "adopted-behavior",
+      "family": "compound",
+      "title": "Customer and supplier city UNION",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Union",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Union"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html#compound_select_statements"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "compound-select",
+        "database-pool-driver",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Customers and Suppliers expose compatible city, company, contact, and relationship columns with deterministic compound ordering."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.subquery-compound-cte.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "view Customer and Suppliers by City",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.compound.customer-supplier-cities case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.cte.order-subtotals",
+      "kind": "adopted-behavior",
+      "family": "cte",
+      "title": "Order subtotal common table expression",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLSchema.commonTableExpression",
+          "source_path": "Sources/SwiftQL/Expression Builder/SQLQueryExpressionBuilder.swift",
+          "source_tokens": [
+            "commonTableExpression"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_with.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.8.3",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "named-bindings",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Order Details supplies grouped discounted totals and a stable orderID/subtotal row shape for an ordinary CTE."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.subquery-compound-cte.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "view Order Subtotals",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.cte.order-subtotals case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.dml.crud-temporary-copy",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Typed CRUD on a unique Northwind temporary copy",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Insert",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Insert"
+          ]
+        },
+        {
+          "symbol": "Update",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Update"
+          ]
+        },
+        {
+          "symbol": "Delete",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Delete"
+          ]
+        },
+        {
+          "symbol": "XLWriteRequest.execute",
+          "source_path": "Sources/SwiftQL/SQLDatabase.swift",
+          "source_tokens": [
+            "execute"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_insert.html",
+        "https://www.sqlite.org/lang_update.html",
+        "https://www.sqlite.org/lang_delete.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "named-bindings",
+        "sqlite-core-parser",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A UUID-owned writable copy of the canonical fixture supports typed insert, update, and delete while the canonical checksum remains unchanged."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.crud-rollback.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "Customers temporary-copy CRUD lifecycle",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.dml.crud-temporary-copy case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "id": "northwind.transaction.throwing-rollback",
+      "kind": "adapter-contract",
+      "family": "dml",
+      "title": "Throwing rollback preserves Northwind temporary-copy state",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "GRDBDatabase",
+          "source_path": "Sources/SwiftQL/GRDBSQLDatabase.swift",
+          "source_tokens": [
+            "GRDBDatabase"
+          ]
+        },
+        {
+          "symbol": "XLRequest.fetchOne",
+          "source_path": "Sources/SwiftQL/SQLDatabase.swift",
+          "source_tokens": [
+            "fetchOne"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "database-pool-driver",
+        "named-bindings",
+        "sqlite-core-parser",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A UUID-owned writable copy rolls back a thrown transaction body, preserves the original error, and remains independently readable while the canonical checksum remains unchanged."
+      ],
+      "evidence_ids": [
+        "evidence.northwind.crud-rollback.sqlite"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": [
+        {
+          "repository": "Northwind-swift/NorthwindSQLite.swift",
+          "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+          "path": "dist/northwind.db",
+          "upstream_case": "Customers temporary-copy rollback state",
+          "license_disposition": "MIT-licensed database copied byte-for-byte as an immutable test artifact; the verbatim license notice is retained and no upstream Swift harness was copied.",
+          "adaptation_notes": "The northwind.transaction.throwing-rollback case uses the checksum-pinned artifact cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8 and compares typed SwiftQL results with an independent raw-SQL or packaged-view oracle.",
+          "license_spdx": "MIT",
+          "license_file_path": "LICENSE",
+          "license_file_url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/LICENSE",
+          "license_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996",
+          "copied_material": true,
+          "notice_path": "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt"
+        }
       ]
     },
     {

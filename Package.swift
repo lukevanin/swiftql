@@ -45,6 +45,17 @@ let package = Package(
             resources: [.process("SQLiteConformanceInventory.json")]
         ),
 
+        // Test-only, immutable Northwind correctness fixture shared by the
+        // semantic corpus and its fixture contract tests.
+        .target(
+            name: "SwiftQLNorthwindFixtures",
+            dependencies: [
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            path: "Tests/SwiftQLNorthwindFixtures",
+            resources: [.copy("Resources/Northwind")]
+        ),
+
         // Macro implementation that performs the source transformation of a macro.
         .macro(
             name: "SQLMacros",
@@ -108,6 +119,7 @@ let package = Package(
             name: "SQLTests",
             dependencies: [
                 "SwiftQL",
+                "SwiftQLNorthwindFixtures",
                 "SwiftQLSQLiteConformanceFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
@@ -120,6 +132,14 @@ let package = Package(
             dependencies: [
                 "SwiftQL",
                 "SwiftQLSQLiteConformanceFixtures",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ]
+        ),
+
+        .testTarget(
+            name: "SwiftQLNorthwindFixturesTests",
+            dependencies: [
+                "SwiftQLNorthwindFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),

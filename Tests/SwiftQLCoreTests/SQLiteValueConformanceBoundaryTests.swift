@@ -101,6 +101,97 @@ final class SQLiteValueConformanceBoundaryTests: XCTestCase {
         }
     }
 
+    func testInventoryRegistersCompletedNorthwindCorpusAndPinnedProvenance() throws {
+        let inventory = try SQLiteConformanceInventory.load()
+        let suite = try XCTUnwrap(
+            inventory.suites.first { $0.issue == 254 }
+        )
+        let expectedCaseIDs = SQLiteNorthwindConformanceCaseID.allCases.map(
+            \.rawValue
+        )
+        let featuresByID = Dictionary(
+            uniqueKeysWithValues: inventory.features.map { ($0.id, $0) }
+        )
+        let suiteEvidenceIDs = Set(suite.evidenceIDs)
+        let adapterCaseIDs: Set<SQLiteNorthwindConformanceCaseID> = [
+            .crudTemporaryCopy,
+            .throwingRollback,
+        ]
+
+        XCTAssertEqual(suite.id, "suite.254.northwind-correctness")
+        XCTAssertEqual(suite.milestone, "v1.3")
+        XCTAssertEqual(suite.status, .completed)
+        XCTAssertEqual(suite.caseIDs, expectedCaseIDs)
+        XCTAssertEqual(
+            suite.evidenceIDs,
+            [
+                "evidence.northwind.crud-rollback.sqlite",
+                "evidence.northwind.fixture-contract.sqlite",
+                "evidence.northwind.fixture-failures.sqlite",
+                "evidence.northwind.joins-aggregates-views.sqlite",
+                "evidence.northwind.reads.sqlite",
+                "evidence.northwind.subquery-compound-cte.sqlite",
+            ]
+        )
+
+        for caseID in SQLiteNorthwindConformanceCaseID.allCases {
+            let feature = try XCTUnwrap(
+                featuresByID[caseID.rawValue],
+                caseID.rawValue
+            )
+            XCTAssertEqual(feature.status, .supported, caseID.rawValue)
+            XCTAssertEqual(feature.adoptionStatus, .alreadyCovered, caseID.rawValue)
+            XCTAssertFalse(feature.evidenceIDs.isEmpty, caseID.rawValue)
+            XCTAssertTrue(
+                Set(feature.evidenceIDs).isSubset(of: suiteEvidenceIDs),
+                caseID.rawValue
+            )
+
+            XCTAssertEqual(
+                feature.kind,
+                adapterCaseIDs.contains(caseID)
+                    ? .adapterContract
+                    : .adoptedBehavior,
+                caseID.rawValue
+            )
+            XCTAssertEqual(feature.provenance.count, 1, caseID.rawValue)
+            let provenance = try XCTUnwrap(
+                feature.provenance.first,
+                caseID.rawValue
+            )
+            XCTAssertEqual(
+                provenance.repository,
+                "Northwind-swift/NorthwindSQLite.swift",
+                caseID.rawValue
+            )
+            XCTAssertEqual(
+                provenance.commit,
+                "865de0872e61692a49cd6069cd2df8f9ac04541e",
+                caseID.rawValue
+            )
+            XCTAssertEqual(provenance.path, "dist/northwind.db", caseID.rawValue)
+            XCTAssertEqual(provenance.licenseSPDX, "MIT", caseID.rawValue)
+            XCTAssertEqual(provenance.licenseFilePath, "LICENSE", caseID.rawValue)
+            XCTAssertEqual(
+                provenance.licenseBlobSHA,
+                "7b784d8b065952c289f6fe51adf74ed780c4d996",
+                caseID.rawValue
+            )
+            XCTAssertTrue(provenance.copiedMaterial, caseID.rawValue)
+            XCTAssertEqual(
+                provenance.noticePath,
+                "Tests/SwiftQLNorthwindFixtures/Resources/Northwind/LICENSE.txt",
+                caseID.rawValue
+            )
+            XCTAssertTrue(
+                provenance.adaptationNotes.contains(
+                    "cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8"
+                ),
+                caseID.rawValue
+            )
+        }
+    }
+
     func testSharedStorageCasesCrossSQLiteDialectAndInvocationBoundaries() throws {
         let dialect = XLSQLiteDialect()
         let cases = SQLiteValueConformanceFixtures.storageCases
