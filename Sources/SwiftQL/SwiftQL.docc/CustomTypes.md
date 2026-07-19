@@ -5,10 +5,11 @@ Create custom scalar types for table columns.
 ## Overview
 
 SwiftQL has built-in support for `Bool`, `Int`, `Double`, `String`, and `Data`.
-Use a contextual value codec for a different application type or when one Swift
-type has more than one valid database representation. A codec pairs throwing
-encode and decode closures with stable type, dialect, storage, name, and version
-metadata. It does not require a property wrapper or a retroactive conformance.
+Use the v1.2 contextual value-codec API for a different application type or
+when one Swift type has more than one valid database representation. A codec
+pairs throwing encode and decode closures with stable type, dialect, storage,
+name, and version metadata. It does not require a property wrapper or a
+retroactive conformance.
 
 The older `XLCustomType` literal path remains source compatible. Existing types
 can keep an explicit legacy introspection placeholder, while new types that use

@@ -1,5 +1,86 @@
 # Changelog
 
+## [1.2.0] - Unreleased
+
+### Added
+
+- Added the GRDB-free `SwiftQLCore` product with orthogonal SQL-dialect,
+  dialect-value, logical-statement, validated database-driver, and transaction
+  contracts. The existing `SwiftQL` product remains the application-facing
+  facade with the current GRDB-backed SQLite implementation.
+- Added immutable `XLStaticQueryDescriptor` definitions with durable canonical
+  identities, explicit dialect requirements, parameter/result layouts,
+  referenced entities, and cardinality. Raw prepared static-query handles are
+  database-bound and `Sendable` without retaining a physical statement.
+- Added generated static row layouts for `@SQLTable` and `@SQLResult`, including
+  contextual value encoding and typed decoding without constructing default
+  model instances or requiring `sqlDefault()`.
+- Added immutable, value-free `XLQueryCapture` declarations and fresh
+  `XLInvocationBindings` packets. Repeated calls keep runtime values out of
+  logical requests, descriptors, identities, and statement caches.
+- Added immutable contextual value-codec registries and database configuration
+  snapshots. One Swift type can select different versioned SQLite
+  representations without a process-global registry or retroactive literal
+  conformance.
+- Added shared adapter-neutral SQLite value/storage and transaction contract
+  suites, each exercised against the production GRDB driver with stable case
+  identities and durable semantic oracles.
+- Added an independent cross-library SQLite benchmark baseline and a
+  reproducible first-party source-coverage topology check.
+
+### Changed
+
+- GRDB result rows are stepped and decoded incrementally while their leased
+  connection is active. Public `fetchAll()` and `fetchOne()` behavior remains
+  eager and source-compatible, but intermediate GRDB and normalized row arrays
+  are no longer retained.
+- Literal decoding now uses a scoped field reader, and the sequential row reader
+  is a value type, removing per-row reference allocation from the legacy typed
+  decode path.
+- `Select` no longer requires the result type itself to conform to `XLResult`;
+  typed selection is carried by its row layout. Existing `XLResult` models
+  continue to compile.
+- First-party SQL renderers now use semantic `XLSeparator.list` and `.tuple`
+  names. The legacy `.comma`, `.space`, raw-value, and custom-string separator
+  APIs remain available throughout v1.
+- Table and common-table `FROM` dependencies now share one dependency model,
+  including value-semantic recursive common-table definitions and references.
+
+### Fixed
+
+- Non-finite `Double` literals now fail through validated encoding instead of
+  emitting invalid SQLite tokens or silently changing the value.
+- `COLLATE` names render as SQL grammar tokens, fluent `INSERT ... SELECT`
+  clause chains execute against real SQLite, and the query builder's
+  missing-`FROM` failure is covered by its documented contract.
+- Generic list composition now implements `BETWEEN`, static result descriptors
+  remove hidden default-value requirements, and separator cleanup preserves
+  byte-identical SQL and binding order.
+
+### Migration
+
+Existing `makeRequest(with:)`, `XLNamedBindingReference`, `XLCustomType`,
+`XLLiteral`, `XLResult`, explicit packet, and raw separator APIs remain
+source-compatible in SwiftQL 1.x. No application must adopt the lower-level
+v1.2 contracts merely to keep an existing query working.
+
+For a new reusable query that needs durable identity, cross-task raw-value
+execution, or contextual result layouts, construct and register an
+`XLStaticQueryDescriptor` before opening a database, prepare it against that
+database, and create a fresh `XLInvocationBindings` packet for every call. Do
+not share the current `XLRequest` facade across tasks; it remains task-local.
+
+Prefer `XLValueCodec` plus an immutable `XLValueCodingConfiguration` when one
+application type has multiple persisted representations. Keep a legacy
+`XLCustomType` wrapper only when preserving its existing v1 storage bytes and
+introspection behavior is required. Changing a codec key, version, stable type
+identifier, dialect, or storage identifier is a schema/data migration.
+
+Validated encoding is now the explicit error boundary for unsupported literal
+values such as non-finite `Double`. Code that constructs SQL from untrusted or
+computed floating-point values should propagate that error instead of assuming
+every `Double` has a SQLite literal spelling.
+
 ## [1.1.0] - 2026-07-17
 
 ### Added

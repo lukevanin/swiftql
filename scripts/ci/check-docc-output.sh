@@ -35,6 +35,8 @@ generictableparameters|Generic Table Parameters
 gettingstarted|Getting started
 livequeries|Live Queries
 queries|Select Queries
+realvalues|Real Values
+staticqueries|Static queries
 ARTICLES
 
     printf 'SWIFTQL_DOCC_OUTPUT ok %s\n' "$output"

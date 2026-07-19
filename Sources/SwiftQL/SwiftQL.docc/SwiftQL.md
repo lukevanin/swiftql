@@ -53,6 +53,32 @@ typed API. The current API covers a practical subset of SQLite, with unsupported
 syntax called out in the relevant guides. SwiftQL also provides utilities for
 safely casting types when needed.
 
+## v1.2 boundaries
+
+SwiftQL v1.2 separates database-independent query definitions from database
+execution. An `XLStaticQueryDescriptor` retains rendered SQL, dialect
+requirements, immutable parameter and result metadata, stable identity, and
+cardinality without retaining a database, physical statement, or invocation
+value. Prepare it against a `GRDBDatabase`, then give every call a fresh
+`XLInvocationBindings` packet. See <doc:StaticQueries> for construction,
+identity, preparation, and cardinality rules.
+
+`SwiftQLCore` contains the GRDB-free dialect, value, logical-statement, binding,
+and driver contracts needed by adapter packages. The `SwiftQL` product is the
+application-facing compatibility facade: it adds the macros, typed SQL DSL,
+contextual codecs, and the current GRDB-backed SQLite implementation. Dialects
+own SQL spelling and value storage rules; drivers own connections, physical
+preparation, binding transport, execution, and row transport. See
+<doc:GettingStarted> for connection, transaction, and prepared-statement
+ownership.
+
+Existing v1 requests, named bindings, `XLCustomType` wrappers, and explicit
+raw-value APIs remain source-compatible. The current `XLRequest` facade is
+database-bound and not `Sendable`; prepared raw static-query handles are
+`Sendable`, while closure-backed typed row-layout wrappers remain task-local.
+Use <doc:CustomTypes> when one Swift type needs contextual or multiple SQLite
+representations.
+
 ## When to use SwiftQL
 
 SwiftQL provides a safer way to write SQL to interact with an SQLite database, 

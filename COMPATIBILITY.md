@@ -6,6 +6,42 @@ series currently listed by Swift Package Index: Swift 6.0 through Swift 6.3.
 All Swift 6 compilers run the package in Swift 5 language mode; SwiftQL does not
 opt into Swift 6 language mode.
 
+## v1.2 public products and runtime boundaries
+
+The package supports iOS 16 or later and macOS 13 or later. Its public products
+have separate responsibilities:
+
+- `SwiftQLCore` is the GRDB-free contract layer for SQL dialects, dialect
+  values, logical statements, immutable parameter layouts and invocation
+  packets, static query descriptors, and database drivers. It is intended for
+  adapter packages and does not provide a usable SQLite connection by itself.
+- `SwiftQL` is the application-facing library. It includes `SwiftQLCore`, the
+  macros and typed SQL DSL, contextual value codecs, and the current
+  GRDB-backed SQLite driver.
+- `swiftql-benchmark` is a repository performance diagnostic executable, not an
+  application runtime dependency or a database adapter.
+
+The manifest's dependency lower bounds are SwiftSyntax 509.0.0, GRDB 6.29.3,
+and the Swift-DocC plugin 1.0.0. Committed-resolution jobs prove the checked-in
+graph; clean-resolution jobs prove that the declared ranges still resolve and
+pass. The exact resolved versions and loaded SQLite source ID are CI evidence,
+not a promise that every future dependency version in those ranges is already
+supported.
+
+In v1.2, an `XLStaticQueryDescriptor` and `XLInvocationBindings` are immutable,
+database-independent values. A raw `GRDBPreparedStaticQuery` or
+`GRDBPreparedInvocation` is `Sendable` and database-bound without owning a
+connection-bound statement. The high-level `XLRequest` facade and
+closure-backed typed static-row wrapper remain task-local. Each execution may
+lease a different connection and prepare or cache a physical GRDB statement on
+that connection. These ownership rules are part of the supported API contract,
+not only implementation details.
+
+SwiftQL currently ships only a SQLite dialect and a GRDB database driver. The
+core protocols are extension seams, not claims that another dialect, driver,
+Linux runtime, nested transaction/savepoint API, asynchronous cursor, or
+Swift 6 language mode is supported in v1.2.
+
 ## Pinned Apple support points
 
 | Support point | GitHub runner | Xcode | Swift | macOS SDK |
@@ -186,7 +222,7 @@ single non-mutating command:
 
 The command treats first-party DocC diagnostics as errors, writes the static
 site to the ignored `docs/` directory, and validates the SwiftQL landing page
-and all ten source articles. Pass an existing external destination when a
+and all twelve source articles. Pass an existing external destination when a
 separate output is useful, for example `./make-docs.sh /tmp/swiftql-docs`.
 The command never stages or commits files.
 
