@@ -45,16 +45,26 @@ private final class ManualRetryScheduler: @unchecked Sendable {
 
     private var recorded: [TimeInterval] = []
 
+    private var nextScheduledDelayObservers: [(TimeInterval) -> Void] = []
+
     var scheduler: GRDBLiveQueryRetryScheduler {
         GRDBLiveQueryRetryScheduler { [weak self] delay in
             guard let self else {
                 return Empty(completeImmediately: false).eraseToAnyPublisher()
             }
             let subject = PassthroughSubject<Void, Never>()
+            let observer: ((TimeInterval) -> Void)?
             self.lock.lock()
             self.pending.append(PendingDelay(delay: delay, subject: subject))
             self.recorded.append(delay)
+            if self.nextScheduledDelayObservers.isEmpty {
+                observer = nil
+            }
+            else {
+                observer = self.nextScheduledDelayObservers.removeFirst()
+            }
             self.lock.unlock()
+            observer?(delay)
             return subject.eraseToAnyPublisher()
         }
     }
@@ -69,6 +79,14 @@ private final class ManualRetryScheduler: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return recorded
+    }
+
+    func observeNextScheduledDelay(
+        _ observer: @escaping (TimeInterval) -> Void
+    ) {
+        lock.lock()
+        nextScheduledDelayObservers.append(observer)
+        lock.unlock()
     }
 
     @discardableResult
@@ -186,10 +204,10 @@ private struct LiveQueryRetryRecord: Equatable {
 }
 
 
-private struct BusyOnceExpression: XLExpression {
+private struct InjectedBusyExpression: XLExpression {
     typealias T = Int
 
-    static let functionName = "swiftql_test_busy_once"
+    static let functionName = "swiftql_test_injected_busy"
 
     func makeSQL(context: inout XLBuilder) {
         context.simpleFunction(name: Self.functionName) { _ in }
@@ -197,13 +215,23 @@ private struct BusyOnceExpression: XLExpression {
 }
 
 
-private final class BusyOnceFunctionState: @unchecked Sendable {
+private final class InjectedBusyFunctionState: @unchecked Sendable {
+
+    enum Behavior {
+        case succeed
+        case failOnce
+        case failAlways
+    }
 
     private let lock = NSLock()
 
-    private var shouldFail = true
+    private let behavior: Behavior
 
     private var invocationCountValue = 0
+
+    init(behavior: Behavior = .failOnce) {
+        self.behavior = behavior
+    }
 
     var invocationCount: Int {
         lock.lock()
@@ -214,14 +242,22 @@ private final class BusyOnceFunctionState: @unchecked Sendable {
     func invoke() throws -> Int {
         lock.lock()
         invocationCountValue += 1
-        let failsThisInvocation = shouldFail
-        shouldFail = false
+        let invocationCount = invocationCountValue
+        let failsThisInvocation: Bool
+        switch behavior {
+        case .succeed:
+            failsThisInvocation = false
+        case .failOnce:
+            failsThisInvocation = invocationCount == 1
+        case .failAlways:
+            failsThisInvocation = true
+        }
         lock.unlock()
 
         if failsThisInvocation {
             throw DatabaseError(
                 resultCode: .SQLITE_BUSY_SNAPSHOT,
-                message: "injected transient busy"
+                message: "injected busy attempt \(invocationCount)"
             )
         }
         return 1
@@ -623,14 +659,144 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
         cancellable.cancel()
     }
 
+    func testRealGRDBObservationExhaustsAlwaysBusyRetriesWithManualScheduler() throws {
+        let scheduler = ManualRetryScheduler()
+        let fixture = try makeIntegrationFixture(
+            retryPolicy: .retryBusy,
+            retryScheduler: scheduler.scheduler,
+            busyBehavior: .failAlways
+        )
+        defer { try? FileManager.default.removeItem(at: fixture.directoryURL) }
+        let completionExpectation = expectation(description: "terminal busy after retry exhaustion")
+        let receivedValues = LockedValue<[[LiveQueryRetryRecord]]>([])
+        let completionErrors = LockedValue<[Error]>([])
+        let firstDelayExpectation = expectation(description: "first BUSY retry delay scheduled")
+        scheduler.observeNextScheduledDelay { delay in
+            XCTAssertEqual(delay, 0.1)
+            firstDelayExpectation.fulfill()
+        }
+
+        let cancellable = fixture.database
+            .makeRequest(with: integrationStatement())
+            .publish()
+            .sink(
+                receiveCompletion: { completion in
+                    switch completion {
+                    case .failure(let error):
+                        completionErrors.withValue { $0.append(error) }
+                    case .finished:
+                        XCTFail("An always-BUSY observation must not finish successfully.")
+                    }
+                    completionExpectation.fulfill()
+                },
+                receiveValue: { rows in
+                    receivedValues.withValue { $0.append(rows) }
+                }
+            )
+
+        wait(for: [firstDelayExpectation], timeout: 2)
+        XCTAssertEqual(scheduler.pendingDelays, [0.1])
+        XCTAssertEqual(fixture.functionState.invocationCount, 1)
+
+        let secondDelayExpectation = expectation(description: "second BUSY retry delay scheduled")
+        scheduler.observeNextScheduledDelay { delay in
+            XCTAssertEqual(delay, 0.2)
+            secondDelayExpectation.fulfill()
+        }
+        XCTAssertTrue(scheduler.runNext())
+        wait(for: [secondDelayExpectation], timeout: 2)
+        XCTAssertEqual(scheduler.pendingDelays, [0.2])
+        XCTAssertEqual(fixture.functionState.invocationCount, 2)
+
+        let thirdDelayExpectation = expectation(description: "third BUSY retry delay scheduled")
+        scheduler.observeNextScheduledDelay { delay in
+            XCTAssertEqual(delay, 0.4)
+            thirdDelayExpectation.fulfill()
+        }
+        XCTAssertTrue(scheduler.runNext())
+        wait(for: [thirdDelayExpectation], timeout: 2)
+        XCTAssertEqual(scheduler.pendingDelays, [0.4])
+        XCTAssertEqual(fixture.functionState.invocationCount, 3)
+
+        XCTAssertTrue(scheduler.runNext())
+        wait(for: [completionExpectation], timeout: 2)
+
+        XCTAssertTrue(receivedValues.read().isEmpty)
+        XCTAssertEqual(fixture.functionState.invocationCount, 4)
+        XCTAssertEqual(scheduler.recordedDelays, [0.1, 0.2, 0.4])
+        XCTAssertTrue(scheduler.pendingDelays.isEmpty)
+        XCTAssertEqual(completionErrors.read().count, 1)
+        XCTAssertEqual(
+            (completionErrors.read().first as? DatabaseError)?.resultCode,
+            .SQLITE_BUSY
+        )
+        withExtendedLifetime(cancellable) {}
+    }
+
+    func testRealGRDBObservationTreatsDecodeFailureAsPermanentUnderRetryBusy() throws {
+        let scheduler = ManualRetryScheduler()
+        let fixture = try makeIntegrationFixture(
+            retryPolicy: .retryBusy,
+            retryScheduler: scheduler.scheduler,
+            busyBehavior: .succeed,
+            initialValue: nil
+        )
+        defer { try? FileManager.default.removeItem(at: fixture.directoryURL) }
+        let completionExpectation = expectation(description: "terminal row decode failure")
+        let receivedValues = LockedValue<[[LiveQueryRetryRecord]]>([])
+        let completionErrors = LockedValue<[Error]>([])
+
+        let cancellable = fixture.database
+            .makeRequest(with: integrationStatement())
+            .publish()
+            .sink(
+                receiveCompletion: { completion in
+                    switch completion {
+                    case .failure(let error):
+                        completionErrors.withValue { $0.append(error) }
+                    case .finished:
+                        XCTFail("A row-decoding failure must not finish successfully.")
+                    }
+                    completionExpectation.fulfill()
+                },
+                receiveValue: { rows in
+                    receivedValues.withValue { $0.append(rows) }
+                }
+            )
+
+        wait(for: [completionExpectation], timeout: 2)
+
+        XCTAssertTrue(receivedValues.read().isEmpty)
+        XCTAssertEqual(completionErrors.read().count, 1)
+        XCTAssertEqual(
+            completionErrors.read().first as? XLColumnReadError,
+            XLColumnReadError(
+                index: 1,
+                expectedType: "Int",
+                failure: .nullValue
+            )
+        )
+        XCTAssertTrue(scheduler.recordedDelays.isEmpty)
+        XCTAssertTrue(scheduler.pendingDelays.isEmpty)
+        XCTAssertEqual(
+            fixture.functionState.invocationCount,
+            1,
+            "The permanent decode failure must terminate after one real query attempt."
+        )
+        withExtendedLifetime(cancellable) {}
+    }
+
     private struct IntegrationFixture {
         let database: GRDBDatabase
         let directoryURL: URL
-        let functionState: BusyOnceFunctionState
+        let functionState: InjectedBusyFunctionState
     }
 
     private func makeIntegrationFixture(
-        retryPolicy: GRDBLiveQueryRetryPolicy?
+        retryPolicy: GRDBLiveQueryRetryPolicy?,
+        retryScheduler: GRDBLiveQueryRetryScheduler? = nil,
+        busyBehavior: InjectedBusyFunctionState.Behavior = .failOnce,
+        initialValue: Int? = 1
     ) throws -> IntegrationFixture {
         let directoryURL = FileManager.default.temporaryDirectory
             .appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -640,12 +806,12 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
         )
         let databaseURL = directoryURL
             .appending(path: "retry.sqlite", directoryHint: .notDirectory)
-        let functionState = BusyOnceFunctionState()
+        let functionState = InjectedBusyFunctionState(behavior: busyBehavior)
         var configuration = Configuration()
         configuration.prepareDatabase { database in
             database.add(
                 function: DatabaseFunction(
-                    BusyOnceExpression.functionName,
+                    InjectedBusyExpression.functionName,
                     argumentCount: 0
                 ) { _ in
                     try functionState.invoke()
@@ -653,35 +819,52 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
             )
         }
 
-        let builder: GRDBDatabaseBuilder
-        if let retryPolicy {
-            builder = try GRDBDatabaseBuilder(
-                url: databaseURL,
-                configuration: configuration,
+        let database: GRDBDatabase
+        if let retryScheduler {
+            let databasePool = try DatabasePool(
+                path: databaseURL.path(percentEncoded: false),
+                configuration: configuration
+            )
+            database = try GRDBDatabase(
+                databasePool: databasePool,
+                formatter: XLiteFormatter(),
                 logger: nil,
-                liveQueryRetryPolicy: retryPolicy
+                liveQueryRetryPolicy: retryPolicy ?? .terminal,
+                liveQueryRetryScheduler: retryScheduler
             )
         }
         else {
-            builder = try GRDBDatabaseBuilder(
-                url: databaseURL,
-                configuration: configuration,
-                logger: nil
-            )
+            let builder: GRDBDatabaseBuilder
+            if let retryPolicy {
+                builder = try GRDBDatabaseBuilder(
+                    url: databaseURL,
+                    configuration: configuration,
+                    logger: nil,
+                    liveQueryRetryPolicy: retryPolicy
+                )
+            }
+            else {
+                builder = try GRDBDatabaseBuilder(
+                    url: databaseURL,
+                    configuration: configuration,
+                    logger: nil
+                )
+            }
+            database = try builder.build()
         }
-        let database = try builder.build()
         try database.databasePool.write { database in
+            let valueConstraint = initialValue == nil ? "" : " NOT NULL"
             try database.execute(
                 sql: """
                     CREATE TABLE LiveQueryRetryRecord (
                         id TEXT NOT NULL PRIMARY KEY,
-                        value INT NOT NULL
+                        value INT\(valueConstraint)
                     )
                     """
             )
             try database.execute(
                 sql: "INSERT INTO LiveQueryRetryRecord (id, value) VALUES (?, ?)",
-                arguments: ["initial", 1]
+                arguments: ["initial", initialValue]
             )
         }
         return IntegrationFixture(
@@ -696,7 +879,7 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
             let table = schema.table(LiveQueryRetryRecord.self)
             Select(table)
             From(table)
-            Where(BusyOnceExpression() == 1)
+            Where(InjectedBusyExpression() == 1)
             OrderBy(table.id.ascending())
         }
     }

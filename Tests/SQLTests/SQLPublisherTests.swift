@@ -76,6 +76,132 @@ struct UpdateTest {
 }
 
 
+private final class PublisherLockedValue<Value>: @unchecked Sendable {
+
+    private let lock = NSLock()
+
+    private var value: Value
+
+    init(_ value: Value) {
+        self.value = value
+    }
+
+    @discardableResult
+    func withValue<Result>(_ body: (inout Value) -> Result) -> Result {
+        lock.lock()
+        defer { lock.unlock() }
+        return body(&value)
+    }
+
+    func read() -> Value {
+        withValue { $0 }
+    }
+}
+
+
+private final class ManualDemandSubscriber<Input>: Subscriber, @unchecked Sendable {
+
+    typealias Failure = Error
+
+    private let lock = NSLock()
+
+    private var subscription: Subscription?
+
+    private let receiveSubscriptionCallback: () -> Void
+
+    private let receiveValueCallback: (Input) -> Void
+
+    private let receiveCompletionCallback: (Subscribers.Completion<Error>) -> Void
+
+    init(
+        receiveSubscription: @escaping () -> Void,
+        receiveValue: @escaping (Input) -> Void,
+        receiveCompletion: @escaping (Subscribers.Completion<Error>) -> Void
+    ) {
+        self.receiveSubscriptionCallback = receiveSubscription
+        self.receiveValueCallback = receiveValue
+        self.receiveCompletionCallback = receiveCompletion
+    }
+
+    func receive(subscription: Subscription) {
+        lock.lock()
+        self.subscription = subscription
+        lock.unlock()
+        receiveSubscriptionCallback()
+    }
+
+    func receive(_ input: Input) -> Subscribers.Demand {
+        receiveValueCallback(input)
+        return .none
+    }
+
+    func receive(completion: Subscribers.Completion<Error>) {
+        receiveCompletionCallback(completion)
+    }
+
+    func request(_ demand: Subscribers.Demand) {
+        lock.lock()
+        let subscription = subscription
+        lock.unlock()
+        subscription?.request(demand)
+    }
+
+    func cancel() {
+        lock.lock()
+        let subscription = subscription
+        self.subscription = nil
+        lock.unlock()
+        subscription?.cancel()
+    }
+}
+
+
+private struct BlockingObservationExpression: XLExpression {
+
+    typealias T = Int
+
+    static let functionName = "swiftql_test_blocking_observation"
+
+    func makeSQL(context: inout XLBuilder) {
+        context.simpleFunction(name: Self.functionName) { _ in }
+    }
+}
+
+
+private enum ObservationTestError: Error {
+    case rollback
+}
+
+
+private final class BlockingObservationFunctionState: @unchecked Sendable {
+
+    private let releaseSemaphore = DispatchSemaphore(value: 0)
+
+    private let onStart: @Sendable () -> Void
+
+    private let onFinish: @Sendable () -> Void
+
+    init(
+        onStart: @escaping @Sendable () -> Void,
+        onFinish: @escaping @Sendable () -> Void
+    ) {
+        self.onStart = onStart
+        self.onFinish = onFinish
+    }
+
+    func invoke() -> Int {
+        onStart()
+        releaseSemaphore.wait()
+        onFinish()
+        return 1
+    }
+
+    func release() {
+        releaseSemaphore.signal()
+    }
+}
+
+
 final class XLPublisherTests: XCTestCase {
 
     private final class RecordingLogger: XLLogger {
@@ -169,7 +295,7 @@ final class XLPublisherTests: XCTestCase {
         )
     }
 
-    func testPublisherFetchesAtSubscriptionTime() throws {
+    func testPublisherFetchesCurrentStateAtFirstDemand() throws {
         try createTestTable()
         let publisher = database.makeRequest(with: orderedStatement()).publish()
         try insertDirect(TestTable(id: "written-before-subscription", value: 1))
@@ -200,8 +326,10 @@ final class XLPublisherTests: XCTestCase {
         let publisher = database.makeRequest(with: orderedStatement()).publish()
         let firstInitialExpectation = expectation(description: "first subscriber initial value")
         let firstUpdatedExpectation = expectation(description: "first subscriber update")
+        let firstSharedUpdateExpectation = expectation(description: "first subscriber shared update")
         var firstSawInitial = false
         var firstSawUpdate = false
+        var firstSawSharedUpdate = false
 
         publisher
             .sink(
@@ -220,6 +348,10 @@ final class XLPublisherTests: XCTestCase {
                         firstSawUpdate = true
                         firstUpdatedExpectation.fulfill()
                     }
+                    else if rows == [TestTable(id: "foo", value: 8)] && !firstSawSharedUpdate {
+                        firstSawSharedUpdate = true
+                        firstSharedUpdateExpectation.fulfill()
+                    }
                 }
             )
             .store(in: &cancellables)
@@ -229,7 +361,9 @@ final class XLPublisherTests: XCTestCase {
         wait(for: [firstUpdatedExpectation], timeout: 2)
 
         let secondInitialExpectation = expectation(description: "second subscriber current value")
+        let secondSharedUpdateExpectation = expectation(description: "second subscriber shared update")
         var secondInitialRows: [TestTable]?
+        var secondSawSharedUpdate = false
         publisher
             .sink(
                 receiveCompletion: { completion in
@@ -238,15 +372,25 @@ final class XLPublisherTests: XCTestCase {
                     }
                 },
                 receiveValue: { rows in
-                    guard secondInitialRows == nil else { return }
-                    secondInitialRows = rows
-                    secondInitialExpectation.fulfill()
+                    if secondInitialRows == nil {
+                        secondInitialRows = rows
+                        secondInitialExpectation.fulfill()
+                    }
+                    else if rows == [TestTable(id: "foo", value: 8)] && !secondSawSharedUpdate {
+                        secondSawSharedUpdate = true
+                        secondSharedUpdateExpectation.fulfill()
+                    }
                 }
             )
             .store(in: &cancellables)
 
         wait(for: [secondInitialExpectation], timeout: 2)
         XCTAssertEqual(secondInitialRows, [TestTable(id: "foo", value: 7)])
+        try updateTest.execute(id: "foo", value: 8)
+        wait(
+            for: [firstSharedUpdateExpectation, secondSharedUpdateExpectation],
+            timeout: 2
+        )
     }
 
     func testDirectWriteThroughObservedPoolPublishes() throws {
@@ -282,6 +426,399 @@ final class XLPublisherTests: XCTestCase {
         wait(for: [updateExpectation], timeout: 2)
     }
 
+    func testIrrelevantTableWriteDoesNotChangeObservedSnapshot() throws {
+        try createTestTable()
+        try databasePool.write { database in
+            try database.execute(sql: "CREATE TABLE Other (id TEXT NOT NULL PRIMARY KEY)")
+        }
+        let initialExpectation = expectation(description: "initial observed snapshot")
+        let livenessExpectation = expectation(description: "relevant commit liveness")
+        let snapshots = PublisherLockedValue<[[TestTable]]>([])
+        let didFulfillInitial = PublisherLockedValue(false)
+        let didFulfillLiveness = PublisherLockedValue(false)
+        let finalRows = [TestTable(id: "relevant", value: 1)]
+
+        database.makeRequest(with: orderedStatement()).publish()
+            .sink(
+                receiveCompletion: { completion in
+                    XCTFail("Unexpected publisher completion: \(completion)")
+                },
+                receiveValue: { rows in
+                    snapshots.withValue { $0.append(rows) }
+                    if rows.isEmpty && didFulfillInitial.withValue({ value in
+                        guard !value else { return false }
+                        value = true
+                        return true
+                    }) {
+                        initialExpectation.fulfill()
+                    }
+                    if rows == finalRows && didFulfillLiveness.withValue({ value in
+                        guard !value else { return false }
+                        value = true
+                        return true
+                    }) {
+                        livenessExpectation.fulfill()
+                    }
+                }
+            )
+            .store(in: &cancellables)
+
+        wait(for: [initialExpectation], timeout: 2)
+        try databasePool.write { database in
+            try database.execute(sql: "INSERT INTO Other (id) VALUES ('irrelevant')")
+        }
+        try insertDirect(TestTable(id: "relevant", value: 1))
+        wait(for: [livenessExpectation], timeout: 2)
+
+        XCTAssertTrue(
+            snapshots.read().allSatisfy { $0.isEmpty || $0 == finalRows },
+            "An irrelevant-table commit must not create a different query snapshot."
+        )
+    }
+
+    func testRolledBackWriteNeverAppearsBeforeCommittedLiveness() throws {
+        try createTestTable()
+        let initialExpectation = expectation(description: "initial durable snapshot")
+        let livenessExpectation = expectation(description: "committed liveness snapshot")
+        let snapshots = PublisherLockedValue<[[TestTable]]>([])
+        let didFulfillInitial = PublisherLockedValue(false)
+        let didFulfillLiveness = PublisherLockedValue(false)
+        let committedRows = [TestTable(id: "committed", value: 2)]
+
+        database.makeRequest(with: orderedStatement()).publish()
+            .sink(
+                receiveCompletion: { completion in
+                    XCTFail("Unexpected publisher completion: \(completion)")
+                },
+                receiveValue: { rows in
+                    snapshots.withValue { $0.append(rows) }
+                    if rows.isEmpty && didFulfillInitial.withValue({ value in
+                        guard !value else { return false }
+                        value = true
+                        return true
+                    }) {
+                        initialExpectation.fulfill()
+                    }
+                    if rows == committedRows && didFulfillLiveness.withValue({ value in
+                        guard !value else { return false }
+                        value = true
+                        return true
+                    }) {
+                        livenessExpectation.fulfill()
+                    }
+                }
+            )
+            .store(in: &cancellables)
+
+        wait(for: [initialExpectation], timeout: 2)
+        do {
+            try databasePool.write { database in
+                try database.execute(
+                    sql: "INSERT INTO Test (id, value) VALUES (?, ?)",
+                    arguments: ["rolled-back", 1]
+                )
+                throw ObservationTestError.rollback
+            }
+            XCTFail("Expected the injected transaction rollback.")
+        }
+        catch ObservationTestError.rollback {
+            // The thrown error is the deterministic rollback trigger.
+        }
+        try insertDirect(TestTable(id: "committed", value: 2))
+        wait(for: [livenessExpectation], timeout: 2)
+
+        let observed = snapshots.read()
+        XCTAssertFalse(observed.flatMap { $0 }.contains { $0.id == "rolled-back" })
+        XCTAssertTrue(observed.allSatisfy { $0.isEmpty || $0 == committedRows })
+    }
+
+    func testMultipleWritesInOneTransactionPublishOnlyDurableState() throws {
+        try createTestTable()
+        let initialExpectation = expectation(description: "initial transaction snapshot")
+        let finalExpectation = expectation(description: "durable transaction snapshot")
+        let snapshots = PublisherLockedValue<[[TestTable]]>([])
+        let didFulfillInitial = PublisherLockedValue(false)
+        let didFulfillFinal = PublisherLockedValue(false)
+        let finalRows = [
+            TestTable(id: "a", value: 3),
+            TestTable(id: "b", value: 2),
+        ]
+
+        database.makeRequest(with: orderedStatement()).publish()
+            .sink(
+                receiveCompletion: { completion in
+                    XCTFail("Unexpected publisher completion: \(completion)")
+                },
+                receiveValue: { rows in
+                    snapshots.withValue { $0.append(rows) }
+                    if rows.isEmpty && didFulfillInitial.withValue({ value in
+                        guard !value else { return false }
+                        value = true
+                        return true
+                    }) {
+                        initialExpectation.fulfill()
+                    }
+                    if rows == finalRows && didFulfillFinal.withValue({ value in
+                        guard !value else { return false }
+                        value = true
+                        return true
+                    }) {
+                        finalExpectation.fulfill()
+                    }
+                }
+            )
+            .store(in: &cancellables)
+
+        wait(for: [initialExpectation], timeout: 2)
+        try databasePool.write { database in
+            try database.execute(
+                sql: "INSERT INTO Test (id, value) VALUES (?, ?)",
+                arguments: ["a", 1]
+            )
+            try database.execute(
+                sql: "INSERT INTO Test (id, value) VALUES (?, ?)",
+                arguments: ["b", 2]
+            )
+            try database.execute(
+                sql: "UPDATE Test SET value = ? WHERE id = ?",
+                arguments: [3, "a"]
+            )
+        }
+        wait(for: [finalExpectation], timeout: 2)
+
+        XCTAssertTrue(
+            snapshots.read().allSatisfy { $0.isEmpty || $0 == finalRows },
+            "One transaction may coalesce, but no intermediate durable state may escape."
+        )
+    }
+
+    func testZeroDemandStartsNoFetchAndFirstDemandReadsCurrentState() throws {
+        try createTestTable()
+        let subscriptionExpectation = expectation(description: "zero-demand subscription")
+        let currentValueExpectation = expectation(description: "first demanded current value")
+        let values = PublisherLockedValue<[[TestTable]]>([])
+        let didFulfillCurrentValue = PublisherLockedValue(false)
+        let currentRows = [TestTable(id: "before-demand", value: 1)]
+        let subscriber = ManualDemandSubscriber<[TestTable]>(
+            receiveSubscription: {
+                subscriptionExpectation.fulfill()
+            },
+            receiveValue: { rows in
+                values.withValue { $0.append(rows) }
+                if rows == currentRows && didFulfillCurrentValue.withValue({ value in
+                    guard !value else { return false }
+                    value = true
+                    return true
+                }) {
+                    currentValueExpectation.fulfill()
+                }
+            },
+            receiveCompletion: { completion in
+                XCTFail("Unexpected zero-demand publisher completion: \(completion)")
+            }
+        )
+
+        database.makeRequest(with: orderedStatement()).publish().subscribe(subscriber)
+        wait(for: [subscriptionExpectation], timeout: 2)
+        XCTAssertEqual(logger.count(containing: "fetchAll:"), 0)
+        try insertDirect(TestTable(id: "before-demand", value: 1))
+        drainMainQueue(description: "zero-demand write barrier")
+        XCTAssertTrue(values.read().isEmpty)
+        XCTAssertEqual(logger.count(containing: "fetchAll:"), 0)
+
+        subscriber.request(.max(1))
+        wait(for: [currentValueExpectation], timeout: 2)
+        XCTAssertEqual(values.read(), [currentRows])
+        subscriber.cancel()
+    }
+
+    func testIncrementalDemandDropsUndemandedSnapshotAndLaterReadsCurrentState() throws {
+        try createTestTable()
+        try insertTest.execute(TestTable(id: "initial", value: 1))
+        let subscriptionExpectation = expectation(description: "incremental-demand subscription")
+        let initialExpectation = expectation(description: "first demanded snapshot")
+        let finalExpectation = expectation(description: "later demanded current snapshot")
+        let values = PublisherLockedValue<[[TestTable]]>([])
+        let didFulfillInitial = PublisherLockedValue(false)
+        let didFulfillFinal = PublisherLockedValue(false)
+        let initialRows = [TestTable(id: "initial", value: 1)]
+        let finalRows = [
+            TestTable(id: "demanded", value: 3),
+            TestTable(id: "initial", value: 1),
+            TestTable(id: "undemanded", value: 2),
+        ]
+        let subscriber = ManualDemandSubscriber<[TestTable]>(
+            receiveSubscription: {
+                subscriptionExpectation.fulfill()
+            },
+            receiveValue: { rows in
+                values.withValue { $0.append(rows) }
+                if rows == initialRows && didFulfillInitial.withValue({ value in
+                    guard !value else { return false }
+                    value = true
+                    return true
+                }) {
+                    initialExpectation.fulfill()
+                }
+                if rows == finalRows && didFulfillFinal.withValue({ value in
+                    guard !value else { return false }
+                    value = true
+                    return true
+                }) {
+                    finalExpectation.fulfill()
+                }
+            },
+            receiveCompletion: { completion in
+                XCTFail("Unexpected incremental-demand publisher completion: \(completion)")
+            }
+        )
+
+        database.makeRequest(with: orderedStatement()).publish().subscribe(subscriber)
+        wait(for: [subscriptionExpectation], timeout: 2)
+        subscriber.request(.max(1))
+        wait(for: [initialExpectation], timeout: 2)
+        let initialFetchCount = logger.count(containing: "fetchAll:")
+        XCTAssertGreaterThan(initialFetchCount, 0)
+
+        try insertDirect(TestTable(id: "undemanded", value: 2))
+        waitForFetchCount(atLeast: initialFetchCount + 1, containing: "fetchAll:")
+        drainMainQueue(description: "undemanded snapshot drop barrier")
+        XCTAssertEqual(values.read(), [initialRows])
+
+        subscriber.request(.max(1))
+        drainMainQueue(description: "later demand does not replay barrier")
+        XCTAssertEqual(values.read(), [initialRows])
+        try insertDirect(TestTable(id: "demanded", value: 3))
+        wait(for: [finalExpectation], timeout: 2)
+        XCTAssertEqual(values.read(), [initialRows, finalRows])
+        subscriber.cancel()
+    }
+
+    func testCancellationBeforeDemandStartsNoFetch() throws {
+        try createTestTable()
+        let subscriptionExpectation = expectation(description: "cancel-before-demand subscription")
+        let freshLivenessExpectation = expectation(description: "fresh subscriber after cancellation")
+        let values = PublisherLockedValue<[[TestTable]]>([])
+        let subscriber = ManualDemandSubscriber<[TestTable]>(
+            receiveSubscription: {
+                subscriptionExpectation.fulfill()
+            },
+            receiveValue: { rows in
+                values.withValue { $0.append(rows) }
+            },
+            receiveCompletion: { completion in
+                XCTFail("Unexpected cancel-before-demand completion: \(completion)")
+            }
+        )
+
+        database.makeRequest(with: orderedStatement()).publish().subscribe(subscriber)
+        wait(for: [subscriptionExpectation], timeout: 2)
+        subscriber.cancel()
+        try insertDirect(TestTable(id: "after-zero-demand-cancel", value: 1))
+        drainMainQueue(description: "cancel-before-demand write barrier")
+        XCTAssertTrue(values.read().isEmpty)
+        XCTAssertEqual(logger.count(containing: "fetchAll:"), 0)
+
+        var freshDidFulfill = false
+        let freshCancellable = database.makeRequest(with: orderedStatement()).publish()
+            .sink(
+                receiveCompletion: { completion in
+                    XCTFail("Unexpected fresh publisher completion: \(completion)")
+                },
+                receiveValue: { rows in
+                    if rows == [TestTable(id: "after-zero-demand-cancel", value: 1)]
+                        && !freshDidFulfill {
+                        freshDidFulfill = true
+                        freshLivenessExpectation.fulfill()
+                    }
+                }
+            )
+        wait(for: [freshLivenessExpectation], timeout: 2)
+        drainMainQueue(description: "cancel-before-demand callback barrier")
+        XCTAssertTrue(values.read().isEmpty)
+        freshCancellable.cancel()
+    }
+
+    func testCancellationDuringInFlightSQLiteWorkSuppressesDelivery() throws {
+        let startedExpectation = expectation(description: "SQLite fetch entered blocking function")
+        let finishedExpectation = expectation(description: "SQLite fetch left blocking function")
+        let freshLivenessExpectation = expectation(description: "fresh publisher after in-flight cancellation")
+        let functionState = BlockingObservationFunctionState(
+            onStart: {
+                startedExpectation.fulfill()
+            },
+            onFinish: {
+                finishedExpectation.fulfill()
+            }
+        )
+        var configuration = Configuration()
+        configuration.prepareDatabase { database in
+            database.add(
+                function: DatabaseFunction(
+                    BlockingObservationExpression.functionName,
+                    argumentCount: 0
+                ) { _ in
+                    functionState.invoke()
+                }
+            )
+        }
+        let blockingURL = databaseDirectoryURL
+            .appending(path: "blocking.sqlite", directoryHint: .notDirectory)
+        let blockingPool = try DatabasePool(
+            path: blockingURL.path,
+            configuration: configuration
+        )
+        let blockingDatabase = try GRDBDatabase(
+            databasePool: blockingPool,
+            formatter: formatter,
+            logger: nil
+        )
+        try createTestTable(in: blockingPool)
+        try insertDirect(TestTable(id: "initial", value: 1), in: blockingPool)
+        let cancelledValues = PublisherLockedValue<[[TestTable]]>([])
+
+        let cancelledCancellable = blockingDatabase
+            .makeRequest(with: blockingStatement())
+            .publish()
+            .sink(
+                receiveCompletion: { completion in
+                    XCTFail("Unexpected in-flight publisher completion: \(completion)")
+                },
+                receiveValue: { rows in
+                    cancelledValues.withValue { $0.append(rows) }
+                }
+            )
+
+        wait(for: [startedExpectation], timeout: 2)
+        cancelledCancellable.cancel()
+        functionState.release()
+        wait(for: [finishedExpectation], timeout: 2)
+        try insertDirect(TestTable(id: "after-cancel", value: 2), in: blockingPool)
+
+        var freshDidFulfill = false
+        let freshCancellable = blockingDatabase
+            .makeRequest(with: orderedStatement())
+            .publish()
+            .sink(
+                receiveCompletion: { completion in
+                    XCTFail("Unexpected fresh publisher completion: \(completion)")
+                },
+                receiveValue: { rows in
+                    if rows == [
+                        TestTable(id: "after-cancel", value: 2),
+                        TestTable(id: "initial", value: 1),
+                    ] && !freshDidFulfill {
+                        freshDidFulfill = true
+                        freshLivenessExpectation.fulfill()
+                    }
+                }
+            )
+        wait(for: [freshLivenessExpectation], timeout: 2)
+        drainMainQueue(description: "in-flight cancellation callback barrier")
+        XCTAssertTrue(cancelledValues.read().isEmpty)
+        freshCancellable.cancel()
+    }
+
     func testDistinctDatabasePoolsDoNotCrossTrigger() throws {
         try createTestTable()
         let secondaryURL = databaseDirectoryURL.appending(path: "secondary.sqlite", directoryHint: .notDirectory)
@@ -297,25 +834,32 @@ final class XLPublisherTests: XCTestCase {
         let primaryInitial = expectation(description: "primary initial value")
         let secondaryInitial = expectation(description: "secondary initial value")
         let primaryUpdate = expectation(description: "primary update")
-        let unexpectedSecondaryUpdate = expectation(description: "no secondary cross-trigger")
-        unexpectedSecondaryUpdate.isInverted = true
-        var primarySawInitial = false
-        var primarySawUpdate = false
-        var secondarySawInitial = false
+        let secondaryLiveness = expectation(description: "secondary observed-pool liveness")
+        let primarySnapshots = PublisherLockedValue<[[TestTable]]>([])
+        let secondarySnapshots = PublisherLockedValue<[[TestTable]]>([])
+        let didFulfillPrimaryUpdate = PublisherLockedValue(false)
+        let didFulfillSecondaryLiveness = PublisherLockedValue(false)
 
         database.makeRequest(with: orderedStatement()).publish()
-            .removeDuplicates()
             .sink(
                 receiveCompletion: { completion in
                     XCTFail("Unexpected primary publisher completion: \(completion)")
                 },
                 receiveValue: { rows in
-                    if !primarySawInitial {
-                        primarySawInitial = true
+                    let count = primarySnapshots.withValue { snapshots in
+                        snapshots.append(rows)
+                        return snapshots.count
+                    }
+                    if count == 1 {
+                        XCTAssertEqual(rows, [])
                         primaryInitial.fulfill()
                     }
-                    else if rows == [TestTable(id: "primary", value: 1)] && !primarySawUpdate {
-                        primarySawUpdate = true
+                    if rows == [TestTable(id: "primary", value: 1)]
+                        && didFulfillPrimaryUpdate.withValue({ value in
+                            guard !value else { return false }
+                            value = true
+                            return true
+                        }) {
                         primaryUpdate.fulfill()
                     }
                 }
@@ -323,19 +867,28 @@ final class XLPublisherTests: XCTestCase {
             .store(in: &cancellables)
 
         secondaryDatabase.makeRequest(with: orderedStatement()).publish()
-            .removeDuplicates()
             .sink(
                 receiveCompletion: { completion in
                     XCTFail("Unexpected secondary publisher completion: \(completion)")
                 },
                 receiveValue: { rows in
-                    if !secondarySawInitial {
-                        secondarySawInitial = true
+                    let count = secondarySnapshots.withValue { snapshots in
+                        snapshots.append(rows)
+                        return snapshots.count
+                    }
+                    if count == 1 {
                         XCTAssertEqual(rows, [])
                         secondaryInitial.fulfill()
                     }
-                    else if rows == [TestTable(id: "hidden-secondary", value: 2)] {
-                        unexpectedSecondaryUpdate.fulfill()
+                    if rows == [
+                        TestTable(id: "hidden-secondary", value: 2),
+                        TestTable(id: "observed-secondary", value: 3),
+                    ] && didFulfillSecondaryLiveness.withValue({ value in
+                        guard !value else { return false }
+                        value = true
+                        return true
+                    }) {
+                        secondaryLiveness.fulfill()
                     }
                 }
             )
@@ -347,7 +900,27 @@ final class XLPublisherTests: XCTestCase {
             in: unrelatedSecondaryPool
         )
         try insertTest.execute(TestTable(id: "primary", value: 1))
-        wait(for: [primaryUpdate, unexpectedSecondaryUpdate], timeout: 0.5)
+        wait(for: [primaryUpdate], timeout: 2)
+        try insertDirect(
+            TestTable(id: "observed-secondary", value: 3),
+            in: secondaryPool
+        )
+        wait(for: [secondaryLiveness], timeout: 2)
+
+        XCTAssertTrue(
+            primarySnapshots.read().allSatisfy {
+                $0 == [] || $0 == [TestTable(id: "primary", value: 1)]
+            }
+        )
+        XCTAssertTrue(
+            secondarySnapshots.read().allSatisfy {
+                $0 == [] || $0 == [
+                    TestTable(id: "hidden-secondary", value: 2),
+                    TestTable(id: "observed-secondary", value: 3),
+                ]
+            },
+            "An external writer must not publish a hidden-only snapshot through another pool."
+        )
     }
 
     func testRapidWritesPublishSerializedMonotonicValuesOnMainQueue() throws {
@@ -355,12 +928,13 @@ final class XLPublisherTests: XCTestCase {
         try insertTest.execute(TestTable(id: "counter", value: 0))
         let initialExpectation = expectation(description: "initial counter")
         let finalExpectation = expectation(description: "final counter")
-        let staleAfterFinalExpectation = expectation(description: "no stale value after final state")
-        staleAfterFinalExpectation.isInverted = true
+        let livenessExpectation = expectation(description: "post-final liveness snapshot")
         let lock = NSLock()
         var observedValues: [Int] = []
         var allCallbacksOnMainThread = true
+        var sawInitial = false
         var sawFinal = false
+        var sawLiveness = false
 
         database.makeRequest(with: orderedStatement()).publish()
             .sink(
@@ -370,15 +944,34 @@ final class XLPublisherTests: XCTestCase {
                     }
                 },
                 receiveValue: { rows in
-                    guard let value = rows.first?.value else { return }
                     lock.lock()
                     allCallbacksOnMainThread = allCallbacksOnMainThread && Thread.isMainThread
-                    observedValues.append(value)
-                    let isInitial = observedValues.count == 1 && value == 0
-                    let isStaleAfterFinal = sawFinal && value < 25
-                    let isFinal = value == 25 && !sawFinal
+                    let value = rows.first(where: { $0.id == "counter" })?.value
+                    if let value {
+                        observedValues.append(value)
+                    }
+                    let isInitial: Bool
+                    let isFinal: Bool
+                    switch value {
+                    case .some(0):
+                        isInitial = !sawInitial
+                        isFinal = false
+                    case .some(25):
+                        isInitial = false
+                        isFinal = !sawFinal
+                    default:
+                        isInitial = false
+                        isFinal = false
+                    }
+                    let isLiveness = rows.contains(where: { $0.id == "zz-liveness" }) && !sawLiveness
+                    if isInitial {
+                        sawInitial = true
+                    }
                     if isFinal {
                         sawFinal = true
+                    }
+                    if isLiveness {
+                        sawLiveness = true
                     }
                     lock.unlock()
 
@@ -388,8 +981,8 @@ final class XLPublisherTests: XCTestCase {
                     if isFinal {
                         finalExpectation.fulfill()
                     }
-                    if isStaleAfterFinal {
-                        staleAfterFinalExpectation.fulfill()
+                    if isLiveness {
+                        livenessExpectation.fulfill()
                     }
                 }
             )
@@ -400,7 +993,8 @@ final class XLPublisherTests: XCTestCase {
             try updateTest.execute(id: "counter", value: value)
         }
         wait(for: [finalExpectation], timeout: 2)
-        wait(for: [staleAfterFinalExpectation], timeout: 0.5)
+        try insertTest.execute(TestTable(id: "zz-liveness", value: 999))
+        wait(for: [livenessExpectation], timeout: 2)
 
         lock.lock()
         let values = observedValues
@@ -414,34 +1008,48 @@ final class XLPublisherTests: XCTestCase {
     func testCancellationStopsObservationFetchesAndValues() throws {
         try createTestTable()
         let initialExpectation = expectation(description: "initial value")
-        let unexpectedValue = expectation(description: "no value after cancellation")
-        unexpectedValue.isInverted = true
-        var sawInitial = false
+        let freshSubscriberExpectation = expectation(description: "fresh subscriber liveness")
+        let cancelledSnapshots = PublisherLockedValue<[[TestTable]]>([])
 
         let cancellable = database.makeRequest(with: orderedStatement()).publish()
-            .removeDuplicates()
             .sink(
                 receiveCompletion: { completion in
                     XCTFail("Unexpected publisher completion before cancellation: \(completion)")
                 },
-                receiveValue: { _ in
-                    if !sawInitial {
-                        sawInitial = true
-                        initialExpectation.fulfill()
+                receiveValue: { rows in
+                    let count = cancelledSnapshots.withValue { snapshots in
+                        snapshots.append(rows)
+                        return snapshots.count
                     }
-                    else {
-                        unexpectedValue.fulfill()
+                    if count == 1 {
+                        XCTAssertEqual(rows, [])
+                        initialExpectation.fulfill()
                     }
                 }
             )
 
         wait(for: [initialExpectation], timeout: 2)
-        let fetchCountBeforeCancellation = waitForFetchCountToSettle(containing: "fetchAll:")
-        XCTAssertGreaterThan(fetchCountBeforeCancellation, 0)
         cancellable.cancel()
         try insertDirect(TestTable(id: "after-cancel", value: 1))
-        wait(for: [unexpectedValue], timeout: 0.5)
-        XCTAssertEqual(logger.count(containing: "fetchAll:"), fetchCountBeforeCancellation)
+
+        var freshDidFulfill = false
+        let freshCancellable = database.makeRequest(with: orderedStatement()).publish()
+            .sink(
+                receiveCompletion: { completion in
+                    XCTFail("Unexpected fresh publisher completion: \(completion)")
+                },
+                receiveValue: { rows in
+                    if rows == [TestTable(id: "after-cancel", value: 1)] && !freshDidFulfill {
+                        freshDidFulfill = true
+                        freshSubscriberExpectation.fulfill()
+                    }
+                }
+            )
+        wait(for: [freshSubscriberExpectation], timeout: 2)
+        drainMainQueue(description: "post-cancellation callback barrier")
+
+        XCTAssertEqual(cancelledSnapshots.read(), [[]])
+        freshCancellable.cancel()
     }
 
     func testPublishOneObservesDirectWrites() throws {
@@ -488,6 +1096,16 @@ final class XLPublisherTests: XCTestCase {
         }
     }
 
+    private func blockingStatement() -> any XLQueryStatement<TestTable> {
+        sql { schema in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            Where(BlockingObservationExpression() == 1)
+            OrderBy(table.id.ascending())
+        }
+    }
+
     private func createTestTable(in pool: DatabasePool? = nil) throws {
         try (pool ?? databasePool).write { database in
             try database.execute(
@@ -510,31 +1128,28 @@ final class XLPublisherTests: XCTestCase {
         }
     }
 
-    private func waitForFetchCountToSettle(containing fragment: String) -> Int {
-        var previousCount = logger.count(containing: fragment)
-        var stableSamples = 0
-
-        for sample in 1...20 {
-            let interval = expectation(description: "fetch count settle interval \(sample)")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                interval.fulfill()
-            }
-            wait(for: [interval], timeout: 1)
-
-            let currentCount = logger.count(containing: fragment)
-            if currentCount == previousCount {
-                stableSamples += 1
-                if stableSamples == 2 {
-                    return currentCount
-                }
-            }
-            else {
-                previousCount = currentCount
-                stableSamples = 0
-            }
+    private func drainMainQueue(description: String) {
+        let barrier = expectation(description: description)
+        DispatchQueue.main.async {
+            barrier.fulfill()
         }
+        wait(for: [barrier], timeout: 2)
+    }
 
-        XCTFail("Observation fetch count did not settle.")
-        return previousCount
+    private func waitForFetchCount(atLeast minimumCount: Int, containing fragment: String) {
+        for attempt in 1...200 {
+            if logger.count(containing: fragment) >= minimumCount {
+                return
+            }
+            let poll = expectation(description: "positive fetch-count poll \(attempt)")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                poll.fulfill()
+            }
+            wait(for: [poll], timeout: 1)
+        }
+        XCTFail(
+            "Expected at least \(minimumCount) log entries containing '\(fragment)'; "
+                + "received \(logger.count(containing: fragment))."
+        )
     }
 }
