@@ -1,11 +1,11 @@
 {
-  "task_name": "[v1.3 Housekeeping] Update the SwiftQL agent SKILL.md",
-  "issue_number": 225,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/225",
+  "task_name": "[v1.3 Housekeeping] Audit release readiness and milestone closure",
+  "issue_number": 226,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/226",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#225 - [v1.3 Housekeeping] Update the SwiftQL agent SKILL.md",
+  "codex_session_title": "lukevanin/swiftql#226 - [v1.3 Housekeeping] Audit release readiness and milestone closure",
   "codex_session_id": "019f7a0d-c80b-7f22-b47a-e3adb614acc8",
   "codex_session_url": null,
-  "task_branch": "codex/225-update-the-swiftql-agent-skill-md",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/225-update-the-swiftql-agent-skill-md"
+  "task_branch": "codex/226-audit-release-readiness-and-milestone-closure",
+  "task_worktree_path": "/private/tmp/swiftql-worktrees/226-audit-release-readiness-and-milestone-closure"
 }
