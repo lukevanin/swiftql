@@ -250,14 +250,19 @@ final class OtherTests {
             (255, "operator-property"),
             (256, "observation"),
         ]:
+            status = "completed" if issue == 254 else "planned"
             suites.append(
                 {
                     "id": f"suite.{name}",
                     "issue": issue,
                     "milestone": "v1.3",
-                    "status": "planned",
-                    "case_ids": [],
-                    "evidence_ids": [],
+                    "status": status,
+                    "case_ids": (
+                        [features[0]["id"]] if status == "completed" else []
+                    ),
+                    "evidence_ids": (
+                        ["evidence.real-prepare"] if status == "completed" else []
+                    ),
                 }
             )
         return {
@@ -690,14 +695,28 @@ public static func ??<Wrapped>(lhs: Self, rhs: Wrapped) -> Wrapped { rhs }
         self.assert_invalid(incomplete, "completed and must register non-empty")
 
         wrong_snapshot_status = self.valid_inventory()
-        wrong_snapshot_status["suites"][3]["status"] = "completed"
-        wrong_snapshot_status["suites"][3]["case_ids"] = [
-            wrong_snapshot_status["features"][0]["id"]
-        ]
-        wrong_snapshot_status["suites"][3]["evidence_ids"] = [
-            "evidence.real-prepare"
-        ]
-        self.assert_invalid(wrong_snapshot_status, "must be 'planned' for issue #254")
+        northwind_suite = next(
+            suite
+            for suite in wrong_snapshot_status["suites"]
+            if suite["issue"] == 254
+        )
+        northwind_suite["status"] = "planned"
+        self.assert_invalid(
+            wrong_snapshot_status,
+            "must be 'completed' for issue #254",
+        )
+
+        incomplete_northwind = self.valid_inventory()
+        northwind_suite = next(
+            suite
+            for suite in incomplete_northwind["suites"]
+            if suite["issue"] == 254
+        )
+        northwind_suite["evidence_ids"] = []
+        self.assert_invalid(
+            incomplete_northwind,
+            "completed and must register non-empty case_ids and evidence_ids",
+        )
 
     def test_all_required_syntax_families_are_enforced(self) -> None:
         inventory = self.valid_inventory()

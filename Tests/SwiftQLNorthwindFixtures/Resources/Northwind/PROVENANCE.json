@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "upstream": {
+    "repository": "Northwind-swift/NorthwindSQLite.swift",
+    "commit": "865de0872e61692a49cd6069cd2df8f9ac04541e",
+    "path": "dist/northwind.db",
+    "url": "https://github.com/Northwind-swift/NorthwindSQLite.swift/blob/865de0872e61692a49cd6069cd2df8f9ac04541e/dist/northwind.db",
+    "license_spdx": "MIT",
+    "license_path": "LICENSE",
+    "license_git_blob_sha": "7b784d8b065952c289f6fe51adf74ed780c4d996"
+  },
+  "artifact": {
+    "path": "northwind.db",
+    "sha256": "cb6f0071a264e150d3796f75c4b0643e32b2132e4e02370518b50a1eac3381d8",
+    "byte_count": 602112,
+    "license_notice_path": "LICENSE.txt",
+    "license_notice_sha256": "c28e204be6418b87ae1c83127096aad9c9e1a218c365f8f4d630e84d8ba96c47"
+  },
+  "expected": {
+    "application_tables": [
+      "Categories",
+      "CustomerCustomerDemo",
+      "CustomerDemographics",
+      "Customers",
+      "EmployeeTerritories",
+      "Employees",
+      "Order Details",
+      "Orders",
+      "Products",
+      "Regions",
+      "Shippers",
+      "Suppliers",
+      "Territories"
+    ],
+    "views": [
+      "Alphabetical list of products",
+      "Category Sales for 1997",
+      "Current Product List",
+      "Customer and Suppliers by City",
+      "Invoices",
+      "Order Details Extended",
+      "Order Subtotals",
+      "Orders Qry",
+      "Product Sales for 1997",
+      "ProductDetails_V",
+      "Products Above Average Price",
+      "Products by Category",
+      "Quarterly Orders",
+      "Sales Totals by Amount",
+      "Sales by Category",
+      "Summary of Sales by Quarter",
+      "Summary of Sales by Year"
+    ],
+    "row_counts": {
+      "Customers": 93,
+      "Order Details": 2155,
+      "Orders": 830,
+      "Products": 77
+    },
+    "order_10248": {
+      "detail_count": 3,
+      "total": 440.0
+    }
+  },
+  "policy": {
+    "canonical_access": "read-only",
+    "mutation_access": "unique temporary copy",
+    "runtime_network_access": false,
+    "performance_claim": false
+  }
+}

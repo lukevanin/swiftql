@@ -33,7 +33,7 @@ REQUIRED_SUITE_STATUSES = {
     191: "planned",
     252: "completed",
     253: "completed",
-    254: "planned",
+    254: "completed",
     255: "planned",
     256: "planned",
 }

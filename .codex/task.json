@@ -1,11 +1,11 @@
 {
-  "task_name": "Add a versioned SQLite syntax conformance inventory",
-  "issue_number": 190,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/190",
+  "task_name": "Add a pinned Northwind real-database correctness corpus",
+  "issue_number": 254,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/254",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#190 - Add a versioned SQLite syntax conformance inventory",
+  "codex_session_title": "lukevanin/swiftql#254 - Add a pinned Northwind real-database correctness corpus",
   "codex_session_id": "019f7a0d-c80b-7f22-b47a-e3adb614acc8",
   "codex_session_url": null,
-  "task_branch": "codex/190-add-a-versioned-sqlite-syntax-conformance-inventory",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/190-add-a-versioned-sqlite-syntax-conformance-inventory"
+  "task_branch": "codex/254-add-a-pinned-northwind-real-database-correctness-corpus",
+  "task_worktree_path": "/private/tmp/swiftql-worktrees/254-add-a-pinned-northwind-real-database-correctness-corpus"
 }
