@@ -101,6 +101,129 @@ final class SQLiteValueConformanceBoundaryTests: XCTestCase {
         }
     }
 
+    func testInventoryRegistersCompletedCombinatorialSuiteSnapshot() throws {
+        let inventory = try SQLiteConformanceInventory.load()
+        let suite = try XCTUnwrap(
+            inventory.suites.first { $0.issue == 191 }
+        )
+        let expectedCaseIDs = [
+            "binding.indexed",
+            "binding.named",
+            "binding.repeated-named",
+            "syntax.compound.current-set-operators",
+            "syntax.compound.direct-scalar-gap",
+            "syntax.compound.intersect-except-prepare-gap",
+            "syntax.cte.materialization-hints-gap",
+            "syntax.cte.recursive",
+            "syntax.ddl.typed-model-gap",
+            "syntax.dml.returning-gap",
+            "syntax.expression.aggregate-functions",
+            "syntax.expression.current-operators",
+            "syntax.expression.date-functions",
+            "syntax.expression.json-functions",
+            "syntax.expression.like-escape-gap",
+            "syntax.expression.numeric-comparable-functions",
+            "syntax.expression.operator-prepare-gap",
+            "syntax.expression.string-functions",
+            "syntax.expression.type-casts",
+            "syntax.join.current-inner-left-cross",
+            "syntax.join.natural-using-gap",
+            "syntax.select.core",
+            "syntax.select.count-star-gap",
+            "syntax.select.ordering-terms",
+            "syntax.subquery.nullable-shape-gap",
+            "syntax.subquery.table-and-in-prepare-gap",
+        ]
+        let expectedEvidenceIDs = [
+            "evidence.combinatorial.broken-renderer.sqlite",
+            "evidence.combinatorial.compile-fail-having-without-group-by",
+            "evidence.combinatorial.compile-fail-offset-without-limit",
+            "evidence.combinatorial.compile-fail-where-after-order-by",
+            "evidence.combinatorial.compile-fail-where-requires-boolean",
+            "evidence.combinatorial.manifest-determinism",
+            "evidence.combinatorial.positive.sqlite",
+        ]
+
+        XCTAssertEqual(suite.id, "suite.191.combinatorial-syntax")
+        XCTAssertEqual(suite.milestone, "v1.3")
+        XCTAssertEqual(suite.status, .completed)
+        XCTAssertEqual(suite.caseIDs, expectedCaseIDs)
+        XCTAssertEqual(suite.evidenceIDs, expectedEvidenceIDs)
+
+        let evidenceByID = Dictionary(
+            uniqueKeysWithValues: inventory.evidence.map { ($0.id, $0) }
+        )
+        let positiveEvidence = try XCTUnwrap(
+            evidenceByID["evidence.combinatorial.positive.sqlite"]
+        )
+        XCTAssertTrue(positiveEvidence.realSQLite)
+        XCTAssertEqual(
+            positiveEvidence.environmentIDs,
+            ["sqlite-3.51.0-macos-arm64"]
+        )
+        XCTAssertEqual(
+            Set(positiveEvidence.layers),
+            [
+                .bindings,
+                .execution,
+                .prepare,
+                .rendering,
+                .runtimeMetadata,
+                .semanticOracle,
+                .swiftTypecheck,
+            ]
+        )
+
+        let compileFailEvidenceIDs = Set(
+            expectedEvidenceIDs.filter { $0.contains(".compile-fail-") }
+        )
+        XCTAssertEqual(compileFailEvidenceIDs.count, 4)
+        for evidenceID in compileFailEvidenceIDs {
+            let evidence = try XCTUnwrap(evidenceByID[evidenceID], evidenceID)
+            XCTAssertEqual(
+                Set(evidence.layers),
+                [.compileFail, .swiftTypecheck],
+                evidenceID
+            )
+            XCTAssertEqual(
+                evidence.runnerPath,
+                "scripts/ci/check-query-clause-ordering-type-safety.sh",
+                evidenceID
+            )
+            XCTAssertFalse(evidence.realSQLite, evidenceID)
+            XCTAssertTrue(evidence.environmentIDs.isEmpty, evidenceID)
+        }
+
+        let gatedBlockers = [
+            "syntax.compound.direct-scalar-gap": 43,
+            "syntax.cte.materialization-hints-gap": 10,
+            "syntax.ddl.typed-model-gap": 139,
+            "syntax.dml.returning-gap": 57,
+            "syntax.expression.like-escape-gap": 21,
+            "syntax.join.natural-using-gap": 45,
+            "syntax.select.count-star-gap": 17,
+            "syntax.subquery.nullable-shape-gap": 70,
+        ]
+        let featuresByID = Dictionary(
+            uniqueKeysWithValues: inventory.features.map { ($0.id, $0) }
+        )
+        XCTAssertEqual(gatedBlockers.count, 8)
+        for (featureID, blockingIssue) in gatedBlockers {
+            let feature = try XCTUnwrap(featuresByID[featureID], featureID)
+            XCTAssertEqual(feature.status, .unimplemented, featureID)
+            XCTAssertEqual(feature.adoptionStatus, .syntaxGated, featureID)
+            XCTAssertEqual(
+                feature.deferral?.blockingIssue,
+                blockingIssue,
+                featureID
+            )
+            XCTAssertTrue(
+                feature.followUpIssues.contains(blockingIssue),
+                featureID
+            )
+        }
+    }
+
     func testInventoryRegistersCompletedNorthwindCorpusAndPinnedProvenance() throws {
         let inventory = try SQLiteConformanceInventory.load()
         let suite = try XCTUnwrap(

@@ -56,6 +56,20 @@ let package = Package(
             resources: [.copy("Resources/Northwind")]
         ),
 
+        // Test-only, constraint-aware syntax generator and real-SQLite replay
+        // support. The target consumes the canonical inventory and Northwind
+        // fixture without taking ownership of either artifact.
+        .target(
+            name: "SwiftQLSQLiteCombinatorialSupport",
+            dependencies: [
+                "SwiftQL",
+                "SwiftQLNorthwindFixtures",
+                "SwiftQLSQLiteConformanceFixtures",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            path: "Tests/SwiftQLSQLiteCombinatorialSupport"
+        ),
+
         // Macro implementation that performs the source transformation of a macro.
         .macro(
             name: "SQLMacros",
@@ -140,6 +154,17 @@ let package = Package(
             name: "SwiftQLNorthwindFixturesTests",
             dependencies: [
                 "SwiftQLNorthwindFixtures",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ]
+        ),
+
+        .testTarget(
+            name: "SwiftQLSQLiteCombinatorialSupportTests",
+            dependencies: [
+                "SwiftQL",
+                "SwiftQLSQLiteCombinatorialSupport",
+                "SwiftQLNorthwindFixtures",
+                "SwiftQLSQLiteConformanceFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
