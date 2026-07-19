@@ -83,8 +83,6 @@ package struct GRDBRowDecoder<Output> {
 
     private let reader: any XLRowReadable<Output>
 
-    private let columnReader = XLColumnValuesRowReader<Output>()
-
     package init(reader: any XLRowReadable<Output>) {
         self.reader = reader
     }
@@ -94,8 +92,11 @@ package struct GRDBRowDecoder<Output> {
     }
 
     func decode(values: [XLSQLiteValue]) throws -> Output {
-        columnReader.reset(reader: XLSQLiteValueReader(values: values))
-        return try reader.readRow(reader: columnReader)
+        try XLColumnValuesRowReader<Output>.withReader(
+            XLSQLiteValueReader(values: values)
+        ) { columnReader in
+            try reader.readRow(reader: columnReader)
+        }
     }
 }
 

@@ -261,15 +261,14 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
             as: "value"
         )
         let generated = _swiftQLRowReader.SQLReader(value: expression)
-        let reader = XLColumnValuesRowReader<_swiftQLRowReader>()
-        reader.reset(
-            reader: XLSQLiteValueReader(values: [.text("round-trip")])
-        )
-
-        XCTAssertEqual(
-            try generated.readRow(reader: reader),
-            _swiftQLRowReader(value: "round-trip")
-        )
+        try XLColumnValuesRowReader<_swiftQLRowReader>.withReader(
+            XLSQLiteValueReader(values: [.text("round-trip")])
+        ) { reader in
+            XCTAssertEqual(
+                try generated.readRow(reader: reader),
+                _swiftQLRowReader(value: "round-trip")
+            )
+        }
     }
 
     func testGeneratedResultLayoutProjectsComputedAliasesWithCapturedInvocation() throws {
