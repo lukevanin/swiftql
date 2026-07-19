@@ -35,6 +35,7 @@ enum FixtureError: Error {
     case invalidCodecValue(XLSQLiteValue)
     case unexpectedPacketResult(Int?)
     case unexpectedStaticQueryResult(Int64)
+    case unexpectedSkillQueryResult([SkillPerson])
     case unexpectedResult(PersonSummary?)
 }
 
@@ -226,6 +227,14 @@ private func executeFixture(
     try database.makeRequest(
         with: sqlInsert(Person(id: "grace", name: "Grace Hopper", age: 85))
     ).execute()
+    try database.makeRequest(with: sqlCreate(SkillPerson.self)).execute()
+    try database.makeRequest(
+        with: sqlInsert(SkillPerson(id: "ada", name: "Ada Lovelace"))
+    ).execute()
+    let skillPeople = try fetchSkillPeople(named: "Ada Lovelace", from: database)
+    guard skillPeople == [SkillPerson(id: "ada", name: "Ada Lovelace")] else {
+        throw FixtureError.unexpectedSkillQueryResult(skillPeople)
+    }
 
     let token = try database.contextualBinding(
         DownstreamToken.self,
