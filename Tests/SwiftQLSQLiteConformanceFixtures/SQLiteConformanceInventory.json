@@ -1485,7 +1485,7 @@
     {
       "id": "evidence.observation.incremental-demand.sqlite",
       "source_path": "Tests/SQLTests/SQLPublisherTests.swift",
-      "test_case": "XLPublisherTests.testIncrementalDemandDropsUndemandedSnapshotAndLaterReadsCurrentState",
+      "test_case": "XLPublisherTests.testIncrementalDemandBoundsDeliveryUntilLaterCommitReachesCurrentState",
       "runner_path": null,
       "layers": [
         "execution",
@@ -7328,7 +7328,7 @@
       "id": "observation.demand.incremental",
       "kind": "adopted-behavior",
       "family": "observation",
-      "title": "Incremental demand bounds delivery and later reads current state",
+      "title": "Incremental demand bounds delivery and later commits reach current state",
       "status": "supported",
       "adoption_status": "already-covered",
       "public_api": [
@@ -7344,7 +7344,7 @@
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
       "required_capabilities": ["combine-backpressure", "database-pool-driver", "grdb-value-observation", "sqlite-core-parser"],
-      "schema_requirements": ["A manual subscriber requests one value at a time around a committed observed-table update."],
+      "schema_requirements": ["A manual subscriber replenishes finite demand around committed observed-table updates, including a refresh that may already be in flight."],
       "evidence_ids": ["evidence.observation.fixture-contract", "evidence.observation.incremental-demand.sqlite"],
       "deviations": [],
       "follow_up_issues": [],
@@ -7370,7 +7370,7 @@
           "path": "Tests/GRDBTests/GRDBCombineTests/ValueObservationPublisherTests.swift",
           "upstream_case": "ValueObservationPublisherTests.testDemandTwoReceivesTwoElements",
           "license_disposition": "MIT; demand behavior independently adapted to SwiftQL; no source copied",
-          "adaptation_notes": "Requests a later unit of demand and checks the newly fetched current state rather than an undemanded stale snapshot.",
+          "adaptation_notes": "Replenishes finite demand when an in-flight snapshot consumes it, then uses a later relevant commit to prove current durable state remains reachable.",
           "license_spdx": "MIT",
           "license_file_path": "LICENSE",
           "license_file_url": "https://github.com/groue/GRDB.swift/blob/b83108d10f42680d78f23fe4d4d80fc88dab3212/LICENSE",

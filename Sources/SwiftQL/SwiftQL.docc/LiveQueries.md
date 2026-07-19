@@ -136,10 +136,11 @@ GRDB-backed observations have these behaviors:
   `publishOne()` creates the publisher. Subscribing with zero demand does not start SQLite work.
 - Each subscriber owns an independent observation and receives a fresh initial value. A publisher does
   not replay a snapshot captured for an earlier subscriber.
-- Combine demand is a delivery bound. Finite demand limits the number of snapshots delivered, and a
-  snapshot produced without outstanding demand is dropped rather than buffered. Requesting more
-  demand later does not replay that snapshot or immediately fetch the current state; a later relevant
-  commit is needed to trigger another fetch.
+- Combine demand is a delivery bound. Finite demand limits the number of snapshots delivered, and
+  values received by the publisher with no outstanding demand are dropped. Fetching and main-queue
+  delivery are asynchronous, however, so a snapshot already in flight can consume demand requested
+  later. Do not treat a new demand request as a "fetch latest" operation; keep demand outstanding for
+  a later relevant commit when the consumer needs a current durable snapshot.
 - Parameterized publishers retain the immutable packet passed at construction;
   all refreshes and retries use that packet.
 - Relevant writes performed through the same `DatabasePool` are observed, including direct GRDB

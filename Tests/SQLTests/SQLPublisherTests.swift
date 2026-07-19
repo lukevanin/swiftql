@@ -111,15 +111,19 @@ private final class ManualDemandSubscriber<Input>: Subscriber, @unchecked Sendab
 
     private let receiveValueCallback: (Input) -> Void
 
+    private let receiveAdditionalDemandCallback: (Input) -> Subscribers.Demand
+
     private let receiveCompletionCallback: (Subscribers.Completion<Error>) -> Void
 
     init(
         receiveSubscription: @escaping () -> Void,
         receiveValue: @escaping (Input) -> Void,
+        receiveAdditionalDemand: @escaping (Input) -> Subscribers.Demand = { _ in .none },
         receiveCompletion: @escaping (Subscribers.Completion<Error>) -> Void
     ) {
         self.receiveSubscriptionCallback = receiveSubscription
         self.receiveValueCallback = receiveValue
+        self.receiveAdditionalDemandCallback = receiveAdditionalDemand
         self.receiveCompletionCallback = receiveCompletion
     }
 
@@ -132,7 +136,7 @@ private final class ManualDemandSubscriber<Input>: Subscriber, @unchecked Sendab
 
     func receive(_ input: Input) -> Subscribers.Demand {
         receiveValueCallback(input)
-        return .none
+        return receiveAdditionalDemandCallback(input)
     }
 
     func receive(completion: Subscribers.Completion<Error>) {
@@ -632,7 +636,7 @@ final class XLPublisherTests: XCTestCase {
         subscriber.cancel()
     }
 
-    func testIncrementalDemandDropsUndemandedSnapshotAndLaterReadsCurrentState() throws {
+    func testIncrementalDemandBoundsDeliveryUntilLaterCommitReachesCurrentState() throws {
         try createTestTable()
         try insertTest.execute(TestTable(id: "initial", value: 1))
         let subscriptionExpectation = expectation(description: "incremental-demand subscription")
@@ -642,6 +646,10 @@ final class XLPublisherTests: XCTestCase {
         let didFulfillInitial = PublisherLockedValue(false)
         let didFulfillFinal = PublisherLockedValue(false)
         let initialRows = [TestTable(id: "initial", value: 1)]
+        let intermediateRows = [
+            TestTable(id: "initial", value: 1),
+            TestTable(id: "undemanded", value: 2),
+        ]
         let finalRows = [
             TestTable(id: "demanded", value: 3),
             TestTable(id: "initial", value: 1),
@@ -668,6 +676,12 @@ final class XLPublisherTests: XCTestCase {
                     finalExpectation.fulfill()
                 }
             },
+            receiveAdditionalDemand: { rows in
+                // A refresh that was already in flight when demand ran out may
+                // consume newly requested demand. Keep one unit available so
+                // the later liveness commit can still publish current state.
+                rows == intermediateRows ? .max(1) : .none
+            },
             receiveCompletion: { completion in
                 XCTFail("Unexpected incremental-demand publisher completion: \(completion)")
             }
@@ -682,15 +696,17 @@ final class XLPublisherTests: XCTestCase {
 
         try insertDirect(TestTable(id: "undemanded", value: 2))
         waitForFetchCount(atLeast: initialFetchCount + 1, containing: "fetchAll:")
-        drainMainQueue(description: "undemanded snapshot drop barrier")
-        XCTAssertEqual(values.read(), [initialRows])
 
         subscriber.request(.max(1))
-        drainMainQueue(description: "later demand does not replay barrier")
-        XCTAssertEqual(values.read(), [initialRows])
         try insertDirect(TestTable(id: "demanded", value: 3))
         wait(for: [finalExpectation], timeout: 2)
-        XCTAssertEqual(values.read(), [initialRows, finalRows])
+        let observed = values.read()
+        XCTAssertEqual(observed.first, initialRows)
+        XCTAssertEqual(observed.last, finalRows)
+        XCTAssertTrue(
+            observed.dropFirst().dropLast().allSatisfy { $0 == intermediateRows },
+            "Unexpected incremental-demand snapshots: \(observed)"
+        )
         subscriber.cancel()
     }
 
