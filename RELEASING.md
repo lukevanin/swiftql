@@ -13,7 +13,9 @@ matrix, and built the exact commit's validated DocC artifact.
 
 1. Merge every retained v1.2 issue, complete audit issue #223, and close
    milestone 6 with no open issues. Verify the live milestone rather than a
-   local planning file:
+   local planning file. The checked-in
+   [v1.2 release-readiness audit](Documentation/ReleaseAudits/v1.2.md) records
+   the pre-tag verdict and evidence:
 
    ```sh
    gh api repos/lukevanin/swiftql/milestones/6 |
