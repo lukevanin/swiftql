@@ -1,11 +1,11 @@
 {
-  "task_name": "Add live-query observation stress and rollback contract tests",
-  "issue_number": 255,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/255",
+  "task_name": "Research build-time SQLite query preparation and schema validation",
+  "issue_number": 132,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/132",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#255 - Add live-query observation stress and rollback contract tests",
+  "codex_session_title": "lukevanin/swiftql#132 - Research build-time SQLite query preparation and schema validation",
   "codex_session_id": "019f7a0d-c80b-7f22-b47a-e3adb614acc8",
   "codex_session_url": null,
-  "task_branch": "codex/255-add-live-query-observation-stress-and-rollback-contract-tests",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/255-add-live-query-observation-stress-and-rollback-contract-tests"
+  "task_branch": "codex/132-research-build-time-sqlite-query-preparation-and-schema-validation",
+  "task_worktree_path": "/private/tmp/swiftql-worktrees/132-research-build-time-sqlite-query-preparation-and-schema-validation"
 }
