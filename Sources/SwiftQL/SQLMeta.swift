@@ -215,7 +215,11 @@ public struct XLFieldReader {
 ///
 /// Reads the value for columns in rows returned by a select query statement.
 ///
-public protocol XLRowReader: AnyObject {
+/// A database-provided row reader is borrowed for the duration of one
+/// ``XLRowReadable/readRow(reader:)`` call. Do not retain it or capture it in an
+/// escaping closure.
+///
+public protocol XLRowReader {
     
     ///
     /// Reads and returns the value for the current column.
@@ -360,25 +364,37 @@ final class XLColumnsDefinitionRowReader: XLRowReader, XLEncodable {
 }
 
 
+/// Reads the columns for one row returned by a select query statement.
 ///
-/// Reads the columns for a row returned by a select query statement.
-///
-final class XLColumnValuesRowReader<Output>: XLRowReader {
-    
-    private var count: Int = 0
-    
-    private var reader: XLColumnReader!
-    
-    init() {
+/// The value stores only a pointer to state borrowed from ``withReader(_:body:)``.
+/// Keeping the representation pointer-sized lets the `XLRowReader` existential
+/// carry it inline instead of allocating the previous reader class.
+struct XLColumnValuesRowReader<Output>: XLRowReader {
+
+    private struct State {
+        var count: Int = 0
+        let reader: any XLColumnReader
     }
-    
+
+    private let state: UnsafeMutablePointer<State>
+
+    private init(state: UnsafeMutablePointer<State>) {
+        self.state = state
+    }
+
+    /// Borrows sequential row-reading state for one synchronous operation.
     ///
-    /// Resets the reader state so that the next call to the `column` method will return the first column in
-    /// the row.
-    ///
-    func reset(reader: XLColumnReader) {
-        count = 0
-        self.reader = reader
+    /// `body` must not let the supplied reader escape. The pointer remains
+    /// valid only until `body` returns or throws.
+    @inline(__always)
+    static func withReader<Result>(
+        _ reader: any XLColumnReader,
+        body: (Self) throws -> Result
+    ) rethrows -> Result {
+        var state = State(reader: reader)
+        return try withUnsafeMutablePointer(to: &state) { state in
+            try body(Self(state: state))
+        }
     }
     
     ///
@@ -392,11 +408,15 @@ final class XLColumnValuesRowReader<Output>: XLRowReader {
     }
 
     private func readValue<T>() throws -> T where T: XLLiteral {
+        let index = state.pointee.count
         defer {
-            count += 1
+            state.pointee.count += 1
         }
         return try T.init(
-            reader: XLFieldReader(reader: reader, at: count)
+            reader: XLFieldReader(
+                reader: state.pointee.reader,
+                at: index
+            )
         )
     }
 
@@ -404,11 +424,13 @@ final class XLColumnValuesRowReader<Output>: XLRowReader {
         at index: Int,
         using dialect: Dialect
     ) throws -> Dialect.Value where Dialect: XLValueCodingDialect {
-        guard let staticReader = reader as? any XLStaticColumnReader else {
+        guard let staticReader = state.pointee.reader as? any XLStaticColumnReader else {
             throw XLStaticRowReadError.rawDialectValuesUnavailable(
                 index: index,
                 dialect: dialect.descriptor.identity,
-                readerType: String(reflecting: type(of: reader as Any))
+                readerType: String(
+                    reflecting: type(of: state.pointee.reader as Any)
+                )
             )
         }
         return try staticReader.dialectValue(at: index, using: dialect)
@@ -440,6 +462,9 @@ private func _xlReadLegacyStaticColumn<Literal, Value>(
 
 ///
 /// Reads rows from a database using an `XLRowReader`.
+///
+/// The reader passed to ``readRow(reader:)`` is borrowed for that call. An
+/// implementation must not store it or capture it in an escaping closure.
 ///
 public protocol XLRowReadable<Row> {
     associatedtype Row
