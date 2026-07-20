@@ -1,6 +1,6 @@
 # Live Queries
 
-Use Combine publishers to observe query results as a database changes.
+Use Combine-compatible publishers to observe query results as a database changes.
 
 ## Overview
 
@@ -9,7 +9,11 @@ With the GRDB adapter, each subscriber's first positive demand starts a GRDB val
 begins a fresh database fetch. The observation then tracks the database region that the query
 actually reads.
 
-### Combine
+Apple platforms use Combine. Linux uses OpenCombine 0.14.0 and preserves the
+same demand-driven GRDB observation, error, and cancellation contracts. Import
+`Combine` or `OpenCombine` for the platform where the client is built.
+
+### Combine-compatible publishers
 
 Use `publish()` to observe all rows returned by a request:
 

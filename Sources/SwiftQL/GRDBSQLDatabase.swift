@@ -6,9 +6,12 @@
 //
 
 import Foundation
-import OSLog
 import GRDB
+#if canImport(Combine)
 import Combine
+#else
+import OpenCombine
+#endif
 
 
 struct GRDBRowAdapter: XLColumnReader {
@@ -366,10 +369,23 @@ struct GRDBRequest<Row>: XLRequest {
     
     private func publisher<T>(fetch: @escaping (Database) throws -> T) -> AnyPublisher<T, Error> {
         let makeSource = {
+#if canImport(Combine)
             ValueObservation
                 .tracking(fetch)
                 .publisher(in: executor.driver.databasePool)
                 .eraseToAnyPublisher()
+#else
+            GRDBOpenCombineValuePublisher { onError, onChange in
+                ValueObservation
+                    .tracking(fetch)
+                    .start(
+                        in: executor.driver.databasePool,
+                        onError: onError,
+                        onChange: onChange
+                    )
+            }
+            .eraseToAnyPublisher()
+#endif
         }
 
         switch liveQueryRetryPolicy {
@@ -645,7 +661,10 @@ public struct GRDBDatabaseBuilder {
     /// Creates the configured database and its connection pool.
     public func build() throws -> GRDBDatabase {
         try GRDBDatabase(
-            databasePool: try DatabasePool(path: url.path(percentEncoded: false), configuration: configuration),
+            databasePool: try DatabasePool(
+                path: url.path,
+                configuration: configuration
+            ),
             codingConfiguration: codingConfiguration,
             formatter: formatter,
             logger: logger,
@@ -727,7 +746,7 @@ public struct GRDBDatabase: XLDatabase {
     ) throws {
         try self.init(
             databasePool: try DatabasePool(
-                path: url.path(percentEncoded: false),
+                path: url.path,
                 configuration: configuration
             ),
             codingConfiguration: codingConfiguration,

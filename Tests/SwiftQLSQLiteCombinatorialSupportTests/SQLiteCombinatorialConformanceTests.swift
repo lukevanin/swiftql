@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import GRDB
 import SwiftQL
@@ -846,7 +845,7 @@ private extension SQLiteCombinatorialConformanceTests {
     }
 
     func sha256Hex(_ data: Data) -> String {
-        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        PortableSHA256.hexDigest(of: data)
     }
 }
 

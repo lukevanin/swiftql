@@ -29,8 +29,8 @@ build_arguments=(
 
 # Make the gate independently runnable while remaining an incremental no-op
 # immediately after the compatibility matrix's warning-clean build.
-xcrun swift build "${build_arguments[@]}" --target SwiftQL
-bin_path="$(xcrun swift build "${build_arguments[@]}" --show-bin-path)"
+swift build "${build_arguments[@]}" --target SwiftQL
+bin_path="$(swift build "${build_arguments[@]}" --show-bin-path)"
 csqlite_module_map="$scratch_path/checkouts/GRDB.swift/Sources/CSQLite/module.modulemap"
 
 module_search_paths=()
@@ -58,7 +58,7 @@ if [[ ! -f "$csqlite_module_map" ]]; then
 fi
 
 compiler=(
-    xcrun swiftc
+    swiftc
     -typecheck
     -swift-version 5
     -Xcc "-fmodule-map-file=$csqlite_module_map"

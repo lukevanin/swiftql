@@ -6,7 +6,11 @@
 //
 
 import Foundation
+#if canImport(Combine)
 import Combine
+#else
+import OpenCombine
+#endif
 import XCTest
 import GRDB
 import SwiftQL
@@ -132,7 +136,7 @@ struct SQLDate: XLCustomType, XLComparable, Equatable {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
-        formatter.timeZone = .gmt
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter
     }()
 
@@ -399,7 +403,7 @@ extension Date: XLCustomType, XLComparable {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
-        formatter.timeZone = .gmt
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter
     }()
     
@@ -548,7 +552,9 @@ final class XLDocumentationTests: XCTestCase {
     override func setUp() {
         let directory = FileManager.default.temporaryDirectory
         let filename = UUID().uuidString
-        let fileURL = directory.appending(path: filename, directoryHint: .notDirectory).appendingPathExtension("sqlite")
+        let fileURL = directory
+            .appendingPathComponent(filename, isDirectory: false)
+            .appendingPathExtension("sqlite")
         print("Connecting to database \(fileURL.path)")
         //        databasePool = try! DatabasePool(path: fileURL.path)
         //        database = try! GRDBDatabase(

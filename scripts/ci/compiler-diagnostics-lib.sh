@@ -42,7 +42,7 @@ swiftql_diagnostic_source_path() {
 
     source_path="${BASH_REMATCH[1]}"
     case "$source_path" in
-        /*|Sources/*|Tests/*|Benchmarks/*|Package.swift)
+        /*|Sources/*|Tests/*|Benchmarks/*|Research/*|Package.swift)
             ;;
         *" /"*)
             # Macro-origin notes are rendered with a tree prefix before the
@@ -71,6 +71,10 @@ swiftql_is_dependency_warning() {
                 ;;
         esac
     else
+        if [[ "$warning" == *" -primary-file $scratch_root/checkouts/"* ]] || \
+            [[ "$warning" == *" -primary-file $source_root/.build/checkouts/"* ]]; then
+            return 0
+        fi
         case "$warning" in
             "warning: 'grdb.swift':"*|"warning: 'swift-syntax':"*|\
             "warning: 'swift-docc-plugin':"*|\
@@ -115,8 +119,9 @@ swiftql_is_first_party_warning() {
 
     case "$source_path" in
         "$source_root"/Sources/*|"$source_root"/Tests/*|\
-        "$source_root"/Benchmarks/*|"$source_root"/Package.swift|\
-        Sources/*|Tests/*|Benchmarks/*|Package.swift)
+        "$source_root"/Benchmarks/*|"$source_root"/Research/*|\
+        "$source_root"/Package.swift|Sources/*|Tests/*|Benchmarks/*|\
+        Research/*|Package.swift)
             return 0
             ;;
     esac
@@ -135,7 +140,7 @@ swiftql_is_first_party_macro_origin() {
 
     case "$source_path" in
         "$source_root"/Sources/*|"$source_root"/Tests/*|\
-        "$source_root"/Benchmarks/*)
+        "$source_root"/Benchmarks/*|"$source_root"/Research/*)
             return 0
             ;;
     esac
@@ -407,6 +412,15 @@ swiftql_run_diagnostic_classifier_self_tests() {
         return 1
     fi
 
+    fixture="$source_root/Research/Fixture/Sources/Fixture.swift:1:1: warning: simulated research-target diagnostic"
+    if ! swiftql_self_test_rejected_warning \
+        "$self_test_log" "$source_root" "$scratch_root" "$output_prefix" \
+        "$fixture" "FIRST_PARTY_WARNINGS" \
+        "a first-party research-target warning"; then
+        rm -f "$self_test_log"
+        return 1
+    fi
+
     fixture="$source_root/Sources/SwiftQL/Fixture.swift:1:1: warning: referenced $scratch_root/checkouts/Dependency"
     if ! swiftql_self_test_rejected_warning \
         "$self_test_log" "$source_root" "$scratch_root" "$output_prefix" \
@@ -491,6 +505,17 @@ swiftql_run_diagnostic_classifier_self_tests() {
     if ! swiftql_self_test_accepted_warning \
         "$self_test_log" "$source_root" "$scratch_root" "$output_prefix" \
         "$fixture" "DEPENDENCY_WARNINGS" "a dependency warning"; then
+        rm -f "$self_test_log"
+        return 1
+    fi
+
+    fixture="warning: 'opencombine': /tool/swift-frontend"
+    fixture+=" -primary-file $scratch_root/checkouts/OpenCombine/Package.swift"
+    fixture+=" -package-description-version 5.5.0 -module-name main -o /tmp/Package.o"
+    if ! swiftql_self_test_accepted_warning \
+        "$self_test_log" "$source_root" "$scratch_root" "$output_prefix" \
+        "$fixture" "DEPENDENCY_WARNINGS" \
+        "a dependency-manifest build warning"; then
         rm -f "$self_test_log"
         return 1
     fi

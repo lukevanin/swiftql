@@ -29,8 +29,8 @@ main() {
     # A clean --build-tests build covers every first-party product and test
     # target and prevents an incremental no-op from hiding diagnostics.
     cd "$source_root"
-    xcrun swift package --scratch-path "$scratch_root" clean
-    xcrun swift build --scratch-path "$scratch_root" --build-tests -v \
+    swift package --scratch-path "$scratch_root" clean
+    swift build --scratch-path "$scratch_root" --build-tests -v \
         2>&1 | tee "$build_log"
 
     if [[ ! -s "$build_log" ]]; then

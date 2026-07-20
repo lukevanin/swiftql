@@ -27,6 +27,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-syntax.git", from: "509.0.0"),
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "6.29.3"),
         .package(url: "https://github.com/apple/swift-docc-plugin.git", from: "1.0.0"),
+        .package(url: "https://github.com/OpenCombine/OpenCombine.git", exact: "0.14.0"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -86,6 +87,9 @@ let package = Package(
                 "SwiftQLCore",
                 "SQLMacros",
                 .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "OpenCombine", package: "OpenCombine"),
+                .product(name: "OpenCombineDispatch", package: "OpenCombine"),
+                .product(name: "OpenCombineFoundation", package: "OpenCombine"),
             ]
         ),
 
@@ -155,6 +159,9 @@ let package = Package(
                 "SwiftQLNorthwindFixtures",
                 "SwiftQLSQLiteConformanceFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "OpenCombine", package: "OpenCombine"),
+                .product(name: "OpenCombineDispatch", package: "OpenCombine"),
+                .product(name: "OpenCombineFoundation", package: "OpenCombine"),
             ]
         ),
 
@@ -166,6 +173,7 @@ let package = Package(
                 "SwiftQL",
                 "SwiftQLSQLiteConformanceFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "OpenCombine", package: "OpenCombine"),
             ]
         ),
 

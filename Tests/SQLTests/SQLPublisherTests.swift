@@ -6,7 +6,11 @@
 //
 
 import Foundation
+#if canImport(Combine)
 import Combine
+#else
+import OpenCombine
+#endif
 import XCTest
 import GRDB
 import SwiftQL
@@ -240,12 +244,15 @@ final class XLPublisherTests: XCTestCase {
             identifierFormattingOptions: .mysqlCompatible
         )
         databaseDirectoryURL = FileManager.default.temporaryDirectory
-            .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(
             at: databaseDirectoryURL,
             withIntermediateDirectories: true
         )
-        let fileURL = databaseDirectoryURL.appending(path: "primary.sqlite", directoryHint: .notDirectory)
+        let fileURL = databaseDirectoryURL.appendingPathComponent(
+            "primary.sqlite",
+            isDirectory: false
+        )
         databasePool = try DatabasePool(path: fileURL.path)
         logger = RecordingLogger()
         database = try GRDBDatabase(databasePool: databasePool, formatter: formatter, logger: logger)
@@ -787,7 +794,7 @@ final class XLPublisherTests: XCTestCase {
             )
         }
         let blockingURL = databaseDirectoryURL
-            .appending(path: "blocking.sqlite", directoryHint: .notDirectory)
+            .appendingPathComponent("blocking.sqlite", isDirectory: false)
         let blockingPool = try DatabasePool(
             path: blockingURL.path,
             configuration: configuration
@@ -845,7 +852,10 @@ final class XLPublisherTests: XCTestCase {
 
     func testDistinctDatabasePoolsDoNotCrossTrigger() throws {
         try createTestTable()
-        let secondaryURL = databaseDirectoryURL.appending(path: "secondary.sqlite", directoryHint: .notDirectory)
+        let secondaryURL = databaseDirectoryURL.appendingPathComponent(
+            "secondary.sqlite",
+            isDirectory: false
+        )
         let secondaryPool = try DatabasePool(path: secondaryURL.path)
         let unrelatedSecondaryPool = try DatabasePool(path: secondaryURL.path)
         let secondaryDatabase = try GRDBDatabase(

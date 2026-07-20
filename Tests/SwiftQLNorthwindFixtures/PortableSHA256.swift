@@ -3,7 +3,7 @@ import Foundation
 
 /// A small SHA-256 implementation used only to authenticate checked-in test
 /// resources without adding a platform-specific framework or package dependency.
-enum PortableSHA256 {
+public enum PortableSHA256 {
 
     private static let initialState: [UInt32] = [
         0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
@@ -29,7 +29,7 @@ enum PortableSHA256 {
         0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
     ]
 
-    static func hexDigest(of data: Data) -> String {
+    public static func hexDigest(of data: Data) -> String {
         let bytes = digest(Array(data))
         let digits = Array("0123456789abcdef".utf8)
         var encoded: [UInt8] = []
