@@ -12,9 +12,14 @@ import Foundation
 
 
 extension XLExpression {
-    
-    public func toInt() -> some XLExpression<Int> where T == Bool {
+
+    /// Reinterprets a Boolean expression as its SQLite integer storage value.
+    public func cast(to _: Int.Type) -> some XLExpression<Int> where T == Bool {
         XLTypeAffinityExpression<Int>(expression: self)
+    }
+
+    public func toInt() -> some XLExpression<Int> where T == Bool {
+        cast(to: Int.self)
     }
 }
 
@@ -23,9 +28,15 @@ extension XLExpression {
 
 
 extension XLExpression {
-    
-    public func toInt() -> some XLExpression<Optional<Int>> where T == Optional<Bool> {
+
+    /// Reinterprets an optional Boolean expression as its optional SQLite
+    /// integer storage value.
+    public func cast(to _: Int.Type) -> some XLExpression<Optional<Int>> where T == Optional<Bool> {
         XLTypeAffinityExpression<Optional<Int>>(expression: self)
+    }
+
+    public func toInt() -> some XLExpression<Optional<Int>> where T == Optional<Bool> {
+        cast(to: Int.self)
     }
 }
 
@@ -33,13 +44,23 @@ extension XLExpression {
 // MARK: - Int
 
 extension XLExpression {
-    
-    public func toDouble() -> some XLExpression<Double> where T == Int {
+
+    /// Casts an integer expression to the requested real-number type.
+    public func cast(to _: Double.Type) -> some XLExpression<Double> where T == Int {
         XLTypeCastExpression(type: "REAL", expression: self)
     }
 
-    public func toString() -> some XLExpression<String> where T == Int {
+    /// Casts an integer expression to the requested text type.
+    public func cast(to _: String.Type) -> some XLExpression<String> where T == Int {
         XLTypeCastExpression(type: "TEXT", expression: self)
+    }
+
+    public func toDouble() -> some XLExpression<Double> where T == Int {
+        cast(to: Double.self)
+    }
+
+    public func toString() -> some XLExpression<String> where T == Int {
+        cast(to: String.self)
     }
 }
 
@@ -47,13 +68,27 @@ extension XLExpression {
 // MARK: - Optional Int
 
 extension XLExpression {
-    
-    public func toDouble() -> some XLExpression<Optional<Double>> where T == Optional<Int> {
+
+    /// Casts an optional integer expression to optional real, preserving NULL.
+    public func cast(
+        to _: Double.Type
+    ) -> some XLExpression<Optional<Double>> where T == Optional<Int> {
         XLTypeCastExpression(type: "REAL", expression: self)
     }
 
-    public func toString() -> some XLExpression<Optional<String>> where T == Optional<Int> {
+    /// Casts an optional integer expression to optional text, preserving NULL.
+    public func cast(
+        to _: String.Type
+    ) -> some XLExpression<Optional<String>> where T == Optional<Int> {
         XLTypeCastExpression(type: "TEXT", expression: self)
+    }
+
+    public func toDouble() -> some XLExpression<Optional<Double>> where T == Optional<Int> {
+        cast(to: Double.self)
+    }
+
+    public func toString() -> some XLExpression<Optional<String>> where T == Optional<Int> {
+        cast(to: String.self)
     }
 }
 
@@ -61,13 +96,23 @@ extension XLExpression {
 // MARK: - Double
 
 extension XLExpression {
-    
-    public func toInt() -> some XLExpression<Int> where T == Double {
+
+    /// Casts a real expression to the requested integer type.
+    public func cast(to _: Int.Type) -> some XLExpression<Int> where T == Double {
         XLTypeCastExpression(type: "INTEGER", expression: self)
     }
 
-    public func toString() -> some XLExpression<String> where T == Double {
+    /// Casts a real expression to the requested text type.
+    public func cast(to _: String.Type) -> some XLExpression<String> where T == Double {
         XLTypeCastExpression(type: "TEXT", expression: self)
+    }
+
+    public func toInt() -> some XLExpression<Int> where T == Double {
+        cast(to: Int.self)
+    }
+
+    public func toString() -> some XLExpression<String> where T == Double {
+        cast(to: String.self)
     }
 }
 
@@ -76,13 +121,27 @@ extension XLExpression {
 
 
 extension XLExpression {
-    
-    public func toInt() -> some XLExpression<Optional<Int>> where T == Optional<Double> {
+
+    /// Casts an optional real expression to optional integer, preserving NULL.
+    public func cast(
+        to _: Int.Type
+    ) -> some XLExpression<Optional<Int>> where T == Optional<Double> {
         XLTypeCastExpression(type: "INTEGER", expression: self)
     }
 
-    public func toString() -> some XLExpression<Optional<String>> where T == Optional<Double> {
+    /// Casts an optional real expression to optional text, preserving NULL.
+    public func cast(
+        to _: String.Type
+    ) -> some XLExpression<Optional<String>> where T == Optional<Double> {
         XLTypeCastExpression(type: "TEXT", expression: self)
+    }
+
+    public func toInt() -> some XLExpression<Optional<Int>> where T == Optional<Double> {
+        cast(to: Int.self)
+    }
+
+    public func toString() -> some XLExpression<Optional<String>> where T == Optional<Double> {
+        cast(to: String.self)
     }
 }
 
@@ -91,17 +150,32 @@ extension XLExpression {
 
 
 extension XLExpression {
-    
-    public func toInt() -> some XLExpression<Int> where T == String {
+
+    /// Casts a text expression to the requested integer type.
+    public func cast(to _: Int.Type) -> some XLExpression<Int> where T == String {
         XLTypeCastExpression(type: "INTEGER", expression: self)
     }
-    
-    public func toDouble() -> some XLExpression<Double> where T == String {
+
+    /// Casts a text expression to the requested real-number type.
+    public func cast(to _: Double.Type) -> some XLExpression<Double> where T == String {
         XLTypeCastExpression(type: "REAL", expression: self)
     }
-    
-    public func toData() -> some XLExpression<Data> where T == String {
+
+    /// Casts a text expression to the requested binary-data type.
+    public func cast(to _: Data.Type) -> some XLExpression<Data> where T == String {
         XLTypeCastExpression(type: "BLOB", expression: self)
+    }
+
+    public func toInt() -> some XLExpression<Int> where T == String {
+        cast(to: Int.self)
+    }
+
+    public func toDouble() -> some XLExpression<Double> where T == String {
+        cast(to: Double.self)
+    }
+
+    public func toData() -> some XLExpression<Data> where T == String {
+        cast(to: Data.self)
     }
 }
 
@@ -110,17 +184,38 @@ extension XLExpression {
 
 
 extension XLExpression {
-    
-    public func toInt() -> some XLExpression<Optional<Int>> where T == Optional<String> {
+
+    /// Casts optional text to optional integer, preserving NULL.
+    public func cast(
+        to _: Int.Type
+    ) -> some XLExpression<Optional<Int>> where T == Optional<String> {
         XLTypeCastExpression(type: "INTEGER", expression: self)
     }
-    
-    public func toDouble() -> some XLExpression<Optional<Double>> where T == Optional<String> {
+
+    /// Casts optional text to optional real, preserving NULL.
+    public func cast(
+        to _: Double.Type
+    ) -> some XLExpression<Optional<Double>> where T == Optional<String> {
         XLTypeCastExpression(type: "REAL", expression: self)
     }
-    
-    public func toData() -> some XLExpression<Optional<Data>> where T == Optional<String> {
+
+    /// Casts optional text to optional binary data, preserving NULL.
+    public func cast(
+        to _: Data.Type
+    ) -> some XLExpression<Optional<Data>> where T == Optional<String> {
         XLTypeCastExpression(type: "BLOB", expression: self)
+    }
+
+    public func toInt() -> some XLExpression<Optional<Int>> where T == Optional<String> {
+        cast(to: Int.self)
+    }
+
+    public func toDouble() -> some XLExpression<Optional<Double>> where T == Optional<String> {
+        cast(to: Double.self)
+    }
+
+    public func toData() -> some XLExpression<Optional<Data>> where T == Optional<String> {
+        cast(to: Data.self)
     }
 }
 
@@ -129,9 +224,14 @@ extension XLExpression {
 
 
 extension XLExpression {
-    
-    public func toString() -> some XLExpression<String> where T == Data {
+
+    /// Casts a binary-data expression to the requested text type.
+    public func cast(to _: String.Type) -> some XLExpression<String> where T == Data {
         XLTypeCastExpression(type: "TEXT", expression: self)
+    }
+
+    public func toString() -> some XLExpression<String> where T == Data {
+        cast(to: String.self)
     }
 }
 
@@ -140,8 +240,15 @@ extension XLExpression {
 
 
 extension XLExpression {
-    
-    public func toString() -> some XLExpression<Optional<String>> where T == Optional<Data> {
+
+    /// Casts optional binary data to optional text, preserving NULL.
+    public func cast(
+        to _: String.Type
+    ) -> some XLExpression<Optional<String>> where T == Optional<Data> {
         XLTypeCastExpression(type: "TEXT", expression: self)
+    }
+
+    public func toString() -> some XLExpression<Optional<String>> where T == Optional<Data> {
+        cast(to: String.self)
     }
 }

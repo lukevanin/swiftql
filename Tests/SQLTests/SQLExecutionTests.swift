@@ -679,7 +679,7 @@ final class XLExecutionTests: XCTestCase {
     // MARK: - Type cast
 
     func testStringToDataTypeofIsBlob() throws {
-        let castSQL = encoder.makeSQL("abc".toData()).sql
+        let castSQL = encoder.makeSQL("abc".cast(to: Data.self)).sql
         let typeName = try databasePool.read { db in
             try String.fetchOne(db, sql: "SELECT typeof(\(castSQL))")
         }
@@ -694,7 +694,7 @@ final class XLExecutionTests: XCTestCase {
         typealias Scalar = SQLScalarResult<Data>
         let statement = sql { schema in
             let t = schema.table(TestTable.self)
-            Select(Scalar.columns(scalarValue: t.id.toData()))
+            Select(Scalar.columns(scalarValue: t.id.cast(to: Data.self)))
             From(t)
         }
         let results = try database.makeRequest(with: statement).fetchAll()

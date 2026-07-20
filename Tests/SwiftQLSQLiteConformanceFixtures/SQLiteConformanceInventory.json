@@ -6430,6 +6430,13 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
+          "symbol": "XLExpression.cast",
+          "source_path": "Sources/SwiftQL/Functions/TypeCastFunctions.swift",
+          "source_tokens": [
+            "cast"
+          ]
+        },
+        {
           "symbol": "XLExpression.toData",
           "source_path": "Sources/SwiftQL/Functions/TypeCastFunctions.swift",
           "source_tokens": [
@@ -6480,6 +6487,7 @@
       ],
       "deviations": [
         "Boolean-to-integer conversion is represented by the stored expression without an emitted CAST; all other exposed conversions render SQLite CAST expressions.",
+        "The generic cast(to:) overloads and directional toInt, toDouble, toString, and toData helpers share the same explicitly constrained conversion matrix and preserve source nullability.",
         "The generated matrix prepares and executes every public Bool, integer, real, text, data, and optional conversion direction; required inputs prove fixed conversion values and every optional overload proves NULL propagation."
       ],
       "follow_up_issues": [
