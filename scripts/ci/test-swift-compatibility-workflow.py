@@ -28,9 +28,11 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertEqual(matrix.count('swift_series: "5.9"'), 2)
         self.assertEqual(matrix.count('swift_version: "5.9.2"'), 2)
         self.assertEqual(matrix.count("swift_command_mode: path"), 2)
-        self.assertEqual(matrix.count("runner: macos-15"), 4)
+        self.assertEqual(matrix.count("runner: macos-15-intel"), 2)
+        self.assertEqual(matrix.count("\n            runner: macos-15\n"), 2)
         self.assertEqual(matrix.count("image_os: macos15"), 4)
-        self.assertEqual(matrix.count("architecture: arm64"), 4)
+        self.assertEqual(matrix.count("architecture: x86_64"), 2)
+        self.assertEqual(matrix.count("architecture: arm64"), 2)
 
         action = (
             "swift-actions/setup-swift@"

@@ -106,12 +106,13 @@ python3 scripts/ci/sqlite-conformance-inventory.py check
 
 | Support point | GitHub runner | Xcode | Swift | macOS SDK |
 | --- | --- | --- | --- | --- |
-| Swift 5.9 | `macos-15` | 16.2 (`16C5032a`) | 5.9.2 standalone | 15.2 |
+| Swift 5.9 | `macos-15-intel` | 16.2 (`16C5032a`) | 5.9.2 standalone | 15.2 |
 | Swift 6.0 | `macos-15` | 16.2 (`16C5032a`) | 6.0 series | 15.2 |
 
-The Swift 5.9 cells install the exact Swift 5.9.2 release toolchain with the
-commit-pinned `swift-actions/setup-swift` action. Xcode 16.2 supplies the pinned
-macOS 15.2 SDK and Apple Combine framework, but it does not supply the compiler:
+The Swift 5.9 cells use GitHub's maintained Intel macOS 15 image and install the
+exact Swift 5.9.2 release toolchain with the commit-pinned
+`swift-actions/setup-swift` action. Xcode 16.2 supplies the pinned macOS 15.2
+SDK and Apple Combine framework, but it does not supply the compiler:
 the environment gate requires `swift` to resolve from `PATH`, rejects the
 `/usr/bin/swift` Xcode dispatcher, and verifies the exact 5.9.2 version. The
 Swift 6.0 cells continue to select Xcode's compiler with `xcrun`.
@@ -366,15 +367,16 @@ The matrix suppresses neither category.
 ## Swift 5.9 runner maintenance and recovery
 
 The Swift 5.9 cells no longer use the hosted `macos-14` image that GitHub will
-retire on 2 November 2026. They use maintained `macos-15` runners and install
-Swift 5.9.2 independently of Xcode. The setup action is pinned to an immutable
+retire on 2 November 2026. They use maintained `macos-15-intel` runners, which
+GitHub currently supports through August 2027, and install Swift 5.9.2
+independently of Xcode. The setup action is pinned to an immutable
 commit, requests an exact compiler patch release, verifies the downloaded
 toolchain, and needs no repository secret or persistent runner access. Each job
 runs on a fresh GitHub-hosted VM; the action receives only the default
 read-only repository token boundary used by the workflow.
 
 Repository maintainers own the action SHA and environment pins. Review them
-when GitHub changes the `macos-15` image or when the setup action publishes a
+when GitHub changes the `macos-15-intel` image or when the setup action publishes a
 security or availability update. A missing download, action failure, Xcode/SDK
 drift, unexpected runner family/architecture, or compiler fallback is a hard
 failure. Do not skip the lane or advance it to Swift 6 as recovery. If the exact

@@ -282,7 +282,7 @@ jobs:
       matrix:
         include:
           - name: Swift 5.9 / committed resolution
-            runner: macos-15
+            runner: macos-15-intel
             developer_dir: /Applications/Xcode_16.2.app/Contents/Developer
             xcode_version: "16.2"
             xcode_build: 16C5032a
@@ -291,10 +291,10 @@ jobs:
             swift_command_mode: path
             sdk_version: "15.2"
             image_os: macos15
-            architecture: arm64
+            architecture: x86_64
             resolution: committed
           - name: Swift 5.9 / clean resolution
-            runner: macos-15
+            runner: macos-15-intel
             developer_dir: /Applications/Xcode_16.2.app/Contents/Developer
             xcode_version: "16.2"
             xcode_build: 16C5032a
@@ -303,7 +303,7 @@ jobs:
             swift_command_mode: path
             sdk_version: "15.2"
             image_os: macos15
-            architecture: arm64
+            architecture: x86_64
             resolution: clean
           - name: Swift 6.0 / committed resolution
             runner: macos-15
