@@ -492,10 +492,15 @@ jobs:
             -DSQLITE_ENABLE_COLUMN_METADATA \
             -DSQLITE_ENABLE_FTS5 \
             -DSQLITE_ENABLE_MATH_FUNCTIONS \
+            -DSQLITE_ENABLE_SNAPSHOT \
             -shared "$sqlite_source/sqlite3.c" \
             -o "$sqlite_prefix/lib/libsqlite3.so" \
             -ldl -lm -lpthread
           test -s "$sqlite_prefix/lib/libsqlite3.so"
+          sqlite_symbols="$RUNNER_TEMP/sqlite-3.53.3-symbols.txt"
+          nm -D --defined-only "$sqlite_prefix/lib/libsqlite3.so" \
+            > "$sqlite_symbols"
+          grep -Eq ' [[:alpha:]] sqlite3_snapshot_get$' "$sqlite_symbols"
           printf 'CPATH=%s\n' "$sqlite_prefix/include" >> "$GITHUB_ENV"
           printf 'LIBRARY_PATH=%s\n' "$sqlite_prefix/lib" >> "$GITHUB_ENV"
           printf 'LD_LIBRARY_PATH=%s\n' "$sqlite_prefix/lib" >> "$GITHUB_ENV"
@@ -504,9 +509,10 @@ jobs:
           printf 'SWIFTQL_SQLITE_LIBRARY_DIR=%s\n' \
             "$sqlite_prefix/lib" >> "$GITHUB_ENV"
 
-          # GRDB 6.29.3 assumes Linux SQLite exports optional snapshot symbols.
-          # The pinned amalgamation intentionally does not enable that optional
-          # API, so compile GRDB's documented custom-SQLite path.
+          # Keep GRDB on its documented custom-SQLite path while exposing the
+          # snapshot capability compiled into the pinned library. DatabasePool
+          # observations use that capability to avoid an unconditional second
+          # startup fetch when the database has not changed.
           # Keep the override beside swiftc so SwiftPM derives the matching
           # toolchain lib directory when it loads libIndexStore for discovery.
           compiler_wrapper="$toolchain_bin/swiftql-swiftc"
@@ -515,7 +521,7 @@ jobs:
             'if [[ "${1:-}" == "-modulewrap" ]]; then' \
             '  exec "$SWIFTQL_REAL_SWIFT_FRONTEND" "$@"' \
             'fi' \
-            'exec "$SWIFTQL_REAL_SWIFTC" -DGRDBCUSTOMSQLITE -Xcc -I -Xcc "$SWIFTQL_SQLITE_INCLUDE_DIR" -L "$SWIFTQL_SQLITE_LIBRARY_DIR" "$@"' \
+            'exec "$SWIFTQL_REAL_SWIFTC" -DGRDBCUSTOMSQLITE -DSQLITE_ENABLE_SNAPSHOT -Xcc -I -Xcc "$SWIFTQL_SQLITE_INCLUDE_DIR" -L "$SWIFTQL_SQLITE_LIBRARY_DIR" "$@"' \
             > "$compiler_wrapper"
           chmod 755 "$compiler_wrapper"
           printf 'SWIFTQL_REAL_SWIFTC=%s\n' "$toolchain_bin/swiftc" \

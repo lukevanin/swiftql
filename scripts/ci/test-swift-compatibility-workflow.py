@@ -77,13 +77,17 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn("openssl dgst -sha3-256", compatibility)
         self.assertIn("-DSQLITE_ENABLE_FTS5", compatibility)
         self.assertIn("-DSQLITE_ENABLE_MATH_FUNCTIONS", compatibility)
+        self.assertEqual(compatibility.count("-DSQLITE_ENABLE_SNAPSHOT"), 2)
         self.assertIn("libsqlite3.so", compatibility)
+        self.assertIn("nm -D --defined-only", compatibility)
+        self.assertIn("sqlite3_snapshot_get", compatibility)
         self.assertIn("CPATH=", compatibility)
         self.assertIn("LIBRARY_PATH=", compatibility)
         self.assertIn("LD_LIBRARY_PATH=", compatibility)
         self.assertIn("SWIFTQL_SQLITE_INCLUDE_DIR=", compatibility)
         self.assertIn("SWIFTQL_SQLITE_LIBRARY_DIR=", compatibility)
         self.assertIn(
+            '-DSQLITE_ENABLE_SNAPSHOT '
             '-Xcc -I -Xcc "$SWIFTQL_SQLITE_INCLUDE_DIR" '
             '-L "$SWIFTQL_SQLITE_LIBRARY_DIR"',
             compatibility,
