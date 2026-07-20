@@ -66,6 +66,8 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn("[GNUPG:] VALIDSIG", compatibility)
         self.assertIn("-DGRDBCUSTOMSQLITE", compatibility)
         self.assertIn("SWIFT_EXEC=", compatibility)
+        self.assertIn("SWIFTQL_REAL_SWIFT_FRONTEND=", compatibility)
+        self.assertIn('"-modulewrap"', compatibility)
         self.assertIn("os_id: ubuntu", matrix)
         self.assertIn('os_version_id: "22.04"', matrix)
         self.assertIn("target_triple: x86_64-unknown-linux-gnu", matrix)

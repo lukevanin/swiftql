@@ -435,6 +435,7 @@ jobs:
           toolchain_bin="$RUNNER_TEMP/swift-5.9.2-RELEASE-ubuntu22.04/usr/bin"
           test -x "$toolchain_bin/swift"
           test -x "$toolchain_bin/swiftc"
+          test -x "$toolchain_bin/swift-frontend"
           printf '%s\n' "$toolchain_bin" >> "$GITHUB_PATH"
 
           # GRDB 6.29.3 assumes Linux libsqlite exports snapshot functions.
@@ -443,11 +444,16 @@ jobs:
           compiler_wrapper="$RUNNER_TEMP/swiftql-swiftc"
           printf '%s\n' \
             '#!/bin/bash' \
+            'if [[ "${1:-}" == "-modulewrap" ]]; then' \
+            '  exec "$SWIFTQL_REAL_SWIFT_FRONTEND" "$@"' \
+            'fi' \
             'exec "$SWIFTQL_REAL_SWIFTC" -DGRDBCUSTOMSQLITE "$@"' \
             > "$compiler_wrapper"
           chmod 755 "$compiler_wrapper"
           printf 'SWIFTQL_REAL_SWIFTC=%s\n' "$toolchain_bin/swiftc" \
             >> "$GITHUB_ENV"
+          printf 'SWIFTQL_REAL_SWIFT_FRONTEND=%s\n' \
+            "$toolchain_bin/swift-frontend" >> "$GITHUB_ENV"
           printf 'SWIFT_EXEC=%s\n' "$compiler_wrapper" >> "$GITHUB_ENV"
 
       - name: Validate and report compiler environment

@@ -137,8 +137,9 @@ GRDB 6.29.3's Swift 5.9 Linux condition assumes the linked SQLite exports its
 optional snapshot symbols, while Ubuntu 22.04's system library omits them. The
 Linux cells consistently define GRDB's documented `GRDBCUSTOMSQLITE` build path
 through SwiftPM's compiler override. This removes only the unavailable snapshot
-API branch; the runtime capability report and full tests remain authoritative
-for the linked system SQLite surface.
+API branch. The override delegates SwiftPM's module-wrapping phase directly to
+the matching `swift-frontend`; the runtime capability report and full tests
+remain authoritative for the linked system SQLite surface.
 
 ## Swift 6 series coverage
 
