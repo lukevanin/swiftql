@@ -66,6 +66,9 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn("[GNUPG:] VALIDSIG", compatibility)
         self.assertIn("-DGRDBCUSTOMSQLITE", compatibility)
         self.assertIn("SWIFT_EXEC=", compatibility)
+        self.assertIn(
+            'compiler_wrapper="$toolchain_bin/swiftql-swiftc"', compatibility
+        )
         self.assertIn("SWIFTQL_REAL_SWIFT_FRONTEND=", compatibility)
         self.assertIn('"-modulewrap"', compatibility)
         self.assertIn("os_id: ubuntu", matrix)

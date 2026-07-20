@@ -441,7 +441,9 @@ jobs:
           # GRDB 6.29.3 assumes Linux libsqlite exports snapshot functions.
           # Ubuntu 22.04's libsqlite omits those optional symbols, so compile
           # GRDB's documented custom-SQLite path against the detected runtime.
-          compiler_wrapper="$RUNNER_TEMP/swiftql-swiftc"
+          # Keep the override beside swiftc so SwiftPM derives the matching
+          # toolchain lib directory when it loads libIndexStore for discovery.
+          compiler_wrapper="$toolchain_bin/swiftql-swiftc"
           printf '%s\n' \
             '#!/bin/bash' \
             'if [[ "${1:-}" == "-modulewrap" ]]; then' \
