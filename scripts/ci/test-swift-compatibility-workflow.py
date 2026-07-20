@@ -34,15 +34,24 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertEqual(matrix.count("architecture: x86_64"), 2)
         self.assertEqual(matrix.count("architecture: arm64"), 2)
 
-        action = (
-            "swift-actions/setup-swift@"
-            "65540b95f51493d65f5e59e97dcef9629ddf11bf"
-        )
-        self.assertEqual(compatibility.count(action), 1)
+        self.assertNotIn("swift-actions/setup-swift", compatibility)
         self.assertIn(
             "if: ${{ matrix.swift_command_mode == 'path' }}", compatibility
         )
-        self.assertIn('swift-version: "5.9.2"', compatibility)
+        self.assertIn(
+            "https://download.swift.org/swift-5.9.2-release/xcode/"
+            "swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-osx.pkg",
+            compatibility,
+        )
+        self.assertIn(
+            "68951c313b4b559878fc5be27e460c877f98d14e161f755220b063123919e896",
+            compatibility,
+        )
+        self.assertIn("shasum -a 256 --check", compatibility)
+        self.assertIn(
+            "Developer ID Installer: Swift Open Source (V9AUD2URP3)",
+            compatibility,
+        )
         self.assertIn(
             "EXPECTED_SWIFT_VERSION: ${{ matrix.swift_version }}", compatibility
         )

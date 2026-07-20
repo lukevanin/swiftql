@@ -345,9 +345,28 @@ jobs:
 
       - name: Install exact Swift 5.9.2 toolchain
         if: ${{ matrix.swift_command_mode == 'path' }}
-        uses: swift-actions/setup-swift@65540b95f51493d65f5e59e97dcef9629ddf11bf
-        with:
-          swift-version: "5.9.2"
+        env:
+          SWIFT_TOOLCHAIN_URL: https://download.swift.org/swift-5.9.2-release/xcode/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-osx.pkg
+          SWIFT_TOOLCHAIN_SHA256: 68951c313b4b559878fc5be27e460c877f98d14e161f755220b063123919e896
+        run: |
+          set -euo pipefail
+          package="$RUNNER_TEMP/swift-5.9.2-RELEASE-osx.pkg"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --retry 3 --silent --show-error \
+            --output "$package" "$SWIFT_TOOLCHAIN_URL"
+          printf '%s  %s\n' "$SWIFT_TOOLCHAIN_SHA256" "$package" |
+            shasum -a 256 --check
+
+          signature_report="$(pkgutil --check-signature "$package")"
+          printf '%s\n' "$signature_report"
+          grep -Fq 'Developer ID Installer: Swift Open Source (V9AUD2URP3)' \
+            <<< "$signature_report"
+
+          installer -pkg "$package" -target CurrentUserHomeDirectory
+          toolchain_bin="$HOME/Library/Developer/Toolchains/swift-5.9.2-RELEASE.xctoolchain/usr/bin"
+          test -x "$toolchain_bin/swift"
+          test -x "$toolchain_bin/swiftc"
+          printf '%s\n' "$toolchain_bin" >> "$GITHUB_PATH"
 
       - name: Validate and report compiler environment
         env:
