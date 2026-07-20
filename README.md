@@ -197,13 +197,12 @@ Add the following line to the `dependencies` section in your `Package.swift`
 file:
 
 ```text
-.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.2.0")
+.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.3.0")
 ```
 
-`1.2.0` is the latest published package. The examples above use APIs retained
-by v1.2 and the forthcoming v1.3, and the static-query surface is available
-from version 1.2.0. Pin a source revision only when intentionally testing
-unreleased v1.3 changes from `main`.
+`1.3.0` is the latest published package. The examples above use APIs retained
+by v1.3; the static-query surface remains available from version 1.2.0. Pin a
+source revision only when intentionally testing later changes from `main`.
 
 ### Xcode
 
