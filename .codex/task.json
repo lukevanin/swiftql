@@ -1,11 +1,11 @@
 {
-  "task_name": "Type casting",
-  "issue_number": 4,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/4",
+  "task_name": "Implement count(*)",
+  "issue_number": 17,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/17",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#4 - Type casting",
+  "codex_session_title": "lukevanin/swiftql#17 - Implement count(*)",
   "codex_session_id": "019f7f4b-cec3-77c2-97d9-5741d2cfe48e",
   "codex_session_url": null,
-  "task_branch": "codex/4-type-casting",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/4-type-casting"
+  "task_branch": "codex/17-implement-count-star",
+  "task_worktree_path": "/private/tmp/swiftql-worktrees/17-implement-count-star"
 }
