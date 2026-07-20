@@ -1,11 +1,11 @@
 {
-  "task_name": "Complete real-SQLite function, aggregate, and cast conformance matrix",
-  "issue_number": 286,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/286",
+  "task_name": "Type casting",
+  "issue_number": 4,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/4",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#286 - Complete real-SQLite function conformance",
+  "codex_session_title": "lukevanin/swiftql#4 - Type casting",
   "codex_session_id": "019f7f4b-cec3-77c2-97d9-5741d2cfe48e",
   "codex_session_url": null,
-  "task_branch": "codex/286-complete-real-sqlite-function-aggregate-cast-conformance",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/286-complete-real-sqlite-function-aggregate-cast-conformance"
+  "task_branch": "codex/4-type-casting",
+  "task_worktree_path": "/private/tmp/swiftql-worktrees/4-type-casting"
 }
