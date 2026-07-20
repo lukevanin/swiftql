@@ -49,12 +49,26 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         )
         self.assertIn("SWIFT_TOOLCHAIN_SIGNATURE_URL", compatibility)
         self.assertIn(
+            "SWIFT_TOOLCHAIN_SIGNATURE_SHA256: "
+            "325657c10c0a917cb0126aaf2ce0fe1c72bb9bf14657a89f82330839003959ed",
+            compatibility,
+        )
+        self.assertIn(
+            "SWIFT_SIGNING_KEYS_SHA256: "
+            "07c0c26f4a96a2eafbeebcfbd1c128a1c4dcf840f9e71f0886ff291921f4ad8f",
+            compatibility,
+        )
+        self.assertIn(
             "SWIFT_SIGNING_FINGERPRINT: "
             "A62AE125BBBFBB96A6E042EC925CC1CCED3D1561",
             compatibility,
         )
+        self.assertIn("download_verified()", compatibility)
+        self.assertIn("sha256sum --check --status", compatibility)
         self.assertIn("gpg --batch", compatibility)
         self.assertIn("[GNUPG:] VALIDSIG", compatibility)
+        self.assertIn("-DGRDBCUSTOMSQLITE", compatibility)
+        self.assertIn("SWIFT_EXEC=", compatibility)
         self.assertIn("os_id: ubuntu", matrix)
         self.assertIn('os_version_id: "22.04"', matrix)
         self.assertIn("target_triple: x86_64-unknown-linux-gnu", matrix)
