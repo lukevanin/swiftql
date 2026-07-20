@@ -282,31 +282,40 @@ jobs:
       matrix:
         include:
           - name: Swift 5.9 / committed resolution
-            runner: macos-15-intel
-            developer_dir: /Applications/Xcode_16.2.app/Contents/Developer
-            xcode_version: "16.2"
-            xcode_build: 16C5032a
+            runner: ubuntu-22.04
+            platform: linux
+            developer_dir: ""
+            xcode_version: ""
+            xcode_build: ""
             swift_series: "5.9"
             swift_version: "5.9.2"
             swift_command_mode: path
-            sdk_version: "15.2"
-            image_os: macos15
+            sdk_version: ""
+            image_os: ubuntu22
             architecture: x86_64
+            os_id: ubuntu
+            os_version_id: "22.04"
+            target_triple: x86_64-unknown-linux-gnu
             resolution: committed
           - name: Swift 5.9 / clean resolution
-            runner: macos-15-intel
-            developer_dir: /Applications/Xcode_16.2.app/Contents/Developer
-            xcode_version: "16.2"
-            xcode_build: 16C5032a
+            runner: ubuntu-22.04
+            platform: linux
+            developer_dir: ""
+            xcode_version: ""
+            xcode_build: ""
             swift_series: "5.9"
             swift_version: "5.9.2"
             swift_command_mode: path
-            sdk_version: "15.2"
-            image_os: macos15
+            sdk_version: ""
+            image_os: ubuntu22
             architecture: x86_64
+            os_id: ubuntu
+            os_version_id: "22.04"
+            target_triple: x86_64-unknown-linux-gnu
             resolution: clean
           - name: Swift 6.0 / committed resolution
             runner: macos-15
+            platform: macos
             developer_dir: /Applications/Xcode_16.2.app/Contents/Developer
             xcode_version: "16.2"
             xcode_build: 16C5032a
@@ -316,9 +325,13 @@ jobs:
             sdk_version: "15.2"
             image_os: macos15
             architecture: arm64
+            os_id: ""
+            os_version_id: ""
+            target_triple: ""
             resolution: committed
           - name: Swift 6.0 / clean resolution
             runner: macos-15
+            platform: macos
             developer_dir: /Applications/Xcode_16.2.app/Contents/Developer
             xcode_version: "16.2"
             xcode_build: 16C5032a
@@ -328,6 +341,9 @@ jobs:
             sdk_version: "15.2"
             image_os: macos15
             architecture: arm64
+            os_id: ""
+            os_version_id: ""
+            target_triple: ""
             resolution: clean
 
     env:
@@ -344,34 +360,16 @@ jobs:
         run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
       - name: Install exact Swift 5.9.2 toolchain
-        if: ${{ matrix.swift_command_mode == 'path' }}
-        env:
-          SWIFT_TOOLCHAIN_URL: https://download.swift.org/swift-5.9.2-release/xcode/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-osx.pkg
-          SWIFT_TOOLCHAIN_SHA256: 68951c313b4b559878fc5be27e460c877f98d14e161f755220b063123919e896
-        run: |
-          set -euo pipefail
-          package="$RUNNER_TEMP/swift-5.9.2-RELEASE-osx.pkg"
-          curl --fail --location --proto '=https' --tlsv1.2 \
-            --retry 3 --silent --show-error \
-            --output "$package" "$SWIFT_TOOLCHAIN_URL"
-          printf '%s  %s\n' "$SWIFT_TOOLCHAIN_SHA256" "$package" |
-            shasum -a 256 --check
-
-          signature_report="$(pkgutil --check-signature "$package")"
-          printf '%s\n' "$signature_report"
-          grep -Fq 'Developer ID Installer: Swift Open Source (V9AUD2URP3)' \
-            <<< "$signature_report"
-
-          installer -pkg "$package" -target CurrentUserHomeDirectory
-          toolchain_bin="$HOME/Library/Developer/Toolchains/swift-5.9.2-RELEASE.xctoolchain/usr/bin"
-          test -x "$toolchain_bin/swift"
-          test -x "$toolchain_bin/swiftc"
-          printf '%s\n' "$toolchain_bin" >> "$GITHUB_PATH"
+        if: ${{ matrix.platform == 'linux' }}
+        uses: swift-actions/setup-swift@65540b95f51493d65f5e59e97dcef9629ddf11bf
+        with:
+          swift-version: "5.9.2"
 
       - name: Validate and report compiler environment
         env:
           EXPECTED_XCODE_VERSION: ${{ matrix.xcode_version }}
           EXPECTED_XCODE_BUILD: ${{ matrix.xcode_build }}
+          EXPECTED_PLATFORM: ${{ matrix.platform }}
           EXPECTED_SWIFT_SERIES: ${{ matrix.swift_series }}
           EXPECTED_SWIFT_VERSION: ${{ matrix.swift_version }}
           EXPECTED_SWIFT_COMMAND_MODE: ${{ matrix.swift_command_mode }}
@@ -379,6 +377,9 @@ jobs:
           EXPECTED_DEVELOPER_DIR: ${{ matrix.developer_dir }}
           EXPECTED_IMAGE_OS: ${{ matrix.image_os }}
           EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
+          EXPECTED_OS_ID: ${{ matrix.os_id }}
+          EXPECTED_OS_VERSION_ID: ${{ matrix.os_version_id }}
+          EXPECTED_TARGET_TRIPLE: ${{ matrix.target_triple }}
         run: scripts/ci/check-compatibility-environment.sh
 
       - name: Prepare ${{ matrix.resolution }} dependency resolution

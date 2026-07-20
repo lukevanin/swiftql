@@ -6,7 +6,11 @@
 //
 
 import Foundation
+#if canImport(Combine)
 import Combine
+#else
+import OpenCombine
+#endif
 import XCTest
 import GRDB
 import SwiftQL

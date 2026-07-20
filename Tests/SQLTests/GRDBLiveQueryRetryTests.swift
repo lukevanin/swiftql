@@ -1,4 +1,9 @@
+#if canImport(Combine)
 import Combine
+#else
+import OpenCombine
+import OpenCombineDispatch
+#endif
 import Foundation
 import GRDB
 import XCTest

@@ -17,12 +17,12 @@
 <p align="center">
   <a href="https://github.com/lukevanin/swiftql/actions/workflows/swift.yml?query=branch%3Amain"><img alt="Build and CI status" src="https://img.shields.io/github/actions/workflow/status/lukevanin/swiftql/swift.yml?branch=main&amp;label=build%20%26%20CI"></a>
   <a href="https://github.com/lukevanin/swiftql/actions/workflows/documentation.yml?query=branch%3Amain"><img alt="Documentation status" src="https://img.shields.io/github/actions/workflow/status/lukevanin/swiftql/documentation.yml?branch=main&amp;label=documentation"></a>
-  <a href="COMPATIBILITY.md#pinned-apple-support-points"><img alt="Swift 5.9 CI" src="https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&amp;logoColor=white"></a>
+  <a href="COMPATIBILITY.md#pinned-compiler-support-points"><img alt="Swift 5.9 CI" src="https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&amp;logoColor=white"></a>
   <a href="COMPATIBILITY.md#swift-6-series-coverage"><img alt="Swift 6.0 CI" src="https://img.shields.io/badge/Swift-6.0-F05138?logo=swift&amp;logoColor=white"></a>
   <a href="COMPATIBILITY.md#swift-6-series-coverage"><img alt="Swift 6.1 CI" src="https://img.shields.io/badge/Swift-6.1-F05138?logo=swift&amp;logoColor=white"></a>
   <a href="COMPATIBILITY.md#swift-6-series-coverage"><img alt="Swift 6.2 CI" src="https://img.shields.io/badge/Swift-6.2-F05138?logo=swift&amp;logoColor=white"></a>
   <a href="COMPATIBILITY.md#swift-6-series-coverage"><img alt="Swift 6.3 CI" src="https://img.shields.io/badge/Swift-6.3-F05138?logo=swift&amp;logoColor=white"></a>
-  <a href="Package.swift"><img alt="Supported platforms: iOS 16 or later and macOS 13 or later" src="https://img.shields.io/badge/platforms-iOS%2016%2B%20%7C%20macOS%2013%2B-lightgrey"></a>
+  <a href="COMPATIBILITY.md#pinned-compiler-support-points"><img alt="Supported platforms: iOS 16 or later, macOS 13 or later, and Linux" src="https://img.shields.io/badge/platforms-iOS%2016%2B%20%7C%20macOS%2013%2B%20%7C%20Linux-lightgrey"></a>
   <a href="https://swiftpackageindex.com/lukevanin/swiftql"><img alt="Swift Package Index Swift version compatibility" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Flukevanin%2Fswiftql%2Fbadge%3Ftype%3Dswift-versions"></a>
   <a href="https://github.com/lukevanin/swiftql/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/lukevanin/swiftql?sort=semver"></a>
   <a href="LICENSE.md"><img alt="MIT license" src="https://img.shields.io/github/license/lukevanin/swiftql"></a>

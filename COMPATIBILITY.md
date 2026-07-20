@@ -1,6 +1,6 @@
 # Compiler compatibility
 
-SwiftQL 1.x keeps `swift-tools-version: 5.9`. CI retains two pinned Apple
+SwiftQL 1.x keeps `swift-tools-version: 5.9`. CI retains two pinned compiler
 support points and also runs the complete package test suite with every Swift
 series currently listed by Swift Package Index: Swift 6.0 through Swift 6.3.
 All Swift 6 compilers run the package in Swift 5 language mode; SwiftQL does not
@@ -21,8 +21,10 @@ have separate responsibilities:
 - `swiftql-benchmark` is a repository performance diagnostic executable, not an
   application runtime dependency or a database adapter.
 
-The manifest's dependency lower bounds are SwiftSyntax 509.0.0, GRDB 6.29.3,
-and the Swift-DocC plugin 1.0.0. Committed-resolution jobs prove the checked-in
+The manifest's dependency bounds are SwiftSyntax 509.0.0, GRDB 6.29.3 or later,
+Swift-DocC plugin 1.0.0 or later, and exact OpenCombine 0.14.0. SwiftSyntax also
+retains its existing compatible-from-509.0.0 manifest range.
+Committed-resolution jobs prove the checked-in
 graph; clean-resolution jobs prove that the declared ranges still resolve and
 pass. The exact resolved versions and loaded SQLite source ID are CI evidence,
 not a promise that every future dependency version in those ranges is already
@@ -38,10 +40,11 @@ lease a different connection and prepare or cache a physical GRDB statement on
 that connection. These ownership rules are part of the supported API contract,
 not only implementation details.
 
-SwiftQL currently ships only a SQLite dialect and a GRDB database driver. The
-core protocols are extension seams, not claims that another dialect, driver,
-Linux runtime, nested transaction/savepoint API, asynchronous cursor, or
-Swift 6 language mode is supported in v1.3.
+SwiftQL currently ships only a SQLite dialect and a GRDB database driver. Apple
+platforms use Combine; Linux uses OpenCombine for the same request-publisher
+surface. The core protocols are extension seams, not claims that another
+dialect, driver, nested transaction/savepoint API, asynchronous cursor, or
+Swift 6 language mode is supported.
 
 ## SQLite conformance inventory
 
@@ -102,27 +105,26 @@ matches the canonical inventory with:
 python3 scripts/ci/sqlite-conformance-inventory.py check
 ```
 
-## Pinned Apple support points
+## Pinned compiler support points
 
-| Support point | GitHub runner | Xcode | Swift | macOS SDK |
+| Support point | GitHub runner | Platform toolchain | Swift | Runtime surface |
 | --- | --- | --- | --- | --- |
-| Swift 5.9 | `macos-15-intel` | 16.2 (`16C5032a`) | 5.9.2 standalone | 15.2 |
-| Swift 6.0 | `macos-15` | 16.2 (`16C5032a`) | 6.0 series | 15.2 |
+| Swift 5.9 | `ubuntu-22.04` | official Swift 5.9.2 Linux | 5.9.2 | GRDB + OpenCombine |
+| Swift 6.0 | `macos-15` | Xcode 16.2 (`16C5032a`) | 6.0 series | macOS 15.2 SDK + Combine |
 
-The Swift 5.9 cells use GitHub's maintained Intel macOS 15 image and install the
-exact Swift 5.9.2 release package from Swift.org. The workflow pins the official
-download URL and SHA-256, requires Swift.org's Apple-issued installer identity,
-and checks both installed compiler executables. Xcode 16.2 supplies the pinned
-macOS 15.2 SDK and Apple Combine framework, but it does not supply the compiler:
-the environment gate requires `swift` to resolve from `PATH`, rejects the
-`/usr/bin/swift` Xcode dispatcher, and verifies the exact 5.9.2 version. The
-Swift 6.0 cells continue to select Xcode's compiler with `xcrun`.
+The Swift 5.9 cells use GitHub's maintained Ubuntu 22.04 image and install exact
+Swift 5.9.2 with a commit-pinned setup action. SwiftQL uses Apple's Combine on
+Apple platforms and the exact OpenCombine 0.14.0 dependency on Linux. A small
+GRDB observation bridge preserves positive-demand startup, independent
+subscriber state, error delivery, and cancellation. The same publisher,
+retry-policy, codec, SQLite, macro, benchmark, and full-suite tests execute on
+Linux; the lane does not remove or skip the live-query surface.
 
-Every cell verifies the exact Xcode version and build, compiler series, SDK,
-runner OS family, and architecture, then reports the compiler target metadata,
-OS version, runner image version, dependency graph, and SQLite runtime. An
-image update that removes Xcode 16.2, changes its SDK, changes architecture, or
-causes the standalone toolchain selection to fall back therefore fails instead
+Every cell verifies the compiler series, runner OS family, architecture, and
+target metadata, then reports the runner image version, dependency graph, and
+SQLite runtime. Linux additionally verifies exact Swift 5.9.2, Ubuntu 22.04,
+and the `x86_64-unknown-linux-gnu` target. macOS additionally verifies the exact
+Xcode version, build, and SDK. Toolchain or image drift therefore fails instead
 of silently redefining support.
 
 ## Swift 6 series coverage
@@ -141,9 +143,9 @@ series and SDK, resolves dependencies without either committed lockfile, runs
 the first-party warning gate, executes the SQLite runtime probe, and runs the
 complete test suite.
 
-SwiftQL imports Apple Combine and supports Apple platforms, so the compiler
-series lanes use Apple SDKs. Linux Swift toolchains do not ship Combine and are
-not presented as supported-platform evidence.
+Apple builds continue to expose Apple's Combine types without source or ABI
+changes. Linux builds import matching OpenCombine types and exercise the same
+typed publisher contracts through real GRDB observations.
 
 The compatibility test target contains a compile-time `#if swift(>=6.0)`
 failure. Because `swift()` tests the active language mode, every Swift 6.0–6.3
@@ -151,7 +153,7 @@ job proves that SwiftQL remains in Swift 5 language mode.
 
 ## Dependency resolution
 
-Each pinned Apple support point runs two independent dependency modes:
+Each pinned compiler support point runs two independent dependency modes:
 
 - **Committed resolution** uses the checked-in `Package.resolved` and fails if
   resolution changes it.
@@ -175,19 +177,20 @@ command-line tool.
 
 ## Reproducing a cell
 
-Install the exact Swift 5.9.2 release toolchain so its `swift` and `swiftc`
-executables lead `PATH`, select the same Xcode, and run the environment check
-with the values from [`.github/workflows/swift.yml`](.github/workflows/swift.yml):
+On Ubuntu 22.04 x86_64, install exact Swift 5.9.2 so its `swift` and `swiftc`
+executables lead `PATH`, then run the environment check with the values from
+[`.github/workflows/swift.yml`](.github/workflows/swift.yml):
 
 ```sh
-export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
-EXPECTED_XCODE_VERSION=16.2 \
-EXPECTED_XCODE_BUILD=16C5032a \
+EXPECTED_PLATFORM=linux \
 EXPECTED_SWIFT_SERIES=5.9 \
 EXPECTED_SWIFT_VERSION=5.9.2 \
 EXPECTED_SWIFT_COMMAND_MODE=path \
-EXPECTED_SDK_VERSION=15.2 \
-EXPECTED_DEVELOPER_DIR="$DEVELOPER_DIR" \
+EXPECTED_IMAGE_OS=ubuntu22 \
+EXPECTED_ARCHITECTURE=x86_64 \
+EXPECTED_OS_ID=ubuntu \
+EXPECTED_OS_VERSION_ID=22.04 \
+EXPECTED_TARGET_TRIPLE=x86_64-unknown-linux-gnu \
 scripts/ci/check-compatibility-environment.sh
 
 swift package resolve
@@ -355,9 +358,10 @@ warnings in separate, searchable sections for every applicable cell:
 - Complete strict-concurrency warnings are release blockers in the pinned Swift
   6.0 cells; `check-strict-concurrency.sh` enforces that boundary after the
   standard build and tests.
-- Verbose builds on both pinned Apple support points currently emit
+- Verbose builds on both pinned compiler support points currently emit
   dependency-prefixed manifest compiler command lines for `swift-docc-plugin`,
-  `grdb.swift`, `swift-syntax`, and `swift-docc-symbolkit`. They are recorded
+  `grdb.swift`, `swift-syntax`, `OpenCombine`, and `swift-docc-symbolkit`. They
+  are recorded
   separately under the gate's dependency-warning section. The structurally
   identified root `Package.swift` compiler invocation is reported as
   build-system output rather than a source warning. Exact resolved versions are
@@ -368,18 +372,17 @@ The matrix suppresses neither category.
 ## Swift 5.9 runner maintenance and recovery
 
 The Swift 5.9 cells no longer use the hosted `macos-14` image that GitHub will
-retire on 2 November 2026. They use maintained `macos-15-intel` runners, which
-GitHub currently supports through August 2027, and install Swift 5.9.2
-independently of Xcode. The official package is pinned by SHA-256 and verified
-against the `Developer ID Installer: Swift Open Source (V9AUD2URP3)` identity
-before installation. The download and installer need no repository token,
-secret, or persistent runner access. Each job runs on a fresh GitHub-hosted VM.
+retire on 2 November 2026. They use maintained `ubuntu-22.04` runners and
+install exact Swift 5.9.2 independently of Xcode. The setup action is pinned to
+an immutable commit and receives no repository secret or persistent runner
+access. Each job runs on a fresh GitHub-hosted VM with read-only contents
+permission.
 
-Repository maintainers own the package SHA-256 and environment pins. Review them
-when GitHub changes the `macos-15-intel` image or Swift.org republishes the
-release artifact. A missing download, checksum/signature failure, Xcode/SDK
-drift, unexpected runner family/architecture, or compiler fallback is a hard
-failure. Do not skip the lane or advance it to Swift 6 as recovery. If the exact
-toolchain can no longer run on GitHub-hosted macOS, move the same checks to a
-maintained macOS runner or immutable provider with verified Swift 5.9.2 and an
-Apple SDK that passes the complete suite before removing this strategy.
+Repository maintainers own the action SHA, OpenCombine pin, and environment
+pins. Review them when GitHub changes the Ubuntu 22.04 image or the setup action
+publishes a security or availability update. A missing download, compiler,
+distribution, runner-family, architecture, target-triple, dependency, or
+OpenCombine bridge failure is a hard failure. Do not skip the lane or advance
+it to Swift 6 as recovery. If the exact toolchain can no longer run on the
+hosted image, move the same full-suite checks to a digest-pinned official Swift
+5.9.2 container or another maintained provider before removing this strategy.

@@ -19,7 +19,7 @@ ENVIRONMENT_CHECK = ROOT / "scripts/ci/check-compatibility-environment.sh"
 
 
 class SwiftCompatibilityWorkflowTests(unittest.TestCase):
-    def test_swift59_cells_use_exact_toolchain_on_macos15(self) -> None:
+    def test_swift59_cells_use_exact_toolchain_on_ubuntu22(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         compatibility = workflow.split("\n  compatibility:\n", maxsplit=1)[1]
         matrix = compatibility.split("\n    env:\n", maxsplit=1)[0]
@@ -28,30 +28,27 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertEqual(matrix.count('swift_series: "5.9"'), 2)
         self.assertEqual(matrix.count('swift_version: "5.9.2"'), 2)
         self.assertEqual(matrix.count("swift_command_mode: path"), 2)
-        self.assertEqual(matrix.count("runner: macos-15-intel"), 2)
+        self.assertEqual(matrix.count("runner: ubuntu-22.04"), 2)
         self.assertEqual(matrix.count("\n            runner: macos-15\n"), 2)
-        self.assertEqual(matrix.count("image_os: macos15"), 4)
+        self.assertEqual(matrix.count("platform: linux"), 2)
+        self.assertEqual(matrix.count("platform: macos"), 2)
+        self.assertEqual(matrix.count("image_os: ubuntu22"), 2)
+        self.assertEqual(matrix.count("image_os: macos15"), 2)
         self.assertEqual(matrix.count("architecture: x86_64"), 2)
         self.assertEqual(matrix.count("architecture: arm64"), 2)
 
-        self.assertNotIn("swift-actions/setup-swift", compatibility)
-        self.assertIn(
-            "if: ${{ matrix.swift_command_mode == 'path' }}", compatibility
+        action = (
+            "swift-actions/setup-swift@"
+            "65540b95f51493d65f5e59e97dcef9629ddf11bf"
         )
+        self.assertEqual(compatibility.count(action), 1)
         self.assertIn(
-            "https://download.swift.org/swift-5.9.2-release/xcode/"
-            "swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-osx.pkg",
-            compatibility,
+            "if: ${{ matrix.platform == 'linux' }}", compatibility
         )
-        self.assertIn(
-            "68951c313b4b559878fc5be27e460c877f98d14e161f755220b063123919e896",
-            compatibility,
-        )
-        self.assertIn("shasum -a 256 --check", compatibility)
-        self.assertIn(
-            "Developer ID Installer: Swift Open Source (V9AUD2URP3)",
-            compatibility,
-        )
+        self.assertIn('swift-version: "5.9.2"', compatibility)
+        self.assertIn("os_id: ubuntu", matrix)
+        self.assertIn('os_version_id: "22.04"', matrix)
+        self.assertIn("target_triple: x86_64-unknown-linux-gnu", matrix)
         self.assertIn(
             "EXPECTED_SWIFT_VERSION: ${{ matrix.swift_version }}", compatibility
         )
@@ -63,6 +60,21 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn(
             "EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}", compatibility
         )
+
+    def test_linux_surface_uses_opencombine_without_conditional_exclusion(self) -> None:
+        manifest = (ROOT / "Package.swift").read_text(encoding="utf-8")
+        bridge = (
+            ROOT / "Sources/SwiftQL/GRDBOpenCombineValuePublisher.swift"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(
+            '.package(url: "https://github.com/OpenCombine/OpenCombine.git", '
+            'exact: "0.14.0")',
+            manifest,
+        )
+        self.assertIn("case waiting", bridge)
+        self.assertIn("remainingDemand", bridge)
+        self.assertNotIn("XCTSkip", bridge)
 
     def test_compatibility_commands_use_selected_path_toolchain(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
@@ -188,6 +200,64 @@ class CompatibilityEnvironmentTests(unittest.TestCase):
             check=False,
         )
 
+    def run_linux_check(self, **overrides: str) -> subprocess.CompletedProcess[str]:
+        os_release = self.root / "os-release"
+        os_release.write_text('ID=ubuntu\nVERSION_ID="22.04"\n', encoding="utf-8")
+        self.install_command(
+            "swift",
+            """
+            #!/bin/sh
+            if [ "$*" = "package tools-version" ]; then
+              printf '5.9.0\n'
+            else
+              printf 'Swift version 5.9.2 (swift-5.9.2-RELEASE)\n'
+              printf 'Target: x86_64-unknown-linux-gnu\n'
+            fi
+            """,
+        )
+        self.install_command(
+            "swiftc",
+            """
+            #!/bin/sh
+            printf '{"target": {"triple": "x86_64-unknown-linux-gnu"}}\n'
+            """,
+        )
+        self.install_command(
+            "uname",
+            """
+            #!/bin/sh
+            printf 'x86_64\n'
+            """,
+        )
+
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "PATH": f"{self.bin}:/usr/bin:/bin",
+                "EXPECTED_PLATFORM": "linux",
+                "EXPECTED_SWIFT_SERIES": "5.9",
+                "EXPECTED_SWIFT_VERSION": "5.9.2",
+                "EXPECTED_SWIFT_COMMAND_MODE": "path",
+                "EXPECTED_IMAGE_OS": "ubuntu22",
+                "EXPECTED_ARCHITECTURE": "x86_64",
+                "EXPECTED_OS_ID": "ubuntu",
+                "EXPECTED_OS_VERSION_ID": "22.04",
+                "EXPECTED_OS_RELEASE_FILE": str(os_release),
+                "EXPECTED_TARGET_TRIPLE": "x86_64-unknown-linux-gnu",
+                "ImageOS": "ubuntu22",
+                "ImageVersion": "fixture.1",
+            }
+        )
+        environment.update(overrides)
+        return subprocess.run(
+            ["/bin/bash", str(ENVIRONMENT_CHECK)],
+            cwd=ROOT,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
     def test_exact_path_toolchain_environment_passes(self) -> None:
         result = self.run_check()
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -209,6 +279,17 @@ class CompatibilityEnvironmentTests(unittest.TestCase):
         result = self.run_check(EXPECTED_ARCHITECTURE="x86_64")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("architecture is 'arm64'; expected 'x86_64'", result.stderr)
+
+    def test_exact_linux_environment_passes(self) -> None:
+        result = self.run_linux_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Compatibility platform: linux", result.stdout)
+        self.assertIn("Linux distribution: ubuntu 22.04", result.stdout)
+
+    def test_linux_distribution_drift_fails_closed(self) -> None:
+        result = self.run_linux_check(EXPECTED_OS_VERSION_ID="24.04")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("VERSION_ID is '22.04'; expected '24.04'", result.stderr)
 
 
 if __name__ == "__main__":

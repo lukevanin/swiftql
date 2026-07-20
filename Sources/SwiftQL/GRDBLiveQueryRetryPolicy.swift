@@ -1,4 +1,9 @@
+#if canImport(Combine)
 import Combine
+#else
+import OpenCombine
+import OpenCombineDispatch
+#endif
 import Dispatch
 import Foundation
 import GRDB

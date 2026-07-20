@@ -6,7 +6,12 @@
 //
 
 import Foundation
+#if canImport(Combine)
 import Combine
+#else
+import OpenCombine
+import OpenCombineFoundation
+#endif
 
 
 extension Notification.Name {
