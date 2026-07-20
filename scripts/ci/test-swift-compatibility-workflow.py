@@ -98,6 +98,16 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn("remainingDemand", bridge)
         self.assertNotIn("XCTSkip", bridge)
 
+    def test_swift59_linux_surface_avoids_newer_foundation_url_apis(self) -> None:
+        swift_sources = list((ROOT / "Sources").rglob("*.swift"))
+        swift_sources.extend((ROOT / "Tests").rglob("*.swift"))
+        source = "\n".join(
+            path.read_text(encoding="utf-8") for path in swift_sources
+        )
+
+        self.assertNotIn(".path(percentEncoded:", source)
+        self.assertNotIn(".appending(path:", source)
+
     def test_compatibility_commands_use_selected_path_toolchain(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         compatibility = workflow.split("\n  compatibility:\n", maxsplit=1)[1]

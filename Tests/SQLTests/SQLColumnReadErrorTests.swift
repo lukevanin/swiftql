@@ -75,12 +75,15 @@ final class XLColumnReadErrorTests: XCTestCase {
         logger = ColumnReadTestLogger()
         streamStepProbe = ColumnReadStreamStepProbe()
         databaseDirectoryURL = FileManager.default.temporaryDirectory
-            .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(
             at: databaseDirectoryURL,
             withIntermediateDirectories: true
         )
-        let fileURL = databaseDirectoryURL.appending(path: "database.sqlite", directoryHint: .notDirectory)
+        let fileURL = databaseDirectoryURL.appendingPathComponent(
+            "database.sqlite",
+            isDirectory: false
+        )
         var configuration = Configuration()
         let streamStepProbe = try XCTUnwrap(streamStepProbe)
         configuration.prepareDatabase { database in

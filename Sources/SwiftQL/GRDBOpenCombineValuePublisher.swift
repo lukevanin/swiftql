@@ -39,7 +39,7 @@ struct GRDBOpenCombineValuePublisher<Output>: Publisher {
 private final class GRDBOpenCombineValueSubscription<Downstream>: Subscription
 where Downstream: Subscriber, Downstream.Failure == Error {
 
-    private typealias Start = (
+    fileprivate typealias Start = (
         @escaping (Error) -> Void,
         @escaping (Downstream.Input) -> Void
     ) -> AnyDatabaseCancellable
@@ -57,7 +57,7 @@ where Downstream: Subscriber, Downstream.Failure == Error {
     private var cancellable: AnyDatabaseCancellable?
     private var state: State
 
-    init(start: @escaping Start, downstream: Downstream) {
+    fileprivate init(start: @escaping Start, downstream: Downstream) {
         state = .waiting(start: start, downstream: downstream)
     }
 

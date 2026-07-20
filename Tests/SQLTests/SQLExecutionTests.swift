@@ -28,7 +28,9 @@ final class XLExecutionTests: XCTestCase {
         )
         let directory = FileManager.default.temporaryDirectory
         let filename = UUID().uuidString
-        let fileURL = directory.appending(path: filename, directoryHint: .notDirectory).appendingPathExtension("sqlite")
+        let fileURL = directory
+            .appendingPathComponent(filename, isDirectory: false)
+            .appendingPathExtension("sqlite")
         print("Connecting to database \(fileURL.path)")
         encoder = XLiteEncoder(formatter: formatter)
         databasePool = try! DatabasePool(path: fileURL.path)

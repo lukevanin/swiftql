@@ -804,13 +804,13 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
         initialValue: Int? = 1
     ) throws -> IntegrationFixture {
         let directoryURL = FileManager.default.temporaryDirectory
-            .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(
             at: directoryURL,
             withIntermediateDirectories: true
         )
         let databaseURL = directoryURL
-            .appending(path: "retry.sqlite", directoryHint: .notDirectory)
+            .appendingPathComponent("retry.sqlite", isDirectory: false)
         let functionState = InjectedBusyFunctionState(behavior: busyBehavior)
         var configuration = Configuration()
         configuration.prepareDatabase { database in
@@ -827,7 +827,7 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
         let database: GRDBDatabase
         if let retryScheduler {
             let databasePool = try DatabasePool(
-                path: databaseURL.path(percentEncoded: false),
+                path: databaseURL.path,
                 configuration: configuration
             )
             database = try GRDBDatabase(
