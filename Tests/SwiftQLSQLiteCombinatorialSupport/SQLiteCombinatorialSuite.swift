@@ -218,7 +218,6 @@ private extension SQLiteCombinatorialSuite {
             id: "natural-using-joins",
             title: "NATURAL and USING joins"
         ),
-        GatedPrerequisite(issue: 17, id: "count-star", title: "COUNT(*)"),
         GatedPrerequisite(
             issue: 70,
             id: "nullable-subquery-shapes",

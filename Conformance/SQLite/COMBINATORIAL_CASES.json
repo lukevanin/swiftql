@@ -10066,10 +10066,6 @@
           "label" : "#45 NATURAL and USING joins"
         },
         {
-          "id" : "issue-17-count-star",
-          "label" : "#17 COUNT(*)"
-        },
-        {
           "id" : "issue-70-nullable-subquery-shapes",
           "label" : "#70 nullable subquery shapes"
         }
@@ -10166,16 +10162,6 @@
       ],
       "id" : "gated.issue-45.natural-using-joins",
       "reason" : "Not executable in issue #191: typed prerequisite #45 (NATURAL and USING joins) is not implemented."
-    },
-    {
-      "dimension_vector" : [
-        {
-          "dimension_id" : "gated-prerequisite",
-          "value_id" : "issue-17-count-star"
-        }
-      ],
-      "id" : "gated.issue-17.count-star",
-      "reason" : "Not executable in issue #191: typed prerequisite #17 (COUNT(*)) is not implemented."
     },
     {
       "dimension_vector" : [

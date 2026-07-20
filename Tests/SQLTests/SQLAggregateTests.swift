@@ -81,6 +81,8 @@ final class XLAggregateTests: XCTestCase {
         assertExpressionType(text.groupConcatOrNull(), Optional<String>.self)
         assertExpressionType(text.groupConcatOrNull(separator: "|"), Optional<String>.self)
         assertExpressionType(integer.count(), Int.self)
+        assertExpressionType(all(), XLAllColumns.self)
+        assertExpressionType(count(all()), Int.self)
         assertExpressionType(integer.sumOrNull().coalesce(-99), Int.self)
 
         XCTAssertEqual(encoder.makeSQL(integer.minOrNull()).sql, "MIN(:integer)")
@@ -101,6 +103,8 @@ final class XLAggregateTests: XCTestCase {
             "GROUP_CONCAT(:text, '|')"
         )
         XCTAssertEqual(encoder.makeSQL(integer.count()).sql, "COUNT(:integer)")
+        XCTAssertEqual(encoder.makeSQL(all()).sql, "*")
+        XCTAssertEqual(encoder.makeSQL(count(all())).sql, "COUNT(*)")
         XCTAssertEqual(
             encoder.makeSQL(integer.sumOrNull().coalesce(-99)).sql,
             "COALESCE(SUM(:integer), -99)"
@@ -208,7 +212,7 @@ final class XLAggregateTests: XCTestCase {
                     average: input.realValue.averageOrNull(),
                     concatenated: input.textValue.groupConcatOrNull(),
                     pipeConcatenated: input.textValue.groupConcatOrNull(separator: "|"),
-                    rowCount: input.id.count(),
+                    rowCount: count(all()),
                     integerCount: input.integerValue.count(),
                     coalescedSum: input.integerValue.sumOrNull().coalesce(-99)
                 )

@@ -201,13 +201,12 @@ final class SQLiteValueConformanceBoundaryTests: XCTestCase {
             "syntax.dml.returning-gap": 57,
             "syntax.expression.like-escape-gap": 21,
             "syntax.join.natural-using-gap": 45,
-            "syntax.select.count-star-gap": 17,
             "syntax.subquery.nullable-shape-gap": 70,
         ]
         let featuresByID = Dictionary(
             uniqueKeysWithValues: inventory.features.map { ($0.id, $0) }
         )
-        XCTAssertEqual(gatedBlockers.count, 8)
+        XCTAssertEqual(gatedBlockers.count, 7)
         for (featureID, blockingIssue) in gatedBlockers {
             let feature = try XCTUnwrap(featuresByID[featureID], featureID)
             XCTAssertEqual(feature.status, .unimplemented, featureID)

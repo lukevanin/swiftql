@@ -209,6 +209,7 @@ SwiftQL currently supports the following aggregate functions:
 API                               | Input             | Result    | Behavior
 ----------------------------------|-------------------|-----------|-------------------------------------------
 `count()`                         | Any               | `Int`     | Number of non-NULL values; zero for empty input.
+`count(all())`                    | All rows          | `Int`     | Number of input rows, rendered as `COUNT(*)`.
 `minOrNull()`                     | Any comparable    | `T?`      | Minimum non-NULL value.
 `maxOrNull()`                     | Any comparable    | `T?`      | Maximum non-NULL value.
 `averageOrNull()`                 | `Double`          | `Double?` | Average (arithmetic mean) of non-NULL values.
@@ -219,6 +220,8 @@ API                               | Input             | Result    | Behavior
 Except for `count()`, these aggregates return `nil` when SQLite evaluates an
 empty input or a group containing no non-NULL values. Model those results with
 optional properties, or choose a nonoptional fallback explicitly:
+
+Use `count(all())` when NULL values must still contribute to the row count.
 
 <!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift

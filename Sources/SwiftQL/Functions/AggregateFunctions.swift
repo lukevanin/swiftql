@@ -8,6 +8,41 @@
 import Foundation
 
 
+/// The unqualified all-columns expression rendered as `*`.
+///
+/// Use all() with count(_:) to count every input row.
+public struct XLAllColumns: XLExpression {
+
+    public typealias T = XLAllColumns
+
+    public init() {
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        context.block(
+            beginsWith: "*",
+            endsWith: "",
+            separator: .elided
+        ) { _ in
+        }
+    }
+}
+
+
+/// Returns the unqualified all-columns expression rendered as `*`.
+public func all() -> XLAllColumns {
+    XLAllColumns()
+}
+
+
+/// Counts every input row by rendering `COUNT(*)`.
+public func count(
+    _ expression: any XLExpression<XLAllColumns>
+) -> some XLExpression<Int> {
+    XLFunction<Int>(name: "COUNT", parameters: [expression])
+}
+
+
 /// See: https://www.sqlite.org/lang_aggfunc.html
 ///
 extension XLExpression {
