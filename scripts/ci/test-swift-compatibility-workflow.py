@@ -81,6 +81,13 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn("CPATH=", compatibility)
         self.assertIn("LIBRARY_PATH=", compatibility)
         self.assertIn("LD_LIBRARY_PATH=", compatibility)
+        self.assertIn("SWIFTQL_SQLITE_INCLUDE_DIR=", compatibility)
+        self.assertIn("SWIFTQL_SQLITE_LIBRARY_DIR=", compatibility)
+        self.assertIn(
+            '-Xcc -I -Xcc "$SWIFTQL_SQLITE_INCLUDE_DIR" '
+            '-L "$SWIFTQL_SQLITE_LIBRARY_DIR"',
+            compatibility,
+        )
         self.assertIn("-DGRDBCUSTOMSQLITE", compatibility)
         self.assertIn("SWIFT_EXEC=", compatibility)
         self.assertIn(

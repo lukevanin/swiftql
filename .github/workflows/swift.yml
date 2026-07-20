@@ -499,6 +499,10 @@ jobs:
           printf 'CPATH=%s\n' "$sqlite_prefix/include" >> "$GITHUB_ENV"
           printf 'LIBRARY_PATH=%s\n' "$sqlite_prefix/lib" >> "$GITHUB_ENV"
           printf 'LD_LIBRARY_PATH=%s\n' "$sqlite_prefix/lib" >> "$GITHUB_ENV"
+          printf 'SWIFTQL_SQLITE_INCLUDE_DIR=%s\n' \
+            "$sqlite_prefix/include" >> "$GITHUB_ENV"
+          printf 'SWIFTQL_SQLITE_LIBRARY_DIR=%s\n' \
+            "$sqlite_prefix/lib" >> "$GITHUB_ENV"
 
           # GRDB 6.29.3 assumes Linux SQLite exports optional snapshot symbols.
           # The pinned amalgamation intentionally does not enable that optional
@@ -511,7 +515,7 @@ jobs:
             'if [[ "${1:-}" == "-modulewrap" ]]; then' \
             '  exec "$SWIFTQL_REAL_SWIFT_FRONTEND" "$@"' \
             'fi' \
-            'exec "$SWIFTQL_REAL_SWIFTC" -DGRDBCUSTOMSQLITE "$@"' \
+            'exec "$SWIFTQL_REAL_SWIFTC" -DGRDBCUSTOMSQLITE -Xcc -I -Xcc "$SWIFTQL_SQLITE_INCLUDE_DIR" -L "$SWIFTQL_SQLITE_LIBRARY_DIR" "$@"' \
             > "$compiler_wrapper"
           chmod 755 "$compiler_wrapper"
           printf 'SWIFTQL_REAL_SWIFTC=%s\n' "$toolchain_bin/swiftc" \
