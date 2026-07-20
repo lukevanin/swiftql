@@ -36,6 +36,7 @@ REQUIRED_SUITE_STATUSES = {
     254: "completed",
     255: "completed",
     256: "planned",
+    286: "completed",
 }
 FEATURE_KINDS = {"syntax", "adopted-behavior", "adapter-contract"}
 FEATURE_STATUSES = {
@@ -809,7 +810,7 @@ def validate_suites(value: Any) -> List[Mapping[str, Any]]:
         seen_issues.add(issue)
         expected_status = REQUIRED_SUITE_STATUSES.get(issue)
         if expected_status is None:
-            raise InventoryError(f"{path}.issue is not a registered v1.3 suite issue: {issue}")
+            raise InventoryError(f"{path}.issue is not a registered conformance suite issue: {issue}")
         if status != expected_status:
             raise InventoryError(
                 f"{path}.status must be {expected_status!r} for issue #{issue}"
@@ -825,7 +826,7 @@ def validate_suites(value: Any) -> List[Mapping[str, Any]]:
     if seen_issues != set(REQUIRED_SUITE_STATUSES):
         missing = sorted(set(REQUIRED_SUITE_STATUSES) - seen_issues)
         raise InventoryError(
-            "suites must register issues #191 and #252-#256; missing: "
+            "suites must register issues #191, #252-#256, and #286; missing: "
             + ", ".join(f"#{issue}" for issue in missing)
         )
     return result

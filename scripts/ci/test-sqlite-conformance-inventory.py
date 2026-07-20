@@ -249,13 +249,14 @@ final class OtherTests {
             (254, "prepared-statement"),
             (255, "operator-property"),
             (256, "observation"),
+            (286, "function-overload-conformance"),
         ]:
-            status = "completed" if issue in {254, 255} else "planned"
+            status = "completed" if issue in {254, 255, 286} else "planned"
             suites.append(
                 {
                     "id": f"suite.{name}",
                     "issue": issue,
-                    "milestone": "v1.3",
+                    "milestone": "v1.4.1" if issue == 286 else "v1.3",
                     "status": status,
                     "case_ids": (
                         [features[0]["id"]] if status == "completed" else []

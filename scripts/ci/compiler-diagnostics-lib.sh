@@ -78,7 +78,7 @@ swiftql_is_dependency_warning() {
         case "$warning" in
             "warning: 'grdb.swift':"*|"warning: 'swift-syntax':"*|\
             "warning: 'swift-docc-plugin':"*|\
-            "warning: 'swift-docc-symbolkit':"*)
+            "warning: 'swift-docc-symbolkit':"*|"warning: 'opencombine':"*)
                 return 0
                 ;;
         esac
@@ -516,6 +516,31 @@ swiftql_run_diagnostic_classifier_self_tests() {
         "$self_test_log" "$source_root" "$scratch_root" "$output_prefix" \
         "$fixture" "DEPENDENCY_WARNINGS" \
         "a dependency-manifest build warning"; then
+        rm -f "$self_test_log"
+        return 1
+    fi
+
+    # Xcode 26.5 can normalize a dependency manifest's primary-file path to
+    # `/Package.swift`. The exact pinned package identity keeps this fallback
+    # fail closed when the checkout path is unavailable in verbose output.
+    fixture="warning: 'opencombine': /tool/swift-frontend"
+    fixture+=" -primary-file /Package.swift"
+    fixture+=" -package-description-version 5.5.0 -module-name main -o /tmp/Package.o"
+    if ! swiftql_self_test_accepted_warning \
+        "$self_test_log" "$source_root" "$scratch_root" "$output_prefix" \
+        "$fixture" "DEPENDENCY_WARNINGS" \
+        "a normalized OpenCombine dependency-manifest build warning"; then
+        rm -f "$self_test_log"
+        return 1
+    fi
+
+    fixture="warning: 'opencombine-fork': /tool/swift-frontend"
+    fixture+=" -primary-file /Package.swift"
+    fixture+=" -package-description-version 5.5.0 -module-name main -o /tmp/Package.o"
+    if ! swiftql_self_test_rejected_warning \
+        "$self_test_log" "$source_root" "$scratch_root" "$output_prefix" \
+        "$fixture" "UNCLASSIFIED_WARNINGS" \
+        "a near-match normalized dependency-manifest warning"; then
         rm -f "$self_test_log"
         return 1
     fi

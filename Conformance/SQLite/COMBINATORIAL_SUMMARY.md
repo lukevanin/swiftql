@@ -1,16 +1,16 @@
 # SwiftQL SQLite combinatorial manifest
 
 - Schema version: `1`
-- Generator version: `c191-v1`
+- Generator version: `c191-v2`
 - Coordination issue: `#191`
 - Inventory version: `1.3.0`
-- Cases: `141`
+- Cases: `168`
 
 ## Hard bounds
 
 | Bound | Maximum |
 | --- | ---: |
-| Cases | 160 |
+| Cases | 192 |
 | Dimensions per case | 9 |
 | Bindings per case | 8 |
 | Rendered SQL bytes | 4096 |
@@ -32,7 +32,7 @@
 | offset | OFFSET shape | none: none, two: two |
 | cte-shape | CTE shape | ordinary-required: ordinary-required, ordinary-nullable: ordinary-nullable, recursive-required: recursive-required |
 | compound-operator | Compound operator | union: union, union-all: union-all, intersect: intersect, except: except |
-| expression-case | Adopted expression case | indexed-binding: indexed-binding, numeric-abs: numeric-abs, numeric-round: numeric-round, numeric-floor: numeric-floor, comparable-min: comparable-min, string-printf: string-printf, cast-text-integer: cast-text-integer, cast-text-blob: cast-text-blob, date-unixepoch: date-unixepoch, json-valid: json-valid, json-array-length: json-array-length, operator-arithmetic-precedence: operator-arithmetic-precedence, operator-glob: operator-glob |
+| expression-case | Adopted expression case | indexed-binding: indexed-binding, numeric-abs: numeric-abs, numeric-round: numeric-round, numeric-floor: numeric-floor, comparable-min: comparable-min, string-printf: string-printf, cast-text-integer: cast-text-integer, cast-text-blob: cast-text-blob, date-unixepoch: date-unixepoch, json-valid: json-valid, json-array-length: json-array-length, operator-arithmetic-precedence: operator-arithmetic-precedence, operator-glob: operator-glob, aggregate-count-distinct: aggregate-count-distinct, aggregate-min-distinct: aggregate-min-distinct, aggregate-max-distinct: aggregate-max-distinct, aggregate-average-distinct: aggregate-average-distinct, aggregate-sum-distinct: aggregate-sum-distinct, aggregate-group-concat-distinct: aggregate-group-concat-distinct, numeric-round-no-places: numeric-round-no-places, numeric-round-optional: numeric-round-optional, comparable-max: comparable-max, string-printf-array: string-printf-array, json-array-length-path: json-array-length-path, cast-bool-integer: cast-bool-integer, cast-optional-bool-integer: cast-optional-bool-integer, cast-integer-real: cast-integer-real, cast-integer-text: cast-integer-text, cast-optional-integer-real: cast-optional-integer-real, cast-optional-integer-text: cast-optional-integer-text, cast-real-integer: cast-real-integer, cast-real-text: cast-real-text, cast-optional-real-integer: cast-optional-real-integer, cast-optional-real-text: cast-optional-real-text, cast-text-real: cast-text-real, cast-optional-text-integer: cast-optional-text-integer, cast-optional-text-real: cast-optional-text-real, cast-optional-text-blob: cast-optional-text-blob, cast-blob-text: cast-blob-text, cast-optional-blob-text: cast-optional-blob-text |
 | northwind-adaptation | Pinned Northwind adaptation | compound-customer-supplier-cities: compound-customer-supplier-cities, cte-order-subtotals: cte-order-subtotals |
 | gated-prerequisite | Explicitly gated typed prerequisite | issue-43-direct-scalar-compounds: #43 direct scalar compounds, issue-10-cte-materialization-hints: #10 CTE materialization hints, issue-139-typed-ddl: #139 typed DDL, issue-57-dml-returning: #57 DML RETURNING, issue-21-like-escape: #21 LIKE ESCAPE, issue-45-natural-using-joins: #45 NATURAL and USING joins, issue-17-count-star: #17 COUNT(*), issue-70-nullable-subquery-shapes: #70 nullable subquery shapes |
 
@@ -64,7 +64,7 @@
 | ---: | --- | ---: | ---: | ---: |
 | 2 | projection, source, join, predicate, grouping, having, ordering, limit, offset | 405 | 405 | 2 |
 | 2 | cte-shape, compound-operator | 12 | 12 | 0 |
-| 1 | expression-case | 13 | 13 | 0 |
+| 1 | expression-case | 40 | 40 | 0 |
 | 1 | northwind-adaptation | 2 | 2 | 0 |
 | 3 | predicate, grouping, having | 1 | 1 | 0 |
 | 6 | predicate, grouping, having, ordering, limit, offset | 1 | 1 | 0 |
@@ -215,3 +215,30 @@
 | c191.v1.select.w-precedence.o-descending | select.where.order-by | pairwise | prepare-only | projection=order-id, source=table-auto, join=none, predicate=precedence, grouping=none, having=none, ordering=descending, limit=none, offset=none | syntax.expression.current-operators, syntax.select.core, syntax.select.ordering-terms |  | 0 |
 | c191.v1.select.w-repeated-binding.o-ascending | select.where.order-by | pairwise | prepare-only | projection=order-id, source=table-auto, join=none, predicate=repeated-binding, grouping=none, having=none, ordering=ascending, limit=none, offset=none | binding.named, binding.repeated-named, syntax.expression.current-operators, syntax.select.core, syntax.select.ordering-terms |  | 1 |
 | c191.v1.select.w-repeated-binding.o-collated | select.where.order-by | pairwise | prepare-only | projection=order-id, source=table-auto, join=none, predicate=repeated-binding, grouping=none, having=none, ordering=collated, limit=none, offset=none | binding.named, binding.repeated-named, syntax.expression.current-operators, syntax.select.core, syntax.select.ordering-terms |  | 1 |
+| c286.v1.expression.aggregate-average-distinct | expression.aggregate-average-distinct | targeted | semantic | expression-case=aggregate-average-distinct | syntax.expression.aggregate-functions |  | 0 |
+| c286.v1.expression.aggregate-count-distinct | expression.aggregate-count-distinct | targeted | semantic | expression-case=aggregate-count-distinct | syntax.expression.aggregate-functions |  | 0 |
+| c286.v1.expression.aggregate-group-concat-distinct | expression.aggregate-group-concat-distinct | targeted | semantic | expression-case=aggregate-group-concat-distinct | syntax.expression.aggregate-functions |  | 0 |
+| c286.v1.expression.aggregate-max-distinct | expression.aggregate-max-distinct | targeted | semantic | expression-case=aggregate-max-distinct | syntax.expression.aggregate-functions |  | 0 |
+| c286.v1.expression.aggregate-min-distinct | expression.aggregate-min-distinct | targeted | semantic | expression-case=aggregate-min-distinct | syntax.expression.aggregate-functions |  | 0 |
+| c286.v1.expression.aggregate-sum-distinct | expression.aggregate-sum-distinct | targeted | semantic | expression-case=aggregate-sum-distinct | syntax.expression.aggregate-functions |  | 0 |
+| c286.v1.expression.cast-blob-text | expression.cast-blob-text | targeted | semantic | expression-case=cast-blob-text | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-bool-integer | expression.cast-bool-integer | targeted | semantic | expression-case=cast-bool-integer | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-integer-real | expression.cast-integer-real | targeted | semantic | expression-case=cast-integer-real | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-integer-text | expression.cast-integer-text | targeted | semantic | expression-case=cast-integer-text | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-optional-blob-text | expression.cast-optional-blob-text | targeted | semantic | expression-case=cast-optional-blob-text | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-optional-bool-integer | expression.cast-optional-bool-integer | targeted | semantic | expression-case=cast-optional-bool-integer | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-optional-integer-real | expression.cast-optional-integer-real | targeted | semantic | expression-case=cast-optional-integer-real | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-optional-integer-text | expression.cast-optional-integer-text | targeted | semantic | expression-case=cast-optional-integer-text | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-optional-real-integer | expression.cast-optional-real-integer | targeted | semantic | expression-case=cast-optional-real-integer | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-optional-real-text | expression.cast-optional-real-text | targeted | semantic | expression-case=cast-optional-real-text | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-optional-text-blob | expression.cast-optional-text-blob | targeted | semantic | expression-case=cast-optional-text-blob | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-optional-text-integer | expression.cast-optional-text-integer | targeted | semantic | expression-case=cast-optional-text-integer | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-optional-text-real | expression.cast-optional-text-real | targeted | semantic | expression-case=cast-optional-text-real | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-real-integer | expression.cast-real-integer | targeted | semantic | expression-case=cast-real-integer | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-real-text | expression.cast-real-text | targeted | semantic | expression-case=cast-real-text | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.cast-text-real | expression.cast-text-real | targeted | semantic | expression-case=cast-text-real | syntax.expression.type-casts |  | 1 |
+| c286.v1.expression.comparable-max | expression.comparable-max | targeted | semantic | expression-case=comparable-max | syntax.expression.numeric-comparable-functions |  | 1 |
+| c286.v1.expression.json-array-length-path | expression.json-array-length-path | targeted | semantic | expression-case=json-array-length-path | syntax.expression.json-functions |  | 1 |
+| c286.v1.expression.numeric-round-no-places | expression.numeric-round-no-places | targeted | semantic | expression-case=numeric-round-no-places | syntax.expression.numeric-comparable-functions |  | 1 |
+| c286.v1.expression.numeric-round-optional | expression.numeric-round-optional | targeted | semantic | expression-case=numeric-round-optional | syntax.expression.numeric-comparable-functions |  | 1 |
+| c286.v1.expression.string-printf-array | expression.string-printf-array | targeted | semantic | expression-case=string-printf-array | syntax.expression.string-functions |  | 2 |
