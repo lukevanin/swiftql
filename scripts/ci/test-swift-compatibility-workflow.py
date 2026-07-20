@@ -108,6 +108,7 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertNotIn(".path(percentEncoded:", source)
         self.assertNotIn(".appending(path:", source)
         self.assertNotIn("formatter.timeZone = .gmt", source)
+        self.assertNotIn("import CryptoKit", source)
 
         benchmark_cli = (
             ROOT / "Benchmarks/Sources/SwiftQLBenchmarkCLI/main.swift"
