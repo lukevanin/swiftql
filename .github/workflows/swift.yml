@@ -47,6 +47,9 @@ jobs:
       - name: Run source coverage reporting fixtures
         run: python3 scripts/ci/test-source-coverage-report.py
 
+      - name: Run Swift compatibility workflow fixtures
+        run: python3 scripts/ci/test-swift-compatibility-workflow.py
+
       - name: Validate SQLite conformance inventory
         run: |
           python3 scripts/ci/test-sqlite-conformance-inventory.py
@@ -279,20 +282,28 @@ jobs:
       matrix:
         include:
           - name: Swift 5.9 / committed resolution
-            runner: macos-14
-            developer_dir: /Applications/Xcode_15.2.app/Contents/Developer
-            xcode_version: "15.2"
-            xcode_build: 15C500b
+            runner: macos-15
+            developer_dir: /Applications/Xcode_16.2.app/Contents/Developer
+            xcode_version: "16.2"
+            xcode_build: 16C5032a
             swift_series: "5.9"
-            sdk_version: "14.2"
+            swift_version: "5.9.2"
+            swift_command_mode: path
+            sdk_version: "15.2"
+            image_os: macos15
+            architecture: arm64
             resolution: committed
           - name: Swift 5.9 / clean resolution
-            runner: macos-14
-            developer_dir: /Applications/Xcode_15.2.app/Contents/Developer
-            xcode_version: "15.2"
-            xcode_build: 15C500b
+            runner: macos-15
+            developer_dir: /Applications/Xcode_16.2.app/Contents/Developer
+            xcode_version: "16.2"
+            xcode_build: 16C5032a
             swift_series: "5.9"
-            sdk_version: "14.2"
+            swift_version: "5.9.2"
+            swift_command_mode: path
+            sdk_version: "15.2"
+            image_os: macos15
+            architecture: arm64
             resolution: clean
           - name: Swift 6.0 / committed resolution
             runner: macos-15
@@ -300,7 +311,11 @@ jobs:
             xcode_version: "16.2"
             xcode_build: 16C5032a
             swift_series: "6.0"
+            swift_version: ""
+            swift_command_mode: xcrun
             sdk_version: "15.2"
+            image_os: macos15
+            architecture: arm64
             resolution: committed
           - name: Swift 6.0 / clean resolution
             runner: macos-15
@@ -308,7 +323,11 @@ jobs:
             xcode_version: "16.2"
             xcode_build: 16C5032a
             swift_series: "6.0"
+            swift_version: ""
+            swift_command_mode: xcrun
             sdk_version: "15.2"
+            image_os: macos15
+            architecture: arm64
             resolution: clean
 
     env:
@@ -324,13 +343,23 @@ jobs:
       - name: Verify exact source commit
         run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
+      - name: Install exact Swift 5.9.2 toolchain
+        if: ${{ matrix.swift_command_mode == 'path' }}
+        uses: swift-actions/setup-swift@65540b95f51493d65f5e59e97dcef9629ddf11bf
+        with:
+          swift-version: "5.9.2"
+
       - name: Validate and report compiler environment
         env:
           EXPECTED_XCODE_VERSION: ${{ matrix.xcode_version }}
           EXPECTED_XCODE_BUILD: ${{ matrix.xcode_build }}
           EXPECTED_SWIFT_SERIES: ${{ matrix.swift_series }}
+          EXPECTED_SWIFT_VERSION: ${{ matrix.swift_version }}
+          EXPECTED_SWIFT_COMMAND_MODE: ${{ matrix.swift_command_mode }}
           EXPECTED_SDK_VERSION: ${{ matrix.sdk_version }}
           EXPECTED_DEVELOPER_DIR: ${{ matrix.developer_dir }}
+          EXPECTED_IMAGE_OS: ${{ matrix.image_os }}
+          EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
         run: scripts/ci/check-compatibility-environment.sh
 
       - name: Prepare ${{ matrix.resolution }} dependency resolution
@@ -357,7 +386,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$SWIFTQL_SOURCE"
-          xcrun swift package resolve
+          swift package resolve
           scripts/ci/report-resolved-dependencies.sh
           if [[ "$RESOLUTION_MODE" == "committed" ]]; then
             git diff --exit-code -- Package.resolved
@@ -388,7 +417,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$SWIFTQL_SOURCE"
-          xcrun swift test --filter XLCompatibilityReportTests 2>&1 |
+          swift test --filter XLCompatibilityReportTests 2>&1 |
             tee "$RUNNER_TEMP/swift-test-build.log"
           runtime_markers="$(
             grep -c 'SWIFTQL_SQLITE_RUNTIME ' "$RUNNER_TEMP/swift-test-build.log" ||
@@ -404,7 +433,7 @@ jobs:
           set -euo pipefail
           cd "$SWIFTQL_SOURCE"
           benchmark_report="$RUNNER_TEMP/swiftql-benchmark.json"
-          xcrun swift run --skip-build swiftql-benchmark \
+          swift run --skip-build swiftql-benchmark \
             --warmups 0 \
             --samples 1 \
             --output "$benchmark_report" 2>&1 | \
@@ -439,7 +468,7 @@ jobs:
             mkdir -p "$determinism_directory"
             SWIFTQL_COMBINATORIAL_MANIFEST_PATH="$determinism_directory/manifest.json" \
             SWIFTQL_COMBINATORIAL_SUMMARY_PATH="$determinism_directory/summary.md" \
-              xcrun swift test --skip-build \
+              swift test --skip-build \
                 --filter SQLiteCombinatorialConformanceTests/testGeneratedManifestIsDeterministicAndMatchesCheckedInArtifacts \
                 2>&1 | tee "$determinism_directory/test.log"
             test -s "$determinism_directory/manifest.json"
@@ -455,7 +484,7 @@ jobs:
             tee "$output_directory/determinism-result.txt"
 
           set +e
-          xcrun swift test --skip-build \
+          swift test --skip-build \
             --filter SQLiteCombinatorialConformanceTests 2>&1 | \
             tee "$output_directory/test.log"
           test_status="${PIPESTATUS[0]}"
@@ -602,7 +631,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$SWIFTQL_SOURCE"
-          xcrun swift test --skip-build -v
+          swift test --skip-build -v
 
       - name: Check complete strict concurrency
         if: ${{ matrix.swift_series == '6.0' }}

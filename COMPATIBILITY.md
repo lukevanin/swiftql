@@ -106,14 +106,22 @@ python3 scripts/ci/sqlite-conformance-inventory.py check
 
 | Support point | GitHub runner | Xcode | Swift | macOS SDK |
 | --- | --- | --- | --- | --- |
-| Swift 5.9 | `macos-14` | 15.2 (`15C500b`) | 5.9 series | 14.2 |
+| Swift 5.9 | `macos-15` | 16.2 (`16C5032a`) | 5.9.2 standalone | 15.2 |
 | Swift 6.0 | `macos-15` | 16.2 (`16C5032a`) | 6.0 series | 15.2 |
 
-The workflow selects Xcode with an exact `DEVELOPER_DIR`, verifies the Xcode
-version and build number, verifies the compiler family and SDK, and reports the
-complete compiler, OS, runner image, and architecture details. A runner image
-update that removes or changes a selected toolchain therefore fails instead of
-silently redefining support.
+The Swift 5.9 cells install the exact Swift 5.9.2 release toolchain with the
+commit-pinned `swift-actions/setup-swift` action. Xcode 16.2 supplies the pinned
+macOS 15.2 SDK and Apple Combine framework, but it does not supply the compiler:
+the environment gate requires `swift` to resolve from `PATH`, rejects the
+`/usr/bin/swift` Xcode dispatcher, and verifies the exact 5.9.2 version. The
+Swift 6.0 cells continue to select Xcode's compiler with `xcrun`.
+
+Every cell verifies the exact Xcode version and build, compiler series, SDK,
+runner OS family, and architecture, then reports the compiler target metadata,
+OS version, runner image version, dependency graph, and SQLite runtime. An
+image update that removes Xcode 16.2, changes its SDK, changes architecture, or
+causes the standalone toolchain selection to fall back therefore fails instead
+of silently redefining support.
 
 ## Swift 6 series coverage
 
@@ -165,23 +173,26 @@ command-line tool.
 
 ## Reproducing a cell
 
-Select the same Xcode and run the environment check with the values from
-[`.github/workflows/swift.yml`](.github/workflows/swift.yml):
+Install the exact Swift 5.9.2 release toolchain so its `swift` and `swiftc`
+executables lead `PATH`, select the same Xcode, and run the environment check
+with the values from [`.github/workflows/swift.yml`](.github/workflows/swift.yml):
 
 ```sh
-export DEVELOPER_DIR=/Applications/Xcode_15.2.app/Contents/Developer
-EXPECTED_XCODE_VERSION=15.2 \
-EXPECTED_XCODE_BUILD=15C500b \
+export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
+EXPECTED_XCODE_VERSION=16.2 \
+EXPECTED_XCODE_BUILD=16C5032a \
 EXPECTED_SWIFT_SERIES=5.9 \
-EXPECTED_SDK_VERSION=14.2 \
+EXPECTED_SWIFT_VERSION=5.9.2 \
+EXPECTED_SWIFT_COMMAND_MODE=path \
+EXPECTED_SDK_VERSION=15.2 \
 EXPECTED_DEVELOPER_DIR="$DEVELOPER_DIR" \
 scripts/ci/check-compatibility-environment.sh
 
-xcrun swift package resolve
+swift package resolve
 scripts/ci/report-resolved-dependencies.sh
 scripts/ci/check-first-party-warnings.sh
-xcrun swift test --filter XLCompatibilityReportTests
-xcrun swift test --skip-build -v
+swift test --filter XLCompatibilityReportTests
+swift test --skip-build -v
 ```
 
 To reproduce clean resolution without modifying the checkout:
@@ -192,11 +203,11 @@ git archive --format=tar HEAD | tar -xf - -C "$clean_source"
 rm "$clean_source/Package.resolved"
 cd "$clean_source"
 
-xcrun swift package resolve
+swift package resolve
 scripts/ci/report-resolved-dependencies.sh
 scripts/ci/check-first-party-warnings.sh
-xcrun swift test --filter XLCompatibilityReportTests
-xcrun swift test --skip-build -v
+swift test --filter XLCompatibilityReportTests
+swift test --skip-build -v
 ```
 
 The workflow is the canonical executable specification for both procedures.
@@ -352,11 +363,21 @@ warnings in separate, searchable sections for every applicable cell:
 
 The matrix suppresses neither category.
 
-## Hosted runner lifetime
+## Swift 5.9 runner maintenance and recovery
 
-GitHub has announced that hosted `macos-14` runners will be retired on
-2 November 2026. Later hosted macOS images do not include Xcode 15, so replacing
-the real Swift 5.9 lane requires a maintained self-hosted environment or another
-pinned toolchain strategy. [#164](https://github.com/lukevanin/swiftql/issues/164)
-tracks that migration; the Swift 5.9 gate must not be removed or advanced
-silently.
+The Swift 5.9 cells no longer use the hosted `macos-14` image that GitHub will
+retire on 2 November 2026. They use maintained `macos-15` runners and install
+Swift 5.9.2 independently of Xcode. The setup action is pinned to an immutable
+commit, requests an exact compiler patch release, verifies the downloaded
+toolchain, and needs no repository secret or persistent runner access. Each job
+runs on a fresh GitHub-hosted VM; the action receives only the default
+read-only repository token boundary used by the workflow.
+
+Repository maintainers own the action SHA and environment pins. Review them
+when GitHub changes the `macos-15` image or when the setup action publishes a
+security or availability update. A missing download, action failure, Xcode/SDK
+drift, unexpected runner family/architecture, or compiler fallback is a hard
+failure. Do not skip the lane or advance it to Swift 6 as recovery. If the exact
+toolchain can no longer run on GitHub-hosted macOS, move the same checks to a
+maintained macOS runner or immutable provider with verified Swift 5.9.2 and an
+Apple SDK that passes the complete suite before removing this strategy.

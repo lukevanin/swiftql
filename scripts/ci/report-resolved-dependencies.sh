@@ -12,7 +12,7 @@ cd "$repository_root"
 
 [[ -f Package.resolved ]] || fail "Package.resolved was not produced"
 
-swift_package=(xcrun swift package)
+swift_package=(swift package)
 if [[ -n "${SWIFTQL_SCRATCH_PATH:-}" ]]; then
     swift_package+=(--scratch-path "$SWIFTQL_SCRATCH_PATH")
 fi
