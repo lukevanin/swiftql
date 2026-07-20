@@ -10,6 +10,7 @@
       "name": "SwiftQL",
       "source_root": "Sources/SwiftQL",
       "allowed_uninstrumented_sources": [
+        "Sources/SwiftQL/GRDBOpenCombineValuePublisher.swift",
         "Sources/SwiftQL/SQL.swift",
         "Sources/SwiftQL/SQLScalarResult.swift",
         "Sources/SwiftQL/SwiftQLCore.swift"

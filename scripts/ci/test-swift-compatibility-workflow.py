@@ -127,6 +127,9 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         bridge = (
             ROOT / "Sources/SwiftQL/GRDBOpenCombineValuePublisher.swift"
         ).read_text(encoding="utf-8")
+        coverage_config = (
+            ROOT / "scripts/ci/source-coverage-config.json"
+        ).read_text(encoding="utf-8")
 
         self.assertIn(
             '.package(url: "https://github.com/OpenCombine/OpenCombine.git", '
@@ -136,6 +139,10 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn("case waiting", bridge)
         self.assertIn("remainingDemand", bridge)
         self.assertNotIn("XCTSkip", bridge)
+        self.assertIn(
+            '"Sources/SwiftQL/GRDBOpenCombineValuePublisher.swift"',
+            coverage_config,
+        )
 
     def test_swift59_linux_surface_avoids_newer_foundation_url_apis(self) -> None:
         swift_sources = list((ROOT / "Sources").rglob("*.swift"))
