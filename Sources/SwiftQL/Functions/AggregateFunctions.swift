@@ -110,6 +110,22 @@ extension XLExpression {
     }
 
 
+    /// Returns the floating-point total of the non-NULL numeric values.
+    ///
+    /// Unlike `SUM`, SQLite `TOTAL` returns `0.0` for an empty input or an all-NULL group.
+    public func total(distinct: Bool = false) -> some XLExpression<Double> where T: Numeric & XLLiteral {
+        XLFunction<Double>(name: "TOTAL", distinct: distinct, parameters: [self])
+    }
+
+
+    /// Returns the floating-point total of the non-NULL numeric values, ignoring NULL inputs.
+    ///
+    /// SQLite returns `0.0` when no non-NULL input remains.
+    public func total<Wrapped>(distinct: Bool = false) -> some XLExpression<Double> where T == Optional<Wrapped>, Wrapped: Numeric & XLLiteral {
+        XLFunction<Double>(name: "TOTAL", distinct: distinct, parameters: [self])
+    }
+
+
     /// Concatenates the non-NULL values, or returns NULL when the input is empty or contains no non-NULL values.
     public func groupConcatOrNull(distinct: Bool = false) -> some XLExpression<String?> where T == String, T: XLLiteral {
         XLFunction<String?>(name: "GROUP_CONCAT", distinct: distinct, parameters: [self])

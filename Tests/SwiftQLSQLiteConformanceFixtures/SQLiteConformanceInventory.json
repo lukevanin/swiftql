@@ -5771,7 +5771,7 @@
       "id": "syntax.expression.aggregate-functions",
       "kind": "syntax",
       "family": "expression",
-      "title": "COUNT, MIN, MAX, SUM, AVG, and GROUP_CONCAT aggregate expression constructors",
+      "title": "COUNT, MIN, MAX, SUM, TOTAL, AVG, and GROUP_CONCAT aggregate expression constructors",
       "status": "supported",
       "adoption_status": "already-covered",
       "public_api": [
@@ -5851,6 +5851,13 @@
           "source_tokens": [
             "sumOrNull"
           ]
+        },
+        {
+          "symbol": "XLExpression.total",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "total"
+          ]
         }
       ],
       "sqlite_documentation_urls": [
@@ -5864,7 +5871,7 @@
         "sqlite-core-parser"
       ],
       "schema_requirements": [
-        "Aggregate input columns use compatible numeric, comparable, or text expression types; nullable-result constructors preserve empty-input semantics. AVG accepts Int, Double, Int?, and Double? expressions and always returns Double?."
+        "Aggregate input columns use compatible numeric, comparable, or text expression types; nullable-result constructors preserve empty-input semantics. AVG accepts Int, Double, Int?, and Double? expressions and always returns Double?. TOTAL accepts the same numeric inputs, always returns Double, and preserves SQLite's 0.0 result for empty or all-NULL inputs."
       ],
       "evidence_ids": [
         "evidence.combinatorial.function-overload-matrix",
@@ -5878,6 +5885,7 @@
       "deviations": [
         "Real-SQLite evidence covers every aggregate family on populated, empty, and all-NULL input, and issue #286 adds deterministic DISTINCT execution cases for COUNT, MIN, MAX, AVG, SUM, and GROUP_CONCAT.",
         "Issue #141 extends AVG to integer and nullable numeric expressions. XLAggregateTests proves all four public input shapes render AVG, return Double?, ignore individual NULL values, and preserve NULL for empty and all-NULL inputs.",
+        "Issue #142 adds SQLite TOTAL as the explicit nonoptional alternative to SUM. XLAggregateTests proves integer, real, nullable-integer, and nullable-real inputs render TOTAL, return Double, ignore individual NULL values, and return 0.0 for empty and all-NULL inputs.",
         "The deprecated SwiftQL 1.x nonoptional min, max, average, sum, and groupConcat overloads are source-compatible rendering aliases for the corresponding OrNull SQL. XLAggregateTests retains compile-time and rendering dispositions for those signatures, while the same generated real-SQLite cases execute their shared SQL semantics."
       ],
       "follow_up_issues": [
