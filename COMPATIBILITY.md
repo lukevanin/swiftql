@@ -60,15 +60,15 @@ support-status totals are exact and mutually exclusive:
 
 | Support status | Features |
 | --- | ---: |
-| Supported | 87 |
+| Supported | 88 |
 | Partial | 3 |
 | Capability-gated | 2 |
 | Intentionally unsupported | 1 |
-| Unimplemented | 8 |
+| Unimplemented | 7 |
 
 Of those 100 evidence records, 67 exercise real SQLite and
 cite one captured environment, SQLite 3.51.0. An inventory entry is counted in
-the 87 supported features only when it links to successful preparation by a
+the 88 supported features only when it links to successful preparation by a
 real SQLite engine whose version and source ID are recorded. Partial,
 capability-gated, intentionally unsupported, and unimplemented entries remain
 visible with their evidence, requirements, or rationale, but are excluded

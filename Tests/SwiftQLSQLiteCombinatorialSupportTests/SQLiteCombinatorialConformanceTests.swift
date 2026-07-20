@@ -45,7 +45,7 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
         })
         XCTAssertEqual(
             first.exclusions.filter { $0.id.hasPrefix("gated.") }.count,
-            8
+            7
         )
         XCTAssertTrue(first.cases.allSatisfy { !$0.inventoryFeatureIDs.isEmpty })
 

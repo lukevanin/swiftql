@@ -6359,7 +6359,6 @@
         "Floating-point, optional, comparison, and remaining Boolean and arithmetic overloads do not yet have exhaustive real-SQLite prepare coverage."
       ],
       "follow_up_issues": [
-        17,
         22,
         29,
         76,
@@ -6636,9 +6635,7 @@
       "deviations": [
         "This record does not claim every SQLite SELECT branch or every aggregate form."
       ],
-      "follow_up_issues": [
-        17
-      ],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
 
@@ -6700,9 +6697,16 @@
       "kind": "syntax",
       "family": "select",
       "title": "COUNT(*) projection",
-      "status": "unimplemented",
-      "adoption_status": "syntax-gated",
+      "status": "supported",
+      "adoption_status": "already-covered",
       "public_api": [
+        {
+          "symbol": "all",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "all"
+          ]
+        },
         {
           "symbol": "count",
           "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
@@ -6725,19 +6729,16 @@
         "A typed all-columns expression must render as an unqualified asterisk."
       ],
       "evidence_ids": [
-
+        "evidence.syntax.expression.render-aggregate-functions",
+        "evidence.syntax.expression.sqlite-aggregate-functions",
+        "evidence.syntax.expression.sqlite-aggregates-all-null",
+        "evidence.syntax.expression.sqlite-aggregates-empty"
       ],
       "deviations": [
-        "Current count helpers require an explicit expression and do not expose count(*)."
+        "all() renders an unqualified asterisk, and count(all()) counts every input row including rows whose projected values are NULL."
       ],
-      "follow_up_issues": [
-        17
-      ],
-      "deferral": {
-        "blocking_issue": 17,
-        "target_milestone": "v1.4",
-        "reason": "Issue #17 owns an all-columns expression and COUNT(*)."
-      },
+      "follow_up_issues": [],
+      "deferral": null,
       "provenance": [
 
       ]
