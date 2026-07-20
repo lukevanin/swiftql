@@ -215,16 +215,22 @@ API                               | Input             | Result    | Behavior
 `maxOrNull()`                     | Any comparable    | `T?`      | Maximum non-NULL value.
 `averageOrNull()`                 | `Int`, `Double`, or either nullable form | `Double?` | Average (arithmetic mean) of non-NULL values.
 `sumOrNull()`                     | `Int` or `Double` | `T?`      | Additive sum of non-NULL values.
+`total()`                         | `Int`, `Double`, or either nullable form | `Double` | Floating-point total; `0.0` for empty or all-NULL input.
 `groupConcatOrNull()`             | `String`          | `String?` | Concatenation of all non-NULL values.
 `groupConcatOrNull(separator:)`   | `String`          | `String?` | Concatenation using a custom separator.
 
-Except for `count()`, these aggregates return `nil` when SQLite evaluates an
+The aggregate APIs with optional results return `nil` when SQLite evaluates an
 empty input or a group containing no non-NULL values. Model those results with
-optional properties, or choose a nonoptional fallback explicitly:
+optional properties, or choose a nonoptional fallback explicitly.
 
 `averageOrNull()` always returns a `Double?`, including for integer-valued
 expressions. Nullable numeric inputs are accepted directly; SQLite ignores
 individual NULL values and returns NULL only when no non-NULL input remains.
+
+Use `total()` as SQLite's explicit nonoptional alternative to `sumOrNull()`.
+It always returns a `Double`, ignores individual NULL values, and returns `0.0`
+for empty or all-NULL input. Existing `sum()` and `sumOrNull()` behavior is
+unchanged.
 
 Use `count(all())` when NULL values must still contribute to the row count.
 

@@ -24,6 +24,10 @@ struct AggregateResult: Equatable {
     let realAverage: Double?
     let nullableIntegerAverage: Double?
     let nullableRealAverage: Double?
+    let integerTotal: Double
+    let realTotal: Double
+    let nullableIntegerTotal: Double
+    let nullableRealTotal: Double
     let concatenated: String?
     let pipeConcatenated: String?
     let rowCount: Int
@@ -90,6 +94,10 @@ final class XLAggregateTests: XCTestCase {
         assertExpressionType(real.averageOrNull(), Optional<Double>.self)
         assertExpressionType(nullableInteger.averageOrNull(), Optional<Double>.self)
         assertExpressionType(nullableReal.averageOrNull(), Optional<Double>.self)
+        assertExpressionType(integer.total(), Double.self)
+        assertExpressionType(real.total(), Double.self)
+        assertExpressionType(nullableInteger.total(), Double.self)
+        assertExpressionType(nullableReal.total(), Double.self)
         assertExpressionType(text.groupConcatOrNull(), Optional<String>.self)
         assertExpressionType(text.groupConcatOrNull(separator: "|"), Optional<String>.self)
         assertExpressionType(integer.count(), Int.self)
@@ -111,6 +119,10 @@ final class XLAggregateTests: XCTestCase {
             encoder.makeSQL(nullableReal.averageOrNull(distinct: true)).sql,
             "AVG(DISTINCT :nullableReal)"
         )
+        XCTAssertEqual(encoder.makeSQL(integer.total()).sql, "TOTAL(:integer)")
+        XCTAssertEqual(encoder.makeSQL(real.total(distinct: true)).sql, "TOTAL(DISTINCT :real)")
+        XCTAssertEqual(encoder.makeSQL(nullableInteger.total()).sql, "TOTAL(:nullableInteger)")
+        XCTAssertEqual(encoder.makeSQL(nullableReal.total()).sql, "TOTAL(:nullableReal)")
         XCTAssertEqual(encoder.makeSQL(text.groupConcatOrNull()).sql, "GROUP_CONCAT(:text)")
         XCTAssertEqual(
             encoder.makeSQL(text.groupConcatOrNull(distinct: true)).sql,
@@ -178,6 +190,10 @@ final class XLAggregateTests: XCTestCase {
         XCTAssertEqual(result.realAverage, 2.0)
         XCTAssertEqual(result.nullableIntegerAverage, 3.0)
         XCTAssertEqual(result.nullableRealAverage, 3.0)
+        XCTAssertEqual(result.integerTotal, 8.0)
+        XCTAssertEqual(result.realTotal, 6.0)
+        XCTAssertEqual(result.nullableIntegerTotal, 6.0)
+        XCTAssertEqual(result.nullableRealTotal, 6.0)
         XCTAssertEqual(
             try XCTUnwrap(result.concatenated).split(separator: ",").map(String.init).sorted(),
             ["alpha", "beta", "beta"]
@@ -201,6 +217,10 @@ final class XLAggregateTests: XCTestCase {
         XCTAssertNil(result.realAverage)
         XCTAssertNil(result.nullableIntegerAverage)
         XCTAssertNil(result.nullableRealAverage)
+        XCTAssertEqual(result.integerTotal, 0.0)
+        XCTAssertEqual(result.realTotal, 0.0)
+        XCTAssertEqual(result.nullableIntegerTotal, 0.0)
+        XCTAssertEqual(result.nullableRealTotal, 0.0)
         XCTAssertNil(result.concatenated)
         XCTAssertNil(result.pipeConcatenated)
         XCTAssertEqual(result.rowCount, 0)
@@ -235,6 +255,10 @@ final class XLAggregateTests: XCTestCase {
         XCTAssertNil(result.realAverage)
         XCTAssertNil(result.nullableIntegerAverage)
         XCTAssertNil(result.nullableRealAverage)
+        XCTAssertEqual(result.integerTotal, 0.0)
+        XCTAssertEqual(result.realTotal, 0.0)
+        XCTAssertEqual(result.nullableIntegerTotal, 0.0)
+        XCTAssertEqual(result.nullableRealTotal, 0.0)
         XCTAssertNil(result.concatenated)
         XCTAssertNil(result.pipeConcatenated)
         XCTAssertEqual(result.rowCount, 2)
@@ -254,6 +278,10 @@ final class XLAggregateTests: XCTestCase {
                     realAverage: input.realValue.averageOrNull(),
                     nullableIntegerAverage: input.nullableIntegerValue.averageOrNull(),
                     nullableRealAverage: input.nullableRealValue.averageOrNull(),
+                    integerTotal: input.integerValue.total(),
+                    realTotal: input.realValue.total(),
+                    nullableIntegerTotal: input.nullableIntegerValue.total(),
+                    nullableRealTotal: input.nullableRealValue.total(),
                     concatenated: input.textValue.groupConcatOrNull(),
                     pipeConcatenated: input.textValue.groupConcatOrNull(separator: "|"),
                     rowCount: count(all()),
