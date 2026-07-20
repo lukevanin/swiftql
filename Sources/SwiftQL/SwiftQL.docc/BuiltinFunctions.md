@@ -188,21 +188,32 @@ same expression.
 
 Type conversion of custom types should be implemented as required.
 
+### cast(to:)
+
+Casts an expression to a compatible intrinsic Swift type by passing the
+destination metatype, such as `integer.cast(to: String.self)`. The legal
+directions are the same as the typed helpers below, and the source expression's
+nullability is preserved. For example, casting an `Int?` expression to
+`String.self` produces a `String?` expression and preserves SQL `NULL`.
+
 ### toInt()
 
 Converts an expression of type `Bool`, `Double`, or `String` to an expression of
-type `Int`.
+type `Int`. This is the directional convenience form of `cast(to: Int.self)`.
 
 ### toDouble()
 
 Converts an expression of type `Int` or `String` to an expression of 
-type `Double`.
+type `Double`. This is the directional convenience form of
+`cast(to: Double.self)`.
 
 ### toString()
 
 Converts an expression of type `Int`, `Double`, or `Data` to an expression of
-type `String`.
+type `String`. This is the directional convenience form of
+`cast(to: String.self)`.
 
 ### toData()
 
-Converts an expression of type `String` to an expression of type `Data`.
+Converts an expression of type `String` to an expression of type `Data`. This is
+the directional convenience form of `cast(to: Data.self)`.

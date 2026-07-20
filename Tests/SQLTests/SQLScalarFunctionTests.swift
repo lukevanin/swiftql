@@ -139,12 +139,42 @@ final class XLScalarFunctionTests: XCTestCase {
         assertExpressionType(data.toString(), String.self)
         assertExpressionType(optionalData.toString(), String?.self)
 
+        assertExpressionType(boolean.cast(to: Int.self), Int.self)
+        assertExpressionType(optionalBoolean.cast(to: Int.self), Int?.self)
+        assertExpressionType(integer.cast(to: Double.self), Double.self)
+        assertExpressionType(integer.cast(to: String.self), String.self)
+        assertExpressionType(optionalInteger.cast(to: Double.self), Double?.self)
+        assertExpressionType(optionalInteger.cast(to: String.self), String?.self)
+        assertExpressionType(real.cast(to: Int.self), Int.self)
+        assertExpressionType(real.cast(to: String.self), String.self)
+        assertExpressionType(optionalReal.cast(to: Int.self), Int?.self)
+        assertExpressionType(optionalReal.cast(to: String.self), String?.self)
+        assertExpressionType(text.cast(to: Int.self), Int.self)
+        assertExpressionType(text.cast(to: Double.self), Double.self)
+        assertExpressionType(text.cast(to: Data.self), Data.self)
+        assertExpressionType(optionalText.cast(to: Int.self), Int?.self)
+        assertExpressionType(optionalText.cast(to: Double.self), Double?.self)
+        assertExpressionType(optionalText.cast(to: Data.self), Data?.self)
+        assertExpressionType(data.cast(to: String.self), String.self)
+        assertExpressionType(optionalData.cast(to: String.self), String?.self)
+
         assertSQL(boolean.toInt(), ":boolean")
         assertSQL(integer.toDouble(), "CAST(:integer AS REAL)")
         assertSQL(real.toInt(), "CAST(:real AS INTEGER)")
         assertSQL(text.toData(), "CAST(:text AS BLOB)")
         assertSQL(data.toString(), "CAST(:data AS TEXT)")
         assertSQL(optionalInteger.toString(), "CAST(:optionalInteger AS TEXT)")
+
+        assertSQL(12.cast(to: String.self), "CAST(12 AS TEXT)")
+        assertSQL(boolean.cast(to: Int.self), ":boolean")
+        assertSQL(integer.cast(to: Double.self), "CAST(:integer AS REAL)")
+        assertSQL(real.cast(to: Int.self), "CAST(:real AS INTEGER)")
+        assertSQL(text.cast(to: Data.self), "CAST(:text AS BLOB)")
+        assertSQL(data.cast(to: String.self), "CAST(:data AS TEXT)")
+        assertSQL(
+            optionalInteger.cast(to: String.self),
+            "CAST(:optionalInteger AS TEXT)"
+        )
     }
 
     private func assertSQL<T>(
