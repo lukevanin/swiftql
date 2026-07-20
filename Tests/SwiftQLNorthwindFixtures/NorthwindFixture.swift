@@ -29,7 +29,9 @@ public struct NorthwindFixtureMetadata: Equatable, Sendable {
 }
 
 
-public struct NorthwindFixtureValidation: Equatable, Sendable {
+// Swift 5.9's Linux Foundation predates URL's Sendable annotation. This value
+// is immutable, and newer Foundation versions declare the same URL value safe.
+public struct NorthwindFixtureValidation: Equatable, @unchecked Sendable {
     let databaseURL: URL
     public let databaseSHA256: String
     public let databaseByteCount: Int

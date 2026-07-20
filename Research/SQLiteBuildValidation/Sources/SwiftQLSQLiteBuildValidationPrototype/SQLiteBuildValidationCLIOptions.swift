@@ -1,7 +1,9 @@
 import Foundation
 
 
-package struct SQLiteBuildValidationCLIOptions: Equatable, Sendable {
+// Swift 5.9's Linux Foundation predates URL's Sendable annotation. Options are
+// immutable values, and newer Foundation versions declare URL Sendable.
+package struct SQLiteBuildValidationCLIOptions: Equatable, @unchecked Sendable {
     package let databaseURL: URL?
     package let planURL: URL?
     package let outputURL: URL?
