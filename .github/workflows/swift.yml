@@ -366,7 +366,7 @@ jobs:
           SWIFT_TOOLCHAIN_SIGNATURE_URL: https://download.swift.org/swift-5.9.2-release/ubuntu2204/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz.sig
           SWIFT_TOOLCHAIN_SIGNATURE_SHA256: 325657c10c0a917cb0126aaf2ce0fe1c72bb9bf14657a89f82330839003959ed
           SWIFT_SIGNING_KEYS_URL: https://www.swift.org/keys/all-keys.asc
-          SWIFT_SIGNING_KEYS_SHA256: 07c0c26f4a96a2eafbeebcfbd1c128a1c4dcf840f9e71f0886ff291921f4ad8f
+          SWIFT_SIGNING_KEY_FALLBACK_URL: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xA62AE125BBBFBB96A6E042EC925CC1CCED3D1561
           SWIFT_SIGNING_FINGERPRINT: A62AE125BBBFBB96A6E042EC925CC1CCED3D1561
         run: |
           set -euo pipefail
@@ -404,13 +404,25 @@ jobs:
             "$SWIFT_TOOLCHAIN_SIGNATURE_URL" \
             "$signature" \
             "$SWIFT_TOOLCHAIN_SIGNATURE_SHA256"
-          download_verified \
-            "$SWIFT_SIGNING_KEYS_URL" \
-            "$signing_keys" \
-            "$SWIFT_SIGNING_KEYS_SHA256"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --retry 3 --silent --show-error \
+            --output "$signing_keys" "$SWIFT_SIGNING_KEYS_URL"
 
           mkdir -m 700 "$keyring_directory"
-          gpg --batch --homedir "$keyring_directory" --import "$signing_keys"
+          if ! gpg --batch --homedir "$keyring_directory" \
+              --import "$signing_keys"; then
+            printf 'Swift.org key bundle was not importable; using pinned-fingerprint fallback\n' >&2
+            curl --fail --location --proto '=https' --tlsv1.2 \
+              --retry 3 --silent --show-error \
+              --output "$signing_keys" "$SWIFT_SIGNING_KEY_FALLBACK_URL"
+            gpg --batch --homedir "$keyring_directory" --import "$signing_keys"
+          fi
+          imported_fingerprints="$(
+            gpg --batch --homedir "$keyring_directory" --with-colons \
+              --fingerprint "$SWIFT_SIGNING_FINGERPRINT"
+          )"
+          grep -Fq "fpr:::::::::$SWIFT_SIGNING_FINGERPRINT:" \
+            <<< "$imported_fingerprints"
           signature_status="$(
             gpg --batch --homedir "$keyring_directory" --status-fd 1 \
               --verify "$signature" "$archive" 2>&1

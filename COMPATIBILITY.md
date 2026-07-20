@@ -115,13 +115,16 @@ python3 scripts/ci/sqlite-conformance-inventory.py check
 The Swift 5.9 cells use GitHub's maintained Ubuntu 22.04 image and install the
 exact official Swift 5.9.2 Ubuntu 22.04 archive from Swift.org. CI verifies its
 detached signature against Swift's pinned signing-key fingerprint before
-extracting it. The signature and signing-key bundle bytes also have pinned
-SHA-256 digests with bounded download retries. SwiftQL uses Apple's Combine on
-Apple platforms and the exact OpenCombine 0.14.0 dependency on Linux. A small
-GRDB observation bridge preserves positive-demand startup, independent
-subscriber state, error delivery, and cancellation. The same publisher,
-retry-policy, codec, SQLite, macro, benchmark, and full-suite tests execute on
-Linux; the lane does not remove or skip the live-query surface.
+extracting it. The detached signature bytes also have a pinned SHA-256 digest
+with bounded download retries. The signing key comes from Swift.org's published
+bundle, with Swift's documented Ubuntu keyserver as an exact-fingerprint
+fallback; the imported full fingerprint is checked before signature
+verification. SwiftQL uses Apple's Combine on Apple platforms and the exact
+OpenCombine 0.14.0 dependency on Linux. A small GRDB observation bridge
+preserves positive-demand startup, independent subscriber state, error
+delivery, and cancellation. The same publisher, retry-policy, codec, SQLite,
+macro, benchmark, and full-suite tests execute on Linux; the lane does not
+remove or skip the live-query surface.
 
 Every cell verifies the compiler series, runner OS family, architecture, and
 target metadata, then reports the runner image version, dependency graph, and
@@ -385,15 +388,19 @@ The Swift 5.9 cells no longer use the hosted `macos-14` image that GitHub will
 retire on 2 November 2026. They use maintained `ubuntu-22.04` runners and
 install exact Swift 5.9.2 independently of Xcode. The archive and detached
 signature use immutable release URLs, and signature verification requires the
-pinned Swift project key fingerprint. The signature and key-bundle SHA-256
-digests reject wrong or transient response bodies before GPG runs. The download
-receives no repository secret or persistent runner access. Each job runs on a
-fresh GitHub-hosted VM with read-only contents permission.
+pinned Swift project key fingerprint. The detached-signature SHA-256 rejects a
+wrong or transient response body before GPG runs. The Swift.org signing-key
+bundle is allowed to evolve for revocations and key rotation; if it is not
+importable, the job retrieves only the pinned fingerprint from Swift's
+documented Ubuntu keyserver and verifies that fingerprint before use. The
+download receives no repository secret or persistent runner access. Each job
+runs on a fresh GitHub-hosted VM with read-only contents permission.
 
-Repository maintainers own the Swift.org release URLs, signature and key-bundle
-digests, signing-key fingerprint, OpenCombine pin, GRDB Linux compiler define,
-and environment pins. Review them when GitHub changes the Ubuntu 22.04 image,
-Swift publishes a signing-key revocation, or the GRDB/SQLite dependency changes.
+Repository maintainers own the Swift.org release URLs, signature digest,
+signing-key fingerprint and fallback, OpenCombine pin, GRDB Linux compiler
+define, and environment pins. Review them when GitHub changes the Ubuntu 22.04
+image, Swift publishes a signing-key revocation, or the GRDB/SQLite dependency
+changes.
 A missing or invalid download, signature, compiler, distribution, runner-family,
 architecture, target-triple, dependency, link, or OpenCombine bridge is a hard
 failure. Do not skip the lane or advance it to Swift 6 as recovery. If the exact

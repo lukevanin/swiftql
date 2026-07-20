@@ -54,15 +54,12 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
             compatibility,
         )
         self.assertIn(
-            "SWIFT_SIGNING_KEYS_SHA256: "
-            "07c0c26f4a96a2eafbeebcfbd1c128a1c4dcf840f9e71f0886ff291921f4ad8f",
-            compatibility,
-        )
-        self.assertIn(
             "SWIFT_SIGNING_FINGERPRINT: "
             "A62AE125BBBFBB96A6E042EC925CC1CCED3D1561",
             compatibility,
         )
+        self.assertIn("https://keyserver.ubuntu.com/pks/lookup", compatibility)
+        self.assertIn("pinned-fingerprint fallback", compatibility)
         self.assertIn("download_verified()", compatibility)
         self.assertIn("sha256sum --check --status", compatibility)
         self.assertIn("gpg --batch", compatibility)
