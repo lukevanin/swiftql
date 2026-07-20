@@ -36,6 +36,7 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertEqual(matrix.count("image_os: macos15"), 2)
         self.assertEqual(matrix.count("architecture: x86_64"), 2)
         self.assertEqual(matrix.count("architecture: arm64"), 2)
+        self.assertEqual(matrix.count('sqlite_version: "3.53.3"'), 2)
 
         self.assertNotIn("swift-actions/setup-swift", compatibility)
         self.assertIn(
@@ -64,6 +65,22 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn("sha256sum --check --status", compatibility)
         self.assertIn("gpg --batch", compatibility)
         self.assertIn("[GNUPG:] VALIDSIG", compatibility)
+        self.assertIn(
+            "https://www.sqlite.org/2026/sqlite-amalgamation-3530300.zip",
+            compatibility,
+        )
+        self.assertIn(
+            "SQLITE_AMALGAMATION_SHA3_256: "
+            "d45c688a8cb23f68611a894a756a12d7eb6ab6e9e2468ca70adbeab3808b5ab9",
+            compatibility,
+        )
+        self.assertIn("openssl dgst -sha3-256", compatibility)
+        self.assertIn("-DSQLITE_ENABLE_FTS5", compatibility)
+        self.assertIn("-DSQLITE_ENABLE_MATH_FUNCTIONS", compatibility)
+        self.assertIn("libsqlite3.so", compatibility)
+        self.assertIn("CPATH=", compatibility)
+        self.assertIn("LIBRARY_PATH=", compatibility)
+        self.assertIn("LD_LIBRARY_PATH=", compatibility)
         self.assertIn("-DGRDBCUSTOMSQLITE", compatibility)
         self.assertIn("SWIFT_EXEC=", compatibility)
         self.assertIn(
@@ -84,6 +101,14 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn("EXPECTED_IMAGE_OS: ${{ matrix.image_os }}", compatibility)
         self.assertIn(
             "EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}", compatibility
+        )
+        self.assertIn(
+            "EXPECTED_SQLITE_VERSION: ${{ matrix.sqlite_version }}",
+            compatibility,
+        )
+        self.assertIn(
+            "SWIFTQL_SQLITE_RUNTIME sqlite_version=$EXPECTED_SQLITE_VERSION ",
+            compatibility,
         )
 
     def test_linux_surface_uses_opencombine_without_conditional_exclusion(self) -> None:

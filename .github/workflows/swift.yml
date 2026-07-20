@@ -296,6 +296,7 @@ jobs:
             os_id: ubuntu
             os_version_id: "22.04"
             target_triple: x86_64-unknown-linux-gnu
+            sqlite_version: "3.53.3"
             resolution: committed
           - name: Swift 5.9 / clean resolution
             runner: ubuntu-22.04
@@ -312,6 +313,7 @@ jobs:
             os_id: ubuntu
             os_version_id: "22.04"
             target_triple: x86_64-unknown-linux-gnu
+            sqlite_version: "3.53.3"
             resolution: clean
           - name: Swift 6.0 / committed resolution
             runner: macos-15
@@ -328,6 +330,7 @@ jobs:
             os_id: ""
             os_version_id: ""
             target_triple: ""
+            sqlite_version: ""
             resolution: committed
           - name: Swift 6.0 / clean resolution
             runner: macos-15
@@ -344,6 +347,7 @@ jobs:
             os_id: ""
             os_version_id: ""
             target_triple: ""
+            sqlite_version: ""
             resolution: clean
 
     env:
@@ -359,7 +363,7 @@ jobs:
       - name: Verify exact source commit
         run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
-      - name: Install exact Swift 5.9.2 toolchain
+      - name: Install exact Swift 5.9.2 toolchain and SQLite 3.53.3
         if: ${{ matrix.platform == 'linux' }}
         env:
           SWIFT_TOOLCHAIN_URL: https://download.swift.org/swift-5.9.2-release/ubuntu2204/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz
@@ -368,6 +372,8 @@ jobs:
           SWIFT_SIGNING_KEYS_URL: https://www.swift.org/keys/all-keys.asc
           SWIFT_SIGNING_KEY_FALLBACK_URL: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xA62AE125BBBFBB96A6E042EC925CC1CCED3D1561
           SWIFT_SIGNING_FINGERPRINT: A62AE125BBBFBB96A6E042EC925CC1CCED3D1561
+          SQLITE_AMALGAMATION_URL: https://www.sqlite.org/2026/sqlite-amalgamation-3530300.zip
+          SQLITE_AMALGAMATION_SHA3_256: d45c688a8cb23f68611a894a756a12d7eb6ab6e9e2468ca70adbeab3808b5ab9
         run: |
           set -euo pipefail
           archive="$RUNNER_TEMP/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz"
@@ -391,6 +397,32 @@ jobs:
                 return 0
               fi
               printf 'Downloaded bytes for %s failed SHA-256 verification (attempt %s/3)\n' \
+                "$url" "$attempt" >&2
+              sleep 1
+            done
+            return 1
+          }
+
+          download_verified_sha3() {
+            local url="$1"
+            local output="$2"
+            local expected_sha3_256="$3"
+            local actual_sha3_256
+            local attempt
+
+            for attempt in 1 2 3; do
+              curl --fail --location --proto '=https' --tlsv1.2 \
+                --retry 3 --silent --show-error \
+                --output "$output" "$url"
+              actual_sha3_256="$(
+                openssl dgst -sha3-256 "$output" | awk '{ print $NF }'
+              )"
+              if [[ "$actual_sha3_256" == "$expected_sha3_256" ]]; then
+                printf 'Verified %s at SHA3-256 %s\n' \
+                  "$url" "$expected_sha3_256"
+                return 0
+              fi
+              printf 'Downloaded bytes for %s failed SHA3-256 verification (attempt %s/3)\n' \
                 "$url" "$attempt" >&2
               sleep 1
             done
@@ -438,9 +470,39 @@ jobs:
           test -x "$toolchain_bin/swift-frontend"
           printf '%s\n' "$toolchain_bin" >> "$GITHUB_PATH"
 
-          # GRDB 6.29.3 assumes Linux libsqlite exports snapshot functions.
-          # Ubuntu 22.04's libsqlite omits those optional symbols, so compile
-          # GRDB's documented custom-SQLite path against the detected runtime.
+          # Ubuntu 22.04's SQLite 3.37 predates the UNIXEPOCH function in
+          # SwiftQL's real-SQLite conformance corpus. Build the exact official
+          # amalgamation so every required public expression is executed rather
+          # than skipped or weakened for the Linux compatibility environment.
+          sqlite_archive="$RUNNER_TEMP/sqlite-amalgamation-3530300.zip"
+          sqlite_source="$RUNNER_TEMP/sqlite-amalgamation-3530300"
+          sqlite_prefix="$RUNNER_TEMP/sqlite-3.53.3"
+          download_verified_sha3 \
+            "$SQLITE_AMALGAMATION_URL" \
+            "$sqlite_archive" \
+            "$SQLITE_AMALGAMATION_SHA3_256"
+          unzip -q "$sqlite_archive" -d "$RUNNER_TEMP"
+          test -f "$sqlite_source/sqlite3.c"
+          test -f "$sqlite_source/sqlite3.h"
+          mkdir -p "$sqlite_prefix/include" "$sqlite_prefix/lib"
+          cp "$sqlite_source/sqlite3.h" "$sqlite_source/sqlite3ext.h" \
+            "$sqlite_prefix/include/"
+          cc -O2 -fPIC \
+            -DSQLITE_THREADSAFE=1 \
+            -DSQLITE_ENABLE_COLUMN_METADATA \
+            -DSQLITE_ENABLE_FTS5 \
+            -DSQLITE_ENABLE_MATH_FUNCTIONS \
+            -shared "$sqlite_source/sqlite3.c" \
+            -o "$sqlite_prefix/lib/libsqlite3.so" \
+            -ldl -lm -lpthread
+          test -s "$sqlite_prefix/lib/libsqlite3.so"
+          printf 'CPATH=%s\n' "$sqlite_prefix/include" >> "$GITHUB_ENV"
+          printf 'LIBRARY_PATH=%s\n' "$sqlite_prefix/lib" >> "$GITHUB_ENV"
+          printf 'LD_LIBRARY_PATH=%s\n' "$sqlite_prefix/lib" >> "$GITHUB_ENV"
+
+          # GRDB 6.29.3 assumes Linux SQLite exports optional snapshot symbols.
+          # The pinned amalgamation intentionally does not enable that optional
+          # API, so compile GRDB's documented custom-SQLite path.
           # Keep the override beside swiftc so SwiftPM derives the matching
           # toolchain lib directory when it loads libIndexStore for discovery.
           compiler_wrapper="$toolchain_bin/swiftql-swiftc"
@@ -527,6 +589,8 @@ jobs:
           scripts/ci/check-query-clause-ordering-type-safety.sh
 
       - name: Report SQLite runtime through GRDB
+        env:
+          EXPECTED_SQLITE_VERSION: ${{ matrix.sqlite_version }}
         run: |
           set -euo pipefail
           cd "$SWIFTQL_SOURCE"
@@ -538,6 +602,13 @@ jobs:
           )"
           if [[ "$runtime_markers" -ne 1 ]]; then
             echo "error: expected one SQLite runtime marker; found $runtime_markers" >&2
+            exit 1
+          fi
+          if [[ -n "$EXPECTED_SQLITE_VERSION" ]] && \
+              ! grep -Fq \
+                "SWIFTQL_SQLITE_RUNTIME sqlite_version=$EXPECTED_SQLITE_VERSION " \
+                "$RUNNER_TEMP/swift-test-build.log"; then
+            echo "error: expected SQLite $EXPECTED_SQLITE_VERSION runtime marker" >&2
             exit 1
           fi
 

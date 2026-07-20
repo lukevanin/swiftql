@@ -109,7 +109,7 @@ python3 scripts/ci/sqlite-conformance-inventory.py check
 
 | Support point | GitHub runner | Platform toolchain | Swift | Runtime surface |
 | --- | --- | --- | --- | --- |
-| Swift 5.9 | `ubuntu-22.04` | official Swift 5.9.2 Linux | 5.9.2 | GRDB + OpenCombine |
+| Swift 5.9 | `ubuntu-22.04` | official Swift 5.9.2 Linux | 5.9.2 | GRDB + OpenCombine + SQLite 3.53.3 |
 | Swift 6.0 | `macos-15` | Xcode 16.2 (`16C5032a`) | 6.0 series | macOS 15.2 SDK + Combine |
 
 The Swift 5.9 cells use GitHub's maintained Ubuntu 22.04 image and install the
@@ -126,6 +126,15 @@ delivery, and cancellation. The same publisher, retry-policy, codec, SQLite,
 macro, benchmark, and full-suite tests execute on Linux; the lane does not
 remove or skip the live-query surface.
 
+Ubuntu 22.04's system SQLite 3.37 predates `UNIXEPOCH`, which is a required
+capability in SwiftQL's real-SQLite conformance corpus. The Linux cells
+therefore compile and link the official SQLite 3.53.3 amalgamation from an
+immutable SQLite.org release URL. CI verifies SQLite's published SHA3-256
+before extraction, enables the FTS5, math-function, and column-metadata
+surfaces used by the package, and fails unless GRDB reports exact SQLite
+3.53.3. Required SQL capabilities remain executable instead of being skipped
+for the older runner library.
+
 Every cell verifies the compiler series, runner OS family, architecture, and
 target metadata, then reports the runner image version, dependency graph, and
 SQLite runtime. Linux additionally verifies exact Swift 5.9.2, Ubuntu 22.04,
@@ -134,13 +143,14 @@ Xcode version, build, and SDK. Toolchain or image drift therefore fails instead
 of silently redefining support.
 
 GRDB 6.29.3's Swift 5.9 Linux condition assumes the linked SQLite exports its
-optional snapshot symbols, while Ubuntu 22.04's system library omits them. The
-Linux cells consistently define GRDB's documented `GRDBCUSTOMSQLITE` build path
-through SwiftPM's compiler override. This removes only the unavailable snapshot
-API branch. The override delegates SwiftPM's module-wrapping phase directly to
-the matching `swift-frontend` and remains next to the selected compiler so
-SwiftPM loads that toolchain's index-store runtime. The runtime capability
-report and full tests remain authoritative for the linked system SQLite surface.
+optional snapshot symbols. The pinned amalgamation intentionally leaves that
+optional API disabled, so the Linux cells consistently define GRDB's documented
+`GRDBCUSTOMSQLITE` build path through SwiftPM's compiler override. This removes
+only the unavailable snapshot API branch. The override delegates SwiftPM's
+module-wrapping phase directly to the matching `swift-frontend` and remains next
+to the selected compiler so SwiftPM loads that toolchain's index-store runtime.
+The exact-version runtime probe, capability report, and full tests remain
+authoritative for the pinned SQLite surface.
 
 ## Swift 6 series coverage
 
@@ -193,8 +203,10 @@ command-line tool.
 ## Reproducing a cell
 
 On Ubuntu 22.04 x86_64, install exact Swift 5.9.2 so its `swift` and `swiftc`
-executables lead `PATH`, then run the environment check with the values from
-[`.github/workflows/swift.yml`](.github/workflows/swift.yml):
+executables lead `PATH`. Build official SQLite 3.53.3 with the exact URL,
+published SHA3-256, compiler flags, and library/include environment from
+[`.github/workflows/swift.yml`](.github/workflows/swift.yml), then run the
+environment check with the workflow values:
 
 ```sh
 EXPECTED_PLATFORM=linux \
@@ -399,13 +411,14 @@ download receives no repository secret or persistent runner access. Each job
 runs on a fresh GitHub-hosted VM with read-only contents permission.
 
 Repository maintainers own the Swift.org release URLs, signature digest,
-signing-key fingerprint and fallback, OpenCombine pin, GRDB Linux compiler
-define, and environment pins. Review them when GitHub changes the Ubuntu 22.04
-image, Swift publishes a signing-key revocation, or the GRDB/SQLite dependency
-changes.
+signing-key fingerprint and fallback, SQLite.org amalgamation URL and published
+SHA3-256, OpenCombine pin, GRDB Linux compiler define, and environment pins.
+Review them when GitHub changes the Ubuntu 22.04 image, Swift publishes a
+signing-key revocation, SQLite publishes a security update, or the GRDB/SQLite
+dependency changes.
 A missing or invalid download, signature, compiler, distribution, runner-family,
-architecture, target-triple, dependency, link, or OpenCombine bridge is a hard
-failure. Do not skip the lane or advance it to Swift 6 as recovery. If the exact
-toolchain can no longer run on the hosted image, move the same full-suite checks
-to a digest-pinned official Swift 5.9.2 container or another maintained provider
-before removing this strategy.
+architecture, target-triple, SQLite digest/version, dependency, link, or
+OpenCombine bridge is a hard failure. Do not skip the lane or advance it to
+Swift 6 as recovery. If the exact toolchain can no longer run on the hosted
+image, move the same full-suite checks to a digest-pinned official Swift 5.9.2
+container or another maintained provider before removing this strategy.
