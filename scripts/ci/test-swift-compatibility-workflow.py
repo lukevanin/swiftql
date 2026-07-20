@@ -121,6 +121,8 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
             "SWIFTQL_SQLITE_RUNTIME sqlite_version=$EXPECTED_SQLITE_VERSION ",
             compatibility,
         )
+        self.assertIn("Check BETWEEN type safety", compatibility)
+        self.assertIn("scripts/ci/check-between-type-safety.sh", compatibility)
 
     def test_linux_surface_uses_opencombine_without_conditional_exclusion(self) -> None:
         manifest = (ROOT / "Package.swift").read_text(encoding="utf-8")

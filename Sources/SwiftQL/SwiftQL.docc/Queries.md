@@ -49,7 +49,8 @@ let query = sql { schema in
 }
 ```
 
-Refer to the <doc:Expressions> guide for more details about expressions.
+Refer to the <doc:Expressions> guide for more details about expressions,
+including typed <doc:Expressions/Between-operators> predicates.
 
 ## Join
 

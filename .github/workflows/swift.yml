@@ -592,6 +592,12 @@ jobs:
           cd "$SWIFTQL_SOURCE"
           scripts/ci/check-bitwise-not-type-safety.sh
 
+      - name: Check BETWEEN type safety
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/check-between-type-safety.sh
+
       - name: Check query clause ordering type safety
         run: |
           set -euo pipefail

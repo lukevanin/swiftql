@@ -153,7 +153,7 @@ contracts.
 - Keep those five statuses distinct. Bind every claim to the feature's recorded
   SQLite version, source ID, compile options, capabilities, evidence, and
   rationale before claiming support.
-- Of the 100 evidence records, 67 exercise real SQLite against one captured
+- Of the 104 evidence records, 68 exercise real SQLite against one captured
   environment, SQLite 3.51.0. Evidence is reusable, so evidence and feature
   counts do not map one to one; never turn this into an exhaustive-SQL claim.
 - #191 contributes 141 original positives; #286 adds 27 typed function-overload

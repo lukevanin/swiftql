@@ -482,6 +482,34 @@
       ]
     },
     {
+      "id": "evidence.syntax.expression.compile-fail-between-mismatched-types",
+      "source_path": "Tests/CompileFail/BetweenMismatchedTypes.swift",
+      "test_case": "compile-fail.between-mismatched-types",
+      "runner_path": "scripts/ci/check-between-type-safety.sh",
+      "layers": [
+        "compile-fail",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.compile-fail-between-non-comparable",
+      "source_path": "Tests/CompileFail/BetweenNonComparableData.swift",
+      "test_case": "compile-fail.between-non-comparable",
+      "runner_path": "scripts/ci/check-between-type-safety.sh",
+      "layers": [
+        "compile-fail",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
       "id": "evidence.syntax.expression.compile-fail-bitwise-not-double",
       "source_path": "Tests/CompileFail/BitwiseNotDouble.swift",
       "test_case": "compile-fail.bitwise-not-double",
@@ -499,6 +527,20 @@
       "id": "evidence.syntax.expression.render-aggregate-functions",
       "source_path": "Tests/SQLTests/SQLAggregateTests.swift",
       "test_case": "XLAggregateTests.testOptionalAggregateTypesAndRendering",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-between",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.testBetweenOperatorPreservesNestedBooleanAndComparisonPrecedence",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -717,6 +759,24 @@
       "test_case": "XLAggregateTests.testOptionalAggregatesWithEmptyInput",
       "runner_path": null,
       "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-between",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testBetweenExecutesWithLiteralBindingAndColumnBounds",
+      "runner_path": null,
+      "layers": [
+        "bindings",
         "execution",
         "prepare",
         "rendering",
@@ -5901,10 +5961,18 @@
       "id": "syntax.expression.current-operators",
       "kind": "syntax",
       "family": "expression",
-      "title": "Prepared bitwise NOT, unary negation, equality, NULL predicate, text concatenation, LIKE, IN-list, and collation expressions",
+      "title": "Prepared BETWEEN, bitwise NOT, unary negation, equality, NULL predicate, text concatenation, LIKE, IN-list, and collation expressions",
       "status": "supported",
       "adoption_status": "already-covered",
       "public_api": [
+        {
+          "symbol": "XLExpression.isBetween/isNotBetween",
+          "source_path": "Sources/SwiftQL/Operators/BetweenOperator.swift",
+          "source_tokens": [
+            "isBetween",
+            "isNotBetween"
+          ]
+        },
         {
           "symbol": "prefix ~",
           "source_path": "Sources/SwiftQL/Operators/IntegerOperators.swift",
@@ -5985,8 +6053,12 @@
         "Column references, literals, and bindings use the exact compatible SwiftQL expression and optionality overloads named by this record."
       ],
       "evidence_ids": [
+        "evidence.syntax.expression.compile-fail-between-mismatched-types",
+        "evidence.syntax.expression.compile-fail-between-non-comparable",
         "evidence.syntax.expression.compile-fail-bitwise-not-double",
+        "evidence.syntax.expression.render-between",
         "evidence.syntax.expression.render-collation",
+        "evidence.syntax.expression.sqlite-between",
         "evidence.syntax.expression.sqlite-bitwise-not",
         "evidence.syntax.expression.sqlite-built-in-collations",
         "evidence.syntax.expression.sqlite-collation",

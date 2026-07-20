@@ -246,6 +246,18 @@ enum JobState: String, XLEnum {
 }
 
 
+@SQLTable struct Measurement: Equatable {
+
+    let id: String
+
+    let value: Int
+
+    let minimum: Int
+
+    let maximum: Int
+}
+
+
 @SQLTable struct CustomTypeEmployee: Equatable {
 
     let id: MyUUID
@@ -1273,9 +1285,52 @@ extension XLDocumentationTests {
         try testExample_Coalesce()
         try testExample_IfCaseWhenThenElse()
 
+        let literalBounds = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.age.isBetween(18, 65))
+        }
+        XCTAssertTrue(
+            encoder.makeSQL(literalBounds).sql.contains("BETWEEN 18 AND 65")
+        )
+
+        let minimumAge = XLNamedBindingReference<Int>(name: "minimumAge")
+        let maximumAge = XLNamedBindingReference<Int>(name: "maximumAge")
+        let bindingBounds = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.age.isNotBetween(minimumAge, maximumAge))
+        }
+        XCTAssertTrue(
+            encoder.makeSQL(bindingBounds).sql.contains(
+                "NOT BETWEEN :minimumAge AND :maximumAge"
+            )
+        )
+
+        let columnBounds = sql { schema in
+            let measurement = schema.table(Measurement.self)
+            Select(measurement)
+            From(measurement)
+            Where(
+                measurement.value.isBetween(
+                    measurement.minimum,
+                    measurement.maximum
+                )
+            )
+        }
+        XCTAssertTrue(
+            encoder.makeSQL(columnBounds).sql.contains(" BETWEEN ")
+        )
+
         let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testSelectWhereLike
         let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testSelectWhereIn
+        let _: (XLExecutionTests) -> () throws -> Void =
+            XLExecutionTests.testBetweenExecutesWithLiteralBindingAndColumnBounds
         let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.test_TextBinding_In_Subquery
+        let _: (XLSyntaxTests) -> () -> Void =
+            XLSyntaxTests.testBetweenOperatorPreservesNestedBooleanAndComparisonPrecedence
     }
 
     func testDocumentationRealValues() throws {
