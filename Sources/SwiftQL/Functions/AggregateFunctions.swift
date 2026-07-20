@@ -76,8 +76,18 @@ extension XLExpression {
     }
 
 
-    /// Returns the average of the non-NULL values, or NULL when the input is empty or contains no non-NULL values.
-    public func averageOrNull(distinct: Bool = false) -> some XLExpression<Double?> where T == Double, T: XLLiteral {
+    /// Returns the average of the non-NULL numeric values, or NULL when the input is empty or contains no non-NULL values.
+    ///
+    /// SQLite computes `AVG` as a floating-point value for both integer and real inputs.
+    public func averageOrNull(distinct: Bool = false) -> some XLExpression<Double?> where T: Numeric & XLLiteral {
+        XLFunction<Double?>(name: "AVG", distinct: distinct, parameters: [self])
+    }
+
+
+    /// Returns the average of the non-NULL numeric values, ignoring NULL inputs.
+    ///
+    /// The result remains optional because SQLite returns NULL for an empty input or an all-NULL group.
+    public func averageOrNull<Wrapped>(distinct: Bool = false) -> some XLExpression<Double?> where T == Optional<Wrapped>, Wrapped: Numeric & XLLiteral {
         XLFunction<Double?>(name: "AVG", distinct: distinct, parameters: [self])
     }
 
