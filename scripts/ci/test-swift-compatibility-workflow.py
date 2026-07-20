@@ -37,15 +37,24 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertEqual(matrix.count("architecture: x86_64"), 2)
         self.assertEqual(matrix.count("architecture: arm64"), 2)
 
-        action = (
-            "swift-actions/setup-swift@"
-            "65540b95f51493d65f5e59e97dcef9629ddf11bf"
-        )
-        self.assertEqual(compatibility.count(action), 1)
+        self.assertNotIn("swift-actions/setup-swift", compatibility)
         self.assertIn(
             "if: ${{ matrix.platform == 'linux' }}", compatibility
         )
-        self.assertIn('swift-version: "5.9.2"', compatibility)
+        self.assertIn(
+            "https://download.swift.org/swift-5.9.2-release/ubuntu2204/"
+            "swift-5.9.2-RELEASE/"
+            "swift-5.9.2-RELEASE-ubuntu22.04.tar.gz",
+            compatibility,
+        )
+        self.assertIn("SWIFT_TOOLCHAIN_SIGNATURE_URL", compatibility)
+        self.assertIn(
+            "SWIFT_SIGNING_FINGERPRINT: "
+            "A62AE125BBBFBB96A6E042EC925CC1CCED3D1561",
+            compatibility,
+        )
+        self.assertIn("gpg --batch", compatibility)
+        self.assertIn("[GNUPG:] VALIDSIG", compatibility)
         self.assertIn("os_id: ubuntu", matrix)
         self.assertIn('os_version_id: "22.04"', matrix)
         self.assertIn("target_triple: x86_64-unknown-linux-gnu", matrix)

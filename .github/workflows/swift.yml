@@ -361,9 +361,43 @@ jobs:
 
       - name: Install exact Swift 5.9.2 toolchain
         if: ${{ matrix.platform == 'linux' }}
-        uses: swift-actions/setup-swift@65540b95f51493d65f5e59e97dcef9629ddf11bf
-        with:
-          swift-version: "5.9.2"
+        env:
+          SWIFT_TOOLCHAIN_URL: https://download.swift.org/swift-5.9.2-release/ubuntu2204/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz
+          SWIFT_TOOLCHAIN_SIGNATURE_URL: https://download.swift.org/swift-5.9.2-release/ubuntu2204/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz.sig
+          SWIFT_SIGNING_KEYS_URL: https://www.swift.org/keys/all-keys.asc
+          SWIFT_SIGNING_FINGERPRINT: A62AE125BBBFBB96A6E042EC925CC1CCED3D1561
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz"
+          signature="$archive.sig"
+          signing_keys="$RUNNER_TEMP/swift-signing-keys.asc"
+          keyring_directory="$RUNNER_TEMP/swift-signing-keyring"
+
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --retry 3 --silent --show-error \
+            --output "$archive" "$SWIFT_TOOLCHAIN_URL"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --retry 3 --silent --show-error \
+            --output "$signature" "$SWIFT_TOOLCHAIN_SIGNATURE_URL"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --retry 3 --silent --show-error \
+            --output "$signing_keys" "$SWIFT_SIGNING_KEYS_URL"
+
+          mkdir -m 700 "$keyring_directory"
+          gpg --batch --homedir "$keyring_directory" --import "$signing_keys"
+          signature_status="$(
+            gpg --batch --homedir "$keyring_directory" --status-fd 1 \
+              --verify "$signature" "$archive" 2>&1
+          )"
+          printf '%s\n' "$signature_status"
+          grep -Fq "[GNUPG:] VALIDSIG $SWIFT_SIGNING_FINGERPRINT " \
+            <<< "$signature_status"
+
+          tar -xzf "$archive" -C "$RUNNER_TEMP"
+          toolchain_bin="$RUNNER_TEMP/swift-5.9.2-RELEASE-ubuntu22.04/usr/bin"
+          test -x "$toolchain_bin/swift"
+          test -x "$toolchain_bin/swiftc"
+          printf '%s\n' "$toolchain_bin" >> "$GITHUB_PATH"
 
       - name: Validate and report compiler environment
         env:

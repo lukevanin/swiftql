@@ -112,13 +112,15 @@ python3 scripts/ci/sqlite-conformance-inventory.py check
 | Swift 5.9 | `ubuntu-22.04` | official Swift 5.9.2 Linux | 5.9.2 | GRDB + OpenCombine |
 | Swift 6.0 | `macos-15` | Xcode 16.2 (`16C5032a`) | 6.0 series | macOS 15.2 SDK + Combine |
 
-The Swift 5.9 cells use GitHub's maintained Ubuntu 22.04 image and install exact
-Swift 5.9.2 with a commit-pinned setup action. SwiftQL uses Apple's Combine on
-Apple platforms and the exact OpenCombine 0.14.0 dependency on Linux. A small
-GRDB observation bridge preserves positive-demand startup, independent
-subscriber state, error delivery, and cancellation. The same publisher,
-retry-policy, codec, SQLite, macro, benchmark, and full-suite tests execute on
-Linux; the lane does not remove or skip the live-query surface.
+The Swift 5.9 cells use GitHub's maintained Ubuntu 22.04 image and install the
+exact official Swift 5.9.2 Ubuntu 22.04 archive from Swift.org. CI verifies its
+detached signature against Swift's pinned signing-key fingerprint before
+extracting it. SwiftQL uses Apple's Combine on Apple platforms and the exact
+OpenCombine 0.14.0 dependency on Linux. A small GRDB observation bridge
+preserves positive-demand startup, independent subscriber state, error
+delivery, and cancellation. The same publisher, retry-policy, codec, SQLite,
+macro, benchmark, and full-suite tests execute on Linux; the lane does not
+remove or skip the live-query surface.
 
 Every cell verifies the compiler series, runner OS family, architecture, and
 target metadata, then reports the runner image version, dependency graph, and
@@ -373,16 +375,18 @@ The matrix suppresses neither category.
 
 The Swift 5.9 cells no longer use the hosted `macos-14` image that GitHub will
 retire on 2 November 2026. They use maintained `ubuntu-22.04` runners and
-install exact Swift 5.9.2 independently of Xcode. The setup action is pinned to
-an immutable commit and receives no repository secret or persistent runner
-access. Each job runs on a fresh GitHub-hosted VM with read-only contents
-permission.
+install exact Swift 5.9.2 independently of Xcode. The archive and detached
+signature use immutable release URLs, and signature verification requires the
+pinned Swift project key fingerprint. The download receives no repository
+secret or persistent runner access. Each job runs on a fresh GitHub-hosted VM
+with read-only contents permission.
 
-Repository maintainers own the action SHA, OpenCombine pin, and environment
-pins. Review them when GitHub changes the Ubuntu 22.04 image or the setup action
-publishes a security or availability update. A missing download, compiler,
-distribution, runner-family, architecture, target-triple, dependency, or
-OpenCombine bridge failure is a hard failure. Do not skip the lane or advance
-it to Swift 6 as recovery. If the exact toolchain can no longer run on the
-hosted image, move the same full-suite checks to a digest-pinned official Swift
-5.9.2 container or another maintained provider before removing this strategy.
+Repository maintainers own the Swift.org release URLs, signing-key fingerprint,
+OpenCombine pin, and environment pins. Review them when GitHub changes the
+Ubuntu 22.04 image or Swift publishes a signing-key revocation. A missing or
+invalid download, signature, compiler, distribution, runner-family,
+architecture, target-triple, dependency, or OpenCombine bridge is a hard
+failure. Do not skip the lane or advance it to Swift 6 as recovery. If the exact
+toolchain can no longer run on the hosted image, move the same full-suite checks
+to a digest-pinned official Swift 5.9.2 container or another maintained provider
+before removing this strategy.
