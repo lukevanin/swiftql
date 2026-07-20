@@ -1,11 +1,11 @@
 {
-  "task_name": "Add and document SQLite BETWEEN expressions",
-  "issue_number": 31,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/31",
+  "task_name": "Add AVG support for integer and nullable numeric expressions",
+  "issue_number": 141,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/141",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#31 - Add and document SQLite BETWEEN expressions",
+  "codex_session_title": "lukevanin/swiftql#141 - Add AVG support for integer and nullable numeric expressions",
   "codex_session_id": "019f7f4b-cec3-77c2-97d9-5741d2cfe48e",
   "codex_session_url": null,
-  "task_branch": "codex/31-add-document-sqlite-between-expressions",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/31-add-document-sqlite-between-expressions"
+  "task_branch": "codex/141-add-avg-support-for-integer-and-nullable-numeric-expressions",
+  "task_worktree_path": "/private/tmp/swiftql-worktrees/141-add-avg-support-for-integer-and-nullable-numeric-expressions"
 }

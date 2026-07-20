@@ -213,7 +213,7 @@ API                               | Input             | Result    | Behavior
 `count(all())`                    | All rows          | `Int`     | Number of input rows, rendered as `COUNT(*)`.
 `minOrNull()`                     | Any comparable    | `T?`      | Minimum non-NULL value.
 `maxOrNull()`                     | Any comparable    | `T?`      | Maximum non-NULL value.
-`averageOrNull()`                 | `Double`          | `Double?` | Average (arithmetic mean) of non-NULL values.
+`averageOrNull()`                 | `Int`, `Double`, or either nullable form | `Double?` | Average (arithmetic mean) of non-NULL values.
 `sumOrNull()`                     | `Int` or `Double` | `T?`      | Additive sum of non-NULL values.
 `groupConcatOrNull()`             | `String`          | `String?` | Concatenation of all non-NULL values.
 `groupConcatOrNull(separator:)`   | `String`          | `String?` | Concatenation using a custom separator.
@@ -221,6 +221,10 @@ API                               | Input             | Result    | Behavior
 Except for `count()`, these aggregates return `nil` when SQLite evaluates an
 empty input or a group containing no non-NULL values. Model those results with
 optional properties, or choose a nonoptional fallback explicitly:
+
+`averageOrNull()` always returns a `Double?`, including for integer-valued
+expressions. Nullable numeric inputs are accepted directly; SQLite ignores
+individual NULL values and returns NULL only when no non-NULL input remains.
 
 Use `count(all())` when NULL values must still contribute to the row count.
 

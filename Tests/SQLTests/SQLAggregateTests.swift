@@ -9,6 +9,8 @@ struct AggregateInput: Identifiable {
     let id: String
     let integerValue: Int
     let realValue: Double
+    let nullableIntegerValue: Int?
+    let nullableRealValue: Double?
     let textValue: String
 }
 
@@ -18,7 +20,10 @@ struct AggregateResult: Equatable {
     let minimum: Int?
     let maximum: Int?
     let sum: Int?
-    let average: Double?
+    let integerAverage: Double?
+    let realAverage: Double?
+    let nullableIntegerAverage: Double?
+    let nullableRealAverage: Double?
     let concatenated: String?
     let pipeConcatenated: String?
     let rowCount: Int
@@ -50,6 +55,8 @@ final class XLAggregateTests: XCTestCase {
                         id TEXT NOT NULL,
                         integerValue INTEGER,
                         realValue REAL,
+                        nullableIntegerValue INTEGER,
+                        nullableRealValue REAL,
                         textValue TEXT
                     )
                     """
@@ -69,6 +76,8 @@ final class XLAggregateTests: XCTestCase {
     func testOptionalAggregateTypesAndRendering() {
         let integer = XLNamedBindingReference<Int>(name: "integer")
         let real = XLNamedBindingReference<Double>(name: "real")
+        let nullableInteger = XLNamedBindingReference<Int?>(name: "nullableInteger")
+        let nullableReal = XLNamedBindingReference<Double?>(name: "nullableReal")
         let text = XLNamedBindingReference<String>(name: "text")
 
         assertExpressionType(integer, Int.self)
@@ -77,7 +86,10 @@ final class XLAggregateTests: XCTestCase {
         assertExpressionType(integer.minOrNull(), Optional<Int>.self)
         assertExpressionType(integer.maxOrNull(), Optional<Int>.self)
         assertExpressionType(integer.sumOrNull(), Optional<Int>.self)
+        assertExpressionType(integer.averageOrNull(), Optional<Double>.self)
         assertExpressionType(real.averageOrNull(), Optional<Double>.self)
+        assertExpressionType(nullableInteger.averageOrNull(), Optional<Double>.self)
+        assertExpressionType(nullableReal.averageOrNull(), Optional<Double>.self)
         assertExpressionType(text.groupConcatOrNull(), Optional<String>.self)
         assertExpressionType(text.groupConcatOrNull(separator: "|"), Optional<String>.self)
         assertExpressionType(integer.count(), Int.self)
@@ -91,8 +103,14 @@ final class XLAggregateTests: XCTestCase {
         XCTAssertEqual(encoder.makeSQL(integer.maxOrNull(distinct: true)).sql, "MAX(DISTINCT :integer)")
         XCTAssertEqual(encoder.makeSQL(integer.sumOrNull()).sql, "SUM(:integer)")
         XCTAssertEqual(encoder.makeSQL(integer.sumOrNull(distinct: true)).sql, "SUM(DISTINCT :integer)")
+        XCTAssertEqual(encoder.makeSQL(integer.averageOrNull()).sql, "AVG(:integer)")
         XCTAssertEqual(encoder.makeSQL(real.averageOrNull()).sql, "AVG(:real)")
         XCTAssertEqual(encoder.makeSQL(real.averageOrNull(distinct: true)).sql, "AVG(DISTINCT :real)")
+        XCTAssertEqual(encoder.makeSQL(nullableInteger.averageOrNull()).sql, "AVG(:nullableInteger)")
+        XCTAssertEqual(
+            encoder.makeSQL(nullableReal.averageOrNull(distinct: true)).sql,
+            "AVG(DISTINCT :nullableReal)"
+        )
         XCTAssertEqual(encoder.makeSQL(text.groupConcatOrNull()).sql, "GROUP_CONCAT(:text)")
         XCTAssertEqual(
             encoder.makeSQL(text.groupConcatOrNull(distinct: true)).sql,
@@ -136,11 +154,18 @@ final class XLAggregateTests: XCTestCase {
         try databasePool.write { database in
             try database.execute(
                 sql: """
-                    INSERT INTO AggregateInput (id, integerValue, realValue, textValue)
+                    INSERT INTO AggregateInput (
+                        id,
+                        integerValue,
+                        realValue,
+                        nullableIntegerValue,
+                        nullableRealValue,
+                        textValue
+                    )
                     VALUES
-                        ('one', 2, 1.0, 'beta'),
-                        ('two', 3, 2.0, 'alpha'),
-                        ('three', 3, 3.0, 'beta')
+                        ('one', 2, 1.0, 2, 1.0, 'beta'),
+                        ('two', 3, 2.0, NULL, NULL, 'alpha'),
+                        ('three', 3, 3.0, 4, 5.0, 'beta')
                     """
             )
         }
@@ -149,7 +174,10 @@ final class XLAggregateTests: XCTestCase {
         XCTAssertEqual(result.minimum, 2)
         XCTAssertEqual(result.maximum, 3)
         XCTAssertEqual(result.sum, 8)
-        XCTAssertEqual(result.average, 2.0)
+        XCTAssertEqual(try XCTUnwrap(result.integerAverage), 8.0 / 3.0, accuracy: 0.000_001)
+        XCTAssertEqual(result.realAverage, 2.0)
+        XCTAssertEqual(result.nullableIntegerAverage, 3.0)
+        XCTAssertEqual(result.nullableRealAverage, 3.0)
         XCTAssertEqual(
             try XCTUnwrap(result.concatenated).split(separator: ",").map(String.init).sorted(),
             ["alpha", "beta", "beta"]
@@ -169,7 +197,10 @@ final class XLAggregateTests: XCTestCase {
         XCTAssertNil(result.minimum)
         XCTAssertNil(result.maximum)
         XCTAssertNil(result.sum)
-        XCTAssertNil(result.average)
+        XCTAssertNil(result.integerAverage)
+        XCTAssertNil(result.realAverage)
+        XCTAssertNil(result.nullableIntegerAverage)
+        XCTAssertNil(result.nullableRealAverage)
         XCTAssertNil(result.concatenated)
         XCTAssertNil(result.pipeConcatenated)
         XCTAssertEqual(result.rowCount, 0)
@@ -181,10 +212,17 @@ final class XLAggregateTests: XCTestCase {
         try databasePool.write { database in
             try database.execute(
                 sql: """
-                    INSERT INTO AggregateInput (id, integerValue, realValue, textValue)
+                    INSERT INTO AggregateInput (
+                        id,
+                        integerValue,
+                        realValue,
+                        nullableIntegerValue,
+                        nullableRealValue,
+                        textValue
+                    )
                     VALUES
-                        ('one', NULL, NULL, NULL),
-                        ('two', NULL, NULL, NULL)
+                        ('one', NULL, NULL, NULL, NULL, NULL),
+                        ('two', NULL, NULL, NULL, NULL, NULL)
                     """
             )
         }
@@ -193,7 +231,10 @@ final class XLAggregateTests: XCTestCase {
         XCTAssertNil(result.minimum)
         XCTAssertNil(result.maximum)
         XCTAssertNil(result.sum)
-        XCTAssertNil(result.average)
+        XCTAssertNil(result.integerAverage)
+        XCTAssertNil(result.realAverage)
+        XCTAssertNil(result.nullableIntegerAverage)
+        XCTAssertNil(result.nullableRealAverage)
         XCTAssertNil(result.concatenated)
         XCTAssertNil(result.pipeConcatenated)
         XCTAssertEqual(result.rowCount, 2)
@@ -209,7 +250,10 @@ final class XLAggregateTests: XCTestCase {
                     minimum: input.integerValue.minOrNull(),
                     maximum: input.integerValue.maxOrNull(),
                     sum: input.integerValue.sumOrNull(),
-                    average: input.realValue.averageOrNull(),
+                    integerAverage: input.integerValue.averageOrNull(),
+                    realAverage: input.realValue.averageOrNull(),
+                    nullableIntegerAverage: input.nullableIntegerValue.averageOrNull(),
+                    nullableRealAverage: input.nullableRealValue.averageOrNull(),
                     concatenated: input.textValue.groupConcatOrNull(),
                     pipeConcatenated: input.textValue.groupConcatOrNull(separator: "|"),
                     rowCount: count(all()),
