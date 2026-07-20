@@ -333,7 +333,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "Invocation values never become",
                 "`SwiftQLCore` exposes GRDB-free",
                 "build-validation prototype remains research rather than a public v1.3 API",
-                "`1.2.0` is the latest published package",
+                "`1.3.0` is the latest published package",
             ],
             "COMPATIBILITY.md": [
                 "## v1.3 public products and runtime boundaries",
@@ -346,7 +346,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "public validator, build plugin, macro, schema system, or new v1.3 API",
             ],
             "CHANGELOG.md": [
-                "## [1.3.0] - Unreleased",
+                "## [1.3.0] - 2026-07-20",
                 "141 stable generated",
                 "deliberately broken-renderer",
                 "internal research, not a",
@@ -354,8 +354,8 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "## [1.2.0] - 2026-07-19",
             ],
             "RELEASING.md": [
-                "uses the forthcoming `v1.3.0` release as its concrete example",
-                "`v1.2.0` remained the latest published package",
+                "uses the `v1.3.0` release as its concrete example",
+                "The preceding `v1.2.0` release",
                 "complete audit issue #226",
                 "milestone 8 with no open issues",
                 ".title == \"v1.3\"",
@@ -372,10 +372,10 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "not a claim of complete SQLite",
                 "v1.3 does not ship a public",
                 "validator, build plugin, query macro, schema system",
-                "Version 1.2.0 remains the latest published",
+                "Version 1.3.0 is the latest published package",
             ],
             "Sources/SwiftQL/SwiftQL.docc/GettingStarted.md": [
-                "Version 1.2.0 is the published package",
+                "Version 1.3.0 is the published package",
                 "This guide's basic request path remains",
                 "from version 1.2.0 or later",
                 "research-only schema-snapshot preparation prototype",
@@ -453,7 +453,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         let firstReleaseHeading = changelog
             .components(separatedBy: .newlines)
             .first(where: { $0.hasPrefix("## [") })
-        XCTAssertEqual(firstReleaseHeading, "## [1.3.0] - Unreleased")
+        XCTAssertEqual(firstReleaseHeading, "## [1.3.0] - 2026-07-20")
     }
 
     func testREADMERepositoryLinksResolveWithExactCase() throws {

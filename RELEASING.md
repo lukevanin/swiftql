@@ -1,9 +1,9 @@
 # Releasing SwiftQL
 
 SwiftQL releases use `vMAJOR.MINOR.PATCH` tags beginning with `v1.1.0`. This
-guide uses the forthcoming `v1.3.0` release as its concrete example. At the
-time this guide was refreshed, `v1.2.0` remained the latest published package;
-the historical `1.0.0` tag and release are intentionally unchanged.
+guide uses the `v1.3.0` release as its concrete example.
+The preceding `v1.2.0` release and the historical `1.0.0` tag and release are
+intentionally unchanged.
 
 The [Verified release workflow](.github/workflows/release.yml) treats a tag as
 an untrusted request. It publishes only after it has proved that the exact tag
