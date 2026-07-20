@@ -136,7 +136,7 @@ struct SQLDate: XLCustomType, XLComparable, Equatable {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
-        formatter.timeZone = .gmt
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter
     }()
 
@@ -403,7 +403,7 @@ extension Date: XLCustomType, XLComparable {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
-        formatter.timeZone = .gmt
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter
     }()
     

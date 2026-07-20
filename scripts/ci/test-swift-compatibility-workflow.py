@@ -107,6 +107,13 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
 
         self.assertNotIn(".path(percentEncoded:", source)
         self.assertNotIn(".appending(path:", source)
+        self.assertNotIn("formatter.timeZone = .gmt", source)
+
+        benchmark_cli = (
+            ROOT / "Benchmarks/Sources/SwiftQLBenchmarkCLI/main.swift"
+        ).read_text(encoding="utf-8")
+        self.assertIn("#if canImport(Darwin)", benchmark_cli)
+        self.assertIn("#elseif canImport(Glibc)", benchmark_cli)
 
     def test_compatibility_commands_use_selected_path_toolchain(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
