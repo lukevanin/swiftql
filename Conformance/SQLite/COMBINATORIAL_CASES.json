@@ -661,7 +661,7 @@
       "rendered_sql" : "SELECT json_array_length(:text_value)",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-array-length swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
-        "function:JSON_ARRAY_LENGTH"
+        "sqlite-json-functions"
       ],
       "strength" : "targeted",
       "template" : "expression.json-array-length"
@@ -701,7 +701,7 @@
       "rendered_sql" : "SELECT json_valid(:text_value)",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-valid swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
-        "function:JSON_VALID"
+        "sqlite-json-functions"
       ],
       "strength" : "targeted",
       "template" : "expression.json-valid"
@@ -8508,6 +8508,1027 @@
       ],
       "strength" : "pairwise",
       "template" : "select.where.order-by"
+    },
+    {
+      "bindings" : [
+
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "aggregate-average-distinct"
+        }
+      ],
+      "id" : "c286.v1.expression.aggregate-average-distinct",
+      "inventory_feature_ids" : [
+        "syntax.expression.aggregate-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.aggregate-average-distinct",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT AVG(DISTINCT CAST(\"t0\".\"employeeID\" AS REAL)) FROM \"Orders\" AS \"t0\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.aggregate-average-distinct swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.aggregate-average-distinct"
+    },
+    {
+      "bindings" : [
+
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "aggregate-count-distinct"
+        }
+      ],
+      "id" : "c286.v1.expression.aggregate-count-distinct",
+      "inventory_feature_ids" : [
+        "syntax.expression.aggregate-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.aggregate-count-distinct",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT COUNT(DISTINCT \"t0\".\"employeeID\") FROM \"Orders\" AS \"t0\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.aggregate-count-distinct swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.aggregate-count-distinct"
+    },
+    {
+      "bindings" : [
+
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "aggregate-group-concat-distinct"
+        }
+      ],
+      "id" : "c286.v1.expression.aggregate-group-concat-distinct",
+      "inventory_feature_ids" : [
+        "syntax.expression.aggregate-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.aggregate-group-concat-distinct",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT GROUP_CONCAT(DISTINCT \"t0\".\"customerID\") FROM \"Orders\" AS \"t0\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.aggregate-group-concat-distinct swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.aggregate-group-concat-distinct"
+    },
+    {
+      "bindings" : [
+
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "aggregate-max-distinct"
+        }
+      ],
+      "id" : "c286.v1.expression.aggregate-max-distinct",
+      "inventory_feature_ids" : [
+        "syntax.expression.aggregate-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.aggregate-max-distinct",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT MAX(DISTINCT \"t0\".\"employeeID\") FROM \"Orders\" AS \"t0\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.aggregate-max-distinct swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.aggregate-max-distinct"
+    },
+    {
+      "bindings" : [
+
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "aggregate-min-distinct"
+        }
+      ],
+      "id" : "c286.v1.expression.aggregate-min-distinct",
+      "inventory_feature_ids" : [
+        "syntax.expression.aggregate-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.aggregate-min-distinct",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT MIN(DISTINCT \"t0\".\"employeeID\") FROM \"Orders\" AS \"t0\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.aggregate-min-distinct swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.aggregate-min-distinct"
+    },
+    {
+      "bindings" : [
+
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "aggregate-sum-distinct"
+        }
+      ],
+      "id" : "c286.v1.expression.aggregate-sum-distinct",
+      "inventory_feature_ids" : [
+        "syntax.expression.aggregate-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.aggregate-sum-distinct",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT SUM(DISTINCT \"t0\".\"employeeID\") FROM \"Orders\" AS \"t0\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.aggregate-sum-distinct swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.aggregate-sum-distinct"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "blob_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "blob",
+          "tagged_value" : {
+            "tag" : "blob",
+            "value" : "626c6f62"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-blob-text"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-blob-text",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-blob-text",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT CAST(:blob_value AS TEXT)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-blob-text swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-blob-text"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "boolean_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 1
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-bool-integer"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-bool-integer",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-bool-integer",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT :boolean_value",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-bool-integer swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-bool-integer"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "integer_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 42
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-integer-real"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-integer-real",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-integer-real",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT CAST(:integer_value AS REAL)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-integer-real swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-integer-real"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "integer_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 42
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-integer-text"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-integer-text",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-integer-text",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT CAST(:integer_value AS TEXT)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-integer-text swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-integer-text"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "optional_blob_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-optional-blob-text"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-optional-blob-text",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-optional-blob-text",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT CAST(:optional_blob_value AS TEXT)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-optional-blob-text swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-optional-blob-text"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "optional_boolean_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-optional-bool-integer"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-optional-bool-integer",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-optional-bool-integer",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT :optional_boolean_value",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-optional-bool-integer swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-optional-bool-integer"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "optional_integer_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-optional-integer-real"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-optional-integer-real",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-optional-integer-real",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT CAST(:optional_integer_value AS REAL)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-optional-integer-real swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-optional-integer-real"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "optional_integer_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-optional-integer-text"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-optional-integer-text",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-optional-integer-text",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT CAST(:optional_integer_value AS TEXT)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-optional-integer-text swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-optional-integer-text"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "optional_real_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-optional-real-integer"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-optional-real-integer",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-optional-real-integer",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT CAST(:optional_real_value AS INTEGER)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-optional-real-integer swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-optional-real-integer"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "optional_real_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-optional-real-text"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-optional-real-text",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-optional-real-text",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT CAST(:optional_real_value AS TEXT)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-optional-real-text swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-optional-real-text"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "optional_text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-optional-text-blob"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-optional-text-blob",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-optional-text-blob",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT CAST(:optional_text_value AS BLOB)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-optional-text-blob swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-optional-text-blob"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "optional_text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-optional-text-integer"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-optional-text-integer",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-optional-text-integer",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT CAST(:optional_text_value AS INTEGER)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-optional-text-integer swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-optional-text-integer"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "optional_text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-optional-text-real"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-optional-text-real",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-optional-text-real",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT CAST(:optional_text_value AS REAL)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-optional-text-real swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-optional-text-real"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "real_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "42.75"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-real-integer"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-real-integer",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-real-integer",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT CAST(:real_value AS INTEGER)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-real-integer swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-real-integer"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "real_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "42.5"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-real-text"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-real-text",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-real-text",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT CAST(:real_value AS TEXT)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-real-text swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-real-text"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "42.5"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "cast-text-real"
+        }
+      ],
+      "id" : "c286.v1.expression.cast-text-real",
+      "inventory_feature_ids" : [
+        "syntax.expression.type-casts"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.cast-text-real",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT CAST(:text_value AS REAL)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.cast-text-real swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.cast-text-real"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "integer_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 254
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "comparable-max"
+        }
+      ],
+      "id" : "c286.v1.expression.comparable-max",
+      "inventory_feature_ids" : [
+        "syntax.expression.numeric-comparable-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.comparable-max",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT MAX(:integer_value, 191)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.comparable-max swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.comparable-max"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "{\"items\":[1,2,3]}"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-array-length-path"
+        }
+      ],
+      "id" : "c286.v1.expression.json-array-length-path",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.json-array-length-path",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_array_length(:text_value, '$.items')",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.json-array-length-path swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "sqlite-json-functions"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-array-length-path"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "real_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "3.6"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "numeric-round-no-places"
+        }
+      ],
+      "id" : "c286.v1.expression.numeric-round-no-places",
+      "inventory_feature_ids" : [
+        "syntax.expression.numeric-comparable-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.numeric-round-no-places",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT ROUND(:real_value)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.numeric-round-no-places swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.numeric-round-no-places"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "optional_real_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "numeric-round-optional"
+        }
+      ],
+      "id" : "c286.v1.expression.numeric-round-optional",
+      "inventory_feature_ids" : [
+        "syntax.expression.numeric-comparable-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.numeric-round-optional",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT ROUND(:optional_real_value)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.numeric-round-optional swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.numeric-round-optional"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "case"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "integer_value",
+          "logical_index" : 1,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 286
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "string-printf-array"
+        }
+      ],
+      "id" : "c286.v1.expression.string-printf-array",
+      "inventory_feature_ids" : [
+        "syntax.expression.string-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c286.expression.string-printf-array",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT printf('%s-%d', :text_value, :integer_value)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c286.v1.expression.string-printf-array swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.string-printf-array"
     }
   ],
   "constraints" : [
@@ -8557,12 +9578,12 @@
       "strength" : 2
     },
     {
-      "covered_tuple_count" : 13,
+      "covered_tuple_count" : 40,
       "dimension_ids" : [
         "expression-case"
       ],
       "excluded_tuple_count" : 0,
-      "required_tuple_count" : 13,
+      "required_tuple_count" : 40,
       "strength" : 1
     },
     {
@@ -8891,6 +9912,114 @@
         {
           "id" : "operator-glob",
           "label" : "operator-glob"
+        },
+        {
+          "id" : "aggregate-count-distinct",
+          "label" : "aggregate-count-distinct"
+        },
+        {
+          "id" : "aggregate-min-distinct",
+          "label" : "aggregate-min-distinct"
+        },
+        {
+          "id" : "aggregate-max-distinct",
+          "label" : "aggregate-max-distinct"
+        },
+        {
+          "id" : "aggregate-average-distinct",
+          "label" : "aggregate-average-distinct"
+        },
+        {
+          "id" : "aggregate-sum-distinct",
+          "label" : "aggregate-sum-distinct"
+        },
+        {
+          "id" : "aggregate-group-concat-distinct",
+          "label" : "aggregate-group-concat-distinct"
+        },
+        {
+          "id" : "numeric-round-no-places",
+          "label" : "numeric-round-no-places"
+        },
+        {
+          "id" : "numeric-round-optional",
+          "label" : "numeric-round-optional"
+        },
+        {
+          "id" : "comparable-max",
+          "label" : "comparable-max"
+        },
+        {
+          "id" : "string-printf-array",
+          "label" : "string-printf-array"
+        },
+        {
+          "id" : "json-array-length-path",
+          "label" : "json-array-length-path"
+        },
+        {
+          "id" : "cast-bool-integer",
+          "label" : "cast-bool-integer"
+        },
+        {
+          "id" : "cast-optional-bool-integer",
+          "label" : "cast-optional-bool-integer"
+        },
+        {
+          "id" : "cast-integer-real",
+          "label" : "cast-integer-real"
+        },
+        {
+          "id" : "cast-integer-text",
+          "label" : "cast-integer-text"
+        },
+        {
+          "id" : "cast-optional-integer-real",
+          "label" : "cast-optional-integer-real"
+        },
+        {
+          "id" : "cast-optional-integer-text",
+          "label" : "cast-optional-integer-text"
+        },
+        {
+          "id" : "cast-real-integer",
+          "label" : "cast-real-integer"
+        },
+        {
+          "id" : "cast-real-text",
+          "label" : "cast-real-text"
+        },
+        {
+          "id" : "cast-optional-real-integer",
+          "label" : "cast-optional-real-integer"
+        },
+        {
+          "id" : "cast-optional-real-text",
+          "label" : "cast-optional-real-text"
+        },
+        {
+          "id" : "cast-text-real",
+          "label" : "cast-text-real"
+        },
+        {
+          "id" : "cast-optional-text-integer",
+          "label" : "cast-optional-text-integer"
+        },
+        {
+          "id" : "cast-optional-text-real",
+          "label" : "cast-optional-text-real"
+        },
+        {
+          "id" : "cast-optional-text-blob",
+          "label" : "cast-optional-text-blob"
+        },
+        {
+          "id" : "cast-blob-text",
+          "label" : "cast-blob-text"
+        },
+        {
+          "id" : "cast-optional-blob-text",
+          "label" : "cast-optional-blob-text"
         }
       ]
     },
@@ -9059,10 +10188,10 @@
       "reason" : "Not executable in issue #191: typed prerequisite #70 (nullable subquery shapes) is not implemented."
     }
   ],
-  "generator_version" : "c191-v1",
+  "generator_version" : "c191-v2",
   "hard_bounds" : {
     "maximum_bindings_per_case" : 8,
-    "maximum_case_count" : 160,
+    "maximum_case_count" : 192,
     "maximum_dimensions_per_case" : 9,
     "maximum_reduction_attempts" : 64,
     "maximum_rendered_sql_bytes" : 4096,

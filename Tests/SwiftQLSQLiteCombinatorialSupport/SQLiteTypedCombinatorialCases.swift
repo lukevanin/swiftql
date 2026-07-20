@@ -510,7 +510,7 @@ public enum SQLiteTypedCombinatorialCases {
         let namedText = XLNamedBindingReference<String>(name: "text_value")
         let indexedInteger = C191IndexedIntegerBindingReference(index: 0)
 
-        return [
+        let issue191Cases = [
             expressionCase(
                 id: "indexed-binding",
                 featureID: "binding.indexed",
@@ -582,7 +582,7 @@ public enum SQLiteTypedCombinatorialCases {
                 bindings: [
                     .init(key: .named("text_value"), value: .text("{\"ok\":true}")),
                 ],
-                requiredCapabilities: ["function:JSON_VALID"]
+                requiredCapabilities: ["sqlite-json-functions"]
             ),
             expressionCase(
                 id: "json-array-length",
@@ -591,7 +591,7 @@ public enum SQLiteTypedCombinatorialCases {
                 bindings: [
                     .init(key: .named("text_value"), value: .text("[1,2,3]")),
                 ],
-                requiredCapabilities: ["function:JSON_ARRAY_LENGTH"]
+                requiredCapabilities: ["sqlite-json-functions"]
             ),
             expressionCase(
                 id: "operator-arithmetic-precedence",
@@ -606,6 +606,244 @@ public enum SQLiteTypedCombinatorialCases {
                 bindings: [.init(key: .named("text_value"), value: .text("ALFKI"))]
             ),
         ]
+        return issue191Cases + issue286ExpressionCases()
+    }
+
+    /// The bounded issue #286 extension closes measured overload gaps without
+    /// introducing raw-SQL generated inputs or expanding into new syntax.
+    private static func issue286ExpressionCases() -> [SQLiteCombinatorialCaseDraft] {
+        let namedBoolean = XLNamedBindingReference<Bool>(name: "boolean_value")
+        let namedOptionalBoolean = XLNamedBindingReference<Bool?>(
+            name: "optional_boolean_value"
+        )
+        let namedInteger = XLNamedBindingReference<Int>(name: "integer_value")
+        let namedOptionalInteger = XLNamedBindingReference<Int?>(
+            name: "optional_integer_value"
+        )
+        let namedReal = XLNamedBindingReference<Double>(name: "real_value")
+        let namedOptionalReal = XLNamedBindingReference<Double?>(
+            name: "optional_real_value"
+        )
+        let namedText = XLNamedBindingReference<String>(name: "text_value")
+        let namedOptionalText = XLNamedBindingReference<String?>(
+            name: "optional_text_value"
+        )
+        let namedBlob = XLNamedBindingReference<Data>(name: "blob_value")
+        let namedOptionalBlob = XLNamedBindingReference<Data?>(
+            name: "optional_blob_value"
+        )
+
+        return issue286AggregateCases() + [
+            issue286ExpressionCase(
+                id: "numeric-round-no-places",
+                featureID: "syntax.expression.numeric-comparable-functions",
+                statement: select(namedReal.rounded()),
+                bindings: [.init(key: .named("real_value"), value: .real(3.6))]
+            ),
+            issue286ExpressionCase(
+                id: "numeric-round-optional",
+                featureID: "syntax.expression.numeric-comparable-functions",
+                statement: select(namedOptionalReal.rounded()),
+                bindings: [.init(key: .named("optional_real_value"), value: .null)]
+            ),
+            issue286ExpressionCase(
+                id: "comparable-max",
+                featureID: "syntax.expression.numeric-comparable-functions",
+                statement: select(max(namedInteger, 191)),
+                bindings: [.init(key: .named("integer_value"), value: .integer(254))]
+            ),
+            issue286ExpressionCase(
+                id: "string-printf-array",
+                featureID: "syntax.expression.string-functions",
+                statement: select(
+                    printf(
+                        format: "%s-%d",
+                        [namedText, namedInteger]
+                    )
+                ),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("case")),
+                    .init(key: .named("integer_value"), value: .integer(286)),
+                ]
+            ),
+            issue286ExpressionCase(
+                id: "json-array-length-path",
+                featureID: "syntax.expression.json-functions",
+                statement: select(namedText.jsonArrayLength(path: "$.items")),
+                bindings: [
+                    .init(
+                        key: .named("text_value"),
+                        value: .text("{\"items\":[1,2,3]}")
+                    ),
+                ],
+                requiredCapabilities: ["sqlite-json-functions"]
+            ),
+            issue286ExpressionCase(
+                id: "cast-bool-integer",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedBoolean.toInt()),
+                bindings: [.init(key: .named("boolean_value"), value: .integer(1))]
+            ),
+            issue286ExpressionCase(
+                id: "cast-optional-bool-integer",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedOptionalBoolean.toInt()),
+                bindings: [
+                    .init(key: .named("optional_boolean_value"), value: .null),
+                ]
+            ),
+            issue286ExpressionCase(
+                id: "cast-integer-real",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedInteger.toDouble()),
+                bindings: [.init(key: .named("integer_value"), value: .integer(42))]
+            ),
+            issue286ExpressionCase(
+                id: "cast-integer-text",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedInteger.toString()),
+                bindings: [.init(key: .named("integer_value"), value: .integer(42))]
+            ),
+            issue286ExpressionCase(
+                id: "cast-optional-integer-real",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedOptionalInteger.toDouble()),
+                bindings: [
+                    .init(key: .named("optional_integer_value"), value: .null),
+                ]
+            ),
+            issue286ExpressionCase(
+                id: "cast-optional-integer-text",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedOptionalInteger.toString()),
+                bindings: [
+                    .init(key: .named("optional_integer_value"), value: .null),
+                ]
+            ),
+            issue286ExpressionCase(
+                id: "cast-real-integer",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedReal.toInt()),
+                bindings: [.init(key: .named("real_value"), value: .real(42.75))]
+            ),
+            issue286ExpressionCase(
+                id: "cast-real-text",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedReal.toString()),
+                bindings: [.init(key: .named("real_value"), value: .real(42.5))]
+            ),
+            issue286ExpressionCase(
+                id: "cast-optional-real-integer",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedOptionalReal.toInt()),
+                bindings: [.init(key: .named("optional_real_value"), value: .null)]
+            ),
+            issue286ExpressionCase(
+                id: "cast-optional-real-text",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedOptionalReal.toString()),
+                bindings: [.init(key: .named("optional_real_value"), value: .null)]
+            ),
+            issue286ExpressionCase(
+                id: "cast-text-real",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedText.toDouble()),
+                bindings: [.init(key: .named("text_value"), value: .text("42.5"))]
+            ),
+            issue286ExpressionCase(
+                id: "cast-optional-text-integer",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedOptionalText.toInt()),
+                bindings: [.init(key: .named("optional_text_value"), value: .null)]
+            ),
+            issue286ExpressionCase(
+                id: "cast-optional-text-real",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedOptionalText.toDouble()),
+                bindings: [.init(key: .named("optional_text_value"), value: .null)]
+            ),
+            issue286ExpressionCase(
+                id: "cast-optional-text-blob",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedOptionalText.toData()),
+                bindings: [.init(key: .named("optional_text_value"), value: .null)]
+            ),
+            issue286ExpressionCase(
+                id: "cast-blob-text",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedBlob.toString()),
+                bindings: [
+                    .init(key: .named("blob_value"), value: .blob(Data("blob".utf8))),
+                ]
+            ),
+            issue286ExpressionCase(
+                id: "cast-optional-blob-text",
+                featureID: "syntax.expression.type-casts",
+                statement: select(namedOptionalBlob.toString()),
+                bindings: [.init(key: .named("optional_blob_value"), value: .null)]
+            ),
+        ]
+    }
+
+    private static func issue286AggregateCases() -> [SQLiteCombinatorialCaseDraft] {
+        let cases: [(String, any XLEncodable)] = [
+            (
+                "aggregate-count-distinct",
+                sql { schema in
+                    let orders = schema.table(C191Order.self)
+                    Select(orders.employeeID.count(distinct: true))
+                    From(orders)
+                }
+            ),
+            (
+                "aggregate-min-distinct",
+                sql { schema in
+                    let orders = schema.table(C191Order.self)
+                    Select(orders.employeeID.minOrNull(distinct: true))
+                    From(orders)
+                }
+            ),
+            (
+                "aggregate-max-distinct",
+                sql { schema in
+                    let orders = schema.table(C191Order.self)
+                    Select(orders.employeeID.maxOrNull(distinct: true))
+                    From(orders)
+                }
+            ),
+            (
+                "aggregate-average-distinct",
+                sql { schema in
+                    let orders = schema.table(C191Order.self)
+                    Select(orders.employeeID.toDouble().averageOrNull(distinct: true))
+                    From(orders)
+                }
+            ),
+            (
+                "aggregate-sum-distinct",
+                sql { schema in
+                    let orders = schema.table(C191Order.self)
+                    Select(orders.employeeID.sumOrNull(distinct: true))
+                    From(orders)
+                }
+            ),
+            (
+                "aggregate-group-concat-distinct",
+                sql { schema in
+                    let orders = schema.table(C191Order.self)
+                    Select(orders.customerID.groupConcatOrNull(distinct: true))
+                    From(orders)
+                }
+            ),
+        ]
+        return cases.map { id, statement in
+            issue286ExpressionCase(
+                id: id,
+                featureID: "syntax.expression.aggregate-functions",
+                statement: statement,
+                bindings: []
+            )
+        }
     }
 
     private static func expressionCase(
@@ -626,6 +864,27 @@ public enum SQLiteTypedCombinatorialCases {
             statement: statement,
             bindings: bindings,
             semanticOracleID: "oracle.c191.expression.\(id)"
+        )
+    }
+
+    private static func issue286ExpressionCase(
+        id: String,
+        featureID: String,
+        statement: any XLEncodable,
+        bindings: [SQLiteCombinatorialDraftBinding],
+        requiredCapabilities: [String] = []
+    ) -> SQLiteCombinatorialCaseDraft {
+        SQLiteCombinatorialCaseDraft(
+            id: "c286.v1.expression.\(id)",
+            templateID: "expression.\(id)",
+            strength: "targeted",
+            selections: [.init(dimensionID: "expression-case", valueID: id)],
+            inventoryFeatureIDs: [featureID],
+            northwindAnchorCaseIDs: [],
+            requiredCapabilities: requiredCapabilities,
+            statement: statement,
+            bindings: bindings,
+            semanticOracleID: "oracle.c286.expression.\(id)"
         )
     }
 

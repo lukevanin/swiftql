@@ -36,7 +36,9 @@ model:
   SQLite inventory and stable feature IDs in
   [`SQLiteConformanceInventory.json`](../../Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json).
 - [#191](https://github.com/lukevanin/swiftql/issues/191) owns the bounded
-  `c191-v1` manifest, its 141 stable cases, and runtime provenance in
+  combinatorial manifest and its original 141 stable cases. [#286](https://github.com/lukevanin/swiftql/issues/286)
+  adds 27 finite typed function-overload cases, producing the current
+  `c191-v2` manifest with 168 cases and runtime provenance in
   [`COMBINATORIAL_CASES.json`](../../Conformance/SQLite/COMBINATORIAL_CASES.json).
   Its runtime collector already records SQLite version/source ID, compile
   options, functions, collations, module names, caller-supplied extension names,

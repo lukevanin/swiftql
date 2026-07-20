@@ -148,17 +148,17 @@ contracts.
 - Treat the versioned [inventory](Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json) as
   the source of truth and its [report](Conformance/SQLite/REPORT.md) as a generated
   view; use the [compatibility guide](COMPATIBILITY.md#sqlite-conformance-inventory)
-  to interpret it. It records 101 feature records: 82 supported, 7 partial,
-  3 capability-gated, 1 intentionally unsupported, and 8 unimplemented.
+  to interpret it. It records 101 feature records: 87 supported, 3 partial,
+  2 capability-gated, 1 intentionally unsupported, and 8 unimplemented.
 - Keep those five statuses distinct. Bind every claim to the feature's recorded
   SQLite version, source ID, compile options, capabilities, evidence, and
   rationale before claiming support.
-- Of the 98 evidence records, 66 exercise real SQLite against one captured
+- Of the 100 evidence records, 67 exercise real SQLite against one captured
   environment, SQLite 3.51.0. Evidence is reusable, so evidence and feature
   counts do not map one to one; never turn this into an exhaustive-SQL claim.
-- #191 contributes 141 generated positive cases plus a separate broken-renderer
-  negative control; #254 contributes 18 Northwind scenarios; #255 contributes
-  12 observation-stress cases. These strengthen evidence without adding syntax.
+- #191 contributes 141 original positives; #286 adds 27 typed function-overload
+  cases for 168 current positives plus one broken-renderer control. #254 adds 18
+  Northwind scenarios and #255 adds 12 observation-stress cases. No new syntax.
 - #132 remains package-private research. It ships no public validator, build
   plugin, query macro, schema system, or new v1.3 API. It neither persists
   prepared statements nor removes runtime preparation on a physical connection.

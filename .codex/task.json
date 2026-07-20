@@ -1,11 +1,11 @@
 {
-  "task_name": "Move Swift 5.9 CI off retiring hosted macOS 14 runners",
-  "issue_number": 164,
-  "issue_url": "https://github.com/lukevanin/swiftql/issues/164",
+  "task_name": "Complete real-SQLite function, aggregate, and cast conformance matrix",
+  "issue_number": 286,
+  "issue_url": "https://github.com/lukevanin/swiftql/issues/286",
   "workspace_repo": "lukevanin/swiftql",
-  "codex_session_title": "lukevanin/swiftql#164 - Move Swift 5.9 CI off macOS 14",
+  "codex_session_title": "lukevanin/swiftql#286 - Complete real-SQLite function conformance",
   "codex_session_id": "019f7f4b-cec3-77c2-97d9-5741d2cfe48e",
   "codex_session_url": null,
-  "task_branch": "codex/164-move-swift-5-9-ci-off-retiring-hosted-macos-14-runners",
-  "task_worktree_path": "/private/tmp/swiftql-worktrees/164-move-swift-5-9-ci-off-retiring-hosted-macos-14-runners"
+  "task_branch": "codex/286-complete-real-sqlite-function-aggregate-cast-conformance",
+  "task_worktree_path": "/private/tmp/swiftql-worktrees/286-complete-real-sqlite-function-aggregate-cast-conformance"
 }

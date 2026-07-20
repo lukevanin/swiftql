@@ -80,6 +80,90 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
         }
     }
 
+    func testIssue286FunctionOverloadMatrixIsExplicitAndBounded() throws {
+        let manifest = try SQLiteCombinatorialSuite.makeManifest()
+        let issue286Cases = manifest.cases.filter {
+            $0.id.hasPrefix("c286.v1.expression.")
+        }
+        let expectedSuffixes: Set<String> = [
+            "aggregate-average-distinct",
+            "aggregate-count-distinct",
+            "aggregate-group-concat-distinct",
+            "aggregate-max-distinct",
+            "aggregate-min-distinct",
+            "aggregate-sum-distinct",
+            "cast-blob-text",
+            "cast-bool-integer",
+            "cast-integer-real",
+            "cast-integer-text",
+            "cast-optional-blob-text",
+            "cast-optional-bool-integer",
+            "cast-optional-integer-real",
+            "cast-optional-integer-text",
+            "cast-optional-real-integer",
+            "cast-optional-real-text",
+            "cast-optional-text-blob",
+            "cast-optional-text-integer",
+            "cast-optional-text-real",
+            "cast-real-integer",
+            "cast-real-text",
+            "cast-text-real",
+            "comparable-max",
+            "json-array-length-path",
+            "numeric-round-no-places",
+            "numeric-round-optional",
+            "string-printf-array",
+        ]
+        let actualSuffixes = Set(issue286Cases.map {
+            String($0.id.dropFirst("c286.v1.expression.".count))
+        })
+
+        XCTAssertEqual(actualSuffixes, expectedSuffixes)
+        XCTAssertEqual(issue286Cases.count, 27)
+        XCTAssertEqual(manifest.cases.count, 168)
+        XCTAssertEqual(manifest.hardBounds.maximumCaseCount, 192)
+        XCTAssertFalse(issue286Cases.contains { $0.id.contains("unixepoch") })
+        XCTAssertTrue(issue286Cases.allSatisfy { $0.mode == .semantic })
+
+        let expectedFeatureIDs: Set<String> = [
+            "syntax.expression.aggregate-functions",
+            "syntax.expression.json-functions",
+            "syntax.expression.numeric-comparable-functions",
+            "syntax.expression.string-functions",
+            "syntax.expression.type-casts",
+        ]
+        XCTAssertEqual(
+            Set(issue286Cases.flatMap(\.inventoryFeatureIDs)),
+            expectedFeatureIDs
+        )
+        XCTAssertTrue(
+            issue286Cases
+                .filter { $0.inventoryFeatureIDs == ["syntax.expression.json-functions"] }
+                .allSatisfy { $0.requiredCapabilities == ["sqlite-json-functions"] }
+        )
+    }
+
+    func testPinnedRuntimeAttestsJSONFunctionCapability() throws {
+        let manifest = try SQLiteCombinatorialSuite.makeManifest()
+        let jsonCases = manifest.cases.filter {
+            $0.inventoryFeatureIDs == ["syntax.expression.json-functions"]
+        }
+        let pool = try NorthwindFixture.validatedReadOnlyPool()
+        defer { try? pool.close() }
+        let runtime = try pool.read { database in
+            try SQLiteRuntimeMetadata.capture(from: database)
+        }
+        let signatures = Set(runtime.functions.map {
+            "\($0.name.uppercased())/\($0.argumentCount)"
+        })
+
+        XCTAssertTrue(signatures.contains("JSON_VALID/1"))
+        XCTAssertTrue(signatures.contains("JSON_ARRAY_LENGTH/1"))
+        XCTAssertTrue(signatures.contains("JSON_ARRAY_LENGTH/2"))
+        XCTAssertEqual(jsonCases.count, 3)
+        XCTAssertNoThrow(try assertRequiredCapabilities(for: jsonCases, runtime: runtime))
+    }
+
     func testEveryPositiveCasePreparesAndSemanticOraclesExecute() throws {
         let suiteStarted = Date()
         let manifest = try SQLiteCombinatorialSuite.makeManifest()
@@ -553,11 +637,27 @@ private extension SQLiteCombinatorialConformanceTests {
         runtime: SQLiteRuntimeMetadata
     ) throws {
         let functionNames = Set(runtime.functions.map { $0.name.uppercased() })
+        let functionSignatures = Set(runtime.functions.map {
+            "\($0.name.uppercased())/\($0.argumentCount)"
+        })
         for testCase in cases {
             for capability in testCase.requiredCapabilities {
                 if capability.hasPrefix("function:") {
                     let name = String(capability.dropFirst("function:".count)).uppercased()
                     guard functionNames.contains(name) else {
+                        throw SQLiteCombinatorialConformanceError.missingCapability(
+                            caseID: testCase.id,
+                            capability: capability
+                        )
+                    }
+                }
+                else if capability == "sqlite-json-functions" {
+                    let requiredSignatures: Set<String> = [
+                        "JSON_ARRAY_LENGTH/1",
+                        "JSON_ARRAY_LENGTH/2",
+                        "JSON_VALID/1",
+                    ]
+                    guard requiredSignatures.isSubset(of: functionSignatures) else {
                         throw SQLiteCombinatorialConformanceError.missingCapability(
                             caseID: testCase.id,
                             capability: capability
@@ -621,7 +721,8 @@ private extension SQLiteCombinatorialConformanceTests {
             throw SQLiteCombinatorialConformanceError.missingOracle(testCase.id)
         }
 
-        if testCase.id.hasPrefix("c191.v1.expression.") {
+        if testCase.id.hasPrefix("c191.v1.expression.")
+            || testCase.id.hasPrefix("c286.v1.expression.") {
             return try resultRows(
                 database,
                 sql: try expressionOracleSQL(for: testCase.id),
@@ -718,30 +819,93 @@ private extension SQLiteCombinatorialConformanceTests {
     }
 
     func expressionOracleSQL(for caseID: String) throws -> String {
-        let suffix = String(caseID.dropFirst("c191.v1.expression.".count))
+        let suffix: String
+        if caseID.hasPrefix("c191.v1.expression.") {
+            suffix = String(caseID.dropFirst("c191.v1.expression.".count))
+        }
+        else if caseID.hasPrefix("c286.v1.expression.") {
+            suffix = String(caseID.dropFirst("c286.v1.expression.".count))
+        }
+        else {
+            throw SQLiteCombinatorialConformanceError.unknownOracle(caseID)
+        }
         switch suffix {
+        case "aggregate-count-distinct":
+            return "SELECT COUNT(DISTINCT EmployeeID) FROM Orders"
+        case "aggregate-min-distinct":
+            return "SELECT MIN(DISTINCT EmployeeID) FROM Orders"
+        case "aggregate-max-distinct":
+            return "SELECT MAX(DISTINCT EmployeeID) FROM Orders"
+        case "aggregate-average-distinct":
+            return "SELECT AVG(DISTINCT CAST(EmployeeID AS REAL)) FROM Orders"
+        case "aggregate-sum-distinct":
+            return "SELECT SUM(DISTINCT EmployeeID) FROM Orders"
+        case "aggregate-group-concat-distinct":
+            return "SELECT GROUP_CONCAT(DISTINCT CustomerID) FROM Orders"
         case "indexed-binding":
             return "SELECT ?1"
         case "numeric-abs":
             return "SELECT ABS(:integer_value)"
         case "numeric-round":
             return "SELECT ROUND(:real_value, 2)"
+        case "numeric-round-no-places":
+            return "SELECT ROUND(:real_value)"
+        case "numeric-round-optional":
+            return "SELECT ROUND(:optional_real_value)"
         case "numeric-floor":
             return "SELECT FLOOR(:real_value)"
         case "comparable-min":
             return "SELECT MIN(:integer_value, 191)"
+        case "comparable-max":
+            return "SELECT MAX(:integer_value, 191)"
         case "string-printf":
             return "SELECT PRINTF('%s-%d', :text_value, :integer_value)"
+        case "string-printf-array":
+            return "SELECT PRINTF('%s-%d', :text_value, :integer_value)"
+        case "cast-bool-integer":
+            return "SELECT :boolean_value"
+        case "cast-optional-bool-integer":
+            return "SELECT :optional_boolean_value"
+        case "cast-integer-real":
+            return "SELECT CAST(:integer_value AS REAL)"
+        case "cast-integer-text":
+            return "SELECT CAST(:integer_value AS TEXT)"
+        case "cast-optional-integer-real":
+            return "SELECT CAST(:optional_integer_value AS REAL)"
+        case "cast-optional-integer-text":
+            return "SELECT CAST(:optional_integer_value AS TEXT)"
+        case "cast-real-integer":
+            return "SELECT CAST(:real_value AS INTEGER)"
+        case "cast-real-text":
+            return "SELECT CAST(:real_value AS TEXT)"
+        case "cast-optional-real-integer":
+            return "SELECT CAST(:optional_real_value AS INTEGER)"
+        case "cast-optional-real-text":
+            return "SELECT CAST(:optional_real_value AS TEXT)"
         case "cast-text-integer":
             return "SELECT CAST(:text_value AS INTEGER)"
+        case "cast-text-real":
+            return "SELECT CAST(:text_value AS REAL)"
         case "cast-text-blob":
             return "SELECT CAST(:text_value AS BLOB)"
+        case "cast-optional-text-integer":
+            return "SELECT CAST(:optional_text_value AS INTEGER)"
+        case "cast-optional-text-real":
+            return "SELECT CAST(:optional_text_value AS REAL)"
+        case "cast-optional-text-blob":
+            return "SELECT CAST(:optional_text_value AS BLOB)"
+        case "cast-blob-text":
+            return "SELECT CAST(:blob_value AS TEXT)"
+        case "cast-optional-blob-text":
+            return "SELECT CAST(:optional_blob_value AS TEXT)"
         case "date-unixepoch":
             return "SELECT UNIXEPOCH(:text_value)"
         case "json-valid":
             return "SELECT JSON_VALID(:text_value)"
         case "json-array-length":
             return "SELECT JSON_ARRAY_LENGTH(:text_value)"
+        case "json-array-length-path":
+            return "SELECT JSON_ARRAY_LENGTH(:text_value, '$.items')"
         case "operator-arithmetic-precedence":
             return "SELECT (:integer_value + 7) * 2"
         case "operator-glob":

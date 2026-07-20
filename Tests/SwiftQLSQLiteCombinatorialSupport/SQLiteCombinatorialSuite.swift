@@ -21,7 +21,8 @@ public enum SQLiteCombinatorialSuiteError: Error, Equatable, Sendable {
 }
 
 
-/// Builds the bounded issue #191 plan, typed drafts, and canonical manifest.
+/// Builds the bounded issue #191 plan, typed drafts, and canonical manifest,
+/// including the finite overload-matrix extension completed by issue #286.
 ///
 /// The default plan is pairwise across nine ordered SELECT dimensions, seeded
 /// with explicit three- and six-way clause interactions plus three exact
@@ -33,8 +34,8 @@ public enum SQLiteCombinatorialSuiteError: Error, Equatable, Sendable {
 public enum SQLiteCombinatorialSuite {
 
     public static let maximumSelectCaseCount = 128
-    public static let maximumCaseCount = 160
-    public static let generatorVersion = "c191-v1"
+    public static let maximumCaseCount = 192
+    public static let generatorVersion = "c191-v2"
 
     /// Returns the deterministic, bounded pairwise SELECT plan.
     public static func makePlan() throws -> SQLiteCombinatorialPlan {

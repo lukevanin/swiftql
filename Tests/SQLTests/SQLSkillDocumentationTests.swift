@@ -113,6 +113,9 @@ final class SQLSkillDocumentationTests: XCTestCase {
         let combinatorialSuite = try XCTUnwrap(
             inventory.suites.first { $0.issue == 191 }
         )
+        let functionOverloadSuite = try XCTUnwrap(
+            inventory.suites.first { $0.issue == 286 }
+        )
         let northwindSuite = try XCTUnwrap(
             inventory.suites.first { $0.issue == 254 }
         )
@@ -126,9 +129,18 @@ final class SQLSkillDocumentationTests: XCTestCase {
             inventory.features.count,
             "Every inventory feature must contribute to the skill's status totals."
         )
-        for suite in [combinatorialSuite, northwindSuite, observationSuite] {
+        for suite in [
+            combinatorialSuite,
+            functionOverloadSuite,
+            northwindSuite,
+            observationSuite,
+        ] {
             XCTAssertEqual(suite.status, "completed")
         }
+        let issue286CaseCount = combinatorialManifest.cases.filter {
+            $0.id.hasPrefix("c286.v1.expression.")
+        }.count
+        let issue191CaseCount = combinatorialManifest.cases.count - issue286CaseCount
         XCTAssertTrue(
             combinatorialSuite.evidenceIDs.contains(
                 "evidence.combinatorial.broken-renderer.sqlite"
@@ -145,9 +157,11 @@ final class SQLSkillDocumentationTests: XCTestCase {
                 + "\(environmentCountText) captured \(environmentNoun), SQLite "
                 + "\(sqliteVersions).",
             "Evidence is reusable, so evidence and feature counts do not map one to one",
-            "#191 contributes \(combinatorialManifest.cases.count) generated positive cases "
-                + "plus a separate broken-renderer negative control; #254 contributes "
-                + "\(northwindSuite.caseIDs.count) Northwind scenarios; #255 contributes "
+            "#191 contributes \(issue191CaseCount) original positives; #286 adds "
+                + "\(issue286CaseCount) typed function-overload cases for "
+                + "\(combinatorialManifest.cases.count) current positives plus one "
+                + "broken-renderer control. #254 adds "
+                + "\(northwindSuite.caseIDs.count) Northwind scenarios and #255 adds "
                 + "\(observationSuite.caseIDs.count) observation-stress cases.",
             "It ships no public validator, build plugin, query macro, schema system, or new v1.3 API. It neither persists prepared statements nor removes runtime preparation on a physical connection.",
         ] {
