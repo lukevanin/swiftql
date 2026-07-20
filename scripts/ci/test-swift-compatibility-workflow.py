@@ -130,6 +130,10 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         coverage_config = (
             ROOT / "scripts/ci/source-coverage-config.json"
         ).read_text(encoding="utf-8")
+        root_lockfile = (ROOT / "Package.resolved").read_bytes()
+        downstream_lockfile = (
+            ROOT / "IntegrationTests/Swift5Client/Package.resolved"
+        ).read_bytes()
 
         self.assertIn(
             '.package(url: "https://github.com/OpenCombine/OpenCombine.git", '
@@ -143,6 +147,7 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
             '"Sources/SwiftQL/GRDBOpenCombineValuePublisher.swift"',
             coverage_config,
         )
+        self.assertEqual(downstream_lockfile, root_lockfile)
 
     def test_swift59_linux_surface_avoids_newer_foundation_url_apis(self) -> None:
         swift_sources = list((ROOT / "Sources").rglob("*.swift"))
