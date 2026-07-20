@@ -636,16 +636,60 @@ final class XLSyntaxTests: XCTestCase {
     
     
     // MARK: - Between
-    
-    
-    // Typed BETWEEN and NOT BETWEEN expressions are tracked by
-    // https://github.com/lukevanin/swiftql/issues/31.
-    
-    //    func testBetweenOperator_NumericExpression() {
-    //        let x = XLIntegerBindingReference(name: "x")
-    //        let expression = x.isBetween(7, 12)
-    //        XCTAssertEqual(encoder.makeSQL(expression), ":x BETWEEN 7 AND 12")
-    //    }
+
+
+    func testBetweenOperatorSupportsLiteralBounds() {
+        let value = XLNamedBindingReference<Int>(name: "value")
+        let expression = value.isBetween(7, 12)
+        let _: any XLExpression<Bool> = expression
+
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "(:value BETWEEN 7 AND 12)"
+        )
+    }
+
+
+    func testNotBetweenOperatorSupportsBindingBounds() {
+        let value = XLNamedBindingReference<Int>(name: "value")
+        let minimum = XLNamedBindingReference<Int>(name: "minimum")
+        let maximum = XLNamedBindingReference<Int>(name: "maximum")
+        let expression = value.isNotBetween(minimum, maximum)
+        let _: any XLExpression<Bool> = expression
+
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "(:value NOT BETWEEN :minimum AND :maximum)"
+        )
+    }
+
+
+    func testBetweenOperatorPreservesNestedBooleanAndComparisonPrecedence() {
+        let value = XLNamedBindingReference<Int>(name: "value")
+        let other = XLNamedBindingReference<Int>(name: "other")
+        let expression = value.isBetween(7, 12) && other > 0
+
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "((:value BETWEEN 7 AND 12) AND (:other > 0))"
+        )
+        XCTAssertEqual(
+            encoder.makeSQL(value.isBetween(7, 12) == true).sql,
+            "((:value BETWEEN 7 AND 12) == 1)"
+        )
+    }
+
+
+    func testBetweenOperatorPreservesNullableResultType() {
+        let value = XLNamedBindingReference<Optional<Int>>(name: "value")
+        let expression = value.isBetween(7, 12)
+        let _: any XLExpression<Optional<Bool>> = expression
+
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "(:value BETWEEN 7 AND 12)"
+        )
+    }
     
     
     // MARK: -  Case expression

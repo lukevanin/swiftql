@@ -16,6 +16,15 @@ struct ColumnsResultShadowingProjection: Equatable {
     let result: Int
 }
 
+
+@SQLTable(name: "BetweenInput")
+struct BetweenInput: Equatable, Identifiable {
+    let id: String
+    let value: Int?
+    let minimum: Int
+    let maximum: Int
+}
+
 final class XLExecutionTests: XCTestCase {
     
     var encoder: XLiteEncoder!
@@ -173,6 +182,71 @@ final class XLExecutionTests: XCTestCase {
             try database.makeRequest(with: composedStatement).fetchOne(),
             -48
         )
+    }
+
+    func testBetweenExecutesWithLiteralBindingAndColumnBounds() throws {
+        try database.makeRequest(with: sqlCreate(BetweenInput.self)).execute()
+        for input in [
+            BetweenInput(id: "lower", value: 5, minimum: 5, maximum: 10),
+            BetweenInput(id: "middle", value: 7, minimum: 5, maximum: 10),
+            BetweenInput(id: "upper", value: 10, minimum: 5, maximum: 10),
+            BetweenInput(id: "low", value: 4, minimum: 5, maximum: 10),
+            BetweenInput(id: "high", value: 11, minimum: 5, maximum: 10),
+            BetweenInput(id: "null", value: nil, minimum: 5, maximum: 10),
+        ] {
+            try database.makeRequest(with: sqlInsert(input)).execute()
+        }
+
+        let columnBounds = sql { schema in
+            let input = schema.table(BetweenInput.self)
+            Select(input.id)
+            From(input)
+            Where(input.value.isBetween(input.minimum, input.maximum))
+            OrderBy(input.id.ascending())
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: columnBounds).fetchAll(),
+            ["lower", "middle", "upper"]
+        )
+
+        let outsideColumnBounds = sql { schema in
+            let input = schema.table(BetweenInput.self)
+            Select(input.id)
+            From(input)
+            Where(input.value.isNotBetween(input.minimum, input.maximum))
+            OrderBy(input.id.ascending())
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: outsideColumnBounds).fetchAll(),
+            ["high", "low"]
+        )
+
+        let minimum = XLNamedBindingReference<Int>(name: "minimum")
+        let maximum = XLNamedBindingReference<Int>(name: "maximum")
+        let bindingBounds = sql { schema in
+            let input = schema.table(BetweenInput.self)
+            Select(input.id)
+            From(input)
+            Where(input.value.isBetween(minimum, maximum))
+            OrderBy(input.id.ascending())
+        }
+        var bindingRequest = database.makeRequest(with: bindingBounds)
+        bindingRequest.set(minimum, 5)
+        bindingRequest.set(maximum, 10)
+        XCTAssertEqual(
+            try bindingRequest.fetchAll(),
+            ["lower", "middle", "upper"]
+        )
+
+        let nullLiteralBounds = sql { schema in
+            let input = schema.table(BetweenInput.self)
+            Select(input.value.isBetween(5, 10))
+            From(input)
+            Where(input.id == "null")
+        }
+        let nullResults = try database.makeRequest(with: nullLiteralBounds).fetchAll()
+        XCTAssertEqual(nullResults.count, 1)
+        XCTAssertNil(nullResults[0])
     }
 
     func testBuiltInCollationExecution() throws {

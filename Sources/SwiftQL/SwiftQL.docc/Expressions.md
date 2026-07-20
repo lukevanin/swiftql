@@ -26,6 +26,69 @@ let query = sql { schema in
 SwiftQL supports the following Swift boolean operators: `==`, `!=`, `!`, `<`, 
 `>`, `>=`, `<=`, `&&`, `||`.
 
+## Between operators
+
+Use `isBetween(_:_:)` for SQLite's inclusive `BETWEEN` predicate and
+`isNotBetween(_:_:)` for `NOT BETWEEN`. The value and both bounds must have the
+same comparable SwiftQL type, so unsupported combinations are rejected by the
+Swift compiler.
+
+Literal endpoints include both boundary values:
+
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
+```swift
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    Where(person.age.isBetween(18, 65))
+}
+```
+
+Bounds can also be typed parameters:
+
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
+```swift
+let minimumAge = XLNamedBindingReference<Int>(name: "minimumAge")
+let maximumAge = XLNamedBindingReference<Int>(name: "maximumAge")
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    Where(person.age.isNotBetween(minimumAge, maximumAge))
+}
+```
+
+Or columns from the same row:
+
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
+```swift
+@SQLTable struct Measurement {
+    let id: String
+    let value: Int
+    let minimum: Int
+    let maximum: Int
+}
+
+let query = sql { schema in
+    let measurement = schema.table(Measurement.self)
+    Select(measurement)
+    From(measurement)
+    Where(
+        measurement.value.isBetween(
+            measurement.minimum,
+            measurement.maximum
+        )
+    )
+}
+```
+
+A nullable value produces an optional Boolean result. SQLite returns `NULL`
+when that value is `NULL`; a `Where` clause excludes the row, just as it does
+for every other `NULL` predicate. SwiftQL groups the complete predicate, so
+combining it with comparison, `&&`, `||`, or `!` expressions preserves SQLite
+precedence.
+
 ## Numeric operators
 
 SwiftQL supports the following operators for performing numeric operations with 
