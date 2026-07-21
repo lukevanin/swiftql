@@ -120,7 +120,7 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
 
         XCTAssertEqual(actualSuffixes, expectedSuffixes)
         XCTAssertEqual(issue286Cases.count, 27)
-        XCTAssertEqual(manifest.cases.count, 168)
+        XCTAssertEqual(manifest.cases.count, 173)
         XCTAssertEqual(manifest.hardBounds.maximumCaseCount, 192)
         XCTAssertFalse(issue286Cases.contains { $0.id.contains("unixepoch") })
         XCTAssertTrue(issue286Cases.allSatisfy { $0.mode == .semantic })
@@ -141,6 +141,103 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
                 .filter { $0.inventoryFeatureIDs == ["syntax.expression.json-functions"] }
                 .allSatisfy { $0.requiredCapabilities == ["sqlite-json-functions"] }
         )
+    }
+
+    func testIssue288QueryBackedINCasesAreExplicitAndBounded() throws {
+        let manifest = try SQLiteCombinatorialSuite.makeManifest()
+        let issue288Cases = manifest.cases.filter {
+            $0.id.hasPrefix("c288.v1.subquery.")
+        }
+        let expectedSuffixes: Set<String> = [
+            "in-query-builder-empty",
+            "in-query-builder-nonempty",
+            "in-query-functional-nonempty",
+            "in-table-empty",
+            "in-table-nonempty",
+        ]
+        let actualSuffixes = Set(issue288Cases.map {
+            String($0.id.dropFirst("c288.v1.subquery.".count))
+        })
+
+        XCTAssertEqual(actualSuffixes, expectedSuffixes)
+        XCTAssertEqual(issue288Cases.count, 5)
+        XCTAssertTrue(issue288Cases.allSatisfy { $0.mode == .semantic })
+        XCTAssertTrue(issue288Cases.allSatisfy { $0.oracle?.kind == .rawSQL })
+        XCTAssertTrue(issue288Cases.allSatisfy { $0.requiredCapabilities.isEmpty })
+        XCTAssertTrue(
+            issue288Cases.allSatisfy {
+                $0.inventoryFeatureIDs.contains(
+                    "syntax.subquery.table-and-in-prepare-gap"
+                )
+            }
+        )
+
+        // Every case binds exactly one named placeholder declared inside the
+        // subquery or common table expression, so the rendered parameter
+        // layout is evidence that nested query bindings reach the outer
+        // statement's slot list.
+        XCTAssertTrue(issue288Cases.allSatisfy { $0.bindings.count == 1 })
+        XCTAssertTrue(
+            issue288Cases.allSatisfy { $0.bindings.allSatisfy { $0.keyKind == .named } }
+        )
+
+        // Both query-backed entry points are represented: `in(expression:)`
+        // renders an inline subquery and `in(_ table:)` renders SQLite's
+        // `expr IN table-name` form.
+        let subqueryForm = issue288Cases.filter { $0.id.contains(".in-query-") }
+        let tableForm = issue288Cases.filter { $0.id.contains(".in-table-") }
+        XCTAssertEqual(subqueryForm.count, 3)
+        XCTAssertEqual(tableForm.count, 2)
+        XCTAssertTrue(subqueryForm.allSatisfy { $0.renderedSQL.contains("IN (SELECT") })
+        XCTAssertTrue(tableForm.allSatisfy { $0.renderedSQL.contains("WITH ") })
+        XCTAssertFalse(tableForm.contains { $0.renderedSQL.contains("IN (SELECT") })
+
+        // Neither NOT IN (#84) nor a nullable IN operand (#70) is constructed
+        // here.
+        XCTAssertFalse(issue288Cases.contains { $0.renderedSQL.contains("NOT IN") })
+        XCTAssertFalse(
+            issue288Cases.contains {
+                $0.inventoryFeatureIDs.contains("syntax.subquery.nullable-shape-gap")
+            }
+        )
+    }
+
+    /// Proves the empty and non-empty pairs actually differ at execution time.
+    /// Comparing an empty result against an empty oracle is not by itself
+    /// evidence that the inner query selects anything, so the row counts are
+    /// asserted directly against the pinned fixture.
+    func testIssue288EmptyAndNonEmptyINResultsExecuteAsClaimed() throws {
+        let manifest = try SQLiteCombinatorialSuite.makeManifest()
+        let issue288Cases = manifest.cases.filter {
+            $0.id.hasPrefix("c288.v1.subquery.")
+        }
+        XCTAssertEqual(issue288Cases.count, 5)
+
+        let pool = try NorthwindFixture.validatedReadOnlyPool()
+        defer { try? pool.close() }
+
+        try pool.read { database in
+            for testCase in issue288Cases {
+                let actual = try resultRows(
+                    database,
+                    sql: testCase.renderedSQL,
+                    arguments: arguments(for: testCase)
+                )
+                if testCase.id.hasSuffix("-empty") {
+                    XCTAssertTrue(
+                        actual.isEmpty,
+                        "\(testCase.id) should return no rows when the inner query is empty"
+                    )
+                }
+                else {
+                    XCTAssertEqual(
+                        actual.count,
+                        5,
+                        "\(testCase.id) should return the LIMIT-bounded non-empty page"
+                    )
+                }
+            }
+        }
     }
 
     func testPinnedRuntimeAttestsJSONFunctionCapability() throws {
@@ -799,6 +896,59 @@ private extension SQLiteCombinatorialConformanceTests {
                     HAVING COUNT(o.OrderID) > 1
                     ORDER BY o.OrderID DESC
                     LIMIT 5 OFFSET 2
+                    """,
+                arguments: arguments(for: testCase)
+            )
+        case "oracle.c288.subquery.in-query-builder-nonempty",
+             "oracle.c288.subquery.in-query-builder-empty":
+            return try resultRows(
+                database,
+                sql: """
+                    SELECT o.OrderID
+                    FROM Orders AS o
+                    WHERE o.EmployeeID IN (
+                        SELECT e.EmployeeID
+                        FROM Employees AS e
+                        WHERE e.EmployeeID = :in_subquery_employee_id
+                    )
+                    ORDER BY o.OrderID ASC
+                    LIMIT 5
+                    """,
+                arguments: arguments(for: testCase)
+            )
+        case "oracle.c288.subquery.in-query-functional-nonempty":
+            return try resultRows(
+                database,
+                sql: """
+                    SELECT o.OrderID
+                    FROM Orders AS o
+                    WHERE o.CustomerID IN (
+                        SELECT c.CustomerID
+                        FROM Customers AS c
+                        WHERE c.CustomerID = :in_subquery_customer_id
+                    )
+                    ORDER BY o.OrderID ASC
+                    LIMIT 5
+                    """,
+                arguments: arguments(for: testCase)
+            )
+        case "oracle.c288.subquery.in-table-nonempty",
+             "oracle.c288.subquery.in-table-empty":
+            // Written as an inline subquery rather than SQLite's
+            // `expr IN table-name` form so the oracle stays independent of the
+            // construction under test.
+            return try resultRows(
+                database,
+                sql: """
+                    SELECT o.OrderID
+                    FROM Orders AS o
+                    WHERE o.EmployeeID IN (
+                        SELECT e.EmployeeID
+                        FROM Employees AS e
+                        WHERE e.EmployeeID = :in_table_employee_id
+                    )
+                    ORDER BY o.OrderID ASC
+                    LIMIT 5
                     """,
                 arguments: arguments(for: testCase)
             )

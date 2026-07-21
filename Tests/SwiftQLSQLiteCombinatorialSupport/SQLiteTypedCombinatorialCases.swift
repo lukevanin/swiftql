@@ -76,6 +76,15 @@ struct C191OrderSubtotal: Equatable {
 }
 
 
+/// Single-column common-table projection for the issue #288 `in(_ table:)`
+/// cases. SQLite's `expr IN table-name` form requires the referenced table to
+/// expose exactly one column.
+@SQLResult
+struct C288EmployeeIdentifier: Equatable {
+    let employeeID: Int
+}
+
+
 public struct SQLiteCombinatorialDraftSelection: Equatable {
     public let dimensionID: String
     public let valueID: String
@@ -498,6 +507,158 @@ public enum SQLiteTypedCombinatorialCases {
             ],
             statement: statement,
             semanticOracleID: "oracle.c191.northwind.cte-order-subtotals"
+        )
+    }
+
+    /// Issue #288: finite typed evidence for both query-backed IN entry points
+    /// against the pinned Northwind fixture.
+    ///
+    /// `in(expression:)` is exercised in its result-builder and its functional
+    /// form, and `in(_ table:)` against an ordinary common table expression.
+    /// Each entry point pairs a non-empty inner result with an empty one so the
+    /// outer statement's row behaviour is proven rather than only its
+    /// rendering. Nullable IN operands stay with #70 and `NOT IN` stays with
+    /// #84; neither is constructed here.
+    public static func inSubqueryCases() -> [SQLiteCombinatorialCaseDraft] {
+        [
+            inQueryBuilderCase(id: "in-query-builder-nonempty", employeeID: 5),
+            inQueryBuilderCase(id: "in-query-builder-empty", employeeID: -1),
+            inQueryFunctionalCase(),
+            inCommonTableCase(id: "in-table-nonempty", employeeID: 4),
+            inCommonTableCase(id: "in-table-empty", employeeID: -1),
+        ]
+    }
+
+    /// `XLExpression.in(expression:)` in its `@XLQueryExpressionBuilder` form.
+    /// The bound placeholder lives inside the subquery, so the rendered
+    /// parameter layout proves that nested query bindings reach the outer
+    /// statement's slot list.
+    private static func inQueryBuilderCase(
+        id: String,
+        employeeID: Int
+    ) -> SQLiteCombinatorialCaseDraft {
+        let employeeBinding = XLNamedBindingReference<Int>(
+            name: "in_subquery_employee_id"
+        )
+        let statement = sql { schema in
+            let orders = schema.table(C191Order.self)
+            Select(orders.orderID)
+            From(orders)
+            Where(
+                orders.employeeID.in { inner in
+                    let employees = inner.table(C191Employee.self)
+                    Select(employees.employeeID)
+                    From(employees)
+                    Where(employees.employeeID == employeeBinding)
+                }
+            )
+            OrderBy(orders.orderID.ascending())
+            Limit(5)
+        }
+
+        return inSubqueryCase(
+            id: id,
+            statement: statement,
+            bindings: [
+                .init(
+                    key: .named("in_subquery_employee_id"),
+                    value: .integer(Int64(employeeID))
+                ),
+            ]
+        )
+    }
+
+    /// `XLExpression.in(expression:)` in its functional form, over a text
+    /// operand so the entry point is proven for more than one storage class.
+    private static func inQueryFunctionalCase() -> SQLiteCombinatorialCaseDraft {
+        let customerBinding = XLNamedBindingReference<String>(
+            name: "in_subquery_customer_id"
+        )
+        let schema = XLSchema()
+        let orders = schema.table(C191Order.self)
+        let customers = schema.table(C191Customer.self)
+        let statement = select(orders.orderID)
+            .from(orders)
+            .where(
+                orders.customerID.in {
+                    select(customers.customerID)
+                        .from(customers)
+                        .where(customers.customerID == customerBinding)
+                }
+            )
+            .orderBy(orders.orderID.ascending())
+            .limit(5)
+
+        return inSubqueryCase(
+            id: "in-query-functional-nonempty",
+            statement: statement,
+            bindings: [
+                .init(
+                    key: .named("in_subquery_customer_id"),
+                    value: .text("VINET")
+                ),
+            ]
+        )
+    }
+
+    /// `XLExpression.in(_ table:)` against an ordinary common table
+    /// expression, which renders SQLite's `expr IN table-name` form.
+    private static func inCommonTableCase(
+        id: String,
+        employeeID: Int
+    ) -> SQLiteCombinatorialCaseDraft {
+        let employeeBinding = XLNamedBindingReference<Int>(
+            name: "in_table_employee_id"
+        )
+        let statement = sql { schema in
+            let matchingEmployees = schema.commonTableExpression { inner in
+                let employees = inner.table(C191Employee.self)
+                Select(C288EmployeeIdentifier.columns(
+                    employeeID: employees.employeeID
+                ))
+                From(employees)
+                Where(employees.employeeID == employeeBinding)
+            }
+            let orders = schema.table(C191Order.self)
+            With(matchingEmployees)
+            Select(orders.orderID)
+            From(orders)
+            Where(orders.employeeID.in(matchingEmployees))
+            OrderBy(orders.orderID.ascending())
+            Limit(5)
+        }
+
+        return inSubqueryCase(
+            id: id,
+            statement: statement,
+            bindings: [
+                .init(
+                    key: .named("in_table_employee_id"),
+                    value: .integer(Int64(employeeID))
+                ),
+            ]
+        )
+    }
+
+    private static func inSubqueryCase(
+        id: String,
+        statement: any XLEncodable,
+        bindings: [SQLiteCombinatorialDraftBinding]
+    ) -> SQLiteCombinatorialCaseDraft {
+        SQLiteCombinatorialCaseDraft(
+            id: "c288.v1.subquery.\(id)",
+            templateID: "subquery.\(id)",
+            strength: "targeted",
+            selections: [.init(dimensionID: "in-subquery-case", valueID: id)],
+            inventoryFeatureIDs: [
+                "syntax.expression.current-operators",
+                "syntax.select.core",
+                "syntax.subquery.table-and-in-prepare-gap",
+            ],
+            northwindAnchorCaseIDs: [],
+            statement: statement,
+            bindings: bindings,
+            semanticOracleID: "oracle.c288.subquery.\(id)"
         )
     }
 
