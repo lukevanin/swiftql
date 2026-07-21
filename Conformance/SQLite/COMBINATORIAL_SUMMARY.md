@@ -4,7 +4,7 @@
 - Generator version: `c191-v2`
 - Coordination issue: `#191`
 - Inventory version: `1.3.0`
-- Cases: `173`
+- Cases: `183`
 
 ## Hard bounds
 
@@ -35,6 +35,7 @@
 | expression-case | Adopted expression case | indexed-binding: indexed-binding, numeric-abs: numeric-abs, numeric-round: numeric-round, numeric-floor: numeric-floor, comparable-min: comparable-min, string-printf: string-printf, cast-text-integer: cast-text-integer, cast-text-blob: cast-text-blob, date-unixepoch: date-unixepoch, json-valid: json-valid, json-array-length: json-array-length, operator-arithmetic-precedence: operator-arithmetic-precedence, operator-glob: operator-glob, aggregate-count-distinct: aggregate-count-distinct, aggregate-min-distinct: aggregate-min-distinct, aggregate-max-distinct: aggregate-max-distinct, aggregate-average-distinct: aggregate-average-distinct, aggregate-sum-distinct: aggregate-sum-distinct, aggregate-group-concat-distinct: aggregate-group-concat-distinct, numeric-round-no-places: numeric-round-no-places, numeric-round-optional: numeric-round-optional, comparable-max: comparable-max, string-printf-array: string-printf-array, json-array-length-path: json-array-length-path, cast-bool-integer: cast-bool-integer, cast-optional-bool-integer: cast-optional-bool-integer, cast-integer-real: cast-integer-real, cast-integer-text: cast-integer-text, cast-optional-integer-real: cast-optional-integer-real, cast-optional-integer-text: cast-optional-integer-text, cast-real-integer: cast-real-integer, cast-real-text: cast-real-text, cast-optional-real-integer: cast-optional-real-integer, cast-optional-real-text: cast-optional-real-text, cast-text-real: cast-text-real, cast-optional-text-integer: cast-optional-text-integer, cast-optional-text-real: cast-optional-text-real, cast-optional-text-blob: cast-optional-text-blob, cast-blob-text: cast-blob-text, cast-optional-blob-text: cast-optional-blob-text |
 | northwind-adaptation | Pinned Northwind adaptation | compound-customer-supplier-cities: compound-customer-supplier-cities, cte-order-subtotals: cte-order-subtotals |
 | in-subquery-case | Query-backed IN entry point | in-query-builder-nonempty: in-query-builder-nonempty, in-query-builder-empty: in-query-builder-empty, in-query-functional-nonempty: in-query-functional-nonempty, in-table-nonempty: in-table-nonempty, in-table-empty: in-table-empty |
+| operator-case | Packed operator overload family | boolean-not-shapes: boolean-not-shapes, boolean-and-shapes: boolean-and-shapes, boolean-or-shapes: boolean-or-shapes, comparison-required: comparison-required, comparison-right-optional: comparison-right-optional, comparison-left-optional: comparison-left-optional, comparison-both-optional: comparison-both-optional, equality-required: equality-required, equality-optional-shapes: equality-optional-shapes, inequality-optional-shapes: inequality-optional-shapes |
 | gated-prerequisite | Explicitly gated typed prerequisite | issue-43-direct-scalar-compounds: #43 direct scalar compounds, issue-10-cte-materialization-hints: #10 CTE materialization hints, issue-139-typed-ddl: #139 typed DDL, issue-57-dml-returning: #57 DML RETURNING, issue-21-like-escape: #21 LIKE ESCAPE, issue-45-natural-using-joins: #45 NATURAL and USING joins, issue-70-nullable-subquery-shapes: #70 nullable subquery shapes |
 
 ## Constraints
@@ -242,6 +243,16 @@
 | c286.v1.expression.numeric-round-no-places | expression.numeric-round-no-places | targeted | semantic | expression-case=numeric-round-no-places | syntax.expression.numeric-comparable-functions |  | 1 |
 | c286.v1.expression.numeric-round-optional | expression.numeric-round-optional | targeted | semantic | expression-case=numeric-round-optional | syntax.expression.numeric-comparable-functions |  | 1 |
 | c286.v1.expression.string-printf-array | expression.string-printf-array | targeted | semantic | expression-case=string-printf-array | syntax.expression.string-functions |  | 2 |
+| c287.v1.expression.boolean-and-shapes | expression.boolean-and-shapes | targeted | semantic | operator-case=boolean-and-shapes | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.boolean-not-shapes | expression.boolean-not-shapes | targeted | semantic | operator-case=boolean-not-shapes | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.boolean-or-shapes | expression.boolean-or-shapes | targeted | semantic | operator-case=boolean-or-shapes | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.comparison-both-optional | expression.comparison-both-optional | targeted | semantic | operator-case=comparison-both-optional | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.comparison-left-optional | expression.comparison-left-optional | targeted | semantic | operator-case=comparison-left-optional | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.comparison-required | expression.comparison-required | targeted | semantic | operator-case=comparison-required | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.comparison-right-optional | expression.comparison-right-optional | targeted | semantic | operator-case=comparison-right-optional | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.equality-optional-shapes | expression.equality-optional-shapes | targeted | semantic | operator-case=equality-optional-shapes | syntax.expression.operator-prepare-gap |  | 5 |
+| c287.v1.expression.equality-required | expression.equality-required | targeted | semantic | operator-case=equality-required | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.inequality-optional-shapes | expression.inequality-optional-shapes | targeted | semantic | operator-case=inequality-optional-shapes | syntax.expression.operator-prepare-gap |  | 5 |
 | c288.v1.subquery.in-query-builder-empty | subquery.in-query-builder-empty | targeted | semantic | in-subquery-case=in-query-builder-empty | syntax.expression.current-operators, syntax.select.core, syntax.subquery.table-and-in-prepare-gap |  | 1 |
 | c288.v1.subquery.in-query-builder-nonempty | subquery.in-query-builder-nonempty | targeted | semantic | in-subquery-case=in-query-builder-nonempty | syntax.expression.current-operators, syntax.select.core, syntax.subquery.table-and-in-prepare-gap |  | 1 |
 | c288.v1.subquery.in-query-functional-nonempty | subquery.in-query-functional-nonempty | targeted | semantic | in-subquery-case=in-query-functional-nonempty | syntax.expression.current-operators, syntax.select.core, syntax.subquery.table-and-in-prepare-gap |  | 1 |

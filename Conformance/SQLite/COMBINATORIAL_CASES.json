@@ -9534,6 +9534,640 @@
       "bindings" : [
         {
           "key_kind" : "named",
+          "key_name" : "bool_true",
+          "logical_index" : 0,
+          "repeat_count" : 3,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 1
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "bool_false",
+          "logical_index" : 1,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 0
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "bool_null",
+          "logical_index" : 2,
+          "repeat_count" : 5,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "boolean-and-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.boolean-and-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.boolean-and-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:bool_true AND :bool_false) AS \"required\", (:bool_true AND :bool_null) AS \"rightOptional\", (:bool_null AND :bool_true) AS \"leftOptional\", (:bool_null AND :bool_null) AS \"bothOptional\", (:bool_null AND :bool_false) AS \"shortCircuit\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.boolean-and-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.boolean-and-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "bool_true",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 1
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "bool_null",
+          "logical_index" : 1,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "boolean-not-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.boolean-not-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.boolean-not-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (NOT :bool_true) AS \"required\", (NOT :bool_null) AS \"optional\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.boolean-not-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.boolean-not-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "bool_true",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 1
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "bool_false",
+          "logical_index" : 1,
+          "repeat_count" : 3,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 0
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "bool_null",
+          "logical_index" : 2,
+          "repeat_count" : 5,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "boolean-or-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.boolean-or-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.boolean-or-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:bool_true OR :bool_false) AS \"required\", (:bool_true OR :bool_null) AS \"rightOptional\", (:bool_null OR :bool_false) AS \"leftOptional\", (:bool_null OR :bool_null) AS \"bothOptional\", (:bool_false OR :bool_null) AS \"shortCircuit\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.boolean-or-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.boolean-or-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional",
+          "logical_index" : 0,
+          "repeat_count" : 5,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_b",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 5
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "comparison-both-optional"
+        }
+      ],
+      "id" : "c287.v1.expression.comparison-both-optional",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.comparison-both-optional",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_optional < :int_optional_b) AS \"less\", (:int_optional <= :int_optional_b) AS \"lessOrEqual\", (:int_optional > :int_optional_b) AS \"greater\", (:int_optional >= :int_optional_b) AS \"greaterOrEqual\", (:int_optional > :int_null) AS \"nullOperand\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.comparison-both-optional swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.comparison-both-optional"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional",
+          "logical_index" : 0,
+          "repeat_count" : 4,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_right",
+          "logical_index" : 1,
+          "repeat_count" : 5,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "comparison-left-optional"
+        }
+      ],
+      "id" : "c287.v1.expression.comparison-left-optional",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.comparison-left-optional",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_optional < :int_right) AS \"less\", (:int_optional <= :int_right) AS \"lessOrEqual\", (:int_optional > :int_right) AS \"greater\", (:int_optional >= :int_right) AS \"greaterOrEqual\", (:int_null > :int_right) AS \"nullOperand\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.comparison-left-optional swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.comparison-left-optional"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_left",
+          "logical_index" : 0,
+          "repeat_count" : 4,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_right",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "comparison-required"
+        }
+      ],
+      "id" : "c287.v1.expression.comparison-required",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.comparison-required",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_left < :int_right) AS \"less\", (:int_left <= :int_right) AS \"lessOrEqual\", (:int_left > :int_right) AS \"greater\", (:int_left >= :int_right) AS \"greaterOrEqual\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.comparison-required swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.comparison-required"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_left",
+          "logical_index" : 0,
+          "repeat_count" : 5,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "comparison-right-optional"
+        }
+      ],
+      "id" : "c287.v1.expression.comparison-right-optional",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.comparison-right-optional",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_left < :int_optional) AS \"less\", (:int_left <= :int_optional) AS \"lessOrEqual\", (:int_left > :int_optional) AS \"greater\", (:int_left >= :int_optional) AS \"greaterOrEqual\", (:int_left > :int_null) AS \"nullOperand\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.comparison-right-optional swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.comparison-right-optional"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_left",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional",
+          "logical_index" : 1,
+          "repeat_count" : 3,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_right",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_b",
+          "logical_index" : 3,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 5
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 4,
+          "repeat_count" : 3,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "equality-optional-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.equality-optional-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.equality-optional-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_left IS :int_optional) AS \"rightOptional\", (:int_optional IS :int_right) AS \"leftOptional\", (:int_optional IS :int_optional_b) AS \"bothOptional\", (:int_left IS :int_null) AS \"nullOperand\", (:int_null IS :int_null) AS \"bothNull\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.equality-optional-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.equality-optional-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_left",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_right",
+          "logical_index" : 1,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_left",
+          "logical_index" : 2,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "equality-required"
+        }
+      ],
+      "id" : "c287.v1.expression.equality-required",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.equality-required",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_left == :int_right) AS \"integerEqual\", (:int_left != :int_right) AS \"integerNotEqual\", (:text_left == :text_left) AS \"textEqual\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.equality-required swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.equality-required"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_left",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional",
+          "logical_index" : 1,
+          "repeat_count" : 3,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_right",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_b",
+          "logical_index" : 3,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 5
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 4,
+          "repeat_count" : 3,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "inequality-optional-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.inequality-optional-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.inequality-optional-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_left IS NOT :int_optional) AS \"rightOptional\", (:int_optional IS NOT :int_right) AS \"leftOptional\", (:int_optional IS NOT :int_optional_b) AS \"bothOptional\", (:int_left IS NOT :int_null) AS \"nullOperand\", (:int_null IS NOT :int_null) AS \"bothNull\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.inequality-optional-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.inequality-optional-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
           "key_name" : "in_subquery_employee_id",
           "logical_index" : 0,
           "repeat_count" : 1,
@@ -10270,6 +10904,52 @@
         {
           "id" : "in-table-empty",
           "label" : "in-table-empty"
+        }
+      ]
+    },
+    {
+      "id" : "operator-case",
+      "title" : "Packed operator overload family",
+      "values" : [
+        {
+          "id" : "boolean-not-shapes",
+          "label" : "boolean-not-shapes"
+        },
+        {
+          "id" : "boolean-and-shapes",
+          "label" : "boolean-and-shapes"
+        },
+        {
+          "id" : "boolean-or-shapes",
+          "label" : "boolean-or-shapes"
+        },
+        {
+          "id" : "comparison-required",
+          "label" : "comparison-required"
+        },
+        {
+          "id" : "comparison-right-optional",
+          "label" : "comparison-right-optional"
+        },
+        {
+          "id" : "comparison-left-optional",
+          "label" : "comparison-left-optional"
+        },
+        {
+          "id" : "comparison-both-optional",
+          "label" : "comparison-both-optional"
+        },
+        {
+          "id" : "equality-required",
+          "label" : "equality-required"
+        },
+        {
+          "id" : "equality-optional-shapes",
+          "label" : "equality-optional-shapes"
+        },
+        {
+          "id" : "inequality-optional-shapes",
+          "label" : "inequality-optional-shapes"
         }
       ]
     },

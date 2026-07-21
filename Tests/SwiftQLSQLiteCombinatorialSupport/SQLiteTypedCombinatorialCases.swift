@@ -85,6 +85,68 @@ struct C288EmployeeIdentifier: Equatable {
 }
 
 
+// MARK: - Issue #287 packed operator projections
+//
+// Each issue #287 case selects one column per overload under test, so a single
+// prepared statement carries explicit evidence for a whole operator family and
+// optionality shape. The Swift column types record which overloads return
+// `Optional` results; the conformance runner compares raw storage values, so
+// these types are compile-time evidence rather than a decoding path.
+
+@SQLResult
+struct C287RequiredOptionalPair: Equatable {
+    let required: Bool
+    let optional: Bool?
+}
+
+
+@SQLResult
+struct C287BooleanLogicRow: Equatable {
+    let required: Bool
+    let rightOptional: Bool?
+    let leftOptional: Bool?
+    let bothOptional: Bool?
+    let shortCircuit: Bool?
+}
+
+
+@SQLResult
+struct C287ComparisonRow: Equatable {
+    let less: Bool
+    let lessOrEqual: Bool
+    let greater: Bool
+    let greaterOrEqual: Bool
+}
+
+
+@SQLResult
+struct C287OptionalComparisonRow: Equatable {
+    let less: Bool?
+    let lessOrEqual: Bool?
+    let greater: Bool?
+    let greaterOrEqual: Bool?
+    let nullOperand: Bool?
+}
+
+
+@SQLResult
+struct C287EqualityRow: Equatable {
+    let integerEqual: Bool
+    let integerNotEqual: Bool
+    let textEqual: Bool
+}
+
+
+@SQLResult
+struct C287OptionalEqualityRow: Equatable {
+    let rightOptional: Bool?
+    let leftOptional: Bool?
+    let bothOptional: Bool?
+    let nullOperand: Bool?
+    let bothNull: Bool?
+}
+
+
 public struct SQLiteCombinatorialDraftSelection: Equatable {
     public let dimensionID: String
     public let valueID: String
@@ -659,6 +721,227 @@ public enum SQLiteTypedCombinatorialCases {
             statement: statement,
             bindings: bindings,
             semanticOracleID: "oracle.c288.subquery.\(id)"
+        )
+    }
+
+    /// Issue #287, part one: every public Boolean, comparison, and equality
+    /// operator overload named by `syntax.expression.operator-prepare-gap`.
+    ///
+    /// Overloads are packed by family and optionality shape rather than given
+    /// one case each. A packed case still prepares and executes every overload
+    /// it names — each appears as its own result column — and keeps the corpus
+    /// inside its declared bound. Arithmetic, unary, optional-coalescing, and
+    /// text overloads follow in part two.
+    ///
+    /// Values are chosen so no column can pass by accident: every family
+    /// includes a NULL operand *and* a non-NULL one, so an overload that
+    /// silently dropped its operand would change at least one column.
+    public static func booleanComparisonEqualityCases()
+        -> [SQLiteCombinatorialCaseDraft] {
+        let boolTrue = XLNamedBindingReference<Bool>(name: "bool_true")
+        let boolFalse = XLNamedBindingReference<Bool>(name: "bool_false")
+        let boolNull = XLNamedBindingReference<Bool?>(name: "bool_null")
+        let intLeft = XLNamedBindingReference<Int>(name: "int_left")
+        let intRight = XLNamedBindingReference<Int>(name: "int_right")
+        let intOptional = XLNamedBindingReference<Int?>(name: "int_optional")
+        let intOptionalB = XLNamedBindingReference<Int?>(name: "int_optional_b")
+        let intNull = XLNamedBindingReference<Int?>(name: "int_null")
+        let textLeft = XLNamedBindingReference<String>(name: "text_left")
+
+        let trueBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("bool_true"),
+            value: .integer(1)
+        )
+        let falseBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("bool_false"),
+            value: .integer(0)
+        )
+        let nullBoolBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("bool_null"),
+            value: .null
+        )
+        let leftBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("int_left"),
+            value: .integer(7)
+        )
+        let rightBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("int_right"),
+            value: .integer(3)
+        )
+        let optionalBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("int_optional"),
+            value: .integer(3)
+        )
+        let optionalBBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("int_optional_b"),
+            value: .integer(5)
+        )
+        let nullIntBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("int_null"),
+            value: .null
+        )
+        let textBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("text_left"),
+            value: .text("alfa")
+        )
+
+        return [
+            // NOT over both operand shapes. The optional column is also the
+            // three-valued `NOT NULL IS NULL` assertion.
+            issue287Case(
+                id: "boolean-not-shapes",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287RequiredOptionalPair.columns(
+                    required: !boolTrue,
+                    optional: !boolNull
+                )),
+                bindings: [trueBinding, nullBoolBinding]
+            ),
+            // AND over all four shapes, plus SQLite's asymmetric three-valued
+            // rule: NULL AND false is false, while NULL AND true is NULL.
+            issue287Case(
+                id: "boolean-and-shapes",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287BooleanLogicRow.columns(
+                    required: boolTrue && boolFalse,
+                    rightOptional: boolTrue && boolNull,
+                    leftOptional: boolNull && boolTrue,
+                    bothOptional: boolNull && boolNull,
+                    shortCircuit: boolNull && boolFalse
+                )),
+                bindings: [trueBinding, falseBinding, nullBoolBinding]
+            ),
+            // OR over all four shapes, plus the dual rule: NULL OR true is
+            // true, while NULL OR false is NULL.
+            issue287Case(
+                id: "boolean-or-shapes",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287BooleanLogicRow.columns(
+                    required: boolTrue || boolFalse,
+                    rightOptional: boolTrue || boolNull,
+                    leftOptional: boolNull || boolFalse,
+                    bothOptional: boolNull || boolNull,
+                    shortCircuit: boolFalse || boolNull
+                )),
+                bindings: [trueBinding, falseBinding, nullBoolBinding]
+            ),
+            issue287Case(
+                id: "comparison-required",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287ComparisonRow.columns(
+                    less: intLeft < intRight,
+                    lessOrEqual: intLeft <= intRight,
+                    greater: intLeft > intRight,
+                    greaterOrEqual: intLeft >= intRight
+                )),
+                bindings: [leftBinding, rightBinding]
+            ),
+            issue287Case(
+                id: "comparison-right-optional",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287OptionalComparisonRow.columns(
+                    less: intLeft < intOptional,
+                    lessOrEqual: intLeft <= intOptional,
+                    greater: intLeft > intOptional,
+                    greaterOrEqual: intLeft >= intOptional,
+                    nullOperand: intLeft > intNull
+                )),
+                bindings: [leftBinding, optionalBinding, nullIntBinding]
+            ),
+            // Equal operands on the boundary, so `<` and `<=` cannot agree.
+            issue287Case(
+                id: "comparison-left-optional",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287OptionalComparisonRow.columns(
+                    less: intOptional < intRight,
+                    lessOrEqual: intOptional <= intRight,
+                    greater: intOptional > intRight,
+                    greaterOrEqual: intOptional >= intRight,
+                    nullOperand: intNull > intRight
+                )),
+                bindings: [optionalBinding, rightBinding, nullIntBinding]
+            ),
+            issue287Case(
+                id: "comparison-both-optional",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287OptionalComparisonRow.columns(
+                    less: intOptional < intOptionalB,
+                    lessOrEqual: intOptional <= intOptionalB,
+                    greater: intOptional > intOptionalB,
+                    greaterOrEqual: intOptional >= intOptionalB,
+                    nullOperand: intOptional > intNull
+                )),
+                bindings: [optionalBinding, optionalBBinding, nullIntBinding]
+            ),
+            issue287Case(
+                id: "equality-required",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287EqualityRow.columns(
+                    integerEqual: intLeft == intRight,
+                    integerNotEqual: intLeft != intRight,
+                    textEqual: textLeft == textLeft
+                )),
+                bindings: [leftBinding, rightBinding, textBinding]
+            ),
+            // The optional `==` overloads render SQLite `IS`, which is never
+            // NULL even though the Swift result type is `Optional<Bool>`. The
+            // last two columns pin that deviation.
+            issue287Case(
+                id: "equality-optional-shapes",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287OptionalEqualityRow.columns(
+                    rightOptional: intLeft == intOptional,
+                    leftOptional: intOptional == intRight,
+                    bothOptional: intOptional == intOptionalB,
+                    nullOperand: intLeft == intNull,
+                    bothNull: intNull == intNull
+                )),
+                bindings: [
+                    leftBinding,
+                    rightBinding,
+                    optionalBinding,
+                    optionalBBinding,
+                    nullIntBinding,
+                ]
+            ),
+            // The same deviation for `IS NOT`.
+            issue287Case(
+                id: "inequality-optional-shapes",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287OptionalEqualityRow.columns(
+                    rightOptional: intLeft != intOptional,
+                    leftOptional: intOptional != intRight,
+                    bothOptional: intOptional != intOptionalB,
+                    nullOperand: intLeft != intNull,
+                    bothNull: intNull != intNull
+                )),
+                bindings: [
+                    leftBinding,
+                    rightBinding,
+                    optionalBinding,
+                    optionalBBinding,
+                    nullIntBinding,
+                ]
+            ),
+        ]
+    }
+
+    private static func issue287Case(
+        id: String,
+        featureID: String,
+        statement: any XLEncodable,
+        bindings: [SQLiteCombinatorialDraftBinding]
+    ) -> SQLiteCombinatorialCaseDraft {
+        SQLiteCombinatorialCaseDraft(
+            id: "c287.v1.expression.\(id)",
+            templateID: "expression.\(id)",
+            strength: "targeted",
+            selections: [.init(dimensionID: "operator-case", valueID: id)],
+            inventoryFeatureIDs: [featureID],
+            northwindAnchorCaseIDs: [],
+            statement: statement,
+            bindings: bindings,
+            semanticOracleID: "oracle.c287.expression.\(id)"
         )
     }
 
