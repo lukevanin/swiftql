@@ -6554,7 +6554,7 @@
         "Issue #287 part one proves every public Boolean, comparison, and equality overload with real SQLite, packed by operator family and optionality shape so each overload is one result column of a prepared statement.",
         "The optional equality overloads are typed `Optional<Bool>` in Swift but render SQLite `IS` and `IS NOT`, which are total and never evaluate to NULL. The Swift result type is therefore wider than the SQL semantics.",
         "Issue #287 part two proves the integer, floating-point, unary, optional-coalescing, and text overloads the same way, including the boundaries their Swift signatures cannot express.",
-        "The integer division and remainder overloads return a non-optional `Int`, but SQLite yields NULL for a zero divisor. The Swift result type is therefore narrower than the SQL, and decoding such a column into a non-optional property fails at runtime rather than at compile time.",
+        "The integer division and remainder overloads return a non-optional `Int`, and the floating-point division overload returns a non-optional `Double`, but SQLite yields NULL for a zero divisor in every one of them. The Swift result type is therefore narrower than the SQL, and decoding such a column into a non-optional property fails at runtime rather than at compile time.",
         "SQLite `LIKE` folds case for ASCII only and `GLOB` does not fold at all; neither distinction is visible in the Swift signatures."
       ],
       "follow_up_issues": [

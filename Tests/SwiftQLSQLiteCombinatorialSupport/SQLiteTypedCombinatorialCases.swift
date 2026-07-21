@@ -200,6 +200,10 @@ struct C287OptionalRealArithmeticRow: Equatable {
 }
 
 
+/// `divideByZero` is typed non-optional for the same reason as
+/// `C287IntegerBoundaryRow.divideByZero`: it is what the public
+/// `BinaryFloatingPoint` `/` overload returns, even though SQLite yields NULL
+/// for a zero divisor. Do not assume this row is safe to decode.
 @SQLResult
 struct C287RealBoundaryRow: Equatable {
     let exactHalf: Double
@@ -267,6 +271,17 @@ struct C287TextCaseRow: Equatable {
     let asciiLower: Bool
     let asciiUpper: Bool
     let nonASCII: Bool
+}
+
+
+/// GLOB's third probe is a single-character wildcard rather than a non-ASCII
+/// operand, so it gets its own row instead of reusing `C287TextCaseRow` and
+/// rendering a column named `nonASCII` for something else entirely.
+@SQLResult
+struct C287GlobCaseRow: Equatable {
+    let lowercasePattern: Bool
+    let uppercasePattern: Bool
+    let singleCharacterWildcard: Bool
 }
 
 
@@ -1440,10 +1455,10 @@ public enum SQLiteTypedCombinatorialCases {
             // rather than SQL ones.
             issue287Case(
                 id: "text-glob-case-sensitivity",
-                statement: select(C287TextCaseRow.columns(
-                    asciiLower: alfa.glob("a*"),
-                    asciiUpper: alfa.glob("A*"),
-                    nonASCII: alfa.glob("?lfa")
+                statement: select(C287GlobCaseRow.columns(
+                    lowercasePattern: alfa.glob("a*"),
+                    uppercasePattern: alfa.glob("A*"),
+                    singleCharacterWildcard: alfa.glob("?lfa")
                 )),
                 bindings: [alfaBinding]
             ),

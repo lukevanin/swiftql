@@ -11187,7 +11187,7 @@
         "id" : "oracle.c287.expression.text-glob-case-sensitivity",
         "kind" : "raw-sql"
       },
-      "rendered_sql" : "SELECT (:text_alfa GLOB 'a*') AS \"asciiLower\", (:text_alfa GLOB 'A*') AS \"asciiUpper\", (:text_alfa GLOB '?lfa') AS \"nonASCII\"",
+      "rendered_sql" : "SELECT (:text_alfa GLOB 'a*') AS \"lowercasePattern\", (:text_alfa GLOB 'A*') AS \"uppercasePattern\", (:text_alfa GLOB '?lfa') AS \"singleCharacterWildcard\"",
       "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.text-glob-case-sensitivity swift test --filter SQLiteCombinatorialConformanceTests",
       "required_capabilities" : [
 
