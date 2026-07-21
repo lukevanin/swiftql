@@ -444,13 +444,20 @@ final class OtherTests {
         self.validate(extension_method)
 
     def test_commented_repository_test_is_not_accepted_as_evidence(self) -> None:
+        # Anchored to a real commented-out test so the check is exercised
+        # against the actual repository tree, not just the synthesised
+        # FixtureTests source. That couples this assertion to whichever test
+        # happens to be commented out: reviving or deleting the anchor breaks
+        # it, so repoint it at another commented-out test rather than relaxing
+        # the assertion. (Previously XLExecutionTests.testSelectWhereInSubquery,
+        # which was revived in #311.)
         with self.assertRaisesRegex(
             INVENTORY_TOOL.InventoryError,
-            "no direct 'func testSelectWhereInSubquery",
+            "no direct 'func testSelectSubquery",
         ):
             INVENTORY_TOOL.validate_ordinary_test_reference(
-                "XLExecutionTests.testSelectWhereInSubquery",
-                "Tests/SQLTests/SQLExecutionTests.swift",
+                "XLQueryTests.testSelectSubquery",
+                "Tests/SQLTests/SQLQueryTests.swift",
                 "repository-commented-test",
                 REPOSITORY_ROOT,
             )
