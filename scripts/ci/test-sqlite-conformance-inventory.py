@@ -250,13 +250,15 @@ final class OtherTests {
             (255, "operator-property"),
             (256, "observation"),
             (286, "function-overload-conformance"),
+            (288, "in-subquery-conformance"),
         ]:
-            status = "completed" if issue in {254, 255, 286} else "planned"
+            status = "completed" if issue in {254, 255, 286, 288} else "planned"
+            milestone = {286: "v1.4.1", 288: "v1.4.2"}.get(issue, "v1.3")
             suites.append(
                 {
                     "id": f"suite.{name}",
                     "issue": issue,
-                    "milestone": "v1.4.1" if issue == 286 else "v1.3",
+                    "milestone": milestone,
                     "status": status,
                     "case_ids": (
                         [features[0]["id"]] if status == "completed" else []

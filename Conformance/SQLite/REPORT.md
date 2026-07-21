@@ -22,9 +22,9 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 ## Summary
 
 - Total feature records: **101**
-- Supported feature records: **88**
+- Supported feature records: **89**
 - SQLite environments: **1**
-- Evidence records: **104**
+- Evidence records: **106**
 
 ### Support status
 
@@ -32,8 +32,8 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | --- | ---: |
 | `capability-gated` | 2 |
 | `intentionally-unsupported` | 1 |
-| `partial` | 3 |
-| `supported` | 88 |
+| `partial` | 2 |
+| `supported` | 89 |
 | `unimplemented` | 7 |
 
 ### Adoption status
@@ -41,9 +41,9 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | Value | Features |
 | --- | ---: |
 | `adapter/API-gated` | 2 |
-| `already-covered` | 90 |
+| `already-covered` | 91 |
 | `intentionally-out-of-scope` | 1 |
-| `syntax-gated` | 8 |
+| `syntax-gated` | 7 |
 
 ### Record kind
 
@@ -70,6 +70,7 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | `suite.255.observation-stress` | [#255](https://github.com/lukevanin/swiftql/issues/255) | `v1.3` | `completed` | 12 | 20 |
 | `suite.256.macro-downstream-regressions` | [#256](https://github.com/lukevanin/swiftql/issues/256) | `v1.5` | `planned` | 0 | 0 |
 | `suite.286.function-overload-conformance` | [#286](https://github.com/lukevanin/swiftql/issues/286) | `v1.4.1` | `completed` | 5 | 4 |
+| `suite.288.in-subquery-conformance` | [#288](https://github.com/lukevanin/swiftql/issues/288) | `v1.4.2` | `completed` | 3 | 4 |
 
 ## Feature inventory
 
@@ -175,7 +176,7 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | `northwind.subquery.products-above-average`<br>Products above average price scalar subquery | `subquery` | `adopted-behavior` | `supported` | `already-covered` | [`www.sqlite.org/lang_expr.html#subquery_expressions`](https://www.sqlite.org/lang_expr.html#subquery_expressions) | `3.0.0` | `subquery` [verified: `subquery`] ([`Sources/SwiftQL/SQLFunctionalSyntax.swift`](../../Sources/SwiftQL/SQLFunctionalSyntax.swift)) | `evidence.northwind.subquery-compound-cte.sqlite` | — |
 | `syntax.subquery.correlated-scalar`<br>Correlated scalar subqueries | `subquery` | `syntax` | `supported` | `already-covered` | [`www.sqlite.org/lang_expr.html#subquery_expressions`](https://www.sqlite.org/lang_expr.html#subquery_expressions) | `3.0.0` | `subquery` [verified: `subquery`] ([`Sources/SwiftQL/SQLFunctionalSyntax.swift`](../../Sources/SwiftQL/SQLFunctionalSyntax.swift)) | `evidence.syntax.subquery.sqlite-correlated` | [#70](https://github.com/lukevanin/swiftql/issues/70) |
 | `syntax.subquery.nullable-shape-gap`<br>Nullable-table and direct-scalar subquery result shapes | `subquery` | `syntax` | `unimplemented` | `syntax-gated` | [`www.sqlite.org/lang_expr.html#subquery_expressions`](https://www.sqlite.org/lang_expr.html#subquery_expressions) | `3.0.0` | `subquery` [verified: `subquery`] ([`Sources/SwiftQL/SQLFunctionalSyntax.swift`](../../Sources/SwiftQL/SQLFunctionalSyntax.swift)) | — | [#70](https://github.com/lukevanin/swiftql/issues/70) |
-| `syntax.subquery.table-and-in-prepare-gap`<br>Table and IN-subquery real-SQLite prepare coverage | `subquery` | `syntax` | `partial` | `syntax-gated` | [`www.sqlite.org/lang_expr.html#subquery_expressions`](https://www.sqlite.org/lang_expr.html#subquery_expressions) | `3.0.0` | `subquery` [verified: `subquery`] ([`Sources/SwiftQL/SQLFunctionalSyntax.swift`](../../Sources/SwiftQL/SQLFunctionalSyntax.swift)), `XLExpression.in(expression:)` [verified: `in`] ([`Sources/SwiftQL/Operators/InOperator.swift`](../../Sources/SwiftQL/Operators/InOperator.swift)), `XLExpression.in(_ table:)` [verified: `in`] ([`Sources/SwiftQL/Operators/InOperator.swift`](../../Sources/SwiftQL/Operators/InOperator.swift)) | `evidence.combinatorial.positive.sqlite`, `evidence.syntax.subquery.render-in`, `evidence.syntax.subquery.render-table` | [#288](https://github.com/lukevanin/swiftql/issues/288) |
+| `syntax.subquery.table-and-in-prepare-gap`<br>Table and IN-subquery real-SQLite prepare coverage | `subquery` | `syntax` | `supported` | `already-covered` | [`www.sqlite.org/lang_expr.html#subquery_expressions`](https://www.sqlite.org/lang_expr.html#subquery_expressions) | `3.0.0` | `subquery` [verified: `subquery`] ([`Sources/SwiftQL/SQLFunctionalSyntax.swift`](../../Sources/SwiftQL/SQLFunctionalSyntax.swift)), `XLExpression.in(expression:)` [verified: `in`] ([`Sources/SwiftQL/Operators/InOperator.swift`](../../Sources/SwiftQL/Operators/InOperator.swift)), `XLExpression.in(_ table:)` [verified: `in`] ([`Sources/SwiftQL/Operators/InOperator.swift`](../../Sources/SwiftQL/Operators/InOperator.swift)) | `evidence.combinatorial.in-subquery-execution.sqlite`, `evidence.combinatorial.in-subquery-matrix`, `evidence.combinatorial.positive.sqlite`, `evidence.syntax.subquery.render-in`, `evidence.syntax.subquery.render-table` | [#70](https://github.com/lukevanin/swiftql/issues/70) |
 
 ## Gates, deviations, and deferrals
 
@@ -281,7 +282,7 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | `northwind.subquery.products-above-average` | `database-pool-driver`, `sqlite-core-parser` | Products contains deterministic prices for a scalar AVG subquery and ordered outer result. | — | — |
 | `syntax.subquery.correlated-scalar` | `sqlite-core-parser` | The inner query has a typed row reader and may reference a visible outer table dependency. | The registered real-SQLite evidence covers a correlated scalar aggregate; table and IN-subquery preparation remain separate. | — |
 | `syntax.subquery.nullable-shape-gap` | `sqlite-core-parser` | Nullable table references and scalar cardinality must preserve typed result metadata. | The current overload set cannot represent every nullable-table and scalar result shape. | [#70](https://github.com/lukevanin/swiftql/issues/70) for `v1.4`: Issue #70 owns nullable-table and scalar subquery shapes. |
-| `syntax.subquery.table-and-in-prepare-gap` | `sqlite-core-parser` | The subquery exposes a compatible typed row or scalar layout to the enclosing query. | The generated suite prepares typed table-subquery branches; exhaustive table and IN-subquery overload combinations remain deferred. | [#288](https://github.com/lukevanin/swiftql/issues/288) for `v1.4`: Issue #288 owns exhaustive real-SQLite prepare and execution coverage for table and IN-subquery overloads. |
+| `syntax.subquery.table-and-in-prepare-gap` | `sqlite-core-parser` | The subquery exposes a compatible typed row or scalar layout to the enclosing query. | Issue #288 proves both query-backed entry points with real SQLite: the result-builder and functional forms of `in(expression:)`, and `in(_ table:)` rendered as SQLite's `expr IN table-name` form, each with a non-empty and an empty inner result.<br>Optional operands of the IN overloads remain unproven and stay recorded by syntax.subquery.nullable-shape-gap. | — |
 
 ## Evidence index
 
@@ -293,6 +294,8 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | `evidence.combinatorial.compile-fail-where-after-order-by` | [`Tests/CompileFail/WhereAfterOrderBy.swift`](../../Tests/CompileFail/WhereAfterOrderBy.swift)<br>`compile-fail.query-clause-ordering.where-after-order-by` | [`scripts/ci/check-query-clause-ordering-type-safety.sh`](../../scripts/ci/check-query-clause-ordering-type-safety.sh) | `compile-fail`, `swift-typecheck` | no | — |
 | `evidence.combinatorial.compile-fail-where-requires-boolean` | [`Tests/CompileFail/WhereRequiresBoolean.swift`](../../Tests/CompileFail/WhereRequiresBoolean.swift)<br>`compile-fail.query-clause-ordering.where-requires-boolean` | [`scripts/ci/check-query-clause-ordering-type-safety.sh`](../../scripts/ci/check-query-clause-ordering-type-safety.sh) | `compile-fail`, `swift-typecheck` | no | — |
 | `evidence.combinatorial.function-overload-matrix` | [`Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift`](../../Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift)<br>`SQLiteCombinatorialConformanceTests.testIssue286FunctionOverloadMatrixIsExplicitAndBounded` | — | `bindings`, `rendering`, `swift-typecheck` | no | — |
+| `evidence.combinatorial.in-subquery-execution.sqlite` | [`Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift`](../../Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift)<br>`SQLiteCombinatorialConformanceTests.testIssue288EmptyAndNonEmptyINResultsExecuteAsClaimed` | — | `bindings`, `execution`, `prepare`, `semantic-oracle` | yes | `sqlite-3.51.0-macos-arm64` |
+| `evidence.combinatorial.in-subquery-matrix` | [`Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift`](../../Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift)<br>`SQLiteCombinatorialConformanceTests.testIssue288QueryBackedINCasesAreExplicitAndBounded` | — | `bindings`, `rendering`, `swift-typecheck` | no | — |
 | `evidence.combinatorial.json-capability.sqlite` | [`Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift`](../../Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift)<br>`SQLiteCombinatorialConformanceTests.testPinnedRuntimeAttestsJSONFunctionCapability` | — | `prepare`, `runtime-metadata` | yes | `sqlite-3.51.0-macos-arm64` |
 | `evidence.combinatorial.manifest-determinism` | [`Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift`](../../Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift)<br>`SQLiteCombinatorialConformanceTests.testGeneratedManifestIsDeterministicAndMatchesCheckedInArtifacts` | — | `bindings`, `rendering`, `swift-typecheck` | no | — |
 | `evidence.combinatorial.positive.sqlite` | [`Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift`](../../Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift)<br>`SQLiteCombinatorialConformanceTests.testEveryPositiveCasePreparesAndSemanticOraclesExecute` | — | `bindings`, `execution`, `prepare`, `rendering`, `runtime-metadata`, `semantic-oracle`, `swift-typecheck` | yes | `sqlite-3.51.0-macos-arm64` |

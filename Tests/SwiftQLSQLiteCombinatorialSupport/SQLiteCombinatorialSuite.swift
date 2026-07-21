@@ -93,6 +93,7 @@ public enum SQLiteCombinatorialSuite {
         drafts.append(contentsOf: SQLiteTypedCombinatorialCases.compoundAndCTECases())
         drafts.append(contentsOf: SQLiteTypedCombinatorialCases.northwindAdaptationCases())
         drafts.append(contentsOf: SQLiteTypedCombinatorialCases.adoptedExpressionCases())
+        drafts.append(contentsOf: SQLiteTypedCombinatorialCases.inSubqueryCases())
         drafts.sort { $0.id < $1.id }
 
         try requireUniqueCaseIDs(drafts.map(\.id))
@@ -229,6 +230,7 @@ private extension SQLiteCombinatorialSuite {
         SQLiteTypedCombinatorialCases.compoundAndCTECases().count
             + SQLiteTypedCombinatorialCases.northwindAdaptationCases().count
             + SQLiteTypedCombinatorialCases.adoptedExpressionCases().count
+            + SQLiteTypedCombinatorialCases.inSubqueryCases().count
     }
 
     static var selectDimensions: [SQLiteCombinatorialDimension] {
@@ -381,6 +383,15 @@ private extension SQLiteCombinatorialSuite {
                     SQLiteCombinatorialManifestDimensionValue(id: $0, label: $0)
                 }
         )
+        let inSubquery = SQLiteCombinatorialManifestDimension(
+            id: "in-subquery-case",
+            title: "Query-backed IN entry point",
+            values: SQLiteTypedCombinatorialCases.inSubqueryCases()
+                .compactMap { $0.selections.first?.valueID }
+                .map {
+                    SQLiteCombinatorialManifestDimensionValue(id: $0, label: $0)
+                }
+        )
         let gated = SQLiteCombinatorialManifestDimension(
             id: "gated-prerequisite",
             title: "Explicitly gated typed prerequisite",
@@ -396,6 +407,7 @@ private extension SQLiteCombinatorialSuite {
             compoundOperator,
             expression,
             northwindAdaptation,
+            inSubquery,
             gated,
         ]
     }

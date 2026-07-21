@@ -4,7 +4,7 @@
 - Generator version: `c191-v2`
 - Coordination issue: `#191`
 - Inventory version: `1.3.0`
-- Cases: `168`
+- Cases: `173`
 
 ## Hard bounds
 
@@ -34,6 +34,7 @@
 | compound-operator | Compound operator | union: union, union-all: union-all, intersect: intersect, except: except |
 | expression-case | Adopted expression case | indexed-binding: indexed-binding, numeric-abs: numeric-abs, numeric-round: numeric-round, numeric-floor: numeric-floor, comparable-min: comparable-min, string-printf: string-printf, cast-text-integer: cast-text-integer, cast-text-blob: cast-text-blob, date-unixepoch: date-unixepoch, json-valid: json-valid, json-array-length: json-array-length, operator-arithmetic-precedence: operator-arithmetic-precedence, operator-glob: operator-glob, aggregate-count-distinct: aggregate-count-distinct, aggregate-min-distinct: aggregate-min-distinct, aggregate-max-distinct: aggregate-max-distinct, aggregate-average-distinct: aggregate-average-distinct, aggregate-sum-distinct: aggregate-sum-distinct, aggregate-group-concat-distinct: aggregate-group-concat-distinct, numeric-round-no-places: numeric-round-no-places, numeric-round-optional: numeric-round-optional, comparable-max: comparable-max, string-printf-array: string-printf-array, json-array-length-path: json-array-length-path, cast-bool-integer: cast-bool-integer, cast-optional-bool-integer: cast-optional-bool-integer, cast-integer-real: cast-integer-real, cast-integer-text: cast-integer-text, cast-optional-integer-real: cast-optional-integer-real, cast-optional-integer-text: cast-optional-integer-text, cast-real-integer: cast-real-integer, cast-real-text: cast-real-text, cast-optional-real-integer: cast-optional-real-integer, cast-optional-real-text: cast-optional-real-text, cast-text-real: cast-text-real, cast-optional-text-integer: cast-optional-text-integer, cast-optional-text-real: cast-optional-text-real, cast-optional-text-blob: cast-optional-text-blob, cast-blob-text: cast-blob-text, cast-optional-blob-text: cast-optional-blob-text |
 | northwind-adaptation | Pinned Northwind adaptation | compound-customer-supplier-cities: compound-customer-supplier-cities, cte-order-subtotals: cte-order-subtotals |
+| in-subquery-case | Query-backed IN entry point | in-query-builder-nonempty: in-query-builder-nonempty, in-query-builder-empty: in-query-builder-empty, in-query-functional-nonempty: in-query-functional-nonempty, in-table-nonempty: in-table-nonempty, in-table-empty: in-table-empty |
 | gated-prerequisite | Explicitly gated typed prerequisite | issue-43-direct-scalar-compounds: #43 direct scalar compounds, issue-10-cte-materialization-hints: #10 CTE materialization hints, issue-139-typed-ddl: #139 typed DDL, issue-57-dml-returning: #57 DML RETURNING, issue-21-like-escape: #21 LIKE ESCAPE, issue-45-natural-using-joins: #45 NATURAL and USING joins, issue-70-nullable-subquery-shapes: #70 nullable subquery shapes |
 
 ## Constraints
@@ -241,3 +242,8 @@
 | c286.v1.expression.numeric-round-no-places | expression.numeric-round-no-places | targeted | semantic | expression-case=numeric-round-no-places | syntax.expression.numeric-comparable-functions |  | 1 |
 | c286.v1.expression.numeric-round-optional | expression.numeric-round-optional | targeted | semantic | expression-case=numeric-round-optional | syntax.expression.numeric-comparable-functions |  | 1 |
 | c286.v1.expression.string-printf-array | expression.string-printf-array | targeted | semantic | expression-case=string-printf-array | syntax.expression.string-functions |  | 2 |
+| c288.v1.subquery.in-query-builder-empty | subquery.in-query-builder-empty | targeted | semantic | in-subquery-case=in-query-builder-empty | syntax.expression.current-operators, syntax.select.core, syntax.subquery.table-and-in-prepare-gap |  | 1 |
+| c288.v1.subquery.in-query-builder-nonempty | subquery.in-query-builder-nonempty | targeted | semantic | in-subquery-case=in-query-builder-nonempty | syntax.expression.current-operators, syntax.select.core, syntax.subquery.table-and-in-prepare-gap |  | 1 |
+| c288.v1.subquery.in-query-functional-nonempty | subquery.in-query-functional-nonempty | targeted | semantic | in-subquery-case=in-query-functional-nonempty | syntax.expression.current-operators, syntax.select.core, syntax.subquery.table-and-in-prepare-gap |  | 1 |
+| c288.v1.subquery.in-table-empty | subquery.in-table-empty | targeted | semantic | in-subquery-case=in-table-empty | syntax.expression.current-operators, syntax.select.core, syntax.subquery.table-and-in-prepare-gap |  | 1 |
+| c288.v1.subquery.in-table-nonempty | subquery.in-table-nonempty | targeted | semantic | in-subquery-case=in-table-nonempty | syntax.expression.current-operators, syntax.select.core, syntax.subquery.table-and-in-prepare-gap |  | 1 |

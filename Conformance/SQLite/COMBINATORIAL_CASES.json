@@ -9529,6 +9529,216 @@
       ],
       "strength" : "targeted",
       "template" : "expression.string-printf-array"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "in_subquery_employee_id",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : -1
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "in-subquery-case",
+          "value_id" : "in-query-builder-empty"
+        }
+      ],
+      "id" : "c288.v1.subquery.in-query-builder-empty",
+      "inventory_feature_ids" : [
+        "syntax.expression.current-operators",
+        "syntax.select.core",
+        "syntax.subquery.table-and-in-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c288.subquery.in-query-builder-empty",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"employeeID\" IN (SELECT \"t0\".\"employeeID\" FROM \"Employees\" AS \"t0\" WHERE (\"t0\".\"employeeID\" == :in_subquery_employee_id))) ORDER BY \"t0\".\"orderID\" ASC LIMIT 5",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c288.v1.subquery.in-query-builder-empty swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "subquery.in-query-builder-empty"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "in_subquery_employee_id",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 5
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "in-subquery-case",
+          "value_id" : "in-query-builder-nonempty"
+        }
+      ],
+      "id" : "c288.v1.subquery.in-query-builder-nonempty",
+      "inventory_feature_ids" : [
+        "syntax.expression.current-operators",
+        "syntax.select.core",
+        "syntax.subquery.table-and-in-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c288.subquery.in-query-builder-nonempty",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"employeeID\" IN (SELECT \"t0\".\"employeeID\" FROM \"Employees\" AS \"t0\" WHERE (\"t0\".\"employeeID\" == :in_subquery_employee_id))) ORDER BY \"t0\".\"orderID\" ASC LIMIT 5",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c288.v1.subquery.in-query-builder-nonempty swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "subquery.in-query-builder-nonempty"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "in_subquery_customer_id",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "VINET"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "in-subquery-case",
+          "value_id" : "in-query-functional-nonempty"
+        }
+      ],
+      "id" : "c288.v1.subquery.in-query-functional-nonempty",
+      "inventory_feature_ids" : [
+        "syntax.expression.current-operators",
+        "syntax.select.core",
+        "syntax.subquery.table-and-in-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c288.subquery.in-query-functional-nonempty",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"customerID\" IN (SELECT \"t1\".\"customerID\" FROM \"Customers\" AS \"t1\" WHERE (\"t1\".\"customerID\" == :in_subquery_customer_id))) ORDER BY \"t0\".\"orderID\" ASC LIMIT 5",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c288.v1.subquery.in-query-functional-nonempty swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "subquery.in-query-functional-nonempty"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "in_table_employee_id",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : -1
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "in-subquery-case",
+          "value_id" : "in-table-empty"
+        }
+      ],
+      "id" : "c288.v1.subquery.in-table-empty",
+      "inventory_feature_ids" : [
+        "syntax.expression.current-operators",
+        "syntax.select.core",
+        "syntax.subquery.table-and-in-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c288.subquery.in-table-empty",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "WITH \"cte0\" AS (SELECT \"t0\".\"employeeID\" AS \"employeeID\" FROM \"Employees\" AS \"t0\" WHERE (\"t0\".\"employeeID\" == :in_table_employee_id)) SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"employeeID\" IN \"cte0\") ORDER BY \"t0\".\"orderID\" ASC LIMIT 5",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c288.v1.subquery.in-table-empty swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "subquery.in-table-empty"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "in_table_employee_id",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 4
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "in-subquery-case",
+          "value_id" : "in-table-nonempty"
+        }
+      ],
+      "id" : "c288.v1.subquery.in-table-nonempty",
+      "inventory_feature_ids" : [
+        "syntax.expression.current-operators",
+        "syntax.select.core",
+        "syntax.subquery.table-and-in-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c288.subquery.in-table-nonempty",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "WITH \"cte0\" AS (SELECT \"t0\".\"employeeID\" AS \"employeeID\" FROM \"Employees\" AS \"t0\" WHERE (\"t0\".\"employeeID\" == :in_table_employee_id)) SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"employeeID\" IN \"cte0\") ORDER BY \"t0\".\"orderID\" ASC LIMIT 5",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c288.v1.subquery.in-table-nonempty swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "subquery.in-table-nonempty"
     }
   ],
   "constraints" : [
@@ -10034,6 +10244,32 @@
         {
           "id" : "cte-order-subtotals",
           "label" : "cte-order-subtotals"
+        }
+      ]
+    },
+    {
+      "id" : "in-subquery-case",
+      "title" : "Query-backed IN entry point",
+      "values" : [
+        {
+          "id" : "in-query-builder-nonempty",
+          "label" : "in-query-builder-nonempty"
+        },
+        {
+          "id" : "in-query-builder-empty",
+          "label" : "in-query-builder-empty"
+        },
+        {
+          "id" : "in-query-functional-nonempty",
+          "label" : "in-query-functional-nonempty"
+        },
+        {
+          "id" : "in-table-nonempty",
+          "label" : "in-table-nonempty"
+        },
+        {
+          "id" : "in-table-empty",
+          "label" : "in-table-empty"
         }
       ]
     },

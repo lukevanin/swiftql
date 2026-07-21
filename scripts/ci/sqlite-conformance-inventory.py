@@ -37,6 +37,7 @@ REQUIRED_SUITE_STATUSES = {
     255: "completed",
     256: "planned",
     286: "completed",
+    288: "completed",
 }
 FEATURE_KINDS = {"syntax", "adopted-behavior", "adapter-contract"}
 FEATURE_STATUSES = {
@@ -826,7 +827,7 @@ def validate_suites(value: Any) -> List[Mapping[str, Any]]:
     if seen_issues != set(REQUIRED_SUITE_STATUSES):
         missing = sorted(set(REQUIRED_SUITE_STATUSES) - seen_issues)
         raise InventoryError(
-            "suites must register issues #191, #252-#256, and #286; missing: "
+            "suites must register issues #191, #252-#256, #286, and #288; missing: "
             + ", ".join(f"#{issue}" for issue in missing)
         )
     return result

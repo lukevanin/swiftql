@@ -143,6 +143,37 @@
       ]
     },
     {
+      "id": "evidence.combinatorial.in-subquery-execution.sqlite",
+      "source_path": "Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift",
+      "test_case": "SQLiteCombinatorialConformanceTests.testIssue288EmptyAndNonEmptyINResultsExecuteAsClaimed",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.combinatorial.in-subquery-matrix",
+      "source_path": "Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift",
+      "test_case": "SQLiteCombinatorialConformanceTests.testIssue288QueryBackedINCasesAreExplicitAndBounded",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
       "id": "evidence.combinatorial.json-capability.sqlite",
       "source_path": "Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift",
       "test_case": "SQLiteCombinatorialConformanceTests.testPinnedRuntimeAttestsJSONFunctionCapability",
@@ -1934,6 +1965,23 @@
       "evidence_ids": [
         "evidence.combinatorial.function-overload-matrix",
         "evidence.combinatorial.json-capability.sqlite",
+        "evidence.combinatorial.manifest-determinism",
+        "evidence.combinatorial.positive.sqlite"
+      ]
+    },
+    {
+      "id": "suite.288.in-subquery-conformance",
+      "issue": 288,
+      "milestone": "v1.4.2",
+      "status": "completed",
+      "case_ids": [
+        "syntax.expression.current-operators",
+        "syntax.select.core",
+        "syntax.subquery.table-and-in-prepare-gap"
+      ],
+      "evidence_ids": [
+        "evidence.combinatorial.in-subquery-execution.sqlite",
+        "evidence.combinatorial.in-subquery-matrix",
         "evidence.combinatorial.manifest-determinism",
         "evidence.combinatorial.positive.sqlite"
       ]
@@ -6919,8 +6967,8 @@
       "kind": "syntax",
       "family": "subquery",
       "title": "Table and IN-subquery real-SQLite prepare coverage",
-      "status": "partial",
-      "adoption_status": "syntax-gated",
+      "status": "supported",
+      "adoption_status": "already-covered",
       "public_api": [
         {
           "symbol": "subquery",
@@ -6958,21 +7006,20 @@
         "The subquery exposes a compatible typed row or scalar layout to the enclosing query."
       ],
       "evidence_ids": [
+        "evidence.combinatorial.in-subquery-execution.sqlite",
+        "evidence.combinatorial.in-subquery-matrix",
         "evidence.combinatorial.positive.sqlite",
         "evidence.syntax.subquery.render-in",
         "evidence.syntax.subquery.render-table"
       ],
       "deviations": [
-        "The generated suite prepares typed table-subquery branches; exhaustive table and IN-subquery overload combinations remain deferred."
+        "Issue #288 proves both query-backed entry points with real SQLite: the result-builder and functional forms of `in(expression:)`, and `in(_ table:)` rendered as SQLite's `expr IN table-name` form, each with a non-empty and an empty inner result.",
+        "Optional operands of the IN overloads remain unproven and stay recorded by syntax.subquery.nullable-shape-gap."
       ],
       "follow_up_issues": [
-        288
+        70
       ],
-      "deferral": {
-        "blocking_issue": 288,
-        "target_milestone": "v1.4",
-        "reason": "Issue #288 owns exhaustive real-SQLite prepare and execution coverage for table and IN-subquery overloads."
-      },
+      "deferral": null,
       "provenance": [
 
       ]
