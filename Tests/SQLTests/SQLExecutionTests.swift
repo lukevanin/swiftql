@@ -725,6 +725,14 @@ final class XLExecutionTests: XCTestCase {
             OrderBy(t.id.ascending())
         }
 
+        // Pinned because execution alone cannot prove the aliasing: SQLite
+        // scopes an inner alias over the outer one, so these rows would still
+        // match if both levels rendered as `t0`.
+        XCTAssertEqual(
+            encoder.makeSQL(statement).sql,
+            "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name`, `t0`.`companyId` AS `companyId`, `t0`.`managerEmployeeId` AS `managerEmployeeId` FROM `Employee` AS `t0` WHERE (`t0`.`managerEmployeeId` IN (SELECT `t1`.`id` FROM `Employee` AS `t1` WHERE (`t1`.`managerEmployeeId` ISNULL))) ORDER BY `t0`.`id` ASC"
+        )
+
         let request = database.makeRequest(with: statement)
 
         let results = try request.fetchAll()
