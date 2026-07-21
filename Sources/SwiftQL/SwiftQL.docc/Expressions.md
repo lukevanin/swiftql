@@ -248,8 +248,25 @@ let query = sql { schema in
 }
 ```
 
-> Note: SwiftQL does not currently support an `escape` clause for the `like` 
-operator.
+Because `%` and `_` are wildcards, matching them literally needs an `escape` 
+character. The character following the escape is treated as an ordinary 
+character rather than a wildcard.
+
+Find names containing a literal underscore:
+
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
+```swift
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    Where(person.name.like("%\\_%", escape: "\\"))
+}
+```
+
+> Note: SQLite requires the `escape` value to be exactly one character. A longer 
+or empty value prepares successfully and then fails when the query runs, so 
+prefer a literal escape character over one supplied at runtime.
 
 ### glob operator
 

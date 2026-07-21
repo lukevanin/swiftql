@@ -700,6 +700,34 @@
       ]
     },
     {
+      "id": "evidence.syntax.expression.render-like-escape",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.testSelectWhereLikeWithEscape",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-like-escape-binding",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.testSelectWhereLikeWithEscapeBindsToItsOwnLike",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
       "id": "evidence.syntax.expression.render-operator-divide",
       "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
       "test_case": "XLSyntaxTests.test_IntegerReference_DividedBy_IntegerReference",
@@ -995,6 +1023,37 @@
         "prepare",
         "semantic-oracle",
         "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-like-escape",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testSelectWhereLikeWithEscapeMatchesWildcardsLiterally",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "rendering"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-like-escape-single-character",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testLikeEscapeRejectsMultiCharacterEscapeAtExecution",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "structured-error"
       ],
       "real_sqlite": true,
       "environment_ids": [
@@ -6193,7 +6252,7 @@
         "Support is limited to the named and evidenced constructors; Boolean combinators, comparison ordering, remaining arithmetic, GLOB, and query-backed IN overloads are recorded separately as partial."
       ],
       "follow_up_issues": [
-        21
+
       ],
       "deferral": null,
       "provenance": [
@@ -6322,14 +6381,21 @@
       "kind": "syntax",
       "family": "expression",
       "title": "LIKE expressions with an explicit ESCAPE clause",
-      "status": "unimplemented",
-      "adoption_status": "syntax-gated",
+      "status": "supported",
+      "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLExpression.like",
+          "symbol": "XLExpression.like(_:escape:)",
           "source_path": "Sources/SwiftQL/Operators/TextOperators.swift",
           "source_tokens": [
             "like"
+          ]
+        },
+        {
+          "symbol": "XLLikeEscapeExpression",
+          "source_path": "Sources/SwiftQL/Operators/TextOperators.swift",
+          "source_tokens": [
+            "XLLikeEscapeExpression"
           ]
         }
       ],
@@ -6347,19 +6413,19 @@
         "A typed text expression, pattern, and single-character escape expression are required."
       ],
       "evidence_ids": [
-
+        "evidence.syntax.expression.render-like-escape",
+        "evidence.syntax.expression.render-like-escape-binding",
+        "evidence.syntax.expression.sqlite-like-escape",
+        "evidence.syntax.expression.sqlite-like-escape-single-character"
       ],
       "deviations": [
-        "Current LIKE construction does not expose SQLite's ESCAPE clause."
+        "The escape operand is typed as a required text expression across all four optionality shapes; SQLite additionally requires it to evaluate to exactly one character, which no Swift type can express. A longer or empty value prepares successfully and fails when the statement is stepped.",
+        "ESCAPE renders as part of its own LIKE production rather than as a nested binary expression, so a second LIKE in the same predicate cannot absorb it."
       ],
       "follow_up_issues": [
-        21
+
       ],
-      "deferral": {
-        "blocking_issue": 21,
-        "target_milestone": "v1.4",
-        "reason": "Issue #21 owns the LIKE ESCAPE clause."
-      },
+      "deferral": null,
       "provenance": [
 
       ]

@@ -12493,10 +12493,6 @@
           "label" : "#57 DML RETURNING"
         },
         {
-          "id" : "issue-21-like-escape",
-          "label" : "#21 LIKE ESCAPE"
-        },
-        {
           "id" : "issue-45-natural-using-joins",
           "label" : "#45 NATURAL and USING joins"
         },
@@ -12577,16 +12573,6 @@
       ],
       "id" : "gated.issue-57.dml-returning",
       "reason" : "Not executable in issue #191: typed prerequisite #57 (DML RETURNING) is not implemented."
-    },
-    {
-      "dimension_vector" : [
-        {
-          "dimension_id" : "gated-prerequisite",
-          "value_id" : "issue-21-like-escape"
-        }
-      ],
-      "id" : "gated.issue-21.like-escape",
-      "reason" : "Not executable in issue #191: typed prerequisite #21 (LIKE ESCAPE) is not implemented."
     },
     {
       "dimension_vector" : [

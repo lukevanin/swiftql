@@ -533,6 +533,86 @@ final class XLExecutionTests: XCTestCase {
     }
     
     
+    /// `%` and `_` are LIKE wildcards, so matching them literally needs an
+    /// ESCAPE clause. Each row here differs only in whether the wildcard is a
+    /// real character, which is what makes the escaped and unescaped patterns
+    /// select different rows.
+    func testSelectWhereLikeWithEscapeMatchesWildcardsLiterally() throws {
+        try createTestTable()
+        try insertTest(TestTable(id: "100%", value: 1))
+        try insertTest(TestTable(id: "100x", value: 2))
+        try insertTest(TestTable(id: "a_b", value: 3))
+        try insertTest(TestTable(id: "axb", value: 4))
+
+        let escaped = sql { s in
+            let t = s.table(TestTable.self)
+            Select(t)
+            From(t)
+            Where(t.id.like("100\\%", escape: "\\"))
+        }
+        let escapedResults = try database.makeRequest(with: escaped).fetchAll()
+        XCTAssertEqual(escapedResults, [TestTable(id: "100%", value: 1)])
+
+        let underscore = sql { s in
+            let t = s.table(TestTable.self)
+            Select(t)
+            From(t)
+            Where(t.id.like("a\\_b", escape: "\\"))
+        }
+        let underscoreResults = try database
+            .makeRequest(with: underscore)
+            .fetchAll()
+        XCTAssertEqual(underscoreResults, [TestTable(id: "a_b", value: 3)])
+
+        // Without the escape the same pattern treats `_` as a wildcard and
+        // matches both rows, so the clause is doing real work above.
+        let unescaped = sql { s in
+            let t = s.table(TestTable.self)
+            Select(t)
+            From(t)
+            Where(t.id.like("a_b"))
+            OrderBy(t.value.ascending())
+        }
+        let unescapedResults = try database
+            .makeRequest(with: unescaped)
+            .fetchAll()
+        XCTAssertEqual(
+            unescapedResults,
+            [TestTable(id: "a_b", value: 3), TestTable(id: "axb", value: 4)]
+        )
+    }
+
+    /// A bound escape value is not constrained by the Swift type, so SQLite
+    /// enforces the single-character rule at execution time.
+    func testLikeEscapeRejectsMultiCharacterEscapeAtExecution() throws {
+        try createTestTable()
+        try insertTest(TestTable(id: "100%", value: 1))
+
+        let escapeParameter = XLNamedBindingReference<String>(name: "escape")
+        let statement = sql { s in
+            let t = s.table(TestTable.self)
+            Select(t)
+            From(t)
+            Where(t.id.like("100\\%", escape: escapeParameter))
+        }
+
+        var accepted = database.makeRequest(with: statement)
+        accepted.set(parameter: escapeParameter, value: "\\")
+        XCTAssertEqual(
+            try accepted.fetchAll(),
+            [TestTable(id: "100%", value: 1)]
+        )
+
+        var rejected = database.makeRequest(with: statement)
+        rejected.set(parameter: escapeParameter, value: "too long")
+        XCTAssertThrowsError(try rejected.fetchAll()) { error in
+            XCTAssertTrue(
+                "\(error)".contains("ESCAPE expression must be a single character"),
+                "unexpected error: \(error)"
+            )
+        }
+    }
+
     func testSelectWhereVariable() throws {
         try createTestTable()
         try insertTest(TestTable(id: "foo", value: 9000))
