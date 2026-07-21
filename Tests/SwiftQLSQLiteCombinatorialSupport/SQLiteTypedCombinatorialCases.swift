@@ -1441,6 +1441,19 @@ public enum SQLiteTypedCombinatorialCases {
                 )),
                 bindings: [alfaBinding, upperBinding, accentedBinding]
             ),
+            // The optional LIKE overloads return `Bool?` precisely because a
+            // NULL operand yields NULL. Without this the shape cases would
+            // only ever exercise their non-NULL branch.
+            issue287Case(
+                id: "text-like-null-propagation",
+                statement: select(C287TextMatchRow.columns(
+                    required: alfa.like("a%"),
+                    rightOptional: alfa.like(textNull),
+                    leftOptional: textNull.like("a%"),
+                    bothOptional: textNull.like(textNull)
+                )),
+                bindings: [alfaBinding, textNullBinding]
+            ),
             issue287Case(
                 id: "text-glob-shapes",
                 statement: select(C287TextMatchRow.columns(
@@ -1450,6 +1463,17 @@ public enum SQLiteTypedCombinatorialCases {
                     bothOptional: optionalAlfa.glob(optionalBeta)
                 )),
                 bindings: [alfaBinding, optionalAlfaBinding, optionalBetaBinding]
+            ),
+            // The same NULL branch for the optional GLOB overloads.
+            issue287Case(
+                id: "text-glob-null-propagation",
+                statement: select(C287TextMatchRow.columns(
+                    required: alfa.glob("a*"),
+                    rightOptional: alfa.glob(textNull),
+                    leftOptional: textNull.glob("a*"),
+                    bothOptional: textNull.glob(textNull)
+                )),
+                bindings: [alfaBinding, textNullBinding]
             ),
             // GLOB is case sensitive where LIKE is not, and uses Unix wildcards
             // rather than SQL ones.

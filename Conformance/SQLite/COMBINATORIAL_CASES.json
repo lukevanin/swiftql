@@ -11210,6 +11210,56 @@
         },
         {
           "key_kind" : "named",
+          "key_name" : "text_null",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "text-glob-null-propagation"
+        }
+      ],
+      "id" : "c287.v1.expression.text-glob-null-propagation",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.text-glob-null-propagation",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:text_alfa GLOB 'a*') AS \"required\", (:text_alfa GLOB :text_null) AS \"rightOptional\", (:text_null GLOB 'a*') AS \"leftOptional\", (:text_null GLOB :text_null) AS \"bothOptional\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.text-glob-null-propagation swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.text-glob-null-propagation"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_alfa",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        },
+        {
+          "key_kind" : "named",
           "key_name" : "text_optional_beta",
           "logical_index" : 1,
           "repeat_count" : 2,
@@ -11318,6 +11368,56 @@
       ],
       "strength" : "targeted",
       "template" : "expression.text-like-ascii-case-folding"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_alfa",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_null",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "text-like-null-propagation"
+        }
+      ],
+      "id" : "c287.v1.expression.text-like-null-propagation",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.text-like-null-propagation",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:text_alfa LIKE 'a%') AS \"required\", (:text_alfa LIKE :text_null) AS \"rightOptional\", (:text_null LIKE 'a%') AS \"leftOptional\", (:text_null LIKE :text_null) AS \"bothOptional\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.text-like-null-propagation swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.text-like-null-propagation"
     },
     {
       "bindings" : [
@@ -12355,8 +12455,16 @@
           "label" : "text-like-ascii-case-folding"
         },
         {
+          "id" : "text-like-null-propagation",
+          "label" : "text-like-null-propagation"
+        },
+        {
           "id" : "text-glob-shapes",
           "label" : "text-glob-shapes"
+        },
+        {
+          "id" : "text-glob-null-propagation",
+          "label" : "text-glob-null-propagation"
         },
         {
           "id" : "text-glob-case-sensitivity",

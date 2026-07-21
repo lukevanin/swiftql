@@ -120,7 +120,7 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
 
         XCTAssertEqual(actualSuffixes, expectedSuffixes)
         XCTAssertEqual(issue286Cases.count, 27)
-        XCTAssertEqual(manifest.cases.count, 206)
+        XCTAssertEqual(manifest.cases.count, 208)
         XCTAssertEqual(manifest.hardBounds.maximumCaseCount, 224)
         XCTAssertFalse(issue286Cases.contains { $0.id.contains("unixepoch") })
         XCTAssertTrue(issue286Cases.allSatisfy { $0.mode == .semantic })
@@ -282,15 +282,17 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
             "text-concatenation-null",
             "text-concatenation-shapes",
             "text-glob-case-sensitivity",
+            "text-glob-null-propagation",
             "text-glob-shapes",
             "text-like-ascii-case-folding",
+            "text-like-null-propagation",
             "text-like-shapes",
             "unary-nesting",
             "unary-shapes",
         ]
 
         XCTAssertEqual(Set(bySuffix.keys), expectedSuffixes)
-        XCTAssertEqual(issue287Cases.count, 33)
+        XCTAssertEqual(issue287Cases.count, 35)
         XCTAssertTrue(issue287Cases.allSatisfy { $0.mode == .semantic })
         XCTAssertTrue(issue287Cases.allSatisfy { $0.oracle?.kind == .rawSQL })
         XCTAssertTrue(
@@ -333,14 +335,33 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
             "real-arithmetic-right-optional": [" + ", " - ", " * ", " / "],
             "real-arithmetic-left-optional": [" + ", " - ", " * ", " / "],
             "real-arithmetic-both-optional": [" + ", " - ", " * ", " / "],
+            "integer-arithmetic-null-propagation": [
+                " + ", " - ", " * ", " / ", " % ",
+            ],
+            "integer-division-boundaries": [" / ", " % ", " / 0)", " % 0)"],
+            "real-arithmetic-null-propagation": [" + ", " - ", " * ", " / "],
+            "real-division-boundaries": [" / ", " / 0.0)"],
             "unary-shapes": ["~(", "+(", "-("],
+            "unary-nesting": ["-(-(", " + "],
             "coalesce-storage-classes": ["COALESCE("],
             "coalescing-operator": ["COALESCE("],
             "optional-predicates": ["ISNULL", "NOTNULL"],
             "text-concatenation-shapes": [" || "],
+            "text-concatenation-null": [" || "],
             "text-like-shapes": [" LIKE "],
+            "text-like-null-propagation": [" LIKE "],
+            "text-like-ascii-case-folding": [" LIKE "],
             "text-glob-shapes": [" GLOB "],
+            "text-glob-null-propagation": [" GLOB "],
+            "text-glob-case-sensitivity": [" GLOB "],
         ]
+        // A suffix with no declared tokens would be silently unchecked, so a
+        // new case cannot be added without saying what it must render.
+        XCTAssertEqual(
+            Set(requiredTokens.keys),
+            expectedSuffixes,
+            "every #287 case must declare the tokens it claims to render"
+        )
         for (suffix, tokens) in requiredTokens {
             let rendered = try XCTUnwrap(bySuffix[suffix]).renderedSQL
             for token in tokens {
@@ -546,6 +567,14 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
             "text-glob-shapes": [
                 1.databaseValue, 0.databaseValue,
                 1.databaseValue, 0.databaseValue,
+            ],
+            // The optional overloads' NULL branch: a NULL operand on either
+            // side yields NULL, which is why they return `Bool?`.
+            "text-like-null-propagation": [
+                1.databaseValue, .null, .null, .null,
+            ],
+            "text-glob-null-propagation": [
+                1.databaseValue, .null, .null, .null,
             ],
             // GLOB is case sensitive and uses Unix wildcards, so '?' matches
             // exactly one character.
@@ -1604,6 +1633,16 @@ private extension SQLiteCombinatorialConformanceTests {
                        :text_alfa GLOB :text_optional_beta,
                        :text_optional_alfa GLOB 'a*',
                        :text_optional_alfa GLOB :text_optional_beta
+                """
+        case "text-like-null-propagation":
+            return """
+                SELECT :text_alfa LIKE 'a%', :text_alfa LIKE :text_null,
+                       :text_null LIKE 'a%', :text_null LIKE :text_null
+                """
+        case "text-glob-null-propagation":
+            return """
+                SELECT :text_alfa GLOB 'a*', :text_alfa GLOB :text_null,
+                       :text_null GLOB 'a*', :text_null GLOB :text_null
                 """
         case "text-glob-case-sensitivity":
             return """

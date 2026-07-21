@@ -156,8 +156,8 @@ contracts.
 - Of the 109 evidence records, 71 exercise real SQLite against one captured
   environment, SQLite 3.51.0. Evidence is reusable, so evidence and feature
   counts do not map one to one; never turn this into an exhaustive-SQL claim.
-- The generated corpus holds 206 positives plus one broken-renderer control:
-  141 from #191, 27 from #286, 33 from #287, and 5 from #288. #254 adds 18
+- The generated corpus holds 208 positives plus one broken-renderer control:
+  141 from #191, 27 from #286, 35 from #287, and 5 from #288. #254 adds 18
   Northwind and #255 adds 12 observation-stress cases; no new syntax.
 - #132 remains package-private research. It ships no public validator, build
   plugin, query macro, schema system, or new v1.3 API. It neither persists

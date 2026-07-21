@@ -203,7 +203,7 @@
       ]
     },
     {
-      "id": "evidence.combinatorial.operator-arithmetic-semantics.sqlite",
+      "id": "evidence.combinatorial.operator-arithmetic-text-optional-semantics.sqlite",
       "source_path": "Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift",
       "test_case": "SQLiteCombinatorialConformanceTests.testIssue287ArithmeticTextAndOptionalSemanticsMatchPinnedSQLiteResults",
       "runner_path": null,
@@ -2026,7 +2026,7 @@
       ],
       "evidence_ids": [
         "evidence.combinatorial.manifest-determinism",
-        "evidence.combinatorial.operator-arithmetic-semantics.sqlite",
+        "evidence.combinatorial.operator-arithmetic-text-optional-semantics.sqlite",
         "evidence.combinatorial.operator-matrix",
         "evidence.combinatorial.operator-semantics.sqlite",
         "evidence.combinatorial.positive.sqlite"
@@ -6538,7 +6538,7 @@
         "Operands satisfy the public SwiftQL numeric, Boolean, comparable, text, and optional type constraints."
       ],
       "evidence_ids": [
-        "evidence.combinatorial.operator-arithmetic-semantics.sqlite",
+        "evidence.combinatorial.operator-arithmetic-text-optional-semantics.sqlite",
         "evidence.combinatorial.operator-matrix",
         "evidence.combinatorial.operator-semantics.sqlite",
         "evidence.combinatorial.positive.sqlite",
