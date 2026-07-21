@@ -140,11 +140,15 @@ final class SQLSkillDocumentationTests: XCTestCase {
         let issue286CaseCount = combinatorialManifest.cases.filter {
             $0.id.hasPrefix("c286.v1.expression.")
         }.count
+        let issue287CaseCount = combinatorialManifest.cases.filter {
+            $0.id.hasPrefix("c287.v1.expression.")
+        }.count
         let issue288CaseCount = combinatorialManifest.cases.filter {
             $0.id.hasPrefix("c288.v1.subquery.")
         }.count
         let issue191CaseCount = combinatorialManifest.cases.count
             - issue286CaseCount
+            - issue287CaseCount
             - issue288CaseCount
         XCTAssertTrue(
             combinatorialSuite.evidenceIDs.contains(
@@ -162,13 +166,13 @@ final class SQLSkillDocumentationTests: XCTestCase {
                 + "\(environmentCountText) captured \(environmentNoun), SQLite "
                 + "\(sqliteVersions).",
             "Evidence is reusable, so evidence and feature counts do not map one to one",
-            "#191 contributes \(issue191CaseCount) positives; #286 adds "
-                + "\(issue286CaseCount) function-overload and #288 adds "
-                + "\(issue288CaseCount) IN cases for "
-                + "\(combinatorialManifest.cases.count) current positives plus one "
-                + "broken-renderer control. #254 adds "
-                + "\(northwindSuite.caseIDs.count) Northwind and #255 adds "
-                + "\(observationSuite.caseIDs.count) observation-stress cases",
+            "The generated corpus holds \(combinatorialManifest.cases.count) "
+                + "positives plus one broken-renderer control: "
+                + "\(issue191CaseCount) from #191, \(issue286CaseCount) from #286, "
+                + "\(issue287CaseCount) from #287, and \(issue288CaseCount) from "
+                + "#288. #254 adds \(northwindSuite.caseIDs.count) Northwind and "
+                + "#255 adds \(observationSuite.caseIDs.count) "
+                + "observation-stress cases",
             "It ships no public validator, build plugin, query macro, schema system, or new v1.3 API. It neither persists prepared statements nor removes runtime preparation on a physical connection.",
         ] {
             XCTAssertTrue(

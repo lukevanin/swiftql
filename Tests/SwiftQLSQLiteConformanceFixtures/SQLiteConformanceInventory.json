@@ -203,6 +203,37 @@
       ]
     },
     {
+      "id": "evidence.combinatorial.operator-matrix",
+      "source_path": "Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift",
+      "test_case": "SQLiteCombinatorialConformanceTests.testIssue287OperatorFamilyCasesAreExplicitAndBounded",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.combinatorial.operator-semantics.sqlite",
+      "source_path": "Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift",
+      "test_case": "SQLiteCombinatorialConformanceTests.testIssue287OperatorSemanticsMatchPinnedSQLiteResults",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
       "id": "evidence.combinatorial.positive.sqlite",
       "source_path": "Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift",
       "test_case": "SQLiteCombinatorialConformanceTests.testEveryPositiveCasePreparesAndSemanticOraclesExecute",
@@ -1967,6 +1998,18 @@
         "evidence.combinatorial.json-capability.sqlite",
         "evidence.combinatorial.manifest-determinism",
         "evidence.combinatorial.positive.sqlite"
+      ]
+    },
+    {
+      "id": "suite.287.operator-conformance",
+      "issue": 287,
+      "milestone": "v1.4.2",
+      "status": "planned",
+      "case_ids": [
+
+      ],
+      "evidence_ids": [
+
       ]
     },
     {
@@ -6475,6 +6518,8 @@
         "Operands satisfy the public SwiftQL numeric, Boolean, comparable, text, and optional type constraints."
       ],
       "evidence_ids": [
+        "evidence.combinatorial.operator-matrix",
+        "evidence.combinatorial.operator-semantics.sqlite",
         "evidence.combinatorial.positive.sqlite",
         "evidence.syntax.expression.render-coalescing-operator",
         "evidence.syntax.expression.render-operator-divide",
@@ -6485,7 +6530,9 @@
       ],
       "deviations": [
         "The generated suite adds prepared and executed arithmetic-precedence and GLOB cases to the existing renderer checks.",
-        "Floating-point, optional, comparison, and remaining Boolean and arithmetic overloads do not yet have exhaustive real-SQLite prepare coverage."
+        "Issue #287 part one proves every public Boolean, comparison, and equality overload with real SQLite, packed by operator family and optionality shape so each overload is one result column of a prepared statement.",
+        "The optional equality overloads are typed `Optional<Bool>` in Swift but render SQLite `IS` and `IS NOT`, which are total and never evaluate to NULL. The Swift result type is therefore wider than the SQL semantics.",
+        "Floating-point, integer arithmetic, unary, optional-coalescing, and text overloads do not yet have real-SQLite prepare coverage and remain with issue #287 part two."
       ],
       "follow_up_issues": [
         22,

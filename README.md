@@ -169,7 +169,7 @@ for the complete contracts and current limitations.
 SwiftQL v1.3 adds evidence around that public surface rather than claiming
 complete SQLite grammar coverage. The canonical inventory records 101 features:
 89 supported, 2 partial, 2 capability-gated, 1 intentionally unsupported, and
-7 unimplemented. Of its 106 evidence records, 69 exercise real SQLite and
+7 unimplemented. Of its 108 evidence records, 70 exercise real SQLite and
 cite one recorded SQLite 3.51.0 environment. See
 [SQLite conformance](COMPATIBILITY.md#sqlite-conformance-inventory) for what
 those counts prove, how the #191/#286 combinatorial cases, #254 Northwind
