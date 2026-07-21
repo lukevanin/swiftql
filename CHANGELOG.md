@@ -5,9 +5,9 @@
 ### Added
 
 - Added the #190 canonical SQLite conformance inventory and deterministic
-  generated report. It records 101 public-surface feature records: 89
-  supported, 2 partial, 2 capability-gated, 1 intentionally unsupported, and
-  7 unimplemented. Of the 108 evidence records, 70 exercise real SQLite and
+  generated report. It records 101 public-surface feature records: 90
+  supported, 1 partial, 2 capability-gated, 1 intentionally unsupported, and
+  7 unimplemented. Of the 109 evidence records, 71 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 - Added the #191 bounded combinatorial SQLite corpus with 141 stable generated
   cases across joins, subqueries, common table expressions, grouping,

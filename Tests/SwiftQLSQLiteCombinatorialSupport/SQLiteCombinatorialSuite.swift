@@ -34,7 +34,7 @@ public enum SQLiteCombinatorialSuiteError: Error, Equatable, Sendable {
 public enum SQLiteCombinatorialSuite {
 
     public static let maximumSelectCaseCount = 128
-    public static let maximumCaseCount = 192
+    public static let maximumCaseCount = 224
     public static let generatorVersion = "c191-v2"
 
     /// Returns the deterministic, bounded pairwise SELECT plan.
@@ -96,6 +96,9 @@ public enum SQLiteCombinatorialSuite {
         drafts.append(contentsOf: SQLiteTypedCombinatorialCases.inSubqueryCases())
         drafts.append(
             contentsOf: SQLiteTypedCombinatorialCases.booleanComparisonEqualityCases()
+        )
+        drafts.append(
+            contentsOf: SQLiteTypedCombinatorialCases.arithmeticTextOptionalCases()
         )
         drafts.sort { $0.id < $1.id }
 
@@ -235,6 +238,7 @@ private extension SQLiteCombinatorialSuite {
             + SQLiteTypedCombinatorialCases.adoptedExpressionCases().count
             + SQLiteTypedCombinatorialCases.inSubqueryCases().count
             + SQLiteTypedCombinatorialCases.booleanComparisonEqualityCases().count
+            + SQLiteTypedCombinatorialCases.arithmeticTextOptionalCases().count
     }
 
     static var selectDimensions: [SQLiteCombinatorialDimension] {
@@ -399,7 +403,8 @@ private extension SQLiteCombinatorialSuite {
         let operatorCases = SQLiteCombinatorialManifestDimension(
             id: "operator-case",
             title: "Packed operator overload family",
-            values: SQLiteTypedCombinatorialCases.booleanComparisonEqualityCases()
+            values: (SQLiteTypedCombinatorialCases.booleanComparisonEqualityCases()
+                + SQLiteTypedCombinatorialCases.arithmeticTextOptionalCases())
                 .compactMap { $0.selections.first?.valueID }
                 .map {
                     SQLiteCombinatorialManifestDimensionValue(id: $0, label: $0)

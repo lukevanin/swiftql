@@ -253,7 +253,7 @@ final class OtherTests {
             (287, "operator-conformance"),
             (288, "in-subquery-conformance"),
         ]:
-            status = "completed" if issue in {254, 255, 286, 288} else "planned"
+            status = "completed" if issue in {254, 255, 286, 287, 288} else "planned"
             milestone = {286: "v1.4.1", 287: "v1.4.2", 288: "v1.4.2"}.get(issue, "v1.3")
             suites.append(
                 {

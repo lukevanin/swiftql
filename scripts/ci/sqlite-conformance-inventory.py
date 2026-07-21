@@ -37,7 +37,7 @@ REQUIRED_SUITE_STATUSES = {
     255: "completed",
     256: "planned",
     286: "completed",
-    287: "planned",
+    287: "completed",
     288: "completed",
 }
 FEATURE_KINDS = {"syntax", "adopted-behavior", "adapter-contract"}
