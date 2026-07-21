@@ -698,34 +698,40 @@ final class XLExecutionTests: XCTestCase {
     }
     
     
-//    func testSelectWhereInSubquery() throws {
-//        try createEmployeeTable()
-//        try insertEmployee(EmployeeTable(id: "bos01", name: "Big Boss", managerEmployeeId: nil))
-//        try insertEmployee(EmployeeTable(id: "bos02", name: "Little Boss", managerEmployeeId: nil))
-//        try insertEmployee(EmployeeTable(id: "emp02", name: "Whip", managerEmployeeId: "bos01"))
-//        try insertEmployee(EmployeeTable(id: "emp03", name: "Slave", managerEmployeeId: "bos02"))
-//        
-//        let statement = sqlQuery {
-//            let t = $0.table(EmployeeTable.self, as: "t")
-//            Select(t)
-//            From(t)
-//            Where {
-//                t.managerEmployeeId.in {
-//                    let t = $0.table(EmployeeTable.self, as: "t")
-//                    Select { t.id }
-//                    From(t)
-//                    Where { t.managerEmployeeId.isNull() }
-//                }
-//            }
-//        }
-//        
-//        let request = database.makeRequest(with: statement)
-//        
-//        let results = try request.fetchAll()
-//        XCTAssertEqual(results.count, 2)
-//        XCTAssertEqual(results[0], EmployeeTable(id: "emp02", name: "Whip", managerEmployeeId: "bos01"))
-//        XCTAssertEqual(results[1], EmployeeTable(id: "emp03", name: "Slave", managerEmployeeId: "bos02"))
-//    }
+    /// `IN` where the subquery selects from the *same* table as the outer
+    /// query, so the two nesting levels must receive distinct aliases
+    /// (`Employee AS t0` / `Employee AS t1`). The `c288.v1.subquery.*`
+    /// conformance cases prove both query-backed `IN` entry points against
+    /// real SQLite, but only across *different* tables, and the syntax-level
+    /// `test_*Binding_In_Subquery` tests use a binding rather than an outer
+    /// column on the left-hand side.
+    func testSelectWhereInSubquery() throws {
+        try createEmployeeTable()
+        try insertEmployee(EmployeeTable(id: "bos01", name: "Big Boss", companyId: nil, managerEmployeeId: nil))
+        try insertEmployee(EmployeeTable(id: "bos02", name: "Little Boss", companyId: nil, managerEmployeeId: nil))
+        try insertEmployee(EmployeeTable(id: "emp02", name: "Whip", companyId: nil, managerEmployeeId: "bos01"))
+        try insertEmployee(EmployeeTable(id: "emp03", name: "Slave", companyId: nil, managerEmployeeId: "bos02"))
+
+        let statement = sql { s in
+            let t = s.table(EmployeeTable.self)
+            Select(t)
+            From(t)
+            Where(
+                t.managerEmployeeId.in(expression: {
+                    let m = s.table(EmployeeTable.self)
+                    return select(m.id).from(m).where(m.managerEmployeeId.isNull())
+                })
+            )
+            OrderBy(t.id.ascending())
+        }
+
+        let request = database.makeRequest(with: statement)
+
+        let results = try request.fetchAll()
+        XCTAssertEqual(results.count, 2)
+        XCTAssertEqual(results[0], EmployeeTable(id: "emp02", name: "Whip", companyId: nil, managerEmployeeId: "bos01"))
+        XCTAssertEqual(results[1], EmployeeTable(id: "emp03", name: "Slave", companyId: nil, managerEmployeeId: "bos02"))
+    }
     
     
     // MARK: Scalar SELECT
