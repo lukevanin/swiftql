@@ -39,8 +39,8 @@ model:
   combinatorial manifest and its original 141 stable cases. [#286](https://github.com/lukevanin/swiftql/issues/286)
   adds 27 finite typed function-overload cases, [#288](https://github.com/lukevanin/swiftql/issues/288)
   adds 5 finite typed query-backed IN cases, and [#287](https://github.com/lukevanin/swiftql/issues/287)
-  adds 10 packed operator-family cases, producing the current
-  `c191-v2` manifest with 183 cases and runtime provenance in
+  adds 33 packed operator-family cases, producing the current
+  `c191-v2` manifest with 206 cases and runtime provenance in
   [`COMBINATORIAL_CASES.json`](../../Conformance/SQLite/COMBINATORIAL_CASES.json).
   Its runtime collector already records SQLite version/source ID, compile
   options, functions, collations, module names, caller-supplied extension names,

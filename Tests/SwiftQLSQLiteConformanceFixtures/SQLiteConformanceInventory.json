@@ -203,6 +203,22 @@
       ]
     },
     {
+      "id": "evidence.combinatorial.operator-arithmetic-semantics.sqlite",
+      "source_path": "Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift",
+      "test_case": "SQLiteCombinatorialConformanceTests.testIssue287ArithmeticTextAndOptionalSemanticsMatchPinnedSQLiteResults",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
       "id": "evidence.combinatorial.operator-matrix",
       "source_path": "Tests/SwiftQLSQLiteCombinatorialSupportTests/SQLiteCombinatorialConformanceTests.swift",
       "test_case": "SQLiteCombinatorialConformanceTests.testIssue287OperatorFamilyCasesAreExplicitAndBounded",
@@ -2004,12 +2020,16 @@
       "id": "suite.287.operator-conformance",
       "issue": 287,
       "milestone": "v1.4.2",
-      "status": "planned",
+      "status": "completed",
       "case_ids": [
-
+        "syntax.expression.operator-prepare-gap"
       ],
       "evidence_ids": [
-
+        "evidence.combinatorial.manifest-determinism",
+        "evidence.combinatorial.operator-arithmetic-semantics.sqlite",
+        "evidence.combinatorial.operator-matrix",
+        "evidence.combinatorial.operator-semantics.sqlite",
+        "evidence.combinatorial.positive.sqlite"
       ]
     },
     {
@@ -6427,7 +6447,7 @@
       "kind": "syntax",
       "family": "expression",
       "title": "Remaining public Boolean, comparison, arithmetic, GLOB, and optional operator overloads",
-      "status": "partial",
+      "status": "supported",
       "adoption_status": "already-covered",
       "public_api": [
         {
@@ -6518,6 +6538,7 @@
         "Operands satisfy the public SwiftQL numeric, Boolean, comparable, text, and optional type constraints."
       ],
       "evidence_ids": [
+        "evidence.combinatorial.operator-arithmetic-semantics.sqlite",
         "evidence.combinatorial.operator-matrix",
         "evidence.combinatorial.operator-semantics.sqlite",
         "evidence.combinatorial.positive.sqlite",
@@ -6532,21 +6553,18 @@
         "The generated suite adds prepared and executed arithmetic-precedence and GLOB cases to the existing renderer checks.",
         "Issue #287 part one proves every public Boolean, comparison, and equality overload with real SQLite, packed by operator family and optionality shape so each overload is one result column of a prepared statement.",
         "The optional equality overloads are typed `Optional<Bool>` in Swift but render SQLite `IS` and `IS NOT`, which are total and never evaluate to NULL. The Swift result type is therefore wider than the SQL semantics.",
-        "Floating-point, integer arithmetic, unary, optional-coalescing, and text overloads do not yet have real-SQLite prepare coverage and remain with issue #287 part two."
+        "Issue #287 part two proves the integer, floating-point, unary, optional-coalescing, and text overloads the same way, including the boundaries their Swift signatures cannot express.",
+        "The integer division and remainder overloads return a non-optional `Int`, but SQLite yields NULL for a zero divisor. The Swift result type is therefore narrower than the SQL, and decoding such a column into a non-optional property fails at runtime rather than at compile time.",
+        "SQLite `LIKE` folds case for ASCII only and `GLOB` does not fold at all; neither distinction is visible in the Swift signatures."
       ],
       "follow_up_issues": [
         22,
         29,
         76,
         78,
-        84,
-        287
+        84
       ],
-      "deferral": {
-        "blocking_issue": 287,
-        "target_milestone": "v1.4",
-        "reason": "Issue #287 owns exhaustive render, prepare, and execution coverage for every remaining public operator overload."
-      },
+      "deferral": null,
       "provenance": [
 
       ]
