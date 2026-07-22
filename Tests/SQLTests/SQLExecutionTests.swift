@@ -11,6 +11,13 @@ import GRDB
 import SwiftQL
 
 @SQLResult
+struct NullableSubqueryJoinRow: Equatable {
+    let company: String
+    let employee: String?
+}
+
+
+@SQLResult
 struct ColumnsResultShadowingProjection: Equatable {
     let id: String
     let result: Int
@@ -605,6 +612,44 @@ final class XLExecutionTests: XCTestCase {
         // NOT IN is the exact complement of IN for every reachable shape.
         XCTAssertEqual(try evaluate({ $0.in([2, 3]) }, probeValue: 1), false)
         XCTAssertEqual(try evaluate({ $0.in([]) }, probeValue: 1), false)
+    }
+
+    /// A subquery on the nullable side of a LEFT JOIN, executed. The company
+    /// with no staff must still appear, with NULL columns from the subquery —
+    /// which is the whole point of the nullable shape and is not observable
+    /// from rendering alone.
+    func testNullableSubqueryLeftJoinExecutesWithUnmatchedRows() throws {
+        try database.makeRequest(with: sqlCreate(CompanyTable.self)).execute()
+        try createEmployeeTable()
+        for company in [
+            CompanyTable(id: "c1", name: "Staffed"),
+            CompanyTable(id: "c2", name: "Empty"),
+        ] {
+            try database.makeRequest(with: sqlInsert(company)).execute()
+        }
+        try insertEmployee(EmployeeTable(id: "e1", name: "Worker", companyId: "c1", managerEmployeeId: nil))
+
+        let statement = sql { schema in
+            let company = schema.table(CompanyTable.self)
+            let staff = nullableSubqueryExpression(alias: "staff") { inner in
+                let e = inner.table(EmployeeTable.self)
+                Select(e)
+                From(e)
+            }
+            Select(NullableSubqueryJoinRow.columns(company: company.name, employee: staff.name))
+            From(company)
+            Join.Left(staff, on: staff.companyId == company.id)
+            OrderBy(company.id.ascending())
+        }
+
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(
+            rows,
+            [
+                NullableSubqueryJoinRow(company: "Staffed", employee: "Worker"),
+                NullableSubqueryJoinRow(company: "Empty", employee: nil),
+            ]
+        )
     }
 
     /// The query-backed optional shapes. Before #68 the result-builder form had

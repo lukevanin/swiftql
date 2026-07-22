@@ -461,13 +461,13 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
             let t = schema.table(TestTable.self)
             let r = TestColumns.columns(
                 id: t.id,
-                value: XLTypeAffinityExpression<Int?>(
-                    expression: subqueryExpression { schema in
-                        let t = schema.table(TestTable.self)
-                        Select(t.value.sumOrNull())
-                        From(t)
-                    }
-                )
+                // No XLTypeAffinityExpression wrapper: see the functional
+                // twin in XLSyntaxTests.testSelectSubqueryAggregate.
+                value: subqueryExpression { schema in
+                    let t = schema.table(TestTable.self)
+                    Select(t.value.sumOrNull())
+                    From(t)
+                }
             )
             Select(r)
             From(t)

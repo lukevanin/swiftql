@@ -725,6 +725,16 @@ struct XLSubquery<Wrapped>: XLExpression where Wrapped: XLLiteral {
     init(statement: any XLQueryStatement<Wrapped>) {
         self.statement = statement
     }
+
+    ///
+    /// Accepts a statement that is already optional, so the subquery's own
+    /// nullability does not nest a second `Optional` around it. The statement
+    /// is type-erased for rendering either way; the two initialisers differ
+    /// only in what they accept.
+    ///
+    init(statement: any XLQueryStatement<Optional<Wrapped>>) {
+        self.statement = statement
+    }
     
     func makeSQL(context: inout XLBuilder) {
         context.parenthesis(contents: statement.makeSQL)

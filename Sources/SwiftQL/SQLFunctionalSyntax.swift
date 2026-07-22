@@ -265,8 +265,30 @@ public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQ
 
 
 ///
+/// Constructs a subquery whose columns can evaluate to NULL, for use on the
+/// nullable side of a `LEFT JOIN`.
+///
+/// This is the subquery counterpart of `XLSchema.nullableTable(_:as:)`. The
+/// inner statement is an ordinary one selecting `T`; nullability describes how
+/// the *result* is joined, not what the subquery selects.
+///
+public func nullableSubquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult {
+    let newNamespace = XLNamespace.table()
+    let schema = XLSchema()
+    let alias = newNamespace.makeAlias(alias: alias)
+    let dependency = XLSubqueryDependency(alias: alias, statement: statement(schema))
+    return T.makeSQLAnonymousNullableNamedResult(namespace: newNamespace, dependency: dependency)
+}
+
+
+///
 /// Constructs a subquery with a select query statement that returns a column set that can evaluate to NULL.
 ///
+/// - Warning: Unreachable through SwiftQL's own `select` functions, which only
+///   produce a statement whose row type is the basis type rather than its
+///   generated `Nullable` companion. Use ``nullableSubquery(alias:_:)``.
+///
+@available(*, deprecated, message: "Use nullableSubquery(alias:_:); this overload cannot be selected because no select function produces a statement over a Nullable row type.")
 public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableNamedResult where T: XLMetaNullable, T.Basis: XLResult {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
@@ -291,6 +313,25 @@ public func subquery<T>(_ statement: (XLSchema) -> any XLQueryStatement<T>) -> s
 ///
 public func subquery<T>(_ statement: () -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
     return XLSubquery(statement: statement())
+}
+
+
+///
+/// Constructs a scalar subquery whose inner statement is already nullable.
+///
+/// A scalar subquery is always nullable, because it yields NULL when it selects
+/// no row. When the inner statement is itself optional — an aggregate such as
+/// `sumOrNull()`, or a nullable column — the two sources of NULL collapse into
+/// one rather than nesting into `Optional<Optional<Wrapped>>`.
+///
+public func subquery<Wrapped>(_ statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+    let schema = XLSchema()
+    return XLSubquery<Wrapped>(statement: statement(schema))
+}
+
+
+public func subquery<Wrapped>(_ statement: () -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+    XLSubquery<Wrapped>(statement: statement())
 }
 
 
