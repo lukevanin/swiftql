@@ -1,5 +1,50 @@
 # Changelog
 
+## [1.4.1] - 2026-07-22
+
+### Added
+
+- Added constrained `cast(to:)` overloads across the Bool, integer, real, text,
+  data, and optional conversion matrix. Source nullability is preserved and
+  unsupported cast directions remain unavailable at compile time. The
+  directional `toInt()`, `toDouble()`, `toString()`, and `toData()` helpers now
+  delegate through the new API.
+- Added a typed `all()` expression that renders an unqualified `*`, and
+  `count(all())` with an `Int` result and exact `COUNT(*)` rendering. Row-count
+  semantics are covered for populated, empty, and all-NULL SQLite inputs.
+- Added typed `isBetween(_:_:)` and `isNotBetween(_:_:)` expressions. Nullable
+  operands yield optional Boolean results, and each complete predicate is
+  grouped so SQLite precedence is unambiguous. Compile-fail fixtures reject
+  mismatched and non-comparable operand types in every compatibility cell.
+- Added `total()` overloads for integer, real, nullable integer, and nullable
+  real expressions. They preserve SQLite's non-null `Double` semantics,
+  returning `0.0` for empty and all-NULL inputs, in deliberate contrast with
+  the optional `sum()` API.
+- Broadened `averageOrNull(distinct:)` to integer and real expressions and to
+  their nullable forms, preserving a `Double?` result and plain `AVG(...)`
+  rendering.
+- Extended the bounded combinatorial SQLite corpus from 141 to 168 cases with
+  explicit function, aggregate, JSON, `PRINTF`, and cast coverage. Every new
+  case executes against real SQLite with an independent raw-SQL semantic
+  oracle, including exact JSON capability attestation for `JSON_VALID/1` and
+  `JSON_ARRAY_LENGTH/1,/2`.
+
+### Changed
+
+- Both real Swift 5.9 compatibility cells moved from the retiring `macos-14`
+  runner to `ubuntu-22.04`. The cells install the exact official Swift 5.9.2
+  archive under pinned detached-signature and signing-key verification, and
+  privately link a checksum-verified SQLite 3.53.3 build so an older system
+  SQLite cannot silently reduce the conformance surface. The complete
+  compatibility build and the full package test suite continue to run in both
+  committed- and clean-resolution modes.
+
+### Migration
+
+No migration is required for v1.4.1. Every change is additive or confined to
+continuous integration, and the v1.3 public source and runtime contracts are
+preserved.
+
 ## [1.3.0] - 2026-07-20
 
 ### Added
