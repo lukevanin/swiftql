@@ -1324,7 +1324,23 @@ extension XLDocumentationTests {
             encoder.makeSQL(columnBounds).sql.contains(" BETWEEN ")
         )
 
+        let escapedWildcard = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.name.like("%\\_%", escape: "\\"))
+        }
+        XCTAssertTrue(
+            encoder.makeSQL(escapedWildcard).sql.contains(
+                "LIKE '%\\_%' ESCAPE '\\'"
+            )
+        )
+
         let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testSelectWhereLike
+        let _: (XLExecutionTests) -> () throws -> Void =
+            XLExecutionTests.testSelectWhereLikeWithEscapeMatchesWildcardsLiterally
+        let _: (XLExecutionTests) -> () throws -> Void =
+            XLExecutionTests.testLikeEscapeRejectsMultiCharacterEscapeAtExecution
         let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testSelectWhereIn
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testBetweenExecutesWithLiteralBindingAndColumnBounds
