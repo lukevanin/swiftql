@@ -70,12 +70,17 @@ matrix, and built the exact commit's validated DocC artifact.
    reachability, packaging, dry-run, partial-draft, rerun, and conflict paths
    without calling GitHub's write APIs.
 4. Run the safe test tags below while the changelog still says `Unreleased`.
-   After they pass, merge a final release-preparation change that replaces
+   `scripts/ci/check-release-changelog.sh` skips `release-test/` tags outright,
+   so the dry runs neither need nor exercise the dated heading.
+
+   After they pass, date the heading for the version, replacing
    `## [X.Y.Z] - Unreleased` with exactly `## [X.Y.Z] - YYYY-MM-DD`. Production
-   tags fail before the compiler matrix unless that dated heading is present.
-   `scripts/ci/check-release-changelog.sh` reads the changelog from the tagged
-   commit, not from `main`'s tip. When those differ, follow the next section,
-   "Releasing a commit that is not at `main`'s tip", instead.
+   tags fail before the compiler matrix unless that heading is present on the
+   *tagged* commit, which the script reads directly rather than reading
+   `main`'s tip. When the release commit is `main`'s tip, merge that
+   release-preparation change to `main` and tag the tip. When it is not, put
+   the dated heading on the preparation branch instead and follow "Releasing a
+   commit that is not at `main`'s tip" below.
 5. In repository settings, enable immutable releases. Verify it out of band
    with an administrator token immediately before tagging; HTTP success alone
    is insufficient because the endpoint also returns 200 while disabled:
