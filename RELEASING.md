@@ -25,7 +25,9 @@ matrix, and built the exact commit's validated DocC artifact.
 
    ```sh
    release_tag=vX.Y.Z
-   milestone_title=vX.Y
+   # Set this to the milestone that actually tracks the release: vX.Y when
+   # the line shares one milestone, vX.Y.Z when the patch has its own.
+   milestone_title=MILESTONE_TITLE
 
    gh api --paginate \
      -H 'Accept: application/vnd.github+json' \
@@ -178,9 +180,22 @@ so any commit still reachable from `main` qualifies. Use that:
 ```sh
 git fetch origin main --tags
 release_tag=vX.Y.Z
+
+# While the preparation branch still exists:
 release_sha="$(git rev-parse origin/release/vX.Y.Z-changelog)"
+
+# Or, once it has been deleted, from the preparation PR's merge commit. The
+# second parent of a merge commit is the tip of the branch that was merged:
+merge_sha=MERGE_COMMIT_SHA
+release_sha="$(git rev-parse "$merge_sha^2")"
+
 git merge-base --is-ancestor "$release_sha" origin/main
 ```
+
+Deleting the preparation branch after the merge is safe. The commit stays
+reachable from `main` through the merge commit, so the reachability gate still
+passes; only the branch ref goes away, which is why the second form above
+recovers the SHA from the merge commit instead.
 
 A merge commit is mandatory. A squash merge or a rebase merge rewrites the
 branch's commits into new objects on `main` and orphans the commit the tag
