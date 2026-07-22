@@ -1443,6 +1443,50 @@
       ]
     },
     {
+      "id": "evidence.syntax.subquery.render-flattened-scalar",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.testSelectSubqueryAggregate",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.subquery.render-nullable-left-join",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.testNullableSubqueryOnLeftJoin",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.subquery.sqlite-nullable-left-join",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testNullableSubqueryLeftJoinExecutesWithUnmatchedRows",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
       "id": "evidence.syntax.subquery.render-in",
       "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
       "test_case": "XLSyntaxTests.testScalarSelectWhereIn",
@@ -7337,8 +7381,8 @@
       "kind": "syntax",
       "family": "subquery",
       "title": "Nullable-table and direct-scalar subquery result shapes",
-      "status": "unimplemented",
-      "adoption_status": "syntax-gated",
+      "status": "supported",
+      "adoption_status": "already-covered",
       "public_api": [
         {
           "symbol": "subquery",
@@ -7362,19 +7406,19 @@
         "Nullable table references and scalar cardinality must preserve typed result metadata."
       ],
       "evidence_ids": [
-
+        "evidence.syntax.subquery.render-flattened-scalar",
+        "evidence.syntax.subquery.render-nullable-left-join",
+        "evidence.syntax.subquery.sqlite-nullable-left-join"
       ],
       "deviations": [
-        "The current overload set cannot represent every nullable-table and scalar result shape."
+        "`nullableSubquery` is a distinct function rather than another `subquery` overload, because the two would differ only by return type and could not be disambiguated at a call site.",
+        "The pre-existing `subquery(alias:)` overload constrained to `XLMetaNullable` is deprecated rather than removed. It was unreachable: no `select` function produces a statement whose row type is a generated `Nullable` companion, so no argument satisfying it could be constructed.",
+        "A scalar subquery over an already-optional statement now yields one `Optional` rather than nesting a second. The `XLTypeAffinityExpression` re-labelling that previously collapsed the nested type by hand is no longer needed and has been removed from its two call sites."
       ],
       "follow_up_issues": [
-        70
+
       ],
-      "deferral": {
-        "blocking_issue": 70,
-        "target_milestone": "v1.4",
-        "reason": "Issue #70 owns nullable-table and scalar subquery shapes."
-      },
+      "deferral": null,
       "provenance": [
 
       ]

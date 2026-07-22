@@ -22,9 +22,9 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 ## Summary
 
 - Total feature records: **103**
-- Supported feature records: **93**
+- Supported feature records: **94**
 - SQLite environments: **1**
-- Evidence records: **125**
+- Evidence records: **128**
 
 ### Support status
 
@@ -33,17 +33,17 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | `capability-gated` | 2 |
 | `intentionally-unsupported` | 1 |
 | `partial` | 1 |
-| `supported` | 93 |
-| `unimplemented` | 6 |
+| `supported` | 94 |
+| `unimplemented` | 5 |
 
 ### Adoption status
 
 | Value | Features |
 | --- | ---: |
 | `adapter/API-gated` | 2 |
-| `already-covered` | 94 |
+| `already-covered` | 95 |
 | `intentionally-out-of-scope` | 1 |
-| `syntax-gated` | 6 |
+| `syntax-gated` | 5 |
 
 ### Record kind
 
@@ -178,7 +178,7 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | `syntax.select.ordering-terms`<br>Typed ascending and descending ORDER BY terms | `select` | `syntax` | `supported` | `already-covered` | [`www.sqlite.org/lang_select.html#orderby`](https://www.sqlite.org/lang_select.html#orderby) | `3.0.0` | `XLExpression.ascending` [verified: `ascending`] ([`Sources/SwiftQL/Functions/ExpressionFunctions.swift`](../../Sources/SwiftQL/Functions/ExpressionFunctions.swift)), `XLExpression.descending` [verified: `descending`] ([`Sources/SwiftQL/Functions/ExpressionFunctions.swift`](../../Sources/SwiftQL/Functions/ExpressionFunctions.swift)) | `evidence.combinatorial.positive.sqlite`, `evidence.syntax.expression.render-string-ordering-functions` | — |
 | `northwind.subquery.products-above-average`<br>Products above average price scalar subquery | `subquery` | `adopted-behavior` | `supported` | `already-covered` | [`www.sqlite.org/lang_expr.html#subquery_expressions`](https://www.sqlite.org/lang_expr.html#subquery_expressions) | `3.0.0` | `subquery` [verified: `subquery`] ([`Sources/SwiftQL/SQLFunctionalSyntax.swift`](../../Sources/SwiftQL/SQLFunctionalSyntax.swift)) | `evidence.northwind.subquery-compound-cte.sqlite` | — |
 | `syntax.subquery.correlated-scalar`<br>Correlated scalar subqueries | `subquery` | `syntax` | `supported` | `already-covered` | [`www.sqlite.org/lang_expr.html#subquery_expressions`](https://www.sqlite.org/lang_expr.html#subquery_expressions) | `3.0.0` | `subquery` [verified: `subquery`] ([`Sources/SwiftQL/SQLFunctionalSyntax.swift`](../../Sources/SwiftQL/SQLFunctionalSyntax.swift)) | `evidence.syntax.subquery.sqlite-correlated` | [#70](https://github.com/lukevanin/swiftql/issues/70) |
-| `syntax.subquery.nullable-shape-gap`<br>Nullable-table and direct-scalar subquery result shapes | `subquery` | `syntax` | `unimplemented` | `syntax-gated` | [`www.sqlite.org/lang_expr.html#subquery_expressions`](https://www.sqlite.org/lang_expr.html#subquery_expressions) | `3.0.0` | `subquery` [verified: `subquery`] ([`Sources/SwiftQL/SQLFunctionalSyntax.swift`](../../Sources/SwiftQL/SQLFunctionalSyntax.swift)) | — | [#70](https://github.com/lukevanin/swiftql/issues/70) |
+| `syntax.subquery.nullable-shape-gap`<br>Nullable-table and direct-scalar subquery result shapes | `subquery` | `syntax` | `supported` | `already-covered` | [`www.sqlite.org/lang_expr.html#subquery_expressions`](https://www.sqlite.org/lang_expr.html#subquery_expressions) | `3.0.0` | `subquery` [verified: `subquery`] ([`Sources/SwiftQL/SQLFunctionalSyntax.swift`](../../Sources/SwiftQL/SQLFunctionalSyntax.swift)) | `evidence.syntax.subquery.render-flattened-scalar`, `evidence.syntax.subquery.render-nullable-left-join`, `evidence.syntax.subquery.sqlite-nullable-left-join` | — |
 | `syntax.subquery.table-and-in-prepare-gap`<br>Table and IN-subquery real-SQLite prepare coverage | `subquery` | `syntax` | `supported` | `already-covered` | [`www.sqlite.org/lang_expr.html#subquery_expressions`](https://www.sqlite.org/lang_expr.html#subquery_expressions) | `3.0.0` | `subquery` [verified: `subquery`] ([`Sources/SwiftQL/SQLFunctionalSyntax.swift`](../../Sources/SwiftQL/SQLFunctionalSyntax.swift)), `XLExpression.in(expression:)` [verified: `in`] ([`Sources/SwiftQL/Operators/InOperator.swift`](../../Sources/SwiftQL/Operators/InOperator.swift)), `XLExpression.in(_ table:)` [verified: `in`] ([`Sources/SwiftQL/Operators/InOperator.swift`](../../Sources/SwiftQL/Operators/InOperator.swift)) | `evidence.combinatorial.in-subquery-execution.sqlite`, `evidence.combinatorial.in-subquery-matrix`, `evidence.combinatorial.positive.sqlite`, `evidence.syntax.subquery.render-in`, `evidence.syntax.subquery.render-table` | [#70](https://github.com/lukevanin/swiftql/issues/70) |
 
 ## Gates, deviations, and deferrals
@@ -286,7 +286,7 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | `syntax.select.ordering-terms` | `sqlite-core-parser` | Ordering terms wrap a typed expression in a SELECT ORDER BY clause. | — | — |
 | `northwind.subquery.products-above-average` | `database-pool-driver`, `sqlite-core-parser` | Products contains deterministic prices for a scalar AVG subquery and ordered outer result. | — | — |
 | `syntax.subquery.correlated-scalar` | `sqlite-core-parser` | The inner query has a typed row reader and may reference a visible outer table dependency. | The registered real-SQLite evidence covers a correlated scalar aggregate; table and IN-subquery preparation remain separate. | — |
-| `syntax.subquery.nullable-shape-gap` | `sqlite-core-parser` | Nullable table references and scalar cardinality must preserve typed result metadata. | The current overload set cannot represent every nullable-table and scalar result shape. | [#70](https://github.com/lukevanin/swiftql/issues/70) for `v1.4`: Issue #70 owns nullable-table and scalar subquery shapes. |
+| `syntax.subquery.nullable-shape-gap` | `sqlite-core-parser` | Nullable table references and scalar cardinality must preserve typed result metadata. | `nullableSubquery` is a distinct function rather than another `subquery` overload, because the two would differ only by return type and could not be disambiguated at a call site.<br>The pre-existing `subquery(alias:)` overload constrained to `XLMetaNullable` is deprecated rather than removed. It was unreachable: no `select` function produces a statement whose row type is a generated `Nullable` companion, so no argument satisfying it could be constructed.<br>A scalar subquery over an already-optional statement now yields one `Optional` rather than nesting a second. The `XLTypeAffinityExpression` re-labelling that previously collapsed the nested type by hand is no longer needed and has been removed from its two call sites. | — |
 | `syntax.subquery.table-and-in-prepare-gap` | `sqlite-core-parser` | The subquery exposes a compatible typed row or scalar layout to the enclosing query. | Issue #288 proves both query-backed entry points with real SQLite: the result-builder and functional forms of `in(expression:)`, and `in(_ table:)` rendered as SQLite's `expr IN table-name` form, each with a non-empty and an empty inner result.<br>Optional operands of the IN overloads remain unproven and stay recorded by syntax.subquery.nullable-shape-gap. | — |
 
 ## Evidence index
@@ -402,9 +402,12 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | `evidence.syntax.join.sqlite-left` | [`Tests/SQLTests/SQLExampleTests.swift`](../../Tests/SQLTests/SQLExampleTests.swift)<br>`XLDocumentationTests.testExample_LeftJoin_Statement_NullRows` | — | `execution`, `prepare`, `rendering`, `semantic-oracle`, `swift-typecheck` | yes | `sqlite-3.51.0-macos-arm64` |
 | `evidence.syntax.select.sqlite-limit-offset` | [`Tests/SQLTests/SQLExecutionTests.swift`](../../Tests/SQLTests/SQLExecutionTests.swift)<br>`XLExecutionTests.testQueryBuilderLimitAndOffsetExecution` | — | `bindings`, `execution`, `prepare`, `semantic-oracle`, `swift-typecheck` | yes | `sqlite-3.51.0-macos-arm64` |
 | `evidence.syntax.select.sqlite-named-binding` | [`Tests/SQLTests/SQLExampleTests.swift`](../../Tests/SQLTests/SQLExampleTests.swift)<br>`XLDocumentationTests.testExample_Variable_ExplicitAlias` | — | `bindings`, `execution`, `prepare`, `rendering`, `semantic-oracle`, `swift-typecheck` | yes | `sqlite-3.51.0-macos-arm64` |
+| `evidence.syntax.subquery.render-flattened-scalar` | [`Tests/SQLTests/SQLSyntaxTests.swift`](../../Tests/SQLTests/SQLSyntaxTests.swift)<br>`XLSyntaxTests.testSelectSubqueryAggregate` | — | `rendering`, `swift-typecheck` | no | — |
 | `evidence.syntax.subquery.render-in` | [`Tests/SQLTests/SQLSyntaxTests.swift`](../../Tests/SQLTests/SQLSyntaxTests.swift)<br>`XLSyntaxTests.testScalarSelectWhereIn` | — | `rendering`, `swift-typecheck` | no | — |
+| `evidence.syntax.subquery.render-nullable-left-join` | [`Tests/SQLTests/SQLSyntaxTests.swift`](../../Tests/SQLTests/SQLSyntaxTests.swift)<br>`XLSyntaxTests.testNullableSubqueryOnLeftJoin` | — | `rendering`, `swift-typecheck` | no | — |
 | `evidence.syntax.subquery.render-table` | [`Tests/SQLTests/SQLSyntaxTests.swift`](../../Tests/SQLTests/SQLSyntaxTests.swift)<br>`XLSyntaxTests.testSubquery` | — | `rendering`, `swift-typecheck` | no | — |
 | `evidence.syntax.subquery.sqlite-correlated` | [`Tests/SQLTests/SQLExampleTests.swift`](../../Tests/SQLTests/SQLExampleTests.swift)<br>`XLDocumentationTests.testExample_Subquery` | — | `execution`, `prepare`, `rendering`, `semantic-oracle`, `swift-typecheck` | yes | `sqlite-3.51.0-macos-arm64` |
+| `evidence.syntax.subquery.sqlite-nullable-left-join` | [`Tests/SQLTests/SQLExecutionTests.swift`](../../Tests/SQLTests/SQLExecutionTests.swift)<br>`XLExecutionTests.testNullableSubqueryLeftJoinExecutesWithUnmatchedRows` | — | `execution`, `prepare`, `rendering`, `semantic-oracle` | yes | `sqlite-3.51.0-macos-arm64` |
 | `evidence.transaction.commit.sqlite` | [`Tests/SQLTests/SQLiteTransactionInvariantGRDBTests.swift`](../../Tests/SQLTests/SQLiteTransactionInvariantGRDBTests.swift)<br>`GRDBDriverContractTests_TransactionInvariants.testSharedCommitCasesVerifyDurableStateReturnValuesAndVisibility` | — | `execution`, `prepare`, `semantic-oracle`, `swift-typecheck` | yes | `sqlite-3.51.0-macos-arm64` |
 | `evidence.transaction.fixture-contract` | [`Tests/SwiftQLCoreTests/SQLDriverContractTests.swift`](../../Tests/SwiftQLCoreTests/SQLDriverContractTests.swift)<br>`SQLDriverContractTests.testSharedTransactionFixturesCoverEveryStableCaseAndCapability` | — | `structured-error`, `swift-typecheck` | no | — |
 | `evidence.transaction.independent-databases.sqlite` | [`Tests/SQLTests/SQLiteTransactionInvariantGRDBTests.swift`](../../Tests/SQLTests/SQLiteTransactionInvariantGRDBTests.swift)<br>`GRDBDriverContractTests_TransactionInvariants.testIndependentDatabasesCommitWithoutCrossContamination` | — | `execution`, `prepare`, `semantic-oracle`, `swift-typecheck` | yes | `sqlite-3.51.0-macos-arm64` |

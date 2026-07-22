@@ -1477,17 +1477,41 @@ final class XLSyntaxTests: XCTestCase {
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id FROM Test AS t0")
     }
     
+    /// A subquery on the nullable side of a LEFT JOIN. Before #70 this was not
+    /// expressible: `subquery(alias:)` returns a non-nullable result, and the
+    /// nullable overload could never be selected because no `select` function
+    /// produces a statement over a generated `Nullable` row type.
+    func testNullableSubqueryOnLeftJoin() {
+        let schema = XLSchema()
+        let company = schema.table(CompanyTable.self)
+        let employees = nullableSubquery(alias: "staff") { inner in
+            let e = inner.table(EmployeeTable.self)
+            return select(e).from(e)
+        }
+        let expression = select(company)
+            .from(company)
+            .leftJoin(employees, on: employees.companyId == company.id)
+        // The subquery opens its own namespace, so its inner alias restarts at
+        // t0 rather than continuing the outer numbering. The two t0 scopes do
+        // not collide because the inner one is only visible inside the
+        // parentheses.
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "SELECT t0.id AS id, t0.name AS name FROM Company AS t0 LEFT JOIN (SELECT t0.id AS id, t0.name AS name, t0.companyId AS companyId, t0.managerEmployeeId AS managerEmployeeId FROM Employee AS t0) AS staff ON (staff.companyId IS t0.id)"
+        )
+    }
+
     func testSelectSubqueryAggregate() {
         let s = XLSchema()
         let t = s.table(TestTable.self)
         let r = TestColumns.columns(
             id: t.id,
-            value: XLTypeAffinityExpression<Int?>(
-                expression: subquery {
-                    let t = s.table(TestTable.self)
-                    return select(t.value.sumOrNull()).from(t)
-                }
-            )
+            // No XLTypeAffinityExpression wrapper: the scalar subquery now
+            // yields Int? directly instead of Int??.
+            value: subquery {
+                let t = s.table(TestTable.self)
+                return select(t.value.sumOrNull()).from(t)
+            }
         )
         let expression = select(r).from(t)
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, (SELECT SUM(t1.value) FROM Test AS t1) AS value FROM Test AS t0")

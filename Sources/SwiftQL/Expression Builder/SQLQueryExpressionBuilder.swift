@@ -283,6 +283,34 @@ public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: () -> any
     return XLSubquery(statement: statement())
 }
 
+
+///
+/// Constructs a scalar subquery whose inner statement is already nullable, so
+/// the subquery's own nullability does not nest a second `Optional`.
+///
+public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+    let schema = XLSchema()
+    return XLSubquery<Wrapped>(statement: statement(schema))
+}
+
+
+public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+    XLSubquery<Wrapped>(statement: statement())
+}
+
+
+///
+/// Constructs a subquery whose columns can evaluate to NULL, for use on the
+/// nullable side of a `LEFT JOIN`.
+///
+public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult {
+    let newNamespace = XLNamespace.table()
+    let schema = XLSchema()
+    let alias = newNamespace.makeAlias(alias: alias)
+    let dependency = XLSubqueryDependency(alias: alias, statement: statement(schema))
+    return T.makeSQLAnonymousNullableNamedResult(namespace: newNamespace, dependency: dependency)
+}
+
 // MARK: - SQL
 
 ///

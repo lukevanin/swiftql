@@ -202,12 +202,21 @@ final class SQLiteValueConformanceBoundaryTests: XCTestCase {
             "syntax.ddl.typed-model-gap": 139,
             "syntax.dml.returning-gap": 57,
             "syntax.join.natural-using-gap": 45,
-            "syntax.subquery.nullable-shape-gap": 70,
         ]
         let featuresByID = Dictionary(
             uniqueKeysWithValues: inventory.features.map { ($0.id, $0) }
         )
-        XCTAssertEqual(gatedBlockers.count, 6)
+        XCTAssertEqual(gatedBlockers.count, 5)
+
+        // Issue #70 shipped the nullable-table and flattened-scalar subquery
+        // shapes, so this record is supported rather than gated.
+        let nullableSubquery = try XCTUnwrap(
+            featuresByID["syntax.subquery.nullable-shape-gap"]
+        )
+        XCTAssertEqual(nullableSubquery.status, .supported)
+        XCTAssertEqual(nullableSubquery.adoptionStatus, .alreadyCovered)
+        XCTAssertNil(nullableSubquery.deferral)
+        XCTAssertFalse(nullableSubquery.evidenceIDs.isEmpty)
 
         let likeEscape = try XCTUnwrap(
             featuresByID["syntax.expression.like-escape-gap"]
