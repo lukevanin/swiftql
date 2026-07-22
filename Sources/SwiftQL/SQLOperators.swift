@@ -211,16 +211,26 @@ public struct XLInValueExpression<T>: XLExpression {
     let lhs: any XLExpression
     
     let rhs: any XLEncodable
+
+    let negated: Bool
     
-    public init(lhs: any XLExpression, rhs: any XLEncodable) {
+    ///
+    /// - Parameter lhs: Expression tested for membership.
+    /// - Parameter rhs: Value list or query supplying the candidate set.
+    /// - Parameter negated: Renders `NOT IN` instead of `IN`. The negation is
+    ///   carried by this expression rather than a wrapping `NOT`, so composing
+    ///   the result cannot move it outwards.
+    ///
+    public init(lhs: any XLExpression, rhs: any XLEncodable, negated: Bool = false) {
         self.lhs = lhs
         self.rhs = rhs
+        self.negated = negated
     }
     
     public func makeSQL(context: inout XLBuilder) {
         context.parenthesis { context in
             context.binaryOperator(
-                "IN",
+                negated ? "NOT IN" : "IN",
                 left: lhs.makeSQL,
                 right: { context in
                     context.parenthesis(contents: rhs.makeSQL)
@@ -251,16 +261,27 @@ public struct XLInTableExpression<T>: XLExpression {
     let lhs: any XLExpression
     
     let rhs: any XLEncodable
+
+    let negated: Bool
     
-    public init(lhs: any XLExpression, rhs: any XLEncodable) {
+    ///
+    /// - Parameter lhs: Expression tested for membership.
+    /// - Parameter rhs: Name of the table or common table supplying the
+    ///   candidate set, which must expose exactly one column.
+    /// - Parameter negated: Renders `NOT IN` instead of `IN`. The negation is
+    ///   carried by this expression rather than a wrapping `NOT`, so composing
+    ///   the result cannot move it outwards.
+    ///
+    public init(lhs: any XLExpression, rhs: any XLEncodable, negated: Bool = false) {
         self.lhs = lhs
         self.rhs = rhs
+        self.negated = negated
     }
     
     public func makeSQL(context: inout XLBuilder) {
         context.parenthesis { context in
             context.binaryOperator(
-                "IN",
+                negated ? "NOT IN" : "IN",
                 left: lhs.makeSQL,
                 right: rhs.makeSQL
             )

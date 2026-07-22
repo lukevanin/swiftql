@@ -1341,7 +1341,21 @@ extension XLDocumentationTests {
             XLExecutionTests.testSelectWhereLikeWithEscapeMatchesWildcardsLiterally
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testLikeEscapeRejectsMultiCharacterEscapeAtExecution
+        let notInList = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.occupationId.notIn(["eng", "sci"]))
+        }
+        XCTAssertTrue(
+            encoder.makeSQL(notInList).sql.contains("NOT IN ('eng', 'sci')")
+        )
+
         let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testSelectWhereIn
+        let _: (XLExecutionTests) -> () throws -> Void =
+            XLExecutionTests.testSelectWhereNotInValueList
+        let _: (XLExecutionTests) -> () throws -> Void =
+            XLExecutionTests.testNotInValueListAndEmptySetSemantics
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testBetweenExecutesWithLiteralBindingAndColumnBounds
         let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.test_TextBinding_In_Subquery

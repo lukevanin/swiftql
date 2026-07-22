@@ -1024,6 +1024,47 @@ final class XLSyntaxTests: XCTestCase {
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, t0.value AS value FROM Test AS t0 WHERE ((t0.value > 0) AND (t0.value < 1))")
     }
     
+    func testSelectWhereNotInArrayOfText() {
+        let expression = sqlQuery { s in
+            let t = s.table(TestTable.self)
+            return select(t).from(t).where(t.id.notIn(["foo", "bar"]))
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, t0.value AS value FROM Test AS t0 WHERE (t0.id NOT IN ('foo', 'bar'))")
+    }
+
+    func testSelectWhereNotInEmptyArray() {
+        let expression = sqlQuery { s in
+            let t = s.table(TestTable.self)
+            return select(t).from(t).where(t.id.notIn([]))
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, t0.value AS value FROM Test AS t0 WHERE (t0.id NOT IN ())")
+    }
+
+    func testScalarSelectWhereNotInSubquery() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let expression = select(t)
+            .from(t)
+            .where(
+                t.id.notIn {
+                    select(t.id).from(t)
+                }
+            )
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, t0.value AS value FROM Test AS t0 WHERE (t0.id NOT IN (SELECT t0.id FROM Test AS t0))")
+    }
+
+    /// The negation belongs to the IN operator itself, not to a wrapping NOT,
+    /// so it must not migrate outwards when the predicate is combined.
+    func testSelectWhereNotInComposesWithoutMovingTheNegation() {
+        let expression = sqlQuery { s in
+            let t = s.table(TestTable.self)
+            return select(t).from(t).where(
+                t.id.notIn(["foo"]) && t.id.in(["bar"])
+            )
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, t0.value AS value FROM Test AS t0 WHERE ((t0.id NOT IN ('foo')) AND (t0.id IN ('bar')))")
+    }
+
     func testSelectWhereLikeWithEscape() {
         let expression = sqlQuery { s in
             let t = s.table(TestTable.self)

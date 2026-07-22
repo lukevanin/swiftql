@@ -450,3 +450,30 @@ let query = sql { schema in
 
 This query retrieves the customer rows for customers who placed an order after
 January 1, 2034.
+
+### notIn operator
+
+`notIn` renders SQLite's `NOT IN`. It accepts value lists — including a list 
+compared against an optional column — subqueries, and common table expressions.
+
+One shape of `in` is not mirrored: a subquery compared against an *optional* 
+column. Use `in` with a negated surrounding condition for that case.
+
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
+```swift
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    Where(person.occupationId.notIn(["eng", "sci"]))
+}
+```
+
+SQLite evaluates `NOT IN` as the negation of `IN`, so the same three-valued 
+rules apply: if the value or any element of the set is `NULL` and no match is 
+found, the result is `NULL` rather than `true`, and a `Where` clause filters 
+that row. 
+
+An empty set is the exception. `NOT IN ()` is `true` for every value, including 
+`NULL`, while `IN ()` is `false` for every value. Both are total, and neither 
+depends on the operand.

@@ -533,6 +533,140 @@ final class XLExecutionTests: XCTestCase {
     }
     
     
+    func testSelectWhereNotInValueList() throws {
+        try createTestTable()
+        try insertTest(TestTable(id: "foo", value: 9000))
+        try insertTest(TestTable(id: "bar", value: 42))
+        try insertTest(TestTable(id: "baz", value: 100))
+
+        let statement = sql { s in
+            let t = s.table(TestTable.self)
+            Select(t)
+            From(t)
+            Where(t.id.notIn(["foo", "bar"]))
+            OrderBy(t.id.ascending())
+        }
+        let results = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(results, [TestTable(id: "baz", value: 100)])
+    }
+
+    func testSelectWhereNotInSubquery() throws {
+        try createEmployeeTable()
+        try insertEmployee(EmployeeTable(id: "bos01", name: "Big Boss", companyId: nil, managerEmployeeId: nil))
+        try insertEmployee(EmployeeTable(id: "emp02", name: "Whip", companyId: nil, managerEmployeeId: "bos01"))
+        try insertEmployee(EmployeeTable(id: "emp03", name: "Slave", companyId: nil, managerEmployeeId: "bos01"))
+
+        // Everyone except the top-level bosses.
+        let statement = sql { s in
+            let t = s.table(EmployeeTable.self)
+            Select(t)
+            From(t)
+            Where(
+                t.id.notIn(expression: {
+                    let m = s.table(EmployeeTable.self)
+                    return select(m.id)
+                        .from(m)
+                        .where(m.managerEmployeeId.isNull())
+                })
+            )
+            OrderBy(t.id.ascending())
+        }
+        let results: [EmployeeTable] = try database
+            .makeRequest(with: statement)
+            .fetchAll()
+        XCTAssertEqual(results.map(\EmployeeTable.id), ["emp02", "emp03"])
+    }
+
+    /// The empty set is the one `NOT IN` shape SQLite evaluates totally: it is
+    /// true regardless of the operand, where every other `NOT IN` against a set
+    /// containing NULL is unknown.
+    ///
+    /// A NULL *element* cannot be written through this overload at all — the
+    /// list is `[any XLExpression<Int>]` and an optional expression does not
+    /// conform — so `1 NOT IN (2, NULL)` returning NULL is unreachable from the
+    /// typed surface. Nullable IN operands are owned by #68.
+    func testNotInValueListAndEmptySetSemantics() throws {
+        let probe = XLNamedBindingReference<Int>(name: "probe")
+
+        func evaluate(
+            _ build: (any XLExpression<Int>) -> any XLExpression<Bool>,
+            probeValue: Int
+        ) throws -> Bool? {
+            let statement = sql { _ in Select(build(probe)) }
+            var request = database.makeRequest(with: statement)
+            request.set(probe, probeValue)
+            return try request.fetchOne()
+        }
+
+        XCTAssertEqual(try evaluate({ $0.notIn([2, 3]) }, probeValue: 1), true)
+        XCTAssertEqual(try evaluate({ $0.notIn([1, 2]) }, probeValue: 1), false)
+        XCTAssertEqual(try evaluate({ $0.notIn([]) }, probeValue: 1), true)
+
+        // NOT IN is the exact complement of IN for every reachable shape.
+        XCTAssertEqual(try evaluate({ $0.in([2, 3]) }, probeValue: 1), false)
+        XCTAssertEqual(try evaluate({ $0.in([]) }, probeValue: 1), false)
+    }
+
+    /// The empty set is total: `NOT IN ()` is true and `IN ()` is false for
+    /// every operand, including NULL. This is the one place a NULL operand does
+    /// not make the result unknown, so it is asserted against a column that
+    /// actually holds NULL rather than inferred from the non-NULL case.
+    func testNotInEmptySetIsTotalForNullOperand() throws {
+        try createEmployeeTable()
+        try insertEmployee(EmployeeTable(id: "a", name: "A", companyId: nil, managerEmployeeId: "boss"))
+        try insertEmployee(EmployeeTable(id: "b", name: "B", companyId: nil, managerEmployeeId: nil))
+
+        let notInEmpty = sql { s in
+            let t = s.table(EmployeeTable.self)
+            Select(t)
+            From(t)
+            Where(t.managerEmployeeId.notIn([]))
+            OrderBy(t.id.ascending())
+        }
+        let kept: [EmployeeTable] = try database
+            .makeRequest(with: notInEmpty)
+            .fetchAll()
+        // Both rows survive, including the one whose operand is NULL.
+        XCTAssertEqual(kept.map(\EmployeeTable.id), ["a", "b"])
+
+        let inEmpty = sql { s in
+            let t = s.table(EmployeeTable.self)
+            Select(t)
+            From(t)
+            Where(t.managerEmployeeId.in([]))
+            OrderBy(t.id.ascending())
+        }
+        let dropped: [EmployeeTable] = try database
+            .makeRequest(with: inEmpty)
+            .fetchAll()
+        XCTAssertTrue(dropped.isEmpty)
+    }
+
+    /// A NULL left operand makes `NOT IN` NULL, not true, so those rows are
+    /// filtered out rather than returned. This is the counterpart of the
+    /// optional `in(_:)` overload; broader nullable IN semantics are #68.
+    func testSelectWhereNotInValueListWithOptionalOperand() throws {
+        try createEmployeeTable()
+        try insertEmployee(EmployeeTable(id: "a", name: "A", companyId: nil, managerEmployeeId: "boss"))
+        try insertEmployee(EmployeeTable(id: "b", name: "B", companyId: nil, managerEmployeeId: "other"))
+        try insertEmployee(EmployeeTable(id: "c", name: "C", companyId: nil, managerEmployeeId: nil))
+
+        let statement = sql { s in
+            let t = s.table(EmployeeTable.self)
+            Select(t)
+            From(t)
+            Where(t.managerEmployeeId.notIn(["boss"]))
+            OrderBy(t.id.ascending())
+        }
+        let results: [EmployeeTable] = try database
+            .makeRequest(with: statement)
+            .fetchAll()
+
+        // "b" matches. "a" is excluded by the predicate, and "c" is excluded
+        // because NULL NOT IN ('boss') is NULL rather than true.
+        XCTAssertEqual(results.map(\EmployeeTable.id), ["b"])
+    }
+
     /// `%` and `_` are LIKE wildcards, so matching them literally needs an
     /// ESCAPE clause. Each row here differs only in whether the wildcard is a
     /// real character, which is what makes the escaped and unescaped patterns
@@ -922,6 +1056,54 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertTrue(finalResult.contains("Candace"))
         XCTAssertFalse(finalResult.contains("Dick"))
         XCTAssertFalse(finalResult.contains("Bob"))
+    }
+
+
+    /// `notIn(_ table:)` renders SQLite's `expr NOT IN table-name` form. This is
+    /// the exact complement of `testScalarRecursiveCommonTableExpression`: the
+    /// same fixture and the same common table expression, selecting the rows
+    /// that test excludes.
+    func testScalarRecursiveCommonTableExpressionWithNotIn() throws {
+        try database.makeRequest(with: sqlCreate(Org.self)).execute()
+        let values = [
+            Org(name: "Alice", boss: nil),
+            Org(name: "Jane", boss: "Alice"),
+            Org(name: "Rachel", boss: "Alice"),
+            Org(name: "Cindy", boss: "Jane"),
+            Org(name: "Candace", boss: "Rachel"),
+            Org(name: "Dick", boss: nil),
+            Org(name: "Bob", boss: "Dick"),
+        ]
+        for value in values {
+            try database.makeRequest(with: sqlInsert(value)).execute()
+        }
+
+        typealias Scalar = SQLScalarResult<String?>
+        let expression = sql { schema in
+            let cte = schema.recursiveCommonTableExpression(Scalar.self) { schema, cte in
+                let org = schema.table(Org.self)
+
+                let initialResult = Scalar.columns(scalarValue: "Alice".toNullable())
+                Select(initialResult)
+                Union()
+                Select(Scalar.columns(scalarValue: org.name))
+                From(org)
+                Join.Cross(cte)
+                Where(org.boss == cte.scalarValue)
+            }
+            let org = schema.table(Org.self)
+            With(cte)
+            Select(org.name)
+            From(org)
+            Where(org.name.notIn(cte))
+        }
+
+        let finalResult = try database.makeRequest(with: expression).fetchAll()
+        XCTAssertEqual(finalResult.count, 2)
+        XCTAssertTrue(finalResult.contains("Dick"))
+        XCTAssertTrue(finalResult.contains("Bob"))
+        XCTAssertFalse(finalResult.contains("Alice"))
+        XCTAssertFalse(finalResult.contains("Jane"))
     }
 
 
