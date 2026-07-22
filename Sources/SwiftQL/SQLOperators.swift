@@ -211,16 +211,19 @@ public struct XLInValueExpression<T>: XLExpression {
     let lhs: any XLExpression
     
     let rhs: any XLEncodable
+
+    let negated: Bool
     
-    public init(lhs: any XLExpression, rhs: any XLEncodable) {
+    public init(lhs: any XLExpression, rhs: any XLEncodable, negated: Bool = false) {
         self.lhs = lhs
         self.rhs = rhs
+        self.negated = negated
     }
     
     public func makeSQL(context: inout XLBuilder) {
         context.parenthesis { context in
             context.binaryOperator(
-                "IN",
+                negated ? "NOT IN" : "IN",
                 left: lhs.makeSQL,
                 right: { context in
                     context.parenthesis(contents: rhs.makeSQL)
@@ -251,16 +254,19 @@ public struct XLInTableExpression<T>: XLExpression {
     let lhs: any XLExpression
     
     let rhs: any XLEncodable
+
+    let negated: Bool
     
-    public init(lhs: any XLExpression, rhs: any XLEncodable) {
+    public init(lhs: any XLExpression, rhs: any XLEncodable, negated: Bool = false) {
         self.lhs = lhs
         self.rhs = rhs
+        self.negated = negated
     }
     
     public func makeSQL(context: inout XLBuilder) {
         context.parenthesis { context in
             context.binaryOperator(
-                "IN",
+                negated ? "NOT IN" : "IN",
                 left: lhs.makeSQL,
                 right: rhs.makeSQL
             )
