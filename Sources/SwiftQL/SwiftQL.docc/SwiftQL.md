@@ -98,7 +98,7 @@ Its internal prototype prepares static SQL against a pinned, read-only schema
 snapshot and emits deterministic diagnostics, but v1.3 does not ship a public
 validator, build plugin, query macro, schema system, or new query-declaration
 API. It neither persists prepared statements nor removes runtime preparation
-on each physical connection. Version 1.4.1 is the latest published package.
+on each physical connection. Version 1.4.2 is the latest published package.
 
 ## When to use SwiftQL
 
