@@ -453,11 +453,8 @@ January 1, 2034.
 
 ### notIn operator
 
-`notIn` renders SQLite's `NOT IN`. It accepts value lists — including a list 
-compared against an optional column — subqueries, and common table expressions.
-
-One shape of `in` is not mirrored: a subquery compared against an *optional* 
-column. Use `in` with a negated surrounding condition for that case.
+`notIn` renders SQLite's `NOT IN`. It accepts the same value lists, subqueries, 
+and common table expressions as `in`, in both optional and non-optional forms.
 
 <!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
@@ -477,3 +474,24 @@ that row.
 An empty set is the exception. `NOT IN ()` is `true` for every value, including 
 `NULL`, while `IN ()` is `false` for every value. Both are total, and neither 
 depends on the operand.
+
+### Optional operands and NULL candidates
+
+When the column is optional, both operators return `Bool?` rather than `Bool`, 
+because SQLite cannot always decide the answer. A candidate set may itself 
+contain `NULL`.
+
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
+```swift
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    Where(person.occupationId.in(["eng", Optional<String>.none]))
+}
+```
+
+A match still wins: if the value equals one of the listed candidates the result 
+is `true` even though another candidate is `NULL`. Only an exhausted search is 
+affected — with a `NULL` candidate present the result is `NULL` rather than 
+`false`.

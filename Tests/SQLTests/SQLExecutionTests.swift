@@ -607,6 +607,114 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(try evaluate({ $0.in([]) }, probeValue: 1), false)
     }
 
+    /// The query-backed optional shapes. Before #68 the result-builder form had
+    /// no optional-operand overload at all, so an optional column could not be
+    /// compared against a subquery written in builder syntax.
+    func testOptionalOperandInAndNotInWithBuilderSubquery() throws {
+        try createEmployeeTable()
+        try insertEmployee(EmployeeTable(id: "boss", name: "Boss", companyId: nil, managerEmployeeId: nil))
+        try insertEmployee(EmployeeTable(id: "a", name: "A", companyId: nil, managerEmployeeId: "boss"))
+        try insertEmployee(EmployeeTable(id: "b", name: "B", companyId: nil, managerEmployeeId: "ghost"))
+        try insertEmployee(EmployeeTable(id: "c", name: "C", companyId: nil, managerEmployeeId: nil))
+
+        // Rows whose manager is a real employee.
+        let managed = sql { s in
+            let t = s.table(EmployeeTable.self)
+            Select(t)
+            From(t)
+            Where(
+                t.managerEmployeeId.in { inner in
+                    let m = inner.table(EmployeeTable.self)
+                    Select(m.id)
+                    From(m)
+                }
+            )
+            OrderBy(t.id.ascending())
+        }
+        let managedRows: [EmployeeTable] = try database
+            .makeRequest(with: managed)
+            .fetchAll()
+        XCTAssertEqual(managedRows.map(\EmployeeTable.id), ["a"])
+
+        // The complement drops "c" as well, because a NULL manager makes the
+        // predicate unknown rather than true.
+        let unmanaged = sql { s in
+            let t = s.table(EmployeeTable.self)
+            Select(t)
+            From(t)
+            Where(
+                t.managerEmployeeId.notIn { inner in
+                    let m = inner.table(EmployeeTable.self)
+                    Select(m.id)
+                    From(m)
+                }
+            )
+            OrderBy(t.id.ascending())
+        }
+        let unmanagedRows: [EmployeeTable] = try database
+            .makeRequest(with: unmanaged)
+            .fetchAll()
+        XCTAssertEqual(unmanagedRows.map(\EmployeeTable.id), ["b"])
+    }
+
+    /// SQLite's three-valued IN rules, now that a NULL element can actually be
+    /// written into the candidate set.
+    ///
+    /// A match short-circuits and wins over a NULL element; an exhausted search
+    /// with a NULL element is unknown rather than false. `NOT IN` is the exact
+    /// complement in every case, which is why both are asserted together.
+    func testInAndNotInWithNullElementSemantics() throws {
+        let probe = XLNamedBindingReference<Int?>(name: "probe")
+
+        func evaluate(
+            _ build: (XLNamedBindingReference<Int?>) -> any XLExpression<Optional<Bool>>,
+            probeValue: Int?
+        ) throws -> Bool?? {
+            let statement = sql { _ in Select(build(probe)) }
+            var request = database.makeRequest(with: statement)
+            request.set(probe, probeValue)
+            return try request.fetchOne()
+        }
+
+        let null = Optional<Int>.none
+
+        // A match wins even though the set contains NULL.
+        XCTAssertEqual(
+            try evaluate({ $0.in([1, null]) }, probeValue: 1),
+            .some(.some(true))
+        )
+        XCTAssertEqual(
+            try evaluate({ $0.notIn([1, null]) }, probeValue: 1),
+            .some(.some(false))
+        )
+
+        // No match plus a NULL element is unknown, not false.
+        XCTAssertEqual(
+            try evaluate({ $0.in([2, null]) }, probeValue: 1),
+            .some(.none)
+        )
+        XCTAssertEqual(
+            try evaluate({ $0.notIn([2, null]) }, probeValue: 1),
+            .some(.none)
+        )
+
+        // A NULL operand is unknown against any non-empty set.
+        XCTAssertEqual(
+            try evaluate({ $0.in([1, 2]) }, probeValue: nil),
+            .some(.none)
+        )
+
+        // ...but the empty set stays total even for a NULL operand.
+        XCTAssertEqual(
+            try evaluate({ $0.notIn([]) }, probeValue: nil),
+            .some(.some(true))
+        )
+        XCTAssertEqual(
+            try evaluate({ $0.in([]) }, probeValue: nil),
+            .some(.some(false))
+        )
+    }
+
     /// The empty set is total: `NOT IN ()` is true and `IN ()` is false for
     /// every operand, including NULL. This is the one place a NULL operand does
     /// not make the result unknown, so it is asserted against a column that
