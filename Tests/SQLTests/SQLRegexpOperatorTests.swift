@@ -27,6 +27,9 @@ final class XLRegexpOperatorTests: XCTestCase {
     }
 
     override func tearDownWithError() throws {
+        // Close the pool before removing the file: leaving it open can keep
+        // the SQLite file locked and make the cleanup below fail silently.
+        try? database?.databasePool.close()
         database = nil
         if let fileURL {
             try? FileManager.default.removeItem(at: fileURL)
