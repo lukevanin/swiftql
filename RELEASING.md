@@ -26,8 +26,9 @@ matrix, and built the exact commit's validated DocC artifact.
    ```sh
    release_tag=vX.Y.Z
    # Set this to the milestone that actually tracks the release: vX.Y when
-   # the line shares one milestone, vX.Y.Z when the patch has its own.
-   milestone_title=MILESTONE_TITLE
+   # the line shares one milestone, vX.Y.Z when the patch has its own. Keep
+   # the quotes; a milestone title may contain spaces.
+   milestone_title="MILESTONE_TITLE"
 
    gh api --paginate \
      -H 'Accept: application/vnd.github+json' \
