@@ -9534,6 +9534,2059 @@
       "bindings" : [
         {
           "key_kind" : "named",
+          "key_name" : "bool_true",
+          "logical_index" : 0,
+          "repeat_count" : 3,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 1
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "bool_false",
+          "logical_index" : 1,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 0
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "bool_null",
+          "logical_index" : 2,
+          "repeat_count" : 5,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "boolean-and-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.boolean-and-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.boolean-and-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:bool_true AND :bool_false) AS \"required\", (:bool_true AND :bool_null) AS \"rightOptional\", (:bool_null AND :bool_true) AS \"leftOptional\", (:bool_null AND :bool_null) AS \"bothOptional\", (:bool_null AND :bool_false) AS \"shortCircuit\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.boolean-and-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.boolean-and-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "bool_true",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 1
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "bool_null",
+          "logical_index" : 1,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "boolean-not-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.boolean-not-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.boolean-not-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (NOT :bool_true) AS \"required\", (NOT :bool_null) AS \"optional\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.boolean-not-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.boolean-not-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "bool_true",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 1
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "bool_false",
+          "logical_index" : 1,
+          "repeat_count" : 3,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 0
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "bool_null",
+          "logical_index" : 2,
+          "repeat_count" : 5,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "boolean-or-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.boolean-or-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.boolean-or-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:bool_true OR :bool_false) AS \"required\", (:bool_true OR :bool_null) AS \"rightOptional\", (:bool_null OR :bool_false) AS \"leftOptional\", (:bool_null OR :bool_null) AS \"bothOptional\", (:bool_false OR :bool_null) AS \"shortCircuit\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.boolean-or-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.boolean-or-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_seven",
+          "logical_index" : 1,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "real_null",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_null",
+          "logical_index" : 3,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "coalesce-storage-classes"
+        }
+      ],
+      "id" : "c287.v1.expression.coalesce-storage-classes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.coalesce-storage-classes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT COALESCE(:int_null, 0) AS \"integerFallback\", COALESCE(:int_optional_seven, 0) AS \"integerPresent\", COALESCE(:real_null, 1.5) AS \"realFallback\", COALESCE(:text_null, 'fallback') AS \"textFallback\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.coalesce-storage-classes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.coalesce-storage-classes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "coalescing-operator"
+        }
+      ],
+      "id" : "c287.v1.expression.coalescing-operator",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.coalescing-operator",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT COALESCE(:int_null, 42)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.coalescing-operator swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.coalescing-operator"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional",
+          "logical_index" : 0,
+          "repeat_count" : 5,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_b",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 5
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "comparison-both-optional"
+        }
+      ],
+      "id" : "c287.v1.expression.comparison-both-optional",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.comparison-both-optional",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_optional < :int_optional_b) AS \"less\", (:int_optional <= :int_optional_b) AS \"lessOrEqual\", (:int_optional > :int_optional_b) AS \"greater\", (:int_optional >= :int_optional_b) AS \"greaterOrEqual\", (:int_optional > :int_null) AS \"nullOperand\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.comparison-both-optional swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.comparison-both-optional"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional",
+          "logical_index" : 0,
+          "repeat_count" : 4,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_right",
+          "logical_index" : 1,
+          "repeat_count" : 5,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "comparison-left-optional"
+        }
+      ],
+      "id" : "c287.v1.expression.comparison-left-optional",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.comparison-left-optional",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_optional < :int_right) AS \"less\", (:int_optional <= :int_right) AS \"lessOrEqual\", (:int_optional > :int_right) AS \"greater\", (:int_optional >= :int_right) AS \"greaterOrEqual\", (:int_null > :int_right) AS \"nullOperand\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.comparison-left-optional swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.comparison-left-optional"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_left",
+          "logical_index" : 0,
+          "repeat_count" : 4,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_right",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "comparison-required"
+        }
+      ],
+      "id" : "c287.v1.expression.comparison-required",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.comparison-required",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_left < :int_right) AS \"less\", (:int_left <= :int_right) AS \"lessOrEqual\", (:int_left > :int_right) AS \"greater\", (:int_left >= :int_right) AS \"greaterOrEqual\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.comparison-required swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.comparison-required"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_left",
+          "logical_index" : 0,
+          "repeat_count" : 5,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "comparison-right-optional"
+        }
+      ],
+      "id" : "c287.v1.expression.comparison-right-optional",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.comparison-right-optional",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_left < :int_optional) AS \"less\", (:int_left <= :int_optional) AS \"lessOrEqual\", (:int_left > :int_optional) AS \"greater\", (:int_left >= :int_optional) AS \"greaterOrEqual\", (:int_left > :int_null) AS \"nullOperand\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.comparison-right-optional swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.comparison-right-optional"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_left",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional",
+          "logical_index" : 1,
+          "repeat_count" : 3,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_right",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_b",
+          "logical_index" : 3,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 5
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 4,
+          "repeat_count" : 3,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "equality-optional-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.equality-optional-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.equality-optional-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_left IS :int_optional) AS \"rightOptional\", (:int_optional IS :int_right) AS \"leftOptional\", (:int_optional IS :int_optional_b) AS \"bothOptional\", (:int_left IS :int_null) AS \"nullOperand\", (:int_null IS :int_null) AS \"bothNull\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.equality-optional-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.equality-optional-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_left",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_right",
+          "logical_index" : 1,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_left",
+          "logical_index" : 2,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "equality-required"
+        }
+      ],
+      "id" : "c287.v1.expression.equality-required",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.equality-required",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_left == :int_right) AS \"integerEqual\", (:int_left != :int_right) AS \"integerNotEqual\", (:text_left == :text_left) AS \"textEqual\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.equality-required swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.equality-required"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_left",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional",
+          "logical_index" : 1,
+          "repeat_count" : 3,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_right",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_b",
+          "logical_index" : 3,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 5
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 4,
+          "repeat_count" : 3,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "inequality-optional-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.inequality-optional-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.inequality-optional-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_left IS NOT :int_optional) AS \"rightOptional\", (:int_optional IS NOT :int_right) AS \"leftOptional\", (:int_optional IS NOT :int_optional_b) AS \"bothOptional\", (:int_left IS NOT :int_null) AS \"nullOperand\", (:int_null IS NOT :int_null) AS \"bothNull\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.inequality-optional-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.inequality-optional-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_seven",
+          "logical_index" : 0,
+          "repeat_count" : 5,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_two",
+          "logical_index" : 1,
+          "repeat_count" : 5,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 2
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "integer-arithmetic-both-optional"
+        }
+      ],
+      "id" : "c287.v1.expression.integer-arithmetic-both-optional",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.integer-arithmetic-both-optional",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_optional_seven + :int_optional_two) AS \"add\", (:int_optional_seven - :int_optional_two) AS \"subtract\", (:int_optional_seven * :int_optional_two) AS \"multiply\", (:int_optional_seven / :int_optional_two) AS \"divide\", (:int_optional_seven % :int_optional_two) AS \"modulo\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.integer-arithmetic-both-optional swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.integer-arithmetic-both-optional"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_seven",
+          "logical_index" : 0,
+          "repeat_count" : 5,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_two",
+          "logical_index" : 1,
+          "repeat_count" : 5,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 2
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "integer-arithmetic-left-optional"
+        }
+      ],
+      "id" : "c287.v1.expression.integer-arithmetic-left-optional",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.integer-arithmetic-left-optional",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_optional_seven + :int_two) AS \"add\", (:int_optional_seven - :int_two) AS \"subtract\", (:int_optional_seven * :int_two) AS \"multiply\", (:int_optional_seven / :int_two) AS \"divide\", (:int_optional_seven % :int_two) AS \"modulo\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.integer-arithmetic-left-optional swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.integer-arithmetic-left-optional"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_seven",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 1,
+          "repeat_count" : 5,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_two",
+          "logical_index" : 2,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 2
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_seven",
+          "logical_index" : 3,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "integer-arithmetic-null-propagation"
+        }
+      ],
+      "id" : "c287.v1.expression.integer-arithmetic-null-propagation",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.integer-arithmetic-null-propagation",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_seven + :int_null) AS \"add\", (:int_null - :int_two) AS \"subtract\", (:int_optional_seven * :int_null) AS \"multiply\", (:int_seven / :int_null) AS \"divide\", (:int_null % :int_two) AS \"modulo\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.integer-arithmetic-null-propagation swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.integer-arithmetic-null-propagation"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_seven",
+          "logical_index" : 0,
+          "repeat_count" : 5,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_two",
+          "logical_index" : 1,
+          "repeat_count" : 5,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 2
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "integer-arithmetic-required"
+        }
+      ],
+      "id" : "c287.v1.expression.integer-arithmetic-required",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.integer-arithmetic-required",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_seven + :int_two) AS \"add\", (:int_seven - :int_two) AS \"subtract\", (:int_seven * :int_two) AS \"multiply\", (:int_seven / :int_two) AS \"divide\", (:int_seven % :int_two) AS \"modulo\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.integer-arithmetic-required swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.integer-arithmetic-required"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_seven",
+          "logical_index" : 0,
+          "repeat_count" : 5,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_two",
+          "logical_index" : 1,
+          "repeat_count" : 5,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 2
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "integer-arithmetic-right-optional"
+        }
+      ],
+      "id" : "c287.v1.expression.integer-arithmetic-right-optional",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.integer-arithmetic-right-optional",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_seven + :int_optional_two) AS \"add\", (:int_seven - :int_optional_two) AS \"subtract\", (:int_seven * :int_optional_two) AS \"multiply\", (:int_seven / :int_optional_two) AS \"divide\", (:int_seven % :int_optional_two) AS \"modulo\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.integer-arithmetic-right-optional swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.integer-arithmetic-right-optional"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_seven",
+          "logical_index" : 0,
+          "repeat_count" : 4,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_two",
+          "logical_index" : 1,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 2
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_negative_seven",
+          "logical_index" : 2,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : -7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_three",
+          "logical_index" : 3,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 3
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_negative_three",
+          "logical_index" : 4,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : -3
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "integer-division-boundaries"
+        }
+      ],
+      "id" : "c287.v1.expression.integer-division-boundaries",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.integer-division-boundaries",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_seven / :int_two) AS \"truncation\", (:int_negative_seven / :int_two) AS \"negativeTruncation\", (:int_seven / 0) AS \"divideByZero\", (:int_seven % 0) AS \"moduloByZero\", (:int_negative_seven % :int_three) AS \"negativeDividendModulo\", (:int_seven % :int_negative_three) AS \"negativeDivisorModulo\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.integer-division-boundaries swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.integer-division-boundaries"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_null",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_seven",
+          "logical_index" : 1,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_seven",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "optional-predicates"
+        }
+      ],
+      "id" : "c287.v1.expression.optional-predicates",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.optional-predicates",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:int_null ISNULL) AS \"isNullOnNull\", (:int_optional_seven ISNULL) AS \"isNullOnValue\", (:int_null NOTNULL) AS \"notNullOnNull\", (:int_optional_seven NOTNULL) AS \"notNullOnValue\", :int_seven AS \"widened\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.optional-predicates swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.optional-predicates"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "real_optional_seven",
+          "logical_index" : 0,
+          "repeat_count" : 4,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "7.0"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "real_optional_two",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "2.0"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "real-arithmetic-both-optional"
+        }
+      ],
+      "id" : "c287.v1.expression.real-arithmetic-both-optional",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.real-arithmetic-both-optional",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:real_optional_seven + :real_optional_two) AS \"add\", (:real_optional_seven - :real_optional_two) AS \"subtract\", (:real_optional_seven * :real_optional_two) AS \"multiply\", (:real_optional_seven / :real_optional_two) AS \"divide\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.real-arithmetic-both-optional swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.real-arithmetic-both-optional"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "real_optional_seven",
+          "logical_index" : 0,
+          "repeat_count" : 4,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "7.0"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "real_two",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "2.0"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "real-arithmetic-left-optional"
+        }
+      ],
+      "id" : "c287.v1.expression.real-arithmetic-left-optional",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.real-arithmetic-left-optional",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:real_optional_seven + :real_two) AS \"add\", (:real_optional_seven - :real_two) AS \"subtract\", (:real_optional_seven * :real_two) AS \"multiply\", (:real_optional_seven / :real_two) AS \"divide\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.real-arithmetic-left-optional swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.real-arithmetic-left-optional"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "real_seven",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "7.0"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "real_null",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "real_two",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "2.0"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "real_optional_seven",
+          "logical_index" : 3,
+          "repeat_count" : 1,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "7.0"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "real-arithmetic-null-propagation"
+        }
+      ],
+      "id" : "c287.v1.expression.real-arithmetic-null-propagation",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.real-arithmetic-null-propagation",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:real_seven + :real_null) AS \"add\", (:real_null - :real_two) AS \"subtract\", (:real_optional_seven * :real_null) AS \"multiply\", (:real_seven / :real_null) AS \"divide\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.real-arithmetic-null-propagation swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.real-arithmetic-null-propagation"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "real_seven",
+          "logical_index" : 0,
+          "repeat_count" : 4,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "7.0"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "real_two",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "2.0"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "real-arithmetic-required"
+        }
+      ],
+      "id" : "c287.v1.expression.real-arithmetic-required",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.real-arithmetic-required",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:real_seven + :real_two) AS \"add\", (:real_seven - :real_two) AS \"subtract\", (:real_seven * :real_two) AS \"multiply\", (:real_seven / :real_two) AS \"divide\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.real-arithmetic-required swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.real-arithmetic-required"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "real_seven",
+          "logical_index" : 0,
+          "repeat_count" : 4,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "7.0"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "real_optional_two",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "2.0"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "real-arithmetic-right-optional"
+        }
+      ],
+      "id" : "c287.v1.expression.real-arithmetic-right-optional",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.real-arithmetic-right-optional",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:real_seven + :real_optional_two) AS \"add\", (:real_seven - :real_optional_two) AS \"subtract\", (:real_seven * :real_optional_two) AS \"multiply\", (:real_seven / :real_optional_two) AS \"divide\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.real-arithmetic-right-optional swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.real-arithmetic-right-optional"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "real_seven",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "7.0"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "real_two",
+          "logical_index" : 1,
+          "repeat_count" : 1,
+          "storage" : "real",
+          "tagged_value" : {
+            "tag" : "real",
+            "value" : "2.0"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "real-division-boundaries"
+        }
+      ],
+      "id" : "c287.v1.expression.real-division-boundaries",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.real-division-boundaries",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:real_seven / :real_two) AS \"exactHalf\", (:real_seven / 0.0) AS \"divideByZero\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.real-division-boundaries swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.real-division-boundaries"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_alfa",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_beta",
+          "logical_index" : 1,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "beta"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_null",
+          "logical_index" : 2,
+          "repeat_count" : 4,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "text-concatenation-null"
+        }
+      ],
+      "id" : "c287.v1.expression.text-concatenation-null",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.text-concatenation-null",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:text_alfa || :text_beta) AS \"required\", (:text_alfa || :text_null) AS \"rightOptional\", (:text_null || :text_beta) AS \"leftOptional\", (:text_null || :text_null) AS \"bothOptional\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.text-concatenation-null swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.text-concatenation-null"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_alfa",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_beta",
+          "logical_index" : 1,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "beta"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_optional_beta",
+          "logical_index" : 2,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "beta"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_optional_alfa",
+          "logical_index" : 3,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "text-concatenation-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.text-concatenation-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.text-concatenation-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:text_alfa || :text_beta) AS \"required\", (:text_alfa || :text_optional_beta) AS \"rightOptional\", (:text_optional_alfa || :text_beta) AS \"leftOptional\", (:text_optional_alfa || :text_optional_beta) AS \"bothOptional\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.text-concatenation-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.text-concatenation-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_alfa",
+          "logical_index" : 0,
+          "repeat_count" : 3,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "text-glob-case-sensitivity"
+        }
+      ],
+      "id" : "c287.v1.expression.text-glob-case-sensitivity",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.text-glob-case-sensitivity",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:text_alfa GLOB 'a*') AS \"lowercasePattern\", (:text_alfa GLOB 'A*') AS \"uppercasePattern\", (:text_alfa GLOB '?lfa') AS \"singleCharacterWildcard\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.text-glob-case-sensitivity swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.text-glob-case-sensitivity"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_alfa",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_null",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "text-glob-null-propagation"
+        }
+      ],
+      "id" : "c287.v1.expression.text-glob-null-propagation",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.text-glob-null-propagation",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:text_alfa GLOB 'a*') AS \"required\", (:text_alfa GLOB :text_null) AS \"rightOptional\", (:text_null GLOB 'a*') AS \"leftOptional\", (:text_null GLOB :text_null) AS \"bothOptional\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.text-glob-null-propagation swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.text-glob-null-propagation"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_alfa",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_optional_beta",
+          "logical_index" : 1,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "beta"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_optional_alfa",
+          "logical_index" : 2,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "text-glob-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.text-glob-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.text-glob-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:text_alfa GLOB 'a*') AS \"required\", (:text_alfa GLOB :text_optional_beta) AS \"rightOptional\", (:text_optional_alfa GLOB 'a*') AS \"leftOptional\", (:text_optional_alfa GLOB :text_optional_beta) AS \"bothOptional\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.text-glob-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.text-glob-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_alfa",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_upper",
+          "logical_index" : 1,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "ALFA"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_accented",
+          "logical_index" : 2,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "Ä"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "text-like-ascii-case-folding"
+        }
+      ],
+      "id" : "c287.v1.expression.text-like-ascii-case-folding",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.text-like-ascii-case-folding",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:text_alfa LIKE 'A%') AS \"asciiLower\", (:text_upper LIKE 'a%') AS \"asciiUpper\", (:text_accented LIKE 'ä') AS \"nonASCII\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.text-like-ascii-case-folding swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.text-like-ascii-case-folding"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_alfa",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_null",
+          "logical_index" : 1,
+          "repeat_count" : 4,
+          "storage" : "null",
+          "tagged_value" : {
+            "tag" : "null"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "text-like-null-propagation"
+        }
+      ],
+      "id" : "c287.v1.expression.text-like-null-propagation",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.text-like-null-propagation",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:text_alfa LIKE 'a%') AS \"required\", (:text_alfa LIKE :text_null) AS \"rightOptional\", (:text_null LIKE 'a%') AS \"leftOptional\", (:text_null LIKE :text_null) AS \"bothOptional\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.text-like-null-propagation swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.text-like-null-propagation"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_alfa",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_optional_beta",
+          "logical_index" : 1,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "beta"
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "text_optional_alfa",
+          "logical_index" : 2,
+          "repeat_count" : 2,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "alfa"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "text-like-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.text-like-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.text-like-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:text_alfa LIKE 'a%') AS \"required\", (:text_alfa LIKE :text_optional_beta) AS \"rightOptional\", (:text_optional_alfa LIKE 'a%') AS \"leftOptional\", (:text_optional_alfa LIKE :text_optional_beta) AS \"bothOptional\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.text-like-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.text-like-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_seven",
+          "logical_index" : 0,
+          "repeat_count" : 2,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_two",
+          "logical_index" : 1,
+          "repeat_count" : 1,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 2
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "unary-nesting"
+        }
+      ],
+      "id" : "c287.v1.expression.unary-nesting",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.unary-nesting",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT -(-(:int_seven)) AS \"doubleNegation\", -((:int_seven + :int_two)) AS \"negatedSum\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.unary-nesting swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.unary-nesting"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "int_seven",
+          "logical_index" : 0,
+          "repeat_count" : 3,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        },
+        {
+          "key_kind" : "named",
+          "key_name" : "int_optional_seven",
+          "logical_index" : 1,
+          "repeat_count" : 3,
+          "storage" : "integer",
+          "tagged_value" : {
+            "tag" : "integer",
+            "value" : 7
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "operator-case",
+          "value_id" : "unary-shapes"
+        }
+      ],
+      "id" : "c287.v1.expression.unary-shapes",
+      "inventory_feature_ids" : [
+        "syntax.expression.operator-prepare-gap"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c287.expression.unary-shapes",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT ~(:int_seven) AS \"bitwiseNot\", ~(:int_optional_seven) AS \"optionalBitwiseNot\", +(:int_seven) AS \"unaryPlus\", +(:int_optional_seven) AS \"optionalUnaryPlus\", -(:int_seven) AS \"unaryMinus\", -(:int_optional_seven) AS \"optionalUnaryMinus\"",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c287.v1.expression.unary-shapes swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+
+      ],
+      "strength" : "targeted",
+      "template" : "expression.unary-shapes"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
           "key_name" : "in_subquery_employee_id",
           "logical_index" : 0,
           "repeat_count" : 1,
@@ -10274,6 +12327,152 @@
       ]
     },
     {
+      "id" : "operator-case",
+      "title" : "Packed operator overload family",
+      "values" : [
+        {
+          "id" : "boolean-not-shapes",
+          "label" : "boolean-not-shapes"
+        },
+        {
+          "id" : "boolean-and-shapes",
+          "label" : "boolean-and-shapes"
+        },
+        {
+          "id" : "boolean-or-shapes",
+          "label" : "boolean-or-shapes"
+        },
+        {
+          "id" : "comparison-required",
+          "label" : "comparison-required"
+        },
+        {
+          "id" : "comparison-right-optional",
+          "label" : "comparison-right-optional"
+        },
+        {
+          "id" : "comparison-left-optional",
+          "label" : "comparison-left-optional"
+        },
+        {
+          "id" : "comparison-both-optional",
+          "label" : "comparison-both-optional"
+        },
+        {
+          "id" : "equality-required",
+          "label" : "equality-required"
+        },
+        {
+          "id" : "equality-optional-shapes",
+          "label" : "equality-optional-shapes"
+        },
+        {
+          "id" : "inequality-optional-shapes",
+          "label" : "inequality-optional-shapes"
+        },
+        {
+          "id" : "integer-arithmetic-required",
+          "label" : "integer-arithmetic-required"
+        },
+        {
+          "id" : "integer-arithmetic-right-optional",
+          "label" : "integer-arithmetic-right-optional"
+        },
+        {
+          "id" : "integer-arithmetic-left-optional",
+          "label" : "integer-arithmetic-left-optional"
+        },
+        {
+          "id" : "integer-arithmetic-both-optional",
+          "label" : "integer-arithmetic-both-optional"
+        },
+        {
+          "id" : "integer-arithmetic-null-propagation",
+          "label" : "integer-arithmetic-null-propagation"
+        },
+        {
+          "id" : "integer-division-boundaries",
+          "label" : "integer-division-boundaries"
+        },
+        {
+          "id" : "real-arithmetic-required",
+          "label" : "real-arithmetic-required"
+        },
+        {
+          "id" : "real-arithmetic-right-optional",
+          "label" : "real-arithmetic-right-optional"
+        },
+        {
+          "id" : "real-arithmetic-left-optional",
+          "label" : "real-arithmetic-left-optional"
+        },
+        {
+          "id" : "real-arithmetic-both-optional",
+          "label" : "real-arithmetic-both-optional"
+        },
+        {
+          "id" : "real-arithmetic-null-propagation",
+          "label" : "real-arithmetic-null-propagation"
+        },
+        {
+          "id" : "real-division-boundaries",
+          "label" : "real-division-boundaries"
+        },
+        {
+          "id" : "unary-shapes",
+          "label" : "unary-shapes"
+        },
+        {
+          "id" : "unary-nesting",
+          "label" : "unary-nesting"
+        },
+        {
+          "id" : "coalesce-storage-classes",
+          "label" : "coalesce-storage-classes"
+        },
+        {
+          "id" : "coalescing-operator",
+          "label" : "coalescing-operator"
+        },
+        {
+          "id" : "optional-predicates",
+          "label" : "optional-predicates"
+        },
+        {
+          "id" : "text-concatenation-shapes",
+          "label" : "text-concatenation-shapes"
+        },
+        {
+          "id" : "text-concatenation-null",
+          "label" : "text-concatenation-null"
+        },
+        {
+          "id" : "text-like-shapes",
+          "label" : "text-like-shapes"
+        },
+        {
+          "id" : "text-like-ascii-case-folding",
+          "label" : "text-like-ascii-case-folding"
+        },
+        {
+          "id" : "text-like-null-propagation",
+          "label" : "text-like-null-propagation"
+        },
+        {
+          "id" : "text-glob-shapes",
+          "label" : "text-glob-shapes"
+        },
+        {
+          "id" : "text-glob-null-propagation",
+          "label" : "text-glob-null-propagation"
+        },
+        {
+          "id" : "text-glob-case-sensitivity",
+          "label" : "text-glob-case-sensitivity"
+        }
+      ]
+    },
+    {
       "id" : "gated-prerequisite",
       "title" : "Explicitly gated typed prerequisite",
       "values" : [
@@ -10292,10 +12491,6 @@
         {
           "id" : "issue-57-dml-returning",
           "label" : "#57 DML RETURNING"
-        },
-        {
-          "id" : "issue-21-like-escape",
-          "label" : "#21 LIKE ESCAPE"
         },
         {
           "id" : "issue-45-natural-using-joins",
@@ -10383,16 +12578,6 @@
       "dimension_vector" : [
         {
           "dimension_id" : "gated-prerequisite",
-          "value_id" : "issue-21-like-escape"
-        }
-      ],
-      "id" : "gated.issue-21.like-escape",
-      "reason" : "Not executable in issue #191: typed prerequisite #21 (LIKE ESCAPE) is not implemented."
-    },
-    {
-      "dimension_vector" : [
-        {
-          "dimension_id" : "gated-prerequisite",
           "value_id" : "issue-45-natural-using-joins"
         }
       ],
@@ -10413,7 +12598,7 @@
   "generator_version" : "c191-v2",
   "hard_bounds" : {
     "maximum_bindings_per_case" : 8,
-    "maximum_case_count" : 192,
+    "maximum_case_count" : 224,
     "maximum_dimensions_per_case" : 9,
     "maximum_reduction_attempts" : 64,
     "maximum_rendered_sql_bytes" : 4096,

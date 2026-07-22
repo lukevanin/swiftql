@@ -106,10 +106,11 @@ final class SQLiteCombinatorialClauseCoverageTests: XCTestCase {
             manifest.cases.count,
             SQLiteCombinatorialSuite.maximumCaseCount
         )
-        // Issue #286 adds 27 finite expression cases and issue #288 adds five
-        // finite query-backed IN cases to issue #191's original 141-case
-        // manifest, neither changing the SELECT pairwise plan.
-        XCTAssertEqual(manifest.cases.count, 173)
+        // Issue #286 adds 27 finite expression cases, issue #288 adds five
+        // finite query-backed IN cases, and issue #287 adds 35 packed
+        // operator-family cases to issue #191's original 141-case manifest.
+        // None of them changes the SELECT pairwise plan.
+        XCTAssertEqual(manifest.cases.count, 208)
         let requiredStrengthCounts = Dictionary(
             grouping: try SQLiteCombinatorialSuite.makeDrafts(from: plan)
                 .filter { $0.strength.hasPrefix("required-") },

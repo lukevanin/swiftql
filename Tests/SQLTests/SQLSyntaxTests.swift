@@ -1024,6 +1024,26 @@ final class XLSyntaxTests: XCTestCase {
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, t0.value AS value FROM Test AS t0 WHERE ((t0.value > 0) AND (t0.value < 1))")
     }
     
+    func testSelectWhereLikeWithEscape() {
+        let expression = sqlQuery { s in
+            let t = s.table(TestTable.self)
+            return select(t).from(t).where(t.id.like("100\\%", escape: "\\"))
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, t0.value AS value FROM Test AS t0 WHERE (t0.id LIKE '100\\%' ESCAPE '\\')")
+    }
+
+    /// ESCAPE belongs to its own LIKE, so a second LIKE in the same predicate
+    /// must not absorb it.
+    func testSelectWhereLikeWithEscapeBindsToItsOwnLike() {
+        let expression = sqlQuery { s in
+            let t = s.table(TestTable.self)
+            return select(t).from(t).where(
+                t.id.like("100\\%", escape: "\\") && t.id.like("b%")
+            )
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, t0.value AS value FROM Test AS t0 WHERE ((t0.id LIKE '100\\%' ESCAPE '\\') AND (t0.id LIKE 'b%'))")
+    }
+
     func testSelectWhereInArrayOfText() {
         let expression = sqlQuery { s in
             let t = s.table(TestTable.self)

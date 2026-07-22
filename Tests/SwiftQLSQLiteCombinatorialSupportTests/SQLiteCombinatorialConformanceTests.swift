@@ -43,9 +43,11 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
             coverage.strength == 2
                 && coverage.requiredTupleCount == coverage.coveredTupleCount
         })
+        // Six, not seven: issue #21 shipped LIKE ESCAPE, so the manifest no
+        // longer gates it as an unimplemented prerequisite.
         XCTAssertEqual(
             first.exclusions.filter { $0.id.hasPrefix("gated.") }.count,
-            7
+            6
         )
         XCTAssertTrue(first.cases.allSatisfy { !$0.inventoryFeatureIDs.isEmpty })
 
@@ -120,8 +122,8 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
 
         XCTAssertEqual(actualSuffixes, expectedSuffixes)
         XCTAssertEqual(issue286Cases.count, 27)
-        XCTAssertEqual(manifest.cases.count, 173)
-        XCTAssertEqual(manifest.hardBounds.maximumCaseCount, 192)
+        XCTAssertEqual(manifest.cases.count, 208)
+        XCTAssertEqual(manifest.hardBounds.maximumCaseCount, 224)
         XCTAssertFalse(issue286Cases.contains { $0.id.contains("unixepoch") })
         XCTAssertTrue(issue286Cases.allSatisfy { $0.mode == .semantic })
 
@@ -236,6 +238,370 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
                         "\(testCase.id) should return the LIMIT-bounded non-empty page"
                     )
                 }
+            }
+        }
+    }
+
+    /// Packed cases only count as per-overload evidence if each overload is
+    /// actually present in the rendered SQL, so this asserts the operator
+    /// tokens and optionality shapes each case is claimed to carry.
+    func testIssue287OperatorFamilyCasesAreExplicitAndBounded() throws {
+        let manifest = try SQLiteCombinatorialSuite.makeManifest()
+        let issue287Cases = manifest.cases.filter {
+            $0.id.hasPrefix("c287.v1.expression.")
+        }
+        let bySuffix = Dictionary(
+            uniqueKeysWithValues: issue287Cases.map {
+                (String($0.id.dropFirst("c287.v1.expression.".count)), $0)
+            }
+        )
+        let expectedSuffixes: Set<String> = [
+            "boolean-and-shapes",
+            "boolean-not-shapes",
+            "boolean-or-shapes",
+            "coalesce-storage-classes",
+            "coalescing-operator",
+            "comparison-both-optional",
+            "comparison-left-optional",
+            "comparison-required",
+            "comparison-right-optional",
+            "equality-optional-shapes",
+            "equality-required",
+            "inequality-optional-shapes",
+            "integer-arithmetic-both-optional",
+            "integer-arithmetic-left-optional",
+            "integer-arithmetic-null-propagation",
+            "integer-arithmetic-required",
+            "integer-arithmetic-right-optional",
+            "integer-division-boundaries",
+            "optional-predicates",
+            "real-arithmetic-both-optional",
+            "real-arithmetic-left-optional",
+            "real-arithmetic-null-propagation",
+            "real-arithmetic-required",
+            "real-arithmetic-right-optional",
+            "real-division-boundaries",
+            "text-concatenation-null",
+            "text-concatenation-shapes",
+            "text-glob-case-sensitivity",
+            "text-glob-null-propagation",
+            "text-glob-shapes",
+            "text-like-ascii-case-folding",
+            "text-like-null-propagation",
+            "text-like-shapes",
+            "unary-nesting",
+            "unary-shapes",
+        ]
+
+        XCTAssertEqual(Set(bySuffix.keys), expectedSuffixes)
+        XCTAssertEqual(issue287Cases.count, 35)
+        XCTAssertTrue(issue287Cases.allSatisfy { $0.mode == .semantic })
+        XCTAssertTrue(issue287Cases.allSatisfy { $0.oracle?.kind == .rawSQL })
+        XCTAssertTrue(
+            issue287Cases.allSatisfy {
+                $0.inventoryFeatureIDs == ["syntax.expression.operator-prepare-gap"]
+            }
+        )
+        XCTAssertLessThanOrEqual(
+            issue287Cases.map(\.bindings.count).max() ?? 0,
+            manifest.hardBounds.maximumBindingsPerCase
+        )
+
+        // Each packed case must render every operator it claims to prove.
+        let requiredTokens: [String: [String]] = [
+            "boolean-not-shapes": ["(NOT :bool_true)", "(NOT :bool_null)"],
+            "boolean-and-shapes": [
+                "(:bool_true AND :bool_false)",
+                "(:bool_true AND :bool_null)",
+                "(:bool_null AND :bool_true)",
+                "(:bool_null AND :bool_null)",
+            ],
+            "boolean-or-shapes": [
+                "(:bool_true OR :bool_false)",
+                "(:bool_true OR :bool_null)",
+                "(:bool_null OR :bool_false)",
+                "(:bool_null OR :bool_null)",
+            ],
+            "comparison-required": [" < ", " <= ", " > ", " >= "],
+            "comparison-right-optional": [" < ", " <= ", " > ", " >= "],
+            "comparison-left-optional": [" < ", " <= ", " > ", " >= "],
+            "comparison-both-optional": [" < ", " <= ", " > ", " >= "],
+            "equality-required": [" == ", " != "],
+            "equality-optional-shapes": [" IS "],
+            "inequality-optional-shapes": [" IS NOT "],
+            "integer-arithmetic-required": [" + ", " - ", " * ", " / ", " % "],
+            "integer-arithmetic-right-optional": [" + ", " - ", " * ", " / ", " % "],
+            "integer-arithmetic-left-optional": [" + ", " - ", " * ", " / ", " % "],
+            "integer-arithmetic-both-optional": [" + ", " - ", " * ", " / ", " % "],
+            "real-arithmetic-required": [" + ", " - ", " * ", " / "],
+            "real-arithmetic-right-optional": [" + ", " - ", " * ", " / "],
+            "real-arithmetic-left-optional": [" + ", " - ", " * ", " / "],
+            "real-arithmetic-both-optional": [" + ", " - ", " * ", " / "],
+            "integer-arithmetic-null-propagation": [
+                " + ", " - ", " * ", " / ", " % ",
+            ],
+            "integer-division-boundaries": [" / ", " % ", " / 0)", " % 0)"],
+            "real-arithmetic-null-propagation": [" + ", " - ", " * ", " / "],
+            "real-division-boundaries": [" / ", " / 0.0)"],
+            "unary-shapes": ["~(", "+(", "-("],
+            "unary-nesting": ["-(-(", " + "],
+            "coalesce-storage-classes": ["COALESCE("],
+            "coalescing-operator": ["COALESCE("],
+            "optional-predicates": ["ISNULL", "NOTNULL"],
+            "text-concatenation-shapes": [" || "],
+            "text-concatenation-null": [" || "],
+            "text-like-shapes": [" LIKE "],
+            "text-like-null-propagation": [" LIKE "],
+            "text-like-ascii-case-folding": [" LIKE "],
+            "text-glob-shapes": [" GLOB "],
+            "text-glob-null-propagation": [" GLOB "],
+            "text-glob-case-sensitivity": [" GLOB "],
+        ]
+        // A suffix with no declared tokens would be silently unchecked, so a
+        // new case cannot be added without saying what it must render.
+        XCTAssertEqual(
+            Set(requiredTokens.keys),
+            expectedSuffixes,
+            "every #287 case must declare the tokens it claims to render"
+        )
+        for (suffix, tokens) in requiredTokens {
+            let rendered = try XCTUnwrap(bySuffix[suffix]).renderedSQL
+            for token in tokens {
+                XCTAssertTrue(
+                    rendered.contains(token),
+                    "\(suffix) must render \(token)"
+                )
+            }
+        }
+
+        // The optional equality overloads render IS / IS NOT, never == / !=.
+        for suffix in ["equality-optional-shapes", "inequality-optional-shapes"] {
+            let rendered = try XCTUnwrap(bySuffix[suffix]).renderedSQL
+            XCTAssertFalse(rendered.contains(" == "), suffix)
+            XCTAssertFalse(rendered.contains(" != "), suffix)
+        }
+
+        // Each optionality shape must be a distinct statement, so a family
+        // cannot claim four overloads while rendering the same one four times.
+        for family in ["integer-arithmetic", "real-arithmetic"] {
+            let shapes = ["required", "right-optional", "left-optional", "both-optional"]
+                .compactMap { bySuffix["\(family)-\($0)"]?.renderedSQL }
+            XCTAssertEqual(shapes.count, 4, family)
+            XCTAssertEqual(Set(shapes).count, 4, "\(family) shapes must differ")
+        }
+
+        // LIKE ESCAPE stays with #21 and REGEXP / MATCH stay with #78.
+        XCTAssertFalse(
+            issue287Cases.contains {
+                $0.renderedSQL.contains(" ESCAPE ")
+                    || $0.renderedSQL.contains(" REGEXP ")
+                    || $0.renderedSQL.contains(" MATCH ")
+            }
+        )
+    }
+
+    /// Pins the exact storage values SQLite returns for each packed column.
+    ///
+    /// The raw-SQL oracle already proves SwiftQL and hand-written SQL agree,
+    /// but agreement alone cannot show *which* semantics they agree on. These
+    /// literals record SQLite's three-valued Boolean logic and the fact that
+    /// the optional equality overloads never yield NULL despite their
+    /// `Optional<Bool>` Swift result type.
+    func testIssue287OperatorSemanticsMatchPinnedSQLiteResults() throws {
+        let manifest = try SQLiteCombinatorialSuite.makeManifest()
+        let expectations: [String: [DatabaseValue]] = [
+            // NOT true is false; NOT NULL stays NULL.
+            "boolean-not-shapes": [0.databaseValue, .null],
+            // NULL AND true is unknown, but NULL AND false is false: SQLite
+            // can decide the conjunction without knowing the NULL operand.
+            "boolean-and-shapes": [
+                0.databaseValue, .null, .null, .null, 0.databaseValue,
+            ],
+            // The dual: NULL OR true is true, NULL OR false is unknown.
+            "boolean-or-shapes": [
+                1.databaseValue, 1.databaseValue, .null, .null, .null,
+            ],
+            // 7 vs 3.
+            "comparison-required": [
+                0.databaseValue, 0.databaseValue, 1.databaseValue, 1.databaseValue,
+            ],
+            // 7 vs 3, then 7 vs NULL.
+            "comparison-right-optional": [
+                0.databaseValue, 0.databaseValue, 1.databaseValue,
+                1.databaseValue, .null,
+            ],
+            // 3 vs 3 on the boundary, so < and <= disagree.
+            "comparison-left-optional": [
+                0.databaseValue, 1.databaseValue, 0.databaseValue,
+                1.databaseValue, .null,
+            ],
+            // 3 vs 5.
+            "comparison-both-optional": [
+                1.databaseValue, 1.databaseValue, 0.databaseValue,
+                0.databaseValue, .null,
+            ],
+            // 7 = 3 is false, 7 <> 3 is true, 'alfa' = 'alfa' is true.
+            "equality-required": [
+                0.databaseValue, 1.databaseValue, 1.databaseValue,
+            ],
+            // IS is total: comparing against NULL yields 0 or 1, never NULL.
+            "equality-optional-shapes": [
+                0.databaseValue, 1.databaseValue, 0.databaseValue,
+                0.databaseValue, 1.databaseValue,
+            ],
+            // IS NOT is the exact complement of IS, and equally total.
+            "inequality-optional-shapes": [
+                1.databaseValue, 0.databaseValue, 1.databaseValue,
+                1.databaseValue, 0.databaseValue,
+            ],
+        ]
+
+        let pool = try NorthwindFixture.validatedReadOnlyPool()
+        defer { try? pool.close() }
+
+        try pool.read { database in
+            for (suffix, expected) in expectations {
+                let id = "c287.v1.expression.\(suffix)"
+                let testCase = try XCTUnwrap(
+                    manifest.cases.first { $0.id == id },
+                    "missing case \(id)"
+                )
+                let rows = try resultRows(
+                    database,
+                    sql: testCase.renderedSQL,
+                    arguments: arguments(for: testCase)
+                )
+                XCTAssertEqual(rows.count, 1, suffix)
+                XCTAssertEqual(rows.first, expected, suffix)
+            }
+        }
+    }
+
+    /// Part two's pinned values. The boundaries here are the ones a Swift
+    /// signature cannot express: integer division truncates and can yield NULL
+    /// from a non-optional overload, `||` propagates NULL, LIKE folds case for
+    /// ASCII only, and GLOB does not fold at all.
+    func testIssue287ArithmeticTextAndOptionalSemanticsMatchPinnedSQLiteResults() throws {
+        let manifest = try SQLiteCombinatorialSuite.makeManifest()
+        let nine = 9.databaseValue
+        let expectations: [String: [DatabaseValue]] = [
+            "integer-arithmetic-required": [
+                nine, 5.databaseValue, 14.databaseValue,
+                3.databaseValue, 1.databaseValue,
+            ],
+            "integer-arithmetic-right-optional": [
+                nine, 5.databaseValue, 14.databaseValue,
+                3.databaseValue, 1.databaseValue,
+            ],
+            "integer-arithmetic-left-optional": [
+                nine, 5.databaseValue, 14.databaseValue,
+                3.databaseValue, 1.databaseValue,
+            ],
+            "integer-arithmetic-both-optional": [
+                nine, 5.databaseValue, 14.databaseValue,
+                3.databaseValue, 1.databaseValue,
+            ],
+            // Arithmetic has no absorbing operand: one NULL nulls the column.
+            "integer-arithmetic-null-propagation": [
+                .null, .null, .null, .null, .null,
+            ],
+            // 7/2 truncates to 3 and -7/2 truncates to -3 rather than flooring
+            // to -4. Division and remainder by zero are NULL even though these
+            // overloads return non-optional Int. `%` takes the dividend's sign.
+            "integer-division-boundaries": [
+                3.databaseValue, (-3).databaseValue, .null, .null,
+                (-1).databaseValue, 1.databaseValue,
+            ],
+            "real-arithmetic-required": [
+                (9.0).databaseValue, (5.0).databaseValue,
+                (14.0).databaseValue, (3.5).databaseValue,
+            ],
+            "real-arithmetic-right-optional": [
+                (9.0).databaseValue, (5.0).databaseValue,
+                (14.0).databaseValue, (3.5).databaseValue,
+            ],
+            "real-arithmetic-left-optional": [
+                (9.0).databaseValue, (5.0).databaseValue,
+                (14.0).databaseValue, (3.5).databaseValue,
+            ],
+            "real-arithmetic-both-optional": [
+                (9.0).databaseValue, (5.0).databaseValue,
+                (14.0).databaseValue, (3.5).databaseValue,
+            ],
+            "real-arithmetic-null-propagation": [.null, .null, .null, .null],
+            // The same 7 and 2 the integer overload truncated to 3.
+            "real-division-boundaries": [(3.5).databaseValue, .null],
+            "unary-shapes": [
+                (-8).databaseValue, (-8).databaseValue,
+                7.databaseValue, 7.databaseValue,
+                (-7).databaseValue, (-7).databaseValue,
+            ],
+            // If the operand were not parenthesised, `-(-7)` would render as
+            // `--7` and SQLite would read the rest of the line as a comment.
+            "unary-nesting": [7.databaseValue, (-9).databaseValue],
+            "coalesce-storage-classes": [
+                0.databaseValue, 7.databaseValue,
+                (1.5).databaseValue, "fallback".databaseValue,
+            ],
+            "coalescing-operator": [42.databaseValue],
+            "optional-predicates": [
+                1.databaseValue, 0.databaseValue,
+                0.databaseValue, 1.databaseValue,
+                7.databaseValue,
+            ],
+            "text-concatenation-shapes": [
+                "alfabeta".databaseValue, "alfabeta".databaseValue,
+                "alfabeta".databaseValue, "alfabeta".databaseValue,
+            ],
+            // SQLite's `||` yields NULL rather than treating NULL as ''.
+            "text-concatenation-null": [
+                "alfabeta".databaseValue, .null, .null, .null,
+            ],
+            "text-like-shapes": [
+                1.databaseValue, 0.databaseValue,
+                1.databaseValue, 0.databaseValue,
+            ],
+            // LIKE folds ASCII case in both directions but leaves non-ASCII
+            // alone, so 'Ä' does not match 'ä'.
+            "text-like-ascii-case-folding": [
+                1.databaseValue, 1.databaseValue, 0.databaseValue,
+            ],
+            "text-glob-shapes": [
+                1.databaseValue, 0.databaseValue,
+                1.databaseValue, 0.databaseValue,
+            ],
+            // The optional overloads' NULL branch: a NULL operand on either
+            // side yields NULL, which is why they return `Bool?`.
+            "text-like-null-propagation": [
+                1.databaseValue, .null, .null, .null,
+            ],
+            "text-glob-null-propagation": [
+                1.databaseValue, .null, .null, .null,
+            ],
+            // GLOB is case sensitive and uses Unix wildcards, so '?' matches
+            // exactly one character.
+            "text-glob-case-sensitivity": [
+                1.databaseValue, 0.databaseValue, 1.databaseValue,
+            ],
+        ]
+
+        let pool = try NorthwindFixture.validatedReadOnlyPool()
+        defer { try? pool.close() }
+
+        try pool.read { database in
+            for (suffix, expected) in expectations {
+                let id = "c287.v1.expression.\(suffix)"
+                let testCase = try XCTUnwrap(
+                    manifest.cases.first { $0.id == id },
+                    "missing case \(id)"
+                )
+                let rows = try resultRows(
+                    database,
+                    sql: testCase.renderedSQL,
+                    arguments: arguments(for: testCase)
+                )
+                XCTAssertEqual(rows.count, 1, suffix)
+                XCTAssertEqual(rows.first, expected, suffix)
             }
         }
     }
@@ -819,7 +1185,8 @@ private extension SQLiteCombinatorialConformanceTests {
         }
 
         if testCase.id.hasPrefix("c191.v1.expression.")
-            || testCase.id.hasPrefix("c286.v1.expression.") {
+            || testCase.id.hasPrefix("c286.v1.expression.")
+            || testCase.id.hasPrefix("c287.v1.expression.") {
             return try resultRows(
                 database,
                 sql: try expressionOracleSQL(for: testCase.id),
@@ -976,6 +1343,9 @@ private extension SQLiteCombinatorialConformanceTests {
         else if caseID.hasPrefix("c286.v1.expression.") {
             suffix = String(caseID.dropFirst("c286.v1.expression.".count))
         }
+        else if caseID.hasPrefix("c287.v1.expression.") {
+            suffix = String(caseID.dropFirst("c287.v1.expression.".count))
+        }
         else {
             throw SQLiteCombinatorialConformanceError.unknownOracle(caseID)
         }
@@ -1060,6 +1430,227 @@ private extension SQLiteCombinatorialConformanceTests {
             return "SELECT (:integer_value + 7) * 2"
         case "operator-glob":
             return "SELECT :text_value GLOB 'A*'"
+
+        // Issue #287 packed operator families. Written without SwiftQL's
+        // defensive parentheses so the oracle is an independent statement
+        // rather than a transcription of the rendered SQL.
+        case "boolean-not-shapes":
+            return "SELECT NOT :bool_true, NOT :bool_null"
+        case "boolean-and-shapes":
+            return """
+                SELECT :bool_true AND :bool_false,
+                       :bool_true AND :bool_null,
+                       :bool_null AND :bool_true,
+                       :bool_null AND :bool_null,
+                       :bool_null AND :bool_false
+                """
+        case "boolean-or-shapes":
+            return """
+                SELECT :bool_true OR :bool_false,
+                       :bool_true OR :bool_null,
+                       :bool_null OR :bool_false,
+                       :bool_null OR :bool_null,
+                       :bool_false OR :bool_null
+                """
+        case "comparison-required":
+            return """
+                SELECT :int_left < :int_right,
+                       :int_left <= :int_right,
+                       :int_left > :int_right,
+                       :int_left >= :int_right
+                """
+        case "comparison-right-optional":
+            return """
+                SELECT :int_left < :int_optional,
+                       :int_left <= :int_optional,
+                       :int_left > :int_optional,
+                       :int_left >= :int_optional,
+                       :int_left > :int_null
+                """
+        case "comparison-left-optional":
+            return """
+                SELECT :int_optional < :int_right,
+                       :int_optional <= :int_right,
+                       :int_optional > :int_right,
+                       :int_optional >= :int_right,
+                       :int_null > :int_right
+                """
+        case "comparison-both-optional":
+            return """
+                SELECT :int_optional < :int_optional_b,
+                       :int_optional <= :int_optional_b,
+                       :int_optional > :int_optional_b,
+                       :int_optional >= :int_optional_b,
+                       :int_optional > :int_null
+                """
+        case "equality-required":
+            return """
+                SELECT :int_left = :int_right,
+                       :int_left <> :int_right,
+                       :text_left = :text_left
+                """
+        case "equality-optional-shapes":
+            return """
+                SELECT :int_left IS :int_optional,
+                       :int_optional IS :int_right,
+                       :int_optional IS :int_optional_b,
+                       :int_left IS :int_null,
+                       :int_null IS :int_null
+                """
+        case "inequality-optional-shapes":
+            return """
+                SELECT :int_left IS NOT :int_optional,
+                       :int_optional IS NOT :int_right,
+                       :int_optional IS NOT :int_optional_b,
+                       :int_left IS NOT :int_null,
+                       :int_null IS NOT :int_null
+                """
+        case "integer-arithmetic-required":
+            return """
+                SELECT :int_seven + :int_two, :int_seven - :int_two,
+                       :int_seven * :int_two, :int_seven / :int_two,
+                       :int_seven % :int_two
+                """
+        case "integer-arithmetic-right-optional":
+            return """
+                SELECT :int_seven + :int_optional_two,
+                       :int_seven - :int_optional_two,
+                       :int_seven * :int_optional_two,
+                       :int_seven / :int_optional_two,
+                       :int_seven % :int_optional_two
+                """
+        case "integer-arithmetic-left-optional":
+            return """
+                SELECT :int_optional_seven + :int_two,
+                       :int_optional_seven - :int_two,
+                       :int_optional_seven * :int_two,
+                       :int_optional_seven / :int_two,
+                       :int_optional_seven % :int_two
+                """
+        case "integer-arithmetic-both-optional":
+            return """
+                SELECT :int_optional_seven + :int_optional_two,
+                       :int_optional_seven - :int_optional_two,
+                       :int_optional_seven * :int_optional_two,
+                       :int_optional_seven / :int_optional_two,
+                       :int_optional_seven % :int_optional_two
+                """
+        case "integer-arithmetic-null-propagation":
+            return """
+                SELECT :int_seven + :int_null, :int_null - :int_two,
+                       :int_optional_seven * :int_null, :int_seven / :int_null,
+                       :int_null % :int_two
+                """
+        case "integer-division-boundaries":
+            return """
+                SELECT :int_seven / :int_two, :int_negative_seven / :int_two,
+                       :int_seven / 0, :int_seven % 0,
+                       :int_negative_seven % :int_three,
+                       :int_seven % :int_negative_three
+                """
+        case "real-arithmetic-required":
+            return """
+                SELECT :real_seven + :real_two, :real_seven - :real_two,
+                       :real_seven * :real_two, :real_seven / :real_two
+                """
+        case "real-arithmetic-right-optional":
+            return """
+                SELECT :real_seven + :real_optional_two,
+                       :real_seven - :real_optional_two,
+                       :real_seven * :real_optional_two,
+                       :real_seven / :real_optional_two
+                """
+        case "real-arithmetic-left-optional":
+            return """
+                SELECT :real_optional_seven + :real_two,
+                       :real_optional_seven - :real_two,
+                       :real_optional_seven * :real_two,
+                       :real_optional_seven / :real_two
+                """
+        case "real-arithmetic-both-optional":
+            return """
+                SELECT :real_optional_seven + :real_optional_two,
+                       :real_optional_seven - :real_optional_two,
+                       :real_optional_seven * :real_optional_two,
+                       :real_optional_seven / :real_optional_two
+                """
+        case "real-arithmetic-null-propagation":
+            return """
+                SELECT :real_seven + :real_null, :real_null - :real_two,
+                       :real_optional_seven * :real_null,
+                       :real_seven / :real_null
+                """
+        case "real-division-boundaries":
+            return "SELECT :real_seven / :real_two, :real_seven / 0.0"
+        case "unary-shapes":
+            return """
+                SELECT ~:int_seven, ~:int_optional_seven,
+                       +:int_seven, +:int_optional_seven,
+                       -(:int_seven), -(:int_optional_seven)
+                """
+        case "unary-nesting":
+            return "SELECT -(-(:int_seven)), -(:int_seven + :int_two)"
+        case "coalesce-storage-classes":
+            return """
+                SELECT COALESCE(:int_null, 0),
+                       COALESCE(:int_optional_seven, 0),
+                       COALESCE(:real_null, 1.5),
+                       COALESCE(:text_null, 'fallback')
+                """
+        case "coalescing-operator":
+            return "SELECT COALESCE(:int_null, 42)"
+        case "optional-predicates":
+            return """
+                SELECT :int_null IS NULL, :int_optional_seven IS NULL,
+                       :int_null IS NOT NULL, :int_optional_seven IS NOT NULL,
+                       :int_seven
+                """
+        case "text-concatenation-shapes":
+            return """
+                SELECT :text_alfa || :text_beta,
+                       :text_alfa || :text_optional_beta,
+                       :text_optional_alfa || :text_beta,
+                       :text_optional_alfa || :text_optional_beta
+                """
+        case "text-concatenation-null":
+            return """
+                SELECT :text_alfa || :text_beta, :text_alfa || :text_null,
+                       :text_null || :text_beta, :text_null || :text_null
+                """
+        case "text-like-shapes":
+            return """
+                SELECT :text_alfa LIKE 'a%',
+                       :text_alfa LIKE :text_optional_beta,
+                       :text_optional_alfa LIKE 'a%',
+                       :text_optional_alfa LIKE :text_optional_beta
+                """
+        case "text-like-ascii-case-folding":
+            return """
+                SELECT :text_alfa LIKE 'A%', :text_upper LIKE 'a%',
+                       :text_accented LIKE 'ä'
+                """
+        case "text-glob-shapes":
+            return """
+                SELECT :text_alfa GLOB 'a*',
+                       :text_alfa GLOB :text_optional_beta,
+                       :text_optional_alfa GLOB 'a*',
+                       :text_optional_alfa GLOB :text_optional_beta
+                """
+        case "text-like-null-propagation":
+            return """
+                SELECT :text_alfa LIKE 'a%', :text_alfa LIKE :text_null,
+                       :text_null LIKE 'a%', :text_null LIKE :text_null
+                """
+        case "text-glob-null-propagation":
+            return """
+                SELECT :text_alfa GLOB 'a*', :text_alfa GLOB :text_null,
+                       :text_null GLOB 'a*', :text_null GLOB :text_null
+                """
+        case "text-glob-case-sensitivity":
+            return """
+                SELECT :text_alfa GLOB 'a*', :text_alfa GLOB 'A*',
+                       :text_alfa GLOB '?lfa'
+                """
         default:
             throw SQLiteCombinatorialConformanceError.unknownOracle(caseID)
         }

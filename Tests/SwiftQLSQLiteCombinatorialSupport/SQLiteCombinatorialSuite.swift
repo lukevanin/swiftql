@@ -34,7 +34,7 @@ public enum SQLiteCombinatorialSuiteError: Error, Equatable, Sendable {
 public enum SQLiteCombinatorialSuite {
 
     public static let maximumSelectCaseCount = 128
-    public static let maximumCaseCount = 192
+    public static let maximumCaseCount = 224
     public static let generatorVersion = "c191-v2"
 
     /// Returns the deterministic, bounded pairwise SELECT plan.
@@ -94,6 +94,12 @@ public enum SQLiteCombinatorialSuite {
         drafts.append(contentsOf: SQLiteTypedCombinatorialCases.northwindAdaptationCases())
         drafts.append(contentsOf: SQLiteTypedCombinatorialCases.adoptedExpressionCases())
         drafts.append(contentsOf: SQLiteTypedCombinatorialCases.inSubqueryCases())
+        drafts.append(
+            contentsOf: SQLiteTypedCombinatorialCases.booleanComparisonEqualityCases()
+        )
+        drafts.append(
+            contentsOf: SQLiteTypedCombinatorialCases.arithmeticTextOptionalCases()
+        )
         drafts.sort { $0.id < $1.id }
 
         try requireUniqueCaseIDs(drafts.map(\.id))
@@ -213,7 +219,6 @@ private extension SQLiteCombinatorialSuite {
         ),
         GatedPrerequisite(issue: 139, id: "typed-ddl", title: "typed DDL"),
         GatedPrerequisite(issue: 57, id: "dml-returning", title: "DML RETURNING"),
-        GatedPrerequisite(issue: 21, id: "like-escape", title: "LIKE ESCAPE"),
         GatedPrerequisite(
             issue: 45,
             id: "natural-using-joins",
@@ -231,6 +236,8 @@ private extension SQLiteCombinatorialSuite {
             + SQLiteTypedCombinatorialCases.northwindAdaptationCases().count
             + SQLiteTypedCombinatorialCases.adoptedExpressionCases().count
             + SQLiteTypedCombinatorialCases.inSubqueryCases().count
+            + SQLiteTypedCombinatorialCases.booleanComparisonEqualityCases().count
+            + SQLiteTypedCombinatorialCases.arithmeticTextOptionalCases().count
     }
 
     static var selectDimensions: [SQLiteCombinatorialDimension] {
@@ -392,6 +399,16 @@ private extension SQLiteCombinatorialSuite {
                     SQLiteCombinatorialManifestDimensionValue(id: $0, label: $0)
                 }
         )
+        let operatorCases = SQLiteCombinatorialManifestDimension(
+            id: "operator-case",
+            title: "Packed operator overload family",
+            values: (SQLiteTypedCombinatorialCases.booleanComparisonEqualityCases()
+                + SQLiteTypedCombinatorialCases.arithmeticTextOptionalCases())
+                .compactMap { $0.selections.first?.valueID }
+                .map {
+                    SQLiteCombinatorialManifestDimensionValue(id: $0, label: $0)
+                }
+        )
         let gated = SQLiteCombinatorialManifestDimension(
             id: "gated-prerequisite",
             title: "Explicitly gated typed prerequisite",
@@ -408,6 +425,7 @@ private extension SQLiteCombinatorialSuite {
             expression,
             northwindAdaptation,
             inSubquery,
+            operatorCases,
             gated,
         ]
     }

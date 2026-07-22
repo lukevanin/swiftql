@@ -4,13 +4,13 @@
 - Generator version: `c191-v2`
 - Coordination issue: `#191`
 - Inventory version: `1.3.0`
-- Cases: `173`
+- Cases: `208`
 
 ## Hard bounds
 
 | Bound | Maximum |
 | --- | ---: |
-| Cases | 192 |
+| Cases | 224 |
 | Dimensions per case | 9 |
 | Bindings per case | 8 |
 | Rendered SQL bytes | 4096 |
@@ -35,7 +35,8 @@
 | expression-case | Adopted expression case | indexed-binding: indexed-binding, numeric-abs: numeric-abs, numeric-round: numeric-round, numeric-floor: numeric-floor, comparable-min: comparable-min, string-printf: string-printf, cast-text-integer: cast-text-integer, cast-text-blob: cast-text-blob, date-unixepoch: date-unixepoch, json-valid: json-valid, json-array-length: json-array-length, operator-arithmetic-precedence: operator-arithmetic-precedence, operator-glob: operator-glob, aggregate-count-distinct: aggregate-count-distinct, aggregate-min-distinct: aggregate-min-distinct, aggregate-max-distinct: aggregate-max-distinct, aggregate-average-distinct: aggregate-average-distinct, aggregate-sum-distinct: aggregate-sum-distinct, aggregate-group-concat-distinct: aggregate-group-concat-distinct, numeric-round-no-places: numeric-round-no-places, numeric-round-optional: numeric-round-optional, comparable-max: comparable-max, string-printf-array: string-printf-array, json-array-length-path: json-array-length-path, cast-bool-integer: cast-bool-integer, cast-optional-bool-integer: cast-optional-bool-integer, cast-integer-real: cast-integer-real, cast-integer-text: cast-integer-text, cast-optional-integer-real: cast-optional-integer-real, cast-optional-integer-text: cast-optional-integer-text, cast-real-integer: cast-real-integer, cast-real-text: cast-real-text, cast-optional-real-integer: cast-optional-real-integer, cast-optional-real-text: cast-optional-real-text, cast-text-real: cast-text-real, cast-optional-text-integer: cast-optional-text-integer, cast-optional-text-real: cast-optional-text-real, cast-optional-text-blob: cast-optional-text-blob, cast-blob-text: cast-blob-text, cast-optional-blob-text: cast-optional-blob-text |
 | northwind-adaptation | Pinned Northwind adaptation | compound-customer-supplier-cities: compound-customer-supplier-cities, cte-order-subtotals: cte-order-subtotals |
 | in-subquery-case | Query-backed IN entry point | in-query-builder-nonempty: in-query-builder-nonempty, in-query-builder-empty: in-query-builder-empty, in-query-functional-nonempty: in-query-functional-nonempty, in-table-nonempty: in-table-nonempty, in-table-empty: in-table-empty |
-| gated-prerequisite | Explicitly gated typed prerequisite | issue-43-direct-scalar-compounds: #43 direct scalar compounds, issue-10-cte-materialization-hints: #10 CTE materialization hints, issue-139-typed-ddl: #139 typed DDL, issue-57-dml-returning: #57 DML RETURNING, issue-21-like-escape: #21 LIKE ESCAPE, issue-45-natural-using-joins: #45 NATURAL and USING joins, issue-70-nullable-subquery-shapes: #70 nullable subquery shapes |
+| operator-case | Packed operator overload family | boolean-not-shapes: boolean-not-shapes, boolean-and-shapes: boolean-and-shapes, boolean-or-shapes: boolean-or-shapes, comparison-required: comparison-required, comparison-right-optional: comparison-right-optional, comparison-left-optional: comparison-left-optional, comparison-both-optional: comparison-both-optional, equality-required: equality-required, equality-optional-shapes: equality-optional-shapes, inequality-optional-shapes: inequality-optional-shapes, integer-arithmetic-required: integer-arithmetic-required, integer-arithmetic-right-optional: integer-arithmetic-right-optional, integer-arithmetic-left-optional: integer-arithmetic-left-optional, integer-arithmetic-both-optional: integer-arithmetic-both-optional, integer-arithmetic-null-propagation: integer-arithmetic-null-propagation, integer-division-boundaries: integer-division-boundaries, real-arithmetic-required: real-arithmetic-required, real-arithmetic-right-optional: real-arithmetic-right-optional, real-arithmetic-left-optional: real-arithmetic-left-optional, real-arithmetic-both-optional: real-arithmetic-both-optional, real-arithmetic-null-propagation: real-arithmetic-null-propagation, real-division-boundaries: real-division-boundaries, unary-shapes: unary-shapes, unary-nesting: unary-nesting, coalesce-storage-classes: coalesce-storage-classes, coalescing-operator: coalescing-operator, optional-predicates: optional-predicates, text-concatenation-shapes: text-concatenation-shapes, text-concatenation-null: text-concatenation-null, text-like-shapes: text-like-shapes, text-like-ascii-case-folding: text-like-ascii-case-folding, text-like-null-propagation: text-like-null-propagation, text-glob-shapes: text-glob-shapes, text-glob-null-propagation: text-glob-null-propagation, text-glob-case-sensitivity: text-glob-case-sensitivity |
+| gated-prerequisite | Explicitly gated typed prerequisite | issue-43-direct-scalar-compounds: #43 direct scalar compounds, issue-10-cte-materialization-hints: #10 CTE materialization hints, issue-139-typed-ddl: #139 typed DDL, issue-57-dml-returning: #57 DML RETURNING, issue-45-natural-using-joins: #45 NATURAL and USING joins, issue-70-nullable-subquery-shapes: #70 nullable subquery shapes |
 
 ## Constraints
 
@@ -54,7 +55,6 @@
 | gated.issue-10.cte-materialization-hints | - | gated-prerequisite=issue-10-cte-materialization-hints | Not executable in issue #191: typed prerequisite #10 (CTE materialization hints) is not implemented. |
 | gated.issue-139.typed-ddl | - | gated-prerequisite=issue-139-typed-ddl | Not executable in issue #191: typed prerequisite #139 (typed DDL) is not implemented. |
 | gated.issue-57.dml-returning | - | gated-prerequisite=issue-57-dml-returning | Not executable in issue #191: typed prerequisite #57 (DML RETURNING) is not implemented. |
-| gated.issue-21.like-escape | - | gated-prerequisite=issue-21-like-escape | Not executable in issue #191: typed prerequisite #21 (LIKE ESCAPE) is not implemented. |
 | gated.issue-45.natural-using-joins | - | gated-prerequisite=issue-45-natural-using-joins | Not executable in issue #191: typed prerequisite #45 (NATURAL and USING joins) is not implemented. |
 | gated.issue-70.nullable-subquery-shapes | - | gated-prerequisite=issue-70-nullable-subquery-shapes | Not executable in issue #191: typed prerequisite #70 (nullable subquery shapes) is not implemented. |
 
@@ -242,6 +242,41 @@
 | c286.v1.expression.numeric-round-no-places | expression.numeric-round-no-places | targeted | semantic | expression-case=numeric-round-no-places | syntax.expression.numeric-comparable-functions |  | 1 |
 | c286.v1.expression.numeric-round-optional | expression.numeric-round-optional | targeted | semantic | expression-case=numeric-round-optional | syntax.expression.numeric-comparable-functions |  | 1 |
 | c286.v1.expression.string-printf-array | expression.string-printf-array | targeted | semantic | expression-case=string-printf-array | syntax.expression.string-functions |  | 2 |
+| c287.v1.expression.boolean-and-shapes | expression.boolean-and-shapes | targeted | semantic | operator-case=boolean-and-shapes | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.boolean-not-shapes | expression.boolean-not-shapes | targeted | semantic | operator-case=boolean-not-shapes | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.boolean-or-shapes | expression.boolean-or-shapes | targeted | semantic | operator-case=boolean-or-shapes | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.coalesce-storage-classes | expression.coalesce-storage-classes | targeted | semantic | operator-case=coalesce-storage-classes | syntax.expression.operator-prepare-gap |  | 4 |
+| c287.v1.expression.coalescing-operator | expression.coalescing-operator | targeted | semantic | operator-case=coalescing-operator | syntax.expression.operator-prepare-gap |  | 1 |
+| c287.v1.expression.comparison-both-optional | expression.comparison-both-optional | targeted | semantic | operator-case=comparison-both-optional | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.comparison-left-optional | expression.comparison-left-optional | targeted | semantic | operator-case=comparison-left-optional | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.comparison-required | expression.comparison-required | targeted | semantic | operator-case=comparison-required | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.comparison-right-optional | expression.comparison-right-optional | targeted | semantic | operator-case=comparison-right-optional | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.equality-optional-shapes | expression.equality-optional-shapes | targeted | semantic | operator-case=equality-optional-shapes | syntax.expression.operator-prepare-gap |  | 5 |
+| c287.v1.expression.equality-required | expression.equality-required | targeted | semantic | operator-case=equality-required | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.inequality-optional-shapes | expression.inequality-optional-shapes | targeted | semantic | operator-case=inequality-optional-shapes | syntax.expression.operator-prepare-gap |  | 5 |
+| c287.v1.expression.integer-arithmetic-both-optional | expression.integer-arithmetic-both-optional | targeted | semantic | operator-case=integer-arithmetic-both-optional | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.integer-arithmetic-left-optional | expression.integer-arithmetic-left-optional | targeted | semantic | operator-case=integer-arithmetic-left-optional | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.integer-arithmetic-null-propagation | expression.integer-arithmetic-null-propagation | targeted | semantic | operator-case=integer-arithmetic-null-propagation | syntax.expression.operator-prepare-gap |  | 4 |
+| c287.v1.expression.integer-arithmetic-required | expression.integer-arithmetic-required | targeted | semantic | operator-case=integer-arithmetic-required | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.integer-arithmetic-right-optional | expression.integer-arithmetic-right-optional | targeted | semantic | operator-case=integer-arithmetic-right-optional | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.integer-division-boundaries | expression.integer-division-boundaries | targeted | semantic | operator-case=integer-division-boundaries | syntax.expression.operator-prepare-gap |  | 5 |
+| c287.v1.expression.optional-predicates | expression.optional-predicates | targeted | semantic | operator-case=optional-predicates | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.real-arithmetic-both-optional | expression.real-arithmetic-both-optional | targeted | semantic | operator-case=real-arithmetic-both-optional | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.real-arithmetic-left-optional | expression.real-arithmetic-left-optional | targeted | semantic | operator-case=real-arithmetic-left-optional | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.real-arithmetic-null-propagation | expression.real-arithmetic-null-propagation | targeted | semantic | operator-case=real-arithmetic-null-propagation | syntax.expression.operator-prepare-gap |  | 4 |
+| c287.v1.expression.real-arithmetic-required | expression.real-arithmetic-required | targeted | semantic | operator-case=real-arithmetic-required | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.real-arithmetic-right-optional | expression.real-arithmetic-right-optional | targeted | semantic | operator-case=real-arithmetic-right-optional | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.real-division-boundaries | expression.real-division-boundaries | targeted | semantic | operator-case=real-division-boundaries | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.text-concatenation-null | expression.text-concatenation-null | targeted | semantic | operator-case=text-concatenation-null | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.text-concatenation-shapes | expression.text-concatenation-shapes | targeted | semantic | operator-case=text-concatenation-shapes | syntax.expression.operator-prepare-gap |  | 4 |
+| c287.v1.expression.text-glob-case-sensitivity | expression.text-glob-case-sensitivity | targeted | semantic | operator-case=text-glob-case-sensitivity | syntax.expression.operator-prepare-gap |  | 1 |
+| c287.v1.expression.text-glob-null-propagation | expression.text-glob-null-propagation | targeted | semantic | operator-case=text-glob-null-propagation | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.text-glob-shapes | expression.text-glob-shapes | targeted | semantic | operator-case=text-glob-shapes | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.text-like-ascii-case-folding | expression.text-like-ascii-case-folding | targeted | semantic | operator-case=text-like-ascii-case-folding | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.text-like-null-propagation | expression.text-like-null-propagation | targeted | semantic | operator-case=text-like-null-propagation | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.text-like-shapes | expression.text-like-shapes | targeted | semantic | operator-case=text-like-shapes | syntax.expression.operator-prepare-gap |  | 3 |
+| c287.v1.expression.unary-nesting | expression.unary-nesting | targeted | semantic | operator-case=unary-nesting | syntax.expression.operator-prepare-gap |  | 2 |
+| c287.v1.expression.unary-shapes | expression.unary-shapes | targeted | semantic | operator-case=unary-shapes | syntax.expression.operator-prepare-gap |  | 2 |
 | c288.v1.subquery.in-query-builder-empty | subquery.in-query-builder-empty | targeted | semantic | in-subquery-case=in-query-builder-empty | syntax.expression.current-operators, syntax.select.core, syntax.subquery.table-and-in-prepare-gap |  | 1 |
 | c288.v1.subquery.in-query-builder-nonempty | subquery.in-query-builder-nonempty | targeted | semantic | in-subquery-case=in-query-builder-nonempty | syntax.expression.current-operators, syntax.select.core, syntax.subquery.table-and-in-prepare-gap |  | 1 |
 | c288.v1.subquery.in-query-functional-nonempty | subquery.in-query-functional-nonempty | targeted | semantic | in-subquery-case=in-query-functional-nonempty | syntax.expression.current-operators, syntax.select.core, syntax.subquery.table-and-in-prepare-gap |  | 1 |

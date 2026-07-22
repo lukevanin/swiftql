@@ -85,6 +85,206 @@ struct C288EmployeeIdentifier: Equatable {
 }
 
 
+// MARK: - Issue #287 packed operator projections
+//
+// Each issue #287 case selects one column per overload under test, so a single
+// prepared statement carries explicit evidence for a whole operator family and
+// optionality shape. The Swift column types record which overloads return
+// `Optional` results; the conformance runner compares raw storage values, so
+// these types are compile-time evidence rather than a decoding path.
+
+@SQLResult
+struct C287RequiredOptionalPair: Equatable {
+    let required: Bool
+    let optional: Bool?
+}
+
+
+@SQLResult
+struct C287BooleanLogicRow: Equatable {
+    let required: Bool
+    let rightOptional: Bool?
+    let leftOptional: Bool?
+    let bothOptional: Bool?
+    let shortCircuit: Bool?
+}
+
+
+@SQLResult
+struct C287ComparisonRow: Equatable {
+    let less: Bool
+    let lessOrEqual: Bool
+    let greater: Bool
+    let greaterOrEqual: Bool
+}
+
+
+@SQLResult
+struct C287OptionalComparisonRow: Equatable {
+    let less: Bool?
+    let lessOrEqual: Bool?
+    let greater: Bool?
+    let greaterOrEqual: Bool?
+    let nullOperand: Bool?
+}
+
+
+@SQLResult
+struct C287EqualityRow: Equatable {
+    let integerEqual: Bool
+    let integerNotEqual: Bool
+    let textEqual: Bool
+}
+
+
+@SQLResult
+struct C287OptionalEqualityRow: Equatable {
+    let rightOptional: Bool?
+    let leftOptional: Bool?
+    let bothOptional: Bool?
+    let nullOperand: Bool?
+    let bothNull: Bool?
+}
+
+
+@SQLResult
+struct C287IntegerArithmeticRow: Equatable {
+    let add: Int
+    let subtract: Int
+    let multiply: Int
+    let divide: Int
+    let modulo: Int
+}
+
+
+@SQLResult
+struct C287OptionalIntegerArithmeticRow: Equatable {
+    let add: Int?
+    let subtract: Int?
+    let multiply: Int?
+    let divide: Int?
+    let modulo: Int?
+}
+
+
+/// Every column is typed non-optional because that is what the public integer
+/// operator overloads return, even where SQLite yields NULL. See the
+/// division-by-zero deviation recorded against
+/// `syntax.expression.operator-prepare-gap`.
+@SQLResult
+struct C287IntegerBoundaryRow: Equatable {
+    let truncation: Int
+    let negativeTruncation: Int
+    let divideByZero: Int
+    let moduloByZero: Int
+    let negativeDividendModulo: Int
+    let negativeDivisorModulo: Int
+}
+
+
+@SQLResult
+struct C287RealArithmeticRow: Equatable {
+    let add: Double
+    let subtract: Double
+    let multiply: Double
+    let divide: Double
+}
+
+
+@SQLResult
+struct C287OptionalRealArithmeticRow: Equatable {
+    let add: Double?
+    let subtract: Double?
+    let multiply: Double?
+    let divide: Double?
+}
+
+
+/// `divideByZero` is typed non-optional for the same reason as
+/// `C287IntegerBoundaryRow.divideByZero`: it is what the public
+/// `BinaryFloatingPoint` `/` overload returns, even though SQLite yields NULL
+/// for a zero divisor. Do not assume this row is safe to decode.
+@SQLResult
+struct C287RealBoundaryRow: Equatable {
+    let exactHalf: Double
+    let divideByZero: Double
+}
+
+
+@SQLResult
+struct C287UnaryRow: Equatable {
+    let bitwiseNot: Int
+    let optionalBitwiseNot: Int?
+    let unaryPlus: Int
+    let optionalUnaryPlus: Int?
+    let unaryMinus: Int
+    let optionalUnaryMinus: Int?
+}
+
+
+@SQLResult
+struct C287UnaryNestingRow: Equatable {
+    let doubleNegation: Int
+    let negatedSum: Int
+}
+
+
+@SQLResult
+struct C287CoalesceRow: Equatable {
+    let integerFallback: Int
+    let integerPresent: Int
+    let realFallback: Double
+    let textFallback: String
+}
+
+
+@SQLResult
+struct C287OptionalPredicateRow: Equatable {
+    let isNullOnNull: Bool
+    let isNullOnValue: Bool
+    let notNullOnNull: Bool
+    let notNullOnValue: Bool
+    let widened: Int?
+}
+
+
+@SQLResult
+struct C287TextConcatenationRow: Equatable {
+    let required: String
+    let rightOptional: String?
+    let leftOptional: String?
+    let bothOptional: String?
+}
+
+
+@SQLResult
+struct C287TextMatchRow: Equatable {
+    let required: Bool
+    let rightOptional: Bool?
+    let leftOptional: Bool?
+    let bothOptional: Bool?
+}
+
+
+@SQLResult
+struct C287TextCaseRow: Equatable {
+    let asciiLower: Bool
+    let asciiUpper: Bool
+    let nonASCII: Bool
+}
+
+
+/// GLOB's third probe is a single-character wildcard rather than a non-ASCII
+/// operand, so it gets its own row instead of reusing `C287TextCaseRow` and
+/// rendering a column named `nonASCII` for something else entirely.
+@SQLResult
+struct C287GlobCaseRow: Equatable {
+    let lowercasePattern: Bool
+    let uppercasePattern: Bool
+    let singleCharacterWildcard: Bool
+}
+
+
 public struct SQLiteCombinatorialDraftSelection: Equatable {
     public let dimensionID: String
     public let valueID: String
@@ -659,6 +859,672 @@ public enum SQLiteTypedCombinatorialCases {
             statement: statement,
             bindings: bindings,
             semanticOracleID: "oracle.c288.subquery.\(id)"
+        )
+    }
+
+    /// Issue #287, part one: every public Boolean, comparison, and equality
+    /// operator overload named by `syntax.expression.operator-prepare-gap`.
+    ///
+    /// Overloads are packed by family and optionality shape rather than given
+    /// one case each. A packed case still prepares and executes every overload
+    /// it names — each appears as its own result column — and keeps the corpus
+    /// inside its declared bound. Arithmetic, unary, optional-coalescing, and
+    /// text overloads follow in part two.
+    ///
+    /// Values are chosen so no column can pass by accident: every family
+    /// includes a NULL operand *and* a non-NULL one, so an overload that
+    /// silently dropped its operand would change at least one column.
+    public static func booleanComparisonEqualityCases()
+        -> [SQLiteCombinatorialCaseDraft] {
+        let boolTrue = XLNamedBindingReference<Bool>(name: "bool_true")
+        let boolFalse = XLNamedBindingReference<Bool>(name: "bool_false")
+        let boolNull = XLNamedBindingReference<Bool?>(name: "bool_null")
+        let intLeft = XLNamedBindingReference<Int>(name: "int_left")
+        let intRight = XLNamedBindingReference<Int>(name: "int_right")
+        let intOptional = XLNamedBindingReference<Int?>(name: "int_optional")
+        let intOptionalB = XLNamedBindingReference<Int?>(name: "int_optional_b")
+        let intNull = XLNamedBindingReference<Int?>(name: "int_null")
+        let textLeft = XLNamedBindingReference<String>(name: "text_left")
+
+        let trueBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("bool_true"),
+            value: .integer(1)
+        )
+        let falseBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("bool_false"),
+            value: .integer(0)
+        )
+        let nullBoolBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("bool_null"),
+            value: .null
+        )
+        let leftBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("int_left"),
+            value: .integer(7)
+        )
+        let rightBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("int_right"),
+            value: .integer(3)
+        )
+        let optionalBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("int_optional"),
+            value: .integer(3)
+        )
+        let optionalBBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("int_optional_b"),
+            value: .integer(5)
+        )
+        let nullIntBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("int_null"),
+            value: .null
+        )
+        let textBinding = SQLiteCombinatorialDraftBinding(
+            key: .named("text_left"),
+            value: .text("alfa")
+        )
+
+        return [
+            // NOT over both operand shapes. The optional column is also the
+            // three-valued `NOT NULL IS NULL` assertion.
+            issue287Case(
+                id: "boolean-not-shapes",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287RequiredOptionalPair.columns(
+                    required: !boolTrue,
+                    optional: !boolNull
+                )),
+                bindings: [trueBinding, nullBoolBinding]
+            ),
+            // AND over all four shapes, plus SQLite's asymmetric three-valued
+            // rule: NULL AND false is false, while NULL AND true is NULL.
+            issue287Case(
+                id: "boolean-and-shapes",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287BooleanLogicRow.columns(
+                    required: boolTrue && boolFalse,
+                    rightOptional: boolTrue && boolNull,
+                    leftOptional: boolNull && boolTrue,
+                    bothOptional: boolNull && boolNull,
+                    shortCircuit: boolNull && boolFalse
+                )),
+                bindings: [trueBinding, falseBinding, nullBoolBinding]
+            ),
+            // OR over all four shapes, plus the dual rule: NULL OR true is
+            // true, while NULL OR false is NULL.
+            issue287Case(
+                id: "boolean-or-shapes",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287BooleanLogicRow.columns(
+                    required: boolTrue || boolFalse,
+                    rightOptional: boolTrue || boolNull,
+                    leftOptional: boolNull || boolFalse,
+                    bothOptional: boolNull || boolNull,
+                    shortCircuit: boolFalse || boolNull
+                )),
+                bindings: [trueBinding, falseBinding, nullBoolBinding]
+            ),
+            issue287Case(
+                id: "comparison-required",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287ComparisonRow.columns(
+                    less: intLeft < intRight,
+                    lessOrEqual: intLeft <= intRight,
+                    greater: intLeft > intRight,
+                    greaterOrEqual: intLeft >= intRight
+                )),
+                bindings: [leftBinding, rightBinding]
+            ),
+            issue287Case(
+                id: "comparison-right-optional",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287OptionalComparisonRow.columns(
+                    less: intLeft < intOptional,
+                    lessOrEqual: intLeft <= intOptional,
+                    greater: intLeft > intOptional,
+                    greaterOrEqual: intLeft >= intOptional,
+                    nullOperand: intLeft > intNull
+                )),
+                bindings: [leftBinding, optionalBinding, nullIntBinding]
+            ),
+            // Equal operands on the boundary, so `<` and `<=` cannot agree.
+            issue287Case(
+                id: "comparison-left-optional",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287OptionalComparisonRow.columns(
+                    less: intOptional < intRight,
+                    lessOrEqual: intOptional <= intRight,
+                    greater: intOptional > intRight,
+                    greaterOrEqual: intOptional >= intRight,
+                    nullOperand: intNull > intRight
+                )),
+                bindings: [optionalBinding, rightBinding, nullIntBinding]
+            ),
+            issue287Case(
+                id: "comparison-both-optional",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287OptionalComparisonRow.columns(
+                    less: intOptional < intOptionalB,
+                    lessOrEqual: intOptional <= intOptionalB,
+                    greater: intOptional > intOptionalB,
+                    greaterOrEqual: intOptional >= intOptionalB,
+                    nullOperand: intOptional > intNull
+                )),
+                bindings: [optionalBinding, optionalBBinding, nullIntBinding]
+            ),
+            issue287Case(
+                id: "equality-required",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287EqualityRow.columns(
+                    integerEqual: intLeft == intRight,
+                    integerNotEqual: intLeft != intRight,
+                    textEqual: textLeft == textLeft
+                )),
+                bindings: [leftBinding, rightBinding, textBinding]
+            ),
+            // The optional `==` overloads render SQLite `IS`, which is never
+            // NULL even though the Swift result type is `Optional<Bool>`. The
+            // last two columns pin that deviation.
+            issue287Case(
+                id: "equality-optional-shapes",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287OptionalEqualityRow.columns(
+                    rightOptional: intLeft == intOptional,
+                    leftOptional: intOptional == intRight,
+                    bothOptional: intOptional == intOptionalB,
+                    nullOperand: intLeft == intNull,
+                    bothNull: intNull == intNull
+                )),
+                bindings: [
+                    leftBinding,
+                    rightBinding,
+                    optionalBinding,
+                    optionalBBinding,
+                    nullIntBinding,
+                ]
+            ),
+            // The same deviation for `IS NOT`.
+            issue287Case(
+                id: "inequality-optional-shapes",
+                featureID: "syntax.expression.operator-prepare-gap",
+                statement: select(C287OptionalEqualityRow.columns(
+                    rightOptional: intLeft != intOptional,
+                    leftOptional: intOptional != intRight,
+                    bothOptional: intOptional != intOptionalB,
+                    nullOperand: intLeft != intNull,
+                    bothNull: intNull != intNull
+                )),
+                bindings: [
+                    leftBinding,
+                    rightBinding,
+                    optionalBinding,
+                    optionalBBinding,
+                    nullIntBinding,
+                ]
+            ),
+        ]
+    }
+
+    /// Issue #287, part two: the remaining public arithmetic, unary,
+    /// optional-coalescing, and text overloads named by
+    /// `syntax.expression.operator-prepare-gap`.
+    ///
+    /// Same packing rule as part one. Each family additionally carries the
+    /// SQLite boundary its Swift signature cannot express: integer truncation
+    /// and division by zero, real division producing a fraction where the
+    /// integer overload truncates, `||` yielding NULL rather than an empty
+    /// string, LIKE's ASCII-only case folding, and GLOB's case sensitivity.
+    public static func arithmeticTextOptionalCases()
+        -> [SQLiteCombinatorialCaseDraft] {
+        integerArithmeticCases()
+            + realArithmeticCases()
+            + unaryCases()
+            + optionalCases()
+            + textCases()
+    }
+
+    private static func integerArithmeticCases()
+        -> [SQLiteCombinatorialCaseDraft] {
+        let seven = XLNamedBindingReference<Int>(name: "int_seven")
+        let two = XLNamedBindingReference<Int>(name: "int_two")
+        let optionalTwo = XLNamedBindingReference<Int?>(name: "int_optional_two")
+        let optionalSeven = XLNamedBindingReference<Int?>(
+            name: "int_optional_seven"
+        )
+        let intNull = XLNamedBindingReference<Int?>(name: "int_null")
+        let negativeSeven = XLNamedBindingReference<Int>(
+            name: "int_negative_seven"
+        )
+        let negativeThree = XLNamedBindingReference<Int>(
+            name: "int_negative_three"
+        )
+        let three = XLNamedBindingReference<Int>(name: "int_three")
+
+        let sevenBinding = binding("int_seven", .integer(7))
+        let twoBinding = binding("int_two", .integer(2))
+        let optionalTwoBinding = binding("int_optional_two", .integer(2))
+        let optionalSevenBinding = binding("int_optional_seven", .integer(7))
+        let nullBinding = binding("int_null", .null)
+
+        return [
+            issue287Case(
+                id: "integer-arithmetic-required",
+                statement: select(C287IntegerArithmeticRow.columns(
+                    add: seven + two,
+                    subtract: seven - two,
+                    multiply: seven * two,
+                    divide: seven / two,
+                    modulo: seven % two
+                )),
+                bindings: [sevenBinding, twoBinding]
+            ),
+            issue287Case(
+                id: "integer-arithmetic-right-optional",
+                statement: select(C287OptionalIntegerArithmeticRow.columns(
+                    add: seven + optionalTwo,
+                    subtract: seven - optionalTwo,
+                    multiply: seven * optionalTwo,
+                    divide: seven / optionalTwo,
+                    modulo: seven % optionalTwo
+                )),
+                bindings: [sevenBinding, optionalTwoBinding]
+            ),
+            issue287Case(
+                id: "integer-arithmetic-left-optional",
+                statement: select(C287OptionalIntegerArithmeticRow.columns(
+                    add: optionalSeven + two,
+                    subtract: optionalSeven - two,
+                    multiply: optionalSeven * two,
+                    divide: optionalSeven / two,
+                    modulo: optionalSeven % two
+                )),
+                bindings: [optionalSevenBinding, twoBinding]
+            ),
+            issue287Case(
+                id: "integer-arithmetic-both-optional",
+                statement: select(C287OptionalIntegerArithmeticRow.columns(
+                    add: optionalSeven + optionalTwo,
+                    subtract: optionalSeven - optionalTwo,
+                    multiply: optionalSeven * optionalTwo,
+                    divide: optionalSeven / optionalTwo,
+                    modulo: optionalSeven % optionalTwo
+                )),
+                bindings: [optionalSevenBinding, optionalTwoBinding]
+            ),
+            // Arithmetic, unlike AND and OR, has no absorbing operand: a NULL
+            // anywhere makes the whole expression NULL.
+            issue287Case(
+                id: "integer-arithmetic-null-propagation",
+                statement: select(C287OptionalIntegerArithmeticRow.columns(
+                    add: seven + intNull,
+                    subtract: intNull - two,
+                    multiply: optionalSeven * intNull,
+                    divide: seven / intNull,
+                    modulo: intNull % two
+                )),
+                bindings: [
+                    sevenBinding,
+                    twoBinding,
+                    optionalSevenBinding,
+                    nullBinding,
+                ]
+            ),
+            // Integer division truncates toward zero rather than flooring, and
+            // `%` takes the sign of the dividend. Division and remainder by
+            // zero yield NULL even though the overloads return non-optional
+            // `Int`.
+            issue287Case(
+                id: "integer-division-boundaries",
+                statement: select(C287IntegerBoundaryRow.columns(
+                    truncation: seven / two,
+                    negativeTruncation: negativeSeven / two,
+                    divideByZero: seven / 0,
+                    moduloByZero: seven % 0,
+                    negativeDividendModulo: negativeSeven % three,
+                    negativeDivisorModulo: seven % negativeThree
+                )),
+                bindings: [
+                    sevenBinding,
+                    twoBinding,
+                    binding("int_negative_seven", .integer(-7)),
+                    binding("int_negative_three", .integer(-3)),
+                    binding("int_three", .integer(3)),
+                ]
+            ),
+        ]
+    }
+
+    private static func realArithmeticCases() -> [SQLiteCombinatorialCaseDraft] {
+        let seven = XLNamedBindingReference<Double>(name: "real_seven")
+        let two = XLNamedBindingReference<Double>(name: "real_two")
+        let optionalTwo = XLNamedBindingReference<Double?>(
+            name: "real_optional_two"
+        )
+        let optionalSeven = XLNamedBindingReference<Double?>(
+            name: "real_optional_seven"
+        )
+        let realNull = XLNamedBindingReference<Double?>(name: "real_null")
+
+        let sevenBinding = binding("real_seven", .real(7))
+        let twoBinding = binding("real_two", .real(2))
+        let optionalTwoBinding = binding("real_optional_two", .real(2))
+        let optionalSevenBinding = binding("real_optional_seven", .real(7))
+        let nullBinding = binding("real_null", .null)
+
+        return [
+            issue287Case(
+                id: "real-arithmetic-required",
+                statement: select(C287RealArithmeticRow.columns(
+                    add: seven + two,
+                    subtract: seven - two,
+                    multiply: seven * two,
+                    divide: seven / two
+                )),
+                bindings: [sevenBinding, twoBinding]
+            ),
+            issue287Case(
+                id: "real-arithmetic-right-optional",
+                statement: select(C287OptionalRealArithmeticRow.columns(
+                    add: seven + optionalTwo,
+                    subtract: seven - optionalTwo,
+                    multiply: seven * optionalTwo,
+                    divide: seven / optionalTwo
+                )),
+                bindings: [sevenBinding, optionalTwoBinding]
+            ),
+            issue287Case(
+                id: "real-arithmetic-left-optional",
+                statement: select(C287OptionalRealArithmeticRow.columns(
+                    add: optionalSeven + two,
+                    subtract: optionalSeven - two,
+                    multiply: optionalSeven * two,
+                    divide: optionalSeven / two
+                )),
+                bindings: [optionalSevenBinding, twoBinding]
+            ),
+            issue287Case(
+                id: "real-arithmetic-both-optional",
+                statement: select(C287OptionalRealArithmeticRow.columns(
+                    add: optionalSeven + optionalTwo,
+                    subtract: optionalSeven - optionalTwo,
+                    multiply: optionalSeven * optionalTwo,
+                    divide: optionalSeven / optionalTwo
+                )),
+                bindings: [optionalSevenBinding, optionalTwoBinding]
+            ),
+            issue287Case(
+                id: "real-arithmetic-null-propagation",
+                statement: select(C287OptionalRealArithmeticRow.columns(
+                    add: seven + realNull,
+                    subtract: realNull - two,
+                    multiply: optionalSeven * realNull,
+                    divide: seven / realNull
+                )),
+                bindings: [
+                    sevenBinding,
+                    twoBinding,
+                    optionalSevenBinding,
+                    nullBinding,
+                ]
+            ),
+            // The same operands the integer case truncates to 3 divide to 3.5
+            // here, so the two `/` overloads cannot be conflated.
+            issue287Case(
+                id: "real-division-boundaries",
+                statement: select(C287RealBoundaryRow.columns(
+                    exactHalf: seven / two,
+                    divideByZero: seven / 0.0
+                )),
+                bindings: [sevenBinding, twoBinding]
+            ),
+        ]
+    }
+
+    private static func unaryCases() -> [SQLiteCombinatorialCaseDraft] {
+        let seven = XLNamedBindingReference<Int>(name: "int_seven")
+        let two = XLNamedBindingReference<Int>(name: "int_two")
+        let optionalSeven = XLNamedBindingReference<Int?>(
+            name: "int_optional_seven"
+        )
+        let sevenBinding = binding("int_seven", .integer(7))
+        let twoBinding = binding("int_two", .integer(2))
+        let optionalSevenBinding = binding("int_optional_seven", .integer(7))
+
+        return [
+            issue287Case(
+                id: "unary-shapes",
+                statement: select(C287UnaryRow.columns(
+                    bitwiseNot: ~seven,
+                    optionalBitwiseNot: ~optionalSeven,
+                    unaryPlus: +seven,
+                    optionalUnaryPlus: +optionalSeven,
+                    unaryMinus: -seven,
+                    optionalUnaryMinus: -optionalSeven
+                )),
+                bindings: [sevenBinding, optionalSevenBinding]
+            ),
+            // SwiftQL parenthesises unary operands, so nesting cannot collapse
+            // into SQLite's `--` line-comment token and silently truncate the
+            // rest of the statement.
+            issue287Case(
+                id: "unary-nesting",
+                statement: select(C287UnaryNestingRow.columns(
+                    doubleNegation: -(-seven),
+                    negatedSum: -(seven + two)
+                )),
+                bindings: [sevenBinding, twoBinding]
+            ),
+        ]
+    }
+
+    private static func optionalCases() -> [SQLiteCombinatorialCaseDraft] {
+        let optionalSeven = XLNamedBindingReference<Int?>(
+            name: "int_optional_seven"
+        )
+        let intNull = XLNamedBindingReference<Int?>(name: "int_null")
+        let realNull = XLNamedBindingReference<Double?>(name: "real_null")
+        let textNull = XLNamedBindingReference<String?>(name: "text_null")
+        let seven = XLNamedBindingReference<Int>(name: "int_seven")
+
+        let optionalSevenBinding = binding("int_optional_seven", .integer(7))
+        let nullBinding = binding("int_null", .null)
+        let realNullBinding = binding("real_null", .null)
+        let textNullBinding = binding("text_null", .null)
+        let sevenBinding = binding("int_seven", .integer(7))
+
+        return [
+            // Both a NULL and a non-NULL left operand: a NULL-only case cannot
+            // distinguish COALESCE from a bare column reference.
+            issue287Case(
+                id: "coalesce-storage-classes",
+                statement: select(C287CoalesceRow.columns(
+                    integerFallback: intNull.coalesce(0),
+                    integerPresent: optionalSeven.coalesce(0),
+                    realFallback: realNull.coalesce(1.5),
+                    textFallback: textNull.coalesce("fallback")
+                )),
+                bindings: [
+                    nullBinding,
+                    optionalSevenBinding,
+                    realNullBinding,
+                    textNullBinding,
+                ]
+            ),
+            // `??` must be applied to a concrete binding reference. Applying it
+            // to a Swift `Optional` value would resolve to the standard
+            // library's `??` and emit no COALESCE at all.
+            issue287Case(
+                id: "coalescing-operator",
+                statement: select(intNull ?? 42),
+                bindings: [nullBinding]
+            ),
+            issue287Case(
+                id: "optional-predicates",
+                statement: select(C287OptionalPredicateRow.columns(
+                    isNullOnNull: intNull.isNull(),
+                    isNullOnValue: optionalSeven.isNull(),
+                    notNullOnNull: intNull.notNull(),
+                    notNullOnValue: optionalSeven.notNull(),
+                    widened: seven.toNullable()
+                )),
+                bindings: [nullBinding, optionalSevenBinding, sevenBinding]
+            ),
+        ]
+    }
+
+    private static func textCases() -> [SQLiteCombinatorialCaseDraft] {
+        let alfa = XLNamedBindingReference<String>(name: "text_alfa")
+        let beta = XLNamedBindingReference<String>(name: "text_beta")
+        let optionalAlfa = XLNamedBindingReference<String?>(
+            name: "text_optional_alfa"
+        )
+        let optionalBeta = XLNamedBindingReference<String?>(
+            name: "text_optional_beta"
+        )
+        let textNull = XLNamedBindingReference<String?>(name: "text_null")
+        let upper = XLNamedBindingReference<String>(name: "text_upper")
+        let accented = XLNamedBindingReference<String>(name: "text_accented")
+
+        let alfaBinding = binding("text_alfa", .text("alfa"))
+        let betaBinding = binding("text_beta", .text("beta"))
+        let optionalAlfaBinding = binding("text_optional_alfa", .text("alfa"))
+        let optionalBetaBinding = binding("text_optional_beta", .text("beta"))
+        let textNullBinding = binding("text_null", .null)
+        let upperBinding = binding("text_upper", .text("ALFA"))
+        let accentedBinding = binding("text_accented", .text("Ä"))
+
+        return [
+            issue287Case(
+                id: "text-concatenation-shapes",
+                statement: select(C287TextConcatenationRow.columns(
+                    required: alfa + beta,
+                    rightOptional: alfa + optionalBeta,
+                    leftOptional: optionalAlfa + beta,
+                    bothOptional: optionalAlfa + optionalBeta
+                )),
+                bindings: [
+                    alfaBinding,
+                    betaBinding,
+                    optionalAlfaBinding,
+                    optionalBetaBinding,
+                ]
+            ),
+            // SQLite's `||` is NULL-propagating; it does not treat NULL as an
+            // empty string the way some engines do.
+            issue287Case(
+                id: "text-concatenation-null",
+                statement: select(C287TextConcatenationRow.columns(
+                    required: alfa + beta,
+                    rightOptional: alfa + textNull,
+                    leftOptional: textNull + beta,
+                    bothOptional: textNull + textNull
+                )),
+                bindings: [alfaBinding, betaBinding, textNullBinding]
+            ),
+            issue287Case(
+                id: "text-like-shapes",
+                statement: select(C287TextMatchRow.columns(
+                    required: alfa.like("a%"),
+                    rightOptional: alfa.like(optionalBeta),
+                    leftOptional: optionalAlfa.like("a%"),
+                    bothOptional: optionalAlfa.like(optionalBeta)
+                )),
+                bindings: [alfaBinding, optionalAlfaBinding, optionalBetaBinding]
+            ),
+            // LIKE folds case for ASCII only. The accented column is the
+            // boundary that keeps this from reading as full Unicode folding.
+            issue287Case(
+                id: "text-like-ascii-case-folding",
+                statement: select(C287TextCaseRow.columns(
+                    asciiLower: alfa.like("A%"),
+                    asciiUpper: upper.like("a%"),
+                    nonASCII: accented.like("ä")
+                )),
+                bindings: [alfaBinding, upperBinding, accentedBinding]
+            ),
+            // The optional LIKE overloads return `Bool?` precisely because a
+            // NULL operand yields NULL. Without this the shape cases would
+            // only ever exercise their non-NULL branch.
+            issue287Case(
+                id: "text-like-null-propagation",
+                statement: select(C287TextMatchRow.columns(
+                    required: alfa.like("a%"),
+                    rightOptional: alfa.like(textNull),
+                    leftOptional: textNull.like("a%"),
+                    bothOptional: textNull.like(textNull)
+                )),
+                bindings: [alfaBinding, textNullBinding]
+            ),
+            issue287Case(
+                id: "text-glob-shapes",
+                statement: select(C287TextMatchRow.columns(
+                    required: alfa.glob("a*"),
+                    rightOptional: alfa.glob(optionalBeta),
+                    leftOptional: optionalAlfa.glob("a*"),
+                    bothOptional: optionalAlfa.glob(optionalBeta)
+                )),
+                bindings: [alfaBinding, optionalAlfaBinding, optionalBetaBinding]
+            ),
+            // The same NULL branch for the optional GLOB overloads.
+            issue287Case(
+                id: "text-glob-null-propagation",
+                statement: select(C287TextMatchRow.columns(
+                    required: alfa.glob("a*"),
+                    rightOptional: alfa.glob(textNull),
+                    leftOptional: textNull.glob("a*"),
+                    bothOptional: textNull.glob(textNull)
+                )),
+                bindings: [alfaBinding, textNullBinding]
+            ),
+            // GLOB is case sensitive where LIKE is not, and uses Unix wildcards
+            // rather than SQL ones.
+            issue287Case(
+                id: "text-glob-case-sensitivity",
+                statement: select(C287GlobCaseRow.columns(
+                    lowercasePattern: alfa.glob("a*"),
+                    uppercasePattern: alfa.glob("A*"),
+                    singleCharacterWildcard: alfa.glob("?lfa")
+                )),
+                bindings: [alfaBinding]
+            ),
+        ]
+    }
+
+    private static func binding(
+        _ name: String,
+        _ value: XLSQLiteValue
+    ) -> SQLiteCombinatorialDraftBinding {
+        SQLiteCombinatorialDraftBinding(key: .named(name), value: value)
+    }
+
+    private static func issue287Case(
+        id: String,
+        statement: any XLEncodable,
+        bindings: [SQLiteCombinatorialDraftBinding]
+    ) -> SQLiteCombinatorialCaseDraft {
+        issue287Case(
+            id: id,
+            featureID: "syntax.expression.operator-prepare-gap",
+            statement: statement,
+            bindings: bindings
+        )
+    }
+
+    private static func issue287Case(
+        id: String,
+        featureID: String,
+        statement: any XLEncodable,
+        bindings: [SQLiteCombinatorialDraftBinding]
+    ) -> SQLiteCombinatorialCaseDraft {
+        SQLiteCombinatorialCaseDraft(
+            id: "c287.v1.expression.\(id)",
+            templateID: "expression.\(id)",
+            strength: "targeted",
+            selections: [.init(dimensionID: "operator-case", valueID: id)],
+            inventoryFeatureIDs: [featureID],
+            northwindAnchorCaseIDs: [],
+            statement: statement,
+            bindings: bindings,
+            semanticOracleID: "oracle.c287.expression.\(id)"
         )
     }
 

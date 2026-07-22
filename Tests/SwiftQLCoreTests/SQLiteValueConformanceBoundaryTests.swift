@@ -194,19 +194,28 @@ final class SQLiteValueConformanceBoundaryTests: XCTestCase {
             XCTAssertTrue(evidence.environmentIDs.isEmpty, evidenceID)
         }
 
+        // `syntax.expression.like-escape-gap` is deliberately absent: issue #21
+        // shipped the ESCAPE clause, so it is supported rather than gated.
         let gatedBlockers = [
             "syntax.compound.direct-scalar-gap": 43,
             "syntax.cte.materialization-hints-gap": 10,
             "syntax.ddl.typed-model-gap": 139,
             "syntax.dml.returning-gap": 57,
-            "syntax.expression.like-escape-gap": 21,
             "syntax.join.natural-using-gap": 45,
             "syntax.subquery.nullable-shape-gap": 70,
         ]
         let featuresByID = Dictionary(
             uniqueKeysWithValues: inventory.features.map { ($0.id, $0) }
         )
-        XCTAssertEqual(gatedBlockers.count, 7)
+        XCTAssertEqual(gatedBlockers.count, 6)
+
+        let likeEscape = try XCTUnwrap(
+            featuresByID["syntax.expression.like-escape-gap"]
+        )
+        XCTAssertEqual(likeEscape.status, .supported)
+        XCTAssertEqual(likeEscape.adoptionStatus, .alreadyCovered)
+        XCTAssertNil(likeEscape.deferral)
+        XCTAssertFalse(likeEscape.evidenceIDs.isEmpty)
         for (featureID, blockingIssue) in gatedBlockers {
             let feature = try XCTUnwrap(featuresByID[featureID], featureID)
             XCTAssertEqual(feature.status, .unimplemented, featureID)
