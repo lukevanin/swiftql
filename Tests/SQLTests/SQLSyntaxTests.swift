@@ -1122,6 +1122,26 @@ final class XLSyntaxTests: XCTestCase {
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, t0.value AS value FROM Test AS t0 WHERE ((t0.id NOT IN ('foo')) AND (t0.id IN ('bar')))")
     }
 
+    func testSelectWhereRegexp() {
+        let expression = sqlQuery { s in
+            let t = s.table(TestTable.self)
+            return select(t).from(t).where(t.id.regexp("^a.*z$"))
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, t0.value AS value FROM Test AS t0 WHERE (t0.id REGEXP '^a.*z$')")
+    }
+
+    /// REGEXP is an ordinary binary operator, so it composes and parenthesises
+    /// the same way LIKE and GLOB do.
+    func testSelectWhereRegexpComposesWithOtherPredicates() {
+        let expression = sqlQuery { s in
+            let t = s.table(TestTable.self)
+            return select(t).from(t).where(
+                t.id.regexp("^a") && t.id.glob("*z")
+            )
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, t0.value AS value FROM Test AS t0 WHERE ((t0.id REGEXP '^a') AND (t0.id GLOB '*z'))")
+    }
+
     func testSelectWhereLikeWithEscape() {
         let expression = sqlQuery { s in
             let t = s.table(TestTable.self)

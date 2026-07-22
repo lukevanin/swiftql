@@ -1366,8 +1366,22 @@ extension XLDocumentationTests {
 
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testNotInValueListAndEmptySetSemantics
+        let regexpQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.name.regexp("^A.*n$"))
+        }
+        XCTAssertTrue(
+            encoder.makeSQL(regexpQuery).sql.contains("REGEXP '^A.*n$'")
+        )
+
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testInAndNotInWithNullElementSemantics
+        let _: (XLRegexpOperatorTests) -> () throws -> Void =
+            XLRegexpOperatorTests.testRegexpMatchesUsingTheRegisteredFunction
+        let _: (XLRegexpOperatorTests) -> () throws -> Void =
+            XLRegexpOperatorTests.testRegexpWithoutRegisteredFunctionFailsAtPreparation
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testBetweenExecutesWithLiteralBindingAndColumnBounds
         let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.test_TextBinding_In_Subquery

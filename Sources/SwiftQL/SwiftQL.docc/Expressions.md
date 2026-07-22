@@ -268,6 +268,33 @@ let query = sql { schema in
 or empty value prepares successfully and then fails when the query runs, so 
 prefer a literal escape character over one supplied at runtime.
 
+### regexp operator
+
+`regexp` renders SQLite's `REGEXP` operator.
+
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
+```swift
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    Where(person.name.regexp("^A.*n$"))
+}
+```
+
+> Important: SQLite ships no `regexp` implementation. `X REGEXP Y` is parsed as
+a call to `regexp(Y, X)`, and preparing the statement fails with `no such
+function: regexp` until the application registers a two-argument `regexp`
+function on the connection.
+
+Because the implementation is supplied by the application, SQLite defines no
+regular-expression dialect here. The pattern syntax is whatever the registered
+function understands, so patterns are not portable between applications the way
+`like` and `glob` patterns are.
+
+Register the function on a `GRDBDatabaseBuilder`'s configuration before
+building the database, in the same way as any other custom SQL function.
+
 ### glob operator
 
 The `glob` operator is used for pattern matching in string values, similar to 
