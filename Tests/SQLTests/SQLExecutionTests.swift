@@ -607,6 +607,41 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(try evaluate({ $0.in([]) }, probeValue: 1), false)
     }
 
+    /// The empty set is total: `NOT IN ()` is true and `IN ()` is false for
+    /// every operand, including NULL. This is the one place a NULL operand does
+    /// not make the result unknown, so it is asserted against a column that
+    /// actually holds NULL rather than inferred from the non-NULL case.
+    func testNotInEmptySetIsTotalForNullOperand() throws {
+        try createEmployeeTable()
+        try insertEmployee(EmployeeTable(id: "a", name: "A", companyId: nil, managerEmployeeId: "boss"))
+        try insertEmployee(EmployeeTable(id: "b", name: "B", companyId: nil, managerEmployeeId: nil))
+
+        let notInEmpty = sql { s in
+            let t = s.table(EmployeeTable.self)
+            Select(t)
+            From(t)
+            Where(t.managerEmployeeId.notIn([]))
+            OrderBy(t.id.ascending())
+        }
+        let kept: [EmployeeTable] = try database
+            .makeRequest(with: notInEmpty)
+            .fetchAll()
+        // Both rows survive, including the one whose operand is NULL.
+        XCTAssertEqual(kept.map(\EmployeeTable.id), ["a", "b"])
+
+        let inEmpty = sql { s in
+            let t = s.table(EmployeeTable.self)
+            Select(t)
+            From(t)
+            Where(t.managerEmployeeId.in([]))
+            OrderBy(t.id.ascending())
+        }
+        let dropped: [EmployeeTable] = try database
+            .makeRequest(with: inEmpty)
+            .fetchAll()
+        XCTAssertTrue(dropped.isEmpty)
+    }
+
     /// A NULL left operand makes `NOT IN` NULL, not true, so those rows are
     /// filtered out rather than returned. This is the counterpart of the
     /// optional `in(_:)` overload; broader nullable IN semantics are #68.

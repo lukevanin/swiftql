@@ -1143,6 +1143,24 @@
       "layers": [
         "bindings",
         "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-not-in-empty-set-null-operand",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testNotInEmptySetIsTotalForNullOperand",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
         "semantic-oracle"
       ],
       "real_sqlite": true,
@@ -6567,13 +6585,14 @@
         "evidence.syntax.expression.render-not-in-composition",
         "evidence.syntax.expression.sqlite-not-in",
         "evidence.syntax.expression.sqlite-not-in-empty-set",
+        "evidence.syntax.expression.sqlite-not-in-empty-set-null-operand",
         "evidence.syntax.expression.sqlite-not-in-optional",
         "evidence.syntax.expression.sqlite-not-in-subquery",
         "evidence.syntax.expression.sqlite-not-in-table"
       ],
       "deviations": [
         "The negation is carried by the IN node itself rather than a wrapping NOT, so composing the predicate cannot move it outwards.",
-        "An empty right-hand set is total: NOT IN () is true and IN () is false for every operand, including NULL.",
+        "An empty right-hand set is total: NOT IN () is true and IN () is false for every operand, including NULL. This is the one shape where a NULL operand does not make the result unknown, and it is proven against a column that holds NULL rather than inferred.",
         "The value-list overloads mirror `in(_:)`, including its optional-operand shape: a NULL left-hand value yields NULL rather than true. The optional-subquery shape is deliberately not mirrored, because the corresponding `in(expression:)` overload is itself recorded as ambiguous for non-null expressions.",
         "A NULL element cannot be written into a value list, whose elements are non-optional expressions, so the NULL-element result is unreachable from the typed surface. Broader nullable IN semantics are owned by issue #68."
       ],
