@@ -225,8 +225,10 @@ They can never enter the write-capable publication job.
 
 Run these one at a time after the release workflow has landed on `main`:
 
-- `release-test/vX.Y.999` at the recorded release commit must pass through the
-  dry-run job and create no GitHub Release.
+- `release-test/vX.Y.999` at `origin/main`, or at any other commit reachable
+  from `main`, must pass through the dry-run job and create no GitHub Release.
+  These run before step 7 records `$release_sha`, and the release commit need
+  not exist yet.
 - `release-test/not-semver` must fail tag validation before compiler or
   documentation jobs start.
 - A valid test tag such as `release-test/vX.Y.998` on a temporary commit that is
