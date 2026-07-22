@@ -172,6 +172,42 @@ Their names are closed grammar choices that render as `COLLATE BINARY`,
 `COLLATE NOCASE`, and `COLLATE RTRIM`, rather than as SQL string literals or
 arbitrary raw SQL fragments.
 
+#### Custom collating sequences
+
+SQLite's built-in collations do not perform full Unicode case-folding or
+locale-aware ordering. For those, register a collating sequence on the
+connection and name it with `XLCollation(rawValue:)`.
+
+<!-- test: XLDocumentationTests.testDocumentationConditionalAndScalarFunctions -->
+```swift
+var builder = try GRDBDatabaseBuilder(
+    url: databaseURL,
+    configuration: Configuration(),
+    logger: nil
+)
+builder.addCollation("localized") { lhs, rhs in
+    lhs.compare(rhs, options: [], range: nil, locale: Locale.current)
+}
+let database = try builder.build()
+
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    OrderBy(person.name.collate(XLCollation(rawValue: "localized")).ascending())
+}
+```
+
+A registered name renders as a quoted identifier — `COLLATE "localized"` —
+rather than as a bare grammar token. SQLite resolves either spelling to the
+same sequence, and quoting means a caller-supplied name is escaped by the
+identifier formatter instead of being concatenated into the statement.
+
+Registration is the application's responsibility, and SwiftQL does not check
+it when the expression is built. A name that is not registered on the
+connection fails when the statement is prepared, with `no such collation
+sequence`, rather than silently comparing as `BINARY`.
+
 ### printf()
 
 Returns a formatted string. In SwiftQL `printf()` is similar to the same 

@@ -658,6 +658,24 @@ public struct GRDBDatabaseBuilder {
         }
     }
 
+    /// Registers a custom collating sequence on every database connection
+    /// created by the builder.
+    ///
+    /// Name the same sequence in a query with `XLCollation(rawValue:)`. SQLite
+    /// resolves collations at preparation, so an unregistered name fails with
+    /// `no such collation sequence` rather than silently comparing differently.
+    ///
+    /// - Parameter name: Collation name, matched case-insensitively by SQLite.
+    /// - Parameter compare: Ordering between two strings.
+    public mutating func addCollation(
+        _ name: String,
+        compare: @escaping @Sendable (String, String) -> ComparisonResult
+    ) {
+        configuration.prepareDatabase { database in
+            database.add(collation: DatabaseCollation(name, function: compare))
+        }
+    }
+
     /// Creates the configured database and its connection pool.
     public func build() throws -> GRDBDatabase {
         try GRDBDatabase(

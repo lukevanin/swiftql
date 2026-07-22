@@ -627,6 +627,43 @@ final class XLSyntaxTests: XCTestCase {
         XCTAssertEqual(encoder.makeSQL(expression).sql, "((:x COLLATE NOCASE) || :y)")
     }
 
+    /// Built-in collations stay bare grammar tokens; a registered name is
+    /// rendered as a quoted identifier so caller-supplied text cannot become
+    /// SQL. This encoder uses `.noEscape`, which is why the identifier appears
+    /// unquoted here — the point is that it goes through the identifier path
+    /// rather than being concatenated into the keyword.
+    func test_CustomCollation_RendersThroughTheIdentifierPath() {
+        let x = XLNamedBindingReference<String>(name: "x")
+        XCTAssertEqual(
+            encoder.makeSQL(x.collate(.nocase)).sql,
+            "(:x COLLATE NOCASE)"
+        )
+        XCTAssertEqual(
+            encoder.makeSQL(x.collate(XLCollation(rawValue: "myCollation"))).sql,
+            "(:x COLLATE myCollation)"
+        )
+    }
+
+    /// The same custom collation under an escaping formatter. A name carrying a
+    /// double quote must be escaped rather than closing the identifier and
+    /// injecting trailing SQL.
+    func test_CustomCollation_EscapesQuotesInTheName() {
+        let escaping = XLiteEncoder(
+            formatter: XLiteFormatter(identifierFormattingOptions: .sqlite)
+        )
+        let x = XLNamedBindingReference<String>(name: "x")
+        XCTAssertEqual(
+            escaping.makeSQL(x.collate(XLCollation(rawValue: "myCollation"))).sql,
+            "(:x COLLATE \"myCollation\")"
+        )
+        XCTAssertEqual(
+            escaping.makeSQL(
+                x.collate(XLCollation(rawValue: "evil\" OR 1=1 --"))
+            ).sql,
+            "(:x COLLATE \"evil\"\" OR 1=1 --\")"
+        )
+    }
+
     func test_TextConcatenation_PreservesCollatedOperandGrouping() {
         let x = XLNamedBindingReference<String>(name: "x")
         let y = XLNamedBindingReference<String>(name: "y")

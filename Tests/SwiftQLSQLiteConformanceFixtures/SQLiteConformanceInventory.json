@@ -728,6 +728,94 @@
       ]
     },
     {
+      "id": "evidence.syntax.expression.render-custom-collation",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.test_CustomCollation_RendersThroughTheIdentifierPath",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.custom-collation-equality",
+      "source_path": "Tests/SQLTests/SQLCustomCollationTests.swift",
+      "test_case": "XLCustomCollationTests.testCollationEqualityIsTheNameAlone",
+      "runner_path": null,
+      "layers": [
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-custom-collation-escaping",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.test_CustomCollation_EscapesQuotesInTheName",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "structured-error",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-custom-collation-compare",
+      "source_path": "Tests/SQLTests/SQLCustomCollationTests.swift",
+      "test_case": "XLCustomCollationTests.testCustomCollationComparesByRegisteredSequence",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-custom-collation-order",
+      "source_path": "Tests/SQLTests/SQLCustomCollationTests.swift",
+      "test_case": "XLCustomCollationTests.testCustomCollationOrdersByRegisteredSequence",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-custom-collation-unregistered",
+      "source_path": "Tests/SQLTests/SQLCustomCollationTests.swift",
+      "test_case": "XLCustomCollationTests.testUnregisteredCollationFailsAtPreparation",
+      "runner_path": null,
+      "layers": [
+        "prepare",
+        "structured-error"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
       "id": "evidence.syntax.expression.render-in-null-element",
       "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
       "test_case": "XLSyntaxTests.testSelectWhereInArrayContainingNull",
@@ -6709,6 +6797,64 @@
       ]
     },
     {
+      "id": "syntax.expression.custom-collation",
+      "kind": "syntax",
+      "family": "expression",
+      "title": "COLLATE with a connection-registered collating sequence",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLCollation",
+          "source_path": "Sources/SwiftQL/Functions/StringFunctions.swift",
+          "source_tokens": [
+            "XLCollation"
+          ]
+        },
+        {
+          "symbol": "GRDBDatabaseBuilder.addCollation(_:compare:)",
+          "source_path": "Sources/SwiftQL/GRDBSQLDatabase.swift",
+          "source_tokens": [
+            "addCollation"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/datatype3.html#collation"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "The named collating sequence is registered on every connection the query executes against."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.expression.custom-collation-equality",
+        "evidence.syntax.expression.render-custom-collation",
+        "evidence.syntax.expression.render-custom-collation-escaping",
+        "evidence.syntax.expression.sqlite-custom-collation-compare",
+        "evidence.syntax.expression.sqlite-custom-collation-order",
+        "evidence.syntax.expression.sqlite-custom-collation-unregistered"
+      ],
+      "deviations": [
+        "Built-in collations render as bare grammar tokens while a registered name renders as a quoted identifier. Both spellings resolve to the same sequence in SQLite; the split keeps issue #169's guarantee that `collate(_:)` is not an arbitrary raw-SQL escape hatch, because a caller-supplied name is escaped by the identifier formatter rather than concatenated into the keyword.",
+        "Registration is the application's responsibility and is not verified when the expression is built. An unregistered name fails at preparation with `no such collation sequence` rather than silently falling back to BINARY.",
+        "`XLCollation` changed from an enum to a `RawRepresentable` struct so a name outside the three built-ins can be expressed. Every existing spelling — `.binary`, `.nocase`, `.rtrim`, `rawValue`, `init(rawValue:)` — is preserved, but exhaustive `switch` over the former enum cases no longer compiles.",
+        "Equality and hashing use the collation name alone. The flag selecting bare-token versus quoted rendering is excluded, so `.nocase` and a hand-named `NOCASE` are one value: they name the same collating sequence and differ only in a spelling SQLite treats as equivalent."
+      ],
+      "follow_up_issues": [
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
       "id": "syntax.expression.nullable-in",
       "kind": "syntax",
       "family": "expression",
@@ -6956,7 +7102,6 @@
         "SQLite `LIKE` folds case for ASCII only and `GLOB` does not fold at all; neither distinction is visible in the Swift signatures."
       ],
       "follow_up_issues": [
-        29,
         76,
         78
       ],
