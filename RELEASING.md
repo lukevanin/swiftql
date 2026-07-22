@@ -181,7 +181,9 @@ so any commit still reachable from `main` qualifies. Use that:
 git fetch origin main --tags
 release_tag=vX.Y.Z
 
-# While the preparation branch still exists:
+# While the preparation branch still exists. Fetch it explicitly: the fetch
+# above updates only origin/main and the tags.
+git fetch origin release/vX.Y.Z-changelog
 release_sha="$(git rev-parse origin/release/vX.Y.Z-changelog)"
 
 # Or, once it has been deleted, from the preparation PR's merge commit. The
