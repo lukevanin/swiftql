@@ -91,17 +91,35 @@ final class XLCustomCollationTests: XCTestCase {
             Select(lhs.collate(XLCollation(rawValue: Self.byLength)) == rhs)
         }
 
-        // Different text, same length: equal under this collation only.
+        // The discriminating case: different text, same length. Equal under
+        // this collation, unequal under every built-in.
         var equalRequest = database.makeRequest(with: statement)
         equalRequest.set(lhs, "ab")
         equalRequest.set(rhs, "zz")
         XCTAssertEqual(try equalRequest.fetchOne(), true)
 
-        // BINARY would call these equal; this collation must not.
+        // A negative control rather than a discriminating case: BINARY would
+        // also call these unequal. It exists to rule out an implementation
+        // that reports everything equal, which the assertion above alone
+        // would not catch.
         var unequalRequest = database.makeRequest(with: statement)
         unequalRequest.set(lhs, "abc")
         unequalRequest.set(rhs, "ab")
         XCTAssertEqual(try unequalRequest.fetchOne(), false)
+    }
+
+    /// A built-in and a hand-named collation with the same name are the same
+    /// collating sequence, so they must compare and hash alike even though
+    /// they render differently. Synthesised conformances would include the
+    /// private rendering flag and split them.
+    func testCollationEqualityIsTheNameAlone() {
+        XCTAssertEqual(XLCollation.nocase, XLCollation(rawValue: "NOCASE"))
+        XCTAssertEqual(
+            Set([XLCollation.nocase, XLCollation(rawValue: "NOCASE")]).count,
+            1
+        )
+        XCTAssertNotEqual(XLCollation.nocase, XLCollation.binary)
+        XCTAssertNotEqual(XLCollation.nocase, XLCollation(rawValue: "localized"))
     }
 
     /// An unregistered collation is a preparation failure, not a silent

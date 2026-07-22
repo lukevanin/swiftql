@@ -742,6 +742,19 @@
       ]
     },
     {
+      "id": "evidence.syntax.expression.custom-collation-equality",
+      "source_path": "Tests/SQLTests/SQLCustomCollationTests.swift",
+      "test_case": "XLCustomCollationTests.testCollationEqualityIsTheNameAlone",
+      "runner_path": null,
+      "layers": [
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
       "id": "evidence.syntax.expression.render-custom-collation-escaping",
       "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
       "test_case": "XLSyntaxTests.test_CustomCollation_EscapesQuotesInTheName",
@@ -6820,6 +6833,7 @@
         "The named collating sequence is registered on every connection the query executes against."
       ],
       "evidence_ids": [
+        "evidence.syntax.expression.custom-collation-equality",
         "evidence.syntax.expression.render-custom-collation",
         "evidence.syntax.expression.render-custom-collation-escaping",
         "evidence.syntax.expression.sqlite-custom-collation-compare",
@@ -6829,7 +6843,8 @@
       "deviations": [
         "Built-in collations render as bare grammar tokens while a registered name renders as a quoted identifier. Both spellings resolve to the same sequence in SQLite; the split keeps issue #169's guarantee that `collate(_:)` is not an arbitrary raw-SQL escape hatch, because a caller-supplied name is escaped by the identifier formatter rather than concatenated into the keyword.",
         "Registration is the application's responsibility and is not verified when the expression is built. An unregistered name fails at preparation with `no such collation sequence` rather than silently falling back to BINARY.",
-        "`XLCollation` changed from an enum to a `RawRepresentable` struct so a name outside the three built-ins can be expressed. Every existing spelling — `.binary`, `.nocase`, `.rtrim`, `rawValue`, `init(rawValue:)` — is preserved, but exhaustive `switch` over the former enum cases no longer compiles."
+        "`XLCollation` changed from an enum to a `RawRepresentable` struct so a name outside the three built-ins can be expressed. Every existing spelling — `.binary`, `.nocase`, `.rtrim`, `rawValue`, `init(rawValue:)` — is preserved, but exhaustive `switch` over the former enum cases no longer compiles.",
+        "Equality and hashing use the collation name alone. The flag selecting bare-token versus quoted rendering is excluded, so `.nocase` and a hand-named `NOCASE` are one value: they name the same collating sequence and differ only in a spelling SQLite treats as equivalent."
       ],
       "follow_up_issues": [
 

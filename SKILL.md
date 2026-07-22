@@ -153,7 +153,7 @@ contracts.
 - Keep those five statuses distinct. Bind every claim to the feature's recorded
   SQLite version, source ID, compile options, capabilities, evidence, and
   rationale before claiming support.
-- Of the 133 evidence records, 85 exercise real SQLite against one captured
+- Of the 134 evidence records, 85 exercise real SQLite against one captured
   environment, SQLite 3.51.0. Evidence is reusable, so evidence and feature
   counts do not map one to one; never turn this into an exhaustive-SQL claim.
 - The generated corpus holds 208 positives plus one broken-renderer control:

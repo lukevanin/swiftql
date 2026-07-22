@@ -51,6 +51,19 @@ public struct XLCollation: RawRepresentable, Hashable, Sendable {
     public static let nocase = XLCollation(builtIn: "NOCASE")
 
     public static let rtrim = XLCollation(builtIn: "RTRIM")
+
+    // Equality is the name alone. `isBuiltIn` only selects bare-token versus
+    // quoted-identifier rendering, and both spellings resolve to the same
+    // collating sequence in SQLite, so synthesised conformances including it
+    // would make `.nocase` and `XLCollation(rawValue: "NOCASE")` unequal and
+    // hash apart despite naming one sequence.
+    public static func ==(lhs: XLCollation, rhs: XLCollation) -> Bool {
+        lhs.rawValue == rhs.rawValue
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(rawValue)
+    }
 }
 
 
