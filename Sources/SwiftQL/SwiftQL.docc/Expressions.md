@@ -453,8 +453,11 @@ January 1, 2034.
 
 ### notIn operator
 
-`notIn` accepts the same value lists, subqueries, and common table expressions 
-as `in`, and renders SQLite's `NOT IN`.
+`notIn` renders SQLite's `NOT IN`. It accepts value lists — including a list 
+compared against an optional column — subqueries, and common table expressions.
+
+One shape of `in` is not mirrored: a subquery compared against an *optional* 
+column. Use `in` with a negated surrounding condition for that case.
 
 <!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift

@@ -214,6 +214,13 @@ public struct XLInValueExpression<T>: XLExpression {
 
     let negated: Bool
     
+    ///
+    /// - Parameter lhs: Expression tested for membership.
+    /// - Parameter rhs: Value list or query supplying the candidate set.
+    /// - Parameter negated: Renders `NOT IN` instead of `IN`. The negation is
+    ///   carried by this expression rather than a wrapping `NOT`, so composing
+    ///   the result cannot move it outwards.
+    ///
     public init(lhs: any XLExpression, rhs: any XLEncodable, negated: Bool = false) {
         self.lhs = lhs
         self.rhs = rhs
@@ -257,6 +264,14 @@ public struct XLInTableExpression<T>: XLExpression {
 
     let negated: Bool
     
+    ///
+    /// - Parameter lhs: Expression tested for membership.
+    /// - Parameter rhs: Name of the table or common table supplying the
+    ///   candidate set, which must expose exactly one column.
+    /// - Parameter negated: Renders `NOT IN` instead of `IN`. The negation is
+    ///   carried by this expression rather than a wrapping `NOT`, so composing
+    ///   the result cannot move it outwards.
+    ///
     public init(lhs: any XLExpression, rhs: any XLEncodable, negated: Bool = false) {
         self.lhs = lhs
         self.rhs = rhs
