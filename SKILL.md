@@ -1,6 +1,6 @@
 ---
 name: swiftql
-description: Use when Codex works in a Swift package or Apple application that uses SwiftQL to define typed tables or results, build or modify SQLite queries, pass immutable bindings, add contextual codecs, prepare reusable static queries, integrate a database adapter, or diagnose SwiftQL execution boundaries. Use the checked-out public v1 contract; 1.3.0 is the latest published package and adds conformance evidence rather than new public syntax or validation APIs. Do not use this skill to teach SQL generally or claim unshipped features.
+description: Use when Codex works in a Swift package or Apple application that uses SwiftQL to define typed tables or results, build or modify SQLite queries, pass immutable bindings, add contextual codecs, prepare reusable static queries, integrate a database adapter, or diagnose SwiftQL execution boundaries. Use the checked-out public v1 contract; 1.4.1 is the latest published package and adds typed SQLite expression coverage on the retained v1 surface. Do not use this skill to teach SQL generally or claim unshipped features.
 ---
 
 # SwiftQL
@@ -22,7 +22,7 @@ checked-out package version before editing consumer code.
   or later. Supported Swift 6 compilers still use Swift 5 mode; Swift 6 mode,
   non-Apple platforms, non-SQLite dialects, and non-GRDB drivers are unsupported.
 - Read [the changelog](CHANGELOG.md) before choosing a package requirement.
-  `1.3.0` is the latest published package. Pin a source revision only when
+  `1.4.1` is the latest published package. Pin a source revision only when
   intentionally testing later changes from `main`.
 
 ## Prefer the high-level application workflow
