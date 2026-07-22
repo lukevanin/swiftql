@@ -155,6 +155,40 @@ extension XLExpression {
 }
 
 
+// MARK: - REGEXP
+
+
+extension XLExpression {
+
+    ///
+    /// Matches `other` as a regular expression.
+    ///
+    /// SQLite parses `X REGEXP Y` as a call to `regexp(Y, X)` and ships **no**
+    /// implementation of that function. The application must register a
+    /// two-argument `regexp` function on the connection, otherwise preparation
+    /// fails with `no such function: regexp`.
+    ///
+    /// SQLite therefore defines no regular-expression dialect of its own: the
+    /// pattern syntax is whatever the registered function implements.
+    ///
+    public func regexp(_ other: any XLExpression<String>) -> some XLExpression<Bool> where T == String {
+        XLBinaryOperatorExpression(op: "REGEXP", lhs: self, rhs: other)
+    }
+
+    public func regexp(_ other: any XLExpression<Optional<String>>) -> some XLExpression<Optional<Bool>> where T == String {
+        XLBinaryOperatorExpression(op: "REGEXP", lhs: self, rhs: other)
+    }
+
+    public func regexp(_ other: any XLExpression<String>) -> some XLExpression<Optional<Bool>> where T == Optional<String> {
+        XLBinaryOperatorExpression(op: "REGEXP", lhs: self, rhs: other)
+    }
+
+    public func regexp(_ other: any XLExpression<Optional<String>>) -> some XLExpression<Optional<Bool>> where T == Optional<String> {
+        XLBinaryOperatorExpression(op: "REGEXP", lhs: self, rhs: other)
+    }
+}
+
+
 // MARK: - GLOB
 
 
