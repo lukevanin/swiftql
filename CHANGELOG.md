@@ -1,5 +1,94 @@
 # Changelog
 
+## [1.4.2] - 2026-07-22
+
+### Added
+
+- Added `like(_:escape:)` across the same four optionality shapes as `like`.
+  `ESCAPE` renders inside its own `LIKE` production, so a second `LIKE` in the
+  same predicate cannot absorb it. SQLite requires the escape value to be
+  exactly one character; a longer or empty value prepares and then fails when
+  the statement is stepped, because no Swift type can express that constraint.
+- Added `notIn` value-list, subquery, and common-table expressions mirroring the
+  existing `in` shapes. The negation is carried by the `IN` node itself rather
+  than by a wrapping `NOT`, so composing a predicate cannot move it outwards.
+- Added optional-operand and NULL-candidate support to `in` and `notIn`,
+  including the result-builder subquery form for optional receivers and NULL
+  elements in a value list.
+- Added `nullableSubquery(alias:_:)` and `nullableSubqueryExpression(alias:_:)`
+  for subqueries on the nullable side of a `LEFT JOIN`, and flattened scalar
+  subquery results so an optional inner statement no longer double-wraps
+  `Optional`.
+- Added connection-registered custom collating sequences.
+  `GRDBDatabaseBuilder.addCollation(_:compare:)` registers a sequence on every
+  connection the builder creates, mirroring the existing `addFunction`, and
+  `XLCollation` gained `init(rawValue:)` so a name outside the three built-ins
+  can be expressed.
+- Added the `REGEXP` operator across the same four optionality shapes as `glob`.
+  SQLite parses `X REGEXP Y` as a call to `regexp(Y, X)` and ships no
+  implementation, so the operator prepares only once the application registers a
+  two-argument `regexp` function.
+- Completed the generated real-SQLite operator conformance matrix. Every public
+  operator overload now carries both prepare and semantic execution evidence,
+  packed by operator family and optionality shape, and the corresponding
+  inventory record moves from partial to supported.
+- Added real-SQLite IN-subquery conformance cases for both query-backed entry
+  points, and revived the same-table IN-subquery execution test so distinct
+  aliases across two nesting levels are pinned by an executing test.
+
+### Changed
+
+- `XLCollation` is now a `RawRepresentable` struct rather than an enumeration.
+  `.binary`, `.nocase`, and `.rtrim` remain available as static members and
+  still render as bare grammar tokens. A custom name renders as a quoted
+  identifier — `COLLATE "myCollation"` — which SQLite resolves to the same
+  sequence, so `collate(_:)` does not become an arbitrary raw-SQL escape hatch.
+  Equality and hashing fold ASCII case, matching how SQLite resolves collation
+  names.
+
+### Deprecated
+
+- Deprecated the `subquery(alias:)` overload constrained to `XLMetaNullable`.
+  It can never be selected, because no `select` function produces a statement
+  over a nullable row type. Use `nullableSubquery(alias:_:)` instead.
+
+### Migration
+
+Existing `in`, `like`, `collate(_:)`, and `subquery(alias:)` call sites remain
+source-compatible.
+
+`XLCollation` changed from an enumeration to a struct. Code that switches
+exhaustively over a collation value must gain a `default` case:
+
+```swift
+switch collation {
+case .binary, .nocase, .rtrim:
+    …
+default:
+    …
+}
+```
+
+Register a custom collating sequence before naming it in a query. SQLite
+resolves collations at preparation and reports `no such collation sequence`
+otherwise:
+
+```swift
+builder.addCollation("localized") { lhs, rhs in
+    lhs.compare(rhs, options: [], range: nil, locale: .current)
+}
+…
+OrderBy(person.name.collate(XLCollation(rawValue: "localized")).ascending())
+```
+
+`REGEXP` requires the application to register a two-argument `regexp` function
+on the connection. Without it, a statement using the operator fails to prepare
+with `no such function: regexp`.
+
+Select a scalar subquery on the nullable side of a join with
+`nullableSubquery(alias:_:)`; the deprecated `XLMetaNullable` overload of
+`subquery(alias:)` was never selectable.
+
 ## [1.4.1] - 2026-07-22
 
 ### Added
