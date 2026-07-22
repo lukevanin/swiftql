@@ -52,17 +52,31 @@ public struct XLCollation: RawRepresentable, Hashable, Sendable {
 
     public static let rtrim = XLCollation(builtIn: "RTRIM")
 
-    // Equality is the name alone. `isBuiltIn` only selects bare-token versus
-    // quoted-identifier rendering, and both spellings resolve to the same
-    // collating sequence in SQLite, so synthesised conformances including it
-    // would make `.nocase` and `XLCollation(rawValue: "NOCASE")` unequal and
-    // hash apart despite naming one sequence.
+    // Two values are equal when they name the same collating sequence.
+    //
+    // `isBuiltIn` is excluded because it only selects bare-token versus
+    // quoted-identifier rendering, and SQLite treats both spellings alike.
+    // Case is excluded because SQLite resolves collation names
+    // case-insensitively, so `.nocase` and `XLCollation(rawValue: "nocase")`
+    // are one sequence. Including either would split a single sequence across
+    // two Set or Dictionary entries.
     public static func ==(lhs: XLCollation, rhs: XLCollation) -> Bool {
-        lhs.rawValue == rhs.rawValue
+        lhs.normalizedName == rhs.normalizedName
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(rawValue)
+        hasher.combine(normalizedName)
+    }
+
+    /// Folded the way SQLite folds collation names: ASCII only, so a name
+    /// whose case mapping differs outside ASCII is left alone rather than
+    /// folded differently from the engine.
+    private var normalizedName: String {
+        String(
+            rawValue.map { character in
+                character.isASCII ? Character(character.lowercased()) : character
+            }
+        )
     }
 }
 

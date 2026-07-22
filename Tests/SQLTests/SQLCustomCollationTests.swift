@@ -51,6 +51,9 @@ final class XLCustomCollationTests: XCTestCase {
     }
 
     override func tearDownWithError() throws {
+        // Close the pool before removing the file: leaving it open can keep
+        // the SQLite file locked and make the cleanup below fail silently.
+        try? database?.databasePool.close()
         database = nil
         if let fileURL {
             try? FileManager.default.removeItem(at: fileURL)
@@ -120,6 +123,18 @@ final class XLCustomCollationTests: XCTestCase {
         )
         XCTAssertNotEqual(XLCollation.nocase, XLCollation.binary)
         XCTAssertNotEqual(XLCollation.nocase, XLCollation(rawValue: "localized"))
+
+        // SQLite resolves collation names case-insensitively, so a differently
+        // cased spelling is the same sequence rather than a second one.
+        XCTAssertEqual(XLCollation.nocase, XLCollation(rawValue: "nocase"))
+        XCTAssertEqual(
+            Set([
+                XLCollation.nocase,
+                XLCollation(rawValue: "nocase"),
+                XLCollation(rawValue: "NoCase"),
+            ]).count,
+            1
+        )
     }
 
     /// An unregistered collation is a preparation failure, not a silent
