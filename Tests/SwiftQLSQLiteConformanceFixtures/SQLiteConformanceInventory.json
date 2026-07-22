@@ -728,6 +728,34 @@
       ]
     },
     {
+      "id": "evidence.syntax.expression.render-in-null-element",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.testSelectWhereInArrayContainingNull",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.render-not-in-null-element",
+      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
+      "test_case": "XLSyntaxTests.testSelectWhereNotInArrayContainingNull",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
       "id": "evidence.syntax.expression.render-not-in",
       "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
       "test_case": "XLSyntaxTests.testSelectWhereNotInArrayOfText",
@@ -1114,6 +1142,39 @@
         "prepare",
         "semantic-oracle",
         "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-in-null-element",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testInAndNotInWithNullElementSemantics",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.sqlite-in-optional-builder-subquery",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testOptionalOperandInAndNotInWithBuilderSubquery",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle"
       ],
       "real_sqlite": true,
       "environment_ids": [
@@ -6593,11 +6654,64 @@
       "deviations": [
         "The negation is carried by the IN node itself rather than a wrapping NOT, so composing the predicate cannot move it outwards.",
         "An empty right-hand set is total: NOT IN () is true and IN () is false for every operand, including NULL. This is the one shape where a NULL operand does not make the result unknown, and it is proven against a column that holds NULL rather than inferred.",
-        "The value-list overloads mirror `in(_:)`, including its optional-operand shape: a NULL left-hand value yields NULL rather than true. The optional-subquery shape is deliberately not mirrored, because the corresponding `in(expression:)` overload is itself recorded as ambiguous for non-null expressions.",
-        "A NULL element cannot be written into a value list, whose elements are non-optional expressions, so the NULL-element result is unreachable from the typed surface. Broader nullable IN semantics are owned by issue #68."
+        "The value-list, query-backed, and common-table overloads all mirror `in`, including every optional-operand shape. Issue #68 added the optional result-builder and NULL-element forms that were missing when NOT IN first shipped."
       ],
       "follow_up_issues": [
-        68
+
+      ],
+      "deferral": null,
+      "provenance": [
+
+      ]
+    },
+    {
+      "id": "syntax.expression.nullable-in",
+      "kind": "syntax",
+      "family": "expression",
+      "title": "IN and NOT IN with optional operands and NULL candidate sets",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLExpression.in",
+          "source_path": "Sources/SwiftQL/Operators/InOperator.swift",
+          "source_tokens": [
+            "in"
+          ]
+        },
+        {
+          "symbol": "XLExpression.notIn",
+          "source_path": "Sources/SwiftQL/Operators/InOperator.swift",
+          "source_tokens": [
+            "notIn"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_expr.html#the_in_and_not_in_operators"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "The operand is an optional expression, and the candidate set is a value list, a query returning one compatible column, or a common table."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.expression.render-in-null-element",
+        "evidence.syntax.expression.render-not-in-null-element",
+        "evidence.syntax.expression.sqlite-in-null-element",
+        "evidence.syntax.expression.sqlite-in-optional-builder-subquery"
+      ],
+      "deviations": [
+        "The NULL-element overloads are marked `@_disfavoredOverload`. An empty array literal carries no element type, so `in([])` matches the optional-element and non-optional-element overloads equally and is otherwise rejected as ambiguous. Disfavouring the optional-element overload makes the non-optional one win that tie while a list containing NULL still selects the optional one.",
+        "The result of every optional-operand overload is `Optional<Bool>`: a NULL operand, or an exhausted search over a set containing NULL, is unknown rather than false."
+      ],
+      "follow_up_issues": [
+
       ],
       "deferral": null,
       "provenance": [

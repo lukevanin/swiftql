@@ -1354,8 +1354,20 @@ extension XLDocumentationTests {
         let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testSelectWhereIn
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testSelectWhereNotInValueList
+        let nullCandidate = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.occupationId.in(["eng", Optional<String>.none]))
+        }
+        XCTAssertTrue(
+            encoder.makeSQL(nullCandidate).sql.contains("IN ('eng', NULL)")
+        )
+
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testNotInValueListAndEmptySetSemantics
+        let _: (XLExecutionTests) -> () throws -> Void =
+            XLExecutionTests.testInAndNotInWithNullElementSemantics
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testBetweenExecutesWithLiteralBindingAndColumnBounds
         let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.test_TextBinding_In_Subquery

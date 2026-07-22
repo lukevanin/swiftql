@@ -1032,6 +1032,26 @@ final class XLSyntaxTests: XCTestCase {
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, t0.value AS value FROM Test AS t0 WHERE (t0.id NOT IN ('foo', 'bar'))")
     }
 
+    func testSelectWhereInArrayContainingNull() {
+        let expression = sqlQuery { s in
+            let t = s.table(TestNullablesTable.self)
+            return select(t).from(t).where(
+                t.value.in([1, Optional<Int>.none])
+            )
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, t0.value AS value FROM TestNullables AS t0 WHERE (t0.value IN (1, NULL))")
+    }
+
+    func testSelectWhereNotInArrayContainingNull() {
+        let expression = sqlQuery { s in
+            let t = s.table(TestNullablesTable.self)
+            return select(t).from(t).where(
+                t.value.notIn([1, Optional<Int>.none])
+            )
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, t0.value AS value FROM TestNullables AS t0 WHERE (t0.value NOT IN (1, NULL))")
+    }
+
     func testSelectWhereNotInEmptyArray() {
         let expression = sqlQuery { s in
             let t = s.table(TestTable.self)
