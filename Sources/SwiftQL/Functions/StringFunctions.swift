@@ -8,15 +8,49 @@
 import Foundation
 
 
+/// A SQLite collating sequence.
+///
+/// The three built-in sequences are provided as static members. A collation
+/// registered on the connection is named with ``init(rawValue:)``.
+///
+/// Built-in names render as bare grammar tokens — `COLLATE NOCASE` — while a
+/// custom name renders as a quoted identifier — `COLLATE "myCollation"`. Both
+/// forms are equivalent to SQLite, which resolves either spelling to the same
+/// collating sequence and reports `no such collation sequence` when it is not
+/// registered. The distinction exists because a custom name is caller-supplied
+/// text: quoting it through the identifier formatter keeps issue #169's
+/// guarantee that `collate(_:)` is not an arbitrary raw-SQL escape hatch.
+///
 /// https://www.sqlite.org/datatype3.html#collation
 ///
-public enum XLCollation: String {
-    
-    case binary = "BINARY"
-    
-    case nocase = "NOCASE"
-    
-    case rtrim = "RTRIM"
+public struct XLCollation: RawRepresentable, Hashable, Sendable {
+
+    public let rawValue: String
+
+    let isBuiltIn: Bool
+
+    ///
+    /// Names a collating sequence registered on the connection.
+    ///
+    /// The name is rendered as a quoted identifier, so it cannot inject SQL.
+    /// Registering the sequence is the application's responsibility; SQLite
+    /// reports `no such collation sequence` at preparation otherwise.
+    ///
+    public init(rawValue: String) {
+        self.rawValue = rawValue
+        self.isBuiltIn = false
+    }
+
+    private init(builtIn rawValue: String) {
+        self.rawValue = rawValue
+        self.isBuiltIn = true
+    }
+
+    public static let binary = XLCollation(builtIn: "BINARY")
+
+    public static let nocase = XLCollation(builtIn: "NOCASE")
+
+    public static let rtrim = XLCollation(builtIn: "RTRIM")
 }
 
 
@@ -28,25 +62,19 @@ private struct XLCollationExpression<T>: XLExpression {
 
     func makeSQL(context: inout XLBuilder) {
         context.parenthesis { context in
-            context.unarySuffix(
-                collation.sqlSuffix,
-                expression: operand.makeSQL
-            )
-        }
-    }
-}
-
-
-private extension XLCollation {
-
-    var sqlSuffix: String {
-        switch self {
-        case .binary:
-            "COLLATE BINARY"
-        case .nocase:
-            "COLLATE NOCASE"
-        case .rtrim:
-            "COLLATE RTRIM"
+            if collation.isBuiltIn {
+                context.unarySuffix(
+                    "COLLATE " + collation.rawValue,
+                    expression: operand.makeSQL
+                )
+            }
+            else {
+                // Two tokens rather than one interpolated string: the name goes
+                // through the identifier formatter, which escapes it. The
+                // enclosing builder joins tokens with a space.
+                context.unarySuffix("COLLATE", expression: operand.makeSQL)
+                context.name(XLName(collation.rawValue))
+            }
         }
     }
 }

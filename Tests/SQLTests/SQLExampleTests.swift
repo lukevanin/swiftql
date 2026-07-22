@@ -2052,6 +2052,12 @@ extension XLDocumentationTests {
         try testExample_SwitchCaseWhenThenElse()
         try testExample_IfCaseWhenThen()
         try testExample_IfCaseWhenThenElse()
+        // The custom-collation example in BuiltinFunctions.md is exercised by
+        // the dedicated collation suite, which registers a real sequence.
+        let _: (XLCustomCollationTests) -> () throws -> Void =
+            XLCustomCollationTests.testCustomCollationOrdersByRegisteredSequence
+        let _: (XLCustomCollationTests) -> () throws -> Void =
+            XLCustomCollationTests.testUnregisteredCollationFailsAtPreparation
     }
 
     func testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs() throws {
