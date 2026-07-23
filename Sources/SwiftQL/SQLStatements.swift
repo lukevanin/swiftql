@@ -553,7 +553,7 @@ public struct Join: XLTableStatement {
     /// table's columns with `NULL` where there is no match. Both sides must
     /// therefore decode as optionals: the joined table is nullable
     /// (`XLMetaNullableNamedResult`) and the `FROM` table must be declared with
-    /// ``XLSchema/nullableTable(_:as:)-(T.Type,_)``.
+    /// `nullableTable(_:as:)`.
     ///
     /// > Important: `FULL OUTER JOIN` requires SQLite 3.39.0 (2022-06-25) or later.
     ///
