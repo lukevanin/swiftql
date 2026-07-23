@@ -139,43 +139,6 @@ their SQL meaning.
 - **Your domain.** Extend SQLite with Swift enums, custom value types, and
   type-safe custom SQL functions.
 
-## Reusable queries and the v1.3 evidence boundary
-
-The reusable-query contract introduced in SwiftQL v1.2 remains the runtime
-boundary for v1.3. An `XLStaticQueryDescriptor` contains rendered SQL, dialect
-requirements, parameter and result layouts, stable identity, and cardinality;
-it contains no database, connection, statement, or runtime value. Prepare that
-descriptor against a `GRDBDatabase`, then create a fresh
-`XLInvocationBindings` value for every call. Invocation values never become
-identifiers or SQL grammar tokens.
-
-The products have distinct roles:
-
-- `SwiftQLCore` exposes GRDB-free dialect, value, statement, binding, and driver
-  contracts for adapter authors.
-- `SwiftQL` is the application-facing product. It includes the macros, typed SQL
-  DSL, contextual codecs, and the current GRDB-backed SQLite driver.
-
-The existing `makeRequest(with:)`, named-binding, `XLCustomType`, and raw-value
-APIs remain source-compatible throughout v1. High-level requests are
-database-bound and the current `XLRequest` facade is not `Sendable`. Prefer a
-static descriptor and its prepared handle when durable identity or cross-task
-raw-value invocation matters. See the
-[static-query guide](https://lukevanin.github.io/swiftql/documentation/swiftql/staticqueries/),
-[prepared-statement boundaries](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/),
-and [contextual-codec migration](https://lukevanin.github.io/swiftql/documentation/swiftql/customtypes/)
-for the complete contracts and current limitations.
-
-SwiftQL v1.3 adds evidence around that public surface rather than claiming
-complete SQLite grammar coverage. The canonical inventory records 107 features:
-99 supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-5 unimplemented. Of its 146 evidence records, 92 exercise real SQLite and
-cite one recorded SQLite 3.51.0 environment. See
-[SQLite conformance](COMPATIBILITY.md#sqlite-conformance-inventory) for what
-those counts prove, how the #191/#286 combinatorial cases, #254 Northwind
-corpus, and #255 observation stress suite contribute evidence, and why the #132
-build-validation prototype remains research rather than a public v1.3 API.
-
 ## SQL-shaped, not ORM-shaped
 
 SwiftQL does not replace the relational model with an object graph, and it does
