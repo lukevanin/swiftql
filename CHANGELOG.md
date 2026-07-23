@@ -1,5 +1,66 @@
 # Changelog
 
+## [1.4.4] - 2026-07-23
+
+### Added
+
+- Added `INSERT OR ROLLBACK/ABORT/FAIL/IGNORE/REPLACE` through `Insert(_:or:)`
+  and the functional `insert(_:or:)`. The conflict algorithm is part of the
+  `INSERT` keyword and applies to every uniqueness constraint the statement
+  violates.
+- Added the `REPLACE INTO` statement through `Replace` and the functional
+  `replace(_:)`, the SQLite shorthand for `INSERT OR REPLACE INTO`.
+- Added the `ON CONFLICT` upsert clause through `OnConflict` and the
+  `.onConflict(_:)`, `.onConflict(_:doUpdate:)`, and `.onConflictDoNothing(_:)`
+  methods on an inserted-values statement. `DO UPDATE` reuses the update
+  metadata, and `XLSchema.excluded(_:)` references the candidate row so a
+  resolution can read `excluded` columns. Conflict targets render as bare,
+  unqualified column names because SQLite rejects the statement alias in a
+  conflict target. `DO UPDATE` accepts an optional `WHERE` predicate.
+- Added `RETURNING` on insert, update, and delete statements through
+  `.returning(...)` and the `sqlInsertReturning`, `sqlUpdateReturning`, and
+  `sqlDeleteReturning` entry points. A returning statement executes through a
+  single row-returning write transaction and decodes rows with the same reader
+  as an equivalent `SELECT`. `XLSchema.returning(_:)` supplies bare,
+  unqualified `RETURNING` columns, which SQLite resolves against the modified
+  table without its statement alias. Live observation of a `RETURNING`
+  statement is rejected, because each refresh would re-run the mutation.
+- Added `WITH ... UPDATE` common-table-backed updates: a `With` clause may now
+  precede `Update` in the update result builder, and `XLWithStatement` exposes
+  `update(_:)` and `replace(_:)`.
+- Promoted the #190 canonical SQLite conformance inventory RETURNING record
+  from unimplemented to supported and added conflict-clause, `REPLACE`, upsert,
+  and common-table-update records. It records 109 public-surface feature records: 101
+  supported, 1 partial, 2 capability-gated, 1 intentionally unsupported, and
+  4 unimplemented. Of the 158 evidence records, 98 exercise real SQLite and
+  cite one captured SQLite 3.51.0 environment.
+
+### Migration
+
+No migration is required for v1.4.4. Every change is additive, and the existing
+insert, update, and delete surfaces remain source-compatible.
+
+`ON CONFLICT` conflict targets and `RETURNING` output columns are named with
+bare, unqualified columns rather than qualified column expressions, because
+SQLite resolves both against the modified table without its statement alias.
+Use `XLSchema.returning(_:)` for `RETURNING` columns and `XLSchema.excluded(_:)`
+for the `excluded` pseudo table inside `ON CONFLICT ... DO UPDATE`:
+
+```swift
+let inserted = insert(person)
+    .values(Person.MetaInsert(candidate))
+    .onConflict("id", doUpdate: { row in row.name = excluded.name })
+```
+
+A `RETURNING` statement returns rows and executes as a write, so fetch it
+instead of observing it:
+
+```swift
+let rows = try database
+    .makeRequest(with: insert(person).values(values).returning(returned))
+    .fetchAll()
+```
+
 ## [1.4.2] - 2026-07-22
 
 ### Added
