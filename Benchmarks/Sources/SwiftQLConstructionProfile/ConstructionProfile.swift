@@ -14,6 +14,11 @@
 // It reuses SwiftQL's public API and rebuilds the exact two read queries the
 // #128 harness measures (`simple_parameterized_lookup` and
 // `representative_multi_join_read`). It is diagnostic evidence, not a CI gate.
+//
+// The implementation avoids `nonisolated(unsafe)` and top-level code so it
+// builds on the package's declared minimum toolchain (Swift 5.9) and stays clean
+// under `-strict-concurrency=complete`: mutable counters live in an
+// `@unchecked Sendable` reference the C callback reaches as a global.
 
 #if canImport(Darwin)
 import Darwin
@@ -33,20 +38,31 @@ private typealias MallocLoggerFn = @convention(c) (
 // as one allocation, which matches "gross heap allocations issued").
 private let mallocLogTypeAllocate: UInt32 = 2
 
-nonisolated(unsafe) private var allocationCount: Int = 0
-nonisolated(unsafe) private var allocationBytes: Int = 0
-nonisolated(unsafe) private var counting = false
+// Counters live behind a reference type so the C callback — which cannot capture
+// context — reaches them as a single global `let`. `@unchecked Sendable` keeps a
+// global of this type clean under complete concurrency checking without the
+// Swift-6-only `nonisolated(unsafe)` attribute; the tool is single-threaded.
+private final class AllocationProbe: @unchecked Sendable {
+    var count = 0
+    var bytes = 0
+    var enabled = false
+
+    func reset() {
+        count = 0
+        bytes = 0
+    }
+}
+
+private let allocationProbe = AllocationProbe()
 
 // The callback runs with the malloc lock held, so it must not allocate. It only
-// touches fixed globals, which is allocation-free. `nonisolated(unsafe)` opts the
-// top-level (main-actor-isolated) declaration out of isolation checking; this
-// single-threaded diagnostic tool never touches it concurrently.
-nonisolated(unsafe) private let countingLogger: MallocLoggerFn = { type, arg1, arg2, arg3, result, _ in
-    guard counting else { return }
+// mutates the global probe's fixed fields, which is allocation-free.
+private let countingLogger: MallocLoggerFn = { type, _, arg2, arg3, result, _ in
+    guard allocationProbe.enabled else { return }
     if (type & mallocLogTypeAllocate) != 0 && result != 0 {
-        allocationCount += 1
-        // For malloc/calloc the requested size is arg2; for realloc arg3.
-        allocationBytes += Int(arg3 != 0 ? arg3 : arg2)
+        allocationProbe.count += 1
+        // For malloc/calloc the requested size is arg2; for realloc it is arg3.
+        allocationProbe.bytes += Int(arg3 != 0 ? arg3 : arg2)
     }
 }
 
@@ -66,12 +82,11 @@ private struct AllocationSample {
 private func measureAllocations(iterations: Int, _ body: () -> Void) -> AllocationSample {
     // Warm once outside the count to settle any one-time lazy state.
     body()
-    allocationCount = 0
-    allocationBytes = 0
-    counting = true
+    allocationProbe.reset()
+    allocationProbe.enabled = true
     for _ in 0..<iterations { body() }
-    counting = false
-    return AllocationSample(count: allocationCount, bytes: allocationBytes)
+    allocationProbe.enabled = false
+    return AllocationSample(count: allocationProbe.count, bytes: allocationProbe.bytes)
 }
 #endif
 
@@ -172,9 +187,7 @@ private func multiJoinRead() -> any XLQueryStatement<ProfileJoinedRow> {
 
 // MARK: - Driver
 
-nonisolated(unsafe) let encoder = XLiteEncoder(formatter: XLiteFormatter())
-
-struct CaseProfile {
+private struct CaseProfile {
     let name: String
     let sql: String
     let constructionAllocs: Int
@@ -188,8 +201,9 @@ struct CaseProfile {
     let combinedMicros: Double
 }
 
-func profileCase(
+private func profileCase(
     _ name: String,
+    encoder: XLiteEncoder,
     make: @escaping () -> XLEncodable,
     iterations: Int,
     warmups: Int,
@@ -227,67 +241,79 @@ func profileCase(
     )
 }
 
-// CLI: --iterations N --warmups N --samples N --json PATH
-var iterations = 20_000
-var warmups = 200
-var samples = 4_000
-var jsonPath: String?
-var args = Array(CommandLine.arguments.dropFirst())
-var i = 0
-while i < args.count {
-    switch args[i] {
-    case "--iterations": i += 1; iterations = Int(args[i]) ?? iterations
-    case "--warmups": i += 1; warmups = Int(args[i]) ?? warmups
-    case "--samples": i += 1; samples = Int(args[i]) ?? samples
-    case "--json": i += 1; jsonPath = args[i]
-    default: break
-    }
-    i += 1
-}
+@main
+struct ConstructionProfile {
+    static func main() throws {
+        // CLI: --iterations N --warmups N --samples N --json PATH
+        var iterations = 20_000
+        var warmups = 200
+        var samples = 4_000
+        var jsonPath: String?
+        let args = Array(CommandLine.arguments.dropFirst())
+        var i = 0
+        while i < args.count {
+            switch args[i] {
+            case "--iterations":
+                if i + 1 < args.count, let n = Int(args[i + 1]) { iterations = max(1, n); i += 1 }
+            case "--warmups":
+                if i + 1 < args.count, let n = Int(args[i + 1]) { warmups = max(0, n); i += 1 }
+            case "--samples":
+                if i + 1 < args.count, let n = Int(args[i + 1]) { samples = max(1, n); i += 1 }
+            case "--json":
+                if i + 1 < args.count { jsonPath = args[i + 1]; i += 1 }
+            default:
+                break
+            }
+            i += 1
+        }
 
-#if canImport(Darwin)
-let installed = installAllocationCounter()
-if !installed {
-    FileHandle.standardError.write(Data("warning: could not install malloc_logger; allocation counts will be 0\n".utf8))
-}
-#endif
+        #if canImport(Darwin)
+        if !installAllocationCounter() {
+            FileHandle.standardError.write(
+                Data("warning: could not install malloc_logger; allocation counts will be 0\n".utf8)
+            )
+        }
+        #endif
 
-let cases = [
-    profileCase("simple_parameterized_lookup", make: { simpleLookup() },
-                iterations: iterations, warmups: warmups, samples: samples),
-    profileCase("representative_multi_join_read", make: { multiJoinRead() },
-                iterations: iterations, warmups: warmups, samples: samples),
-]
-
-print("SwiftQL construction/rendering allocation + timing profile (issue #166)")
-print("iterations=\(iterations) (allocs)  warmups=\(warmups) samples=\(samples) (timing)")
-print("")
-for c in cases {
-    print("[\(c.name)]")
-    print("  SQL: \(c.sql)")
-    print("  allocations/op   construction=\(c.constructionAllocs)  render=\(c.renderAllocs)  combined=\(c.combinedAllocs)")
-    print("  bytes/op         construction=\(c.constructionBytes)  render=\(c.renderBytes)  combined=\(c.combinedBytes)")
-    print(String(format: "  median us/op     construction=%.3f  render=%.3f  combined=%.3f",
-                 c.constructionMicros, c.renderMicros, c.combinedMicros))
-    print("")
-}
-
-if let jsonPath {
-    var obj: [String: Any] = [
-        "iterations": iterations,
-        "warmups": warmups,
-        "samples": samples,
-    ]
-    obj["cases"] = cases.map { c in
-        [
-            "name": c.name,
-            "sql": c.sql,
-            "allocationsPerOp": ["construction": c.constructionAllocs, "render": c.renderAllocs, "combined": c.combinedAllocs],
-            "bytesPerOp": ["construction": c.constructionBytes, "render": c.renderBytes, "combined": c.combinedBytes],
-            "medianMicros": ["construction": c.constructionMicros, "render": c.renderMicros, "combined": c.combinedMicros],
+        let encoder = XLiteEncoder(formatter: XLiteFormatter())
+        let cases = [
+            profileCase("simple_parameterized_lookup", encoder: encoder, make: { simpleLookup() },
+                        iterations: iterations, warmups: warmups, samples: samples),
+            profileCase("representative_multi_join_read", encoder: encoder, make: { multiJoinRead() },
+                        iterations: iterations, warmups: warmups, samples: samples),
         ]
+
+        print("SwiftQL construction/rendering allocation + timing profile (issue #166)")
+        print("iterations=\(iterations) (allocs)  warmups=\(warmups) samples=\(samples) (timing)")
+        print("")
+        for c in cases {
+            print("[\(c.name)]")
+            print("  SQL: \(c.sql)")
+            print("  allocations/op   construction=\(c.constructionAllocs)  render=\(c.renderAllocs)  combined=\(c.combinedAllocs)")
+            print("  bytes/op         construction=\(c.constructionBytes)  render=\(c.renderBytes)  combined=\(c.combinedBytes)")
+            print(String(format: "  median us/op     construction=%.3f  render=%.3f  combined=%.3f",
+                         c.constructionMicros, c.renderMicros, c.combinedMicros))
+            print("")
+        }
+
+        if let jsonPath {
+            var obj: [String: Any] = [
+                "iterations": iterations,
+                "warmups": warmups,
+                "samples": samples,
+            ]
+            obj["cases"] = cases.map { c in
+                [
+                    "name": c.name,
+                    "sql": c.sql,
+                    "allocationsPerOp": ["construction": c.constructionAllocs, "render": c.renderAllocs, "combined": c.combinedAllocs],
+                    "bytesPerOp": ["construction": c.constructionBytes, "render": c.renderBytes, "combined": c.combinedBytes],
+                    "medianMicros": ["construction": c.constructionMicros, "render": c.renderMicros, "combined": c.combinedMicros],
+                ]
+            }
+            let data = try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys])
+            try data.write(to: URL(fileURLWithPath: jsonPath))
+            print("Wrote \(jsonPath)")
+        }
     }
-    let data = try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys])
-    try data.write(to: URL(fileURLWithPath: jsonPath))
-    print("Wrote \(jsonPath)")
 }
