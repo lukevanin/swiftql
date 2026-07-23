@@ -26,7 +26,7 @@ public enum XLDateFunctionModifiers: String {
 /// Converts a date string to a Unix timestamp, applying an unordered set of
 /// modifiers.
 ///
-/// New code should prefer ``XLExpression/unixEpoch(_:)``, which takes ordered
+/// New code should prefer `unixEpoch(_:)`, which takes ordered
 /// ``XLDateModifier`` values.
 ///
 public func unixepoch(date: String, modifiers: Set<XLDateFunctionModifiers>) -> some XLExpression<TimeInterval> {
@@ -120,32 +120,32 @@ extension XLExpression {
 
 extension XLExpression {
 
-    /// The optional-preserving overload of ``date(_:)``.
+    /// The optional-preserving overload of `date(_:)`.
     public func date(_ modifiers: XLDateModifier...) -> some XLExpression<Optional<String>> where T == Optional<String> {
         XLFunction(name: "date", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
-    /// The optional-preserving overload of ``time(_:)``.
+    /// The optional-preserving overload of `time(_:)`.
     public func time(_ modifiers: XLDateModifier...) -> some XLExpression<Optional<String>> where T == Optional<String> {
         XLFunction(name: "time", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
-    /// The optional-preserving overload of ``datetime(_:)``.
+    /// The optional-preserving overload of `datetime(_:)`.
     public func datetime(_ modifiers: XLDateModifier...) -> some XLExpression<Optional<String>> where T == Optional<String> {
         XLFunction(name: "datetime", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
-    /// The optional-preserving overload of ``julianDay(_:)``.
+    /// The optional-preserving overload of `julianDay(_:)`.
     public func julianDay(_ modifiers: XLDateModifier...) -> some XLExpression<Optional<Double>> where T == Optional<String> {
         XLFunction(name: "julianday", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
-    /// The optional-preserving overload of ``unixEpoch(_:)``.
+    /// The optional-preserving overload of `unixEpoch(_:)`.
     public func unixEpoch(_ modifiers: XLDateModifier...) -> some XLExpression<Optional<TimeInterval>> where T == Optional<String> {
         XLFunction(name: "unixepoch", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
-    /// The optional-preserving overload of ``strftime(_:_:)``.
+    /// The optional-preserving overload of `strftime(_:_:)`.
     public func strftime(_ format: String, _ modifiers: XLDateModifier...) -> some XLExpression<Optional<String>> where T == Optional<String> {
         XLFunction(name: "strftime", parameters: strftimeParameters(format: format, value: self, modifiers: modifiers))
     }
@@ -206,47 +206,47 @@ extension XLExpression {
 
 extension XLExpression {
 
-    /// The optional-preserving overload of ``year()``.
+    /// The optional-preserving overload of `year()`.
     public func year() -> some XLExpression<Optional<Int>> where T == Optional<String> {
         component("%Y")
     }
 
-    /// The optional-preserving overload of ``month()``.
+    /// The optional-preserving overload of `month()`.
     public func month() -> some XLExpression<Optional<Int>> where T == Optional<String> {
         component("%m")
     }
 
-    /// The optional-preserving overload of ``day()``.
+    /// The optional-preserving overload of `day()`.
     public func day() -> some XLExpression<Optional<Int>> where T == Optional<String> {
         component("%d")
     }
 
-    /// The optional-preserving overload of ``hour()``.
+    /// The optional-preserving overload of `hour()`.
     public func hour() -> some XLExpression<Optional<Int>> where T == Optional<String> {
         component("%H")
     }
 
-    /// The optional-preserving overload of ``minute()``.
+    /// The optional-preserving overload of `minute()`.
     public func minute() -> some XLExpression<Optional<Int>> where T == Optional<String> {
         component("%M")
     }
 
-    /// The optional-preserving overload of ``second()``.
+    /// The optional-preserving overload of `second()`.
     public func second() -> some XLExpression<Optional<Int>> where T == Optional<String> {
         component("%S")
     }
 
-    /// The optional-preserving overload of ``dayOfYear()``.
+    /// The optional-preserving overload of `dayOfYear()`.
     public func dayOfYear() -> some XLExpression<Optional<Int>> where T == Optional<String> {
         component("%j")
     }
 
-    /// The optional-preserving overload of ``dayOfWeek()``.
+    /// The optional-preserving overload of `dayOfWeek()`.
     public func dayOfWeek() -> some XLExpression<Optional<Int>> where T == Optional<String> {
         component("%w")
     }
 
-    /// The optional-preserving overload of ``weekOfYear()``.
+    /// The optional-preserving overload of `weekOfYear()`.
     public func weekOfYear() -> some XLExpression<Optional<Int>> where T == Optional<String> {
         component("%W")
     }
