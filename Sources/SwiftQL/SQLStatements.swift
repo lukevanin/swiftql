@@ -460,13 +460,19 @@ public struct Join: XLTableStatement {
         case innerJoin = "INNER JOIN"
         case leftJoin = "LEFT JOIN"
         case crossJoin = "CROSS JOIN"
+        case naturalJoin = "NATURAL JOIN"
+        case naturalLeftJoin = "NATURAL LEFT JOIN"
     }
-    
+
     private let kind: Kind
-    
+
     private let table: XLEncodable
-    
+
     private let constraint: (any XLExpression)?
+
+    /// Column names shared by both tables for a `USING (...)` join constraint.
+    /// Mutually exclusive with `constraint`; `NATURAL` joins use neither.
+    private let using: [XLName]?
 
     ///
     /// `Join` is a synonym for `Join.Inner`.
@@ -479,12 +485,38 @@ public struct Join: XLTableStatement {
         self.kind = kind
         self.table = table
         self.constraint = constraint
+        self.using = nil
     }
- 
+
+    internal init(kind: Kind, table: XLEncodable, using: [XLName]) {
+        self.kind = kind
+        self.table = table
+        self.constraint = nil
+        self.using = using
+    }
+
     public func makeSQL(context: inout XLBuilder) {
         context.unaryPrefix(kind.rawValue, expression: table.makeSQL)
+        // NATURAL and CROSS joins never take an ON/USING constraint, even if one
+        // were supplied through the internal initializer.
+        switch kind {
+        case .naturalJoin, .naturalLeftJoin, .crossJoin:
+            return
+        case .innerJoin, .leftJoin:
+            break
+        }
         if let constraint {
             context.unaryPrefix("ON", expression: constraint.makeSQL)
+        } else if let using {
+            context.unaryPrefix("USING", expression: { context in
+                context.parenthesis { context in
+                    context.list(separator: .list) { list in
+                        for column in using {
+                            list.listItem { $0.name(column) }
+                        }
+                    }
+                }
+            })
         }
     }
     
@@ -510,10 +542,46 @@ public struct Join: XLTableStatement {
     }
 
     ///
+    /// Creates an inner join whose constraint is a `USING (columns...)` clause.
+    ///
+    /// A `USING` join matches rows where the named columns — which must exist in
+    /// both tables — are equal, and SQLite coalesces each named column into a
+    /// single output column.
+    ///
+    public static func Inner<T>(_ table: T, using firstColumn: XLName, _ otherColumns: XLName...) -> Join where T: XLMetaNamedResult {
+        Join(kind: .innerJoin, table: table, using: [firstColumn] + otherColumns)
+    }
+
+    ///
     /// Creates a left join with a column constraint.
     ///
     public static func Left<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNullableNamedResult, U: XLBoolean {
         Join(kind: .leftJoin, table: table, constraint: constraint)
+    }
+
+    ///
+    /// Creates a left join whose constraint is a `USING (columns...)` clause.
+    ///
+    public static func Left<T>(_ table: T, using firstColumn: XLName, _ otherColumns: XLName...) -> Join where T: XLMetaNullableNamedResult {
+        Join(kind: .leftJoin, table: table, using: [firstColumn] + otherColumns)
+    }
+
+    ///
+    /// Creates a natural (inner) join.
+    ///
+    /// A `NATURAL JOIN` implicitly matches every column the two tables share by
+    /// name and takes no `ON` or `USING` constraint. If the tables share no
+    /// column names it degenerates to a cross join.
+    ///
+    public static func Natural<T>(_ table: T) -> Join where T: XLMetaNamedResult {
+        Join(kind: .naturalJoin, table: table, constraint: nil)
+    }
+
+    ///
+    /// Creates a natural left join, whose joined table can resolve to `NULL`.
+    ///
+    public static func NaturalLeft<T>(_ table: T) -> Join where T: XLMetaNullableNamedResult {
+        Join(kind: .naturalLeftJoin, table: table, constraint: nil)
     }
 
     ///

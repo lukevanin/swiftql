@@ -146,7 +146,43 @@ public struct QueryBuilder<Row> {
             $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
         }
     }
-    
+
+    ///
+    /// Adds an inner join whose constraint is a `USING (columns...)` clause.
+    ///
+    public func innerJoin<T>(_ table: T, using firstColumn: XLName, _ otherColumns: XLName...) -> QueryBuilder where T: XLMetaNamedResult {
+        copy {
+            $0.joins.append(Join(kind: .innerJoin, table: table, using: [firstColumn] + otherColumns))
+        }
+    }
+
+    ///
+    /// Adds a left join whose constraint is a `USING (columns...)` clause.
+    ///
+    public func leftJoin<T>(_ table: T, using firstColumn: XLName, _ otherColumns: XLName...) -> QueryBuilder where T: XLMetaNullableNamedResult {
+        copy {
+            $0.joins.append(Join(kind: .leftJoin, table: table, using: [firstColumn] + otherColumns))
+        }
+    }
+
+    ///
+    /// Adds a natural (inner) join, which implicitly matches every shared column.
+    ///
+    public func naturalJoin<T>(_ table: T) -> QueryBuilder where T: XLMetaNamedResult {
+        copy {
+            $0.joins.append(Join(kind: .naturalJoin, table: table, constraint: nil))
+        }
+    }
+
+    ///
+    /// Adds a natural left join, whose joined table can resolve to `NULL`.
+    ///
+    public func naturalLeftJoin<T>(_ table: T) -> QueryBuilder where T: XLMetaNullableNamedResult {
+        copy {
+            $0.joins.append(Join(kind: .naturalLeftJoin, table: table, constraint: nil))
+        }
+    }
+
     ///
     /// Adds an and expression to the where clause.
     ///

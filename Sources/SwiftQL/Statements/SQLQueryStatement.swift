@@ -161,6 +161,34 @@ public struct XLQueryTableStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
         XLQueryTableStatement(components: components.appending(Join(kind: .leftJoin, table: t, constraint: condition)))
     }
 
+    ///
+    /// Adds an inner join whose constraint is a `USING (columns...)` clause.
+    ///
+    public func innerJoin<T>(_ t: T, using firstColumn: XLName, _ otherColumns: XLName...) -> XLQueryTableStatement<Row> where T: XLMetaNamedResult {
+        XLQueryTableStatement(components: components.appending(Join(kind: .innerJoin, table: t, using: [firstColumn] + otherColumns)))
+    }
+
+    ///
+    /// Adds a left join whose constraint is a `USING (columns...)` clause.
+    ///
+    public func leftJoin<T>(_ t: T, using firstColumn: XLName, _ otherColumns: XLName...) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult {
+        XLQueryTableStatement(components: components.appending(Join(kind: .leftJoin, table: t, using: [firstColumn] + otherColumns)))
+    }
+
+    ///
+    /// Adds a natural (inner) join, which implicitly matches every shared column.
+    ///
+    public func naturalJoin<T>(_ t: T) -> XLQueryTableStatement<Row> where T: XLMetaNamedResult {
+        XLQueryTableStatement(components: components.appending(Join(kind: .naturalJoin, table: t, constraint: nil)))
+    }
+
+    ///
+    /// Adds a natural left join, whose joined table can resolve to `NULL`.
+    ///
+    public func naturalLeftJoin<T>(_ t: T) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult {
+        XLQueryTableStatement(components: components.appending(Join(kind: .naturalLeftJoin, table: t, constraint: nil)))
+    }
+
     // MARK: Where
     
     public func `where`<T>(_ condition: any XLExpression<T>) -> XLQueryWhereStatement<Row> where T: XLBoolean {
