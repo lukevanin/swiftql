@@ -99,9 +99,11 @@ extension XLExpression {
     ///
     /// Renders the `unixepoch(...)` function over this text time value,
     /// applying the modifiers in order. The result is the number of seconds
-    /// since 1970-01-01 00:00:00 UTC.
+    /// since 1970-01-01 00:00:00 UTC. It is a `TimeInterval` rather than an
+    /// `Int` because the `.subsecond` modifier makes SQLite return fractional
+    /// seconds, which an integer result could not represent.
     ///
-    public func unixEpoch(_ modifiers: XLDateModifier...) -> some XLExpression<Int> where T == String {
+    public func unixEpoch(_ modifiers: XLDateModifier...) -> some XLExpression<TimeInterval> where T == String {
         XLFunction(name: "unixepoch", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 
@@ -139,7 +141,7 @@ extension XLExpression {
     }
 
     /// The optional-preserving overload of ``unixEpoch(_:)``.
-    public func unixEpoch(_ modifiers: XLDateModifier...) -> some XLExpression<Optional<Int>> where T == Optional<String> {
+    public func unixEpoch(_ modifiers: XLDateModifier...) -> some XLExpression<Optional<TimeInterval>> where T == Optional<String> {
         XLFunction(name: "unixepoch", parameters: dateParameters(value: self, modifiers: modifiers))
     }
 

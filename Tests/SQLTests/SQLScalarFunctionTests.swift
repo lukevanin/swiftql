@@ -147,12 +147,12 @@ final class XLScalarFunctionTests: XCTestCase {
         assertExpressionType(date.date(), String.self)
         assertExpressionType(date.datetime(.months(1)), String.self)
         assertExpressionType(date.julianDay(), Double.self)
-        assertExpressionType(date.unixEpoch(), Int.self)
+        assertExpressionType(date.unixEpoch(), TimeInterval.self)
         assertExpressionType(date.strftime("%Y"), String.self)
         assertExpressionType(date.year(), Int.self)
         assertExpressionType(optionalDate.datetime(.days(1)), String?.self)
         assertExpressionType(optionalDate.julianDay(), Double?.self)
-        assertExpressionType(optionalDate.unixEpoch(), Int?.self)
+        assertExpressionType(optionalDate.unixEpoch(), TimeInterval?.self)
         assertExpressionType(optionalDate.year(), Int?.self)
     }
 
