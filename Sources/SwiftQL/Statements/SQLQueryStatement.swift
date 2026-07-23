@@ -164,15 +164,15 @@ public struct XLQueryTableStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
     ///
     /// Adds an inner join whose constraint is a `USING (columns...)` clause.
     ///
-    public func innerJoin<T>(_ t: T, using columns: XLName...) -> XLQueryTableStatement<Row> where T: XLMetaNamedResult {
-        XLQueryTableStatement(components: components.appending(Join(kind: .innerJoin, table: t, using: columns)))
+    public func innerJoin<T>(_ t: T, using firstColumn: XLName, _ otherColumns: XLName...) -> XLQueryTableStatement<Row> where T: XLMetaNamedResult {
+        XLQueryTableStatement(components: components.appending(Join(kind: .innerJoin, table: t, using: [firstColumn] + otherColumns)))
     }
 
     ///
     /// Adds a left join whose constraint is a `USING (columns...)` clause.
     ///
-    public func leftJoin<T>(_ t: T, using columns: XLName...) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult {
-        XLQueryTableStatement(components: components.appending(Join(kind: .leftJoin, table: t, using: columns)))
+    public func leftJoin<T>(_ t: T, using firstColumn: XLName, _ otherColumns: XLName...) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult {
+        XLQueryTableStatement(components: components.appending(Join(kind: .leftJoin, table: t, using: [firstColumn] + otherColumns)))
     }
 
     ///

@@ -540,8 +540,8 @@ public struct Join: XLTableStatement {
     /// both tables — are equal, and SQLite coalesces each named column into a
     /// single output column.
     ///
-    public static func Inner<T>(_ table: T, using columns: XLName...) -> Join where T: XLMetaNamedResult {
-        Join(kind: .innerJoin, table: table, using: columns)
+    public static func Inner<T>(_ table: T, using firstColumn: XLName, _ otherColumns: XLName...) -> Join where T: XLMetaNamedResult {
+        Join(kind: .innerJoin, table: table, using: [firstColumn] + otherColumns)
     }
 
     ///
@@ -554,8 +554,8 @@ public struct Join: XLTableStatement {
     ///
     /// Creates a left join whose constraint is a `USING (columns...)` clause.
     ///
-    public static func Left<T>(_ table: T, using columns: XLName...) -> Join where T: XLMetaNullableNamedResult {
-        Join(kind: .leftJoin, table: table, using: columns)
+    public static func Left<T>(_ table: T, using firstColumn: XLName, _ otherColumns: XLName...) -> Join where T: XLMetaNullableNamedResult {
+        Join(kind: .leftJoin, table: table, using: [firstColumn] + otherColumns)
     }
 
     ///

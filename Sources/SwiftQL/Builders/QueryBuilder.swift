@@ -150,18 +150,18 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds an inner join whose constraint is a `USING (columns...)` clause.
     ///
-    public func innerJoin<T>(_ table: T, using columns: XLName...) -> QueryBuilder where T: XLMetaNamedResult {
+    public func innerJoin<T>(_ table: T, using firstColumn: XLName, _ otherColumns: XLName...) -> QueryBuilder where T: XLMetaNamedResult {
         copy {
-            $0.joins.append(Join(kind: .innerJoin, table: table, using: columns))
+            $0.joins.append(Join(kind: .innerJoin, table: table, using: [firstColumn] + otherColumns))
         }
     }
 
     ///
     /// Adds a left join whose constraint is a `USING (columns...)` clause.
     ///
-    public func leftJoin<T>(_ table: T, using columns: XLName...) -> QueryBuilder where T: XLMetaNullableNamedResult {
+    public func leftJoin<T>(_ table: T, using firstColumn: XLName, _ otherColumns: XLName...) -> QueryBuilder where T: XLMetaNullableNamedResult {
         copy {
-            $0.joins.append(Join(kind: .leftJoin, table: table, using: columns))
+            $0.joins.append(Join(kind: .leftJoin, table: table, using: [firstColumn] + otherColumns))
         }
     }
 
