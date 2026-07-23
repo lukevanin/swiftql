@@ -497,6 +497,14 @@ public struct Join: XLTableStatement {
 
     public func makeSQL(context: inout XLBuilder) {
         context.unaryPrefix(kind.rawValue, expression: table.makeSQL)
+        // NATURAL and CROSS joins never take an ON/USING constraint, even if one
+        // were supplied through the internal initializer.
+        switch kind {
+        case .naturalJoin, .naturalLeftJoin, .crossJoin:
+            return
+        case .innerJoin, .leftJoin:
+            break
+        }
         if let constraint {
             context.unaryPrefix("ON", expression: constraint.makeSQL)
         } else if let using {
