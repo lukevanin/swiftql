@@ -487,4 +487,63 @@ final class SQLDialectEncodingContractTests: XCTestCase {
             )
         }
     }
+
+    // MARK: - Issue #166 rendering fast paths
+
+    /// `scopedName` special-cases the one- and two-component names that dominate
+    /// qualified references to avoid the intermediate `map` array. The output
+    /// must stay identical to the general `map`/`joined` implementation for every
+    /// component count, including the three-plus case that still uses it.
+    func testScopedNameFastPathMatchesNaiveJoinAcrossComponentCounts() {
+        let formatter = XLiteFormatter()
+        let inputs: [[String]] = [
+            [],
+            ["id"],
+            ["t0", "id"],
+            ["main", "person", "id"],
+            ["a", "b", "c", "d"],
+        ]
+        for values in inputs {
+            let naive = values.map(formatter.name).joined(separator: ".")
+            XCTAssertEqual(
+                formatter.scopedName(values),
+                naive,
+                "scopedName diverged from map/joined for \(values)"
+            )
+        }
+        XCTAssertEqual(formatter.scopedName([]), "")
+        XCTAssertEqual(formatter.scopedName(["id"]), "\"id\"")
+        XCTAssertEqual(formatter.scopedName(["t0", "id"]), "\"t0\".\"id\"")
+        XCTAssertEqual(
+            formatter.scopedName(["main", "person", "id"]),
+            "\"main\".\"person\".\"id\""
+        )
+    }
+
+    /// `build()` returns a single already-rendered token directly instead of
+    /// re-joining it, and must still join multiple tokens with the builder's
+    /// separator (space for expression builders, ", " for list builders).
+    func testSingleTokenBuildersReturnTheirTokenAndMultiTokenBuildersJoin() {
+        var single: XLBuilder = XLiteBuilder(formatter: XLiteFormatter())
+        single.name("solo")
+        XCTAssertEqual(single.build(), "\"solo\"")
+
+        var multi: XLBuilder = XLiteBuilder(formatter: XLiteFormatter())
+        multi.name("left")
+        multi.name("right")
+        XCTAssertEqual(multi.build(), "\"left\" \"right\"")
+
+        var listSingle: XLBuilder = XLiteBuilder(formatter: XLiteFormatter())
+        listSingle.list(separator: XLSeparator.list.rawValue) { items in
+            items.listItem { $0.name("only") }
+        }
+        XCTAssertEqual(listSingle.build(), "\"only\"")
+
+        var listMulti: XLBuilder = XLiteBuilder(formatter: XLiteFormatter())
+        listMulti.list(separator: XLSeparator.list.rawValue) { items in
+            items.listItem { $0.name("a") }
+            items.listItem { $0.name("b") }
+        }
+        XCTAssertEqual(listMulti.build(), "\"a\", \"b\"")
+    }
 }
