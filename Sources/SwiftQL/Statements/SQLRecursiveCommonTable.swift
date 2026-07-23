@@ -161,7 +161,12 @@ public struct XLRecursiveCommonTableDraft<Layout> where Layout: XLRecursiveCommo
     /// raise a construction error, which is the case for the public recursive
     /// CTE surface. This keeps that surface free of spurious `try`.
     ///
-    public mutating func completeWithNonThrowingBody(
+    /// This is an internal convenience: it traps on the construction errors that
+    /// are unreachable for a fresh single-shot draft. Callers that reuse or copy
+    /// drafts must use the throwing ``complete(_:)`` and handle
+    /// ``XLRecursiveCommonTableConstructionError`` explicitly.
+    ///
+    internal mutating func completeWithNonThrowingBody(
         _ makeBody: (Layout.Reference) -> any XLEncodable
     ) -> XLCommonTableDependency {
         do {
@@ -218,7 +223,14 @@ public struct XLRecursiveCommonTableDraft<Layout> where Layout: XLRecursiveCommo
     /// layout, throwing ``XLRecursiveCommonTableConstructionError/resultLayoutMismatch(alias:expected:actual:)``
     /// when they differ. Used by callers that can observe the body's columns.
     ///
+    /// Layouts that opt out of a fixed column list (an empty `resultColumns`,
+    /// such as the generated composite surface whose shape the type system
+    /// already enforces) are not validated.
+    ///
     public func validateResultLayout(actualColumns: [XLName]) throws {
+        guard !layout.resultColumns.isEmpty else {
+            return
+        }
         guard layout.resultColumns == actualColumns else {
             throw XLRecursiveCommonTableConstructionError.resultLayoutMismatch(
                 alias: alias,
@@ -273,10 +285,14 @@ struct XLAliasOnlyCommonTableBody: XLEncodable {
 /// the reserved alias, by building an alias-only common-table dependency and
 /// projecting it through the body schema's `table(_:)`.
 ///
+/// The layout holds the body schema so the reference alias is allocated from the
+/// same namespace the recursive body uses, keeping the rendered SQL consistent.
+/// It deliberately does not retain a common-table namespace: the macro-generated
+/// `makeSQLCommonTable` ignores its `namespace` argument, so a throwaway is used.
+///
 struct XLCompositeRecursiveCommonTableLayout<T>: XLRecursiveCommonTableReferenceLayout where T: XLResult {
 
     let schema: XLSchema
-    let commonTableNamespace: XLNamespace
 
     func makeReference(cteAlias: XLName) -> T.MetaCommonTable.Result.MetaNamedResult {
         let dependency = XLCommonTableDependency(
@@ -284,7 +300,7 @@ struct XLCompositeRecursiveCommonTableLayout<T>: XLRecursiveCommonTableReference
             statement: XLAliasOnlyCommonTableBody()
         )
         let commonTable = T.makeSQLCommonTable(
-            namespace: commonTableNamespace,
+            namespace: .common(),
             dependency: dependency
         )
         return schema.table(commonTable)

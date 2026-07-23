@@ -118,7 +118,9 @@ public struct XLSchema {
     /// Constructs a recursive common table expression using a select query that returns
     /// an `SQLResult`.
     ///
-    /// > Note: Recursive common table requires heap allocation.
+    /// The self-reference passed to `statement` is derived from the reserved
+    /// alias alone through a value-semantic ``XLRecursiveCommonTableDraft``; no
+    /// mutable completion cell is involved.
     ///
     public func recursiveCommonTable<T>(_ type: T.Type, alias: XLName? = nil, statement: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
         makeRecursiveCommonTable(T.self, alias: alias, body: statement)
@@ -148,10 +150,7 @@ public struct XLSchema {
         let bodySchema = XLSchema()
         var draft = XLRecursiveCommonTableDraft(
             alias: reservedAlias,
-            layout: XLCompositeRecursiveCommonTableLayout<T>(
-                schema: bodySchema,
-                commonTableNamespace: commonTableNamespace
-            )
+            layout: XLCompositeRecursiveCommonTableLayout<T>(schema: bodySchema)
         )
         let dependency = draft.completeWithNonThrowingBody { reference in
             body(bodySchema, reference)
