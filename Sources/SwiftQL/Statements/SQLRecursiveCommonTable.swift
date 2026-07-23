@@ -217,9 +217,14 @@ public struct XLRecursiveCommonTableDraft<Layout> where Layout: XLRecursiveCommo
     }
 
     ///
-    /// Validates a completed body's column aliases against the declared result
-    /// layout, throwing ``XLRecursiveCommonTableConstructionError/resultLayoutMismatch(alias:expected:actual:)``
-    /// when they differ. Used by callers that can observe the body's columns.
+    /// Validates a body's column aliases against the declared result layout,
+    /// throwing ``XLRecursiveCommonTableConstructionError/resultLayoutMismatch(alias:expected:actual:)``
+    /// when they differ.
+    ///
+    /// This is a pure comparison against the layout's declared columns and does
+    /// not depend on the draft's state, so callers may run it while a body is
+    /// being built (after ``beginCompletion()``) or against an already-completed
+    /// definition — wherever the produced columns first become observable.
     ///
     /// Layouts that opt out of a fixed column list (an empty `resultColumns`,
     /// such as the generated composite surface whose shape the type system
