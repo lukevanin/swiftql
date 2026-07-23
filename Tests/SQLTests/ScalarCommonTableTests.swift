@@ -98,6 +98,46 @@ final class ScalarCommonTableTests: XCTestCase {
         XCTAssertEqual(rows.sorted(), [1, 1, 2, 2])
     }
 
+    func testScalarIntersectAndExceptExecuteWithoutWrapper() throws {
+        try database.makeRequest(with: sqlCreate(NumberRow.self)).execute()
+        for row in [NumberRow(id: "a", value: 1), NumberRow(id: "b", value: 2), NumberRow(id: "c", value: 3)] {
+            try database.makeRequest(with: sqlInsert(row)).execute()
+        }
+        let schema = XLSchema()
+        let number = schema.table(NumberRow.self)
+
+        let intersect = select(number.value).from(number).where(number.value <= 2)
+            .intersect { select(number.value).from(number).where(number.value >= 2) }
+        let intersectRows: [Int] = try database.makeRequest(with: intersect).fetchAll()
+        XCTAssertEqual(intersectRows, [2])
+
+        let except = select(number.value).from(number)
+            .except { select(number.value).from(number).where(number.value == 2) }
+        let exceptRows: [Int] = try database.makeRequest(with: except).fetchAll()
+        XCTAssertEqual(exceptRows.sorted(), [1, 3])
+    }
+
+    func testScalarCommonTableExpressionBuilderSyntaxExecutes() throws {
+        try database.makeRequest(with: sqlCreate(NumberRow.self)).execute()
+        for row in [NumberRow(id: "a", value: 4), NumberRow(id: "b", value: 8)] {
+            try database.makeRequest(with: sqlInsert(row)).execute()
+        }
+        let statement = sql { schema in
+            let cte = schema.scalarCommonTableExpression(Int.self) { inner in
+                let number = inner.table(NumberRow.self)
+                Select(number.value)
+                From(number)
+            }
+            let output = schema.table(cte)
+            With(cte)
+            Select(output.value)
+            From(output)
+            OrderBy(output.value.ascending())
+        }
+        let rows: [Int] = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows, [4, 8])
+    }
+
     func testEmptyScalarCommonTableFetchesNoRows() throws {
         try database.makeRequest(with: sqlCreate(NumberRow.self)).execute()
         let statement = sql { schema in

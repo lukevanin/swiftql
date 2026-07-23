@@ -165,6 +165,46 @@ extension XLSchema {
     }
 
     ///
+    /// Constructs a scalar common table expression using the query expression
+    /// builder (`sql { }`-style body).
+    ///
+    public func scalarCommonTableExpression<Value>(
+        _ type: Value.Type,
+        alias: XLName? = nil,
+        column: XLName = "value",
+        materialization: XLCommonTableMaterialization = .unspecified,
+        @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<Value>
+    ) -> XLScalarCommonTable<Value> where Value: XLLiteral {
+        scalarCommonTable(
+            type,
+            alias: alias,
+            column: column,
+            materialization: materialization,
+            statement: statement
+        )
+    }
+
+    ///
+    /// Constructs a recursive scalar common table expression using the query
+    /// expression builder.
+    ///
+    public func recursiveScalarCommonTableExpression<Value>(
+        _ type: Value.Type,
+        alias: XLName? = nil,
+        column: XLName = "value",
+        materialization: XLCommonTableMaterialization = .unspecified,
+        @XLQueryExpressionBuilder statement: (XLSchema, XLScalarCommonTableReference<Value>) -> any XLQueryStatement<Value>
+    ) -> XLScalarCommonTable<Value> where Value: XLLiteral {
+        recursiveScalarCommonTable(
+            type,
+            alias: alias,
+            column: column,
+            materialization: materialization,
+            statement: statement
+        )
+    }
+
+    ///
     /// Creates a `FROM`-able reference to a scalar common table.
     ///
     public func table<Value>(
