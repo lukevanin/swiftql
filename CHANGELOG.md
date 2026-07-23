@@ -19,6 +19,51 @@
 No migration is required for v1.4.4. Every change is additive, and the existing
 insert surface remains source-compatible.
 
+## [1.4.3] - 2026-07-23
+
+### Added
+
+- Added the `date`, `time`, `datetime`, `julianDay`, `unixEpoch`, and `strftime`
+  constructors on text time-value expressions. Each takes ordered
+  `XLDateModifier` values, and SQLite applies them left to right, so the Swift
+  argument order is the evaluation order — `moment.datetime(.months(1),
+  .startOfMonth)` renders `datetime(..., '+1 months', 'start of month')`.
+  Optional receivers preserve optionality.
+- Added `XLDateModifier`, an ordered modifier type covering the relative-offset
+  (`.days`/`.hours`/`.minutes`/`.seconds`/`.months`/`.years`), anchoring
+  (`.startOfDay`/`.startOfMonth`/`.startOfYear`/`.weekday(_:)`), `.ceiling`,
+  `.floor`, `.localTime`, `.utc`, and `.subsecond` modifiers available in every
+  SQLite release the library validates against (3.42.0 and later). A modifier
+  renders as a quoted string literal, so it cannot inject SQL; input-interpretation
+  modifiers whose availability varies by release (`unixepoch`, `julianday`,
+  `auto`) stay reachable through `XLDateModifier(_:)` rather than as named
+  members.
+- Added the `year`, `month`, `day`, `hour`, `minute`, `second`, `dayOfYear`,
+  `dayOfWeek`, and `weekOfYear` component accessors, each reinterpreting a
+  `strftime` substitution as an `Int` with `CAST(... AS INTEGER)`. An optional
+  receiver preserves `NULL`.
+- Moved `syntax.expression.date-functions` from partial to supported in the
+  conformance inventory with new rendering and real-SQLite execution evidence,
+  and regenerated the report.
+
+### Changed
+
+- `unixEpoch(_:)` returns `TimeInterval` rather than `Int`, because the
+  constructor accepts arbitrary modifiers — including `.subsecond`, which makes
+  SQLite return fractional seconds that an `Int` cannot represent. This mirrors
+  the legacy `unixepoch(date:modifiers:)` surface. `toUnixTimestamp()` still
+  returns `Int` for the no-modifier integer case.
+
+### Migration
+
+Date comparison (`<`, `<=`, `>`, `>=`, `==`, `!=`) and julian-day subtraction
+(`-`) reuse the existing generic `XLComparable` and floating-point operators
+over date-function results rather than adding date-specific overloads, so
+existing call sites are unaffected.
+
+The legacy `unixepoch(date:modifiers:)`, `toUnixTimestamp()`, and
+`XLDateFunctionModifiers` surface is retained for source compatibility.
+
 ## [1.4.2] - 2026-07-22
 
 ### Added
