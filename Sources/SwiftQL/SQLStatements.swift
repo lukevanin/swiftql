@@ -337,12 +337,16 @@ public struct Insert<Row>: XLEncodable, XLRowWritable {
 /// that would violate a uniqueness constraint is deleted before the new row is
 /// inserted.
 ///
-public struct Replace<Row> {
+public struct Replace<Row>: XLEncodable, XLRowWritable {
 
     internal let insert: Insert<Row>
 
     public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row {
         self.insert = Insert(table: meta._dependency, keyword: "REPLACE INTO")
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        insert.makeSQL(context: &context)
     }
 }
 
