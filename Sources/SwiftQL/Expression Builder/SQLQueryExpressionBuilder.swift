@@ -233,10 +233,10 @@ extension XLSchema {
     ///
     /// Constructs a common table expression on a schema.
     ///
-    public func commonTableExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
+    public func commonTableExpression<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
         let alias = commonTableNamespace.makeAlias(alias: alias)
         let schema = XLSchema()
-        let dependency = XLCommonTableDependency(alias: alias, statement: statement(schema))
+        let dependency = XLCommonTableDependency(alias: alias, statement: statement(schema), materialization: materialization)
         return T.makeSQLCommonTable(namespace: commonTableNamespace, dependency: dependency)
     }
 }
