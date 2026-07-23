@@ -31,6 +31,13 @@ struct PassportCitizenRow: Equatable {
 }
 
 
+@SQLResult
+struct PassportCitizenLeftRow: Equatable {
+    let name: String?
+    let country: String
+}
+
+
 final class NaturalUsingJoinTests: XCTestCase {
 
     var encoder: XLiteEncoder!
@@ -104,6 +111,56 @@ final class NaturalUsingJoinTests: XCTestCase {
         XCTAssertEqual(
             encoder.makeSQL(using).sql,
             "SELECT `t1`.`fullName` AS `name`, `t0`.`country` AS `country` FROM `Passport` AS `t0` INNER JOIN `Citizen` AS `t1` USING (`id`)"
+        )
+    }
+
+    func testFluentNaturalLeftAndLeftUsingJoinsRender() {
+        let schema = XLSchema()
+        let passport = schema.table(PassportTable.self)
+        let citizen = schema.nullableTable(CitizenTable.self)
+        let naturalLeft = select(PassportCitizenLeftRow.columns(name: citizen.fullName, country: passport.country))
+            .from(passport)
+            .naturalLeftJoin(citizen)
+        XCTAssertEqual(
+            encoder.makeSQL(naturalLeft).sql,
+            "SELECT `t1`.`fullName` AS `name`, `t0`.`country` AS `country` FROM `Passport` AS `t0` NATURAL LEFT JOIN `Citizen` AS `t1`"
+        )
+
+        let schema2 = XLSchema()
+        let passport2 = schema2.table(PassportTable.self)
+        let citizen2 = schema2.nullableTable(CitizenTable.self)
+        let leftUsing = select(PassportCitizenLeftRow.columns(name: citizen2.fullName, country: passport2.country))
+            .from(passport2)
+            .leftJoin(citizen2, using: "id")
+        XCTAssertEqual(
+            encoder.makeSQL(leftUsing).sql,
+            "SELECT `t1`.`fullName` AS `name`, `t0`.`country` AS `country` FROM `Passport` AS `t0` LEFT JOIN `Citizen` AS `t1` USING (`id`)"
+        )
+    }
+
+    func testExpressionBuilderNaturalLeftAndLeftUsingJoinsRender() {
+        let naturalLeft = sql { schema in
+            let passport = schema.table(PassportTable.self)
+            let citizen = schema.nullableTable(CitizenTable.self)
+            Select(PassportCitizenLeftRow.columns(name: citizen.fullName, country: passport.country))
+            From(passport)
+            Join.NaturalLeft(citizen)
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(naturalLeft).sql,
+            "SELECT `t1`.`fullName` AS `name`, `t0`.`country` AS `country` FROM `Passport` AS `t0` NATURAL LEFT JOIN `Citizen` AS `t1`"
+        )
+
+        let leftUsing = sql { schema in
+            let passport = schema.table(PassportTable.self)
+            let citizen = schema.nullableTable(CitizenTable.self)
+            Select(PassportCitizenLeftRow.columns(name: citizen.fullName, country: passport.country))
+            From(passport)
+            Join.Left(citizen, using: "id")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(leftUsing).sql,
+            "SELECT `t1`.`fullName` AS `name`, `t0`.`country` AS `country` FROM `Passport` AS `t0` LEFT JOIN `Citizen` AS `t1` USING (`id`)"
         )
     }
 
