@@ -436,9 +436,9 @@ public struct From: XLTableStatement {
     ///
     /// Specifies a `FROM` table whose columns can resolve to `NULL`.
     ///
-    /// Used for the left-hand table of a `RIGHT JOIN`, where unmatched rows fill
-    /// the `FROM` table's columns with `NULL`. Build the nullable table reference
-    /// with `nullableTable(_:as:)`.
+    /// Used for the left-hand table of a `RIGHT JOIN` (and either table of a
+    /// `FULL OUTER JOIN`), where unmatched rows fill the `FROM` table's columns
+    /// with `NULL`. Build the nullable table reference with `nullableTable(_:as:)`.
     ///
     public init<T>(_ meta: T) where T: XLMetaNullableNamedResult {
         self.table = meta

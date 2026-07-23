@@ -95,7 +95,7 @@ public struct QueryBuilder<Row> {
 
     ///
     /// Adds a from clause whose table can resolve to `NULL`, for use as the
-    /// left-hand table of a `RIGHT JOIN`.
+    /// left-hand table of a `RIGHT JOIN` or either side of a `FULL OUTER JOIN`.
     ///
     public func from<T>(_ table: T) -> QueryBuilder where T: XLMetaNullableNamedResult {
         copy {
