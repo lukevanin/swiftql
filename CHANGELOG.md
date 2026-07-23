@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.4.4] - 2026-07-23
+
+### Added
+
+- Added `INSERT OR ROLLBACK/ABORT/FAIL/IGNORE/REPLACE` through `Insert(_:or:)`
+  and the functional `insert(_:or:)`. The conflict algorithm is part of the
+  `INSERT` keyword and applies to every uniqueness constraint the statement
+  violates.
+- Recorded the new conflict-resolution surface in the #190 canonical SQLite
+  conformance inventory. It records 106 public-surface feature records: 98
+  supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
+  5 unimplemented. Of the 144 evidence records, 91 exercise real SQLite and
+  cite one captured SQLite 3.51.0 environment.
+
+### Migration
+
+No migration is required for v1.4.4. Every change is additive, and the existing
+insert surface remains source-compatible.
+
 ## [1.4.2] - 2026-07-22
 
 ### Added

@@ -21,10 +21,10 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 
 ## Summary
 
-- Total feature records: **105**
-- Supported feature records: **97**
+- Total feature records: **106**
+- Supported feature records: **98**
 - SQLite environments: **1**
-- Evidence records: **141**
+- Evidence records: **144**
 
 ### Support status
 
@@ -32,7 +32,7 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | --- | ---: |
 | `capability-gated` | 2 |
 | `intentionally-unsupported` | 1 |
-| `supported` | 97 |
+| `supported` | 98 |
 | `unimplemented` | 5 |
 
 ### Adoption status
@@ -40,7 +40,7 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | Value | Features |
 | --- | ---: |
 | `adapter/API-gated` | 2 |
-| `already-covered` | 97 |
+| `already-covered` | 98 |
 | `intentionally-out-of-scope` | 1 |
 | `syntax-gated` | 5 |
 
@@ -50,7 +50,7 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | --- | ---: |
 | `adapter-contract` | 27 |
 | `adopted-behavior` | 47 |
-| `syntax` | 31 |
+| `syntax` | 32 |
 
 ## SQLite environments
 
@@ -102,6 +102,7 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | `rollback.driver-failure`<br>Rollback after driver failure | `dml` | `adapter-contract` | `supported` | `already-covered` | [`www.sqlite.org/lang_transaction.html`](https://www.sqlite.org/lang_transaction.html) | `3.0.0` | `XLDatabaseDriver.withTransaction` [verified: `withTransaction`] ([`Sources/SwiftQLCore/SQLDatabaseDriver.swift`](../../Sources/SwiftQLCore/SQLDatabaseDriver.swift)) | `evidence.transaction.fixture-contract`, `evidence.transaction.rollback.sqlite` | — |
 | `rollback.early-exit`<br>Rollback after early row-stream exit | `dml` | `adapter-contract` | `supported` | `already-covered` | [`www.sqlite.org/lang_transaction.html`](https://www.sqlite.org/lang_transaction.html) | `3.0.0` | `XLDatabaseDriver.withTransaction` [verified: `withTransaction`] ([`Sources/SwiftQLCore/SQLDatabaseDriver.swift`](../../Sources/SwiftQLCore/SQLDatabaseDriver.swift)) | `evidence.transaction.fixture-contract`, `evidence.transaction.rollback.sqlite` | — |
 | `rollback.explicit-request`<br>Explicit rollback request preserves caller error | `dml` | `adapter-contract` | `supported` | `already-covered` | [`www.sqlite.org/lang_transaction.html`](https://www.sqlite.org/lang_transaction.html) | `3.0.0` | `XLDatabaseDriver.withTransaction` [verified: `withTransaction`] ([`Sources/SwiftQLCore/SQLDatabaseDriver.swift`](../../Sources/SwiftQLCore/SQLDatabaseDriver.swift)) | `evidence.transaction.fixture-contract`, `evidence.transaction.rollback.sqlite` | — |
+| `syntax.dml.conflict-clause`<br>INSERT OR conflict-resolution clause | `dml` | `syntax` | `supported` | `already-covered` | [`www.sqlite.org/lang_insert.html`](https://www.sqlite.org/lang_insert.html)<br>[`www.sqlite.org/lang_conflict.html`](https://www.sqlite.org/lang_conflict.html) | `3.0.0` | `Insert` [verified: `Insert`] ([`Sources/SwiftQL/SQLStatements.swift`](../../Sources/SwiftQL/SQLStatements.swift)), `XLInsertOrAction` [verified: `XLInsertOrAction`] ([`Sources/SwiftQL/SQLStatements.swift`](../../Sources/SwiftQL/SQLStatements.swift)) | `evidence.syntax.dml.render-insert-or`, `evidence.syntax.dml.sqlite-insert-or-ignore`, `evidence.syntax.dml.sqlite-insert-or-replace` | — |
 | `syntax.dml.current-crud`<br>Current INSERT, INSERT SELECT, UPDATE, and DELETE statement clauses | `dml` | `syntax` | `supported` | `already-covered` | [`www.sqlite.org/lang_delete.html`](https://www.sqlite.org/lang_delete.html)<br>[`www.sqlite.org/lang_insert.html`](https://www.sqlite.org/lang_insert.html)<br>[`www.sqlite.org/lang_update.html`](https://www.sqlite.org/lang_update.html) | `3.0.0` | `Insert` [verified: `Insert`] ([`Sources/SwiftQL/SQLStatements.swift`](../../Sources/SwiftQL/SQLStatements.swift)), `Update` [verified: `Update`] ([`Sources/SwiftQL/SQLStatements.swift`](../../Sources/SwiftQL/SQLStatements.swift)), `Delete` [verified: `Delete`] ([`Sources/SwiftQL/SQLStatements.swift`](../../Sources/SwiftQL/SQLStatements.swift)) | `evidence.syntax.dml.sqlite-delete`, `evidence.syntax.dml.sqlite-insert-select`, `evidence.syntax.dml.sqlite-update` | [#8](https://github.com/lukevanin/swiftql/issues/8), [#9](https://github.com/lukevanin/swiftql/issues/9), [#53](https://github.com/lukevanin/swiftql/issues/53), [#55](https://github.com/lukevanin/swiftql/issues/55), [#56](https://github.com/lukevanin/swiftql/issues/56), [#57](https://github.com/lukevanin/swiftql/issues/57), [#58](https://github.com/lukevanin/swiftql/issues/58), [#59](https://github.com/lukevanin/swiftql/issues/59) |
 | `syntax.dml.returning-gap`<br>INSERT, UPDATE, and DELETE RETURNING clauses | `dml` | `syntax` | `unimplemented` | `syntax-gated` | [`www.sqlite.org/lang_returning.html`](https://www.sqlite.org/lang_returning.html) | `3.35.0` | `XLInsertStatement` [verified: `XLInsertStatement`] ([`Sources/SwiftQL/Statements/SQLInsertStatement.swift`](../../Sources/SwiftQL/Statements/SQLInsertStatement.swift)), `XLUpdateStatement` [verified: `XLUpdateStatement`] ([`Sources/SwiftQL/Statements/SQLUpdateStatement.swift`](../../Sources/SwiftQL/Statements/SQLUpdateStatement.swift)), `XLDeleteStatement` [verified: `XLDeleteStatement`] ([`Sources/SwiftQL/Statements/SQLDeleteStatement.swift`](../../Sources/SwiftQL/Statements/SQLDeleteStatement.swift)) | — | [#53](https://github.com/lukevanin/swiftql/issues/53), [#57](https://github.com/lukevanin/swiftql/issues/57), [#58](https://github.com/lukevanin/swiftql/issues/58) |
 | `upstream.fluent.soft-delete-lifecycle`<br>Fluent model soft-delete, restore, force-delete, and default-filter lifecycle | `dml` | `adopted-behavior` | `intentionally-unsupported` | `intentionally-out-of-scope` | — | N/A | — | — | — |
@@ -212,6 +213,7 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | `rollback.driver-failure` | `database-pool-driver`, `transactions` | A transaction-owned table records stable logical row IDs before and after the operation. | — | — |
 | `rollback.early-exit` | `database-pool-driver`, `transactions` | A transaction-owned table records stable logical row IDs before and after the operation. | — | — |
 | `rollback.explicit-request` | `database-pool-driver`, `transactions` | A transaction-owned table records stable logical row IDs before and after the operation. | — | — |
+| `syntax.dml.conflict-clause` | `sqlite-core-parser` | A generated writable table supplies insert metadata. | The conflict algorithm is part of the INSERT keyword and renders as INSERT OR ROLLBACK/ABORT/FAIL/IGNORE/REPLACE INTO. | — |
 | `syntax.dml.current-crud` | `sqlite-core-parser` | A generated writable table supplies insert, update, and delete metadata. | Conflict algorithms, UPSERT, and RETURNING are separate deferred sub-surfaces. | — |
 | `syntax.dml.returning-gap` | `sqlite-core-parser` | DML statements need typed result-row and cardinality metadata. | The current DML statement protocols are write-only and do not expose RETURNING rows. | [#57](https://github.com/lukevanin/swiftql/issues/57) for `v1.4`: Issue #57 is the first atomic RETURNING implementation; #53 and #58 cover DELETE and UPDATE. |
 | `upstream.fluent.soft-delete-lifecycle` | — | Fluent model lifecycle metadata, default query scopes, and restore semantics would be required. | SwiftQL is a typed SQL construction library and does not implement ORM soft-delete lifecycle behavior.<br>Soft-delete filtering and restore semantics are ORM record-lifecycle policy, not SQLite syntax. | — |
@@ -345,7 +347,10 @@ A feature counts as supported only when it references explicit real-SQLite `prep
 | `evidence.syntax.ddl.render-create` | [`Tests/SQLTests/Tests/Expression Builder/SQLCreateExpressionBuilderTests.swift`](../../Tests/SQLTests/Tests/Expression%20Builder/SQLCreateExpressionBuilderTests.swift)<br>`XLCreateExpressionBuilderTests.testCreateTable` | — | `rendering`, `swift-typecheck` | no | — |
 | `evidence.syntax.ddl.sqlite-create` | [`Tests/SQLTests/SQLExecutionTests.swift`](../../Tests/SQLTests/SQLExecutionTests.swift)<br>`XLExecutionTests.testCreateTable` | — | `execution`, `prepare`, `semantic-oracle`, `swift-typecheck` | yes | `sqlite-3.51.0-macos-arm64` |
 | `evidence.syntax.ddl.sqlite-create-as-select` | [`Tests/SQLTests/SQLExecutionTests.swift`](../../Tests/SQLTests/SQLExecutionTests.swift)<br>`XLExecutionTests.testCreateTableAsSelect` | — | `execution`, `prepare`, `semantic-oracle`, `swift-typecheck` | yes | `sqlite-3.51.0-macos-arm64` |
+| `evidence.syntax.dml.render-insert-or` | [`Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift`](../../Tests/SQLTests/Tests/Expression%20Builder/SQLDataChangingStatementsTests.swift)<br>`XLDataChangingStatementsTests.testInsertOrAllActionsRender` | — | `rendering`, `swift-typecheck` | no | — |
 | `evidence.syntax.dml.sqlite-delete` | [`Tests/SQLTests/SQLExecutionTests.swift`](../../Tests/SQLTests/SQLExecutionTests.swift)<br>`XLExecutionTests.testDelete` | — | `execution`, `prepare`, `semantic-oracle`, `swift-typecheck` | yes | `sqlite-3.51.0-macos-arm64` |
+| `evidence.syntax.dml.sqlite-insert-or-ignore` | [`Tests/SQLTests/SQLDataChangingExecutionTests.swift`](../../Tests/SQLTests/SQLDataChangingExecutionTests.swift)<br>`XLDataChangingExecutionTests.testInsertOrIgnoreKeepsExistingRow` | — | `execution`, `prepare`, `rendering` | yes | `sqlite-3.51.0-macos-arm64` |
+| `evidence.syntax.dml.sqlite-insert-or-replace` | [`Tests/SQLTests/SQLDataChangingExecutionTests.swift`](../../Tests/SQLTests/SQLDataChangingExecutionTests.swift)<br>`XLDataChangingExecutionTests.testInsertOrReplaceOverwritesExistingRow` | — | `execution`, `prepare`, `rendering` | yes | `sqlite-3.51.0-macos-arm64` |
 | `evidence.syntax.dml.sqlite-insert-select` | [`Tests/SQLTests/SQLExecutionTests.swift`](../../Tests/SQLTests/SQLExecutionTests.swift)<br>`XLExecutionTests.testInsertSelectFluentCompleteClauseChain` | — | `bindings`, `execution`, `prepare`, `rendering`, `semantic-oracle`, `swift-typecheck` | yes | `sqlite-3.51.0-macos-arm64` |
 | `evidence.syntax.dml.sqlite-update` | [`Tests/SQLTests/SQLExecutionTests.swift`](../../Tests/SQLTests/SQLExecutionTests.swift)<br>`XLExecutionTests.testUpdate` | — | `execution`, `prepare`, `semantic-oracle`, `swift-typecheck` | yes | `sqlite-3.51.0-macos-arm64` |
 | `evidence.syntax.expression.compile-fail-between-mismatched-types` | [`Tests/CompileFail/BetweenMismatchedTypes.swift`](../../Tests/CompileFail/BetweenMismatchedTypes.swift)<br>`compile-fail.between-mismatched-types` | [`scripts/ci/check-between-type-safety.sh`](../../scripts/ci/check-between-type-safety.sh) | `compile-fail`, `swift-typecheck` | no | — |

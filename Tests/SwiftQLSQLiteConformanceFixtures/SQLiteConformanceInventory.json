@@ -81,9 +81,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.combinatorial.compile-fail-offset-without-limit",
@@ -95,9 +93,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.combinatorial.compile-fail-where-after-order-by",
@@ -109,9 +105,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.combinatorial.compile-fail-where-requires-boolean",
@@ -123,9 +117,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.combinatorial.function-overload-matrix",
@@ -138,9 +130,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.combinatorial.in-subquery-execution.sqlite",
@@ -169,9 +159,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.combinatorial.json-capability.sqlite",
@@ -198,9 +186,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.combinatorial.operator-arithmetic-text-optional-semantics.sqlite",
@@ -229,9 +215,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.combinatorial.operator-semantics.sqlite",
@@ -398,9 +382,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.compound.render-intersect",
@@ -412,9 +394,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.compound.render-union",
@@ -426,9 +406,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.compound.sqlite-union",
@@ -473,9 +451,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.ddl.sqlite-create",
@@ -569,9 +545,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.compile-fail-between-non-comparable",
@@ -583,9 +557,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.compile-fail-bitwise-not-double",
@@ -597,9 +569,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-aggregate-functions",
@@ -611,9 +581,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-between",
@@ -625,9 +593,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-collation",
@@ -639,9 +605,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-coalescing-operator",
@@ -653,9 +617,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-conditional-functions",
@@ -667,9 +629,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-date-json-functions",
@@ -681,9 +641,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-date-constructors",
@@ -695,9 +653,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.execute-date-functions",
@@ -726,9 +682,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-like-escape",
@@ -740,9 +694,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-like-escape-binding",
@@ -754,9 +706,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-regexp",
@@ -768,9 +718,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-regexp-composition",
@@ -782,9 +730,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.sqlite-regexp",
@@ -841,9 +787,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.custom-collation-equality",
@@ -854,9 +798,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-custom-collation-escaping",
@@ -869,9 +811,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.sqlite-custom-collation-compare",
@@ -929,9 +869,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-not-in-null-element",
@@ -943,9 +881,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-not-in",
@@ -957,9 +893,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-not-in-composition",
@@ -971,9 +905,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-operator-divide",
@@ -985,9 +917,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-operator-logical-not",
@@ -999,9 +929,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-operator-logical-or",
@@ -1013,9 +941,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-operator-remainder",
@@ -1027,9 +953,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-string-ordering-functions",
@@ -1041,9 +965,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-type-casts",
@@ -1055,9 +977,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.render-unary-plus",
@@ -1069,9 +989,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.expression.sqlite-aggregate-functions",
@@ -1644,9 +1562,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.subquery.render-nullable-left-join",
@@ -1658,9 +1574,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.subquery.sqlite-nullable-left-join",
@@ -1688,9 +1602,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.subquery.render-table",
@@ -1702,9 +1614,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.syntax.subquery.sqlite-correlated",
@@ -1749,9 +1659,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.transaction.independent-databases.sqlite",
@@ -1864,9 +1772,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.value.malformed.sqlite",
@@ -1945,9 +1851,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.observation.oracle-positive",
@@ -1959,9 +1863,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.observation.oracle-rejects-rollback",
@@ -1974,9 +1876,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.observation.oracle-rejects-post-cancellation",
@@ -1989,9 +1889,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.observation.oracle-rejects-wrong-database",
@@ -2004,9 +1902,7 @@
         "swift-typecheck"
       ],
       "real_sqlite": false,
-      "environment_ids": [
-
-      ]
+      "environment_ids": []
     },
     {
       "id": "evidence.observation.initial.sqlite",
@@ -2265,6 +2161,48 @@
       "environment_ids": [
         "sqlite-3.51.0-macos-arm64"
       ]
+    },
+    {
+      "id": "evidence.syntax.dml.render-insert-or",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testInsertOrAllActionsRender",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-insert-or-ignore",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testInsertOrIgnoreKeepsExistingRow",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-insert-or-replace",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testInsertOrReplaceOverwritesExistingRow",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
     }
   ],
   "suites": [
@@ -2467,12 +2405,8 @@
       "issue": 256,
       "milestone": "v1.5",
       "status": "planned",
-      "case_ids": [
-
-      ],
-      "evidence_ids": [
-
-      ]
+      "case_ids": [],
+      "evidence_ids": []
     },
     {
       "id": "suite.286.function-overload-conformance",
@@ -2569,12 +2503,8 @@
         "evidence.value.affinity.sqlite",
         "evidence.value.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -2634,12 +2564,8 @@
         "evidence.value.affinity.sqlite",
         "evidence.value.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -2699,12 +2625,8 @@
         "evidence.value.affinity.sqlite",
         "evidence.value.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -2773,12 +2695,8 @@
         "evidence.combinatorial.manifest-determinism",
         "evidence.combinatorial.positive.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -2839,12 +2757,8 @@
         "evidence.value.bindings.sqlite",
         "evidence.value.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -2905,12 +2819,8 @@
         "evidence.value.bindings.sqlite",
         "evidence.value.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -2973,9 +2883,7 @@
         "target_milestone": "v2",
         "reason": "Issue #113 owns the required GRDB adapter and transaction capability hooks."
       },
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "capability.single-connection-visibility",
@@ -3021,9 +2929,7 @@
         "target_milestone": "v2",
         "reason": "Issue #113 owns the required GRDB adapter and transaction capability hooks."
       },
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "cleanup.post-failure-reuse",
@@ -3059,16 +2965,10 @@
         "evidence.transaction.fixture-contract",
         "evidence.transaction.rollback.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "codec.default.integer",
@@ -3111,12 +3011,8 @@
         "evidence.value.codecs.sqlite",
         "evidence.value.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -3176,12 +3072,8 @@
         "evidence.value.codecs.sqlite",
         "evidence.value.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -3234,16 +3126,10 @@
         "evidence.transaction.commit.sqlite",
         "evidence.transaction.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "commit.multiple-statements",
@@ -3279,16 +3165,10 @@
         "evidence.transaction.commit.sqlite",
         "evidence.transaction.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "commit.return-value",
@@ -3324,16 +3204,10 @@
         "evidence.transaction.commit.sqlite",
         "evidence.transaction.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "enum.text.round-trip",
@@ -3376,12 +3250,8 @@
         "evidence.value.codecs.sqlite",
         "evidence.value.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -3441,12 +3311,8 @@
         "evidence.value.fixture-contract",
         "evidence.value.malformed.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -3506,12 +3372,8 @@
         "evidence.value.fixture-contract",
         "evidence.value.malformed.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -3571,12 +3433,8 @@
         "evidence.value.codecs.sqlite",
         "evidence.value.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -3629,16 +3487,10 @@
         "evidence.transaction.fixture-contract",
         "evidence.transaction.independent-databases.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "northwind.fixture.pinned-corpus",
@@ -4713,12 +4565,8 @@
         "evidence.value.codecs.sqlite",
         "evidence.value.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -4771,16 +4619,10 @@
         "evidence.transaction.commit.sqlite",
         "evidence.transaction.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "rollback.bind-failure",
@@ -4816,16 +4658,10 @@
         "evidence.transaction.fixture-contract",
         "evidence.transaction.rollback.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "rollback.body-error",
@@ -4861,16 +4697,10 @@
         "evidence.transaction.fixture-contract",
         "evidence.transaction.rollback.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "rollback.constraint-failure",
@@ -4906,16 +4736,10 @@
         "evidence.transaction.fixture-contract",
         "evidence.transaction.rollback.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "rollback.decode-failure",
@@ -4951,16 +4775,10 @@
         "evidence.transaction.fixture-contract",
         "evidence.transaction.rollback.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "rollback.driver-failure",
@@ -4996,16 +4814,10 @@
         "evidence.transaction.fixture-contract",
         "evidence.transaction.rollback.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "rollback.early-exit",
@@ -5041,16 +4853,10 @@
         "evidence.transaction.fixture-contract",
         "evidence.transaction.rollback.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "rollback.explicit-request",
@@ -5086,16 +4892,10 @@
         "evidence.transaction.fixture-contract",
         "evidence.transaction.rollback.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "storage.blob.embedded-zero",
@@ -5138,12 +4938,8 @@
         "evidence.value.fixture-contract",
         "evidence.value.storage.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -5203,12 +4999,8 @@
         "evidence.value.fixture-contract",
         "evidence.value.storage.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -5269,12 +5061,8 @@
         "evidence.value.malformed.sqlite",
         "evidence.value.storage.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -5334,12 +5122,8 @@
         "evidence.value.fixture-contract",
         "evidence.value.storage.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -5399,12 +5183,8 @@
         "evidence.value.fixture-contract",
         "evidence.value.storage.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -5464,12 +5244,8 @@
         "evidence.value.fixture-contract",
         "evidence.value.storage.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -5529,12 +5305,8 @@
         "evidence.value.fixture-contract",
         "evidence.value.storage.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -5594,12 +5366,8 @@
         "evidence.value.fixture-contract",
         "evidence.value.nan.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -5659,12 +5427,8 @@
         "evidence.value.fixture-contract",
         "evidence.value.storage.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -5724,12 +5488,8 @@
         "evidence.value.fixture-contract",
         "evidence.value.storage.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -5789,12 +5549,8 @@
         "evidence.value.fixture-contract",
         "evidence.value.storage.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -5855,12 +5611,8 @@
         "evidence.value.storage.sqlite",
         "evidence.value.unicode.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -5910,21 +5662,15 @@
       "schema_requirements": [
         "Both compound branches expose compatible typed row layouts."
       ],
-  "evidence_ids": [
-    "evidence.syntax.compound.render-union",
-    "evidence.syntax.compound.sqlite-union",
-    "evidence.syntax.cte.sqlite-recursive"
-  ],
-  "deviations": [
-
-  ],
-  "follow_up_issues": [
-
-  ],
+      "evidence_ids": [
+        "evidence.syntax.compound.render-union",
+        "evidence.syntax.compound.sqlite-union",
+        "evidence.syntax.cte.sqlite-recursive"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.compound.direct-scalar-gap",
@@ -5959,9 +5705,7 @@
       "schema_requirements": [
         "A stable one-column scalar row layout and alias are required across every branch."
       ],
-      "evidence_ids": [
-
-      ],
+      "evidence_ids": [],
       "deviations": [
         "Current compound APIs rebuild row metadata through XLResult and require a wrapper for scalar rows."
       ],
@@ -5973,17 +5717,15 @@
         "target_milestone": "v1.4",
         "reason": "Issue #43 owns direct scalar compound and CTE row support."
       },
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.compound.intersect-except-prepare-gap",
       "kind": "syntax",
       "family": "compound",
       "title": "INTERSECT and EXCEPT real-SQLite prepare coverage",
-  "status": "supported",
-  "adoption_status": "already-covered",
+      "status": "supported",
+      "adoption_status": "already-covered",
       "public_api": [
         {
           "symbol": "XLQueryStatement.intersect/except",
@@ -6008,21 +5750,15 @@
       "schema_requirements": [
         "Both compound branches expose compatible typed row layouts."
       ],
-  "evidence_ids": [
-    "evidence.combinatorial.positive.sqlite",
-    "evidence.syntax.compound.render-except",
-    "evidence.syntax.compound.render-intersect"
-  ],
-  "deviations": [
-
-  ],
-  "follow_up_issues": [
-
-  ],
-  "deferral": null,
-      "provenance": [
-
-      ]
+      "evidence_ids": [
+        "evidence.combinatorial.positive.sqlite",
+        "evidence.syntax.compound.render-except",
+        "evidence.syntax.compound.render-intersect"
+      ],
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": []
     },
     {
       "id": "syntax.cte.materialization-hints-gap",
@@ -6054,9 +5790,7 @@
       "schema_requirements": [
         "A typed CTE definition with an explicit materialization policy is required."
       ],
-      "evidence_ids": [
-
-      ],
+      "evidence_ids": [],
       "deviations": [
         "SwiftQL does not currently expose SQLite materialization hints."
       ],
@@ -6068,9 +5802,7 @@
         "target_milestone": "v1.4",
         "reason": "Issue #10 owns materialized and non-materialized common tables."
       },
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.cte.recursive",
@@ -6112,16 +5844,10 @@
       "evidence_ids": [
         "evidence.syntax.cte.sqlite-recursive"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.ddl.create-table",
@@ -6171,9 +5897,7 @@
         139
       ],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.ddl.typed-model-gap",
@@ -6206,9 +5930,7 @@
       "schema_requirements": [
         "Stable dialect-aware table, column, constraint, index, and schema-object metadata are required."
       ],
-      "evidence_ids": [
-
-      ],
+      "evidence_ids": [],
       "deviations": [
         "The existing public DDL surface is centered on generated CREATE TABLE statements."
       ],
@@ -6220,9 +5942,7 @@
         "target_milestone": "v2",
         "reason": "Issue #139 owns the typed dialect-aware DDL foundation."
       },
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.dml.current-crud",
@@ -6288,9 +6008,56 @@
         59
       ],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
+    },
+    {
+      "id": "syntax.dml.conflict-clause",
+      "kind": "syntax",
+      "family": "dml",
+      "title": "INSERT OR conflict-resolution clause",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Insert",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "Insert"
+          ]
+        },
+        {
+          "symbol": "XLInsertOrAction",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "XLInsertOrAction"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_insert.html",
+        "https://www.sqlite.org/lang_conflict.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A generated writable table supplies insert metadata."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.dml.render-insert-or",
+        "evidence.syntax.dml.sqlite-insert-or-ignore",
+        "evidence.syntax.dml.sqlite-insert-or-replace"
+      ],
+      "deviations": [
+        "The conflict algorithm is part of the INSERT keyword and renders as INSERT OR ROLLBACK/ABORT/FAIL/IGNORE/REPLACE INTO."
+      ],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": []
     },
     {
       "id": "syntax.dml.returning-gap",
@@ -6335,9 +6102,7 @@
       "schema_requirements": [
         "DML statements need typed result-row and cardinality metadata."
       ],
-      "evidence_ids": [
-
-      ],
+      "evidence_ids": [],
       "deviations": [
         "The current DML statement protocols are write-only and do not expose RETURNING rows."
       ],
@@ -6351,9 +6116,7 @@
         "target_milestone": "v1.4",
         "reason": "Issue #57 is the first atomic RETURNING implementation; #53 and #58 cover DELETE and UPDATE."
       },
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.expression.aggregate-functions",
@@ -6476,13 +6239,9 @@
         "Issue #142 adds SQLite TOTAL as the explicit nonoptional alternative to SUM. XLAggregateTests proves integer, real, nullable-integer, and nullable-real inputs render TOTAL, return Double, ignore individual NULL values, and return 0.0 for empty and all-NULL inputs.",
         "The deprecated SwiftQL 1.x nonoptional min, max, average, sum, and groupConcat overloads are source-compatible rendering aliases for the corresponding OrNull SQL. XLAggregateTests retains compile-time and rendering dispositions for those signatures, while the same generated real-SQLite cases execute their shared SQL semantics."
       ],
-      "follow_up_issues": [
-
-      ],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.expression.conditional-functions",
@@ -6546,13 +6305,9 @@
       "deviations": [
         "The SQLite 3.32.0 minimum is set by IIF; CASE and COALESCE are available in older releases."
       ],
-      "follow_up_issues": [
-
-      ],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.expression.current-operators",
@@ -6669,13 +6424,9 @@
       "deviations": [
         "Support is limited to the named and evidenced constructors; Boolean combinators, comparison ordering, remaining arithmetic, GLOB, and query-backed IN overloads are recorded separately as partial."
       ],
-      "follow_up_issues": [
-
-      ],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.expression.date-functions",
@@ -6883,13 +6634,9 @@
         "The date, time, datetime, julianday, unixepoch, and strftime constructors take ordered XLDateModifier values covering the offset, start-of, weekday, ceiling, floor, localtime, utc, and subsecond modifiers available in SQLite 3.42.0 and later; the input-interpretation modifiers unixepoch, julianday, and auto are not modelled as named members and are reachable through XLDateModifier(_:) for callers targeting a known SQLite version.",
         "Date components are exposed as integer accessors that reinterpret strftime text with CAST(... AS INTEGER); date comparison and julian-day subtraction reuse the existing generic XLComparable and floating-point operators rather than adding date-specific overloads."
       ],
-      "follow_up_issues": [
-
-      ],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.expression.json-functions",
@@ -6937,13 +6684,9 @@
       "deviations": [
         "The pinned SQLite 3.51.0 environment now attests JSON_VALID/1 plus JSON_ARRAY_LENGTH/1 and /2 through PRAGMA function_list; all three public constructors prepare and execute with independent raw-SQL semantic oracles."
       ],
-      "follow_up_issues": [
-
-      ],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.expression.like-escape-gap",
@@ -6991,13 +6734,9 @@
         "The escape operand is typed as a required text expression across all four optionality shapes; SQLite additionally requires it to evaluate to exactly one character, which no Swift type can express. A longer or empty value prepares successfully and fails when the statement is stepped.",
         "ESCAPE renders as part of its own LIKE production rather than as a nested binary expression, so a second LIKE in the same predicate cannot absorb it."
       ],
-      "follow_up_issues": [
-
-      ],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.expression.not-in",
@@ -7043,13 +6782,9 @@
         "An empty right-hand set is total: NOT IN () is true and IN () is false for every operand, including NULL. This is the one shape where a NULL operand does not make the result unknown, and it is proven against a column that holds NULL rather than inferred.",
         "The value-list, query-backed, and common-table overloads all mirror `in`, including every optional-operand shape. Issue #68 added the optional result-builder and NULL-element forms that were missing when NOT IN first shipped."
       ],
-      "follow_up_issues": [
-
-      ],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.expression.regexp",
@@ -7097,9 +6832,7 @@
         329
       ],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.expression.custom-collation",
@@ -7151,13 +6884,9 @@
         "`XLCollation` changed from an enum to a `RawRepresentable` struct so a name outside the three built-ins can be expressed. Every existing spelling — `.binary`, `.nocase`, `.rtrim`, `rawValue`, `init(rawValue:)` — is preserved, but exhaustive `switch` over the former enum cases no longer compiles.",
         "Equality and hashing use the collation name alone. The flag selecting bare-token versus quoted rendering is excluded, so `.nocase` and a hand-named `NOCASE` are one value: they name the same collating sequence and differ only in a spelling SQLite treats as equivalent."
       ],
-      "follow_up_issues": [
-
-      ],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.expression.nullable-in",
@@ -7205,13 +6934,9 @@
         "The NULL-element overloads are marked `@_disfavoredOverload`. An empty array literal carries no element type, so `in([])` matches the optional-element and non-optional-element overloads equally and is otherwise rejected as ambiguous. Disfavouring the optional-element overload makes the non-optional one win that tie while a list containing NULL still selects the optional one.",
         "The result of every optional-operand overload is `Optional<Bool>`: a NULL operand, or an exhausted search over a set containing NULL, is unknown rather than false."
       ],
-      "follow_up_issues": [
-
-      ],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.expression.numeric-comparable-functions",
@@ -7283,13 +7008,9 @@
       "deviations": [
         "ABS, both zero-place ROUND overloads, ROUND(to:), FLOOR, scalar MIN, and scalar MAX are typechecked, rendered, prepared, and executed; the optional ROUND case explicitly proves NULL propagation."
       ],
-      "follow_up_issues": [
-
-      ],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.expression.operator-prepare-gap",
@@ -7410,9 +7131,7 @@
         76
       ],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.expression.string-functions",
@@ -7451,13 +7170,9 @@
       "deviations": [
         "Both the variadic and array PRINTF constructors are typechecked, rendered, prepared, and executed with named bindings and independent semantic oracles."
       ],
-      "follow_up_issues": [
-
-      ],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.expression.type-casts",
@@ -7528,13 +7243,9 @@
         "The generic cast(to:) overloads and directional toInt, toDouble, toString, and toData helpers share the same explicitly constrained conversion matrix and preserve source nullability.",
         "The generated matrix prepares and executes every public Bool, integer, real, text, data, and optional conversion direction; required inputs prove fixed conversion values and every optional overload proves NULL propagation."
       ],
-      "follow_up_issues": [
-
-      ],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.join.current-inner-left-cross",
@@ -7578,9 +7289,7 @@
         95
       ],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.join.natural-using-gap",
@@ -7611,9 +7320,7 @@
       "schema_requirements": [
         "USING needs typed shared-column identity; NATURAL JOIN needs an explicit overlap policy."
       ],
-      "evidence_ids": [
-
-      ],
+      "evidence_ids": [],
       "deviations": [
         "Join constraints currently use ON expressions or no constraint for CROSS JOIN."
       ],
@@ -7625,9 +7332,7 @@
         "target_milestone": "v1.4",
         "reason": "Issue #45 owns NATURAL JOIN and USING."
       },
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.select.core",
@@ -7676,9 +7381,7 @@
       ],
       "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.select.ordering-terms",
@@ -7720,16 +7423,10 @@
         "evidence.combinatorial.positive.sqlite",
         "evidence.syntax.expression.render-string-ordering-functions"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.select.count-star-gap",
@@ -7778,9 +7475,7 @@
       ],
       "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.subquery.correlated-scalar",
@@ -7821,9 +7516,7 @@
         70
       ],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.subquery.nullable-shape-gap",
@@ -7864,13 +7557,9 @@
         "The pre-existing `subquery(alias:)` overload constrained to `XLMetaNullable` is deprecated rather than removed. It was unreachable: no `select` function produces a statement whose row type is a generated `Nullable` companion, so no argument satisfying it could be constructed.",
         "A scalar subquery over an already-optional statement now yields one `Optional` rather than nesting a second. The `XLTypeAffinityExpression` re-labelling that previously collapsed the nested type by hand is no longer needed and has been removed from its two call sites."
       ],
-      "follow_up_issues": [
-
-      ],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "syntax.subquery.table-and-in-prepare-gap",
@@ -7930,9 +7619,7 @@
         70
       ],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "upstream.fluent.soft-delete-lifecycle",
@@ -7941,31 +7628,21 @@
       "title": "Fluent model soft-delete, restore, force-delete, and default-filter lifecycle",
       "status": "intentionally-unsupported",
       "adoption_status": "intentionally-out-of-scope",
-      "public_api": [
-
-      ],
-      "sqlite_documentation_urls": [
-
-      ],
+      "public_api": [],
+      "sqlite_documentation_urls": [],
       "not_sqlite_syntax_reason": "Soft-delete filtering and restore semantics are ORM record-lifecycle policy, not SQLite syntax.",
       "minimum_sqlite_version": null,
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
-      "required_capabilities": [
-
-      ],
+      "required_capabilities": [],
       "schema_requirements": [
         "Fluent model lifecycle metadata, default query scopes, and restore semantics would be required."
       ],
-      "evidence_ids": [
-
-      ],
+      "evidence_ids": [],
       "deviations": [
         "SwiftQL is a typed SQL construction library and does not implement ORM soft-delete lifecycle behavior."
       ],
-      "follow_up_issues": [
-
-      ],
+      "follow_up_issues": [],
       "deferral": null,
       "provenance": [
         {
@@ -8018,16 +7695,10 @@
         "evidence.transaction.commit.sqlite",
         "evidence.transaction.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "visibility.pool-after-commit",
@@ -8063,16 +7734,10 @@
         "evidence.transaction.commit.sqlite",
         "evidence.transaction.fixture-contract"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "visibility.pool-after-rollback",
@@ -8108,16 +7773,10 @@
         "evidence.transaction.fixture-contract",
         "evidence.transaction.rollback.sqlite"
       ],
-      "deviations": [
-
-      ],
-      "follow_up_issues": [
-
-      ],
+      "deviations": [],
+      "follow_up_issues": [],
       "deferral": null,
-      "provenance": [
-
-      ]
+      "provenance": []
     },
     {
       "id": "observation.subscription.current-initial-value",
@@ -8130,17 +7789,31 @@
         {
           "symbol": "XLRequest.publish",
           "source_path": "Sources/SwiftQL/SQLDatabase.swift",
-          "source_tokens": ["XLRequest", "publish"]
+          "source_tokens": [
+            "XLRequest",
+            "publish"
+          ]
         }
       ],
-      "sqlite_documentation_urls": ["https://www.sqlite.org/lang_select.html"],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html"
+      ],
       "not_sqlite_syntax_reason": null,
       "minimum_sqlite_version": "3.0.0",
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
-      "required_capabilities": ["database-pool-driver", "grdb-value-observation", "sqlite-core-parser"],
-      "schema_requirements": ["A stable ordered query exposes the current database state when the subscriber first requests positive demand."],
-      "evidence_ids": ["evidence.observation.fixture-contract", "evidence.observation.initial.sqlite"],
+      "required_capabilities": [
+        "database-pool-driver",
+        "grdb-value-observation",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A stable ordered query exposes the current database state when the subscriber first requests positive demand."
+      ],
+      "evidence_ids": [
+        "evidence.observation.fixture-contract",
+        "evidence.observation.initial.sqlite"
+      ],
       "deviations": [],
       "follow_up_issues": [],
       "deferral": null,
@@ -8157,17 +7830,31 @@
         {
           "symbol": "XLRequest.publish",
           "source_path": "Sources/SwiftQL/SQLDatabase.swift",
-          "source_tokens": ["XLRequest", "publish"]
+          "source_tokens": [
+            "XLRequest",
+            "publish"
+          ]
         }
       ],
-      "sqlite_documentation_urls": ["https://www.sqlite.org/lang_select.html"],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_select.html"
+      ],
       "not_sqlite_syntax_reason": null,
       "minimum_sqlite_version": "3.0.0",
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
-      "required_capabilities": ["database-pool-driver", "grdb-value-observation", "sqlite-core-parser"],
-      "schema_requirements": ["Two subscribers observe the same ordered request before and after a committed update."],
-      "evidence_ids": ["evidence.observation.fixture-contract", "evidence.observation.subscribers.sqlite"],
+      "required_capabilities": [
+        "database-pool-driver",
+        "grdb-value-observation",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Two subscribers observe the same ordered request before and after a committed update."
+      ],
+      "evidence_ids": [
+        "evidence.observation.fixture-contract",
+        "evidence.observation.subscribers.sqlite"
+      ],
       "deviations": [],
       "follow_up_issues": [],
       "deferral": null,
@@ -8184,17 +7871,31 @@
         {
           "symbol": "XLRequest.publish",
           "source_path": "Sources/SwiftQL/SQLDatabase.swift",
-          "source_tokens": ["XLRequest", "publish"]
+          "source_tokens": [
+            "XLRequest",
+            "publish"
+          ]
         }
       ],
-      "sqlite_documentation_urls": ["https://www.sqlite.org/c3ref/update_hook.html"],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/c3ref/update_hook.html"
+      ],
       "not_sqlite_syntax_reason": null,
       "minimum_sqlite_version": "3.0.0",
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
-      "required_capabilities": ["database-pool-driver", "grdb-value-observation", "sqlite-core-parser"],
-      "schema_requirements": ["A single tracked row receives a deterministic series of committed values followed by a liveness write."],
-      "evidence_ids": ["evidence.observation.fixture-contract", "evidence.observation.rapid-commits.sqlite"],
+      "required_capabilities": [
+        "database-pool-driver",
+        "grdb-value-observation",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A single tracked row receives a deterministic series of committed values followed by a liveness write."
+      ],
+      "evidence_ids": [
+        "evidence.observation.fixture-contract",
+        "evidence.observation.rapid-commits.sqlite"
+      ],
       "deviations": [],
       "follow_up_issues": [],
       "deferral": null,
@@ -8211,17 +7912,31 @@
         {
           "symbol": "XLRequest.publish",
           "source_path": "Sources/SwiftQL/SQLDatabase.swift",
-          "source_tokens": ["XLRequest", "publish"]
+          "source_tokens": [
+            "XLRequest",
+            "publish"
+          ]
         }
       ],
-      "sqlite_documentation_urls": ["https://www.sqlite.org/c3ref/update_hook.html"],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/c3ref/update_hook.html"
+      ],
       "not_sqlite_syntax_reason": null,
       "minimum_sqlite_version": "3.0.0",
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
-      "required_capabilities": ["database-pool-driver", "grdb-value-observation", "sqlite-core-parser"],
-      "schema_requirements": ["The fixture contains a tracked table and an unrelated table in the same database."],
-      "evidence_ids": ["evidence.observation.fixture-contract", "evidence.observation.irrelevant-write.sqlite"],
+      "required_capabilities": [
+        "database-pool-driver",
+        "grdb-value-observation",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "The fixture contains a tracked table and an unrelated table in the same database."
+      ],
+      "evidence_ids": [
+        "evidence.observation.fixture-contract",
+        "evidence.observation.irrelevant-write.sqlite"
+      ],
       "deviations": [],
       "follow_up_issues": [],
       "deferral": null,
@@ -8253,17 +7968,33 @@
         {
           "symbol": "XLRequest.publish",
           "source_path": "Sources/SwiftQL/SQLDatabase.swift",
-          "source_tokens": ["XLRequest", "publish"]
+          "source_tokens": [
+            "XLRequest",
+            "publish"
+          ]
         }
       ],
-      "sqlite_documentation_urls": ["https://www.sqlite.org/lang_transaction.html"],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
       "not_sqlite_syntax_reason": null,
       "minimum_sqlite_version": "3.0.0",
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
-      "required_capabilities": ["database-pool-driver", "grdb-value-observation", "sqlite-core-parser", "transactions"],
-      "schema_requirements": ["A relevant write is rolled back before a later committed liveness write reaches the same observation."],
-      "evidence_ids": ["evidence.observation.fixture-contract", "evidence.observation.oracle-rejects-rollback", "evidence.observation.rollback.sqlite"],
+      "required_capabilities": [
+        "database-pool-driver",
+        "grdb-value-observation",
+        "sqlite-core-parser",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A relevant write is rolled back before a later committed liveness write reaches the same observation."
+      ],
+      "evidence_ids": [
+        "evidence.observation.fixture-contract",
+        "evidence.observation.oracle-rejects-rollback",
+        "evidence.observation.rollback.sqlite"
+      ],
       "deviations": [],
       "follow_up_issues": [],
       "deferral": null,
@@ -8280,17 +8011,32 @@
         {
           "symbol": "XLRequest.publish",
           "source_path": "Sources/SwiftQL/SQLDatabase.swift",
-          "source_tokens": ["XLRequest", "publish"]
+          "source_tokens": [
+            "XLRequest",
+            "publish"
+          ]
         }
       ],
-      "sqlite_documentation_urls": ["https://www.sqlite.org/lang_transaction.html"],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_transaction.html"
+      ],
       "not_sqlite_syntax_reason": null,
       "minimum_sqlite_version": "3.0.0",
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
-      "required_capabilities": ["database-pool-driver", "grdb-value-observation", "sqlite-core-parser", "transactions"],
-      "schema_requirements": ["One transaction performs multiple relevant writes whose intermediate states are distinguishable from the final state."],
-      "evidence_ids": ["evidence.observation.fixture-contract", "evidence.observation.transaction.sqlite"],
+      "required_capabilities": [
+        "database-pool-driver",
+        "grdb-value-observation",
+        "sqlite-core-parser",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "One transaction performs multiple relevant writes whose intermediate states are distinguishable from the final state."
+      ],
+      "evidence_ids": [
+        "evidence.observation.fixture-contract",
+        "evidence.observation.transaction.sqlite"
+      ],
       "deviations": [],
       "follow_up_issues": [],
       "deferral": null,
@@ -8322,17 +8068,33 @@
         {
           "symbol": "GRDBLiveQueryRetryPolicy.retryBusy",
           "source_path": "Sources/SwiftQL/GRDBLiveQueryRetryPolicy.swift",
-          "source_tokens": ["GRDBLiveQueryRetryPolicy", "retryBusy"]
+          "source_tokens": [
+            "GRDBLiveQueryRetryPolicy",
+            "retryBusy"
+          ]
         }
       ],
-      "sqlite_documentation_urls": ["https://www.sqlite.org/rescode.html#busy"],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/rescode.html#busy"
+      ],
       "not_sqlite_syntax_reason": null,
       "minimum_sqlite_version": "3.0.0",
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
-      "required_capabilities": ["database-pool-driver", "grdb-value-observation", "sqlite-busy-result-code", "sqlite-core-parser"],
-      "schema_requirements": ["A deterministic SQLite function injects busy failures into a real observation attempt."],
-      "evidence_ids": ["evidence.observation.fixture-contract", "evidence.observation.retry-exhaustion.sqlite", "evidence.observation.retry-recovers.sqlite"],
+      "required_capabilities": [
+        "database-pool-driver",
+        "grdb-value-observation",
+        "sqlite-busy-result-code",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A deterministic SQLite function injects busy failures into a real observation attempt."
+      ],
+      "evidence_ids": [
+        "evidence.observation.fixture-contract",
+        "evidence.observation.retry-exhaustion.sqlite",
+        "evidence.observation.retry-recovers.sqlite"
+      ],
       "deviations": [],
       "follow_up_issues": [],
       "deferral": null,
@@ -8349,17 +8111,32 @@
         {
           "symbol": "GRDBLiveQueryRetryPolicy.retryBusy/terminal",
           "source_path": "Sources/SwiftQL/GRDBLiveQueryRetryPolicy.swift",
-          "source_tokens": ["GRDBLiveQueryRetryPolicy", "retryBusy", "terminal"]
+          "source_tokens": [
+            "GRDBLiveQueryRetryPolicy",
+            "retryBusy",
+            "terminal"
+          ]
         }
       ],
-      "sqlite_documentation_urls": ["https://www.sqlite.org/rescode.html"],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/rescode.html"
+      ],
       "not_sqlite_syntax_reason": null,
       "minimum_sqlite_version": "3.0.0",
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
-      "required_capabilities": ["database-pool-driver", "grdb-value-observation", "sqlite-core-parser"],
-      "schema_requirements": ["A typed non-null row decoder reads a real SQLite NULL to produce a permanent decoding failure."],
-      "evidence_ids": ["evidence.observation.fixture-contract", "evidence.observation.permanent-failure.sqlite"],
+      "required_capabilities": [
+        "database-pool-driver",
+        "grdb-value-observation",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A typed non-null row decoder reads a real SQLite NULL to produce a permanent decoding failure."
+      ],
+      "evidence_ids": [
+        "evidence.observation.fixture-contract",
+        "evidence.observation.permanent-failure.sqlite"
+      ],
       "deviations": [],
       "follow_up_issues": [],
       "deferral": null,
@@ -8376,7 +8153,10 @@
         {
           "symbol": "XLRequest.publish",
           "source_path": "Sources/SwiftQL/SQLDatabase.swift",
-          "source_tokens": ["XLRequest", "publish"]
+          "source_tokens": [
+            "XLRequest",
+            "publish"
+          ]
         }
       ],
       "sqlite_documentation_urls": [],
@@ -8384,9 +8164,19 @@
       "minimum_sqlite_version": null,
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
-      "required_capabilities": ["combine-backpressure", "database-pool-driver", "grdb-value-observation", "sqlite-core-parser"],
-      "schema_requirements": ["A manual subscriber can withhold demand while a real observed table changes."],
-      "evidence_ids": ["evidence.observation.fixture-contract", "evidence.observation.zero-demand.sqlite"],
+      "required_capabilities": [
+        "combine-backpressure",
+        "database-pool-driver",
+        "grdb-value-observation",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A manual subscriber can withhold demand while a real observed table changes."
+      ],
+      "evidence_ids": [
+        "evidence.observation.fixture-contract",
+        "evidence.observation.zero-demand.sqlite"
+      ],
       "deviations": [],
       "follow_up_issues": [],
       "deferral": null,
@@ -8418,7 +8208,10 @@
         {
           "symbol": "XLRequest.publish",
           "source_path": "Sources/SwiftQL/SQLDatabase.swift",
-          "source_tokens": ["XLRequest", "publish"]
+          "source_tokens": [
+            "XLRequest",
+            "publish"
+          ]
         }
       ],
       "sqlite_documentation_urls": [],
@@ -8426,9 +8219,19 @@
       "minimum_sqlite_version": null,
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
-      "required_capabilities": ["combine-backpressure", "database-pool-driver", "grdb-value-observation", "sqlite-core-parser"],
-      "schema_requirements": ["A manual subscriber replenishes finite demand around committed observed-table updates, including a refresh that may already be in flight."],
-      "evidence_ids": ["evidence.observation.fixture-contract", "evidence.observation.incremental-demand.sqlite"],
+      "required_capabilities": [
+        "combine-backpressure",
+        "database-pool-driver",
+        "grdb-value-observation",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A manual subscriber replenishes finite demand around committed observed-table updates, including a refresh that may already be in flight."
+      ],
+      "evidence_ids": [
+        "evidence.observation.fixture-contract",
+        "evidence.observation.incremental-demand.sqlite"
+      ],
       "deviations": [],
       "follow_up_issues": [],
       "deferral": null,
@@ -8474,7 +8277,10 @@
         {
           "symbol": "XLRequest.publish",
           "source_path": "Sources/SwiftQL/SQLDatabase.swift",
-          "source_tokens": ["XLRequest", "publish"]
+          "source_tokens": [
+            "XLRequest",
+            "publish"
+          ]
         }
       ],
       "sqlite_documentation_urls": [],
@@ -8482,9 +8288,22 @@
       "minimum_sqlite_version": null,
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
-      "required_capabilities": ["combine-backpressure", "database-pool-driver", "grdb-value-observation", "sqlite-core-parser"],
-      "schema_requirements": ["The fixture can cancel before demand, after an initial value, and while real SQLite work is in flight."],
-      "evidence_ids": ["evidence.observation.cancel-before-demand.sqlite", "evidence.observation.cancel-in-flight.sqlite", "evidence.observation.cancellation.sqlite", "evidence.observation.fixture-contract", "evidence.observation.oracle-rejects-post-cancellation"],
+      "required_capabilities": [
+        "combine-backpressure",
+        "database-pool-driver",
+        "grdb-value-observation",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "The fixture can cancel before demand, after an initial value, and while real SQLite work is in flight."
+      ],
+      "evidence_ids": [
+        "evidence.observation.cancel-before-demand.sqlite",
+        "evidence.observation.cancel-in-flight.sqlite",
+        "evidence.observation.cancellation.sqlite",
+        "evidence.observation.fixture-contract",
+        "evidence.observation.oracle-rejects-post-cancellation"
+      ],
       "deviations": [],
       "follow_up_issues": [],
       "deferral": null,
@@ -8516,22 +8335,39 @@
         {
           "symbol": "GRDBDatabase",
           "source_path": "Sources/SwiftQL/GRDBSQLDatabase.swift",
-          "source_tokens": ["GRDBDatabase"]
+          "source_tokens": [
+            "GRDBDatabase"
+          ]
         },
         {
           "symbol": "XLRequest.publish",
           "source_path": "Sources/SwiftQL/SQLDatabase.swift",
-          "source_tokens": ["XLRequest", "publish"]
+          "source_tokens": [
+            "XLRequest",
+            "publish"
+          ]
         }
       ],
-      "sqlite_documentation_urls": ["https://www.sqlite.org/c3ref/open.html"],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/c3ref/open.html"
+      ],
       "not_sqlite_syntax_reason": null,
       "minimum_sqlite_version": "3.0.0",
       "reviewed_sqlite_release": "3.51.0",
       "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
-      "required_capabilities": ["database-pool-driver", "grdb-value-observation", "sqlite-core-parser"],
-      "schema_requirements": ["Two database files expose identical schemas through distinct observed pools and an unrelated writer."],
-      "evidence_ids": ["evidence.observation.fixture-contract", "evidence.observation.independent-databases.sqlite", "evidence.observation.oracle-rejects-wrong-database"],
+      "required_capabilities": [
+        "database-pool-driver",
+        "grdb-value-observation",
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "Two database files expose identical schemas through distinct observed pools and an unrelated writer."
+      ],
+      "evidence_ids": [
+        "evidence.observation.fixture-contract",
+        "evidence.observation.independent-databases.sqlite",
+        "evidence.observation.oracle-rejects-wrong-database"
+      ],
       "deviations": [],
       "follow_up_issues": [],
       "deferral": null,

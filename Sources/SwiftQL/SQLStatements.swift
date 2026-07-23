@@ -281,18 +281,51 @@ public struct Setting<Row>: XLEncodable {
 
 
 ///
+/// A conflict-resolution algorithm applied by an `INSERT OR ...` statement.
+///
+/// SQLite parses the algorithm as part of the `INSERT` keyword, immediately
+/// before `INTO`. `replace` is the same algorithm reached by the standalone
+/// `REPLACE` statement.
+///
+public enum XLInsertOrAction: String, CaseIterable, Sendable {
+    case rollback = "ROLLBACK"
+    case abort = "ABORT"
+    case fail = "FAIL"
+    case ignore = "IGNORE"
+    case replace = "REPLACE"
+}
+
+
+///
 /// Insert statement.
 ///
 public struct Insert<Row>: XLEncodable, XLRowWritable {
-    
+
     private let table: any XLEncodable
-    
+
+    private let keyword: String
+
+    internal init(table: any XLEncodable, keyword: String) {
+        self.table = table
+        self.keyword = keyword
+    }
+
     public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row {
-        self.table = meta._dependency
+        self.init(table: meta._dependency, keyword: "INSERT INTO")
+    }
+
+    ///
+    /// Creates an insert statement with an `OR` conflict-resolution clause.
+    ///
+    /// Renders `INSERT OR <action> INTO`. The algorithm applies to every
+    /// uniqueness constraint violated while the statement runs.
+    ///
+    public init<T>(_ meta: T, or action: XLInsertOrAction) where T: XLMetaNamedResult, T.Row == Row {
+        self.init(table: meta._dependency, keyword: "INSERT OR \(action.rawValue) INTO")
     }
 
     public func makeSQL(context: inout XLBuilder) {
-        context.unaryPrefix("INSERT INTO", expression: table.makeSQL)
+        context.unaryPrefix(keyword, expression: table.makeSQL)
     }
 }
 
