@@ -29,6 +29,7 @@ final class XLDataChangingExecutionTests: XCTestCase {
     }
 
     override func tearDown() {
+        try? databasePool?.close()
         encoder = nil
         databasePool = nil
         database = nil
