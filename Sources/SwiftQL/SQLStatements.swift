@@ -433,6 +433,18 @@ public struct From: XLTableStatement {
         self.table = meta
     }
 
+    ///
+    /// Specifies a `FROM` table whose columns can resolve to `NULL`.
+    ///
+    /// Used for the left-hand table of a `RIGHT JOIN` (and either table of a
+    /// `FULL OUTER JOIN`), where unmatched rows fill the `FROM` table's columns
+    /// with `NULL`. Build the nullable table reference with
+    /// ``XLSchema/nullableTable(_:as:)-(T.Type,_)``.
+    ///
+    public init<T>(_ meta: T) where T: XLMetaNullableNamedResult {
+        self.table = meta
+    }
+
     public func makeSQL(context: inout XLBuilder) {
         context.unaryPrefix("FROM", expression: table.makeSQL)
     }
@@ -459,6 +471,7 @@ public struct Join: XLTableStatement {
     public enum Kind: String, CaseIterable {
         case innerJoin = "INNER JOIN"
         case leftJoin = "LEFT JOIN"
+        case rightJoin = "RIGHT JOIN"
         case crossJoin = "CROSS JOIN"
     }
     
@@ -514,6 +527,21 @@ public struct Join: XLTableStatement {
     ///
     public static func Left<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNullableNamedResult, U: XLBoolean {
         Join(kind: .leftJoin, table: table, constraint: constraint)
+    }
+
+    ///
+    /// Creates a right join with a column constraint.
+    ///
+    /// A `RIGHT JOIN` keeps every row of the joined (right-hand) `table` and
+    /// fills the columns of the `FROM` (left-hand) table with `NULL` when there
+    /// is no match. The joined table therefore stays non-nullable, while the
+    /// `FROM` table must be declared with ``XLSchema/nullableTable(_:as:)-(T.Type,_)``
+    /// so its columns decode as optionals.
+    ///
+    /// > Important: `RIGHT JOIN` requires SQLite 3.39.0 (2022-06-25) or later.
+    ///
+    public static func Right<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNamedResult, U: XLBoolean {
+        Join(kind: .rightJoin, table: table, constraint: constraint)
     }
 
     ///
