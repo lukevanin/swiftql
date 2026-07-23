@@ -132,6 +132,11 @@ let rows = try database.makeRequest(with: statement).fetchAll()
 Converts a string representation of a date to an integer representing the number
 of seconds since the unix epoch.
 
+For the full date-and-time surface — the `date`, `time`, `datetime`,
+`julianDay`, `unixEpoch`, and `strftime` constructors, ordered `XLDateModifier`
+values, and the integer component accessors such as `year()` and `month()` — see
+the date-and-time functions section of <doc:Expressions>.
+
 ## Numeric functions
 
 ### abs()
