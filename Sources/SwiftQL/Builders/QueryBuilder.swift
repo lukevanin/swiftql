@@ -94,6 +94,16 @@ public struct QueryBuilder<Row> {
     }
 
     ///
+    /// Adds a from clause whose table can resolve to `NULL`, for use as the
+    /// left-hand table of a `RIGHT JOIN` or either side of a `FULL OUTER JOIN`.
+    ///
+    public func from<T>(_ table: T) -> QueryBuilder where T: XLMetaNullableNamedResult {
+        copy {
+            $0.from = From(table)
+        }
+    }
+
+    ///
     /// Adds an inner join clause to the query.
     ///
     public func innerJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaResult {
@@ -146,7 +156,56 @@ public struct QueryBuilder<Row> {
             $0.joins.append(Join(kind: .leftJoin, table: table, constraint: constraint))
         }
     }
-    
+
+    ///
+    /// Adds a right join to the query. The joined table stays non-nullable;
+    /// declare the from table with `from(_:)`'s nullable overload so its columns
+    /// decode as optionals. Requires SQLite 3.39.0 or later.
+    ///
+    public func rightJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaNamedResult {
+        copy {
+            $0.joins.append(Join(kind: .rightJoin, table: table, constraint: constraint))
+        }
+    }
+
+    ///
+    /// Adds a right join to the query, using an optional constraint.
+    ///
+    public func rightJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNamedResult {
+        copy {
+            $0.joins.append(Join(kind: .rightJoin, table: table, constraint: constraint))
+        }
+    }
+
+    ///
+    /// Adds a full outer join to the query. Both sides can be `NULL`: the joined
+    /// table is nullable, and the from table must be declared with `from(_:)`'s
+    /// nullable overload. Requires SQLite 3.39.0 or later.
+    ///
+    public func fullOuterJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaNullableNamedResult {
+        copy {
+            $0.joins.append(Join(kind: .fullOuterJoin, table: table, constraint: constraint))
+        }
+    }
+
+    ///
+    /// Adds a full outer join to the query, using an optional constraint.
+    ///
+    public func fullOuterJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNullableNamedResult {
+        copy {
+            $0.joins.append(Join(kind: .fullOuterJoin, table: table, constraint: constraint))
+        }
+    }
+
+    ///
+    /// Adds a cross join to the query, returning every combination of rows.
+    ///
+    public func crossJoin<T>(_ table: T) -> QueryBuilder where T: XLMetaNamedResult {
+        copy {
+            $0.joins.append(Join(kind: .crossJoin, table: table, constraint: nil))
+        }
+    }
+
     ///
     /// Adds an and expression to the where clause.
     ///
