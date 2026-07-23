@@ -5,30 +5,45 @@ import XCTest
 
 
 @SQLResult
-struct RecursiveCTEConstructionPrototypeRow: Equatable {
+struct RecursiveCommonTableConstructionRow: Equatable {
     let value: Int
     let depth: Int
 }
 
 
-final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
+///
+/// Exercises the production alias-first recursive CTE construction lifecycle
+/// (`XLRecursiveCommonTableDraft`, `XLRecursiveCommonTableReferenceLayout`, and
+/// `XLRecursiveCommonTableConstructionError`) introduced by #205.
+///
+/// The tests use a test-only direct-scalar layout to prove the reference/layout
+/// contract is generic enough for #43's one-column layout, and a composite
+/// layout to prove the generated surface renders and executes. Byte-for-byte SQL
+/// preservation of the public `recursiveCommonTable` /
+/// `recursiveCommonTableExpression` surface is covered separately by
+/// `XLSyntaxTests` and `XLExecutionTests`.
+///
+final class RecursiveCommonTableConstructionTests: XCTestCase {
 
-    func testGeneratedCompositeReferenceRendersAndExecutesRecursiveCTE() throws {
-        var draft = makeCompositeDraft(
-            RecursiveCTEConstructionPrototypeRow.self,
+    func testCompositeReferenceRendersAndExecutesRecursiveCTE() throws {
+        var draft = XLRecursiveCommonTableDraft(
             alias: "number_walk",
-            referenceAlias: "recursive_row"
+            layout: TestCompositeLayout<RecursiveCommonTableConstructionRow>(
+                schema: XLSchema(),
+                commonTableNamespace: .common(),
+                tableAlias: "recursive_row"
+            )
         )
         let definition = try draft.complete { recursiveRow in
             select(
-                RecursiveCTEConstructionPrototypeRow.columns(
+                RecursiveCommonTableConstructionRow.columns(
                     value: 1,
                     depth: 0
                 )
             )
             .unionAll {
                 select(
-                    RecursiveCTEConstructionPrototypeRow.columns(
+                    RecursiveCommonTableConstructionRow.columns(
                         value: recursiveRow.value + 1,
                         depth: recursiveRow.depth + 1
                     )
@@ -39,7 +54,7 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
         }
 
         let output = makeCompositeReference(
-            RecursiveCTEConstructionPrototypeRow.self,
+            RecursiveCommonTableConstructionRow.self,
             cteAlias: definition.alias,
             tableAlias: "result_row"
         )
@@ -54,8 +69,8 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
             "WITH `number_walk` AS (SELECT 1 AS `value`, 0 AS `depth` UNION ALL SELECT (`recursive_row`.`value` + 1) AS `value`, (`recursive_row`.`depth` + 1) AS `depth` FROM `number_walk` AS `recursive_row` WHERE (`recursive_row`.`depth` < 2)) SELECT `result_row`.`value` AS `value`, `result_row`.`depth` AS `depth` FROM `number_walk` AS `result_row` ORDER BY `result_row`.`value` ASC"
         )
 
-        let rows: [RecursiveCTEConstructionPrototypeRow] = try readRows(sql) { row in
-            RecursiveCTEConstructionPrototypeRow(
+        let rows: [RecursiveCommonTableConstructionRow] = try readRows(sql) { row in
+            RecursiveCommonTableConstructionRow(
                 value: row["value"],
                 depth: row["depth"]
             )
@@ -63,9 +78,9 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
         XCTAssertEqual(
             rows,
             [
-                RecursiveCTEConstructionPrototypeRow(value: 1, depth: 0),
-                RecursiveCTEConstructionPrototypeRow(value: 2, depth: 1),
-                RecursiveCTEConstructionPrototypeRow(value: 3, depth: 2),
+                RecursiveCommonTableConstructionRow(value: 1, depth: 0),
+                RecursiveCommonTableConstructionRow(value: 2, depth: 1),
+                RecursiveCommonTableConstructionRow(value: 3, depth: 2),
             ]
         )
     }
@@ -78,15 +93,15 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
             columnAlias: "value"
         )
         let definition = try draft.complete { recursiveValue in
-            PrototypeUnionAll(
+            TestUnionAll(
                 select(
-                    PrototypeAliasedExpression(
+                    TestAliasedExpression(
                         expression: 1,
                         alias: "value"
                     )
                 ),
                 select(
-                    PrototypeAliasedExpression(
+                    TestAliasedExpression(
                         expression: recursiveValue.value + 1,
                         alias: "value"
                     )
@@ -96,7 +111,7 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
             )
         }
 
-        let output = PrototypeScalarReference<Int>(
+        let output = TestScalarReference<Int>(
             cteAlias: definition.alias,
             tableAlias: "result_value",
             columnAlias: "value"
@@ -131,11 +146,14 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
                 render(recursiveValue),
                 "`stable_alias` AS `recursive_value`"
             )
-            return select(PrototypeAliasedExpression<Int>(expression: 1, alias: "value"))
+            return select(TestAliasedExpression<Int>(expression: 1, alias: "value"))
         }
 
         XCTAssertThrowsError(try original.completedAlias()) { error in
-            XCTAssertEqual(error as? PrototypeConstructionError, .incomplete("stable_alias"))
+            XCTAssertEqual(
+                error as? XLRecursiveCommonTableConstructionError,
+                .incomplete("stable_alias")
+            )
         }
         XCTAssertEqual(try copy.completedAlias(), "stable_alias")
 
@@ -144,7 +162,7 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
                 render(recursiveValue),
                 "`stable_alias` AS `recursive_value`"
             )
-            return select(PrototypeAliasedExpression<Int>(expression: 2, alias: "value"))
+            return select(TestAliasedExpression<Int>(expression: 2, alias: "value"))
         }
         XCTAssertEqual(originalDefinition.alias, copyDefinition.alias)
         XCTAssertEqual(
@@ -172,15 +190,15 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
                 columnAlias: "value"
             )
             let innerDefinition = try innerDraft.complete { innerRecursiveValue in
-                PrototypeUnionAll(
+                TestUnionAll(
                     select(
-                        PrototypeAliasedExpression<Int>(
+                        TestAliasedExpression<Int>(
                             expression: 1,
                             alias: "value"
                         )
                     ),
                     select(
-                        PrototypeAliasedExpression(
+                        TestAliasedExpression(
                             expression: innerRecursiveValue.value + 1,
                             alias: "value"
                         )
@@ -189,15 +207,15 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
                     .where(innerRecursiveValue.value < 2)
                 )
             }
-            let innerOutput = PrototypeScalarReference<Int>(
+            let innerOutput = TestScalarReference<Int>(
                 cteAlias: innerDefinition.alias,
                 tableAlias: "inner_seed",
                 columnAlias: "value"
             )
-            return PrototypeUnionAll(
+            return TestUnionAll(
                 XLWithStatement([innerDefinition])
                     .select(
-                        PrototypeAliasedExpression(
+                        TestAliasedExpression(
                             expression: innerOutput.value * 10,
                             alias: "value"
                         )
@@ -205,7 +223,7 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
                     .from(innerOutput)
                     .where(innerOutput.value == 1),
                 select(
-                    PrototypeAliasedExpression(
+                    TestAliasedExpression(
                         expression: recursiveValue.value + 10,
                         alias: "value"
                     )
@@ -215,7 +233,7 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
             )
         }
 
-        let output = PrototypeScalarReference<Int>(
+        let output = TestScalarReference<Int>(
             cteAlias: outerDefinition.alias,
             tableAlias: "outer_result",
             columnAlias: "value"
@@ -272,7 +290,10 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
         )
 
         XCTAssertThrowsError(try draft.completedAlias()) { error in
-            XCTAssertEqual(error as? PrototypeConstructionError, .incomplete("single_completion"))
+            XCTAssertEqual(
+                error as? XLRecursiveCommonTableConstructionError,
+                .incomplete("single_completion")
+            )
         }
 
         _ = try draft.complete { recursiveValue in
@@ -280,16 +301,19 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
                 render(recursiveValue),
                 "`single_completion` AS `recursive_value`"
             )
-            return select(PrototypeAliasedExpression<Int>(expression: 1, alias: "value"))
+            return select(TestAliasedExpression<Int>(expression: 1, alias: "value"))
         }
         var secondBodyWasEvaluated = false
         XCTAssertThrowsError(
             try draft.complete { _ in
                 secondBodyWasEvaluated = true
-                return select(PrototypeAliasedExpression<Int>(expression: 2, alias: "value"))
+                return select(TestAliasedExpression<Int>(expression: 2, alias: "value"))
             }
         ) { error in
-            XCTAssertEqual(error as? PrototypeConstructionError, .alreadyCompleted("single_completion"))
+            XCTAssertEqual(
+                error as? XLRecursiveCommonTableConstructionError,
+                .alreadyCompleted("single_completion")
+            )
         }
         XCTAssertFalse(secondBodyWasEvaluated)
     }
@@ -305,7 +329,7 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
         _ = try draft.beginCompletion()
         XCTAssertThrowsError(try draft.beginCompletion()) { error in
             XCTAssertEqual(
-                error as? PrototypeConstructionError,
+                error as? XLRecursiveCommonTableConstructionError,
                 .reentrantCompletion("reentrant_completion")
             )
         }
@@ -317,7 +341,7 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
                 "`reentrant_completion` AS `recursive_value`"
             )
             return select(
-                PrototypeAliasedExpression<Int>(expression: 1, alias: "value")
+                TestAliasedExpression<Int>(expression: 1, alias: "value")
             )
         }
         XCTAssertEqual(definition.alias, "reentrant_completion")
@@ -333,19 +357,22 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
         )
 
         XCTAssertThrowsError(
-            try draft.complete { recursiveValue -> XLQuerySelectStatement<Int> in
+            try draft.complete { recursiveValue -> any XLEncodable in
                 XCTAssertEqual(
                     render(recursiveValue),
                     "`retry_after_failure` AS `recursive_value`"
                 )
-                throw PrototypeConstructionError.bodyFailure
+                throw TestBodyError.bodyFailure
             }
         ) { error in
-            XCTAssertEqual(error as? PrototypeConstructionError, .bodyFailure)
+            XCTAssertEqual(error as? TestBodyError, .bodyFailure)
         }
         XCTAssertEqual(draft.alias, "retry_after_failure")
         XCTAssertThrowsError(try draft.completedAlias()) { error in
-            XCTAssertEqual(error as? PrototypeConstructionError, .incomplete("retry_after_failure"))
+            XCTAssertEqual(
+                error as? XLRecursiveCommonTableConstructionError,
+                .incomplete("retry_after_failure")
+            )
         }
 
         let definition = try draft.complete { recursiveValue in
@@ -353,7 +380,7 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
                 render(recursiveValue),
                 "`retry_after_failure` AS `recursive_value`"
             )
-            return select(PrototypeAliasedExpression<Int>(expression: 7, alias: "value"))
+            return select(TestAliasedExpression<Int>(expression: 7, alias: "value"))
         }
         XCTAssertEqual(definition.alias, "retry_after_failure")
         XCTAssertEqual(
@@ -361,110 +388,65 @@ final class RecursiveCTEConstructionPrototypeTests: XCTestCase {
             "WITH `retry_after_failure` AS (SELECT 7 AS `value`) SELECT `output`.`value` FROM `retry_after_failure` AS `output`"
         )
     }
+
+    func testDuplicateAliasesAreRejected() throws {
+        let unique = [
+            XLCommonTableDependency(alias: "a", statement: TestAliasedExpression<Int>(expression: 1, alias: "value")),
+            XLCommonTableDependency(alias: "b", statement: TestAliasedExpression<Int>(expression: 2, alias: "value")),
+        ]
+        XCTAssertNoThrow(try xlValidateUniqueCommonTableAliases(unique))
+
+        // Duplicate detection is case-insensitive, matching SQLite identifier resolution.
+        let duplicated = [
+            XLCommonTableDependency(alias: "series", statement: TestAliasedExpression<Int>(expression: 1, alias: "value")),
+            XLCommonTableDependency(alias: "other", statement: TestAliasedExpression<Int>(expression: 2, alias: "value")),
+            XLCommonTableDependency(alias: "SERIES", statement: TestAliasedExpression<Int>(expression: 3, alias: "value")),
+        ]
+        XCTAssertThrowsError(try xlValidateUniqueCommonTableAliases(duplicated)) { error in
+            XCTAssertEqual(
+                error as? XLRecursiveCommonTableConstructionError,
+                .duplicateAlias("SERIES")
+            )
+        }
+    }
+
+    func testResultLayoutMismatchIsRejected() throws {
+        var draft = XLRecursiveCommonTableDraft(
+            alias: "shaped",
+            layout: TestScalarLayout<Int>(
+                tableAlias: "recursive_value",
+                columnAlias: "value"
+            )
+        )
+        _ = try draft.beginCompletion()
+
+        XCTAssertNoThrow(try draft.validateResultLayout(actualColumns: ["value"]))
+        XCTAssertThrowsError(try draft.validateResultLayout(actualColumns: ["value", "extra"])) { error in
+            XCTAssertEqual(
+                error as? XLRecursiveCommonTableConstructionError,
+                .resultLayoutMismatch(alias: "shaped", expected: ["value"], actual: ["value", "extra"])
+            )
+        }
+    }
 }
 
 
-private enum PrototypeConstructionError: Error, Equatable {
-    case incomplete(XLName)
-    case alreadyCompleted(XLName)
-    case reentrantCompletion(XLName)
+private enum TestBodyError: Error, Equatable {
     case bodyFailure
 }
 
 
-/// Test-only model of an alias-first, two-phase recursive CTE construction.
-///
-/// Completion mutates only this struct value. A failed body leaves the draft in
-/// its declared state, and copying the draft copies its completion state instead
-/// of sharing the mutable indirection used by the current production API.
-private struct PrototypeRecursiveCTEDraft<Layout> where Layout: PrototypeReferenceLayout {
-
-    private enum State {
-        case declared
-        case building
-        case completed
-    }
-
-    let alias: XLName
-    let layout: Layout
-    private var state: State = .declared
-
-    init(alias: XLName, layout: Layout) {
-        self.alias = alias
-        self.layout = layout
-    }
-
-    mutating func complete<Body>(
-        _ makeBody: (Layout.Reference) throws -> Body
-    ) throws -> XLCommonTableDependency where Body: XLEncodable {
-        let reference = try beginCompletion()
-        do {
-            let body = try makeBody(reference)
-            state = .completed
-            return XLCommonTableDependency(alias: alias, statement: body)
-        } catch {
-            rollbackCompletion()
-            throw error
-        }
-    }
-
-    mutating func beginCompletion() throws -> Layout.Reference {
-        switch state {
-        case .declared:
-            state = .building
-            return layout.makeReference(cteAlias: alias)
-        case .building:
-            throw PrototypeConstructionError.reentrantCompletion(alias)
-        case .completed:
-            throw PrototypeConstructionError.alreadyCompleted(alias)
-        }
-    }
-
-    mutating func rollbackCompletion() {
-        guard case .building = state else {
-            return
-        }
-        state = .declared
-    }
-
-    func completedAlias() throws -> XLName {
-        guard case .completed = state else {
-            throw PrototypeConstructionError.incomplete(alias)
-        }
-        return alias
-    }
-}
-
-
-/// Immutable data needed to create a fresh current-v1 typed reference for one
-/// completion attempt. The draft retains this value layout, never a generated
-/// result, `XLNamespace`, statement body, or completed dependency.
-private protocol PrototypeReferenceLayout {
-    associatedtype Reference
-
-    func makeReference(cteAlias: XLName) -> Reference
-}
-
-
-private struct PrototypeCompositeReferenceLayout<Row>: PrototypeReferenceLayout where Row: XLResult {
-    let tableAlias: XLName
-
-    func makeReference(cteAlias: XLName) -> Row.MetaNamedResult {
-        makeCompositeReference(
-            Row.self,
-            cteAlias: cteAlias,
-            tableAlias: tableAlias
-        )
-    }
-}
-
-
-private struct PrototypeScalarReferenceLayout<Value>: PrototypeReferenceLayout where Value: XLLiteral {
+/// Test-only direct-scalar reference layout — demonstrates that the production
+/// `XLRecursiveCommonTableReferenceLayout` contract is generic enough for a
+/// one-column scalar reference (the shape #43 will add to the library).
+private struct TestScalarLayout<Value>: XLRecursiveCommonTableReferenceLayout where Value: XLLiteral {
     let tableAlias: XLName
     let columnAlias: XLName
 
-    func makeReference(cteAlias: XLName) -> PrototypeScalarReference<Value> {
-        PrototypeScalarReference(
+    var resultColumns: [XLName] { [columnAlias] }
+
+    func makeReference(cteAlias: XLName) -> TestScalarReference<Value> {
+        TestScalarReference(
             cteAlias: cteAlias,
             tableAlias: tableAlias,
             columnAlias: columnAlias
@@ -473,8 +455,30 @@ private struct PrototypeScalarReferenceLayout<Value>: PrototypeReferenceLayout w
 }
 
 
+/// Test-only composite reference layout backed by the production alias-only
+/// self-reference primitives, but pinning the reference table alias so the
+/// rendered SQL is deterministic in the render test.
+private struct TestCompositeLayout<Row>: XLRecursiveCommonTableReferenceLayout where Row: XLResult {
+    let schema: XLSchema
+    let commonTableNamespace: XLNamespace
+    let tableAlias: XLName
+
+    func makeReference(cteAlias: XLName) -> Row.MetaCommonTable.Result.MetaNamedResult {
+        let dependency = XLCommonTableDependency(
+            alias: cteAlias,
+            statement: XLAliasOnlyCommonTableBody()
+        )
+        let commonTable = Row.makeSQLCommonTable(
+            namespace: commonTableNamespace,
+            dependency: dependency
+        )
+        return schema.table(commonTable, as: tableAlias)
+    }
+}
+
+
 /// Test-only direct scalar equivalent of a macro-generated named result.
-private struct PrototypeScalarReference<Value>: XLMetaNamedResult where Value: XLLiteral {
+private struct TestScalarReference<Value>: XLMetaNamedResult where Value: XLLiteral {
     typealias Row = Value
 
     let _namespace: XLNamespace
@@ -482,7 +486,10 @@ private struct PrototypeScalarReference<Value>: XLMetaNamedResult where Value: X
     let value: XLColumnReference<Value>
 
     init(cteAlias: XLName, tableAlias: XLName, columnAlias: XLName) {
-        let commonTable = prototypeAliasOnlyDependency(alias: cteAlias)
+        let commonTable = XLCommonTableDependency(
+            alias: cteAlias,
+            statement: XLAliasOnlyCommonTableBody()
+        )
         let dependency = XLFromTableDependency(
             commonTable: commonTable,
             alias: tableAlias
@@ -498,7 +505,7 @@ private struct PrototypeScalarReference<Value>: XLMetaNamedResult where Value: X
 }
 
 
-private struct PrototypeAliasedExpression<Value>: XLExpression where Value: XLLiteral {
+private struct TestAliasedExpression<Value>: XLExpression where Value: XLLiteral {
     typealias T = Value
 
     let expression: any XLExpression<Value>
@@ -515,10 +522,10 @@ private struct PrototypeAliasedExpression<Value>: XLExpression where Value: XLLi
 }
 
 
-/// The direct-scalar prototype cannot use SwiftQL's current compound-query
-/// constraint because that constraint requires `Row: XLResult`. Keeping this
-/// node test-only demonstrates the rendering seam without implementing #43.
-private struct PrototypeUnionAll: XLEncodable {
+/// A minimal `UNION ALL` node for the test-only direct-scalar path, which cannot
+/// use SwiftQL's compound-query combinator until #43 relaxes its `Row: XLResult`
+/// constraint.
+private struct TestUnionAll: XLEncodable {
     let lhs: any XLEncodable
     let rhs: any XLEncodable
 
@@ -537,27 +544,16 @@ private struct PrototypeUnionAll: XLEncodable {
 }
 
 
-/// This body must never render. References need only the immutable CTE alias;
-/// they do not retain or mutate the definition that is completed later.
-private struct PrototypeAliasOnlyBody: XLEncodable {
-    func makeSQL(context: inout XLBuilder) {
-        preconditionFailure("An alias-only recursive CTE reference cannot render a definition")
-    }
-}
-
-
-private func prototypeAliasOnlyDependency(alias: XLName) -> XLCommonTableDependency {
-    XLCommonTableDependency(alias: alias, statement: PrototypeAliasOnlyBody())
-}
-
-
 private func makeCompositeReference<Row>(
     _ type: Row.Type,
     cteAlias: XLName,
     tableAlias: XLName
 ) -> Row.MetaNamedResult where Row: XLResult {
     let dependency = XLFromTableDependency(
-        commonTable: prototypeAliasOnlyDependency(alias: cteAlias),
+        commonTable: XLCommonTableDependency(
+            alias: cteAlias,
+            statement: XLAliasOnlyCommonTableBody()
+        ),
         alias: tableAlias
     )
     return Row.makeSQLAnonymousNamedResult(
@@ -567,29 +563,15 @@ private func makeCompositeReference<Row>(
 }
 
 
-private func makeCompositeDraft<Row>(
-    _ type: Row.Type,
-    alias: XLName,
-    referenceAlias: XLName
-) -> PrototypeRecursiveCTEDraft<PrototypeCompositeReferenceLayout<Row>> where Row: XLResult {
-    PrototypeRecursiveCTEDraft(
-        alias: alias,
-        layout: PrototypeCompositeReferenceLayout(
-            tableAlias: referenceAlias
-        )
-    )
-}
-
-
 private func makeScalarDraft<Value>(
     _ type: Value.Type,
     alias: XLName,
     referenceAlias: XLName,
     columnAlias: XLName
-) -> PrototypeRecursiveCTEDraft<PrototypeScalarReferenceLayout<Value>> where Value: XLLiteral {
-    PrototypeRecursiveCTEDraft(
+) -> XLRecursiveCommonTableDraft<TestScalarLayout<Value>> where Value: XLLiteral {
+    XLRecursiveCommonTableDraft(
         alias: alias,
-        layout: PrototypeScalarReferenceLayout(
+        layout: TestScalarLayout(
             tableAlias: referenceAlias,
             columnAlias: columnAlias
         )
@@ -604,7 +586,7 @@ private func render(_ expression: any XLEncodable) -> String {
 
 
 private func renderScalarDefinition(_ definition: XLCommonTableDependency) -> String {
-    let output = PrototypeScalarReference<Int>(
+    let output = TestScalarReference<Int>(
         cteAlias: definition.alias,
         tableAlias: "output",
         columnAlias: "value"
@@ -627,13 +609,13 @@ private func makeIndependentScalarSQL(index: Int) throws -> String {
     )
     let definition = try draft.complete { _ in
         select(
-            PrototypeAliasedExpression<Int>(
+            TestAliasedExpression<Int>(
                 expression: index,
                 alias: "value"
             )
         )
     }
-    let output = PrototypeScalarReference<Int>(
+    let output = TestScalarReference<Int>(
         cteAlias: definition.alias,
         tableAlias: XLName("output_\(index)"),
         columnAlias: "value"

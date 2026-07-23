@@ -927,24 +927,6 @@ public struct XLCommonTableDependency: XLColumnDependency, XLNamedDependency {
 
 
 ///
-/// A recursive common table expression.
-///
-/// A recursive common table expression is a common table expression which contains a reference to itself.
-///
-/// > Note: Recursive common table expressions are represented by a reference type and therefore require
-/// stack allocation.
-///
-internal class XLRecursiveCommonTableStatement: XLEncodable {
-    
-    internal var statement: (any XLEncodable)!
-
-    func makeSQL(context: inout XLBuilder) {
-        statement.makeSQL(context: &context)
-    }
-}
-
-
-///
 /// The result of a select statement.
 ///
 public struct XLSelectResultDependency: XLTableDeclaration {
