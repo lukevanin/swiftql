@@ -387,7 +387,7 @@ public enum XLConflictResolution<Row> {
 /// The conflict target is a list of column names identifying the uniqueness
 /// constraint to resolve. SQLite requires unqualified column names here, so the
 /// target is expressed with ``XLName`` values rather than qualified column
-/// expressions. When computing updated values, the ``excluded`` pseudo table —
+/// expressions. When computing updated values, the `excluded` pseudo table —
 /// obtained through ``XLSchema/excluded(_:)`` — refers to the candidate row,
 /// for example `row.value = excluded.value`.
 ///
