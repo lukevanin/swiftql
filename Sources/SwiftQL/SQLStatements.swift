@@ -102,22 +102,26 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
     }
     
     private let kind: Kind
-    
+
     private let lhs: any XLEncodable
 
     private let rhs: any XLEncodable
-    
+
     private let row: (XLRowReader) throws -> Row
-    
-    internal init(kind: Kind, lhs: any XLEncodable, rhs: any XLEncodable) where Row: XLResult, Row.MetaResult: XLRowReadable, Row.MetaResult.Row == Row {
+
+    ///
+    /// Combines two branches, preserving the first branch's existing row reader.
+    ///
+    /// The compound result decodes with the same reader as its left branch
+    /// rather than reconstructing metadata from `Row: XLResult`, so a direct
+    /// scalar branch (`select(expr)`) flows through `UNION` / `UNION ALL` /
+    /// `INTERSECT` / `EXCEPT` without a boxed `@SQLResult` wrapper.
+    ///
+    internal init(kind: Kind, lhs: XLQueryStatementComponents<Row>, rhs: any XLEncodable) {
         self.kind = kind
         self.lhs = lhs
         self.rhs = rhs
-        
-        let namespace = XLNamespace.table()
-        let dependency = XLUnionDependency()
-        let meta = Row.makeSQLAnonymousResult(namespace: namespace, dependency: dependency)
-        self.row = meta.readRow
+        self.row = lhs.readRow
     }
     
     public func makeSQL(context: inout XLBuilder) {

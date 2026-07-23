@@ -565,6 +565,42 @@ public protocol XLCommonTablesBuilder {
     /// - Parameter expression: Constructs the common table expression.
     ///
     mutating func commonTable(alias: XLName, expression: Builder) -> Void
+
+    ///
+    /// Adds a common table expression with an optional `MATERIALIZED` /
+    /// `NOT MATERIALIZED` hint.
+    ///
+    /// - Parameter alias: Name used to refer to the common table expression.
+    /// - Parameter materialization: The materialization hint, or `.unspecified`.
+    /// - Parameter expression: Constructs the common table expression.
+    ///
+    /// This is a protocol requirement so that dynamic dispatch reaches a
+    /// conforming builder's override; the default implementation ignores the
+    /// hint for builders that predate materialization support.
+    ///
+    mutating func commonTable(
+        alias: XLName,
+        materialization: XLCommonTableMaterialization,
+        columns: [XLName],
+        expression: Builder
+    ) -> Void
+}
+
+
+extension XLCommonTablesBuilder {
+
+    ///
+    /// Default implementation for builders that predate materialization / column-list
+    /// support: ignores both and renders the plain `alias AS (...)` form.
+    ///
+    public mutating func commonTable(
+        alias: XLName,
+        materialization: XLCommonTableMaterialization,
+        columns: [XLName],
+        expression: Builder
+    ) {
+        commonTable(alias: alias, expression: expression)
+    }
 }
 
 
