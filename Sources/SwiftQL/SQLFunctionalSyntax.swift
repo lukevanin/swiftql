@@ -184,6 +184,22 @@ public struct XLSchema {
     }
     
     ///
+    /// Creates a reference to the `excluded` pseudo table used inside an
+    /// `ON CONFLICT ... DO UPDATE` clause.
+    ///
+    /// The columns of the returned reference render as `excluded.<column>` and
+    /// resolve to the values of the candidate row that triggered the conflict,
+    /// for example `row.value = excluded.value`.
+    ///
+    public func excluded<T>(_ table: T.Type) -> T.MetaNamedResult where T: XLTable {
+        let dependency = XLFromTableDependency(
+            qualifiedName: T.sqlTableName(),
+            alias: XLName("excluded")
+        )
+        return T.makeSQLNamedResult(namespace: tableNamespace, dependency: dependency)
+    }
+
+    ///
     /// Creates a reference to an `SQLTable` that is the subject of a write operation.
     ///
     public func into<T>(_ table: T.Type, as alias: XLName? = nil) -> T.MetaWritableTable where T: XLTable {

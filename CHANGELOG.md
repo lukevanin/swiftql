@@ -10,10 +10,14 @@
   violates.
 - Added the `REPLACE INTO` statement through `Replace` and the functional
   `replace(_:)`, the SQLite shorthand for `INSERT OR REPLACE INTO`.
-- Recorded the new conflict-resolution and replace surfaces in the #190
-  canonical SQLite conformance inventory. It records 107 public-surface feature records: 99
+- Added `INSERT ... ON CONFLICT` upsert support through `OnConflict`, the
+  functional `onConflict`/`onConflictDoNothing` methods, and `XLSchema.excluded`
+  for referencing the proposed row. Both `DO NOTHING` and `DO UPDATE SET ...`
+  (with an optional `WHERE` filter) forms are covered.
+- Recorded the new conflict-resolution, replace, and upsert surfaces in the #190
+  canonical SQLite conformance inventory. It records 108 public-surface feature records: 100
   supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-  5 unimplemented. Of the 146 evidence records, 92 exercise real SQLite and
+  5 unimplemented. Of the 152 evidence records, 95 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
 ### Migration
