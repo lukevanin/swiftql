@@ -156,4 +156,21 @@ final class XLDataChangingStatementsTests: XCTestCase {
             "INSERT INTO Test AS t0 (id,value) VALUES ('foo',42) ON CONFLICT (id) DO UPDATE SET value = excluded.value WHERE (excluded.value > t0.value)"
         )
     }
+
+    /// The `excluded` pseudo table renders as the bare `excluded` keyword when
+    /// used as a table source — never as the aliased base table — so accidental
+    /// use outside an upsert produces `FROM excluded`, which SQLite rejects,
+    /// rather than silently querying the underlying table.
+    func testExcludedRendersAsBarePseudoTable() {
+        let schema = XLSchema()
+        let excluded = schema.excluded(TestTable.self)
+        let expression = sql { _ in
+            Select(excluded)
+            From(excluded)
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "SELECT excluded.id AS id, excluded.value AS value FROM excluded"
+        )
+    }
 }

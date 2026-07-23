@@ -994,6 +994,34 @@ public struct XLFromTableDependency: XLTableDeclaration, XLNamedDependency {
 }
 
 
+///
+/// The `excluded` pseudo table available inside an `ON CONFLICT ... DO UPDATE`
+/// clause.
+///
+/// Unlike ``XLFromTableDependency``, the excluded pseudo table renders as the
+/// bare `excluded` keyword rather than `<table> AS excluded`, while its columns
+/// still qualify as `excluded.<column>`. An update assignment such as
+/// `row.value = excluded.value` therefore resolves to the candidate row's
+/// value. Rendering the bare keyword also means the reference cannot silently
+/// resolve to the base table if it is ever used outside an upsert: such misuse
+/// renders `excluded`, which SQLite rejects as an unknown table.
+///
+public struct XLExcludedTableDependency: XLTableDeclaration, XLNamedDependency {
+
+    public let alias = XLName("excluded")
+
+    public init() {}
+
+    public func makeSQL(context: inout XLBuilder) {
+        alias.makeSQL(context: &context)
+    }
+
+    public func qualifiedName(forColumn name: XLName) -> XLQualifiedName {
+        XLQualifiedTableAliasColumnName(table: alias, column: name)
+    }
+}
+
+
 @available(*, deprecated, renamed: "XLFromTableDependency")
 public typealias XLFromCommonTableDependency = XLFromTableDependency
 

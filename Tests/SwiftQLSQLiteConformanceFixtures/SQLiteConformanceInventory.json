@@ -6293,7 +6293,8 @@
         "evidence.syntax.dml.sqlite-upsert-where"
       ],
       "deviations": [
-        "Conflict targets and RETURNING-style excluded references are rendered as bare column names because SQLite rejects statement-aliased identifiers in the ON CONFLICT target list."
+        "Conflict targets are rendered as bare column names because SQLite rejects statement-aliased identifiers in the ON CONFLICT target list.",
+        "The excluded pseudo table is rendered as the bare excluded keyword and its columns qualify as excluded.<column>, so a DO UPDATE assignment refers to the candidate row rather than the aliased base table."
       ],
       "follow_up_issues": [],
       "deferral": null,

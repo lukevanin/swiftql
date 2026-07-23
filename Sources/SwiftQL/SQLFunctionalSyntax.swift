@@ -192,11 +192,10 @@ public struct XLSchema {
     /// for example `row.value = excluded.value`.
     ///
     public func excluded<T>(_ table: T.Type) -> T.MetaNamedResult where T: XLTable {
-        let dependency = XLFromTableDependency(
-            qualifiedName: T.sqlTableName(),
-            alias: XLName("excluded")
+        return T.makeSQLNamedResult(
+            namespace: tableNamespace,
+            dependency: XLExcludedTableDependency()
         )
-        return T.makeSQLNamedResult(namespace: tableNamespace, dependency: dependency)
     }
 
     ///
