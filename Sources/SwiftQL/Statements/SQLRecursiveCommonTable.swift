@@ -26,8 +26,6 @@
 //  copies can be completed concurrently and deterministically.
 //
 
-import Foundation
-
 
 ///
 /// Structured, adapter-neutral failures raised while constructing a recursive
@@ -245,8 +243,12 @@ public struct XLRecursiveCommonTableDraft<Layout> where Layout: XLRecursiveCommo
 ///
 /// Validates that a set of common-table definitions reserve distinct aliases,
 /// throwing ``XLRecursiveCommonTableConstructionError/duplicateAlias(_:)`` for
-/// the first collision. Alias comparison is case-insensitive, matching SQLite's
-/// identifier resolution.
+/// the first collision.
+///
+/// Alias comparison is case-insensitive using Swift's Unicode `lowercased()`,
+/// consistent with how ``XLNamespace`` tracks reserved aliases. (SQLite folds
+/// only ASCII `A`–`Z`, so this is marginally stricter for non-ASCII aliases,
+/// which the library never generates automatically.)
 ///
 public func xlValidateUniqueCommonTableAliases(
     _ definitions: [XLCommonTableDependency]
