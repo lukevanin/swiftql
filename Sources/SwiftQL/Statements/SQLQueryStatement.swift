@@ -136,7 +136,7 @@ public struct XLQuerySelectStatement<Row>: XLQueryStatement, XLSimpleSelectQuery
 
     ///
     /// Adds a `FROM` clause whose table can resolve to `NULL`, for use as the
-    /// left-hand table of a `RIGHT JOIN` or either side of a `FULL OUTER JOIN`.
+    /// left-hand table of a `RIGHT JOIN`.
     ///
     public func from<T>(_ t: T) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult {
         XLQueryTableStatement(components: components.appending(From(t)))
