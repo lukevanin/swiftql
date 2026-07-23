@@ -133,6 +133,14 @@ public struct XLQuerySelectStatement<Row>: XLQueryStatement, XLSimpleSelectQuery
     public func from<T>(_ t: T) -> XLQueryTableStatement<Row> where T: XLMetaNamedResult {
         XLQueryTableStatement(components: components.appending(From(t)))
     }
+
+    ///
+    /// Adds a `FROM` clause whose table can resolve to `NULL`, for use as the
+    /// left-hand table of a `RIGHT JOIN`.
+    ///
+    public func from<T>(_ t: T) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult {
+        XLQueryTableStatement(components: components.appending(From(t)))
+    }
 }
 
 
@@ -159,6 +167,15 @@ public struct XLQueryTableStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
 
     public func leftJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult, U: XLBoolean {
         XLQueryTableStatement(components: components.appending(Join(kind: .leftJoin, table: t, constraint: condition)))
+    }
+
+    ///
+    /// Adds a `RIGHT JOIN`. The joined table stays non-nullable; declare the
+    /// `FROM` table with `nullableTable(_:)` so its columns decode as optionals.
+    /// Requires SQLite 3.39.0 or later.
+    ///
+    public func rightJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNamedResult, U: XLBoolean {
+        XLQueryTableStatement(components: components.appending(Join(kind: .rightJoin, table: t, constraint: condition)))
     }
 
     // MARK: Where
