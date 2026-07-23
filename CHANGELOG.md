@@ -8,10 +8,12 @@
   and the functional `insert(_:or:)`. The conflict algorithm is part of the
   `INSERT` keyword and applies to every uniqueness constraint the statement
   violates.
-- Recorded the new conflict-resolution surface in the #190 canonical SQLite
-  conformance inventory. It records 106 public-surface feature records: 98
+- Added the `REPLACE INTO` statement through `Replace` and the functional
+  `replace(_:)`, the SQLite shorthand for `INSERT OR REPLACE INTO`.
+- Recorded the new conflict-resolution and replace surfaces in the #190
+  canonical SQLite conformance inventory. It records 107 public-surface feature records: 99
   supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-  5 unimplemented. Of the 144 evidence records, 91 exercise real SQLite and
+  5 unimplemented. Of the 146 evidence records, 92 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
 ### Migration

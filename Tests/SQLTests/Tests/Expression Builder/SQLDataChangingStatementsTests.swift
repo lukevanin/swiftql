@@ -84,4 +84,29 @@ final class XLDataChangingStatementsTests: XCTestCase {
             "INSERT OR IGNORE INTO Test AS t0 (id,value) VALUES ('foo',42)"
         )
     }
+
+
+    // MARK: - REPLACE
+
+    func testReplace() {
+        let expression = sql { schema in
+            let t = schema.table(TestTable.self)
+            Replace(t)
+            Values(instanceValues())
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "REPLACE INTO Test AS t0 (id,value) VALUES ('foo',42)"
+        )
+    }
+
+    func testReplaceFunctional() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let expression = replace(t).values(instanceValues())
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "REPLACE INTO Test AS t0 (id,value) VALUES ('foo',42)"
+        )
+    }
 }
