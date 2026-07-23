@@ -686,6 +686,37 @@
       ]
     },
     {
+      "id": "evidence.syntax.expression.render-date-constructors",
+      "source_path": "Tests/SQLTests/SQLScalarFunctionTests.swift",
+      "test_case": "XLScalarFunctionTests.testDateConstructorsModifiersAndComponents",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": [
+
+      ]
+    },
+    {
+      "id": "evidence.syntax.expression.execute-date-functions",
+      "source_path": "Tests/SQLTests/SQLDateFunctionExecutionTests.swift",
+      "test_case": "XLDateFunctionExecutionTests.testModifiersComputeRelativeMoments",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
       "id": "evidence.syntax.expression.render-numeric-comparable-functions",
       "source_path": "Tests/SQLTests/SQLScalarFunctionTests.swift",
       "test_case": "XLScalarFunctionTests.testNumericAndComparableFunctions",
@@ -6650,8 +6681,8 @@
       "id": "syntax.expression.date-functions",
       "kind": "syntax",
       "family": "expression",
-      "title": "UNIXEPOCH date conversion constructors and subsecond modifier",
-      "status": "partial",
+      "title": "Date and time constructors, ordered modifiers, components, and operators",
+      "status": "supported",
       "adoption_status": "already-covered",
       "public_api": [
         {
@@ -6675,6 +6706,158 @@
             "XLDateFunctionModifiers",
             "subseconds"
           ]
+        },
+        {
+          "symbol": "XLDateModifier",
+          "source_path": "Sources/SwiftQL/Functions/DateModifiers.swift",
+          "source_tokens": [
+            "XLDateModifier"
+          ]
+        },
+        {
+          "symbol": "XLDateModifier.days(_:)",
+          "source_path": "Sources/SwiftQL/Functions/DateModifiers.swift",
+          "source_tokens": [
+            "XLDateModifier",
+            "days"
+          ]
+        },
+        {
+          "symbol": "XLDateModifier.months(_:)",
+          "source_path": "Sources/SwiftQL/Functions/DateModifiers.swift",
+          "source_tokens": [
+            "XLDateModifier",
+            "months"
+          ]
+        },
+        {
+          "symbol": "XLDateModifier.startOfMonth",
+          "source_path": "Sources/SwiftQL/Functions/DateModifiers.swift",
+          "source_tokens": [
+            "XLDateModifier",
+            "startOfMonth"
+          ]
+        },
+        {
+          "symbol": "XLDateModifier.weekday(_:)",
+          "source_path": "Sources/SwiftQL/Functions/DateModifiers.swift",
+          "source_tokens": [
+            "XLDateModifier",
+            "weekday"
+          ]
+        },
+        {
+          "symbol": "XLDateModifier.subsecond",
+          "source_path": "Sources/SwiftQL/Functions/DateModifiers.swift",
+          "source_tokens": [
+            "XLDateModifier",
+            "subsecond"
+          ]
+        },
+        {
+          "symbol": "XLExpression.date(_:)",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "date"
+          ]
+        },
+        {
+          "symbol": "XLExpression.time(_:)",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "time"
+          ]
+        },
+        {
+          "symbol": "XLExpression.datetime(_:)",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "datetime"
+          ]
+        },
+        {
+          "symbol": "XLExpression.julianDay(_:)",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "julianDay"
+          ]
+        },
+        {
+          "symbol": "XLExpression.unixEpoch(_:)",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "unixEpoch"
+          ]
+        },
+        {
+          "symbol": "XLExpression.strftime(_:_:)",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "strftime"
+          ]
+        },
+        {
+          "symbol": "XLExpression.year()",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "year"
+          ]
+        },
+        {
+          "symbol": "XLExpression.month()",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "month"
+          ]
+        },
+        {
+          "symbol": "XLExpression.day()",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "day"
+          ]
+        },
+        {
+          "symbol": "XLExpression.hour()",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "hour"
+          ]
+        },
+        {
+          "symbol": "XLExpression.minute()",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "minute"
+          ]
+        },
+        {
+          "symbol": "XLExpression.second()",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "second"
+          ]
+        },
+        {
+          "symbol": "XLExpression.dayOfYear()",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "dayOfYear"
+          ]
+        },
+        {
+          "symbol": "XLExpression.dayOfWeek()",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "dayOfWeek"
+          ]
+        },
+        {
+          "symbol": "XLExpression.weekOfYear()",
+          "source_path": "Sources/SwiftQL/Functions/DateFunctions.swift",
+          "source_tokens": [
+            "weekOfYear"
+          ]
         }
       ],
       "sqlite_documentation_urls": [
@@ -6692,19 +6875,18 @@
       ],
       "evidence_ids": [
         "evidence.combinatorial.positive.sqlite",
+        "evidence.syntax.expression.execute-date-functions",
+        "evidence.syntax.expression.render-date-constructors",
         "evidence.syntax.expression.render-date-json-functions"
       ],
       "deviations": [
-        "UNIXEPOCH is typechecked, rendered, prepared, and executed in the generated suite; exhaustive subsecond modifier and optional-result combinations remain deferred."
+        "The date, time, datetime, julianday, unixepoch, and strftime constructors take ordered XLDateModifier values covering the offset, start-of, weekday, ceiling, floor, localtime, utc, and subsecond modifiers available in SQLite 3.42.0 and later; the input-interpretation modifiers unixepoch, julianday, and auto are not modelled as named members and are reachable through XLDateModifier(_:) for callers targeting a known SQLite version.",
+        "Date components are exposed as integer accessors that reinterpret strftime text with CAST(... AS INTEGER); date comparison and julian-day subtraction reuse the existing generic XLComparable and floating-point operators rather than adding date-specific overloads."
       ],
       "follow_up_issues": [
-        76
+
       ],
-      "deferral": {
-        "blocking_issue": 76,
-        "target_milestone": "v1.4",
-        "reason": "Issue #76 owns exhaustive subsecond modifier, version-gating, and optional-result checks."
-      },
+      "deferral": null,
       "provenance": [
 
       ]

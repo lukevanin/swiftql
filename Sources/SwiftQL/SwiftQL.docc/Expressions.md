@@ -522,3 +522,38 @@ A match still wins: if the value equals one of the listed candidates the result
 is `true` even though another candidate is `NULL`. Only an exhausted search is 
 affected — with a `NULL` candidate present the result is `NULL` rather than 
 `false`.
+
+## Date and time functions
+
+A text time value renders SQLite's date-and-time functions with the `date`, 
+`time`, `datetime`, `julianDay`, `unixEpoch`, and `strftime` methods. Each takes 
+ordered `XLDateModifier` values, and SQLite applies them left to right, so the 
+Swift argument order is the evaluation order.
+
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
+```swift
+let firstOfNextMonth = sql { _ in
+    Select("2026-07-19 12:30:45".datetime(.months(1), .startOfMonth))
+}
+```
+
+That renders `datetime('2026-07-19 12:30:45', '+1 months', 'start of month')`: 
+add a month, then snap to the first instant of that month. The relative-offset 
+modifiers (`.days`, `.hours`, `.minutes`, `.seconds`, `.months`, `.years`) take a 
+signed count, and the anchoring modifiers (`.startOfDay`, `.startOfMonth`, 
+`.startOfYear`, `.weekday(_:)`), the `.ceiling` and `.floor` rounding modifiers, 
+the `.localTime` and `.utc` zone modifiers, and the `.subsecond` modifier cover 
+the rest of the SQLite modifier set. A modifier renders as a quoted string 
+literal, so it cannot inject SQL; an input-interpretation modifier that is not a 
+named member is reachable with `XLDateModifier("unixepoch")`.
+
+The `year`, `month`, `day`, `hour`, `minute`, `second`, `dayOfYear`, 
+`dayOfWeek`, and `weekOfYear` methods extract one component. Each reinterprets a 
+`strftime` substitution as an `Int` — `year()` renders 
+`CAST(strftime('%Y', ...) AS INTEGER)` — and an optional receiver preserves 
+`NULL`.
+
+Date comparison and arithmetic reuse the ordinary operators. Text time values 
+compare with `<`, `<=`, `>`, `>=`, `==`, and `!=`, because ISO-8601 text sorts 
+chronologically; subtracting two `julianDay` expressions with `-` yields the 
+number of days between two moments.
