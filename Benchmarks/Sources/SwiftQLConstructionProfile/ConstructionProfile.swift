@@ -23,6 +23,7 @@
 #if canImport(Darwin)
 import Darwin
 #endif
+import Dispatch
 import Foundation
 import SwiftQL
 
@@ -46,6 +47,12 @@ private final class AllocationProbe: @unchecked Sendable {
     var count = 0
     var bytes = 0
     var enabled = false
+    // The thread that owns the current measurement window. `malloc_logger` is a
+    // process-global hook fired on every thread, so the callback must only touch
+    // this probe from the measuring thread — otherwise a background allocation
+    // (Foundation/Dispatch worker) both races the counter and contaminates the
+    // count with work unrelated to the code under test.
+    var thread = pthread_self()
 
     func reset() {
         count = 0
@@ -56,9 +63,11 @@ private final class AllocationProbe: @unchecked Sendable {
 private let allocationProbe = AllocationProbe()
 
 // The callback runs with the malloc lock held, so it must not allocate. It only
-// mutates the global probe's fixed fields, which is allocation-free.
+// mutates the global probe's fixed fields, which is allocation-free, and only on
+// the measuring thread (`pthread_self` does not allocate).
 private let countingLogger: MallocLoggerFn = { type, _, arg2, arg3, result, _ in
-    guard allocationProbe.enabled else { return }
+    guard allocationProbe.enabled,
+          pthread_equal(pthread_self(), allocationProbe.thread) != 0 else { return }
     if (type & mallocLogTypeAllocate) != 0 && result != 0 {
         allocationProbe.count += 1
         // For malloc/calloc the requested size is arg2; for realloc it is arg3.
@@ -67,6 +76,16 @@ private let countingLogger: MallocLoggerFn = { type, _, arg2, arg3, result, _ in
 }
 
 private func installAllocationCounter() -> Bool {
+    // Force lazy initialization of every global the callback touches BEFORE the
+    // hook is installed. The globals are class/`let` values whose first access
+    // runs a `dispatch_once` that itself allocates; if that first access happened
+    // from inside the hook (during a malloc), it would re-enter `dispatch_once`
+    // and deadlock. Touching them here, with the hook not yet installed and
+    // counting disabled, makes every later in-hook access a plain field read.
+    allocationProbe.reset()
+    _ = allocationProbe.enabled
+    _ = allocationProbe.thread
+    _ = mallocLogTypeAllocate
     guard let slot = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "malloc_logger") else {
         return false
     }
@@ -83,6 +102,7 @@ private func measureAllocations(iterations: Int, _ body: () -> Void) -> Allocati
     // Warm once outside the count to settle any one-time lazy state.
     body()
     allocationProbe.reset()
+    allocationProbe.thread = pthread_self()
     allocationProbe.enabled = true
     for _ in 0..<iterations { body() }
     allocationProbe.enabled = false
