@@ -84,4 +84,19 @@ final class XLDataChangingExecutionTests: XCTestCase {
 
         XCTAssertEqual(try allTestRows(), [TestTable(id: "a", value: 7)])
     }
+
+
+    // MARK: - REPLACE
+
+    func testReplaceOverwritesConflictingRow() throws {
+        try createUniqueTestTable()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 1))).execute()
+
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let statement = replace(t).values(TestTable.MetaInsert(TestTable(id: "a", value: 2)))
+        try database.makeRequest(with: statement).execute()
+
+        XCTAssertEqual(try allTestRows(), [TestTable(id: "a", value: 2)])
+    }
 }

@@ -330,6 +330,27 @@ public struct Insert<Row>: XLEncodable, XLRowWritable {
 }
 
 
+///
+/// Replace statement.
+///
+/// `REPLACE INTO` is the SQLite shorthand for `INSERT OR REPLACE INTO`. A row
+/// that would violate a uniqueness constraint is deleted before the new row is
+/// inserted.
+///
+public struct Replace<Row>: XLEncodable, XLRowWritable {
+
+    internal let insert: Insert<Row>
+
+    public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row {
+        self.insert = Insert(table: meta._dependency, keyword: "REPLACE INTO")
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        insert.makeSQL(context: &context)
+    }
+}
+
+
 // MARK: - Values
 
 
