@@ -1,0 +1,45 @@
+{
+  "cases" : [
+    {
+      "allocationsPerOp" : {
+        "combined" : 285,
+        "construction" : 73,
+        "render" : 212
+      },
+      "bytesPerOp" : {
+        "combined" : 21976,
+        "construction" : 6688,
+        "render" : 15288
+      },
+      "medianMicros" : {
+        "combined" : 29.416,
+        "construction" : 7.0839999999999996,
+        "render" : 21
+      },
+      "name" : "simple_parameterized_lookup",
+      "sql" : "SELECT \"t0\".\"id\" AS \"id\", \"t0\".\"companyID\" AS \"companyID\", \"t0\".\"departmentID\" AS \"departmentID\", \"t0\".\"name\" AS \"name\", \"t0\".\"email\" AS \"email\", \"t0\".\"score\" AS \"score\", \"t0\".\"isActive\" AS \"isActive\", \"t0\".\"payload\" AS \"payload\" FROM \"benchmark_person\" AS \"t0\" WHERE (\"t0\".\"id\" == :personID)"
+    },
+    {
+      "allocationsPerOp" : {
+        "combined" : 493,
+        "construction" : 128,
+        "render" : 365
+      },
+      "bytesPerOp" : {
+        "combined" : 41056,
+        "construction" : 12000,
+        "render" : 29056
+      },
+      "medianMicros" : {
+        "combined" : 47,
+        "construction" : 10.75,
+        "render" : 36
+      },
+      "name" : "representative_multi_join_read",
+      "sql" : "SELECT \"t0\".\"id\" AS \"personID\", \"t0\".\"name\" AS \"personName\", \"t1\".\"name\" AS \"departmentName\", \"t2\".\"name\" AS \"companyName\", \"t0\".\"score\" AS \"score\", \"t0\".\"isActive\" AS \"isActive\" FROM \"benchmark_person\" AS \"t0\" INNER JOIN \"benchmark_department\" AS \"t1\" ON (\"t1\".\"id\" == \"t0\".\"departmentID\") INNER JOIN \"benchmark_company\" AS \"t2\" ON (\"t2\".\"id\" == \"t1\".\"companyID\") WHERE ((\"t2\".\"id\" == :companyID) AND (\"t0\".\"score\" >= :minimumScore)) ORDER BY \"t0\".\"score\" DESC LIMIT 32"
+    }
+  ],
+  "iterations" : 20000,
+  "samples" : 4000,
+  "warmups" : 200
+}

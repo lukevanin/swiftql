@@ -378,7 +378,24 @@ public struct XLiteFormatter: XLFormatter {
     }
 
     public func scopedName(_ values: [String]) -> String {
-        values.map(name).joined(separator: ".")
+        // Qualified names are almost always one ("column") or two
+        // ("table"."column") components. Handle those without the intermediate
+        // `map` array that `joined` would otherwise allocate on every reference.
+        switch values.count {
+        case 0:
+            return ""
+        case 1:
+            return name(values[0])
+        case 2:
+            // Build in place so only the result string is allocated; `a + "." + b`
+            // would materialise an extra intermediate from the first `+`.
+            var scoped = name(values[0])
+            scoped += "."
+            scoped += name(values[1])
+            return scoped
+        default:
+            return values.map(name).joined(separator: ".")
+        }
     }
 
     public func namedBinding(_ named: String) -> String {
@@ -406,12 +423,24 @@ public struct XLiteBuilder: XLBuilder {
         self.formatter = formatter
     }
 
-    private mutating func append(_ tokens: String...) {
-        _tokens.append(contentsOf: tokens.filter({ !$0.isEmpty }))
+    // A single already-rendered token per call. Every caller passes exactly one
+    // string, so this avoids the variadic array box and the `filter` copy that
+    // the previous `String...` signature allocated on every builder node.
+    private mutating func append(_ token: String) {
+        if !token.isEmpty {
+            _tokens.append(token)
+        }
     }
 
     public func build() -> String {
-        _tokens.joined(separator: XLSeparator.tuple.rawValue)
+        // A single already-rendered token is by far the common case for leaf and
+        // wrapper builders; return it directly instead of allocating a new joined
+        // string. The separator is irrelevant for one element, so output is
+        // identical.
+        if _tokens.count == 1 {
+            return _tokens[0]
+        }
+        return _tokens.joined(separator: XLSeparator.tuple.rawValue)
     }
 
     public func entities() -> Set<String> {
@@ -627,7 +656,10 @@ public struct XLiteListBuilder: XLListBuilder {
     }
 
     public func build() -> String {
-        _tokens.joined(separator: separator)
+        if _tokens.count == 1 {
+            return _tokens[0]
+        }
+        return _tokens.joined(separator: separator)
     }
 
     public func entities() -> Set<String> {
@@ -659,7 +691,10 @@ public struct XLiteCommonTablesBuilder: XLCommonTablesBuilder {
     }
 
     public func build() -> String {
-        _tokens.joined(separator: XLSeparator.list.rawValue)
+        if _tokens.count == 1 {
+            return _tokens[0]
+        }
+        return _tokens.joined(separator: XLSeparator.list.rawValue)
     }
 
     public func entities() -> Set<String> {
@@ -689,7 +724,10 @@ public struct XLiteColumnDefinitionsBuilder: XLColumnDefinitionsBuilder {
     }
 
     public func build() -> String {
-        _tokens.joined(separator: XLSeparator.list.rawValue)
+        if _tokens.count == 1 {
+            return _tokens[0]
+        }
+        return _tokens.joined(separator: XLSeparator.list.rawValue)
     }
 
     ///
