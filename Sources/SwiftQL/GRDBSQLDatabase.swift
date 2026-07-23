@@ -130,16 +130,45 @@ fileprivate struct BindingContext: XLBindingContext {
 }
 
 
+/// The connection access a row-returning request needs.
+///
+/// Ordinary select queries decode from a read snapshot. A `RETURNING`
+/// statement mutates the database while returning rows, so it must decode
+/// inside a write transaction instead.
+enum GRDBRequestAccess {
+    case read
+    case write
+}
+
+
+/// Failures specific to a `RETURNING` (row-returning write) request.
+public enum GRDBReturningRequestError: Error, Equatable, LocalizedError, Sendable {
+
+    /// Live observation of a data-changing `RETURNING` statement is not
+    /// supported, because each refresh would re-execute the mutation.
+    case observationUnsupported
+
+    public var errorDescription: String? {
+        switch self {
+        case .observationUnsupported:
+            return "A data-changing RETURNING statement cannot be observed, because each observation refresh would re-execute the mutation. Fetch it instead."
+        }
+    }
+}
+
+
 struct GRDBRequest<Row>: XLRequest {
 
     private let executor: GRDBInvocationExecutor
 
     /// Immutable value-coding policy captured when this request is created.
     let codingConfiguration: XLValueCodingConfiguration
-    
+
     private let logger: XLLogger?
-    
+
     private let reader: any XLRowReadable<Row>
+
+    private let access: GRDBRequestAccess
 
     private let liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy
 
@@ -148,7 +177,7 @@ struct GRDBRequest<Row>: XLRequest {
     private var compatibilityBindings: XLInvocationBindings<XLSQLiteValue>
 
     private var compatibilityBindingError: XLInvocationBindingError?
-    
+
     init(
         driver: GRDBDatabaseDriver,
         codingConfiguration: XLValueCodingConfiguration,
@@ -157,6 +186,7 @@ struct GRDBRequest<Row>: XLRequest {
         logicalStatement: XLLogicalPreparedStatement,
         parameterLayoutError: XLInvocationBindingError? = nil,
         valueEncodingError: XLSQLValueEncodingError? = nil,
+        access: GRDBRequestAccess = .read,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
         liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
     ) {
@@ -169,6 +199,7 @@ struct GRDBRequest<Row>: XLRequest {
         self.codingConfiguration = codingConfiguration
         self.logger = logger
         self.reader = reader
+        self.access = access
         self.liveQueryRetryPolicy = liveQueryRetryPolicy
         self.liveQueryRetryScheduler = liveQueryRetryScheduler
         self.compatibilityBindings = XLInvocationBindings(
@@ -266,8 +297,15 @@ struct GRDBRequest<Row>: XLRequest {
         packet: XLInvocationBindings<XLSQLiteValue>
     ) throws -> [Row] {
         var driver = executor.driver
-        return try driver.withReadConnection { connection in
-            try decodeRows(packet: packet, in: &connection)
+        switch access {
+        case .read:
+            return try driver.withReadConnection { connection in
+                try decodeRows(packet: packet, in: &connection)
+            }
+        case .write:
+            return try driver.withTransaction { connection in
+                try decodeRows(packet: packet, in: &connection)
+            }
         }
     }
 
@@ -302,10 +340,21 @@ struct GRDBRequest<Row>: XLRequest {
         let packet = try executor.sqlitePacket(bindings)
         logger?.debug(
             "fetchOne: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-        guard let values = try executor.fetchOne(bindings: packet) else {
+        var driver = executor.driver
+        let values: [XLSQLiteValue]?
+        switch access {
+        case .read:
+            values = try driver.withReadConnection { connection in
+                try executor.fetchOne(packet: packet, in: &connection)
+            }
+        case .write:
+            values = try driver.withTransaction { connection in
+                try executor.fetchOne(packet: packet, in: &connection)
+            }
+        }
+        guard let values else {
             return nil
         }
-
         return try GRDBRowDecoder(reader: reader).decode(values: values)
     }
     
@@ -321,6 +370,10 @@ struct GRDBRequest<Row>: XLRequest {
     func publish(
         bindings: any XLInvocationBindingPacket
     ) -> AnyPublisher<[Row], Error> {
+        if access == .write {
+            return Fail(error: GRDBReturningRequestError.observationUnsupported)
+                .eraseToAnyPublisher()
+        }
         do {
             let packet = try executor.sqlitePacket(bindings)
             return publisher { database in
@@ -347,6 +400,10 @@ struct GRDBRequest<Row>: XLRequest {
     func publishOne(
         bindings: any XLInvocationBindingPacket
     ) -> AnyPublisher<Row?, Error> {
+        if access == .write {
+            return Fail(error: GRDBReturningRequestError.observationUnsupported)
+                .eraseToAnyPublisher()
+        }
         do {
             let packet = try executor.sqlitePacket(bindings)
             return publisher { database in
@@ -937,6 +994,26 @@ public struct GRDBDatabase: XLDatabase {
         )
     }
     
+    /// Creates a row-returning request for a `RETURNING` statement.
+    ///
+    /// Unlike an ordinary write request, the statement mutates the database and
+    /// decodes the returned rows inside a single write transaction.
+    public func makeRequest<Row>(with statement: XLReturningStatementOf<Row>) -> any XLRequest<Row> {
+        let encoding = encoder.makeSQL(statement)
+        return GRDBRequest<Row>(
+            driver: driver,
+            codingConfiguration: codingConfiguration,
+            logger: logger,
+            reader: statement,
+            logicalStatement: logicalStatement(for: encoding),
+            parameterLayoutError: preparedParameterLayoutError(for: encoding),
+            valueEncodingError: encoding.valueEncodingError,
+            access: .write,
+            liveQueryRetryPolicy: liveQueryRetryPolicy,
+            liveQueryRetryScheduler: liveQueryRetryScheduler
+        )
+    }
+
     public func makeRequest(with statement: any XLUpdateStatement) -> XLWriteRequest {
         makeWriteRequest(with: statement)
     }

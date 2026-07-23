@@ -12,12 +12,36 @@ import Foundation
 /// Result builder used to construct an Update statement.
 ///
 @resultBuilder public struct XLUpdateExpressionBuilder {
-    
+
+    ///
+    /// Constructs a With expression.
+    ///
+    /// The With expression specifies any common table expressions used in the
+    /// update statement.
+    ///
+    public static func buildPartialBlock(first: With) -> XLWithStatement {
+        XLWithStatement(first.commonTables)
+    }
+
     ///
     /// Constructs an Update expression.
     ///
     public static func buildPartialBlock<Row>(first: Update<Row>) -> XLUpdateTableStatement<Row> {
         XLUpdateTableStatement(components: XLUpdateStatementComponents(update: first))
+    }
+
+    ///
+    /// Constructs an Update expression using a With expression.
+    ///
+    public static func buildPartialBlock<Row>(accumulated: XLWithStatement, next: Update<Row>) -> XLUpdateTableStatement<Row> {
+        XLUpdateTableStatement(components: XLUpdateStatementComponents(commonTables: accumulated.commonTables, update: next))
+    }
+
+    ///
+    /// Appends a `RETURNING` clause to any update statement.
+    ///
+    public static func buildPartialBlock<S, T>(accumulated: S, next: Returning<T>) -> XLReturningStatementOf<T> where S: XLUpdateStatement {
+        XLReturningStatementOf(base: accumulated, returning: next)
     }
     
     ///
@@ -69,6 +93,15 @@ extension XLSchema {
 /// Constructs an Update statement.
 ///
 public func sql(@XLUpdateExpressionBuilder builder: (XLSchema) -> any XLUpdateStatement) -> any XLUpdateStatement {
+    let schema = XLSchema()
+    return builder(schema)
+}
+
+
+///
+/// Constructs an Update statement with a `RETURNING` clause.
+///
+public func sqlUpdateReturning<Row>(@XLUpdateExpressionBuilder builder: (XLSchema) -> XLReturningStatementOf<Row>) -> XLReturningStatementOf<Row> {
     let schema = XLSchema()
     return builder(schema)
 }

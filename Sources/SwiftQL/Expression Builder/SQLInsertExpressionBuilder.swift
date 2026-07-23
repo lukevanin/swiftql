@@ -33,8 +33,22 @@ import Foundation
     public static func buildPartialBlock<Row>(first: Insert<Row>) -> XLInsertTableStatement<Row> {
         XLInsertTableStatement(components: XLInsertStatementComponents(insert: first))
     }
-    
-    
+
+    ///
+    /// Constructs a Replace expression.
+    ///
+    public static func buildPartialBlock<Row>(first: Replace<Row>) -> XLInsertTableStatement<Row> {
+        XLInsertTableStatement(components: XLInsertStatementComponents(insert: first.insert))
+    }
+
+    ///
+    /// Constructs a Replace expression using a With expression.
+    ///
+    public static func buildPartialBlock<Row>(accumulated: XLWithStatement, next: Replace<Row>) -> XLInsertTableStatement<Row> {
+        XLInsertTableStatement(components: XLInsertStatementComponents(commonTables: accumulated.commonTables, insert: next.insert))
+    }
+
+
     // MARK: Insert
     
     ///
@@ -54,8 +68,18 @@ import Foundation
     public static func buildPartialBlock<Row>(accumulated: XLInsertTableStatement<Row>, next: Select<Row>) -> XLInsertSelectStatement<Row> {
         XLInsertSelectStatement(components: accumulated.components.appending(next))
     }
-    
-    
+
+
+    // MARK: Returning
+
+    ///
+    /// Appends a `RETURNING` clause to any insert statement.
+    ///
+    public static func buildPartialBlock<S, T>(accumulated: S, next: Returning<T>) -> XLReturningStatementOf<T> where S: XLInsertStatement {
+        XLReturningStatementOf(base: accumulated, returning: next)
+    }
+
+
     // MARK: Select
     
     ///
@@ -194,6 +218,15 @@ import Foundation
 /// Constructs an Insert statement.
 ///
 public func sql(@XLInsertExpressionBuilder builder: (XLSchema) -> any XLInsertStatement) -> any XLInsertStatement {
+    let schema = XLSchema()
+    return builder(schema)
+}
+
+
+///
+/// Constructs an Insert statement with a `RETURNING` clause.
+///
+public func sqlInsertReturning<Row>(@XLInsertExpressionBuilder builder: (XLSchema) -> XLReturningStatementOf<Row>) -> XLReturningStatementOf<Row> {
     let schema = XLSchema()
     return builder(schema)
 }

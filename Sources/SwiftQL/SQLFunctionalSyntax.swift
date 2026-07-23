@@ -184,6 +184,37 @@ public struct XLSchema {
     }
     
     ///
+    /// Creates a row-readable reference to the columns of a table for use in a
+    /// `RETURNING` clause.
+    ///
+    /// SQLite resolves `RETURNING` output columns against the modified table
+    /// without its statement alias, so the returned reference renders bare,
+    /// unqualified column names — `RETURNING id, value` rather than
+    /// `RETURNING t0.id, t0.value`. Use it to return the whole modified row
+    /// (`.returning(schema.returning(Row.self))`) or a single column
+    /// (`.returning(schema.returning(Row.self).value)`).
+    ///
+    public func returning<T>(_ table: T.Type) -> T.MetaResult where T: XLTable {
+        T.makeSQLTable(namespace: tableNamespace, dependency: XLSelectResultDependency())
+    }
+
+    ///
+    /// Creates a reference to the `excluded` pseudo table used inside an
+    /// `ON CONFLICT ... DO UPDATE` clause.
+    ///
+    /// The columns of the returned reference render as `excluded.<column>` and
+    /// resolve to the values of the candidate row that triggered the conflict,
+    /// for example `row.value = excluded.value`.
+    ///
+    public func excluded<T>(_ table: T.Type) -> T.MetaNamedResult where T: XLTable {
+        let dependency = XLFromTableDependency(
+            qualifiedName: T.sqlTableName(),
+            alias: XLName("excluded")
+        )
+        return T.makeSQLNamedResult(namespace: tableNamespace, dependency: dependency)
+    }
+
+    ///
     /// Creates a reference to an `SQLTable` that is the subject of a write operation.
     ///
     public func into<T>(_ table: T.Type, as alias: XLName? = nil) -> T.MetaWritableTable where T: XLTable {

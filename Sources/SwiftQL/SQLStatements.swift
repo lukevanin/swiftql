@@ -281,18 +281,251 @@ public struct Setting<Row>: XLEncodable {
 
 
 ///
+/// A conflict-resolution algorithm applied by an `INSERT OR ...` statement.
+///
+/// SQLite parses the algorithm as part of the `INSERT` keyword, immediately
+/// before `INTO`. `replace` is the same algorithm reached by the standalone
+/// `REPLACE` statement.
+///
+public enum XLInsertOrAction: String, CaseIterable, Sendable {
+    case rollback = "ROLLBACK"
+    case abort = "ABORT"
+    case fail = "FAIL"
+    case ignore = "IGNORE"
+    case replace = "REPLACE"
+}
+
+
+///
 /// Insert statement.
 ///
 public struct Insert<Row>: XLEncodable, XLRowWritable {
-    
+
     private let table: any XLEncodable
-    
+
+    private let keyword: String
+
+    internal init(table: any XLEncodable, keyword: String) {
+        self.table = table
+        self.keyword = keyword
+    }
+
     public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row {
-        self.table = meta._dependency
+        self.init(table: meta._dependency, keyword: "INSERT INTO")
+    }
+
+    ///
+    /// Creates an insert statement with an `OR` conflict-resolution clause.
+    ///
+    /// Renders `INSERT OR <action> INTO`. The algorithm applies to every
+    /// uniqueness constraint violated while the statement runs.
+    ///
+    public init<T>(_ meta: T, or action: XLInsertOrAction) where T: XLMetaNamedResult, T.Row == Row {
+        self.init(table: meta._dependency, keyword: "INSERT OR \(action.rawValue) INTO")
     }
 
     public func makeSQL(context: inout XLBuilder) {
-        context.unaryPrefix("INSERT INTO", expression: table.makeSQL)
+        context.unaryPrefix(keyword, expression: table.makeSQL)
+    }
+}
+
+
+///
+/// Replace statement.
+///
+/// `REPLACE INTO` is the SQLite shorthand for `INSERT OR REPLACE INTO`. A row
+/// that would violate a uniqueness constraint is deleted before the new row is
+/// inserted.
+///
+public struct Replace<Row> {
+
+    internal let insert: Insert<Row>
+
+    public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row {
+        self.insert = Insert(table: meta._dependency, keyword: "REPLACE INTO")
+    }
+}
+
+
+// MARK: - On Conflict (upsert)
+
+
+///
+/// The action taken by an `ON CONFLICT` upsert clause when a candidate row
+/// conflicts with an existing row.
+///
+public enum XLConflictResolution<Row> {
+
+    ///
+    /// Skip the conflicting candidate row without raising an error
+    /// (`ON CONFLICT ... DO NOTHING`).
+    ///
+    case nothing
+
+    ///
+    /// Update the existing conflicting row (`ON CONFLICT ... DO UPDATE SET ...`),
+    /// optionally constrained by a `WHERE` predicate that must hold for the
+    /// update to apply.
+    ///
+    case update(Setting<Row>, filter: (any XLExpression)?)
+}
+
+
+///
+/// On-conflict (upsert) clause.
+///
+/// Renders the SQLite `ON CONFLICT` clause that follows the values or select
+/// source of an insert statement. A candidate row that conflicts with an
+/// existing row on the named conflict target is either skipped
+/// (``XLConflictResolution/nothing``) or updates the existing row
+/// (``XLConflictResolution/update(_:filter:)``).
+///
+/// The conflict target is a list of column names identifying the uniqueness
+/// constraint to resolve. SQLite requires unqualified column names here, so the
+/// target is expressed with ``XLName`` values rather than qualified column
+/// expressions. When computing updated values, the ``excluded`` pseudo table —
+/// obtained through ``XLSchema/excluded(_:)`` — refers to the candidate row,
+/// for example `row.value = excluded.value`.
+///
+public struct OnConflict<Row>: XLEncodable {
+
+    private let targets: [XLName]
+
+    private let resolution: XLConflictResolution<Row>
+
+    internal init(
+        targets: [XLName],
+        resolution: XLConflictResolution<Row>
+    ) {
+        self.targets = targets
+        self.resolution = resolution
+    }
+
+    ///
+    /// Creates an `ON CONFLICT ... DO NOTHING` clause with an optional conflict
+    /// target.
+    ///
+    public static func doNothing(on targets: XLName...) -> OnConflict {
+        OnConflict(targets: targets, resolution: .nothing)
+    }
+
+    ///
+    /// Creates an `ON CONFLICT (targets) DO UPDATE SET ...` clause.
+    ///
+    public static func doUpdate(
+        on targets: XLName...,
+        set values: @escaping (inout Row.MetaUpdate) -> Void
+    ) -> OnConflict where Row: XLTable {
+        OnConflict(
+            targets: targets,
+            resolution: .update(Setting<Row>(values), filter: nil)
+        )
+    }
+
+    ///
+    /// Creates an `ON CONFLICT (targets) DO UPDATE SET ... WHERE ...` clause.
+    ///
+    /// The `WHERE` predicate constrains which conflicting rows are updated;
+    /// rows that fail the predicate are left unchanged without raising an error.
+    ///
+    public static func doUpdate<B>(
+        on targets: XLName...,
+        set values: @escaping (inout Row.MetaUpdate) -> Void,
+        where filter: any XLExpression<B>
+    ) -> OnConflict where Row: XLTable, B: XLBoolean {
+        OnConflict(
+            targets: targets,
+            resolution: .update(Setting<Row>(values), filter: filter)
+        )
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        if targets.isEmpty {
+            context.unaryOperator("ON CONFLICT") { _ in }
+        }
+        else {
+            context.unaryPrefix("ON CONFLICT") { context in
+                context.parenthesis { context in
+                    context.list(separator: .list) { list in
+                        for target in targets {
+                            list.listItem { item in
+                                item.name(target)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        switch resolution {
+        case .nothing:
+            context.unaryOperator("DO NOTHING") { _ in }
+        case .update(let setting, let filter):
+            context.unaryPrefix("DO UPDATE", expression: setting.makeSQL)
+            if let filter {
+                context.unaryPrefix("WHERE", expression: filter.makeSQL)
+            }
+        }
+    }
+}
+
+
+// MARK: - Returning
+
+
+///
+/// Returning clause.
+///
+/// Specifies the columns returned by a data-changing statement
+/// (`INSERT`, `UPDATE`, or `DELETE`). Each returned row is decoded with the
+/// same reader as an equivalent `SELECT`, so a `RETURNING` statement executes
+/// through the row-returning request path instead of the plain write path.
+///
+public struct Returning<Row>: XLEncodable, XLRowReadable {
+
+    private let fields: any XLEncodable
+
+    private let row: (XLRowReader) throws -> Row
+
+    /// Builds a returning clause directly from immutable static projection
+    /// metadata, mirroring ``Select``.
+    public init<T>(_ layout: T)
+    where T: XLStaticRowReadable, T.Row == Row {
+        self.fields = layout
+        self.row = layout.readRow
+    }
+
+    public init<T>(_ meta: T) where T: XLRowReadable, T.Row == Row {
+        let reader = XLColumnsDefinitionRowReader()
+        let _ = try! meta.readRow(reader: reader)
+        self.fields = reader
+        self.row = meta.readRow
+    }
+
+    /// Builds a scalar returning clause without requiring the logical result
+    /// type to adopt the legacy expression and literal protocols.
+    public init(
+        @XLScalarExpressionBuilder _ expression: @escaping () -> some XLExpression<Row>
+    ) {
+        self.fields = expression()
+        self.row = { reader in
+            try reader.staticColumn(expression(), alias: "c0")
+        }
+    }
+
+    /// Builds an unconstrained scalar returning clause.
+    public init(_ expression: any XLExpression<Row>) {
+        self.fields = expression
+        self.row = { reader in
+            try reader.staticColumn(expression, alias: "c0")
+        }
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        context.unaryPrefix("RETURNING", expression: fields.makeSQL)
+    }
+
+    public func readRow(reader: XLRowReader) throws -> Row {
+        try row(reader)
     }
 }
 
