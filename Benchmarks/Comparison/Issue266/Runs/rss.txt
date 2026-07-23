@@ -1,0 +1,6 @@
+before             36306944  maximum resident set size
+before             37076992  maximum resident set size
+before             35717120  maximum resident set size
+after             36929536  maximum resident set size
+after             36831232  maximum resident set size
+after             37404672  maximum resident set size
