@@ -55,6 +55,7 @@ final class NaturalUsingJoinTests: XCTestCase {
     }
 
     override func tearDown() {
+        try? databasePool?.close()
         encoder = nil
         databasePool = nil
         database = nil
@@ -192,6 +193,46 @@ final class NaturalUsingJoinTests: XCTestCase {
         }
         let rows = try database.makeRequest(with: statement).fetchAll()
         XCTAssertEqual(rows, [PassportCitizenRow(name: "Ann", country: "US")])
+    }
+
+    func testNaturalLeftJoinExecutesWithNullForUnmatchedRow() throws {
+        try seed()
+        let statement = sql { schema in
+            let passport = schema.table(PassportTable.self)
+            let citizen = schema.nullableTable(CitizenTable.self)
+            Select(PassportCitizenLeftRow.columns(name: citizen.fullName, country: passport.country))
+            From(passport)
+            Join.NaturalLeft(citizen)
+            OrderBy(passport.id.ascending())
+        }
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(
+            rows,
+            [
+                PassportCitizenLeftRow(name: "Ann", country: "US"),
+                PassportCitizenLeftRow(name: nil, country: "UK"),
+            ]
+        )
+    }
+
+    func testLeftUsingJoinExecutesWithNullForUnmatchedRow() throws {
+        try seed()
+        let statement = sql { schema in
+            let passport = schema.table(PassportTable.self)
+            let citizen = schema.nullableTable(CitizenTable.self)
+            Select(PassportCitizenLeftRow.columns(name: citizen.fullName, country: passport.country))
+            From(passport)
+            Join.Left(citizen, using: "id")
+            OrderBy(passport.id.ascending())
+        }
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(
+            rows,
+            [
+                PassportCitizenLeftRow(name: "Ann", country: "US"),
+                PassportCitizenLeftRow(name: nil, country: "UK"),
+            ]
+        )
     }
 
     private func seed() throws {
