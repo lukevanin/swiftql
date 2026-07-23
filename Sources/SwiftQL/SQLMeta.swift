@@ -941,14 +941,21 @@ public struct XLCommonTableDependency: XLColumnDependency, XLNamedDependency {
     /// The materialization hint rendered for this common table, if any.
     public var materialization: XLCommonTableMaterialization
 
+    /// An explicit CTE column list, rendered as `alias(col, col) AS (...)`. Empty
+    /// for the ordinary `alias AS (...)` form. Used to give a scalar common table
+    /// a stable one-column name without changing its body's column labels.
+    public var columns: [XLName]
+
     public init(
         alias: XLName,
         statement: any XLEncodable,
-        materialization: XLCommonTableMaterialization = .unspecified
+        materialization: XLCommonTableMaterialization = .unspecified,
+        columns: [XLName] = []
     ) {
         self.alias = alias
         self.statement = statement
         self.materialization = materialization
+        self.columns = columns
     }
 
     public func qualifiedName(forColumn name: XLName) -> XLQualifiedName {
@@ -963,7 +970,7 @@ public struct XLCommonTableDependency: XLColumnDependency, XLNamedDependency {
     }
 
     public func makeSQL(context: inout XLCommonTablesBuilder) {
-        context.commonTable(alias: alias, materialization: materialization) { context in
+        context.commonTable(alias: alias, materialization: materialization, columns: columns) { context in
             statement.makeSQL(context: &context)
         }
     }

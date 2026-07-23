@@ -581,6 +581,7 @@ public protocol XLCommonTablesBuilder {
     mutating func commonTable(
         alias: XLName,
         materialization: XLCommonTableMaterialization,
+        columns: [XLName],
         expression: Builder
     ) -> Void
 }
@@ -589,12 +590,13 @@ public protocol XLCommonTablesBuilder {
 extension XLCommonTablesBuilder {
 
     ///
-    /// Default implementation for builders that predate materialization support:
-    /// ignores the hint and renders the plain `alias AS (...)` form.
+    /// Default implementation for builders that predate materialization / column-list
+    /// support: ignores both and renders the plain `alias AS (...)` form.
     ///
     public mutating func commonTable(
         alias: XLName,
         materialization: XLCommonTableMaterialization,
+        columns: [XLName],
         expression: Builder
     ) {
         commonTable(alias: alias, expression: expression)
