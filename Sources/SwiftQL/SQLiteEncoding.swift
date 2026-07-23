@@ -387,7 +387,12 @@ public struct XLiteFormatter: XLFormatter {
         case 1:
             return name(values[0])
         case 2:
-            return name(values[0]) + "." + name(values[1])
+            // Build in place so only the result string is allocated; `a + "." + b`
+            // would materialise an extra intermediate from the first `+`.
+            var scoped = name(values[0])
+            scoped += "."
+            scoped += name(values[1])
+            return scoped
         default:
             return values.map(name).joined(separator: ".")
         }
