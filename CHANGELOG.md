@@ -14,10 +14,14 @@
   functional `onConflict`/`onConflictDoNothing` methods, and `XLSchema.excluded`
   for referencing the proposed row. Both `DO NOTHING` and `DO UPDATE SET ...`
   (with an optional `WHERE` filter) forms are covered.
-- Recorded the new conflict-resolution, replace, and upsert surfaces in the #190
-  canonical SQLite conformance inventory. It records 108 public-surface feature records: 100
+- Added `UPDATE` support scoped by a `WITH` common table expression through
+  `XLWithStatement.update`, so a factored common table expression can drive an
+  update, for example `with(cte).update(t).set { ... }.from(cte).where(...)`.
+- Recorded the new conflict-resolution, replace, upsert, and update-with-CTE
+  surfaces in the #190
+  canonical SQLite conformance inventory. It records 109 public-surface feature records: 101
   supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-  5 unimplemented. Of the 152 evidence records, 95 exercise real SQLite and
+  5 unimplemented. Of the 154 evidence records, 96 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
 ### Migration

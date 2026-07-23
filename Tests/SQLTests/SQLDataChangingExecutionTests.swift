@@ -132,6 +132,34 @@ final class XLDataChangingExecutionTests: XCTestCase {
         XCTAssertEqual(try allTestRows(), [TestTable(id: "a", value: 1)])
     }
 
+    // MARK: - UPDATE with common table expression
+
+    func testUpdateWithCommonTableAppliesDerivedValues() throws {
+        try createUniqueTestTable()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 1))).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "b", value: 2))).execute()
+
+        let schema = XLSchema()
+        let source = schema.commonTable { schema in
+            let t = schema.table(TestTable.self)
+            return select(t).from(t)
+        }
+        let t = schema.into(TestTable.self)
+        let s = schema.table(source)
+        let statement = with(source)
+            .update(t)
+            .set { row in row.value = s.value + 100 }
+            .from(s)
+            .where(t.id == s.id)
+        try database.makeRequest(with: statement).execute()
+
+        XCTAssertEqual(
+            try allTestRows(),
+            [TestTable(id: "a", value: 101), TestTable(id: "b", value: 102)]
+        )
+    }
+
+
     func testUpsertDoUpdateWithWhereOnlyUpdatesQualifyingRows() throws {
         try createUniqueTestTable()
         try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 10))).execute()
