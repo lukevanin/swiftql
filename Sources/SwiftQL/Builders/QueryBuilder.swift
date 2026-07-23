@@ -162,7 +162,7 @@ public struct QueryBuilder<Row> {
     /// declare the from table with `from(_:)`'s nullable overload so its columns
     /// decode as optionals. Requires SQLite 3.39.0 or later.
     ///
-    public func rightJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaResult {
+    public func rightJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaNamedResult {
         copy {
             $0.joins.append(Join(kind: .rightJoin, table: table, constraint: constraint))
         }
@@ -171,7 +171,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds a right join to the query, using an optional constraint.
     ///
-    public func rightJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaResult {
+    public func rightJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNamedResult {
         copy {
             $0.joins.append(Join(kind: .rightJoin, table: table, constraint: constraint))
         }
