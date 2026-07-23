@@ -68,7 +68,7 @@ support-status totals are exact and mutually exclusive:
 
 Of those 144 evidence records, 91 exercise real SQLite and
 cite one captured environment, SQLite 3.51.0. An inventory entry is counted in
-the 97 supported features only when it links to successful preparation by a
+the 98 supported features only when it links to successful preparation by a
 real SQLite engine whose version and source ID are recorded. Partial,
 capability-gated, intentionally unsupported, and unimplemented entries remain
 visible with their evidence, requirements, or rationale, but are excluded

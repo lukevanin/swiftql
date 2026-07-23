@@ -117,8 +117,8 @@ their SQL meaning.
   `@SQLTable` and `@SQLResult` derive typed table, column, and result metadata
   at compile time. There are no generated model files to keep in sync.
 - **[Expressions](https://lukevanin.github.io/swiftql/documentation/swiftql/expressions/).**
-  Compose boolean, numeric, text, optional, conditional, and aggregate
-  expressions with Swift operators and generic constraints.
+  Compose boolean, numeric, text, date/time, optional, conditional, and
+  aggregate expressions with Swift operators and generic constraints.
 - **[Queries](https://lukevanin.github.io/swiftql/documentation/swiftql/queries/).**
   Build selects with inner, left, and cross joins; grouping and `HAVING`;
   ordering and pagination; scalar and table subqueries; compound queries; and
@@ -185,8 +185,8 @@ For project guarantees and direction:
   toolchains and reproducible CI matrix.
 - [SQLite conformance](COMPATIBILITY.md#sqlite-conformance-inventory) records
   the evidence boundary for SwiftQL's currently supported public subset.
-- [Changelog](CHANGELOG.md) records released behavior and the unreleased v1.3
-  evidence milestone.
+- [Changelog](CHANGELOG.md) records the released behavior of each SwiftQL
+  version.
 - [Performance benchmarks](BENCHMARKS.md) measure query construction,
   preparation, caching, binding, execution, and decoding.
 - [First-party source coverage](Coverage/README.md) preserves the reproducible
