@@ -6338,7 +6338,7 @@
       "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLWithStatement.update(_:set:)",
+          "symbol": "XLWithStatement.update(_:)",
           "source_path": "Sources/SwiftQL/Statements/SQLWithStatement.swift",
           "source_tokens": [
             "update"
