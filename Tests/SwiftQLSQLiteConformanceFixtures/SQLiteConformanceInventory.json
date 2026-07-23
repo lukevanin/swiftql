@@ -2236,6 +2236,93 @@
       "environment_ids": [
         "sqlite-3.51.0-macos-arm64"
       ]
+    },
+    {
+      "id": "evidence.syntax.dml.render-upsert-do-nothing",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testOnConflictDoNothingWithTarget",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.render-upsert-do-update",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testOnConflictDoUpdateWithExcluded",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.render-upsert-do-update-where",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testOnConflictDoUpdateWithWhere",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-upsert-do-update",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testUpsertDoUpdateUsesExcludedValue",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-upsert-do-nothing",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testUpsertDoNothingKeepsExistingRow",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-upsert-where",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testUpsertDoUpdateWithWhereOnlyUpdatesQualifyingRows",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
     }
   ],
   "suites": [
@@ -6141,6 +6228,79 @@
       "provenance": []
     },
     {
+      "id": "syntax.dml.upsert",
+      "kind": "syntax",
+      "family": "dml",
+      "title": "INSERT ... ON CONFLICT upsert clause",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "OnConflict",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "OnConflict"
+          ]
+        },
+        {
+          "symbol": "XLInsertOnConflictStatement",
+          "source_path": "Sources/SwiftQL/Statements/SQLDataChangingStatements.swift",
+          "source_tokens": [
+            "XLInsertOnConflictStatement"
+          ]
+        },
+        {
+          "symbol": "onConflict(_:doUpdate:)",
+          "source_path": "Sources/SwiftQL/Statements/SQLDataChangingStatements.swift",
+          "source_tokens": [
+            "onConflict"
+          ]
+        },
+        {
+          "symbol": "onConflictDoNothing(_:)",
+          "source_path": "Sources/SwiftQL/Statements/SQLDataChangingStatements.swift",
+          "source_tokens": [
+            "onConflictDoNothing"
+          ]
+        },
+        {
+          "symbol": "excluded(_:)",
+          "source_path": "Sources/SwiftQL/SQLFunctionalSyntax.swift",
+          "source_tokens": [
+            "excluded"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_upsert.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.24.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A generated writable table supplies insert and update metadata, and the excluded pseudo-table exposes proposed row values."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.dml.render-upsert-do-nothing",
+        "evidence.syntax.dml.render-upsert-do-update",
+        "evidence.syntax.dml.render-upsert-do-update-where",
+        "evidence.syntax.dml.sqlite-upsert-do-update",
+        "evidence.syntax.dml.sqlite-upsert-do-nothing",
+        "evidence.syntax.dml.sqlite-upsert-where"
+      ],
+      "deviations": [
+        "Conflict targets are rendered as bare column names because SQLite rejects statement-aliased identifiers in the ON CONFLICT target list.",
+        "The excluded pseudo table is rendered as the bare excluded keyword and its columns qualify as excluded.<column>, so a DO UPDATE assignment refers to the candidate row rather than the aliased base table."
+      ],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": []
+    },
+    {
       "id": "syntax.dml.returning-gap",
       "kind": "syntax",
       "family": "dml",
@@ -6962,7 +7122,7 @@
       "deviations": [
         "Built-in collations render as bare grammar tokens while a registered name renders as a quoted identifier. Both spellings resolve to the same sequence in SQLite; the split keeps issue #169's guarantee that `collate(_:)` is not an arbitrary raw-SQL escape hatch, because a caller-supplied name is escaped by the identifier formatter rather than concatenated into the keyword.",
         "Registration is the application's responsibility and is not verified when the expression is built. An unregistered name fails at preparation with `no such collation sequence` rather than silently falling back to BINARY.",
-        "`XLCollation` changed from an enum to a `RawRepresentable` struct so a name outside the three built-ins can be expressed. Every existing spelling — `.binary`, `.nocase`, `.rtrim`, `rawValue`, `init(rawValue:)` — is preserved, but exhaustive `switch` over the former enum cases no longer compiles.",
+        "`XLCollation` changed from an enum to a `RawRepresentable` struct so a name outside the three built-ins can be expressed. Every existing spelling \u2014 `.binary`, `.nocase`, `.rtrim`, `rawValue`, `init(rawValue:)` \u2014 is preserved, but exhaustive `switch` over the former enum cases no longer compiles.",
         "Equality and hashing use the collation name alone. The flag selecting bare-token versus quoted rendering is excluded, so `.nocase` and a hand-named `NOCASE` are one value: they name the same collating sequence and differ only in a spelling SQLite treats as equivalent."
       ],
       "follow_up_issues": [],

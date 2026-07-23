@@ -37,3 +37,61 @@ extension XLWithStatement {
         )
     }
 }
+
+
+// MARK: - On Conflict (upsert)
+
+
+///
+/// An insert statement with a trailing `ON CONFLICT` upsert clause.
+///
+public struct XLInsertOnConflictStatement<Table>: XLInsertStatement {
+
+    public let components: XLInsertStatementComponents<Table>
+}
+
+
+extension XLInsertTableValuesStatement {
+
+    ///
+    /// Appends an `ON CONFLICT` upsert clause to an inserted-values statement.
+    ///
+    public func onConflict(_ clause: OnConflict<Table>) -> XLInsertOnConflictStatement<Table> {
+        XLInsertOnConflictStatement(components: components.appending(clause))
+    }
+}
+
+
+extension XLInsertTableValuesStatement where Table: XLTable {
+
+    ///
+    /// Appends an `ON CONFLICT (targets) DO UPDATE SET ...` upsert clause.
+    ///
+    /// At least one conflict target is required, because SQLite rejects
+    /// `DO UPDATE` without a conflict target. Use ``onConflictDoNothing(_:)``
+    /// for the targetless `ON CONFLICT DO NOTHING` form.
+    ///
+    public func onConflict(
+        _ firstTarget: XLName,
+        _ otherTargets: XLName...,
+        doUpdate values: @escaping (inout Table.MetaUpdate) -> Void
+    ) -> XLInsertOnConflictStatement<Table> {
+        onConflict(
+            OnConflict(
+                targets: [firstTarget] + otherTargets,
+                resolution: .update(Setting<Table>(values), filter: nil)
+            )
+        )
+    }
+
+    ///
+    /// Appends an `ON CONFLICT (targets) DO NOTHING` upsert clause.
+    ///
+    public func onConflictDoNothing(
+        _ targets: XLName...
+    ) -> XLInsertOnConflictStatement<Table> {
+        onConflict(
+            OnConflict(targets: targets, resolution: .nothing)
+        )
+    }
+}

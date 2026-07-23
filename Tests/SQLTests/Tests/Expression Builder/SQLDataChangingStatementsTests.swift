@@ -109,4 +109,68 @@ final class XLDataChangingStatementsTests: XCTestCase {
             "REPLACE INTO Test AS t0 (id,value) VALUES ('foo',42)"
         )
     }
+
+
+    // MARK: - ON CONFLICT (upsert)
+
+    func testOnConflictDoNothingWithTarget() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let expression = insert(t)
+            .values(instanceValues())
+            .onConflictDoNothing("id")
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "INSERT INTO Test AS t0 (id,value) VALUES ('foo',42) ON CONFLICT (id) DO NOTHING"
+        )
+    }
+
+    func testOnConflictDoUpdateWithExcluded() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let excluded = schema.excluded(TestTable.self)
+        let expression = insert(t)
+            .values(instanceValues())
+            .onConflict("id", doUpdate: { row in row.value = excluded.value })
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "INSERT INTO Test AS t0 (id,value) VALUES ('foo',42) ON CONFLICT (id) DO UPDATE SET value = excluded.value"
+        )
+    }
+
+    func testOnConflictDoUpdateWithWhere() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let excluded = schema.excluded(TestTable.self)
+        let expression = insert(t)
+            .values(instanceValues())
+            .onConflict(
+                OnConflict.doUpdate(
+                    on: "id",
+                    set: { row in row.value = excluded.value },
+                    where: excluded.value > t.value
+                )
+            )
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "INSERT INTO Test AS t0 (id,value) VALUES ('foo',42) ON CONFLICT (id) DO UPDATE SET value = excluded.value WHERE (excluded.value > t0.value)"
+        )
+    }
+
+    /// The `excluded` pseudo table renders as the bare `excluded` keyword when
+    /// used as a table source — never as the aliased base table — so accidental
+    /// use outside an upsert produces `FROM excluded`, which SQLite rejects,
+    /// rather than silently querying the underlying table.
+    func testExcludedRendersAsBarePseudoTable() {
+        let schema = XLSchema()
+        let excluded = schema.excluded(TestTable.self)
+        let expression = sql { _ in
+            Select(excluded)
+            From(excluded)
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "SELECT excluded.id AS id, excluded.value AS value FROM excluded"
+        )
+    }
 }

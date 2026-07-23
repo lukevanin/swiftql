@@ -99,4 +99,66 @@ final class XLDataChangingExecutionTests: XCTestCase {
 
         XCTAssertEqual(try allTestRows(), [TestTable(id: "a", value: 2)])
     }
+
+
+    // MARK: - ON CONFLICT upsert
+
+    func testUpsertDoUpdateUsesExcludedValue() throws {
+        try createUniqueTestTable()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 1))).execute()
+
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let excluded = schema.excluded(TestTable.self)
+        let statement = insert(t)
+            .values(TestTable.MetaInsert(TestTable(id: "a", value: 5)))
+            .onConflict("id", doUpdate: { row in row.value = excluded.value })
+        try database.makeRequest(with: statement).execute()
+
+        XCTAssertEqual(try allTestRows(), [TestTable(id: "a", value: 5)])
+    }
+
+    func testUpsertDoNothingKeepsExistingRow() throws {
+        try createUniqueTestTable()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 1))).execute()
+
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let statement = insert(t)
+            .values(TestTable.MetaInsert(TestTable(id: "a", value: 99)))
+            .onConflictDoNothing("id")
+        try database.makeRequest(with: statement).execute()
+
+        XCTAssertEqual(try allTestRows(), [TestTable(id: "a", value: 1)])
+    }
+
+    func testUpsertDoUpdateWithWhereOnlyUpdatesQualifyingRows() throws {
+        try createUniqueTestTable()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 10))).execute()
+
+        func upsert(candidate value: Int) throws {
+            let schema = XLSchema()
+            let t = schema.table(TestTable.self)
+            let excluded = schema.excluded(TestTable.self)
+            let statement = insert(t)
+                .values(TestTable.MetaInsert(TestTable(id: "a", value: value)))
+                .onConflict(
+                    OnConflict.doUpdate(
+                        on: "id",
+                        set: { row in row.value = excluded.value },
+                        where: excluded.value > t.value
+                    )
+                )
+            try database.makeRequest(with: statement).execute()
+        }
+
+        // The predicate keeps the larger existing value: excluded.value (5) is
+        // not greater than the stored value (10), so the update is skipped.
+        try upsert(candidate: 5)
+        XCTAssertEqual(try allTestRows(), [TestTable(id: "a", value: 10)])
+
+        // A larger candidate wins.
+        try upsert(candidate: 42)
+        XCTAssertEqual(try allTestRows(), [TestTable(id: "a", value: 42)])
+    }
 }
