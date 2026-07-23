@@ -1,6 +1,6 @@
 ---
 name: swiftql
-description: Use when Codex works in a Swift package or Apple application that uses SwiftQL to define typed tables or results, build or modify SQLite queries, pass immutable bindings, add contextual codecs, prepare reusable static queries, integrate a database adapter, or diagnose SwiftQL execution boundaries. Use the checked-out public v1 contract; 1.4.3 is the latest published package and adds typed SQLite date-and-time functions on the retained v1 surface. Do not use this skill to teach SQL generally or claim unshipped features.
+description: Use when Codex works in a Swift package or Apple application that uses SwiftQL to define typed tables or results, build or modify SQLite queries, pass immutable bindings, add contextual codecs, prepare reusable static queries, integrate a database adapter, or diagnose SwiftQL execution boundaries. Use the checked-out public v1 contract; 1.4.3 is the latest published package, and the v1.4 line broadened the retained v1 surface with typed SQLite date-and-time functions and additional common-SQLite operators. Do not use this skill to teach SQL generally or claim unshipped features.
 ---
 
 # SwiftQL

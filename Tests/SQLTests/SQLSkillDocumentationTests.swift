@@ -51,7 +51,7 @@ final class SQLSkillDocumentationTests: XCTestCase {
             "SwiftQL exposes no general raw-fragment API",
             "`XLRequest` across tasks; it is not `Sendable`",
             "checked-out public v1 contract",
-            "1.4.3 is the latest published package and adds typed SQLite date-and-time functions on the retained v1 surface",
+            "1.4.3 is the latest published package, and the v1.4 line broadened the retained v1 surface with typed SQLite date-and-time functions and additional common-SQLite operators",
             "`1.4.3` is the latest published package",
             "Keep those five statuses distinct",
             "recorded SQLite version, source ID, compile options, capabilities",
