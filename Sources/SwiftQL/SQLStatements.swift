@@ -412,12 +412,17 @@ public struct OnConflict<Row>: XLEncodable {
     ///
     /// Creates an `ON CONFLICT (targets) DO UPDATE SET ...` clause.
     ///
+    /// At least one conflict target is required: SQLite rejects `DO UPDATE`
+    /// without a conflict target. Use ``doNothing(on:)`` for the targetless
+    /// `ON CONFLICT DO NOTHING` form.
+    ///
     public static func doUpdate(
-        on targets: XLName...,
+        on firstTarget: XLName,
+        _ otherTargets: XLName...,
         set values: @escaping (inout Row.MetaUpdate) -> Void
     ) -> OnConflict where Row: XLTable {
         OnConflict(
-            targets: targets,
+            targets: [firstTarget] + otherTargets,
             resolution: .update(Setting<Row>(values), filter: nil)
         )
     }
@@ -425,16 +430,19 @@ public struct OnConflict<Row>: XLEncodable {
     ///
     /// Creates an `ON CONFLICT (targets) DO UPDATE SET ... WHERE ...` clause.
     ///
-    /// The `WHERE` predicate constrains which conflicting rows are updated;
-    /// rows that fail the predicate are left unchanged without raising an error.
+    /// At least one conflict target is required, because SQLite rejects
+    /// `DO UPDATE` without a conflict target. The `WHERE` predicate constrains
+    /// which conflicting rows are updated; rows that fail the predicate are
+    /// left unchanged without raising an error.
     ///
     public static func doUpdate<B>(
-        on targets: XLName...,
+        on firstTarget: XLName,
+        _ otherTargets: XLName...,
         set values: @escaping (inout Row.MetaUpdate) -> Void,
         where filter: any XLExpression<B>
     ) -> OnConflict where Row: XLTable, B: XLBoolean {
         OnConflict(
-            targets: targets,
+            targets: [firstTarget] + otherTargets,
             resolution: .update(Setting<Row>(values), filter: filter)
         )
     }

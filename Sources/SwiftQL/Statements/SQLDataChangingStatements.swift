@@ -141,13 +141,18 @@ extension XLInsertTableValuesStatement where Table: XLTable {
     ///
     /// Appends an `ON CONFLICT (targets) DO UPDATE SET ...` upsert clause.
     ///
+    /// At least one conflict target is required, because SQLite rejects
+    /// `DO UPDATE` without a conflict target. Use ``onConflictDoNothing(_:)``
+    /// for the targetless `ON CONFLICT DO NOTHING` form.
+    ///
     public func onConflict(
-        _ targets: XLName...,
+        _ firstTarget: XLName,
+        _ otherTargets: XLName...,
         doUpdate values: @escaping (inout Table.MetaUpdate) -> Void
     ) -> XLInsertOnConflictStatement<Table> {
         onConflict(
             OnConflict(
-                targets: targets,
+                targets: [firstTarget] + otherTargets,
                 resolution: .update(Setting<Table>(values), filter: nil)
             )
         )
