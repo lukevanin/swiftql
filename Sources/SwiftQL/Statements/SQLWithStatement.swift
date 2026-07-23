@@ -40,8 +40,20 @@ public struct XLWithStatement {
         return XLInsertTableStatement(components: components)
     }
     
+    // MARK: Update
+
+    public func update<T, S>(_ table: T, set values: S) -> XLUpdateSetStatement<T.Row> where T: XLMetaWritableTable, S: XLMetaUpdate, S.Row == T.Row {
+        let components = XLUpdateStatementComponents(commonTables: commonTables, update: Update(table), components: [values])
+        return XLUpdateSetStatement(components: components)
+    }
+
+    public func update<T>(_ table: T) -> XLUpdateTableStatement<T.Row> where T: XLMetaWritableTable {
+        let components = XLUpdateStatementComponents(commonTables: commonTables, update: Update(table))
+        return XLUpdateTableStatement(components: components)
+    }
+
     // MARK: Delete
-    
+
     public func delete<T>(_ table: T) -> XLDeleteTableStatement<T> where T: XLMetaWritableTable, T.Row: XLTable {
         XLDeleteTableStatement(components: XLDeleteStatementComponents(commonTables: commonTables, delete: Delete(table)))
     }
