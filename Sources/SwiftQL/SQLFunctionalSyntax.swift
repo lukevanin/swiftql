@@ -127,7 +127,7 @@ public struct XLSchema {
     }
 
     ///
-    /// Constructs a recursive common table expression using a select query that returns an `SQLTable`.
+    /// Constructs a recursive common table expression using a select query that returns an `SQLResult`.
     ///
     public func recursiveCommonTableExpression<T>(_ type: T.Type, alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
         makeRecursiveCommonTable(T.self, alias: alias, body: statement)

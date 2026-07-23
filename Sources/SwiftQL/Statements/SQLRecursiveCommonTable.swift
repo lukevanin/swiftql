@@ -64,9 +64,12 @@ public enum XLRecursiveCommonTableConstructionError: Error, Equatable {
 /// completion attempt.
 ///
 /// A layout retains only the value data required to rebuild the reference from
-/// the reserved alias — never a generated result, statement body, namespace, or
-/// completed definition. Keeping the reference derivable from the alias alone is
-/// what allows the self-reference to avoid retaining the body it helps build.
+/// the reserved alias — never a generated result, statement body, or completed
+/// definition. (A layout may hold the body schema so the reference's table alias
+/// is drawn from the same sequence as the recursive body, but it never retains a
+/// common-table namespace or the body itself.) Keeping the reference derivable
+/// from the alias alone is what allows the self-reference to avoid retaining the
+/// body it helps build.
 ///
 /// The associated `Reference` is the typed, `FROM`-able projection of the common
 /// table (for the generated composite surface this is
