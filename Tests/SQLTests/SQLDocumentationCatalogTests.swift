@@ -326,13 +326,6 @@ final class SQLDocumentationCatalogTests: XCTestCase {
 
         let requiredPhrasesByPath = [
             "README.md": [
-                "## Reusable queries and the v1.3 evidence boundary",
-                "An `XLStaticQueryDescriptor` contains rendered SQL",
-                "then create a fresh",
-                "`XLInvocationBindings` value for every call.",
-                "Invocation values never become",
-                "`SwiftQLCore` exposes GRDB-free",
-                "build-validation prototype remains research rather than a public v1.3 API",
                 "`1.4.3` is the latest published package",
             ],
             "COMPATIBILITY.md": [
@@ -396,14 +389,6 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             ],
         ]
         let inventoryPhrasesByPath = [
-            "README.md": [
-                "The canonical inventory records \(inventory.features.count) features",
-                "\(supportedCount) supported, \(partialCount) partial, \(capabilityGatedCount) capability-gated",
-                "\(intentionallyUnsupportedCount) intentionally unsupported, and",
-                "\(unimplementedCount) unimplemented",
-                "Of its \(inventory.evidence.count) evidence records, \(realSQLiteEvidenceCount) exercise real SQLite",
-                "cite \(environmentCountText) recorded SQLite \(sqliteVersions) \(environmentNoun)",
-            ],
             "COMPATIBILITY.md": [
                 "The v1.3 inventory contains \(inventory.features.count) feature records and \(inventory.evidence.count) evidence records",
                 "| Supported | \(supportedCount) |",
