@@ -2146,9 +2146,11 @@ final class XLExecutionTests: XCTestCase {
         let version = try databasePool.read { database in
             try String.fetchOne(database, sql: "SELECT sqlite_version()") ?? ""
         }
+        // Parse each component's leading numeric prefix so pre-release suffixes
+        // (e.g. "3.39.1rc1") do not drop or misread a component.
         let components = version
             .split(separator: ".")
-            .compactMap { Int($0) }
+            .map { Int($0.prefix(while: \.isNumber)) ?? 0 }
         let required = [3, 39, 0]
         var supported = true
         for index in required.indices {
