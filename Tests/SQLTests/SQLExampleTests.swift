@@ -1376,6 +1376,22 @@ extension XLDocumentationTests {
             encoder.makeSQL(regexpQuery).sql.contains("REGEXP '^A.*n$'")
         )
 
+        let firstOfNextMonth = sql { _ in
+            Select("2026-07-19 12:30:45".datetime(.months(1), .startOfMonth))
+        }
+        XCTAssertTrue(
+            encoder.makeSQL(firstOfNextMonth).sql.contains(
+                "datetime('2026-07-19 12:30:45', '+1 months', 'start of month')"
+            )
+        )
+
+        let _: (XLDateFunctionExecutionTests) -> () throws -> Void =
+            XLDateFunctionExecutionTests.testModifiersComputeRelativeMoments
+        let _: (XLDateFunctionExecutionTests) -> () throws -> Void =
+            XLDateFunctionExecutionTests.testComponentsMatchPinnedSQLiteResults
+        let _: (XLDateFunctionExecutionTests) -> () throws -> Void =
+            XLDateFunctionExecutionTests.testDateOperatorsAndJulianDayDifference
+
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testInAndNotInWithNullElementSemantics
         let _: (XLRegexpOperatorTests) -> () throws -> Void =

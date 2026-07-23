@@ -79,6 +79,83 @@ final class XLScalarFunctionTests: XCTestCase {
         assertExpressionType(json.validJSON(), Bool.self)
     }
 
+    func testDateConstructorsModifiersAndComponents() {
+        let date = XLNamedBindingReference<String>(name: "date")
+        let optionalDate = XLNamedBindingReference<String?>(name: "optionalDate")
+
+        // Constructors with ordered modifiers.
+        assertSQL(date.date(), "date(:date)")
+        assertSQL(date.date(.startOfMonth), "date(:date, 'start of month')")
+        assertSQL(date.time(.subsecond), "time(:date, 'subsec')")
+        assertSQL(
+            date.datetime(.months(1)),
+            "datetime(:date, '+1 months')"
+        )
+        assertSQL(
+            date.datetime(.months(1), .startOfMonth),
+            "datetime(:date, '+1 months', 'start of month')"
+        )
+        assertSQL(date.julianDay(), "julianday(:date)")
+        assertSQL(date.julianDay(.days(-3)), "julianday(:date, '-3 days')")
+        assertSQL(date.unixEpoch(.utc), "unixepoch(:date, 'utc')")
+        assertSQL(date.strftime("%Y-%m-%d"), "strftime('%Y-%m-%d', :date)")
+        assertSQL(
+            date.strftime("%Y", .years(1)),
+            "strftime('%Y', :date, '+1 years')"
+        )
+
+        // A representative sweep of the modifier surface.
+        assertSQL(date.datetime(.hours(6)), "datetime(:date, '+6 hours')")
+        assertSQL(date.datetime(.minutes(-30)), "datetime(:date, '-30 minutes')")
+        assertSQL(date.datetime(.seconds(90)), "datetime(:date, '+90 seconds')")
+        assertSQL(date.datetime(.years(-2)), "datetime(:date, '-2 years')")
+        assertSQL(date.date(.startOfYear), "date(:date, 'start of year')")
+        assertSQL(date.date(.startOfDay), "date(:date, 'start of day')")
+        assertSQL(date.date(.weekday(1)), "date(:date, 'weekday 1')")
+        assertSQL(date.datetime(.months(1), .ceiling), "datetime(:date, '+1 months', 'ceiling')")
+        assertSQL(date.datetime(.months(1), .floor), "datetime(:date, '+1 months', 'floor')")
+        assertSQL(date.datetime(.localTime), "datetime(:date, 'localtime')")
+        assertSQL(date.date(XLDateModifier("unixepoch")), "date(:date, 'unixepoch')")
+
+        // Components render as an integer reinterpretation of strftime.
+        assertSQL(date.year(), "CAST(strftime('%Y', :date) AS INTEGER)")
+        assertSQL(date.month(), "CAST(strftime('%m', :date) AS INTEGER)")
+        assertSQL(date.day(), "CAST(strftime('%d', :date) AS INTEGER)")
+        assertSQL(date.hour(), "CAST(strftime('%H', :date) AS INTEGER)")
+        assertSQL(date.minute(), "CAST(strftime('%M', :date) AS INTEGER)")
+        assertSQL(date.second(), "CAST(strftime('%S', :date) AS INTEGER)")
+        assertSQL(date.dayOfYear(), "CAST(strftime('%j', :date) AS INTEGER)")
+        assertSQL(date.dayOfWeek(), "CAST(strftime('%w', :date) AS INTEGER)")
+        assertSQL(date.weekOfYear(), "CAST(strftime('%W', :date) AS INTEGER)")
+
+        // Optional receivers preserve optionality.
+        assertSQL(optionalDate.datetime(.days(1)), "datetime(:optionalDate, '+1 days')")
+        assertSQL(optionalDate.julianDay(), "julianday(:optionalDate)")
+        assertSQL(optionalDate.unixEpoch(), "unixepoch(:optionalDate)")
+        assertSQL(optionalDate.strftime("%Y"), "strftime('%Y', :optionalDate)")
+        assertSQL(optionalDate.year(), "CAST(strftime('%Y', :optionalDate) AS INTEGER)")
+
+        // Date operators (issue #63) compose over date-function results.
+        assertSQL(
+            date.julianDay() - date.julianDay(.days(-1)),
+            "(julianday(:date) - julianday(:date, '-1 days'))"
+        )
+        assertSQL(date.date() < "2026-01-01", "(date(:date) < '2026-01-01')")
+        assertSQL(date.date() >= "2026-01-01", "(date(:date) >= '2026-01-01')")
+        assertSQL(date.year() != 2026, "(CAST(strftime('%Y', :date) AS INTEGER) != 2026)")
+
+        assertExpressionType(date.date(), String.self)
+        assertExpressionType(date.datetime(.months(1)), String.self)
+        assertExpressionType(date.julianDay(), Double.self)
+        assertExpressionType(date.unixEpoch(), Int.self)
+        assertExpressionType(date.strftime("%Y"), String.self)
+        assertExpressionType(date.year(), Int.self)
+        assertExpressionType(optionalDate.datetime(.days(1)), String?.self)
+        assertExpressionType(optionalDate.julianDay(), Double?.self)
+        assertExpressionType(optionalDate.unixEpoch(), Int?.self)
+        assertExpressionType(optionalDate.year(), Int?.self)
+    }
+
     func testStringFunctionsAndOrderingTerms() {
         let text = XLNamedBindingReference<String>(name: "text")
         let optionalText = XLNamedBindingReference<String?>(name: "optionalText")
