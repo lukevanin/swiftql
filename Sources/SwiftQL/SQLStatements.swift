@@ -459,12 +459,14 @@ public struct From: XLTableStatement {
 ///
 /// Joins a table in a select statement.
 ///
-/// > Note: Right joins are not supported.  A workaround is to LEFT JOIN, and swap the tables in the FROM and
-/// JOIN clauses.
-///
 /// Inner and left joins combine tables using an `ON` predicate. A cross join
 /// returns every combination of rows from its two tables; SQLite also preserves
 /// the left-to-right loop order for an explicit `CROSS JOIN`.
+///
+/// A right join (``Right(_:on:)``) keeps every row of the joined table and fills
+/// the `FROM` table's columns with `NULL` when there is no match; declare that
+/// `FROM` table with ``XLSchema/nullableTable(_:as:)-(T.Type,_)`` so its columns
+/// decode as optionals. `RIGHT JOIN` requires SQLite 3.39.0 or later.
 ///
 public struct Join: XLTableStatement {
     
