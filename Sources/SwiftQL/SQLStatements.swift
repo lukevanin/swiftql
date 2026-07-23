@@ -439,7 +439,7 @@ public struct From: XLTableStatement {
     /// Used for the left-hand table of a `RIGHT JOIN` (and either table of a
     /// `FULL OUTER JOIN`), where unmatched rows fill the `FROM` table's columns
     /// with `NULL`. Build the nullable table reference with
-    /// ``XLSchema/nullableTable(_:as:)-(T.Type,_)``.
+    /// `nullableTable(_:as:)`.
     ///
     public init<T>(_ meta: T) where T: XLMetaNullableNamedResult {
         self.table = meta
@@ -465,7 +465,7 @@ public struct From: XLTableStatement {
 ///
 /// A right join (``Right(_:on:)``) keeps every row of the joined table and fills
 /// the `FROM` table's columns with `NULL` when there is no match; declare that
-/// `FROM` table with ``XLSchema/nullableTable(_:as:)-(T.Type,_)`` so its columns
+/// `FROM` table with `nullableTable(_:as:)` so its columns
 /// decode as optionals. `RIGHT JOIN` requires SQLite 3.39.0 or later.
 ///
 public struct Join: XLTableStatement {
@@ -537,7 +537,7 @@ public struct Join: XLTableStatement {
     /// A `RIGHT JOIN` keeps every row of the joined (right-hand) `table` and
     /// fills the columns of the `FROM` (left-hand) table with `NULL` when there
     /// is no match. The joined table therefore stays non-nullable, while the
-    /// `FROM` table must be declared with ``XLSchema/nullableTable(_:as:)-(T.Type,_)``
+    /// `FROM` table must be declared with `nullableTable(_:as:)`
     /// so its columns decode as optionals.
     ///
     /// > Important: `RIGHT JOIN` requires SQLite 3.39.0 (2022-06-25) or later.
