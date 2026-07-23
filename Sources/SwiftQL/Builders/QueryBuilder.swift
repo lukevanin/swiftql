@@ -178,6 +178,35 @@ public struct QueryBuilder<Row> {
     }
 
     ///
+    /// Adds a full outer join to the query. Both sides can be `NULL`: the joined
+    /// table is nullable, and the from table must be declared with `from(_:)`'s
+    /// nullable overload. Requires SQLite 3.39.0 or later.
+    ///
+    public func fullOuterJoin<T>(_ table: T, on constraint: any XLExpression<Bool>) -> QueryBuilder where T: XLMetaNullableNamedResult {
+        copy {
+            $0.joins.append(Join(kind: .fullOuterJoin, table: table, constraint: constraint))
+        }
+    }
+
+    ///
+    /// Adds a full outer join to the query, using an optional constraint.
+    ///
+    public func fullOuterJoin<T>(_ table: T, on constraint: any XLExpression<Optional<Bool>>) -> QueryBuilder where T: XLMetaNullableNamedResult {
+        copy {
+            $0.joins.append(Join(kind: .fullOuterJoin, table: table, constraint: constraint))
+        }
+    }
+
+    ///
+    /// Adds a cross join to the query, returning every combination of rows.
+    ///
+    public func crossJoin<T>(_ table: T) -> QueryBuilder where T: XLMetaNamedResult {
+        copy {
+            $0.joins.append(Join(kind: .crossJoin, table: table, constraint: nil))
+        }
+    }
+
+    ///
     /// Adds an and expression to the where clause.
     ///
     public func and(_ condition: any XLExpression<Bool>) -> QueryBuilder {

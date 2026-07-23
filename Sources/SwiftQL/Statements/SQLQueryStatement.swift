@@ -178,6 +178,15 @@ public struct XLQueryTableStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
         XLQueryTableStatement(components: components.appending(Join(kind: .rightJoin, table: t, constraint: condition)))
     }
 
+    ///
+    /// Adds a `FULL OUTER JOIN`. Both sides can be `NULL`: the joined table is
+    /// nullable, and the `FROM` table must be declared with `nullableTable(_:)`.
+    /// Requires SQLite 3.39.0 or later.
+    ///
+    public func fullOuterJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult, U: XLBoolean {
+        XLQueryTableStatement(components: components.appending(Join(kind: .fullOuterJoin, table: t, constraint: condition)))
+    }
+
     // MARK: Where
     
     public func `where`<T>(_ condition: any XLExpression<T>) -> XLQueryWhereStatement<Row> where T: XLBoolean {

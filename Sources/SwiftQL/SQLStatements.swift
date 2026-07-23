@@ -473,6 +473,7 @@ public struct Join: XLTableStatement {
         case innerJoin = "INNER JOIN"
         case leftJoin = "LEFT JOIN"
         case rightJoin = "RIGHT JOIN"
+        case fullOuterJoin = "FULL OUTER JOIN"
         case crossJoin = "CROSS JOIN"
     }
     
@@ -543,6 +544,21 @@ public struct Join: XLTableStatement {
     ///
     public static func Right<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNamedResult, U: XLBoolean {
         Join(kind: .rightJoin, table: table, constraint: constraint)
+    }
+
+    ///
+    /// Creates a full outer join with a column constraint.
+    ///
+    /// A `FULL OUTER JOIN` keeps every row of both tables, filling the other
+    /// table's columns with `NULL` where there is no match. Both sides must
+    /// therefore decode as optionals: the joined table is nullable
+    /// (`XLMetaNullableNamedResult`) and the `FROM` table must be declared with
+    /// ``XLSchema/nullableTable(_:as:)-(T.Type,_)``.
+    ///
+    /// > Important: `FULL OUTER JOIN` requires SQLite 3.39.0 (2022-06-25) or later.
+    ///
+    public static func FullOuter<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNullableNamedResult, U: XLBoolean {
+        Join(kind: .fullOuterJoin, table: table, constraint: constraint)
     }
 
     ///
