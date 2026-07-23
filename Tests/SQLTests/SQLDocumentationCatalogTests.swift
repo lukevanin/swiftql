@@ -455,7 +455,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         let firstReleaseHeading = changelog
             .components(separatedBy: .newlines)
             .first(where: { $0.hasPrefix("## [") })
-        XCTAssertEqual(firstReleaseHeading, "## [1.4.3] - 2026-07-23")
+        XCTAssertEqual(firstReleaseHeading, "## [1.4.4] - 2026-07-23")
     }
 
     func testREADMERepositoryLinksResolveWithExactCase() throws {

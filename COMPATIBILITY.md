@@ -55,18 +55,18 @@ The report is evidence for SwiftQL's existing public SQLite subset; it is not a
 claim of complete SQLite grammar coverage. The inventory remains the source of
 truth, while the report is its readable generated view.
 
-The v1.3 inventory contains 105 feature records and 141 evidence records. Its
+The v1.3 inventory contains 106 feature records and 144 evidence records. Its
 support-status totals are exact and mutually exclusive:
 
 | Support status | Features |
 | --- | ---: |
-| Supported | 97 |
+| Supported | 98 |
 | Partial | 0 |
 | Capability-gated | 2 |
 | Intentionally unsupported | 1 |
 | Unimplemented | 5 |
 
-Of those 141 evidence records, 89 exercise real SQLite and
+Of those 144 evidence records, 91 exercise real SQLite and
 cite one captured environment, SQLite 3.51.0. An inventory entry is counted in
 the 97 supported features only when it links to successful preparation by a
 real SQLite engine whose version and source ID are recorded. Partial,
