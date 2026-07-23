@@ -121,30 +121,42 @@ public struct XLSchema {
     /// > Note: Recursive common table requires heap allocation.
     ///
     public func recursiveCommonTable<T>(_ type: T.Type, alias: XLName? = nil, statement: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
-        let alias = commonTableNamespace.makeAlias(alias: alias)
-        let schema = XLSchema()
-        let recursiveStatement = XLRecursiveCommonTableStatement()
-        let dependency = XLCommonTableDependency(alias: alias, statement: recursiveStatement)
-        let commonTable = T.makeSQLCommonTable(namespace: commonTableNamespace, dependency: dependency)
-        let table = schema.table(commonTable)
-        recursiveStatement.statement = statement(schema, table)
-        return commonTable
+        makeRecursiveCommonTable(T.self, alias: alias, body: statement)
     }
-    
+
     ///
     /// Constructs a recursive common table expression using a select query that returns an `SQLTable`.
     ///
-    /// > Note: Recursive common table requires heap allocation.
-    ///
     public func recursiveCommonTableExpression<T>(_ type: T.Type, alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
-        let alias = commonTableNamespace.makeAlias(alias: alias)
-        let schema = XLSchema()
-        let recursiveStatement = XLRecursiveCommonTableStatement()
-        let dependency = XLCommonTableDependency(alias: alias, statement: recursiveStatement)
-        let commonTable = T.makeSQLCommonTable(namespace: commonTableNamespace, dependency: dependency)
-        let table = schema.table(commonTable)
-        recursiveStatement.statement = statement(schema, table)
-        return commonTable
+        makeRecursiveCommonTable(T.self, alias: alias, body: statement)
+    }
+
+    ///
+    /// Shared alias-first construction for the recursive common table surface.
+    ///
+    /// Reserves an immutable alias, derives the self-reference from that alias
+    /// alone, then completes the body through a value-semantic
+    /// ``XLRecursiveCommonTableDraft``. No mutable completion cell is involved,
+    /// and the rendered SQL is identical to the previous mechanism.
+    ///
+    private func makeRecursiveCommonTable<T>(
+        _ type: T.Type,
+        alias: XLName?,
+        body: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>
+    ) -> T.MetaCommonTable where T: XLResult {
+        let reservedAlias = commonTableNamespace.makeAlias(alias: alias)
+        let bodySchema = XLSchema()
+        var draft = XLRecursiveCommonTableDraft(
+            alias: reservedAlias,
+            layout: XLCompositeRecursiveCommonTableLayout<T>(
+                schema: bodySchema,
+                commonTableNamespace: commonTableNamespace
+            )
+        )
+        let dependency = draft.completeWithNonThrowingBody { reference in
+            body(bodySchema, reference)
+        }
+        return T.makeSQLCommonTable(namespace: commonTableNamespace, dependency: dependency)
     }
     
     ///
