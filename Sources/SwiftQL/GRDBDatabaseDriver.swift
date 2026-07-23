@@ -447,8 +447,10 @@ struct GRDBDatabaseDriverConnection:
         // `[XLSQLiteValue]` per row. A consumer that retains the row (the eager
         // `collectAllRows`/`collectFirstRow` compatibility shims) keeps a second
         // reference, so `removeAll(keepingCapacity:)` copy-on-writes a fresh
-        // buffer for the next row and the retained values stay intact. Either
-        // way no `[[XLSQLiteValue]]` matrix is materialized.
+        // buffer for the next row and the retained values stay intact. The typed
+        // decode path (the hot path) therefore materializes no intermediate
+        // matrix; the eager `collectAllRows`/`collectFirstRow` compatibility
+        // shims still build only the result they already contract to return.
         var values: [XLSQLiteValue] = []
         while let row = try cursor.next() {
             values.removeAll(keepingCapacity: true)
