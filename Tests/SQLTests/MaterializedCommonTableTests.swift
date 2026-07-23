@@ -33,6 +33,7 @@ final class MaterializedCommonTableTests: XCTestCase {
     }
 
     override func tearDown() {
+        try? databasePool?.close()
         encoder = nil
         databasePool = nil
         database = nil
@@ -177,7 +178,11 @@ final class MaterializedCommonTableTests: XCTestCase {
         let version = try databasePool.read { database in
             try String.fetchOne(database, sql: "SELECT sqlite_version()") ?? ""
         }
-        let components = version.split(separator: ".").compactMap { Int($0) }
+        // Parse each component's leading numeric prefix so pre-release suffixes
+        // (e.g. "3.35.0rc1") do not drop or misread a component.
+        let components = version.split(separator: ".").map { component -> Int in
+            Int(component.prefix(while: \.isNumber)) ?? 0
+        }
         let required = [3, 35, 0]
         var supported = true
         for index in required.indices {
