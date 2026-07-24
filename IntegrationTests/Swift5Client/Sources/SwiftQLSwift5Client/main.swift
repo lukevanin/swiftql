@@ -36,6 +36,8 @@ enum FixtureError: Error {
     case unexpectedPacketResult(Int?)
     case unexpectedStaticQueryResult(Int64)
     case unexpectedSkillQueryResult([SkillPerson])
+    case unexpectedDeclaredQueryResult(SkillPerson?)
+    case unexpectedDeclaredQueriesResult([SkillPerson])
     case unexpectedResult(PersonSummary?)
 }
 
@@ -235,6 +237,7 @@ private func executeFixture(
     guard skillPeople == [SkillPerson(id: "ada", name: "Ada Lovelace")] else {
         throw FixtureError.unexpectedSkillQueryResult(skillPeople)
     }
+    try validateDeclaredQueryMacros(database: database)
 
     let token = try database.contextualBinding(
         DownstreamToken.self,
