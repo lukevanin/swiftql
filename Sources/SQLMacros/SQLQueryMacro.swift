@@ -234,6 +234,21 @@ internal struct SQLQueryBuilder {
         // (`sqlResult` is provisional — `sqlQuery` is already the labeled-closure
         // statement builder in SQLFunctionalSyntax.swift.)
         let calleeRenames = returnShape.isDirectResult ? ["sqlResult": "sql"] : [:]
+
+        if returnShape.isDirectResult {
+            // The rename is lexical and applies only to an unqualified callee.
+            // A qualified spelling (`SwiftQL.sqlResult`) cannot be told apart
+            // from another object's member of the same name, so it is rejected
+            // rather than silently left to trap in the generated builder.
+            let qualifiedVisitor = SQLQueryQualifiedEntryPointVisitor(
+                entryPointNames: Set(calleeRenames.keys),
+                macroName: macroName
+            )
+            qualifiedVisitor.walk(body)
+            guard qualifiedVisitor.diagnostics.isEmpty else {
+                throw DiagnosticsError(diagnostics: qualifiedVisitor.diagnostics)
+            }
+        }
         let rewriter = SQLQueryParameterRewriter(
             parameters: parameters,
             calleeRenames: calleeRenames
@@ -579,6 +594,49 @@ internal final class SQLQueryParameterRewriter: SyntaxRewriter {
             return ExprSyntax(node)
         }
         return ExprSyntax(node.with(\.base, visit(base)))
+    }
+}
+
+
+///
+/// Rejects qualified calls to a spec entry point in a direct-result body.
+///
+/// The `sqlResult` -> `sql` swap is lexical and matches only an unqualified
+/// callee. A qualified spelling such as `SwiftQL.sqlResult { … }` cannot be
+/// distinguished from another object's member of the same name, so it is
+/// diagnosed instead of being left to trap at runtime in the generated
+/// statement builder.
+///
+internal final class SQLQueryQualifiedEntryPointVisitor: SyntaxVisitor {
+
+    private let entryPointNames: Set<String>
+
+    private let macroName: String
+
+    private(set) var diagnostics: [Diagnostic] = []
+
+    init(entryPointNames: Set<String>, macroName: String) {
+        self.entryPointNames = entryPointNames
+        self.macroName = macroName
+        super.init(viewMode: .sourceAccurate)
+    }
+
+    override func visit(_ node: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
+        guard let callee = node.calledExpression.as(MemberAccessExprSyntax.self) else {
+            return .visitChildren
+        }
+        let name = normalizedIdentifier(callee.declName.baseName.text)
+        guard entryPointNames.contains(name) else {
+            return .visitChildren
+        }
+        diagnostics.append(
+            Diagnostic(
+                node: Syntax(callee),
+                id: "sqlquery-qualified-entry-point",
+                message: "'\(name)' must be called unqualified in a '\(macroName)' specification. The macro rewrites the entry point lexically and cannot distinguish a module qualifier from another object's member of the same name."
+            )
+        )
+        return .visitChildren
     }
 }
 

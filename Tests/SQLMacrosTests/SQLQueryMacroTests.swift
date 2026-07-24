@@ -902,4 +902,47 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
             macros: makeTestMacros()
         )
     }
+
+    ///
+    /// The `sqlResult` -> `sql` swap matches only an unqualified callee, so a
+    /// qualified spelling is rejected rather than left to trap at runtime in
+    /// the generated statement builder.
+    ///
+    func test_qualifiedEntryPoint_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func personByName(name: String) -> [Person] {
+                    SwiftQL.sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func personByName(name: String) -> [Person] {
+                    SwiftQL.sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'sqlResult' must be called unqualified in a '@SQLQuery' specification. The macro rewrites the entry point lexically and cannot distinguish a module qualifier from another object's member of the same name.",
+                    line: 4,
+                    column: 9
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
 }
