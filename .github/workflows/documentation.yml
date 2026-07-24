@@ -9,6 +9,13 @@ on:
 
 permissions: {}
 
+# Superseded pull-request runs are cancelled; pushes to main and manual
+# dispatches queue instead so an in-progress Pages deployment is never
+# cancelled mid-run.
+concurrency:
+  group: documentation-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     name: Build Pages artifact
