@@ -500,16 +500,11 @@ internal struct SQLQueryBuilder {
     /// Describes a parameter type that spells a collection form (`[T]`,
     /// `[K: V]`, `Array<…>`, `Set<…>`, `Dictionary<…>`), peeling one layer of
     /// optionality. Returns `nil` for scalar types. A single leading optional is
-    /// unwrapped so `[T]?` is still recognized as a collection.
+    /// unwrapped so `[T]?` (and the `[T]!` / `Optional<[T]>` spellings) is still
+    /// recognized as a collection.
     ///
     private static func collectionDescription(of type: TypeSyntax) -> String? {
-        var type = type.trimmed
-        if let optional = type.as(OptionalTypeSyntax.self) {
-            type = optional.wrappedType.trimmed
-        }
-        else if let unwrapped = type.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) {
-            type = unwrapped.wrappedType.trimmed
-        }
+        let type = unwrappingSingleOptional(type.trimmed)
         if type.is(ArrayTypeSyntax.self) {
             return "array"
         }
@@ -529,6 +524,28 @@ internal struct SQLQueryBuilder {
             }
         }
         return nil
+    }
+
+    ///
+    /// Unwraps a single layer of optionality in any spelling — postfix `T?`,
+    /// implicitly-unwrapped `T!`, and generic `Optional<T>` / `Swift.Optional<T>`
+    /// — so an optional collection is still recognized as a collection.
+    ///
+    private static func unwrappingSingleOptional(_ type: TypeSyntax) -> TypeSyntax {
+        if let optional = type.as(OptionalTypeSyntax.self) {
+            return optional.wrappedType.trimmed
+        }
+        if let unwrapped = type.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) {
+            return unwrapped.wrappedType.trimmed
+        }
+        if let (name, arguments) = genericConstraint(of: type),
+           name == "Optional",
+           let arguments,
+           arguments.arguments.count == 1,
+           let inner = arguments.arguments.first?.argument.as(TypeSyntax.self) {
+            return inner.trimmed
+        }
+        return type
     }
 
     private var modifierPrefix: String {

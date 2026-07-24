@@ -991,6 +991,48 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
     }
 
     ///
+    /// An optional collection in the generic `Optional<[T]>` spelling is still a
+    /// collection and is rejected, not just the postfix `[T]?` spelling.
+    ///
+    func test_genericOptionalCollectionParameter_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func peopleByNames(names: Optional<[String]>) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == names)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func peopleByNames(names: Optional<[String]>) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == names)
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQuery' cannot bind the array parameter 'names' to a single named placeholder. A variable-length list renders SQL whose text changes with the element count, which breaks the stable-SQL premise the prepared query relies on. Spell the elements in the statement with the 'in(_:)' expression forms, or pass a fixed set of scalar parameters.",
+                    line: 3,
+                    column: 31
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
     /// A parameter inside a string interpolation renders its value into the
     /// string rather than binding a placeholder.
     ///
@@ -1194,6 +1236,49 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
             diagnostics: [
                 DiagnosticSpec(
                     message: "'@SQLQuery' derives every named binding from the function signature, so 'XLNamedBindingReference' must not be constructed by hand in the body. A hand-built binding can disagree with the rendered parameter layout. Reference the parameter directly and let the macro generate the binding.",
+                    line: 8,
+                    column: 54
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// The manual-binding guard also covers the `contextualBinding(_:)`
+    /// spelling, so the unqualified-callee match is exercised alongside the
+    /// generic `XLNamedBindingReference<…>(…)` form.
+    ///
+    func test_manualContextualBinding_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func rows(id: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.id == id && person.other == contextualBinding("x"))
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func rows(id: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.id == id && person.other == contextualBinding("x"))
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQuery' derives every named binding from the function signature, so 'contextualBinding' must not be constructed by hand in the body. A hand-built binding can disagree with the rendered parameter layout. Reference the parameter directly and let the macro generate the binding.",
                     line: 8,
                     column: 54
                 )
