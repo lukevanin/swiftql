@@ -326,6 +326,9 @@ extension XLStaticSelectField: XLStaticSelectFieldProtocol {
 }
 
 
+extension XLStaticSelectField: XLStaticRowFieldSource {}
+
+
 /// The expression-bearing, type-erased half of one static row field.
 ///
 /// Its public metadata is driver-neutral. The retained expression is used only
@@ -344,6 +347,156 @@ where Dialect: XLValueCodingDialect {
         self.expression = expression
         self.metadata = metadata
         self.validateValue = validate
+    }
+}
+
+
+/// A contiguous, ordered run of one or more positioned static result slots
+/// contributed by a single generated stored property.
+///
+/// An ordinary scalar property (any `XLStaticSelectFieldProtocol` value, such
+/// as one returned by `XLValueCodingConfiguration.staticResultField` or
+/// `XLStaticSelectField.intrinsic`) contributes exactly one slot. A nested
+/// composite property -- a stored property whose type is itself an
+/// `@SQLTable`/`@SQLResult` type -- contributes every one of that nested
+/// type's own flattened slots, continuing directly after the slots
+/// contributed by the properties declared before it, and re-aliased with a
+/// prefix derived from its own property alias so every SQL output column
+/// keeps a unique name. Generated `staticRowLayout(using:...)` factories
+/// obtain one of these per property from `XLStaticRowFieldSource.grouped(at:
+/// alias:)` and concatenate their `fields`, `read(from:)`, and `encode(_:)`
+/// results in declaration order.
+public struct XLStaticFieldGroup<Value, Dialect>
+where Dialect: XLValueCodingDialect {
+
+    /// The flattened, positioned slots contributed by this property, in
+    /// declaration order.
+    public let fields: [XLAnyStaticSelectField<Dialect>]
+
+    private let decodeValue: (XLRowReader) throws -> Value
+    private let encodeValue: (Value) throws -> [Dialect.Value]
+
+    /// The number of flat SQL result slots this property contributes. A
+    /// scalar property contributes exactly one slot; a nested composite
+    /// property contributes as many slots as its own flattened layout.
+    public var count: Int {
+        fields.count
+    }
+
+    public init(
+        fields: [XLAnyStaticSelectField<Dialect>],
+        decode: @escaping (XLRowReader) throws -> Value,
+        encode: @escaping (Value) throws -> [Dialect.Value]
+    ) {
+        self.fields = fields
+        self.decodeValue = decode
+        self.encodeValue = encode
+    }
+
+    /// Decodes this property's value from its positioned slot(s).
+    public func read(from reader: XLRowReader) throws -> Value {
+        try decodeValue(reader)
+    }
+
+    /// Encodes this property's value into its positioned slot(s), in
+    /// declaration order.
+    public func encode(_ value: Value) throws -> [Dialect.Value] {
+        try encodeValue(value)
+    }
+}
+
+
+/// A source of one generated property's contribution to a static row layout:
+/// either a single scalar slot, or every flattened slot of a nested
+/// composite value.
+///
+/// Conformances: every `XLStaticSelectFieldProtocol` value (through the
+/// default implementation below, so any existing scalar field continues to
+/// work unchanged), and `XLStaticRowLayout` (so a nested `@SQLTable`/
+/// `@SQLResult` property can be contributed by passing another generated
+/// type's own `staticRowLayout(using:...)` result). The generated factory
+/// never has to decide which case applies -- Swift resolves the matching
+/// conformance for whatever value the caller passes.
+public protocol XLStaticRowFieldSource<FieldValue, FieldDialect> {
+    associatedtype FieldValue
+    associatedtype FieldDialect: XLValueCodingDialect
+
+    /// Positions this property's slot(s) starting at `index`, aliased using
+    /// `alias`. A nested composite property re-aliases each of its own
+    /// flattened slots as `"\(alias)_\(nestedAlias)"`.
+    func grouped(at index: Int, alias: String) throws -> XLStaticFieldGroup<FieldValue, FieldDialect>
+}
+
+
+extension XLStaticSelectFieldProtocol {
+    /// The default scalar contribution: exactly one positioned slot.
+    public func grouped(
+        at index: Int,
+        alias: String
+    ) throws -> XLStaticFieldGroup<FieldValue, FieldDialect> {
+        let positioned = positioned(at: index, alias: alias)
+        let erasedField = try positioned.erased()
+        return XLStaticFieldGroup(
+            fields: [erasedField],
+            decode: { reader in try positioned.read(from: reader) },
+            encode: { value in [try positioned.encode(value)] }
+        )
+    }
+}
+
+
+extension XLAnyStaticSelectField {
+    /// Reflows this already-positioned field's index and alias so it can be
+    /// spliced into an enclosing composite property's flattened slot range.
+    /// The field's identity, type metadata, and codec selection are
+    /// unchanged -- only its logical SQL position and output alias move.
+    fileprivate func _swiftQLNested(
+        atOffset offset: Int,
+        aliasPrefix: String
+    ) -> Self {
+        let originalResult = metadata.result
+        let shiftedResult = XLStaticQueryResultSlot(
+            index: XLLogicalResultIndex(originalResult.index.rawValue + offset),
+            identity: originalResult.identity,
+            valueTypeIdentifier: originalResult.valueTypeIdentifier,
+            valueTypeName: originalResult.valueTypeName,
+            nullability: originalResult.nullability,
+            codecIdentity: originalResult.codecIdentity,
+            storageIdentifier: originalResult.storageIdentifier,
+            codingContext: originalResult.codingContext
+        )
+        let shiftedField = XLStaticRowField(
+            alias: "\(aliasPrefix)_\(metadata.alias)",
+            result: shiftedResult
+        )
+        return Self(
+            expression: expression,
+            metadata: shiftedField,
+            validate: validateValue
+        )
+    }
+}
+
+
+/// Offsets logical result indices by a fixed amount, so a nested composite
+/// property's own zero-based layout can decode directly from its enclosing
+/// layout's flat row without rebuilding any of its fields.
+private struct _XLStaticOffsetRowReader: XLRowReader {
+    let base: XLRowReader
+    let offset: Int
+
+    func column<Value>(
+        _ expression: any XLExpression<Value>,
+        alias: XLName
+    ) throws -> Value where Value: XLLiteral {
+        try base.column(expression, alias: alias)
+    }
+
+    func dialectValue<RequestedDialect>(
+        at index: Int,
+        using dialect: RequestedDialect
+    ) throws -> RequestedDialect.Value where RequestedDialect: XLValueCodingDialect {
+        try base.dialectValue(at: offset + index, using: dialect)
     }
 }
 
@@ -447,6 +600,37 @@ where Dialect: XLValueCodingDialect {
         for (field, value) in zip(fields, values) {
             try field.validateValue(value)
         }
+    }
+}
+
+
+extension XLStaticRowLayout: XLStaticRowFieldSource {
+    public typealias FieldValue = Row
+    public typealias FieldDialect = Dialect
+
+    /// The nested composite contribution: every one of this layout's own
+    /// flattened slots, continuing at `index` and re-aliased with `alias`.
+    /// Reading recurses through this layout's own `readRow(reader:)` against
+    /// an index-offsetting view of the enclosing row, so none of its fields
+    /// need to be rebuilt; encoding reuses `encode(_:)` directly, since its
+    /// flat, ordered output already matches the position where the group's
+    /// `fields` are spliced into the enclosing layout.
+    public func grouped(
+        at index: Int,
+        alias: String
+    ) throws -> XLStaticFieldGroup<Row, Dialect> {
+        let offsetFields = fields.map {
+            $0._swiftQLNested(atOffset: index, aliasPrefix: alias)
+        }
+        return XLStaticFieldGroup(
+            fields: offsetFields,
+            decode: { reader in
+                try self.readRow(
+                    reader: _XLStaticOffsetRowReader(base: reader, offset: index)
+                )
+            },
+            encode: { value in try self.encode(value) }
+        )
     }
 }
 

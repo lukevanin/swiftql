@@ -63,6 +63,28 @@
   `.liveQueriesUnsupportedInTransaction`; an already-cancelled task throws
   `CancellationError` before the transaction opens. Documented in
   `GettingStarted`'s "Typed multi-statement transaction scopes".
+- Added composite/nested result selection (issue #6): a stored property on an
+  `@SQLTable`/`@SQLResult` type can now itself be another `@SQLTable`/
+  `@SQLResult` type. The generated `staticRowLayout(using:...)` factory
+  flattens every one of the nested type's own columns into the enclosing
+  type's flat SQL result (re-aliased with the property name as a prefix, e.g.
+  `employee_id`, `employee_name`), and reconstructs the nested value before
+  building the enclosing type. Nesting composes to any depth, since a
+  composite property's argument is itself the nested type's own
+  `staticRowLayout(using:...)` result.
+- Added the `XLStaticRowFieldSource` protocol and `XLStaticFieldGroup` type to
+  `SwiftQL`. Every generated `staticRowLayout(using:...)` parameter now takes
+  an `XLStaticRowFieldSource` value; both an ordinary `XLStaticSelectField`
+  (through a default implementation, so no scalar call site changes) and an
+  `XLStaticRowLayout` (for a nested composite property) conform to it. The
+  macro has no semantic access to a property's type declaration, so it never
+  has to detect which case applies -- Swift's own conformance checking
+  resolves it from whichever value the caller passes to a given property.
+- Extended the unsupported-column-type diagnostic to name both supported
+  property shapes (a scalar `XLLiteral` column, or a nested `@SQLTable`/
+  `@SQLResult` composite), so a property type the macro cannot resolve as
+  either is rejected with an actionable message instead of only failing
+  downstream with an opaque protocol-conformance error.
 
 ### Migration
 
@@ -88,6 +110,9 @@ including third-party `XLDatabase` adapters, source-compatible.
   duplicate-declaration compile error, not a silent one.
 - Only one `@SQLQueries`-attached extension is supported per database type; a
   second would redeclare `Context` and `execute(_:)`.
+- A composite/nested `@SQLTable`/`@SQLResult` property must be
+  non-optional; an optional nested composite (representing an absent
+  value from an outer join, for example) is not yet supported.
 - `withTransaction(_:)` does not support nested transactions or savepoints —
   a nested call is rejected outright rather than silently composed — and
   cancellation is checked only once, before the transaction opens; the

@@ -388,7 +388,7 @@ internal struct MetaBuilder {
                 else {
                     report(
                         annotation.type, id: "unsupported-column-type",
-                        "Type '\(annotation.type.trimmedDescription)' cannot be used as a column type."
+                        "Type '\(annotation.type.trimmedDescription)' cannot be used as a column type. Use a named type that conforms to 'XLLiteral' for a scalar column, or a nested '@SQLTable'/'@SQLResult' type for a composite column selection."
                     )
                     carriedType = .invalid
                     continue
@@ -574,41 +574,79 @@ internal struct MetaBuilder {
 
     // Generate the static layout factory as a nominal member for the same
     // Swift 5.9 cross-file lookup reason as `columns(...)`. The caller supplies
-    // one immutable typed field per property, allowing each use to select its
-    // own expression and codec without constructing the model or SQLReader.
+    // one `XLStaticRowFieldSource` value per property, allowing each use to
+    // select its own expression and codec without constructing the model or
+    // SQLReader.
+    //
+    // A property's argument is either an ordinary scalar field (any
+    // `XLStaticSelectFieldProtocol` value, e.g. from `staticResultField` or
+    // `.intrinsic`) or another generated type's own `staticRowLayout(using:...)`
+    // result -- a nested `@SQLTable`/`@SQLResult` composite property. The macro
+    // never has to tell those apart: both conform to `XLStaticRowFieldSource`,
+    // and `grouped(at:alias:)` reports how many flat SQL slots it occupies
+    // through its runtime `count`, so the generated code below only ever
+    // accumulates a running slot offset -- it does not need to know any
+    // property's arity at expansion time. A scalar property always
+    // contributes exactly one slot; a nested composite property contributes
+    // every one of its own flattened slots, re-aliased with its property name
+    // as a prefix so the flattened SQL output columns stay unique.
     func makeStaticRowLayoutFunction() -> String {
         var context = SwiftSyntaxBuilder()
         var allocator = GeneratedIdentifierAllocator(
             used: generatedIdentifierReservations
         )
         let dialect = allocator.allocate("_SwiftQLStaticDialect")
-        let positionedFields = properties.indices.map { index in
+        let fieldGroups = properties.indices.map { index in
             allocator.allocate("_swiftQLStaticField\(index)")
         }
+        let offset = allocator.allocate("_swiftQLStaticOffset")
         let reader = allocator.allocate("_swiftQLStaticReader")
         let row = allocator.allocate("_swiftQLStaticRow")
 
         var parameters = ["using _: \(dialect).Type"]
         for property in properties {
             parameters.append(
-                "\(property.name): some SwiftQL.XLStaticSelectFieldProtocol<\(property.qualifiedType), \(dialect)>"
+                "\(property.name): some SwiftQL.XLStaticRowFieldSource<\(property.qualifiedType), \(dialect)>"
             )
         }
+
+        // A running offset is reassigned only when a third or later property
+        // needs it, so it is generated as an immutable binding otherwise --
+        // avoiding an unused-mutation warning in the generated code.
+        let offsetIsMutable = properties.count > 2
 
         context.block(
             "public static func staticRowLayout<\(dialect)>(\(parameters.joined(separator: ", "))) throws -> SwiftQL.XLStaticRowLayout<Self, \(dialect)> where \(dialect): SwiftQL.XLValueCodingDialect"
         ) { context in
             for (index, property) in properties.enumerated() {
-                context.line(
-                    "let \(positionedFields[index]) = \(property.name).positioned(at: \(index), alias: \(quoted(property.alias)))"
-                )
+                if index == 0 {
+                    context.line(
+                        "let \(fieldGroups[index]) = try \(property.name).grouped(at: 0, alias: \(quoted(property.alias)))"
+                    )
+                }
+                else {
+                    context.line(
+                        "let \(fieldGroups[index]) = try \(property.name).grouped(at: \(offset), alias: \(quoted(property.alias)))"
+                    )
+                }
+                if index < properties.count - 1 {
+                    if index == 0 {
+                        context.line("\(offsetIsMutable ? "var" : "let") \(offset) = \(fieldGroups[index]).count")
+                    }
+                    else {
+                        context.line("\(offset) += \(fieldGroups[index]).count")
+                    }
+                }
             }
 
             context.block("return try SwiftQL.XLStaticRowLayout", opening: "(", closing: ")") { context in
-                context.block("fields: [", opening: "", closing: "],") { context in
-                    for field in positionedFields {
-                        context.line("try \(field).erased(),")
-                    }
+                if fieldGroups.isEmpty {
+                    context.line("fields: [],")
+                }
+                else {
+                    context.line(
+                        "fields: " + fieldGroups.map { "\($0).fields" }.joined(separator: " + ") + ","
+                    )
                 }
                 context.block(
                     "decode: { \(reader) in",
@@ -619,7 +657,7 @@ internal struct MetaBuilder {
                         for (index, property) in properties.enumerated() {
                             context.item { context in
                                 context.line(
-                                    "\(property.name): try \(positionedFields[index]).read(from: \(reader))"
+                                    "\(property.name): try \(fieldGroups[index]).read(from: \(reader))"
                                 )
                             }
                         }
@@ -630,11 +668,18 @@ internal struct MetaBuilder {
                     opening: "",
                     closing: "}"
                 ) { context in
-                    context.block("[", opening: "", closing: "]") { context in
-                        for (index, property) in properties.enumerated() {
-                            context.line(
-                                "try \(positionedFields[index]).encode(\(row).\(property.name)),"
-                            )
+                    if fieldGroups.isEmpty {
+                        context.line("[]")
+                    }
+                    else {
+                        let terms = zip(fieldGroups, properties).map { field, property in
+                            "\(field).encode(\(row).\(property.name))"
+                        }
+                        if terms.count == 1 {
+                            context.line("try \(terms[0])")
+                        }
+                        else {
+                            context.line("try \(terms.joined(separator: " + "))")
                         }
                     }
                 }
