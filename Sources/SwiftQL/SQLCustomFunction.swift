@@ -102,7 +102,7 @@ extension XLBuilder {
         _ type: F.Type,
         parameters: ListBuilder
     ) where F: XLCustomFunction, F.T: DatabaseValueConvertible {
-        customFunction(.make(F.self))
-        simpleFunction(name: F.definition.name, parameters: parameters)
+        customFunction(.make(type))
+        simpleFunction(name: type.definition.name, parameters: parameters)
     }
 }
