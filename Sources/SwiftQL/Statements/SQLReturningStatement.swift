@@ -19,7 +19,7 @@ import Foundation
 /// SQLite rejects table-qualified column names in a `RETURNING` list — a
 /// statement such as `INSERT INTO Test AS t0 ... RETURNING t0.id` fails to
 /// prepare with `no such column: t0.id` — so the clause renders the projection's
-/// columns *unqualified* (`RETURNING id,value`) while decoding rows through the
+/// columns *unqualified* (`RETURNING id, value`) while decoding rows through the
 /// projection's own reader.
 ///
 /// Requires SQLite 3.35.0 (2021-03-12) or later.
@@ -39,8 +39,20 @@ public struct Returning<Row>: XLEncodable, XLRowReadable {
         let definition = XLColumnsDefinitionRowReader()
         // Replay the projection to capture its output column names. The
         // definition reader returns SQL defaults, so no database row is decoded
-        // here — matching `Select(_ meta:)`.
-        let _ = try! result.readRow(reader: definition)
+        // here — matching `Select(_ meta:)`. A projection that cannot enumerate
+        // its columns against the definition reader (for example one that decodes
+        // through `staticColumn`) is unsupported here and traps diagnostically
+        // rather than surfacing an opaque `try!` crash.
+        do {
+            _ = try result.readRow(reader: definition)
+        }
+        catch {
+            preconditionFailure(
+                "RETURNING projection \(String(reflecting: T.self)) could not "
+                + "enumerate its columns: \(error). Use a table or @SQLResult "
+                + "projection whose columns render as bare names."
+            )
+        }
         self.columns = definition.columnNames
         self.decode = result.readRow
     }
