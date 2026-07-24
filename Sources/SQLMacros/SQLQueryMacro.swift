@@ -122,15 +122,15 @@ internal struct SQLQueryReturnShape {
 ///
 internal struct SQLQueryBuilder {
 
-    private let function: FunctionDeclSyntax
+    let function: FunctionDeclSyntax
 
-    private let parameters: [SQLQueryParameter]
+    let parameters: [SQLQueryParameter]
 
-    private let returnShape: SQLQueryReturnShape
+    let returnShape: SQLQueryReturnShape
 
-    private var rowType: String { returnShape.rowType }
+    var rowType: String { returnShape.rowType }
 
-    private let rewrittenBodyText: String
+    let rewrittenBodyText: String
 
     init(node: AttributeSyntax, declaration: some DeclSyntaxProtocol) throws {
         guard let function = declaration.as(FunctionDeclSyntax.self) else {
@@ -456,18 +456,30 @@ internal struct SQLQueryBuilder {
     /// value-free statement, encodes the parameter values into one immutable
     /// invocation packet, and fetches all rows.
     ///
-    func makeExecutorFunction() -> String {
-        let parameterClause = function.signature.parameterClause.trimmedDescription
-        let resultType: String
-        let fetchCall: String
+    /// The executor's declared result type, derived from the cardinality.
+    var executorResultType: String {
         switch returnShape.cardinality {
         case .many:
-            resultType = "[\(rowType)]"
-            fetchCall = "fetchAll"
+            return "[\(rowType)]"
         case .one:
-            resultType = "\(rowType)?"
-            fetchCall = "fetchOne"
+            return "\(rowType)?"
         }
+    }
+
+    /// The request fetch the executor dispatches to.
+    var fetchCallName: String {
+        switch returnShape.cardinality {
+        case .many:
+            return "fetchAll"
+        case .one:
+            return "fetchOne"
+        }
+    }
+
+    func makeExecutorFunction() -> String {
+        let parameterClause = function.signature.parameterClause.trimmedDescription
+        let resultType = executorResultType
+        let fetchCall = fetchCallName
         var lines: [String] = []
         lines.append("\(modifierPrefix)func \(executorFunctionName)\(parameterClause) throws -> \(resultType) {")
         lines.append("    let __xlStatement = \(statementFunctionName)()")

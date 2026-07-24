@@ -27,3 +27,19 @@ public macro SQLResult() = #externalMacro(module: "SQLMacros", type: "SQLResultM
 ///
 @attached(peer, names: arbitrary)
 public macro SQLQuery() = #externalMacro(module: "SQLMacros", type: "SQLQueryMacro")
+
+///
+/// Defines the `@SQLQueries` macro.
+///
+/// Spike (#369, container encoding): attaches to a database extension holding
+/// a nested `Query` container of specification functions, and generates the
+/// executors as members of the database — a connection-scoped `Context` with
+/// one executor per specification, an `execute(_:)` entry point, and one
+/// database-level convenience executor per specification (sugar over
+/// `execute`). Executors carry the specification's own name; the `Query`
+/// container is never referenced by generated code, so it may be declared
+/// `private` to hide the trapping specs from the visible API. Generated names
+/// are provisional while #26 settles the packaging decision.
+///
+@attached(member, names: arbitrary)
+public macro SQLQueries() = #externalMacro(module: "SQLMacros", type: "SQLQueriesMacro")
