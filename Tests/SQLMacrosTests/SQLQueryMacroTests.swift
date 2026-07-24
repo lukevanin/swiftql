@@ -945,4 +945,302 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
             macros: makeTestMacros()
         )
     }
+
+    // MARK: - Frozen-literal guard (#360)
+
+    ///
+    /// A collection parameter would render a variable-length `IN` list, so the
+    /// SQL text changes with the element count and the render-once cache breaks.
+    ///
+    func test_collectionParameter_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func peopleByNames(names: [String]) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == names)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func peopleByNames(names: [String]) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == names)
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQuery' cannot bind the array parameter 'names' to a single named placeholder. A variable-length list renders SQL whose text changes with the element count, which breaks the stable-SQL premise the prepared query relies on. Spell the elements in the statement with the 'in(_:)' expression forms, or pass a fixed set of scalar parameters.",
+                    line: 3,
+                    column: 31
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// A parameter inside a string interpolation renders its value into the
+    /// string rather than binding a placeholder.
+    ///
+    func test_stringInterpolationParameter_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func personByName(name: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == "prefix\\(name)")
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func personByName(name: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == "prefix\\(name)")
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'name' is used inside a string interpolation in the '@SQLQuery' body, which renders its value into the string rather than binding a placeholder. Build the value into the statement with a comparison against a column, not an interpolated string.",
+                    line: 8,
+                    column: 43
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// A parameter captured by a nested closure escapes the rewrite, which only
+    /// reaches the statement builder itself.
+    ///
+    func test_nestedClosureParameter_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func personByName(name: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.tags.contains { $0 == name })
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func personByName(name: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.tags.contains { $0 == name })
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'name' is captured by a nested closure in the '@SQLQuery' body. The rewrite only reaches references in the statement builder itself, so a value captured deeper can escape into the cached SQL as a frozen literal. Reference the parameter directly in the statement.",
+                    line: 8,
+                    column: 48
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// A parameter passed to a helper call is invisible to the rewrite, so its
+    /// value freezes into the cached SQL on the first invocation.
+    ///
+    func test_helperCallArgumentParameter_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func personByName(name: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(matches(name))
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func personByName(name: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(matches(name))
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'name' is passed as an argument to a function call in the '@SQLQuery' body. The rewrite cannot see through the call, so the value would be frozen into the cached SQL on the first invocation. Use the parameter directly as a comparison operand (for example 'column == name') instead of passing it to a helper.",
+                    line: 8,
+                    column: 27
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// A parameter aliased to a local binding escapes the rewrite through the
+    /// alias's later uses.
+    ///
+    func test_aliasedParameter_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func personByName(name: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        let alias = name
+                        Select(person)
+                        From(person)
+                        Where(person.name == alias)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func personByName(name: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        let alias = name
+                        Select(person)
+                        From(person)
+                        Where(person.name == alias)
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'name' is bound to a local variable in the '@SQLQuery' body. The alias's later uses are outside the rewrite's reach, so the value can freeze into the cached SQL. Reference the parameter directly in the statement instead of aliasing it.",
+                    line: 6,
+                    column: 25
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// A hand-constructed binding reference bypasses the signature contract and
+    /// can disagree with the rendered parameter layout.
+    ///
+    func test_manualBindingReference_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func rows(id: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.id == id && person.other == XLNamedBindingReference<String>(name: "x"))
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func rows(id: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.id == id && person.other == XLNamedBindingReference<String>(name: "x"))
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQuery' derives every named binding from the function signature, so 'XLNamedBindingReference' must not be constructed by hand in the body. A hand-built binding can disagree with the rendered parameter layout. Reference the parameter directly and let the macro generate the binding.",
+                    line: 8,
+                    column: 54
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// A parameter never referenced in the body cannot bind a placeholder, and
+    /// the signature-driven rewrite can catch it at the declaration site.
+    ///
+    func test_unusedParameter_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func rows(id: String, unused: Int) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.id == id)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func rows(id: String, unused: Int) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.id == id)
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'unused' is never referenced in the '@SQLQuery' body, so it cannot bind a placeholder. A standalone bindings struct defers this to execution time, but the signature-driven rewrite can catch it here: reference the parameter in the statement, or remove it.",
+                    line: 3,
+                    column: 27
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
 }
