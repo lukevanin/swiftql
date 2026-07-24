@@ -245,6 +245,18 @@ render unchanged.
 
 ### Added
 
+- Added the `#row(...)` freestanding expression macro (issue #20). It builds an ad hoc, unnamed
+  row projection from one to six column expressions without requiring a declared `@SQLResult`
+  type first, mirroring what `Type.columns(...)` already does for a named result: `#row(a)`
+  decodes into `SQLScalarResult`, and `#row(a, b, ...)` (up to six columns) decodes into the new
+  `SQLRow2`...`SQLRow6` types, whose fields are named positionally (`_0`, `_1`, ...). Investigation
+  for this issue found its original premise — replacing `result { SomeResult.SQLReader(...) }` —
+  already stale: that helper is deprecated and superseded by `Type.columns(...)`, which is already
+  minimal and cannot be shortened further while preserving per-property labels (a freestanding
+  macro's parameter labels are fixed at its declaration and cannot vary per call site to match an
+  arbitrary result type's property names). `#row` instead targets the gap that remains: a quick,
+  one-off projection that does not deserve a declared result type.
+
 - Added `INSERT OR ROLLBACK/ABORT/FAIL/IGNORE/REPLACE` through `Insert(_:or:)`
   and the functional `insert(_:or:)`. The conflict algorithm is part of the
   `INSERT` keyword and applies to every uniqueness constraint the statement
