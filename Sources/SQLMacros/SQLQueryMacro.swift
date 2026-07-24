@@ -883,8 +883,12 @@ internal final class SQLQueryFrozenLiteralGuard: SyntaxVisitor {
     override func visit(_ node: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
         // A hand-constructed binding reference bypasses the signature contract:
         // the macro is the sole authority for the placeholder name and type, so
-        // building one by hand can disagree with the rendered layout.
+        // building one by hand can disagree with the rendered layout. A callee
+        // that is itself a parameter of the same name (a function-typed
+        // parameter) is not manual binding construction — it falls to the
+        // compiler like any other callee-is-a-parameter case, so it is skipped.
         if let calleeName = Self.calledBaseName(of: node.calledExpression),
+           !parameterNames.contains(calleeName),
            calleeName == "XLNamedBindingReference" || calleeName == "contextualBinding" {
             diagnostics.append(
                 Diagnostic(
