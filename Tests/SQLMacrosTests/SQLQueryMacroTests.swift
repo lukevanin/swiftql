@@ -1117,10 +1117,10 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
     }
 
     ///
-    /// A parameter aliased to a local binding escapes the rewrite through the
-    /// alias's later uses.
+    /// A parameter used to initialize a local binding escapes the rewrite
+    /// through the binding's later uses.
     ///
-    func test_aliasedParameter_emitsError() {
+    func test_parameterInLocalBindingInitializer_emitsError() {
         assertMacroExpansion(
             """
             extension MyDatabase {
@@ -1151,7 +1151,7 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "'name' is bound to a local variable in the '@SQLQuery' body. The alias's later uses are outside the rewrite's reach, so the value can freeze into the cached SQL. Reference the parameter directly in the statement instead of aliasing it.",
+                    message: "'name' is used to initialize a local binding in the '@SQLQuery' body. The binding's later uses are outside the rewrite's reach, so the value can freeze into the cached SQL. Reference the parameter directly in the statement instead of storing it in a local.",
                     line: 6,
                     column: 25
                 )

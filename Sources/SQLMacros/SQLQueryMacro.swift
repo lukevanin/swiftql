@@ -938,8 +938,8 @@ internal final class SQLQueryFrozenLiteralGuard: SyntaxVisitor {
             diagnostics.append(
                 Diagnostic(
                     node: node,
-                    id: "sqlquery-parameter-aliased",
-                    message: "'\(identifier)' is bound to a local variable in the '\(macroName)' body. The alias's later uses are outside the rewrite's reach, so the value can freeze into the cached SQL. Reference the parameter directly in the statement instead of aliasing it."
+                    id: "sqlquery-parameter-local-binding",
+                    message: "'\(identifier)' is used to initialize a local binding in the '\(macroName)' body. The binding's later uses are outside the rewrite's reach, so the value can freeze into the cached SQL. Reference the parameter directly in the statement instead of storing it in a local."
                 )
             )
             return
