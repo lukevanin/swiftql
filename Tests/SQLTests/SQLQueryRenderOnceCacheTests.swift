@@ -246,7 +246,12 @@ final class XLQueryRenderOnceCacheTests: XCTestCase {
     /// corroborating evidence only.
     ///
     func testRenderOnceVsPerCallRebuildBenchmark() {
-        let iterations = 50_000
+        // Kept small so the benchmark doesn't add noticeable wall-clock time to
+        // the unit-test suite on slower CI runners. The deterministic anchor
+        // (render count) is exact at any iteration count; a few thousand calls
+        // is already enough for the per-call rebuild cost to dominate visibly
+        // in the corroborating timing.
+        let iterations = 3_000
 
         // Deterministic anchor: render-once renders exactly once for N calls.
         let cache = XLRenderOnceCache<TestTable>()
