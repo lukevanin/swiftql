@@ -193,3 +193,46 @@ extension XLDeleteStatement {
         )
     }
 }
+
+
+///
+/// An `UPDATE ... RETURNING` statement.
+///
+public struct XLUpdateReturningStatement<Row>: XLReturningStatement {
+
+    let statement: any XLEncodable
+
+    let returning: Returning<Row>
+
+    public func makeSQL(context: inout XLBuilder) {
+        statement.makeSQL(context: &context)
+    }
+
+    public func readRow(reader: XLRowReader) throws -> Row {
+        try returning.readRow(reader: reader)
+    }
+}
+
+
+extension XLUpdateStatement {
+
+    ///
+    /// Appends a `RETURNING` clause projecting the given result metadata, turning
+    /// the update into a fetchable statement that yields the updated rows.
+    ///
+    /// ```swift
+    /// let updated: [TestTable] = try database.makeRequest(
+    ///     with: update(t).set { $0.value = 99 }.where(t.id == "a").returning(projection)
+    /// ).fetchAll()
+    /// ```
+    ///
+    /// Requires SQLite 3.35.0 or later.
+    ///
+    public func returning<T>(_ result: T) -> XLUpdateReturningStatement<T.Row> where T: XLRowReadable {
+        let clause = Returning<T.Row>(result)
+        return XLUpdateReturningStatement(
+            statement: components.appending(clause),
+            returning: clause
+        )
+    }
+}

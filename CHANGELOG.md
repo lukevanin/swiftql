@@ -23,11 +23,14 @@
   observable as a live query. Requires SQLite 3.35.0.
 - Added `DELETE ... RETURNING` through the same `returning(_:)` clause on delete
   statements, yielding the deleted rows. Requires SQLite 3.35.0.
-- Recorded the new conflict-resolution, replace, upsert, insert-returning, and
-  delete-returning surfaces in the #190
-  canonical SQLite conformance inventory. It records 110 public-surface feature records: 102
+- Added `UPDATE ... RETURNING` through the same `returning(_:)` clause on update
+  statements, yielding the updated rows. This completes RETURNING for INSERT,
+  UPDATE, and DELETE. Requires SQLite 3.35.0.
+- Recorded the new conflict-resolution, replace, upsert, and RETURNING
+  (insert, delete, update) surfaces in the #190
+  canonical SQLite conformance inventory. It records 110 public-surface feature records: 103
   supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-  5 unimplemented. Of the 158 evidence records, 98 exercise real SQLite and
+  4 unimplemented. Of the 160 evidence records, 99 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
 ### Migration
