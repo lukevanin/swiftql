@@ -99,22 +99,22 @@ extension XLSimpleSelectQueryStatement {
     
     // MARK: Union
     
-    public func union(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> where Row: XLResult, Row.MetaResult: XLRowReadable, Row.MetaResult.Row == Row {
+    public func union(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> {
         let union = BooleanClause<Row>(kind: .union, lhs: components, rhs: statement().components)
         return XLQueryUnionStatement(components: XLQueryStatementComponents(reader: union, components: [union]))
     }
-    
-    public func unionAll(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> where Row: XLResult, Row.MetaResult: XLRowReadable, Row.MetaResult.Row == Row {
+
+    public func unionAll(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> {
         let union = BooleanClause<Row>(kind: .unionAll, lhs: components, rhs: statement().components)
         return XLQueryUnionStatement(components: XLQueryStatementComponents(reader: union, components: [union]))
     }
-    
-    public func intersect(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> where Row: XLResult, Row.MetaResult: XLRowReadable, Row.MetaResult.Row == Row {
+
+    public func intersect(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> {
         let union = BooleanClause<Row>(kind: .intersect, lhs: components, rhs: statement().components)
         return XLQueryUnionStatement(components: XLQueryStatementComponents(reader: union, components: [union]))
     }
-    
-    public func except(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> where Row: XLResult, Row.MetaResult: XLRowReadable, Row.MetaResult.Row == Row {
+
+    public func except(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> {
         let union = BooleanClause<Row>(kind: .except, lhs: components, rhs: statement().components)
         return XLQueryUnionStatement(components: XLQueryStatementComponents(reader: union, components: [union]))
     }

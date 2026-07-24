@@ -83,6 +83,16 @@ public struct QueryBuilder<Row> {
             $0.commonTables.append(commonTable.definition)
         }
     }
+
+    ///
+    /// Appends a raw common-table definition. Used by scalar common table
+    /// support, whose definition is not carried by an `XLMetaCommonTable`.
+    ///
+    func with(commonTableDefinition definition: XLCommonTableDependency) -> QueryBuilder {
+        copy {
+            $0.commonTables.append(definition)
+        }
+    }
     
     ///
     /// Adds a from clause to the query.

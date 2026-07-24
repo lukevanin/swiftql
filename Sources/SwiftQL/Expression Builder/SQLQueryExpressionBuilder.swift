@@ -86,8 +86,8 @@ import Foundation
     ///
     /// Constructs a Select expression with a partial union.
     ///
-    public static func buildPartialBlock<Statement>(accumulated: XLQueryPartialUnion<Statement>, next: Select<Statement.Row>) -> XLQuerySelectStatement<Statement.Row> where Statement: XLSimpleSelectQueryStatement, Statement.Row: XLResult, Statement.Row.MetaResult: XLRowReadable, Statement.Row.MetaResult.Row == Statement.Row {
-        let union = BooleanClause(kind: accumulated.kind, lhs: accumulated.query, rhs: next)
+    public static func buildPartialBlock<Statement>(accumulated: XLQueryPartialUnion<Statement>, next: Select<Statement.Row>) -> XLQuerySelectStatement<Statement.Row> where Statement: XLSimpleSelectQueryStatement {
+        let union = BooleanClause(kind: accumulated.kind, lhs: accumulated.query.components, rhs: next)
         return XLQuerySelectStatement(components: XLQueryStatementComponents(reader: union, components: [union]))
     }
     

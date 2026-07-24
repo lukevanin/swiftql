@@ -667,18 +667,22 @@ public struct XLiteCommonTablesBuilder: XLCommonTablesBuilder {
     }
 
     public mutating func commonTable(alias: XLName, expression: (inout XLBuilder) -> Void) {
-        commonTable(alias: alias, materialization: .unspecified, expression: expression)
+        commonTable(alias: alias, materialization: .unspecified, columns: [], expression: expression)
     }
 
     public mutating func commonTable(
         alias: XLName,
         materialization: XLCommonTableMaterialization,
+        columns: [XLName],
         expression: (inout XLBuilder) -> Void
     ) {
         var builder: XLBuilder = XLiteBuilder(formatter: formatter)
         expression(&builder)
         let hint = materialization.keyword.map { " " + $0 } ?? ""
-        _tokens.append(formatter.name(alias.rawValue) + " AS" + hint + " (" + builder.build() + ")")
+        let columnList = columns.isEmpty
+            ? ""
+            : "(" + columns.map { formatter.name($0.rawValue) }.joined(separator: XLSeparator.list.rawValue) + ")"
+        _tokens.append(formatter.name(alias.rawValue) + columnList + " AS" + hint + " (" + builder.build() + ")")
         _entities.formUnion(builder.entities())
     }
 }
