@@ -378,7 +378,13 @@ public protocol XLDatabase {
     /// Constructs a prepared query request from a query statement.
     ///
     func makeRequest<Row>(with statement: any XLQueryStatement<Row>) -> any XLRequest<Row>
-    
+
+    ///
+    /// Constructs a prepared, row-readable request from a data-changing statement
+    /// that carries a `RETURNING` clause.
+    ///
+    func makeRequest<Row>(with statement: any XLReturningStatement<Row>) -> any XLRequest<Row>
+
     ///
     /// Constructs a prepared update request from an update statement.
     ///
