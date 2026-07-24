@@ -48,8 +48,13 @@ extension SQLQueryMacro: PeerMacro {
 ///
 internal struct SQLQueryParameter {
 
-    /// The internal parameter name. Doubles as the SQL placeholder name.
-    var name: String
+    /// The internal parameter name exactly as written, including any escaping
+    /// backticks. Used where generated code passes the parameter value.
+    var swiftName: String
+
+    /// The internal parameter name without escaping backticks. Doubles as the
+    /// SQL placeholder name and as the rewrite-matching key.
+    var placeholderName: String
 
     /// The type annotation exactly as written in the signature.
     var type: String
@@ -57,8 +62,20 @@ internal struct SQLQueryParameter {
     /// The typed named-binding reference that replaces every reference to the
     /// parameter inside the statement body.
     var bindingReference: String {
-        "XLNamedBindingReference<\(type)>(name: \"\(name)\")"
+        "XLNamedBindingReference<\(type)>(name: \"\(placeholderName)\")"
     }
+}
+
+
+///
+/// Removes the escaping backticks from an identifier spelling, so escaped and
+/// unescaped references to the same declaration compare equal.
+///
+internal func normalizedIdentifier(_ text: String) -> String {
+    guard text.count >= 2, text.hasPrefix("`"), text.hasSuffix("`") else {
+        return text
+    }
+    return String(text.dropFirst().dropLast())
 }
 
 
@@ -89,6 +106,19 @@ internal struct SQLQueryBuilder {
         self.function = function
 
         var diagnostics: [Diagnostic] = []
+
+        if let typeLevelModifier = function.modifiers.first(where: { modifier in
+            modifier.name.tokenKind == .keyword(.static)
+                || modifier.name.tokenKind == .keyword(.class)
+        }) {
+            diagnostics.append(
+                Diagnostic(
+                    node: typeLevelModifier,
+                    id: "sqlquery-instance-method-only",
+                    message: "'@SQLQuery' can only be applied to an instance method. The generated executor prepares its request through 'self.makeRequest(with:)'."
+                )
+            )
+        }
 
         if let genericParameterClause = function.genericParameterClause {
             diagnostics.append(
@@ -126,6 +156,10 @@ internal struct SQLQueryBuilder {
             )
             throw DiagnosticsError(diagnostics: diagnostics)
         }
+
+        let shadowingVisitor = SQLQueryShadowingVisitor(parameters: parameters)
+        shadowingVisitor.walk(body)
+        diagnostics.append(contentsOf: shadowingVisitor.diagnostics)
 
         guard diagnostics.isEmpty else {
             throw DiagnosticsError(diagnostics: diagnostics)
@@ -206,7 +240,8 @@ internal struct SQLQueryBuilder {
             }
             parameters.append(
                 SQLQueryParameter(
-                    name: name.text,
+                    swiftName: name.text,
+                    placeholderName: normalizedIdentifier(name.text),
                     type: parameter.type.trimmedDescription
                 )
             )
@@ -308,7 +343,7 @@ internal struct SQLQueryBuilder {
             lines.append("        layout: __xlLayout,")
             lines.append("        bindings: [")
             for parameter in parameters {
-                lines.append("            _xlQueryParameterBinding(\(parameter.name), named: \"\(parameter.name)\", in: __xlLayout),")
+                lines.append("            _xlQueryParameterBinding(\(parameter.swiftName), named: \"\(parameter.placeholderName)\", in: __xlLayout),")
             }
             lines.append("        ]")
             lines.append("    ).validatingComplete()")
@@ -335,14 +370,14 @@ internal final class SQLQueryParameterRewriter: SyntaxRewriter {
     init(parameters: [SQLQueryParameter]) {
         var replacements: [String: String] = [:]
         for parameter in parameters {
-            replacements[parameter.name] = parameter.bindingReference
+            replacements[parameter.placeholderName] = parameter.bindingReference
         }
         self.replacements = replacements
         super.init()
     }
 
     override func visit(_ node: DeclReferenceExprSyntax) -> ExprSyntax {
-        guard let replacement = replacements[node.baseName.text] else {
+        guard let replacement = replacements[normalizedIdentifier(node.baseName.text)] else {
             return ExprSyntax(node)
         }
         var expression = ExprSyntax("\(raw: replacement)")
@@ -356,5 +391,62 @@ internal final class SQLQueryParameterRewriter: SyntaxRewriter {
             return ExprSyntax(node)
         }
         return ExprSyntax(node.with(\.base, visit(base)))
+    }
+}
+
+
+///
+/// Rejects declarations inside the attached body that shadow a query
+/// parameter.
+///
+/// The rewrite is lexical: every expression reference whose name matches a
+/// parameter becomes a named binding. A local binding, closure parameter, or
+/// nested function parameter with the same name would make those references
+/// mean something else, so the collision is reported instead of silently
+/// rewriting the shadowed uses.
+///
+internal final class SQLQueryShadowingVisitor: SyntaxVisitor {
+
+    private let parameterNames: Set<String>
+
+    private(set) var diagnostics: [Diagnostic] = []
+
+    init(parameters: [SQLQueryParameter]) {
+        self.parameterNames = Set(parameters.map(\.placeholderName))
+        super.init(viewMode: .sourceAccurate)
+    }
+
+    override func visit(_ node: IdentifierPatternSyntax) -> SyntaxVisitorContinueKind {
+        check(node.identifier)
+        return .visitChildren
+    }
+
+    override func visit(_ node: ClosureShorthandParameterSyntax) -> SyntaxVisitorContinueKind {
+        check(node.name)
+        return .visitChildren
+    }
+
+    override func visit(_ node: ClosureParameterSyntax) -> SyntaxVisitorContinueKind {
+        check(node.secondName ?? node.firstName)
+        return .visitChildren
+    }
+
+    override func visit(_ node: FunctionParameterSyntax) -> SyntaxVisitorContinueKind {
+        check(node.secondName ?? node.firstName)
+        return .visitChildren
+    }
+
+    private func check(_ name: TokenSyntax) {
+        let identifier = normalizedIdentifier(name.text)
+        guard parameterNames.contains(identifier) else {
+            return
+        }
+        diagnostics.append(
+            Diagnostic(
+                node: name,
+                id: "sqlquery-shadowed-parameter",
+                message: "'\(identifier)' shadows a query parameter inside the '@SQLQuery' body. The macro rewrites every reference to '\(identifier)' into a named binding, so a shadowing declaration would change what those references mean. Rename the declaration."
+            )
+        )
     }
 }

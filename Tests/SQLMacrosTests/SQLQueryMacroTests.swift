@@ -238,6 +238,59 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
         )
     }
 
+    func test_backtickedParameter_stripsEscapingFromPlaceholderName() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func rowsForKind(`class`: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.kind == `class`)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func rowsForKind(`class`: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.kind == `class`)
+                    }
+                }
+
+                func rowsForKindStatement() -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.kind == XLNamedBindingReference<String>(name: "class"))
+                    }
+                }
+
+                func fetchRowsForKind(`class`: String) throws -> [Person] {
+                    let __xlStatement = rowsForKindStatement()
+                    let __xlRequest = self.makeRequest(with: __xlStatement)
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            _xlQueryParameterBinding(`class`, named: "class", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
     func test_zeroParameters_generatesEmptyPacketExecutor() {
         assertMacroExpansion(
             """
@@ -447,6 +500,118 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
                     message: "'@SQLQuery' cannot be applied to a generic function. The generated statement builder takes no arguments, so generic parameters cannot be inferred.",
                     line: 3,
                     column: 14
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    func test_staticFunction_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                static func allPeople() -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                static func allPeople() -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQuery' can only be applied to an instance method. The generated executor prepares its request through 'self.makeRequest(with:)'.",
+                    line: 3,
+                    column: 5
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    func test_shadowingLocalBinding_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func personByName(name: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        let name = "frozen"
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func personByName(name: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        let name = "frozen"
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'name' shadows a query parameter inside the '@SQLQuery' body. The macro rewrites every reference to 'name' into a named binding, so a shadowing declaration would change what those references mean. Rename the declaration.",
+                    line: 6,
+                    column: 17
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    func test_shadowingClosureParameter_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func personByName(name: String) -> any XLQueryStatement<Person> {
+                    sql { name in
+                        let person = name.table(Person.self)
+                        Select(person)
+                        From(person)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func personByName(name: String) -> any XLQueryStatement<Person> {
+                    sql { name in
+                        let person = name.table(Person.self)
+                        Select(person)
+                        From(person)
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'name' shadows a query parameter inside the '@SQLQuery' body. The macro rewrites every reference to 'name' into a named binding, so a shadowing declaration would change what those references mean. Rename the declaration.",
+                    line: 4,
+                    column: 15
                 )
             ],
             macros: makeTestMacros()
