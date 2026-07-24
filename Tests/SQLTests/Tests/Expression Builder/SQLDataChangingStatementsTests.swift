@@ -157,6 +157,34 @@ final class XLDataChangingStatementsTests: XCTestCase {
         )
     }
 
+    // MARK: - INSERT ... RETURNING
+
+    func testInsertValuesReturning() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let expression = insert(t)
+            .values(instanceValues())
+            .returning(t)
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "INSERT INTO Test AS t0 (id,value) VALUES ('foo',42) RETURNING id, value"
+        )
+    }
+
+    func testInsertOnConflictReturning() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let expression = insert(t)
+            .values(instanceValues())
+            .onConflictDoNothing("id")
+            .returning(t)
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "INSERT INTO Test AS t0 (id,value) VALUES ('foo',42) ON CONFLICT (id) DO NOTHING RETURNING id, value"
+        )
+    }
+
+
     /// The `excluded` pseudo table renders as the bare `excluded` keyword when
     /// used as a table source — never as the aliased base table — so accidental
     /// use outside an upsert produces `FROM excluded`, which SQLite rejects,

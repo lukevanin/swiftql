@@ -2323,6 +2323,64 @@
       "environment_ids": [
         "sqlite-3.51.0-macos-arm64"
       ]
+    },
+    {
+      "id": "evidence.syntax.dml.render-insert-returning",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testInsertValuesReturning",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.render-insert-on-conflict-returning",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testInsertOnConflictReturning",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-insert-returning",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testInsertReturningYieldsInsertedRow",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-upsert-returning",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testUpsertDoUpdateReturningYieldsUpdatedRow",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
     }
   ],
   "suites": [
@@ -6301,20 +6359,71 @@
       "provenance": []
     },
     {
+      "id": "syntax.dml.insert-returning",
+      "kind": "syntax",
+      "family": "dml",
+      "title": "INSERT ... RETURNING clause",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Returning",
+          "source_path": "Sources/SwiftQL/Statements/SQLReturningStatement.swift",
+          "source_tokens": [
+            "Returning"
+          ]
+        },
+        {
+          "symbol": "XLInsertReturningStatement",
+          "source_path": "Sources/SwiftQL/Statements/SQLReturningStatement.swift",
+          "source_tokens": [
+            "XLInsertReturningStatement"
+          ]
+        },
+        {
+          "symbol": "returning(_:)",
+          "source_path": "Sources/SwiftQL/Statements/SQLReturningStatement.swift",
+          "source_tokens": [
+            "returning"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_returning.html",
+        "https://www.sqlite.org/lang_insert.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.35.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A generated result projection supplies the returned column layout and row decoder."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.dml.render-insert-returning",
+        "evidence.syntax.dml.render-insert-on-conflict-returning",
+        "evidence.syntax.dml.sqlite-insert-returning",
+        "evidence.syntax.dml.sqlite-upsert-returning"
+      ],
+      "deviations": [
+        "SQLite rejects statement-aliased identifiers in a RETURNING list, so the returned columns are rendered as bare unqualified names.",
+        "A RETURNING statement executes on a write connection inside a transaction and is not observable as a live query; publishing one fails with XLReturningRequestError.observationUnsupported."
+      ],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": []
+    },
+    {
       "id": "syntax.dml.returning-gap",
       "kind": "syntax",
       "family": "dml",
-      "title": "INSERT, UPDATE, and DELETE RETURNING clauses",
+      "title": "UPDATE and DELETE RETURNING clauses",
       "status": "unimplemented",
       "adoption_status": "syntax-gated",
       "public_api": [
-        {
-          "symbol": "XLInsertStatement",
-          "source_path": "Sources/SwiftQL/Statements/SQLInsertStatement.swift",
-          "source_tokens": [
-            "XLInsertStatement"
-          ]
-        },
         {
           "symbol": "XLUpdateStatement",
           "source_path": "Sources/SwiftQL/Statements/SQLUpdateStatement.swift",
@@ -6345,17 +6454,16 @@
       ],
       "evidence_ids": [],
       "deviations": [
-        "The current DML statement protocols are write-only and do not expose RETURNING rows."
+        "The UPDATE and DELETE statement protocols are write-only and do not yet expose RETURNING rows. INSERT ... RETURNING shipped in issue #57 (syntax.dml.insert-returning)."
       ],
       "follow_up_issues": [
         53,
-        57,
         58
       ],
       "deferral": {
-        "blocking_issue": 57,
+        "blocking_issue": 53,
         "target_milestone": "v1.4",
-        "reason": "Issue #57 is the first atomic RETURNING implementation; #53 and #58 cover DELETE and UPDATE."
+        "reason": "Issue #57 shipped INSERT ... RETURNING and the shared clause mechanism; #53 and #58 extend it to DELETE and UPDATE."
       },
       "provenance": []
     },

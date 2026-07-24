@@ -5,6 +5,11 @@
 //
 
 import Foundation
+#if canImport(Combine)
+import Combine
+#else
+import OpenCombine
+#endif
 import XCTest
 import GRDB
 import SwiftQL
@@ -130,6 +135,76 @@ final class XLDataChangingExecutionTests: XCTestCase {
         try database.makeRequest(with: statement).execute()
 
         XCTAssertEqual(try allTestRows(), [TestTable(id: "a", value: 1)])
+    }
+
+    // MARK: - INSERT ... RETURNING
+
+    func testInsertReturningYieldsInsertedRow() throws {
+        try createUniqueTestTable()
+
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let statement = insert(t)
+            .values(TestTable.MetaInsert(TestTable(id: "a", value: 1)))
+            .returning(t)
+
+        let returned: [TestTable] = try database.makeRequest(with: statement).fetchAll()
+
+        XCTAssertEqual(returned, [TestTable(id: "a", value: 1)])
+        XCTAssertEqual(try allTestRows(), [TestTable(id: "a", value: 1)])
+    }
+
+    func testUpsertDoUpdateReturningYieldsUpdatedRow() throws {
+        try createUniqueTestTable()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 1))).execute()
+
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let excluded = schema.excluded(TestTable.self)
+        let statement = insert(t)
+            .values(TestTable.MetaInsert(TestTable(id: "a", value: 5)))
+            .onConflict("id", doUpdate: { row in row.value = excluded.value })
+            .returning(t)
+
+        // RETURNING reports the row as it exists after the upsert applies.
+        let returned: [TestTable] = try database.makeRequest(with: statement).fetchAll()
+
+        XCTAssertEqual(returned, [TestTable(id: "a", value: 5)])
+        XCTAssertEqual(try allTestRows(), [TestTable(id: "a", value: 5)])
+    }
+
+    func testInsertReturningIsNotObservable() throws {
+        try createUniqueTestTable()
+
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let statement = insert(t)
+            .values(TestTable.MetaInsert(TestTable(id: "a", value: 1)))
+            .returning(t)
+        let request = database.makeRequest(with: statement)
+
+        // A data-changing statement executes once; observing it would re-run the
+        // insert on every database change, so publishing must fail instead.
+        let failed = expectation(description: "publisher fails")
+        var receivedError: Error?
+        let cancellable = request.publish().sink(
+            receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    receivedError = error
+                    failed.fulfill()
+                }
+            },
+            receiveValue: { _ in }
+        )
+        wait(for: [failed], timeout: 1.0)
+        cancellable.cancel()
+
+        XCTAssertEqual(
+            receivedError as? XLReturningRequestError,
+            .observationUnsupported
+        )
+        // The failed observation must not have executed the insert.
+        XCTAssertEqual(try allTestRows(), [])
     }
 
     func testUpsertDoUpdateWithWhereOnlyUpdatesQualifyingRows() throws {

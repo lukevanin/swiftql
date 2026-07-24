@@ -14,10 +14,18 @@
   functional `onConflict`/`onConflictDoNothing` methods, and `XLSchema.excluded`
   for referencing the proposed row. Both `DO NOTHING` and `DO UPDATE SET ...`
   (with an optional `WHERE` filter) forms are covered.
-- Recorded the new conflict-resolution, replace, and upsert surfaces in the #190
-  canonical SQLite conformance inventory. It records 108 public-surface feature records: 100
+- Added `INSERT ... RETURNING` through the `Returning` clause and the
+  `returning(_:)` method on insert statements (including `ON CONFLICT` upserts).
+  A returning statement is fetchable — `makeRequest(with:).fetchAll()` yields the
+  affected rows projected through the supplied result. SQLite rejects
+  statement-aliased names in `RETURNING`, so the returned columns render
+  unqualified; the statement executes on a write connection and is not
+  observable as a live query. Requires SQLite 3.35.0.
+- Recorded the new conflict-resolution, replace, upsert, and insert-returning
+  surfaces in the #190
+  canonical SQLite conformance inventory. It records 109 public-surface feature records: 101
   supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-  5 unimplemented. Of the 152 evidence records, 95 exercise real SQLite and
+  5 unimplemented. Of the 156 evidence records, 97 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
 ### Migration
