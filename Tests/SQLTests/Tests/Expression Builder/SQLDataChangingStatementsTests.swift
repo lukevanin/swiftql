@@ -185,6 +185,22 @@ final class XLDataChangingStatementsTests: XCTestCase {
     }
 
 
+    // MARK: - DELETE ... RETURNING
+
+    func testDeleteReturning() {
+        let schema = XLSchema()
+        let t = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let expression = delete(t)
+            .where(t.value == 42)
+            .returning(projection)
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "DELETE FROM Test AS t0 WHERE (t0.value == 42) RETURNING id, value"
+        )
+    }
+
+
     /// The `excluded` pseudo table renders as the bare `excluded` keyword when
     /// used as a table source — never as the aliased base table — so accidental
     /// use outside an upsert produces `FROM excluded`, which SQLite rejects,
