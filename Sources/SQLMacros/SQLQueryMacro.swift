@@ -39,6 +39,7 @@ extension SQLQueryMacro: PeerMacro {
         let builder = try SQLQueryBuilder(node: node, declaration: declaration)
         return [
             DeclSyntax(stringLiteral: builder.makeStatementFunction()),
+            DeclSyntax(stringLiteral: builder.makeRenderOnceCacheDeclaration()),
             DeclSyntax(stringLiteral: builder.makeExecutorFunction()),
         ]
     }
@@ -221,6 +222,41 @@ internal struct SQLQueryBuilder {
             let memberAccessVisitor = SQLQueryParameterMemberAccessVisitor(parameters: parameters, macroName: macroName)
             memberAccessVisitor.walk(body)
             diagnostics.append(contentsOf: memberAccessVisitor.diagnostics)
+
+            // Run the strict reference checks only on an otherwise-valid
+            // declaration: a structural, parameter, return-type, shadowing, or
+            // member-access problem already reported means the body cannot be
+            // analyzed cleanly, so piling on frozen-literal diagnostics would
+            // just add noise.
+            if diagnostics.isEmpty {
+                // With shadowing and member access clean, every remaining
+                // reference to a parameter must sit in a position the rewrite
+                // can turn into a named binding. The frozen-literal guard
+                // reports the reference shapes that would otherwise let a value
+                // escape the rewrite and freeze into the cached SQL text (#360),
+                // and records which parameters were actually referenced so an
+                // unused parameter can be flagged too.
+                let frozenLiteralGuard = SQLQueryFrozenLiteralGuard(parameters: parameters, macroName: macroName)
+                frozenLiteralGuard.walk(body)
+                diagnostics.append(contentsOf: frozenLiteralGuard.diagnostics)
+
+                let bindableNames = Set(parameters.map(\.placeholderName))
+                for signatureParameter in function.signature.parameterClause.parameters {
+                    let nameToken = signatureParameter.secondName ?? signatureParameter.firstName
+                    let normalized = normalizedIdentifier(nameToken.text)
+                    guard bindableNames.contains(normalized),
+                          !frozenLiteralGuard.referencedParameterNames.contains(normalized) else {
+                        continue
+                    }
+                    diagnostics.append(
+                        Diagnostic(
+                            node: nameToken,
+                            id: "sqlquery-unused-parameter",
+                            message: "'\(normalized)' is never referenced in the '\(macroName)' body, so it cannot bind a placeholder. A standalone bindings struct defers this to execution time, but the signature-driven rewrite can catch it here: reference the parameter in the statement, or remove it."
+                        )
+                    )
+                }
+            }
         }
 
         guard diagnostics.isEmpty else {
@@ -349,6 +385,21 @@ internal struct SQLQueryBuilder {
                 )
                 continue
             }
+            if let collection = collectionDescription(of: parameter.type) {
+                // A collection parameter would render a variable-length `IN`
+                // list, so the SQL text changes with the element count. That
+                // breaks the stable-SQL premise the render-once prepared query
+                // depends on (#360, #361), and a single named placeholder cannot
+                // bind a list, so the shape is rejected at the declaration site.
+                diagnostics.append(
+                    Diagnostic(
+                        node: parameter.type,
+                        id: "sqlquery-collection-parameter",
+                        message: "'\(macroName)' cannot bind the \(collection) parameter '\(normalizedIdentifier(name.text))' to a single named placeholder. A variable-length list renders SQL whose text changes with the element count, which breaks the stable-SQL premise the prepared query relies on. Spell the elements in the statement with the 'in(_:)' expression forms, or pass a fixed set of scalar parameters."
+                    )
+                )
+                continue
+            }
             parameters.append(
                 SQLQueryParameter(
                     swiftName: name.text,
@@ -446,6 +497,58 @@ internal struct SQLQueryBuilder {
         return arguments.arguments.first?.argument.trimmedDescription
     }
 
+    ///
+    /// Describes a parameter type that spells a collection form (`[T]`,
+    /// `[K: V]`, `Array<…>`, `Set<…>`, `Dictionary<…>`), peeling one layer of
+    /// optionality. Returns `nil` for scalar types. A single leading optional is
+    /// unwrapped so `[T]?` (and the `[T]!` / `Optional<[T]>` spellings) is still
+    /// recognized as a collection.
+    ///
+    private static func collectionDescription(of type: TypeSyntax) -> String? {
+        let type = unwrappingSingleOptional(type.trimmed)
+        if type.is(ArrayTypeSyntax.self) {
+            return "array"
+        }
+        if type.is(DictionaryTypeSyntax.self) {
+            return "dictionary"
+        }
+        if let (name, arguments) = genericConstraint(of: type), arguments != nil {
+            switch name {
+            case "Array":
+                return "array"
+            case "Set":
+                return "set"
+            case "Dictionary":
+                return "dictionary"
+            default:
+                return nil
+            }
+        }
+        return nil
+    }
+
+    ///
+    /// Unwraps a single layer of optionality in any spelling — postfix `T?`,
+    /// implicitly-unwrapped `T!`, and generic `Optional<T>` / `Swift.Optional<T>`
+    /// — so an optional collection is still recognized as a collection.
+    ///
+    private static func unwrappingSingleOptional(_ type: TypeSyntax) -> TypeSyntax {
+        if let optional = type.as(OptionalTypeSyntax.self) {
+            return optional.wrappedType.trimmed
+        }
+        if let unwrapped = type.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) {
+            return unwrapped.wrappedType.trimmed
+        }
+        if let (name, arguments) = genericConstraint(of: type),
+           name == "Optional",
+           let arguments,
+           arguments.arguments.count == 1,
+           let inner = arguments.arguments.first?.argument.as(TypeSyntax.self) {
+            return inner.trimmed
+        }
+        return type
+    }
+
     private var modifierPrefix: String {
         let modifiers = function.modifiers.trimmedDescription
         if modifiers.isEmpty {
@@ -460,6 +563,20 @@ internal struct SQLQueryBuilder {
 
     private var executorFunctionName: String {
         "fetch\(function.name.text.prefix(1).uppercased())\(function.name.text.dropFirst())"
+    }
+
+    private var renderOnceCacheName: String {
+        "__xl\(function.name.text.prefix(1).uppercased())\(function.name.text.dropFirst())Cache"
+    }
+
+    ///
+    /// Generates the per-declaration render-once cache. It is a `static` peer so
+    /// one cache is shared across every invocation of the specification, letting
+    /// the executor render the statement once per database/dialect and reuse the
+    /// request (spike #361).
+    ///
+    func makeRenderOnceCacheDeclaration() -> String {
+        "private static let \(renderOnceCacheName) = XLRenderOnceCache<\(rowType)>()"
     }
 
     ///
@@ -514,8 +631,9 @@ internal struct SQLQueryBuilder {
         let fetchCall = fetchCallName
         var lines: [String] = []
         lines.append("\(modifierPrefix)func \(executorFunctionName)\(parameterClause) throws -> \(resultType) {")
-        lines.append("    let __xlStatement = \(statementFunctionName)()")
-        lines.append("    let __xlRequest = self.makeRequest(with: __xlStatement)")
+        lines.append("    let __xlRequest = Self.\(renderOnceCacheName).request(for: self) {")
+        lines.append("        \(statementFunctionName)()")
+        lines.append("    }")
         lines.append("    let __xlLayout = __xlRequest.parameterLayout")
         if parameters.isEmpty {
             lines.append("    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()")
@@ -739,5 +857,215 @@ internal final class SQLQueryParameterMemberAccessVisitor: SyntaxVisitor {
             )
         )
         return .visitChildren
+    }
+}
+
+
+///
+/// The frozen-literal guard.
+///
+/// The generated executor renders SQL once per declaration and reuses that
+/// text on every call, so any parameter value that escapes the rewrite is
+/// baked into the cached SQL on the first invocation and every later call
+/// silently returns results for the first call's argument — a silent
+/// wrong-results bug (#360). The rewrite can only turn a parameter reference
+/// into a named binding when the reference sits directly in a query-expression
+/// position (an operand of a comparison such as `column == name`). This guard
+/// reports the reference shapes that place a parameter somewhere the rewrite
+/// cannot reach, so the hazard becomes a declaration-site error instead.
+///
+/// Every parameter reference actually seen is recorded in
+/// ``referencedParameterNames`` so the builder can additionally flag a
+/// parameter that is never referenced at all.
+///
+internal final class SQLQueryFrozenLiteralGuard: SyntaxVisitor {
+
+    private let parameterNames: Set<String>
+
+    private let macroName: String
+
+    private(set) var diagnostics: [Diagnostic] = []
+
+    /// The normalized names of every parameter referenced anywhere in the body,
+    /// including references in hazardous positions.
+    private(set) var referencedParameterNames: Set<String> = []
+
+    init(parameters: [SQLQueryParameter], macroName: String = "@SQLQuery") {
+        self.parameterNames = Set(parameters.map(\.placeholderName))
+        self.macroName = macroName
+        super.init(viewMode: .sourceAccurate)
+    }
+
+    override func visit(_ node: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
+        // A hand-constructed binding reference bypasses the signature contract:
+        // the macro is the sole authority for the placeholder name and type, so
+        // building one by hand can disagree with the rendered layout. A callee
+        // that is itself a parameter of the same name (a function-typed
+        // parameter) is not manual binding construction — it falls to the
+        // compiler like any other callee-is-a-parameter case, so it is skipped.
+        if let calleeName = Self.calledBaseName(of: node.calledExpression),
+           !parameterNames.contains(calleeName),
+           calleeName == "XLNamedBindingReference" || calleeName == "contextualBinding" {
+            diagnostics.append(
+                Diagnostic(
+                    node: Syntax(node.calledExpression),
+                    id: "sqlquery-manual-binding",
+                    message: "'\(macroName)' derives every named binding from the function signature, so '\(calleeName)' must not be constructed by hand in the body. A hand-built binding can disagree with the rendered parameter layout. Reference the parameter directly and let the macro generate the binding."
+                )
+            )
+        }
+        return .visitChildren
+    }
+
+    override func visit(_ node: DeclReferenceExprSyntax) -> SyntaxVisitorContinueKind {
+        let identifier = normalizedIdentifier(node.baseName.text)
+        guard parameterNames.contains(identifier) else {
+            return .visitChildren
+        }
+        // A member name (`person.name`) is not a reference to the parameter, so
+        // it neither counts as a use nor is a hazard — the member-access guard
+        // owns the base-of-member-access case.
+        if let memberAccess = node.parent?.as(MemberAccessExprSyntax.self),
+           memberAccess.declName == node {
+            return .visitChildren
+        }
+        referencedParameterNames.insert(identifier)
+        classify(reference: node, identifier: identifier)
+        return .visitChildren
+    }
+
+    ///
+    /// Reports the first recognized hazardous position for a parameter
+    /// reference. A reference that matches none of these is left for the
+    /// rewrite (typically a comparison operand) and any residual type mismatch
+    /// is caught by the compiler on the generated code.
+    ///
+    private func classify(reference node: DeclReferenceExprSyntax, identifier: String) {
+        if hasAncestor(node, upToEnclosingFunction: { $0.is(ExpressionSegmentSyntax.self) }) {
+            diagnostics.append(
+                Diagnostic(
+                    node: node,
+                    id: "sqlquery-parameter-string-interpolation",
+                    message: "'\(identifier)' is used inside a string interpolation in the '\(macroName)' body, which renders its value into the string rather than binding a placeholder. Build the value into the statement with a comparison against a column, not an interpolated string."
+                )
+            )
+            return
+        }
+        if closureDepth(of: node) >= 2 {
+            diagnostics.append(
+                Diagnostic(
+                    node: node,
+                    id: "sqlquery-parameter-nested-closure",
+                    message: "'\(identifier)' is captured by a nested closure in the '\(macroName)' body. The rewrite only reaches references in the statement builder itself, so a value captured deeper can escape into the cached SQL as a frozen literal. Reference the parameter directly in the statement."
+                )
+            )
+            return
+        }
+        if isDirectCallArgument(node) {
+            diagnostics.append(
+                Diagnostic(
+                    node: node,
+                    id: "sqlquery-parameter-call-argument",
+                    message: "'\(identifier)' is passed as an argument to a function call in the '\(macroName)' body. The rewrite cannot see through the call, so the value would be frozen into the cached SQL on the first invocation. Use the parameter directly as a comparison operand (for example 'column == \(identifier)') instead of passing it to a helper."
+                )
+            )
+            return
+        }
+        if isVariableInitializer(node) {
+            diagnostics.append(
+                Diagnostic(
+                    node: node,
+                    id: "sqlquery-parameter-local-binding",
+                    message: "'\(identifier)' is used to initialize a local binding in the '\(macroName)' body. The binding's later uses are outside the rewrite's reach, so the value can freeze into the cached SQL. Reference the parameter directly in the statement instead of storing it in a local."
+                )
+            )
+            return
+        }
+    }
+
+    ///
+    /// The base identifier of a called expression, peeling a generic
+    /// specialization (`XLNamedBindingReference<String>(…)`) and reading the
+    /// member name of a member-access callee (`x.contextualBinding(…)`).
+    ///
+    private static func calledBaseName(of expression: ExprSyntax) -> String? {
+        if let declReference = expression.as(DeclReferenceExprSyntax.self) {
+            return normalizedIdentifier(declReference.baseName.text)
+        }
+        if let specialization = expression.as(GenericSpecializationExprSyntax.self) {
+            return calledBaseName(of: specialization.expression)
+        }
+        if let memberAccess = expression.as(MemberAccessExprSyntax.self) {
+            return normalizedIdentifier(memberAccess.declName.baseName.text)
+        }
+        return nil
+    }
+
+    ///
+    /// Whether an ancestor up to (but not into) the enclosing specification
+    /// function satisfies the predicate.
+    ///
+    private func hasAncestor(
+        _ node: SyntaxProtocol,
+        upToEnclosingFunction predicate: (Syntax) -> Bool
+    ) -> Bool {
+        var current = node.parent
+        while let ancestor = current {
+            if ancestor.is(FunctionDeclSyntax.self) {
+                return false
+            }
+            if predicate(ancestor) {
+                return true
+            }
+            current = ancestor.parent
+        }
+        return false
+    }
+
+    ///
+    /// The number of closures enclosing the reference within the specification
+    /// function. The statement builder is itself a closure, so a value of one
+    /// is the normal case and two or more means a further-nested closure.
+    ///
+    private func closureDepth(of node: SyntaxProtocol) -> Int {
+        var depth = 0
+        var current = node.parent
+        while let ancestor = current {
+            if ancestor.is(FunctionDeclSyntax.self) {
+                break
+            }
+            if ancestor.is(ClosureExprSyntax.self) {
+                depth += 1
+            }
+            current = ancestor.parent
+        }
+        return depth
+    }
+
+    ///
+    /// Whether the reference is a direct argument expression of a function
+    /// call. A comparison operand's parent is an infix operator expression, and
+    /// a parenthesized operand's argument list belongs to a tuple, so neither is
+    /// mistaken for a call argument.
+    ///
+    private func isDirectCallArgument(_ node: DeclReferenceExprSyntax) -> Bool {
+        guard let labeled = node.parent?.as(LabeledExprSyntax.self),
+              let list = labeled.parent?.as(LabeledExprListSyntax.self) else {
+            return false
+        }
+        return list.parent?.is(FunctionCallExprSyntax.self) == true
+    }
+
+    ///
+    /// Whether the reference is the initializer value of a local `let`/`var`
+    /// binding (`let alias = name`).
+    ///
+    private func isVariableInitializer(_ node: DeclReferenceExprSyntax) -> Bool {
+        hasAncestor(node, upToEnclosingFunction: { ancestor in
+            guard let initializer = ancestor.as(InitializerClauseSyntax.self) else {
+                return false
+            }
+            return initializer.parent?.is(PatternBindingSyntax.self) == true
+        })
     }
 }
