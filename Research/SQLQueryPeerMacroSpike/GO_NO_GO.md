@@ -27,7 +27,7 @@
 
 ### #359 — signature-driven body rewrite (PR #364, merged)
 
-An **attached peer macro** (`@attached(peer)`, the stable role `@SQLTable` uses) reads the attached function's signature *and* body, rewrites every parameter reference to a typed `XLNamedBindingReference<T>` placeholder (type taken from the signature), and generates a value-free statement builder plus an executor. One- and two-parameter and optional-parameter cases compile and execute against GRDB; the rendered SQL is `:name` placeholders with the correct `XLParameterLayout`, no inline value literals. **The Swift-6 body-macro gate #359's encoding was designed to avoid is genuinely avoided.**
+An **attached peer macro** (`@attached(peer)`, the stable role `@SQLTable` uses) reads the attached function's signature *and* body, rewrites every parameter reference to a typed `XLNamedBindingReference<T>` placeholder (type taken from the signature), and generates a value-free statement builder plus an executor. One- and two-parameter and optional-parameter cases compile and execute against GRDB; the rendered SQL is `:name` placeholders with the correct `XLParameterLayout`, no inline value literals. **The Swift-6 body-macro gate that #359's encoding was designed to avoid is genuinely avoided.**
 
 Return-type spelling caveat: the attached function must be written `-> any XLQueryStatement<Row>` (not `some`), because the existing `sql {}` entry point erases to an existential — a `some` return fails to compile on the user's own function, independent of the macro.
 
@@ -62,7 +62,7 @@ A peer macro cannot replace or annotate the attached declaration, so the written
 
 **Mitigation for v1.5.1:** the container encoding. Declaring the `Query` container `private` removes the trapping specs from the visible API surface entirely — the strongest mitigation available without body macros.
 
-**Literal elimination is a v2 / gated-preview item.** [SE-0415 Function Body Macros](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0415-function-body-macros.md) is the *only* way to also delete the second symbol (the macro replaces the body in place, making the spec's own function the executor — #26's stable-v2 target shape). It is Implemented in Swift 6.0 but ships behind `-enable-experimental-feature BodyMacros`, which (a) raises the compiler floor from 5.9 and (b) would force every downstream consumer to pass the experimental flag. Both are disqualifying for a stable v1.x library. **Cost of raising the floor, quantified:** it buys *only* Wart-B elimination — bindings, rewrite, dispatch, effects, and caching all already work on 5.9 — at the cost of a Swift-6 CI/toolchain floor, an experimental-flag requirement propagated to every downstream package, and loss of Swift-5-language-mode consumers. Not worth it for v1.x; revisit if/when `BodyMacros` graduates out of experimental.
+**Literal elimination is a v2 / gated-preview item.** [SE-0415 Function Body Macros](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0415-function-body-macros.md) is the *only* way to also delete the second symbol (the macro replaces the body in place, making the spec's own function the executor — #26's stable-v2 target shape). It is implemented in Swift 6.0 but ships behind `-enable-experimental-feature BodyMacros`, which (a) raises the compiler floor from 5.9 and (b) would force every downstream consumer to pass the experimental flag. Both are disqualifying for a stable v1.x library. **Cost of raising the floor, quantified:** it buys *only* Wart-B elimination — bindings, rewrite, dispatch, effects, and caching all already work on 5.9 — at the cost of a Swift-6 CI/toolchain floor, an experimental-flag requirement propagated to every downstream package, and loss of Swift-5-language-mode consumers. Not worth it for v1.x; revisit if/when `BodyMacros` graduates out of experimental.
 
 **Framing change for #26:** from "body macros *might be needed* for the encoding" (they are not — #359 disproved that) to "body macros are the *only* way to also delete the vestigial specification function, and that specific improvement is what defers to v2."
 
@@ -155,7 +155,7 @@ Suggested issue breakdown for v1.5.1 (each a self-contained task):
 
 ## 9. Out of scope (with pointers)
 
-- **Async execution** — v1.5.0 (#22). Not precluded; an `async` executor is additive.
+- **Async execution** — the v1.5.0 milestone. Not precluded; an `async` executor is additive.
 - **Value codecs, incl. `Date` parameters** — v1.5.3; full codec ergonomics are tied to v2 database-scoped builders.
 - **Catalog integration** — #212 / #214.
 - **Write statements, scalar results, collection/`IN` parameters** — feasibility noted (§6); implementation deferred.
