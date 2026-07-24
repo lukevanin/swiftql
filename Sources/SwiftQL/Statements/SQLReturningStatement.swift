@@ -147,3 +147,49 @@ extension XLInsertStatement {
         )
     }
 }
+
+
+///
+/// A `DELETE ... RETURNING` statement.
+///
+public struct XLDeleteReturningStatement<Row>: XLReturningStatement {
+
+    let statement: any XLEncodable
+
+    let returning: Returning<Row>
+
+    public func makeSQL(context: inout XLBuilder) {
+        statement.makeSQL(context: &context)
+    }
+
+    public func readRow(reader: XLRowReader) throws -> Row {
+        try returning.readRow(reader: reader)
+    }
+}
+
+
+extension XLDeleteStatement {
+
+    ///
+    /// Appends a `RETURNING` clause projecting the given result metadata, turning
+    /// the delete into a fetchable statement that yields the deleted rows.
+    ///
+    /// The delete target is a writable table (`schema.into(_:)`); the projection
+    /// is a readable result such as `schema.table(_:)`.
+    ///
+    /// ```swift
+    /// let deleted: [TestTable] = try database.makeRequest(
+    ///     with: delete(t).where(t.id == "a").returning(projection)
+    /// ).fetchAll()
+    /// ```
+    ///
+    /// Requires SQLite 3.35.0 or later.
+    ///
+    public func returning<T>(_ result: T) -> XLDeleteReturningStatement<T.Row> where T: XLRowReadable {
+        let clause = Returning<T.Row>(result)
+        return XLDeleteReturningStatement(
+            statement: components.appending(clause),
+            returning: clause
+        )
+    }
+}
