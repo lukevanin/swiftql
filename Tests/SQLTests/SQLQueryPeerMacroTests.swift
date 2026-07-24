@@ -14,11 +14,57 @@ import GRDB
 import SwiftQL
 
 
+///
+/// Spike (#369): the trapping direct-result entry point.
+///
+/// A `@SQLQuery` spec written with a direct result type (`[Row]` / `Row?`) calls
+/// this instead of `sql {}` so the function type-checks without the
+/// `XLQueryStatement` boilerplate. It is only a type-check anchor and a syntax
+/// source for the macro; invoking it directly traps loudly, because the real
+/// work happens in the generated executor peer. The macro rewrites this callee
+/// back to `sql {}` when it emits the value-free statement builder.
+///
+/// The name is provisional — `sqlQuery` is already the labeled-closure statement
+/// builder, so the direct-result anchor needs its own name.
+///
+func sqlResult<Row, Result>(
+    @XLQueryExpressionBuilder _ builder: (XLSchema) -> any XLQueryStatement<Row>
+) -> Result {
+    fatalError(
+        "'sqlResult' marks a @SQLQuery specification, not an executor. "
+        + "Call the generated executor peer (e.g. fetchPersonByName) instead."
+    )
+}
+
+
 extension GRDBDatabase {
 
     @SQLQuery
     func rowsMatchingID(id: String) -> any XLQueryStatement<TestTable> {
         sql { schema in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            Where(table.id == id)
+        }
+    }
+
+    // Spike (#369): direct-result specs — no `XLQueryStatement` boilerplate.
+    // `[TestTable]` dispatches to fetchAll; `TestTable?` dispatches to fetchOne.
+
+    @SQLQuery
+    func directRowsMatchingID(id: String) -> [TestTable] {
+        sqlResult { schema in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            Where(table.id == id)
+        }
+    }
+
+    @SQLQuery
+    func directRowMatchingID(id: String) -> TestTable? {
+        sqlResult { schema in
             let table = schema.table(TestTable.self)
             Select(table)
             From(table)
@@ -177,6 +223,53 @@ final class XLQueryPeerMacroTests: XCTestCase {
             try database.fetchNullableRowsMatchingValue(value: nil),
             [TestNullablesTable(id: "without-value", value: nil)]
         )
+    }
+
+
+    // MARK: - Spike #369: direct-result execution
+
+    func testDirectResultArrayExecutorFetchesAllMatchingRows() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "alpha", value: 5))
+        try insert(TestTable(id: "beta", value: 9))
+
+        // `-> [TestTable]` dispatched to fetchAll and returned every match.
+        XCTAssertEqual(
+            try database.fetchDirectRowsMatchingID(id: "alpha").count,
+            2
+        )
+        XCTAssertEqual(
+            try database.fetchDirectRowsMatchingID(id: "beta"),
+            [TestTable(id: "beta", value: 9)]
+        )
+        XCTAssertEqual(try database.fetchDirectRowsMatchingID(id: "gamma"), [])
+    }
+
+    func testDirectResultOptionalExecutorFetchesSingleRow() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "beta", value: 9))
+
+        // `-> TestTable?` dispatched to fetchOne and returned an optional row.
+        XCTAssertEqual(
+            try database.fetchDirectRowMatchingID(id: "beta"),
+            TestTable(id: "beta", value: 9)
+        )
+        XCTAssertNil(try database.fetchDirectRowMatchingID(id: "gamma"))
+    }
+
+    func testDirectResultStatementRendersSamePlaceholderSQLAsLegacyForm() throws {
+        // The direct-result spec produces the same value-free statement as the
+        // legacy XLQueryStatement spelling: a named placeholder, no inline
+        // literal. The `sqlResult` -> `sql` callee swap is transparent.
+        let direct = encoder.makeSQL(database.directRowsMatchingIDStatement())
+        let legacy = encoder.makeSQL(database.rowsMatchingIDStatement())
+
+        XCTAssertEqual(direct.sql, legacy.sql)
+        XCTAssertTrue(direct.sql.contains(":id"))
+        XCTAssertFalse(direct.sql.contains("'"))
+        XCTAssertEqual(direct.parameterLayout.slots.map(\.key), [.named("id")])
     }
 
 

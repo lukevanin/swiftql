@@ -80,6 +80,40 @@ internal func normalizedIdentifier(_ text: String) -> String {
 
 
 ///
+/// Result cardinality derived from the attached function's return type.
+///
+/// Spike (#369): with a direct-result signature the return annotation is the
+/// only source of cardinality. `[Row]` maps to `fetchAll`, `Row?` to
+/// `fetchOne`. The legacy `XLQueryStatement<Row>` spelling from #359 is treated
+/// as `.many` for source compatibility.
+///
+internal enum SQLQueryCardinality {
+    case many // [Row]  -> fetchAll
+    case one  // Row?   -> fetchOne
+}
+
+
+///
+/// The row element type, cardinality, and spelling style extracted from the
+/// return clause.
+///
+internal struct SQLQueryReturnShape {
+
+    /// The element type the executor decodes (e.g. `Person`).
+    var rowType: String
+
+    /// Whether the executor fetches all rows or an optional single row.
+    var cardinality: SQLQueryCardinality
+
+    /// `true` when the function declares its result directly (`[Row]` / `Row?`,
+    /// spike #369); `false` for the legacy `XLQueryStatement<Row>` spelling
+    /// (#359). In the direct-result case the statement-builder peer must swap
+    /// the trapping `sqlQuery` entry point for the real `sql` builder.
+    var isDirectResult: Bool
+}
+
+
+///
 /// Parses the attached function and generates the statement-builder and
 /// executor peers for the `@SQLQuery` macro.
 ///
@@ -89,7 +123,9 @@ internal struct SQLQueryBuilder {
 
     private let parameters: [SQLQueryParameter]
 
-    private let rowType: String
+    private let returnShape: SQLQueryReturnShape
+
+    private var rowType: String { returnShape.rowType }
 
     private let rewrittenBodyText: String
 
@@ -144,7 +180,7 @@ internal struct SQLQueryBuilder {
             of: function,
             diagnostics: &diagnostics
         )
-        self.rowType = Self.makeRowType(of: function, diagnostics: &diagnostics)
+        self.returnShape = Self.makeReturnShape(of: function, diagnostics: &diagnostics)
 
         guard let body = function.body else {
             diagnostics.append(
@@ -173,7 +209,17 @@ internal struct SQLQueryBuilder {
             throw DiagnosticsError(diagnostics: diagnostics)
         }
 
-        let rewriter = SQLQueryParameterRewriter(parameters: parameters)
+        // In the direct-result case the spec body calls the trapping `sqlResult`
+        // entry point (so the user's `-> [Row]` / `-> Row?` function type-checks
+        // without executing). The generated statement builder must call the real
+        // `sql` builder instead, so the rewriter renames that callee too.
+        // (`sqlResult` is provisional — `sqlQuery` is already the labeled-closure
+        // statement builder in SQLFunctionalSyntax.swift.)
+        let calleeRenames = returnShape.isDirectResult ? ["sqlResult": "sql"] : [:]
+        let rewriter = SQLQueryParameterRewriter(
+            parameters: parameters,
+            calleeRenames: calleeRenames
+        )
         self.rewrittenBodyText = Self.makeBodyText(rewriter.visit(body))
     }
 
@@ -258,51 +304,88 @@ internal struct SQLQueryBuilder {
     }
 
     ///
-    /// Extracts the row type from a `some XLQueryStatement<Row>` or
-    /// `any XLQueryStatement<Row>` return annotation.
+    /// Derives the row type and cardinality from the return annotation.
     ///
-    private static func makeRowType(
+    /// Three spellings are accepted:
+    ///   * `[Row]` (spike #369)                 → `.many`, direct result
+    ///   * `Row?` (spike #369)                  → `.one`, direct result
+    ///   * `any/some XLQueryStatement<Row>` (#359) → `.many`, legacy statement
+    ///
+    private static func makeReturnShape(
         of function: FunctionDeclSyntax,
         diagnostics: inout [Diagnostic]
-    ) -> String {
+    ) -> SQLQueryReturnShape {
         let returnType = function.signature.returnClause?.type.trimmed
+
+        // `[Row]` and `Array<Row>` -> fetchAll, direct result.
+        if let arrayType = returnType?.as(ArrayTypeSyntax.self) {
+            return SQLQueryReturnShape(
+                rowType: arrayType.element.trimmedDescription,
+                cardinality: .many,
+                isDirectResult: true
+            )
+        }
+        // `Row?` and `Optional<Row>` -> fetchOne, direct result.
+        if let optionalType = returnType?.as(OptionalTypeSyntax.self) {
+            return SQLQueryReturnShape(
+                rowType: optionalType.wrappedType.trimmedDescription,
+                cardinality: .one,
+                isDirectResult: true
+            )
+        }
+        if let (name, arguments) = genericConstraint(of: returnType),
+           name == "Array", let element = singleGenericArgument(arguments) {
+            return SQLQueryReturnShape(rowType: element, cardinality: .many, isDirectResult: true)
+        }
+        if let (name, arguments) = genericConstraint(of: returnType),
+           name == "Optional", let element = singleGenericArgument(arguments) {
+            return SQLQueryReturnShape(rowType: element, cardinality: .one, isDirectResult: true)
+        }
+
+        // Legacy #359 spelling: `any/some XLQueryStatement<Row>` -> fetchAll.
         var constraint = returnType
         if let someOrAny = constraint?.as(SomeOrAnyTypeSyntax.self) {
             constraint = someOrAny.constraint.trimmed
         }
-
-        let name: TokenSyntax?
-        let genericArguments: GenericArgumentClauseSyntax?
-        if let identifierType = constraint?.as(IdentifierTypeSyntax.self) {
-            name = identifierType.name
-            genericArguments = identifierType.genericArgumentClause
-        }
-        else if let memberType = constraint?.as(MemberTypeSyntax.self) {
-            name = memberType.name
-            genericArguments = memberType.genericArgumentClause
-        }
-        else {
-            name = nil
-            genericArguments = nil
+        if let (name, arguments) = genericConstraint(of: constraint),
+           name == "XLQueryStatement", let rowType = singleGenericArgument(arguments) {
+            return SQLQueryReturnShape(rowType: rowType, cardinality: .many, isDirectResult: false)
         }
 
-        guard
-            let name,
-            name.text == "XLQueryStatement",
-            let arguments = genericArguments?.arguments,
-            arguments.count == 1,
-            let rowType = arguments.first?.argument.trimmedDescription
-        else {
-            diagnostics.append(
-                Diagnostic(
-                    node: Syntax(function.signature.returnClause?.type) ?? Syntax(function.signature),
-                    id: "sqlquery-return-type",
-                    message: "'@SQLQuery' requires the function to return 'any XLQueryStatement<Row>' or 'some XLQueryStatement<Row>' with an explicit row type. The row type declares the executor's result element."
-                )
+        diagnostics.append(
+            Diagnostic(
+                node: Syntax(function.signature.returnClause?.type) ?? Syntax(function.signature),
+                id: "sqlquery-return-type",
+                message: "'@SQLQuery' requires the function to return '[Row]' (fetch all), 'Row?' (fetch one), or the legacy 'any/some XLQueryStatement<Row>', with an explicit row type. The row type declares the executor's result element and the shape selects the fetch."
             )
-            return ""
+        )
+        return SQLQueryReturnShape(rowType: "", cardinality: .many, isDirectResult: false)
+    }
+
+    ///
+    /// Splits a nominal type into its name token and generic argument clause,
+    /// handling both a bare identifier (`Array<Row>`) and a member type
+    /// (`Swift.Array<Row>`).
+    ///
+    private static func genericConstraint(
+        of type: TypeSyntax?
+    ) -> (name: String, arguments: GenericArgumentClauseSyntax?)? {
+        if let identifierType = type?.as(IdentifierTypeSyntax.self) {
+            return (identifierType.name.text, identifierType.genericArgumentClause)
         }
-        return rowType
+        if let memberType = type?.as(MemberTypeSyntax.self) {
+            return (memberType.name.text, memberType.genericArgumentClause)
+        }
+        return nil
+    }
+
+    private static func singleGenericArgument(
+        _ arguments: GenericArgumentClauseSyntax?
+    ) -> String? {
+        guard let arguments, arguments.arguments.count == 1 else {
+            return nil
+        }
+        return arguments.arguments.first?.argument.trimmedDescription
     }
 
     private var modifierPrefix: String {
@@ -327,7 +410,18 @@ internal struct SQLQueryBuilder {
     /// identical for every invocation.
     ///
     func makeStatementFunction() -> String {
-        let returnType = function.signature.returnClause?.type.trimmedDescription ?? ""
+        // The value-free statement is always an `XLQueryStatement<Row>`. In the
+        // legacy #359 spelling the function already declared exactly that, so the
+        // written return type is reused. In the direct-result case (#369) the
+        // function declared `[Row]` / `Row?`, so the statement builder's return
+        // type is synthesized from the extracted row type instead.
+        let returnType: String
+        if returnShape.isDirectResult {
+            returnType = "any XLQueryStatement<\(rowType)>"
+        }
+        else {
+            returnType = function.signature.returnClause?.type.trimmedDescription ?? ""
+        }
         return "\(modifierPrefix)func \(statementFunctionName)() -> \(returnType) \(rewrittenBodyText)"
     }
 
@@ -338,8 +432,18 @@ internal struct SQLQueryBuilder {
     ///
     func makeExecutorFunction() -> String {
         let parameterClause = function.signature.parameterClause.trimmedDescription
+        let resultType: String
+        let fetchCall: String
+        switch returnShape.cardinality {
+        case .many:
+            resultType = "[\(rowType)]"
+            fetchCall = "fetchAll"
+        case .one:
+            resultType = "\(rowType)?"
+            fetchCall = "fetchOne"
+        }
         var lines: [String] = []
-        lines.append("\(modifierPrefix)func \(executorFunctionName)\(parameterClause) throws -> [\(rowType)] {")
+        lines.append("\(modifierPrefix)func \(executorFunctionName)\(parameterClause) throws -> \(resultType) {")
         lines.append("    let __xlStatement = \(statementFunctionName)()")
         lines.append("    let __xlRequest = self.makeRequest(with: __xlStatement)")
         lines.append("    let __xlLayout = __xlRequest.parameterLayout")
@@ -356,7 +460,7 @@ internal struct SQLQueryBuilder {
             lines.append("        ]")
             lines.append("    ).validatingComplete()")
         }
-        lines.append("    return try __xlRequest.fetchAll(bindings: __xlPacket)")
+        lines.append("    return try __xlRequest.\(fetchCall)(bindings: __xlPacket)")
         lines.append("}")
         return lines.joined(separator: "\n")
     }
@@ -375,23 +479,36 @@ internal final class SQLQueryParameterRewriter: SyntaxRewriter {
 
     private let replacements: [String: String]
 
-    init(parameters: [SQLQueryParameter]) {
+    /// Identifier renames applied to references that are *not* parameters —
+    /// used to swap the trapping `sqlQuery` spec entry point for the real `sql`
+    /// builder in the direct-result encoding (#369).
+    private let calleeRenames: [String: String]
+
+    init(parameters: [SQLQueryParameter], calleeRenames: [String: String] = [:]) {
         var replacements: [String: String] = [:]
         for parameter in parameters {
             replacements[parameter.placeholderName] = parameter.bindingReference
         }
         self.replacements = replacements
+        self.calleeRenames = calleeRenames
         super.init()
     }
 
     override func visit(_ node: DeclReferenceExprSyntax) -> ExprSyntax {
-        guard let replacement = replacements[normalizedIdentifier(node.baseName.text)] else {
-            return ExprSyntax(node)
+        let identifier = normalizedIdentifier(node.baseName.text)
+        if let replacement = replacements[identifier] {
+            var expression = ExprSyntax("\(raw: replacement)")
+            expression.leadingTrivia = node.leadingTrivia
+            expression.trailingTrivia = node.trailingTrivia
+            return expression
         }
-        var expression = ExprSyntax("\(raw: replacement)")
-        expression.leadingTrivia = node.leadingTrivia
-        expression.trailingTrivia = node.trailingTrivia
-        return expression
+        if let renamed = calleeRenames[identifier] {
+            let token = TokenSyntax.identifier(renamed)
+                .with(\.leadingTrivia, node.baseName.leadingTrivia)
+                .with(\.trailingTrivia, node.baseName.trailingTrivia)
+            return ExprSyntax(node.with(\.baseName, token))
+        }
+        return ExprSyntax(node)
     }
 
     override func visit(_ node: MemberAccessExprSyntax) -> ExprSyntax {
