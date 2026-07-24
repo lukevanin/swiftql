@@ -334,10 +334,17 @@ public enum XLStaticRowReadError:
 /// Introspects a query expression to determine the columns that are used.
 ///
 final class XLColumnsDefinitionRowReader: XLRowReader, XLEncodable {
-    
+
     private var expressions: [any XLEncodable] = []
     private var names: [XLName] = []
-    
+
+    /// The output column aliases captured while replaying a projection's
+    /// ``XLRowReadable/readRow(reader:)``, in projection order.
+    ///
+    /// A `RETURNING` clause reuses these names to render an unqualified column
+    /// list, because SQLite rejects table-qualified names in `RETURNING`.
+    var columnNames: [XLName] { names }
+
     func column<T>(
         _ expression: any XLExpression<T>,
         alias: XLName

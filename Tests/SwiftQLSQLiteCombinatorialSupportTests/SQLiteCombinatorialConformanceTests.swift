@@ -43,11 +43,12 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
             coverage.strength == 2
                 && coverage.requiredTupleCount == coverage.coveredTupleCount
         })
-        // Six, not seven: issue #21 shipped LIKE ESCAPE, so the manifest no
-        // longer gates it as an unimplemented prerequisite.
+        // Five: issue #21 shipped LIKE ESCAPE and issues #57/#53/#58 shipped DML
+        // RETURNING, so the manifest no longer gates either as an unimplemented
+        // prerequisite.
         XCTAssertEqual(
             first.exclusions.filter { $0.id.hasPrefix("gated.") }.count,
-            6
+            5
         )
         XCTAssertTrue(first.cases.allSatisfy { !$0.inventoryFeatureIDs.isEmpty })
 

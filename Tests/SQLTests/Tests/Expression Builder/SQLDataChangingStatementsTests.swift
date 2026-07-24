@@ -157,6 +157,67 @@ final class XLDataChangingStatementsTests: XCTestCase {
         )
     }
 
+    // MARK: - INSERT ... RETURNING
+
+    func testInsertValuesReturning() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let expression = insert(t)
+            .values(instanceValues())
+            .returning(t)
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "INSERT INTO Test AS t0 (id,value) VALUES ('foo',42) RETURNING id, value"
+        )
+    }
+
+    func testInsertOnConflictReturning() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let expression = insert(t)
+            .values(instanceValues())
+            .onConflictDoNothing("id")
+            .returning(t)
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "INSERT INTO Test AS t0 (id,value) VALUES ('foo',42) ON CONFLICT (id) DO NOTHING RETURNING id, value"
+        )
+    }
+
+
+    // MARK: - UPDATE ... RETURNING
+
+    func testUpdateReturning() {
+        let schema = XLSchema()
+        let t = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let expression = update(t)
+            .set { row in row.value = 99 }
+            .where(t.id == "a")
+            .returning(projection)
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "UPDATE Test AS t0 SET value = 99 WHERE (t0.id == 'a') RETURNING id, value"
+        )
+    }
+
+
+    // MARK: - DELETE ... RETURNING
+
+    func testDeleteReturning() {
+        let schema = XLSchema()
+        let t = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let expression = delete(t)
+            .where(t.value == 42)
+            .returning(projection)
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "DELETE FROM Test AS t0 WHERE (t0.value == 42) RETURNING id, value"
+        )
+    }
+
+
     /// The `excluded` pseudo table renders as the bare `excluded` keyword when
     /// used as a table source — never as the aliased base table — so accidental
     /// use outside an upsert produces `FROM excluded`, which SQLite rejects,
