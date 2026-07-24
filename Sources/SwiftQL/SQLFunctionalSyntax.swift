@@ -107,9 +107,12 @@ public struct XLSchema {
     /// Constructs a common table expression with a select query that returns an `SQLResult`
     /// column set.
     ///
+    /// - Parameter alias: Name used to refer to the common table expression, or
+    ///   `nil` to allocate one automatically.
     /// - Parameter materialization: An optional `MATERIALIZED` / `NOT MATERIALIZED`
     ///   hint for SQLite's query planner (SQLite 3.35.0+). Defaults to
     ///   ``XLCommonTableMaterialization/unspecified``.
+    /// - Parameter statement: Builds the common table's select query.
     ///
     public func commonTable<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
         let alias = commonTableNamespace.makeAlias(alias: alias)

@@ -572,6 +572,8 @@ public protocol XLCommonTablesBuilder {
     ///
     /// - Parameter alias: Name used to refer to the common table expression.
     /// - Parameter materialization: The materialization hint, or `.unspecified`.
+    /// - Parameter columns: An explicit CTE column list, rendered as
+    ///   `alias(col, col) AS (...)`. Empty for the ordinary `alias AS (...)` form.
     /// - Parameter expression: Constructs the common table expression.
     ///
     /// This is a protocol requirement so that dynamic dispatch reaches a
