@@ -132,7 +132,9 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                 }
 
                 func execute<__XLResult>(_ __xlWork: (Context) throws -> __XLResult) throws -> __XLResult {
-                    try __xlWork(Context(database: self))
+                    try withTransaction { __xlScope in
+                        try __xlWork(Context(database: __xlScope))
+                    }
                 }
 
                 func personByName(name: String) throws -> [Person] {
@@ -290,7 +292,9 @@ final class SQLQueriesMacroAccessLevelTests: XCTestCase {
                 }
 
                 public func execute<__XLResult>(_ __xlWork: (Context) throws -> __XLResult) throws -> __XLResult {
-                    try __xlWork(Context(database: self))
+                    try withTransaction { __xlScope in
+                        try __xlWork(Context(database: __xlScope))
+                    }
                 }
 
                 public func allPeople() throws -> [Person] {
