@@ -1665,8 +1665,52 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(try finalResult.element(at: 1).value, 690)
 
     }
-    
-    
+
+    /// Executes an `UPDATE ... SET ... FROM (SELECT ...) WHERE ...` — the SELECT
+    /// form of an update — against real SQLite, matching the rendered coverage in
+    /// `XLUpdateExpressionBuilderTests.testUpdateFrom`.
+    func testUpdateFromSubquerySelect() throws {
+        try database.makeRequest(with: sqlCreate(CompanyTable.self)).execute()
+        try database.makeRequest(with: sqlInsert(CompanyTable(id: "aapl", name: "Apple"))).execute()
+        try database.makeRequest(with: sqlInsert(CompanyTable(id: "goog", name: "Google"))).execute()
+
+        try database.makeRequest(with: sqlCreate(Temp.self)).execute()
+        try database.makeRequest(with: sqlInsert(Temp(id: "aapl", value: "prefix"))).execute()
+        try database.makeRequest(with: sqlInsert(Temp(id: "goog", value: "prefix"))).execute()
+
+        let updateStatement = sql { schema in
+            let t = schema.into(Temp.self)
+            let s = schema.fromExpression { schema in
+                let company = schema.table(CompanyTable.self)
+                Select(company)
+                From(company)
+            }
+            Update(t)
+            Setting<Temp> { row in
+                row.value = t.value + " " + s.name
+            }
+            From(s)
+            Where(t.id == s.id)
+        }
+        try database.makeRequest(with: updateStatement).execute()
+
+        let selectStatement = sql { schema in
+            let t = schema.table(Temp.self)
+            Select(t)
+            From(t)
+            OrderBy(t.id.ascending())
+        }
+        let rows = try database.makeRequest(with: selectStatement).fetchAll()
+        XCTAssertEqual(
+            rows,
+            [
+                Temp(id: "aapl", value: "prefix Apple"),
+                Temp(id: "goog", value: "prefix Google"),
+            ]
+        )
+    }
+
+
     // MARK: Delete
     
     
