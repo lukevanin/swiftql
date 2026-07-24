@@ -148,10 +148,10 @@ Each stored property must be typed as `any XLExpression<...>` (or `some
 XLExpression<...>`) so the macro can reference its `.makeSQL` method; any
 other stored property is reported as a diagnostic rather than producing code
 that fails to compile. The `name:` argument is optional and defaults to the
-struct's name — `haversineDistance` above could have been left off `@SQLTable`-
-style and inferred as `HaversineDistance` instead. Installing and calling the
-function are unaffected by whether `makeSQL` was generated or hand-written, so
-the rest of this guide applies unchanged.
+struct's name, so `@SQLFunction(name: "haversineDistance")` above could have
+been written as plain `@SQLFunction` and inferred `HaversineDistance` instead.
+Installing and calling the function are unaffected by whether `makeSQL` was
+generated or hand-written, so the rest of this guide applies unchanged.
 
 ## Installing the function
 
