@@ -174,9 +174,12 @@ extension XLDeleteStatement {
     /// Appends a `RETURNING` clause projecting the given result metadata, turning
     /// the delete into a fetchable statement that yields the deleted rows.
     ///
+    /// The delete target is a writable table (`schema.into(_:)`); the projection
+    /// is a readable result such as `schema.table(_:)`.
+    ///
     /// ```swift
     /// let deleted: [TestTable] = try database.makeRequest(
-    ///     with: delete(t).where(t.id == "a").returning(t)
+    ///     with: delete(t).where(t.id == "a").returning(projection)
     /// ).fetchAll()
     /// ```
     ///
