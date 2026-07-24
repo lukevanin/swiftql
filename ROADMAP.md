@@ -260,8 +260,8 @@ The remaining wrapper requirement came from compound-query and common-table
 metadata that assumed every row is a macro-generated `XLResult`.
 
 v1.4 lets ordinary and recursive CTEs return `T` or `T?` directly
-([#43](https://github.com/lukevanin/swiftql/issues/43), delivered in the v1.4.5
-milestone). The implementation preserves the existing row reader across compound
+([#43](https://github.com/lukevanin/swiftql/issues/43), delivered in the
+[v1.4.5](https://github.com/lukevanin/swiftql/milestone/15) milestone). The implementation preserves the existing row reader across compound
 branches and exposes an adapter-neutral scalar CTE reference with a stable typed
 value column. `SQLScalarResult` remains source-compatible during v1; it is now a
 legacy shim rather than a requirement. Scalar-subquery conversion and nested
