@@ -15,6 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github/workflows/swift.yml"
+DOCUMENTATION_WORKFLOW = ROOT / ".github/workflows/documentation.yml"
 ENVIRONMENT_CHECK = ROOT / "scripts/ci/check-compatibility-environment.sh"
 
 
@@ -198,6 +199,26 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn(pull_request_skip, swift_series)
         self.assertNotIn(pull_request_skip, release_tooling)
         self.assertNotIn(pull_request_skip, compatibility)
+
+    def test_documentation_runs_cancel_superseded_pull_request_runs(
+        self,
+    ) -> None:
+        workflow = DOCUMENTATION_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "concurrency:\n"
+            "  group: documentation-${{ github.ref }}\n"
+            "  cancel-in-progress: "
+            "${{ github.event_name == 'pull_request' }}\n",
+            workflow,
+        )
+        self.assertNotIn("cancel-in-progress: true", workflow)
+        self.assertIn(
+            "concurrency:\n"
+            "      group: github-pages\n"
+            "      cancel-in-progress: false\n",
+            workflow,
+        )
 
     def test_compatibility_commands_use_selected_path_toolchain(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")

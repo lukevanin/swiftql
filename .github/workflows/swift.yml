@@ -12,9 +12,9 @@ permissions:
 
 # Superseded pull-request runs are cancelled; pushes to main queue instead so
 # an in-progress main run is never cancelled. Release runs invoked from
-# release.yml via workflow_call are never cancelled either: their tag-push
-# event makes cancel-in-progress evaluate false, and each tag's unique ref
-# gives the run its own concurrency group.
+# release.yml via workflow_call are never cancelled either: they never run on
+# a pull_request event, so cancel-in-progress evaluates false, and each
+# release tag's unique ref scopes its own concurrency group.
 concurrency:
   group: swift-compatibility-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
