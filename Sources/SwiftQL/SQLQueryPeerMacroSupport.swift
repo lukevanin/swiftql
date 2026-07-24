@@ -112,6 +112,6 @@ public func sqlResult<Row, Result>(
 ) -> Result {
     fatalError(
         "'sqlResult' marks a @SQLQuery specification, not an executor. "
-        + "Call the generated executor peer (e.g. fetchPersonByName) instead."
+        + "Call the macro-generated executor peer instead."
     )
 }

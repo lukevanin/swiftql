@@ -482,9 +482,10 @@ internal final class SQLQueryParameterRewriter: SyntaxRewriter {
 
     private let replacements: [String: String]
 
-    /// Identifier renames applied to references that are *not* parameters —
-    /// used to swap the trapping `sqlResult` spec entry point for the real
-    /// `sql` builder in the direct-result encoding (#369).
+    /// Identifier renames applied only to the called expression of a function
+    /// call — used to swap the trapping `sqlResult` spec entry point for the
+    /// real `sql` builder in the direct-result encoding (#369). References
+    /// outside callee position are never renamed.
     private let calleeRenames: [String: String]
 
     init(parameters: [SQLQueryParameter], calleeRenames: [String: String] = [:]) {
@@ -498,20 +499,27 @@ internal final class SQLQueryParameterRewriter: SyntaxRewriter {
     }
 
     override func visit(_ node: DeclReferenceExprSyntax) -> ExprSyntax {
-        let identifier = normalizedIdentifier(node.baseName.text)
-        if let replacement = replacements[identifier] {
-            var expression = ExprSyntax("\(raw: replacement)")
-            expression.leadingTrivia = node.leadingTrivia
-            expression.trailingTrivia = node.trailingTrivia
-            return expression
+        guard let replacement = replacements[normalizedIdentifier(node.baseName.text)] else {
+            return ExprSyntax(node)
         }
-        if let renamed = calleeRenames[identifier] {
+        var expression = ExprSyntax("\(raw: replacement)")
+        expression.leadingTrivia = node.leadingTrivia
+        expression.trailingTrivia = node.trailingTrivia
+        return expression
+    }
+
+    override func visit(_ node: FunctionCallExprSyntax) -> ExprSyntax {
+        // A callee rename applies only in callee position: a reference that
+        // merely *names* the entry point elsewhere in the body is left alone.
+        var node = node
+        if let callee = node.calledExpression.as(DeclReferenceExprSyntax.self),
+           let renamed = calleeRenames[normalizedIdentifier(callee.baseName.text)] {
             let token = TokenSyntax.identifier(renamed)
-                .with(\.leadingTrivia, node.baseName.leadingTrivia)
-                .with(\.trailingTrivia, node.baseName.trailingTrivia)
-            return ExprSyntax(node.with(\.baseName, token))
+                .with(\.leadingTrivia, callee.baseName.leadingTrivia)
+                .with(\.trailingTrivia, callee.baseName.trailingTrivia)
+            node = node.with(\.calledExpression, ExprSyntax(callee.with(\.baseName, token)))
         }
-        return ExprSyntax(node)
+        return super.visit(node)
     }
 
     override func visit(_ node: MemberAccessExprSyntax) -> ExprSyntax {

@@ -454,6 +454,68 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
             macros: makeTestMacros()
         )
     }
+
+    ///
+    /// The `sqlResult` -> `sql` swap applies only in callee position. A
+    /// reference that merely names the entry point elsewhere in the body is
+    /// left untouched. (The expansion is syntactic, so the contrived non-callee
+    /// reference needs no runtime meaning.)
+    ///
+    func test_directResult_calleeRenameAppliesOnlyInCalleePosition() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func auditedPersonByName(name: String) -> [Person] {
+                    sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                        audit(sqlResult)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func auditedPersonByName(name: String) -> [Person] {
+                    sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                        audit(sqlResult)
+                    }
+                }
+
+                func auditedPersonByNameStatement() -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == XLNamedBindingReference<String>(name: "name"))
+                        audit(sqlResult)
+                    }
+                }
+
+                func fetchAuditedPersonByName(name: String) throws -> [Person] {
+                    let __xlStatement = auditedPersonByNameStatement()
+                    let __xlRequest = self.makeRequest(with: __xlStatement)
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
 }
 
 
