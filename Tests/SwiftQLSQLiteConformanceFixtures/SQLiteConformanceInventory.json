@@ -2323,6 +2323,35 @@
       "environment_ids": [
         "sqlite-3.51.0-macos-arm64"
       ]
+    },
+    {
+      "id": "evidence.syntax.dml.render-update-common-table",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testUpdateWithCommonTable",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-update-common-table",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testUpdateWithCommonTableAppliesDerivedValues",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
     }
   ],
   "suites": [
@@ -6295,6 +6324,47 @@
       "deviations": [
         "Conflict targets are rendered as bare column names because SQLite rejects statement-aliased identifiers in the ON CONFLICT target list.",
         "The excluded pseudo table is rendered as the bare excluded keyword and its columns qualify as excluded.<column>, so a DO UPDATE assignment refers to the candidate row rather than the aliased base table."
+      ],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": []
+    },
+    {
+      "id": "syntax.dml.update-common-table",
+      "kind": "syntax",
+      "family": "dml",
+      "title": "UPDATE statement scoped by a WITH common table expression",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLWithStatement.update(_:)",
+          "source_path": "Sources/SwiftQL/Statements/SQLWithStatement.swift",
+          "source_tokens": [
+            "update"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_with.html",
+        "https://www.sqlite.org/lang_update.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.8.3",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A generated writable table supplies update metadata, and a common table expression supplies the derived source rows."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.dml.render-update-common-table",
+        "evidence.syntax.dml.sqlite-update-common-table"
+      ],
+      "deviations": [
+        "The covering evidence combines the WITH clause with UPDATE ... FROM to reference the common table expression, which SQLite supports from 3.33.0 onward."
       ],
       "follow_up_issues": [],
       "deferral": null,

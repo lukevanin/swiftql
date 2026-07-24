@@ -173,4 +173,26 @@ final class XLDataChangingStatementsTests: XCTestCase {
             "SELECT excluded.id AS id, excluded.value AS value FROM excluded"
         )
     }
+
+
+    // MARK: - UPDATE with common table expression
+
+    func testUpdateWithCommonTable() {
+        let schema = XLSchema()
+        let source = schema.commonTable { schema in
+            let t = schema.table(TestTable.self)
+            return select(t).from(t)
+        }
+        let t = schema.into(TestTable.self)
+        let s = schema.table(source)
+        let expression = with(source)
+            .update(t)
+            .set { row in row.value = s.value + 100 }
+            .from(s)
+            .where(t.id == s.id)
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "WITH cte0 AS (SELECT t0.id AS id, t0.value AS value FROM Test AS t0) UPDATE Test AS t0 SET value = (t1.value + 100) FROM cte0 AS t1 WHERE (t0.id == t1.id)"
+        )
+    }
 }
