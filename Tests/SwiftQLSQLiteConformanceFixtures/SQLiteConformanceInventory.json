@@ -426,8 +426,8 @@
     },
     {
       "id": "evidence.syntax.cte.sqlite-recursive",
-      "source_path": "Tests/SQLTests/RecursiveCTEConstructionPrototypeTests.swift",
-      "test_case": "RecursiveCTEConstructionPrototypeTests.testGeneratedCompositeReferenceRendersAndExecutesRecursiveCTE",
+      "source_path": "Tests/SQLTests/RecursiveCommonTableConstructionTests.swift",
+      "test_case": "RecursiveCommonTableConstructionTests.testCompositeReferenceRendersAndExecutesRecursiveCTE",
       "runner_path": null,
       "layers": [
         "execution",

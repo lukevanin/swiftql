@@ -2,8 +2,9 @@
 
 ## Status
 
-This note records the issue #41 research prototype. The prototype lives entirely
-in `RecursiveCTEConstructionPrototypeTests.swift`; it is not a supported API.
+This note records the issue #41 research prototype. The prototype lived
+entirely in the test file since renamed to `RecursiveCommonTableConstructionTests.swift`
+when issue #205 productionized it; the prototype itself was not a supported API.
 The recommendation is to replace the current mutable recursive-definition cell
 with an alias-first, two-phase value model when recursive CTE construction is
 implemented for the public API.

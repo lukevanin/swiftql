@@ -1,5 +1,60 @@
 # Changelog
 
+## [1.4.5] - 2026-07-24
+
+### Added
+
+- Added `NATURAL JOIN` and `USING (columns...)` join constraints through
+  `Join.Natural(_:)`, `Join.NaturalLeft(_:)`, `Join.Inner(_:using:)`, and
+  `Join.Left(_:using:)`, plus the fluent `naturalJoin`/`naturalLeftJoin` and
+  `innerJoin(_:using:)`/`leftJoin(_:using:)` methods (also on `QueryBuilder`).
+  A join renders exactly one of `ON <expr>`, `USING (cols)`, or — for
+  `NATURAL` — no constraint at all.
+- Added `RIGHT JOIN` through `Join.Right(_:on:)` and the fluent/`QueryBuilder`
+  `rightJoin` methods. The joined (right-hand) table stays non-nullable; the
+  `FROM` (left-hand) table must be declared with `XLSchema.nullableTable(_:as:)`
+  so its columns decode as optionals when a joined row has no match. Requires
+  SQLite 3.39.0 (2022-06) or later.
+- Added `FULL OUTER JOIN` and completed `CROSS JOIN` coverage on `QueryBuilder`
+  through `Join.FullOuter(_:on:)` and the fluent/`QueryBuilder`
+  `fullOuterJoin`/`crossJoin` methods. A full outer join requires both sides
+  nullable — the joined table via `XLMetaNullableNamedResult`, the `FROM`
+  table via `nullableTable(_:as:)` — unlike `LEFT JOIN`, where only the
+  joined side is nullable. Requires SQLite 3.39.0 or later. The previously
+  broken `Join.Outer`, which emitted an invalid bare `OUTER JOIN`, stays
+  removed in favor of `Join.Left`/`Join.FullOuter`.
+- Added `MATERIALIZED` / `NOT MATERIALIZED` hints on common table expressions
+  through a `materialization: XLCommonTableMaterialization` parameter on
+  `XLSchema.commonTable`, `recursiveCommonTable`, `recursiveCommonTableExpression`,
+  and the new scalar common-table constructors below. Omitting it — the
+  default, `.unspecified` — renders the unchanged `alias AS (...)` form.
+- Added a direct scalar common-table-expression surface —
+  `XLSchema.scalarCommonTable`, `recursiveScalarCommonTable`,
+  `scalarCommonTableExpression`, and `recursiveScalarCommonTableExpression` —
+  so a `T`-typed recursive or non-recursive CTE no longer needs a
+  one-property `@SQLResult`/`SQLScalarResult<T>` wrapper solely to carry one
+  scalar column. The CTE renders an explicit column list (`cte(value) AS
+  (...)` by default) instead of changing every scalar `SELECT`'s visible
+  column label. `SQLScalarResult` remains source-compatible as a legacy shim.
+- `UNION`, `UNION ALL`, `INTERSECT`, and `EXCEPT` on a chained statement no
+  longer require `Row: XLResult`; they now reuse the first branch's existing
+  row reader instead of rebuilding one from `Row: XLResult`, so a compound
+  query over a bare literal type (`Int`, `String`, ...) composes without a
+  result wrapper.
+- Replaced the internal mutable recursive-CTE completion cell with an
+  alias-first, two-phase, value-semantic `XLRecursiveCommonTableDraft`. The
+  self-reference passed to a recursive CTE's body is now derived from its
+  reserved alias alone, and completion is transactional: a throwing body
+  rolls the draft back to its declared state so it can be retried.
+  `recursiveCommonTable` and `recursiveCommonTableExpression` keep their
+  existing signatures and render byte-for-byte identical SQL.
+
+### Migration
+
+No migration is required for v1.4.5. Every change is additive: existing
+joins, common table expressions, and `SQLScalarResult` usage compile and
+render unchanged.
+
 ## [1.4.4] - 2026-07-23
 
 ### Added
