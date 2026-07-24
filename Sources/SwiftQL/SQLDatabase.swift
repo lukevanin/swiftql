@@ -407,11 +407,28 @@ public protocol XLDatabase {
 }
 
 extension XLDatabase {
-    
+
     ///
     /// Convenience method used to make a request for the database using a request builder.
     ///
     func makeRequest<Row>(with builder: XLRequestBuilder<Row>) -> any XLRequest<Row> {
         builder.build(with: self)
+    }
+
+    ///
+    /// Default `RETURNING` support for adapters that predate the clause.
+    ///
+    /// Adding ``makeRequest(with:)-(XLReturningStatement)`` as a protocol
+    /// requirement would source-break existing third-party `XLDatabase`
+    /// conformers, so this default keeps them compiling. An adapter that can
+    /// execute a data-changing statement and read its returned rows overrides
+    /// this method; until then, constructing a `RETURNING` request traps with a
+    /// clear message rather than silently dropping the clause.
+    ///
+    public func makeRequest<Row>(with statement: any XLReturningStatement<Row>) -> any XLRequest<Row> {
+        preconditionFailure(
+            "\(type(of: self)) does not support RETURNING statements. Override "
+            + "XLDatabase.makeRequest(with: any XLReturningStatement) to add support."
+        )
     }
 }
