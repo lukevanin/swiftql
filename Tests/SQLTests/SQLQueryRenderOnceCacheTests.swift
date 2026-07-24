@@ -185,9 +185,9 @@ final class XLQueryRenderOnceCacheTests: XCTestCase {
 
     ///
     /// The cache key includes the database identity, so a per-declaration
-    /// `static` cache shared across database instances never binds one
-    /// database's request to another: two databases (distinct pools) render
-    /// independently, while the same database reuses its rendered request.
+    /// `static` cache shared across databases never binds one database's request
+    /// to another: two distinct `GRDBDatabase` instances render independently,
+    /// while the same database reuses its rendered request.
     ///
     func testDistinctDatabasesRenderIndependentlyAndSameDatabaseReuses() {
         let cache = XLRenderOnceCache<TestTable>()

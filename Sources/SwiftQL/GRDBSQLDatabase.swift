@@ -866,10 +866,12 @@ public struct GRDBDatabase: XLDatabase {
         self.liveQueryRetryScheduler = liveQueryRetryScheduler
     }
     
-    /// Scopes render-once cache entries to this database's connection pool and
-    /// dialect. Rendering depends only on the dialect; the database identifier
-    /// keeps a per-declaration `static` cache from binding one pool's request to
-    /// another database (see ``XLPreparedQueryCacheKey``).
+    /// Scopes render-once cache entries to this database and dialect. Rendering
+    /// depends only on the dialect; the database identifier keeps a
+    /// per-declaration `static` cache from binding one database's request to
+    /// another. The driver assigns a fresh identifier per init, so the scope is
+    /// per `GRDBDatabase` instance rather than per `DatabasePool` (see
+    /// ``XLPreparedQueryCacheKey``).
     public var preparedQueryCacheKey: XLPreparedQueryCacheKey? {
         XLPreparedQueryCacheKey(
             databaseIdentifier: driver.databaseIdentifier,

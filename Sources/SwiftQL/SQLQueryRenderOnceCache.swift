@@ -20,10 +20,13 @@ import Foundation
 ///
 /// Rendering a statement to SQL depends only on the **dialect**, so the dialect
 /// identifier is the render-relevant component. The **database identifier** is
-/// included so a cache shared across database instances (the macro emits the
-/// cache as a per-declaration `static`) never hands one database's connection
-/// to another: two databases backed by different pools render into separate
-/// entries, while callers of the same database reuse one rendered request.
+/// included so a cache shared across databases (the macro emits the cache as a
+/// per-declaration `static`) never hands one database's request to another:
+/// each database renders into its own entry, while repeated calls on the same
+/// database reuse one rendered request. In the GRDB adapter the identifier is a
+/// fresh value per `GRDBDatabase` (its driver assigns one per init), so the
+/// scope is per-instance — two `GRDBDatabase` values wrapping the same
+/// `DatabasePool` render independently rather than sharing an entry.
 ///
 /// Today there is a single dialect; keying on the dialect identifier rather than
 /// assuming one means a second dialect renders into its own entry rather than
@@ -31,8 +34,8 @@ import Foundation
 ///
 public struct XLPreparedQueryCacheKey: Hashable, Sendable {
 
-    /// Identifies the database instance (its connection pool) the cached request
-    /// is bound to.
+    /// Identifies the database the cached request is bound to (per-instance in
+    /// the GRDB adapter — a fresh identifier per driver init).
     public let databaseIdentifier: XLDatabaseIdentifier
 
     /// Identifies the dialect the SQL was rendered for.
