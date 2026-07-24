@@ -136,7 +136,7 @@ public struct XLQuerySelectStatement<Row>: XLQueryStatement, XLSimpleSelectQuery
 
     ///
     /// Adds a `FROM` clause whose table can resolve to `NULL`, for use as the
-    /// left-hand table of a `RIGHT JOIN`.
+    /// left-hand table of a `RIGHT JOIN` or either side of a `FULL OUTER JOIN`.
     ///
     public func from<T>(_ t: T) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult {
         XLQueryTableStatement(components: components.appending(From(t)))
@@ -204,6 +204,15 @@ public struct XLQueryTableStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
     ///
     public func naturalLeftJoin<T>(_ t: T) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult {
         XLQueryTableStatement(components: components.appending(Join(kind: .naturalLeftJoin, table: t, constraint: nil)))
+    }
+
+    ///
+    /// Adds a `FULL OUTER JOIN`. Both sides can be `NULL`: the joined table is
+    /// nullable, and the `FROM` table must be declared with `nullableTable(_:)`.
+    /// Requires SQLite 3.39.0 or later.
+    ///
+    public func fullOuterJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult, U: XLBoolean {
+        XLQueryTableStatement(components: components.appending(Join(kind: .fullOuterJoin, table: t, constraint: condition)))
     }
 
     // MARK: Where

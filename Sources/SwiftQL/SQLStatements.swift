@@ -436,9 +436,9 @@ public struct From: XLTableStatement {
     ///
     /// Specifies a `FROM` table whose columns can resolve to `NULL`.
     ///
-    /// Used for the left-hand table of a `RIGHT JOIN`, where unmatched rows fill
-    /// the `FROM` table's columns with `NULL`. Build the nullable table reference
-    /// with `nullableTable(_:as:)`.
+    /// Used for the left-hand table of a `RIGHT JOIN` (and either table of a
+    /// `FULL OUTER JOIN`), where unmatched rows fill the `FROM` table's columns
+    /// with `NULL`. Build the nullable table reference with `nullableTable(_:as:)`.
     ///
     public init<T>(_ meta: T) where T: XLMetaNullableNamedResult {
         self.table = meta
@@ -473,6 +473,7 @@ public struct Join: XLTableStatement {
         case innerJoin = "INNER JOIN"
         case leftJoin = "LEFT JOIN"
         case rightJoin = "RIGHT JOIN"
+        case fullOuterJoin = "FULL OUTER JOIN"
         case crossJoin = "CROSS JOIN"
         case naturalJoin = "NATURAL JOIN"
         case naturalLeftJoin = "NATURAL LEFT JOIN"
@@ -516,7 +517,7 @@ public struct Join: XLTableStatement {
         switch kind {
         case .naturalJoin, .naturalLeftJoin, .crossJoin:
             return
-        case .innerJoin, .leftJoin, .rightJoin:
+        case .innerJoin, .leftJoin, .rightJoin, .fullOuterJoin:
             break
         }
         if let constraint {
@@ -611,6 +612,21 @@ public struct Join: XLTableStatement {
     ///
     public static func NaturalLeft<T>(_ table: T) -> Join where T: XLMetaNullableNamedResult {
         Join(kind: .naturalLeftJoin, table: table, constraint: nil)
+    }
+
+    ///
+    /// Creates a full outer join with a column constraint.
+    ///
+    /// A `FULL OUTER JOIN` keeps every row of both tables, filling the other
+    /// table's columns with `NULL` where there is no match. Both sides must
+    /// therefore decode as optionals: the joined table is nullable
+    /// (`XLMetaNullableNamedResult`) and the `FROM` table must be declared with
+    /// `nullableTable(_:as:)`.
+    ///
+    /// > Important: `FULL OUTER JOIN` requires SQLite 3.39.0 (2022-06-25) or later.
+    ///
+    public static func FullOuter<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNullableNamedResult, U: XLBoolean {
+        Join(kind: .fullOuterJoin, table: table, constraint: constraint)
     }
 
     ///
