@@ -33,7 +33,7 @@ public struct Returning<Row>: XLEncodable, XLRowReadable {
     ///
     /// Creates a `RETURNING` clause projecting the columns described by the
     /// given result metadata, for example a table reference obtained from
-    /// ``XLSchema/table(_:)``.
+    /// `XLSchema.table(_:)`.
     ///
     public init<T>(_ result: T) where T: XLRowReadable, T.Row == Row {
         let definition = XLColumnsDefinitionRowReader()
@@ -83,7 +83,7 @@ public struct Returning<Row>: XLEncodable, XLRowReadable {
 ///
 /// Unlike a plain `INSERT`/`UPDATE`/`DELETE` — which are write-only and executed
 /// through ``XLWriteRequest`` — a returning statement is both renderable and
-/// row-readable, so ``XLDatabase/makeRequest(with:)-(XLReturningStatement)``
+/// row-readable, so `XLDatabase.makeRequest(with:)` for a returning statement
 /// builds a reader-backed ``XLRequest`` whose rows are the values named by the
 /// `RETURNING` clause.
 ///

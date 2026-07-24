@@ -418,7 +418,7 @@ extension XLDatabase {
     ///
     /// Default `RETURNING` support for adapters that predate the clause.
     ///
-    /// ``makeRequest(with:)-(XLReturningStatement)`` is a protocol requirement;
+    /// `makeRequest(with:)` for a returning statement is a protocol requirement;
     /// adding it *without* a default would source-break existing third-party
     /// `XLDatabase` conformers. This default keeps them compiling. An adapter
     /// that can execute a data-changing statement and read its returned rows
