@@ -860,4 +860,46 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
             macros: makeTestMacros()
         )
     }
+
+    ///
+    /// A parameter named after a statement-builder entry point would be
+    /// rewritten wherever the builder is called, corrupting the generated code.
+    ///
+    func test_reservedParameterName_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func rowsMatching(sql: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == sql)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func rowsMatching(sql: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == sql)
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQuery' cannot bind a parameter named 'sql'. The name collides with a statement-builder entry point, so rewriting its references would corrupt the builder call in the generated peer. Rename the parameter.",
+                    line: 3,
+                    column: 23
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
 }

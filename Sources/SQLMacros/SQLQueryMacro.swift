@@ -254,6 +254,15 @@ internal struct SQLQueryBuilder {
     }
 
     ///
+    /// Parameter names that collide with a statement-builder entry point. The
+    /// rewrite replaces every reference to a parameter, so a parameter with one
+    /// of these names would corrupt the builder call in the generated code.
+    ///
+    private static let reservedParameterNames: Set<String> = [
+        "sql", "sqlQuery", "sqlResult",
+    ]
+
+    ///
     /// Classifies the function parameters, reporting shapes that cannot be
     /// rewritten to a named binding.
     ///
@@ -291,6 +300,20 @@ internal struct SQLQueryBuilder {
                         node: name,
                         id: "sqlquery-unnamed-parameter",
                         message: "'@SQLQuery' requires every parameter to have a name. The name identifies the SQL placeholder."
+                    )
+                )
+                continue
+            }
+            if reservedParameterNames.contains(normalizedIdentifier(name.text)) {
+                // The rewrite replaces every reference to a parameter, and the
+                // builder callee is itself a plain identifier reference — a
+                // parameter with the same name would corrupt the builder call
+                // in the generated peer.
+                diagnostics.append(
+                    Diagnostic(
+                        node: name,
+                        id: "sqlquery-reserved-parameter-name",
+                        message: "'@SQLQuery' cannot bind a parameter named '\(normalizedIdentifier(name.text))'. The name collides with a statement-builder entry point, so rewriting its references would corrupt the builder call in the generated peer. Rename the parameter."
                     )
                 )
                 continue
