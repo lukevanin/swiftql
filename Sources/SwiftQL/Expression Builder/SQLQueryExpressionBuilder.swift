@@ -86,8 +86,8 @@ import Foundation
     ///
     /// Constructs a Select expression with a partial union.
     ///
-    public static func buildPartialBlock<Statement>(accumulated: XLQueryPartialUnion<Statement>, next: Select<Statement.Row>) -> XLQuerySelectStatement<Statement.Row> where Statement: XLSimpleSelectQueryStatement, Statement.Row: XLResult, Statement.Row.MetaResult: XLRowReadable, Statement.Row.MetaResult.Row == Statement.Row {
-        let union = BooleanClause(kind: accumulated.kind, lhs: accumulated.query, rhs: next)
+    public static func buildPartialBlock<Statement>(accumulated: XLQueryPartialUnion<Statement>, next: Select<Statement.Row>) -> XLQuerySelectStatement<Statement.Row> where Statement: XLSimpleSelectQueryStatement {
+        let union = BooleanClause(kind: accumulated.kind, lhs: accumulated.query.components, rhs: next)
         return XLQuerySelectStatement(components: XLQueryStatementComponents(reader: union, components: [union]))
     }
     
@@ -233,10 +233,10 @@ extension XLSchema {
     ///
     /// Constructs a common table expression on a schema.
     ///
-    public func commonTableExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
+    public func commonTableExpression<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
         let alias = commonTableNamespace.makeAlias(alias: alias)
         let schema = XLSchema()
-        let dependency = XLCommonTableDependency(alias: alias, statement: statement(schema))
+        let dependency = XLCommonTableDependency(alias: alias, statement: statement(schema), materialization: materialization)
         return T.makeSQLCommonTable(namespace: commonTableNamespace, dependency: dependency)
     }
 }

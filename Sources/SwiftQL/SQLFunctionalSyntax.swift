@@ -97,20 +97,24 @@ public struct XLSchema {
     ///
     /// Constructs common table expression using a select query that returns an `SQLTable`.
     ///
-    public func commonTable<T>(alias: XLName? = nil, statement: any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLTable {
+    public func commonTable<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, statement: any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLTable {
         let alias = commonTableNamespace.makeAlias(alias: alias)
-        let dependency = XLCommonTableDependency(alias: alias, statement: statement)
+        let dependency = XLCommonTableDependency(alias: alias, statement: statement, materialization: materialization)
         return T.makeSQLCommonTable(namespace: commonTableNamespace, dependency: dependency)
     }
-    
+
     ///
     /// Constructs a common table expression with a select query that returns an `SQLResult`
     /// column set.
     ///
-    public func commonTable<T>(alias: XLName? = nil, statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
+    /// - Parameter materialization: An optional `MATERIALIZED` / `NOT MATERIALIZED`
+    ///   hint for SQLite's query planner (SQLite 3.35.0+). Defaults to
+    ///   ``XLCommonTableMaterialization/unspecified``.
+    ///
+    public func commonTable<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
         let alias = commonTableNamespace.makeAlias(alias: alias)
         let schema = XLSchema()
-        let dependency = XLCommonTableDependency(alias: alias, statement: statement(schema))
+        let dependency = XLCommonTableDependency(alias: alias, statement: statement(schema), materialization: materialization)
         return T.makeSQLCommonTable(namespace: commonTableNamespace, dependency: dependency)
     }
     
@@ -118,33 +122,48 @@ public struct XLSchema {
     /// Constructs a recursive common table expression using a select query that returns
     /// an `SQLResult`.
     ///
-    /// > Note: Recursive common table requires heap allocation.
+    /// The self-reference passed to `statement` is derived from the reserved
+    /// alias alone through a value-semantic ``XLRecursiveCommonTableDraft``; no
+    /// mutable completion cell is involved.
     ///
-    public func recursiveCommonTable<T>(_ type: T.Type, alias: XLName? = nil, statement: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
-        let alias = commonTableNamespace.makeAlias(alias: alias)
-        let schema = XLSchema()
-        let recursiveStatement = XLRecursiveCommonTableStatement()
-        let dependency = XLCommonTableDependency(alias: alias, statement: recursiveStatement)
-        let commonTable = T.makeSQLCommonTable(namespace: commonTableNamespace, dependency: dependency)
-        let table = schema.table(commonTable)
-        recursiveStatement.statement = statement(schema, table)
-        return commonTable
+    public func recursiveCommonTable<T>(_ type: T.Type, alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, statement: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
+        makeRecursiveCommonTable(T.self, alias: alias, materialization: materialization, body: statement)
     }
-    
+
     ///
-    /// Constructs a recursive common table expression using a select query that returns an `SQLTable`.
+    /// Constructs a recursive common table expression using a select query that returns an `SQLResult`.
     ///
-    /// > Note: Recursive common table requires heap allocation.
+    public func recursiveCommonTableExpression<T>(_ type: T.Type, alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, @XLQueryExpressionBuilder statement: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
+        makeRecursiveCommonTable(T.self, alias: alias, materialization: materialization, body: statement)
+    }
+
     ///
-    public func recursiveCommonTableExpression<T>(_ type: T.Type, alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
-        let alias = commonTableNamespace.makeAlias(alias: alias)
-        let schema = XLSchema()
-        let recursiveStatement = XLRecursiveCommonTableStatement()
-        let dependency = XLCommonTableDependency(alias: alias, statement: recursiveStatement)
-        let commonTable = T.makeSQLCommonTable(namespace: commonTableNamespace, dependency: dependency)
-        let table = schema.table(commonTable)
-        recursiveStatement.statement = statement(schema, table)
-        return commonTable
+    /// Shared alias-first construction for the recursive common table surface.
+    ///
+    /// Reserves an immutable alias, derives the self-reference from that alias
+    /// alone, then completes the body through a value-semantic
+    /// ``XLRecursiveCommonTableDraft``. No mutable completion cell is involved,
+    /// and the rendered SQL is identical to the previous mechanism.
+    ///
+    private func makeRecursiveCommonTable<T>(
+        _ type: T.Type,
+        alias: XLName?,
+        materialization: XLCommonTableMaterialization,
+        body: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>
+    ) -> T.MetaCommonTable where T: XLResult {
+        let reservedAlias = commonTableNamespace.makeAlias(alias: alias)
+        let bodySchema = XLSchema()
+        var draft = XLRecursiveCommonTableDraft(
+            alias: reservedAlias,
+            layout: XLCompositeRecursiveCommonTableLayout<T>(schema: bodySchema)
+        )
+        let dependency = draft.completeWithNonThrowingBody { reference in
+            body(bodySchema, reference)
+        }
+        return T.makeSQLCommonTable(
+            namespace: commonTableNamespace,
+            dependency: dependency.materialized(materialization)
+        )
     }
     
     ///
