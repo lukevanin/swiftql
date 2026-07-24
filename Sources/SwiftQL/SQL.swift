@@ -47,3 +47,18 @@ public macro SQLQuery() = #externalMacro(module: "SQLMacros", type: "SQLQueryMac
 ///
 @attached(member, names: arbitrary)
 public macro SQLQueries() = #externalMacro(module: "SQLMacros", type: "SQLQueriesMacro")
+
+///
+/// Defines the `@SQLFunction` macro.
+///
+/// Attach to a struct which conforms to `XLCustomFunction` and declares one stored property per
+/// SQL argument, each typed as `any XLExpression<...>` (or `some XLExpression<...>`). The macro
+/// generates the ``XLCustomFunctionDefinition`` and `makeSQL(context:)` boilerplate from those
+/// properties, in declaration order. Conformance to `XLCustomFunction` and `execute(reader:)` are
+/// still written by hand.
+///
+/// - Parameter name: The SQL function name used to register with SQLite and emit in generated
+///   SQL. Defaults to the name of the struct.
+///
+@attached(member, names: arbitrary)
+public macro SQLFunction(name: String? = nil) = #externalMacro(module: "SQLMacros", type: "SQLFunctionMacro")
