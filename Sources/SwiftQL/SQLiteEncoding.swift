@@ -44,7 +44,11 @@ public struct XLiteEncoder: XLEncoder {
             base: formatter,
             recorder: requirementRecorder
         )
-        var builder: XLBuilder = XLiteBuilder(formatter: recordingFormatter)
+        let customFunctionRegistry = XLiteCustomFunctionRegistry()
+        var builder: XLBuilder = XLiteBuilder(
+            formatter: recordingFormatter,
+            customFunctionRegistry: customFunctionRegistry
+        )
         expression.makeSQL(context: &builder)
         return XLEncoding(
             sql: builder.build(),
@@ -55,7 +59,8 @@ public struct XLiteEncoder: XLEncoder {
             ),
             parameterLayout: requirementRecorder.parameterLayout,
             parameterLayoutError: requirementRecorder.parameterLayoutError,
-            valueEncodingError: requirementRecorder.valueEncodingError
+            valueEncodingError: requirementRecorder.valueEncodingError,
+            customFunctions: customFunctionRegistry.registrations
         )
     }
 
@@ -409,6 +414,26 @@ public struct XLiteFormatter: XLFormatter {
 
 
 ///
+/// Reference-type collector for custom-function registrations discovered while rendering one
+/// statement.
+///
+/// `XLiteBuilder` and its nested sub-builders are value types created afresh at every nesting
+/// boundary (see `entities()` and the `_entities.formUnion(...)` calls throughout this file).
+/// Sharing one instance of this collector across every nested builder lets a custom-function call
+/// at any nesting depth record itself directly, without threading a second `Set`-returning
+/// accessor and union step through every nesting method that already exists for `entities()`.
+///
+final class XLiteCustomFunctionRegistry {
+
+    private(set) var registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
+
+    func insert(_ registration: XLCustomFunctionRegistration) {
+        registrations[registration.definition] = registration
+    }
+}
+
+
+///
 /// Constructs an SQL expression that can be executed by SQLite.
 ///
 public struct XLiteBuilder: XLBuilder {
@@ -419,8 +444,15 @@ public struct XLiteBuilder: XLBuilder {
 
     private var _entities: Set<String> = []
 
+    private let customFunctionRegistry: XLiteCustomFunctionRegistry
+
     public init(formatter: XLFormatter) {
+        self.init(formatter: formatter, customFunctionRegistry: XLiteCustomFunctionRegistry())
+    }
+
+    init(formatter: XLFormatter, customFunctionRegistry: XLiteCustomFunctionRegistry) {
         self.formatter = formatter
+        self.customFunctionRegistry = customFunctionRegistry
     }
 
     // A single already-rendered token per call. Every caller passes exactly one
@@ -449,6 +481,10 @@ public struct XLiteBuilder: XLBuilder {
 
     public mutating func entity(_ name: String) {
         _entities.insert(name)
+    }
+
+    public mutating func customFunction(_ registration: XLCustomFunctionRegistration) {
+        customFunctionRegistry.insert(registration)
     }
 
     public mutating func null() {
@@ -535,43 +571,47 @@ public struct XLiteBuilder: XLBuilder {
     }
 
     public mutating func list(separator: String, items: (inout XLListBuilder) -> Void) {
-        var listBuilder: XLListBuilder = XLiteListBuilder(formatter: formatter, separator: separator)
+        var listBuilder: XLListBuilder = XLiteListBuilder(
+            formatter: formatter,
+            separator: separator,
+            customFunctionRegistry: customFunctionRegistry
+        )
         items(&listBuilder)
         append(listBuilder.build())
         _entities.formUnion(listBuilder.entities())
     }
 
     public mutating func block(beginsWith prefix: String, endsWith suffix: String, separator: XLSeparator, contents: (inout XLBuilder) -> Void) {
-        var blockBuilder: XLBuilder = XLiteBuilder(formatter: formatter)
+        var blockBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
         contents(&blockBuilder)
         append(prefix + separator.rawValue + blockBuilder.build() + separator.rawValue + suffix)
         _entities.formUnion(blockBuilder.entities())
     }
 
     public mutating func unaryPrefix(_ operator: String, expression: (inout XLBuilder) -> Void) {
-        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter)
+        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
         expression(&expressionBuilder)
         append(`operator` + " " + expressionBuilder.build())
         _entities.formUnion(expressionBuilder.entities())
     }
 
     public mutating func unarySuffix(_ operator: String, expression: (inout XLBuilder) -> Void) {
-        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter)
+        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
         expression(&expressionBuilder)
         append(expressionBuilder.build() + " " + `operator`)
         _entities.formUnion(expressionBuilder.entities())
     }
 
     public mutating func unaryOperator(_ operator: String, expression: (inout XLBuilder) -> Void) {
-        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter)
+        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
         expression(&expressionBuilder)
         append(`operator` + expressionBuilder.build())
         _entities.formUnion(expressionBuilder.entities())
     }
 
     public mutating func binaryOperator(_ operator: String, left: (inout XLBuilder) -> Void, right: (inout XLBuilder) -> Void) {
-        var lhsExpressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter)
-        var rhsExpressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter)
+        var lhsExpressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
+        var rhsExpressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
         left(&lhsExpressionBuilder)
         right(&rhsExpressionBuilder)
         append(lhsExpressionBuilder.build() + " " + `operator` + " " + rhsExpressionBuilder.build())
@@ -580,21 +620,29 @@ public struct XLiteBuilder: XLBuilder {
     }
 
     public mutating func cast(type: String, expression: (inout XLBuilder) -> Void) {
-        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter)
+        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
         expression(&expressionBuilder)
         append("CAST(" + expressionBuilder.build() + " AS " + type + ")")
         _entities.formUnion(expressionBuilder.entities())
     }
 
     public mutating func simpleFunction(name: String, parameters: (inout XLListBuilder) -> Void) {
-        var listBuilder: XLListBuilder = XLiteListBuilder(formatter: formatter, separator: .list)
+        var listBuilder: XLListBuilder = XLiteListBuilder(
+            formatter: formatter,
+            separator: .list,
+            customFunctionRegistry: customFunctionRegistry
+        )
         parameters(&listBuilder)
         append(name + "(" + listBuilder.build() + ")")
         _entities.formUnion(listBuilder.entities())
     }
 
     public mutating func aggregateFunction(name: String, distinct: Bool, parameters: (inout XLListBuilder) -> Void) {
-        var listBuilder: XLListBuilder = XLiteListBuilder(formatter: formatter, separator: .list)
+        var listBuilder: XLListBuilder = XLiteListBuilder(
+            formatter: formatter,
+            separator: .list,
+            customFunctionRegistry: customFunctionRegistry
+        )
         parameters(&listBuilder)
         if distinct {
             append(name + "(DISTINCT " + listBuilder.build() + ")")
@@ -606,14 +654,17 @@ public struct XLiteBuilder: XLBuilder {
     }
 
     public mutating func alias(_ name: XLName, expression: (inout XLBuilder) -> Void) {
-        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter)
+        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
         expression(&expressionBuilder)
         append(expressionBuilder.build() + " AS " + formatter.name(name.rawValue))
         _entities.formUnion(expressionBuilder.entities())
     }
 
     public mutating func commonTables(builder: (inout XLCommonTablesBuilder) -> Void) {
-        var commonTablesBuilder: XLCommonTablesBuilder = XLiteCommonTablesBuilder(formatter: formatter)
+        var commonTablesBuilder: XLCommonTablesBuilder = XLiteCommonTablesBuilder(
+            formatter: formatter,
+            customFunctionRegistry: customFunctionRegistry
+        )
         builder(&commonTablesBuilder)
         append("WITH " + commonTablesBuilder.build())
         _entities.formUnion(commonTablesBuilder.entities())
@@ -646,13 +697,16 @@ public struct XLiteListBuilder: XLListBuilder {
 
     private var _entities: Set<String> = []
 
-    init(formatter: XLFormatter, separator: String) {
+    private let customFunctionRegistry: XLiteCustomFunctionRegistry
+
+    init(formatter: XLFormatter, separator: String, customFunctionRegistry: XLiteCustomFunctionRegistry) {
         self.separator = separator
         self.formatter = formatter
+        self.customFunctionRegistry = customFunctionRegistry
     }
 
-    init(formatter: XLFormatter, separator: XLSeparator) {
-        self.init(formatter: formatter, separator: separator.rawValue)
+    init(formatter: XLFormatter, separator: XLSeparator, customFunctionRegistry: XLiteCustomFunctionRegistry) {
+        self.init(formatter: formatter, separator: separator.rawValue, customFunctionRegistry: customFunctionRegistry)
     }
 
     public func build() -> String {
@@ -667,7 +721,7 @@ public struct XLiteListBuilder: XLListBuilder {
     }
 
     public mutating func listItem(expression: (inout XLBuilder) -> Void) {
-        var builder: XLBuilder = XLiteBuilder(formatter: formatter)
+        var builder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
         expression(&builder)
         _tokens.append(builder.build())
         _entities.formUnion(builder.entities())
@@ -686,8 +740,11 @@ public struct XLiteCommonTablesBuilder: XLCommonTablesBuilder {
 
     private var _entities: Set<String> = []
 
-    init(formatter: XLFormatter) {
+    private let customFunctionRegistry: XLiteCustomFunctionRegistry
+
+    init(formatter: XLFormatter, customFunctionRegistry: XLiteCustomFunctionRegistry) {
         self.formatter = formatter
+        self.customFunctionRegistry = customFunctionRegistry
     }
 
     public func build() -> String {
@@ -711,7 +768,7 @@ public struct XLiteCommonTablesBuilder: XLCommonTablesBuilder {
         columns: [XLName],
         expression: (inout XLBuilder) -> Void
     ) {
-        var builder: XLBuilder = XLiteBuilder(formatter: formatter)
+        var builder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
         expression(&builder)
         let hint = materialization.keyword.map { " " + $0 } ?? ""
         let columnList = columns.isEmpty

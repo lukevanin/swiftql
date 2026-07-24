@@ -104,6 +104,20 @@
   written by hand. The macro is opt-in sugar: hand-written `XLCustomFunction`
   conformances that implement `definition` and `makeSQL` themselves keep
   working unchanged.
+- Added implicit custom-function registration. A custom function conforming to
+  `XLCustomFunction` can opt in by calling the new
+  `XLBuilder.customFunctionCall(_:parameters:)` from `makeSQL(context:)`
+  instead of `simpleFunction(name:parameters:)`. `GRDBDatabase` then registers
+  the function with SQLite automatically the first time a rendered statement
+  referencing it executes, without requiring a `GRDBDatabaseBuilder.addFunction`
+  call beforehand. Because `GRDB.DatabasePool` maintains several persistent
+  reader connections and a registration only affects the one physical
+  connection it runs on, the function is (cheaply) re-registered on every
+  execution rather than tracked as "already registered" once, so it works
+  correctly no matter which pooled connection services a given call.
+  `GRDBDatabaseBuilder.addFunction` is unchanged and continues to work exactly
+  as before for functions that keep calling `simpleFunction` directly, or for
+  callers who prefer registering everything upfront.
 
 ### Migration
 

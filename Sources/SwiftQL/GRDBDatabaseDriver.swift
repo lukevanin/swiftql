@@ -264,16 +264,30 @@ struct GRDBInvocationExecutor: Sendable {
 
     let valueEncodingError: XLSQLValueEncodingError?
 
+    /// Custom scalar functions referenced by `logicalStatement`, keyed by their SQLite
+    /// registration signature.
+    ///
+    /// Registered unconditionally on whatever physical connection is checked out immediately
+    /// before every execution (see `boundStatement`), rather than once upfront. `DatabasePool`
+    /// hands out any of several persistent reader connections, and a `Database.add(function:)`
+    /// call only affects the one physical connection it runs on -- so there is no single "first
+    /// use" moment this could register at once and be done. Re-registering on every execution
+    /// costs one cheap `sqlite3_create_function` call and guarantees correctness regardless of
+    /// which pooled connection served the request.
+    let customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
+
     init(
         driver: GRDBDatabaseDriver,
         logicalStatement: XLLogicalPreparedStatement,
         parameterLayoutError: XLInvocationBindingError? = nil,
-        valueEncodingError: XLSQLValueEncodingError? = nil
+        valueEncodingError: XLSQLValueEncodingError? = nil,
+        customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
     ) {
         self.driver = driver
         self.logicalStatement = logicalStatement
         self.parameterLayoutError = parameterLayoutError
         self.valueEncodingError = valueEncodingError
+        self.customFunctions = customFunctions
     }
 
     var parameterLayout: XLParameterLayout {
@@ -429,6 +443,7 @@ struct GRDBInvocationExecutor: Sendable {
         packet: XLInvocationBindings<XLSQLiteValue>,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws -> GRDBPhysicalStatement {
+        connection.registerCustomFunctions(customFunctions)
         let packet = try sqlitePacket(packet)
         var statement = try connection.prepare(logicalStatement)
         for binding in packet.bindings {
@@ -648,6 +663,21 @@ struct GRDBDatabaseDriverConnection:
         try statement.statement.execute(
             arguments: statementArguments(statement)
         )
+    }
+
+    /// Registers custom SQLite functions referenced by the statement about to execute on this
+    /// connection's underlying physical connection.
+    ///
+    /// Unconditional and idempotent: SQLite's `sqlite3_create_function` simply replaces any
+    /// existing registration for the same name and argument count, so calling this before every
+    /// execution is correct however many times it runs, on however many distinct physical
+    /// connections `DatabasePool` hands out over the connection's lifetime.
+    func registerCustomFunctions(
+        _ registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
+    ) {
+        for registration in registrations.values {
+            database.add(function: registration.makeDatabaseFunction())
+        }
     }
 
     private func validateOwnership(of statement: GRDBPhysicalStatement) throws {
