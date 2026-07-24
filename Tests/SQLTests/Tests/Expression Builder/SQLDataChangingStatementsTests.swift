@@ -185,6 +185,23 @@ final class XLDataChangingStatementsTests: XCTestCase {
     }
 
 
+    // MARK: - UPDATE ... RETURNING
+
+    func testUpdateReturning() {
+        let schema = XLSchema()
+        let t = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let expression = update(t)
+            .set { row in row.value = 99 }
+            .where(t.id == "a")
+            .returning(projection)
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "UPDATE Test AS t0 SET value = 99 WHERE (t0.id == 'a') RETURNING id, value"
+        )
+    }
+
+
     // MARK: - DELETE ... RETURNING
 
     func testDeleteReturning() {
