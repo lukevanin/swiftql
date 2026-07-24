@@ -901,25 +901,69 @@ public typealias XLNamedTableDeclaration = XLEncodable & XLColumnDependency & XL
 
 
 ///
+/// An optional optimization hint controlling whether SQLite materializes a
+/// common table expression into a temporary table.
+///
+/// `unspecified` renders no hint and leaves the decision to SQLite's query
+/// planner (the default). `materialized` and `notMaterialized` render the
+/// `MATERIALIZED` / `NOT MATERIALIZED` keywords, which SQLite honors from
+/// version 3.35.0 (2021-03-12).
+///
+public enum XLCommonTableMaterialization: Sendable, Equatable {
+    case unspecified
+    case materialized
+    case notMaterialized
+
+    /// The SQL keyword rendered between `AS` and the CTE body, or `nil` for the
+    /// unspecified default.
+    public var keyword: String? {
+        switch self {
+        case .unspecified:
+            return nil
+        case .materialized:
+            return "MATERIALIZED"
+        case .notMaterialized:
+            return "NOT MATERIALIZED"
+        }
+    }
+}
+
+
+///
 /// A common table expression.
 ///
 public struct XLCommonTableDependency: XLColumnDependency, XLNamedDependency {
-    
+
     public var alias: XLName
 
     internal var statement: any XLEncodable
 
-    public init(alias: XLName, statement: any XLEncodable) {
+    /// The materialization hint rendered for this common table, if any.
+    public var materialization: XLCommonTableMaterialization
+
+    public init(
+        alias: XLName,
+        statement: any XLEncodable,
+        materialization: XLCommonTableMaterialization = .unspecified
+    ) {
         self.alias = alias
         self.statement = statement
+        self.materialization = materialization
     }
 
     public func qualifiedName(forColumn name: XLName) -> XLQualifiedName {
         XLQualifiedTableAliasColumnName(table: alias, column: name)
     }
 
+    /// Returns a copy of this dependency carrying the given materialization hint.
+    public func materialized(_ materialization: XLCommonTableMaterialization) -> XLCommonTableDependency {
+        var copy = self
+        copy.materialization = materialization
+        return copy
+    }
+
     public func makeSQL(context: inout XLCommonTablesBuilder) {
-        context.commonTable(alias: alias) { context in
+        context.commonTable(alias: alias, materialization: materialization) { context in
             statement.makeSQL(context: &context)
         }
     }
