@@ -60,9 +60,12 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     }
                 }
 
+                private static let __xlPersonByNameCache = XLRenderOnceCache<Person>()
+
                 func fetchPersonByName(name: String) throws -> [Person] {
-                    let __xlStatement = personByNameStatement()
-                    let __xlRequest = self.makeRequest(with: __xlStatement)
+                    let __xlRequest = Self.__xlPersonByNameCache.request(for: self) {
+                        personByNameStatement()
+                    }
                     let __xlLayout = __xlRequest.parameterLayout
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                         layout: __xlLayout,
@@ -113,9 +116,12 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     }
                 }
 
+                private static let __xlPeopleInCohortCache = XLRenderOnceCache<Person>()
+
                 public func fetchPeopleInCohort(name: String, minimumAge: Int) throws -> [Person] {
-                    let __xlStatement = peopleInCohortStatement()
-                    let __xlRequest = self.makeRequest(with: __xlStatement)
+                    let __xlRequest = Self.__xlPeopleInCohortCache.request(for: self) {
+                        peopleInCohortStatement()
+                    }
                     let __xlLayout = __xlRequest.parameterLayout
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                         layout: __xlLayout,
@@ -167,9 +173,12 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     }
                 }
 
+                private static let __xlPeopleByNicknameCache = XLRenderOnceCache<Person>()
+
                 func fetchPeopleByNickname(nickname: String?) throws -> [Person] {
-                    let __xlStatement = peopleByNicknameStatement()
-                    let __xlRequest = self.makeRequest(with: __xlStatement)
+                    let __xlRequest = Self.__xlPeopleByNicknameCache.request(for: self) {
+                        peopleByNicknameStatement()
+                    }
                     let __xlLayout = __xlRequest.parameterLayout
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                         layout: __xlLayout,
@@ -220,9 +229,12 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     }
                 }
 
+                private static let __xlPersonByNameCache = XLRenderOnceCache<Person>()
+
                 func fetchPersonByName(name: String) throws -> [Person] {
-                    let __xlStatement = personByNameStatement()
-                    let __xlRequest = self.makeRequest(with: __xlStatement)
+                    let __xlRequest = Self.__xlPersonByNameCache.request(for: self) {
+                        personByNameStatement()
+                    }
                     let __xlLayout = __xlRequest.parameterLayout
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                         layout: __xlLayout,
@@ -273,9 +285,12 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     }
                 }
 
+                private static let __xlRowsForKindCache = XLRenderOnceCache<Person>()
+
                 func fetchRowsForKind(`class`: String) throws -> [Person] {
-                    let __xlStatement = rowsForKindStatement()
-                    let __xlRequest = self.makeRequest(with: __xlStatement)
+                    let __xlRequest = Self.__xlRowsForKindCache.request(for: self) {
+                        rowsForKindStatement()
+                    }
                     let __xlLayout = __xlRequest.parameterLayout
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                         layout: __xlLayout,
@@ -323,9 +338,12 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     }
                 }
 
+                private static let __xlAllPeopleCache = XLRenderOnceCache<Person>()
+
                 func fetchAllPeople() throws -> [Person] {
-                    let __xlStatement = allPeopleStatement()
-                    let __xlRequest = self.makeRequest(with: __xlStatement)
+                    let __xlRequest = Self.__xlAllPeopleCache.request(for: self) {
+                        allPeopleStatement()
+                    }
                     let __xlLayout = __xlRequest.parameterLayout
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -379,9 +397,12 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     }
                 }
 
+                private static let __xlPersonByNameCache = XLRenderOnceCache<Person>()
+
                 func fetchPersonByName(name: String) throws -> [Person] {
-                    let __xlStatement = personByNameStatement()
-                    let __xlRequest = self.makeRequest(with: __xlStatement)
+                    let __xlRequest = Self.__xlPersonByNameCache.request(for: self) {
+                        personByNameStatement()
+                    }
                     let __xlLayout = __xlRequest.parameterLayout
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                         layout: __xlLayout,
@@ -437,9 +458,12 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     }
                 }
 
+                private static let __xlPersonByExactNameCache = XLRenderOnceCache<Person>()
+
                 func fetchPersonByExactName(name: String) throws -> Person? {
-                    let __xlStatement = personByExactNameStatement()
-                    let __xlRequest = self.makeRequest(with: __xlStatement)
+                    let __xlRequest = Self.__xlPersonByExactNameCache.request(for: self) {
+                        personByExactNameStatement()
+                    }
                     let __xlLayout = __xlRequest.parameterLayout
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                         layout: __xlLayout,
@@ -499,9 +523,12 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     }
                 }
 
+                private static let __xlAuditedPersonByNameCache = XLRenderOnceCache<Person>()
+
                 func fetchAuditedPersonByName(name: String) throws -> [Person] {
-                    let __xlStatement = auditedPersonByNameStatement()
-                    let __xlRequest = self.makeRequest(with: __xlStatement)
+                    let __xlRequest = Self.__xlAuditedPersonByNameCache.request(for: self) {
+                        auditedPersonByNameStatement()
+                    }
                     let __xlLayout = __xlRequest.parameterLayout
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                         layout: __xlLayout,
