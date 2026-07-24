@@ -75,7 +75,7 @@ Key planning and foundation issues:
 | v1.3 | [syntax conformance inventory](https://github.com/lukevanin/swiftql/issues/190), [combinatorial conformance cases](https://github.com/lukevanin/swiftql/issues/191), [build-time SQLite validation research](https://github.com/lukevanin/swiftql/issues/132), [Northwind correctness corpus](https://github.com/lukevanin/swiftql/issues/254), [observation stress contracts](https://github.com/lukevanin/swiftql/issues/255) |
 | v1.4 | [SQLite coverage index](https://github.com/lukevanin/swiftql/issues/115), [direct scalar CTE rows](https://github.com/lukevanin/swiftql/issues/43) |
 | v1.5 | [ergonomics index](https://github.com/lukevanin/swiftql/issues/116), [macro index](https://github.com/lukevanin/swiftql/issues/117), [prepared handles](https://github.com/lukevanin/swiftql/issues/18), [lazy typed result set](https://github.com/lukevanin/swiftql/issues/249), [@SQLQuery prototype](https://github.com/lukevanin/swiftql/issues/26), [Date text](https://github.com/lukevanin/swiftql/issues/61) and [numeric codecs](https://github.com/lukevanin/swiftql/issues/62), [UUID codecs](https://github.com/lukevanin/swiftql/issues/192), [interactive DocC tutorial](https://github.com/lukevanin/swiftql/issues/27), [macro regression corpus](https://github.com/lukevanin/swiftql/issues/256), [compile scalability benchmarks](https://github.com/lukevanin/swiftql/issues/257), [runtime workload research](https://github.com/lukevanin/swiftql/issues/259) |
-| v2 | [generated database catalogs and fluent table references](https://github.com/lukevanin/swiftql/issues/217), [Swift 6 mode](https://github.com/lukevanin/swiftql/issues/133), [typed DDL](https://github.com/lukevanin/swiftql/issues/139), [GRDB adapter boundary](https://github.com/lukevanin/swiftql/issues/113), [XL migration](https://github.com/lukevanin/swiftql/issues/33), [catalog stress fixtures](https://github.com/lukevanin/swiftql/issues/258) |
+| v2 | [generated database catalogs and fluent table references](https://github.com/lukevanin/swiftql/issues/217), [Swift 6 mode](https://github.com/lukevanin/swiftql/issues/133), [typed DDL](https://github.com/lukevanin/swiftql/issues/139), [FluentQL and DynamicQL extraction](https://github.com/lukevanin/swiftql/issues/326), [GRDB adapter boundary](https://github.com/lukevanin/swiftql/issues/113), [XL migration](https://github.com/lukevanin/swiftql/issues/33), [catalog stress fixtures](https://github.com/lukevanin/swiftql/issues/258) |
 | v2.1 | [native SQLite adapter](https://github.com/lukevanin/swiftql/issues/136), [Linux CI](https://github.com/lukevanin/swiftql/issues/135), [VDBE research](https://github.com/lukevanin/swiftql/issues/138), [shared-corpus adapter parity](https://github.com/lukevanin/swiftql/issues/260) |
 | v2.2 | [PostgreSQL vertical slice](https://github.com/lukevanin/swiftql/issues/137) |
 | v2.3 | [MySQL vertical slice](https://github.com/lukevanin/swiftql/issues/130) |
@@ -151,6 +151,39 @@ and cross-catalog references are also diagnosed.
 A catalog generates a typed bootstrap operation that creates missing registered
 tables when explicitly requested. Bootstrap is not a migration system: changing
 an existing table still requires an explicit, versioned migration strategy.
+
+## Companion Packages: FluentQL and DynamicQL
+
+SwiftQL currently ships three ways to construct a statement: the result-builder
+syntax, a functional/fluent spelling of the same statically known statements,
+and imperative runtime builders (`QueryBuilder`, `InsertBuilder`). v2 reduces
+SwiftQL itself to the result builder as the single query-construction spelling
+and moves the other two surfaces into companion packages, each in its own
+repository with its own release cadence. The live task graph is the
+[extraction tracking issue](https://github.com/lukevanin/swiftql/issues/326).
+
+- **FluentQL** hosts the functional and fluent spelling — `select(p).from(p)`
+  as an alternative way to write a statement whose structure is known at
+  compile time. It is a supported spelling preference, not a deprecation shim.
+- **DynamicQL** hosts the runtime query builders for statements whose structure
+  is decided by data rather than source code — user-driven filters, optional
+  joins, configurable ordering. It uses SwiftQL, but it fulfills a
+  fundamentally different purpose than a spelling layer, so it versions as its
+  own product instead of riding along with FluentQL.
+
+The split is motivated inside SwiftQL as well: carrying the functional
+overloads next to the result builder makes overload sets collide, which blocks
+completing the result-builder surface for nullable operands. Nothing leaves
+SwiftQL before its result-builder equivalent provably compiles.
+
+The packaging rules are deliberate:
+
+- Each companion depends on SwiftQL; SwiftQL and its tests never depend on a
+  companion, and the companions do not depend on each other.
+- Companions build on an intentional, documented statement-construction seam,
+  not on access-level accidents. A hook both companions need belongs in the
+  seam.
+- Each companion documents which of its versions track which SwiftQL major.
 
 ## Query Declarations and Prepared Handles
 
@@ -640,6 +673,10 @@ Use the major-version boundary for intentional API and package cleanup:
 - ship the stable query-declaration API;
 - remove the legacy `XL` public prefix and publish a migration guide;
 - separate core abstractions, SQLite syntax, macros, and driver adapters;
+- make the result builder the single query-construction spelling: extract the
+  functional/fluent spelling to the companion FluentQL package and the runtime
+  `QueryBuilder`/`InsertBuilder` surface to the companion DynamicQL package,
+  each in its own repository with a one-way dependency on SwiftQL;
 - make GRDB an adapter rather than an implementation detail of the core module;
 - introduce typed, dialect-aware DDL;
 - stabilize contextual codec naming, storage metadata, and the migration path
