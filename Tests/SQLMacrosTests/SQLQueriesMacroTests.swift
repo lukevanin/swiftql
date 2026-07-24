@@ -147,7 +147,122 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
 }
 
 
+final class SQLQueriesMacroAccessLevelTests: XCTestCase {
+
+    ///
+    /// The extension's access level propagates to every generated member, so a
+    /// `public extension` exposes `Context`, `execute`, and the database-level
+    /// executors to outside-module callers.
+    ///
+    func test_publicExtension_propagatesAccessLevelToGeneratedMembers() {
+        assertMacroExpansion(
+            """
+            @SQLQueries
+            public extension MyDatabase {
+                private struct Query {
+                    func allPeople() -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            public extension MyDatabase {
+                private struct Query {
+                    func allPeople() -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+
+                public struct Context {
+                    let database: MyDatabase
+
+                    public func allPeople() throws -> [Person] {
+                        let __xlStatement: any XLQueryStatement<Person> = {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                            }
+                        }()
+                        let __xlRequest = database.makeRequest(with: __xlStatement)
+                        let __xlLayout = __xlRequest.parameterLayout
+                        let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()
+                        return try __xlRequest.fetchAll(bindings: __xlPacket)
+                    }
+                }
+
+                public func execute<__XLResult>(_ __xlWork: (Context) throws -> __XLResult) throws -> __XLResult {
+                    try __xlWork(Context(database: self))
+                }
+
+                public func allPeople() throws -> [Person] {
+                    try execute { __xlContext in
+                        try __xlContext.allPeople()
+                    }
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+}
+
+
 final class SQLQueriesMacroDiagnosticTests: XCTestCase {
+
+    ///
+    /// A malformed specification inside the container is diagnosed with the
+    /// container macro's own name, not '@SQLQuery' (which the user never
+    /// wrote).
+    ///
+    func test_malformedContainerSpec_diagnosticNamesSQLQueries() {
+        assertMacroExpansion(
+            """
+            @SQLQueries
+            extension MyDatabase {
+                struct Query {
+                    func allPeople() throws -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                struct Query {
+                    func allPeople() throws -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQueries' requires a nonthrowing, synchronous function. Statement builders only construct a value-free statement.",
+                    line: 4,
+                    column: 26
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
 
     func test_nonExtensionDeclaration_emitsError() {
         assertMacroExpansion(

@@ -132,13 +132,23 @@ internal struct SQLQueryBuilder {
 
     let rewrittenBodyText: String
 
-    init(node: AttributeSyntax, declaration: some DeclSyntaxProtocol) throws {
+    /// The user-facing attribute name used in diagnostics — `@SQLQuery` for
+    /// the per-function peer macro, `@SQLQueries` when specifications are
+    /// parsed out of a container by the member macro.
+    let macroName: String
+
+    init(
+        node: AttributeSyntax,
+        declaration: some DeclSyntaxProtocol,
+        macroName: String = "@SQLQuery"
+    ) throws {
+        self.macroName = macroName
         guard let function = declaration.as(FunctionDeclSyntax.self) else {
             throw DiagnosticsError(diagnostics: [
                 Diagnostic(
                     node: node,
                     id: "sqlquery-function-only",
-                    message: "'@SQLQuery' can only be applied to a function."
+                    message: "'\(macroName)' can only be applied to a function."
                 )
             ])
         }
@@ -154,7 +164,7 @@ internal struct SQLQueryBuilder {
                 Diagnostic(
                     node: typeLevelModifier,
                     id: "sqlquery-instance-method-only",
-                    message: "'@SQLQuery' can only be applied to an instance method. The generated executor prepares its request through 'self.makeRequest(with:)'."
+                    message: "'\(macroName)' can only be applied to an instance method. The generated executor prepares its request through 'self.makeRequest(with:)'."
                 )
             )
         }
@@ -164,7 +174,7 @@ internal struct SQLQueryBuilder {
                 Diagnostic(
                     node: genericParameterClause,
                     id: "sqlquery-generic-function",
-                    message: "'@SQLQuery' cannot be applied to a generic function. The generated statement builder takes no arguments, so generic parameters cannot be inferred."
+                    message: "'\(macroName)' cannot be applied to a generic function. The generated statement builder takes no arguments, so generic parameters cannot be inferred."
                 )
             )
         }
@@ -174,36 +184,41 @@ internal struct SQLQueryBuilder {
                 Diagnostic(
                     node: effectSpecifiers,
                     id: "sqlquery-effect-specifiers",
-                    message: "'@SQLQuery' requires a nonthrowing, synchronous function. Statement builders only construct a value-free statement."
+                    message: "'\(macroName)' requires a nonthrowing, synchronous function. Statement builders only construct a value-free statement."
                 )
             )
         }
 
         self.parameters = Self.makeParameters(
             of: function,
+            macroName: macroName,
             diagnostics: &diagnostics
         )
-        self.returnShape = Self.makeReturnShape(of: function, diagnostics: &diagnostics)
+        self.returnShape = Self.makeReturnShape(
+            of: function,
+            macroName: macroName,
+            diagnostics: &diagnostics
+        )
 
         guard let body = function.body else {
             diagnostics.append(
                 Diagnostic(
                     node: Syntax(function.signature),
                     id: "sqlquery-body-required",
-                    message: "'@SQLQuery' requires a function body that returns the query statement."
+                    message: "'\(macroName)' requires a function body that returns the query statement."
                 )
             )
             throw DiagnosticsError(diagnostics: diagnostics)
         }
 
-        let shadowingVisitor = SQLQueryShadowingVisitor(parameters: parameters)
+        let shadowingVisitor = SQLQueryShadowingVisitor(parameters: parameters, macroName: macroName)
         shadowingVisitor.walk(body)
         diagnostics.append(contentsOf: shadowingVisitor.diagnostics)
 
         if shadowingVisitor.diagnostics.isEmpty {
             // A shadowed name makes lexical parameter analysis unreliable, so
             // member-access checking waits until the shadowing is resolved.
-            let memberAccessVisitor = SQLQueryParameterMemberAccessVisitor(parameters: parameters)
+            let memberAccessVisitor = SQLQueryParameterMemberAccessVisitor(parameters: parameters, macroName: macroName)
             memberAccessVisitor.walk(body)
             diagnostics.append(contentsOf: memberAccessVisitor.diagnostics)
         }
@@ -268,6 +283,7 @@ internal struct SQLQueryBuilder {
     ///
     private static func makeParameters(
         of function: FunctionDeclSyntax,
+        macroName: String,
         diagnostics: inout [Diagnostic]
     ) -> [SQLQueryParameter] {
         var parameters: [SQLQueryParameter] = []
@@ -277,7 +293,7 @@ internal struct SQLQueryBuilder {
                     Diagnostic(
                         node: ellipsis,
                         id: "sqlquery-variadic-parameter",
-                        message: "'@SQLQuery' cannot bind a variadic parameter to a single named placeholder."
+                        message: "'\(macroName)' cannot bind a variadic parameter to a single named placeholder."
                     )
                 )
                 continue
@@ -288,7 +304,7 @@ internal struct SQLQueryBuilder {
                     Diagnostic(
                         node: attributedType,
                         id: "sqlquery-parameter-specifier",
-                        message: "'@SQLQuery' cannot bind a '\(specifier.text)' parameter to a named placeholder."
+                        message: "'\(macroName)' cannot bind a '\(specifier.text)' parameter to a named placeholder."
                     )
                 )
                 continue
@@ -299,7 +315,7 @@ internal struct SQLQueryBuilder {
                     Diagnostic(
                         node: name,
                         id: "sqlquery-unnamed-parameter",
-                        message: "'@SQLQuery' requires every parameter to have a name. The name identifies the SQL placeholder."
+                        message: "'\(macroName)' requires every parameter to have a name. The name identifies the SQL placeholder."
                     )
                 )
                 continue
@@ -313,7 +329,7 @@ internal struct SQLQueryBuilder {
                     Diagnostic(
                         node: name,
                         id: "sqlquery-reserved-parameter-name",
-                        message: "'@SQLQuery' cannot bind a parameter named '\(normalizedIdentifier(name.text))'. The name collides with a statement-builder entry point, so rewriting its references would corrupt the builder call in the generated peer. Rename the parameter."
+                        message: "'\(macroName)' cannot bind a parameter named '\(normalizedIdentifier(name.text))'. The name collides with a statement-builder entry point, so rewriting its references would corrupt the builder call in the generated peer. Rename the parameter."
                     )
                 )
                 continue
@@ -339,6 +355,7 @@ internal struct SQLQueryBuilder {
     ///
     private static func makeReturnShape(
         of function: FunctionDeclSyntax,
+        macroName: String,
         diagnostics: inout [Diagnostic]
     ) -> SQLQueryReturnShape {
         let returnType = function.signature.returnClause?.type.trimmed
@@ -382,7 +399,7 @@ internal struct SQLQueryBuilder {
             Diagnostic(
                 node: Syntax(function.signature.returnClause?.type) ?? Syntax(function.signature),
                 id: "sqlquery-return-type",
-                message: "'@SQLQuery' requires the function to return '[Row]' (fetch all), 'Row?' (fetch one), or the legacy 'any/some XLQueryStatement<Row>', with an explicit row type. The row type declares the executor's result element and the shape selects the fetch."
+                message: "'\(macroName)' requires the function to return '[Row]' (fetch all), 'Row?' (fetch one), or the legacy 'any/some XLQueryStatement<Row>', with an explicit row type. The row type declares the executor's result element and the shape selects the fetch."
             )
         )
         return SQLQueryReturnShape(rowType: "", cardinality: .many, isDirectResult: false)
@@ -580,10 +597,13 @@ internal final class SQLQueryShadowingVisitor: SyntaxVisitor {
 
     private let parameterNames: Set<String>
 
+    private let macroName: String
+
     private(set) var diagnostics: [Diagnostic] = []
 
-    init(parameters: [SQLQueryParameter]) {
+    init(parameters: [SQLQueryParameter], macroName: String = "@SQLQuery") {
         self.parameterNames = Set(parameters.map(\.placeholderName))
+        self.macroName = macroName
         super.init(viewMode: .sourceAccurate)
     }
 
@@ -616,7 +636,7 @@ internal final class SQLQueryShadowingVisitor: SyntaxVisitor {
             Diagnostic(
                 node: name,
                 id: "sqlquery-shadowed-parameter",
-                message: "'\(identifier)' shadows a query parameter inside the '@SQLQuery' body. The macro rewrites every reference to '\(identifier)' into a named binding, so a shadowing declaration would change what those references mean. Rename the declaration."
+                message: "'\(identifier)' shadows a query parameter inside the '\(macroName)' body. The macro rewrites every reference to '\(identifier)' into a named binding, so a shadowing declaration would change what those references mean. Rename the declaration."
             )
         )
     }
@@ -635,10 +655,13 @@ internal final class SQLQueryParameterMemberAccessVisitor: SyntaxVisitor {
 
     private let parameterNames: Set<String>
 
+    private let macroName: String
+
     private(set) var diagnostics: [Diagnostic] = []
 
-    init(parameters: [SQLQueryParameter]) {
+    init(parameters: [SQLQueryParameter], macroName: String = "@SQLQuery") {
         self.parameterNames = Set(parameters.map(\.placeholderName))
+        self.macroName = macroName
         super.init(viewMode: .sourceAccurate)
     }
 
@@ -654,7 +677,7 @@ internal final class SQLQueryParameterMemberAccessVisitor: SyntaxVisitor {
             Diagnostic(
                 node: base,
                 id: "sqlquery-parameter-member-access",
-                message: "'\(identifier)' cannot be used through member access in a '@SQLQuery' body. A parameter reference is rewritten to a named binding as a whole expression; compute the derived value before building the statement, or pass it as a separate parameter."
+                message: "'\(identifier)' cannot be used through member access in a '\(macroName)' body. A parameter reference is rewritten to a named binding as a whole expression; compute the derived value before building the statement, or pass it as a separate parameter."
             )
         )
         return .visitChildren

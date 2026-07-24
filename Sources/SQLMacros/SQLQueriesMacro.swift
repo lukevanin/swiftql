@@ -59,6 +59,12 @@ extension SQLQueriesMacro: MemberMacro {
         }
         let databaseType = extensionDecl.extendedType.trimmedDescription
 
+        // Propagate the extension's modifiers (access level) to every
+        // generated member, so a `public extension` exposes the executors to
+        // outside-module callers.
+        let extensionModifiers = extensionDecl.modifiers.trimmedDescription
+        let modifierPrefix = extensionModifiers.isEmpty ? "" : extensionModifiers + " "
+
         var builders: [SQLQueryBuilder] = []
         var diagnostics: [Diagnostic] = []
         var foundContainer = false
@@ -73,7 +79,11 @@ extension SQLQueriesMacro: MemberMacro {
                     continue
                 }
                 do {
-                    builders.append(try SQLQueryBuilder(node: node, declaration: function))
+                    builders.append(try SQLQueryBuilder(
+                        node: node,
+                        declaration: function,
+                        macroName: "@SQLQueries"
+                    ))
                 }
                 catch let error as DiagnosticsError {
                     diagnostics.append(contentsOf: error.diagnostics)
@@ -95,10 +105,14 @@ extension SQLQueriesMacro: MemberMacro {
         }
 
         var members: [String] = []
-        members.append(makeContextStruct(databaseType: databaseType, builders: builders))
-        members.append(makeExecuteFunction())
+        members.append(makeContextStruct(
+            databaseType: databaseType,
+            builders: builders,
+            modifierPrefix: modifierPrefix
+        ))
+        members.append(makeExecuteFunction(modifierPrefix: modifierPrefix))
         for builder in builders {
-            members.append(builder.makeDatabaseExecutorFunction())
+            members.append(builder.makeDatabaseExecutorFunction(modifierPrefix: modifierPrefix))
         }
         return members.map { DeclSyntax(stringLiteral: $0) }
     }
@@ -109,14 +123,15 @@ extension SQLQueriesMacro: MemberMacro {
     ///
     private static func makeContextStruct(
         databaseType: String,
-        builders: [SQLQueryBuilder]
+        builders: [SQLQueryBuilder],
+        modifierPrefix: String
     ) -> String {
         var lines: [String] = []
-        lines.append("struct Context {")
+        lines.append("\(modifierPrefix)struct Context {")
         lines.append("    let database: \(databaseType)")
         for builder in builders {
             lines.append("")
-            lines.append(indent(builder.makeContextExecutorFunction(), by: 4))
+            lines.append(indent(builder.makeContextExecutorFunction(modifierPrefix: modifierPrefix), by: 4))
         }
         lines.append("}")
         return lines.joined(separator: "\n")
@@ -127,9 +142,9 @@ extension SQLQueriesMacro: MemberMacro {
     /// straight to the database; connection checkout and transaction scoping
     /// are runtime design outside this macro spike.
     ///
-    private static func makeExecuteFunction() -> String {
+    private static func makeExecuteFunction(modifierPrefix: String) -> String {
         var lines: [String] = []
-        lines.append("func execute<__XLResult>(_ __xlWork: (Context) throws -> __XLResult) throws -> __XLResult {")
+        lines.append("\(modifierPrefix)func execute<__XLResult>(_ __xlWork: (Context) throws -> __XLResult) throws -> __XLResult {")
         lines.append("    try __xlWork(Context(database: self))")
         lines.append("}")
         return lines.joined(separator: "\n")
@@ -156,13 +171,13 @@ extension SQLQueryBuilder {
     /// The value-free statement is built inline from the rewritten body, so
     /// the specification's placeholder SQL invariant carries over unchanged.
     ///
-    func makeContextExecutorFunction() -> String {
+    func makeContextExecutorFunction(modifierPrefix: String) -> String {
         let parameterClause = function.signature.parameterClause.trimmedDescription
         // The rewritten body is a code block; applying it as a closure yields
         // the value-free statement without a separate builder symbol.
         let statementExpression = indentSkippingFirstLine(rewrittenBodyText, by: 4)
         var lines: [String] = []
-        lines.append("func \(function.name.text)\(parameterClause) throws -> \(executorResultType) {")
+        lines.append("\(modifierPrefix)func \(function.name.text)\(parameterClause) throws -> \(executorResultType) {")
         lines.append("    let __xlStatement: any XLQueryStatement<\(rowType)> = \(statementExpression)()")
         lines.append("    let __xlRequest = database.makeRequest(with: __xlStatement)")
         lines.append("    let __xlLayout = __xlRequest.parameterLayout")
@@ -189,7 +204,7 @@ extension SQLQueryBuilder {
     /// `execute`, so the implicit one-shot form is transparently the explicit
     /// context form.
     ///
-    func makeDatabaseExecutorFunction() -> String {
+    func makeDatabaseExecutorFunction(modifierPrefix: String) -> String {
         let parameterClause = function.signature.parameterClause.trimmedDescription
         var arguments: [String] = []
         for parameter in function.signature.parameterClause.parameters {
@@ -203,7 +218,7 @@ extension SQLQueryBuilder {
         }
         let argumentList = arguments.joined(separator: ", ")
         var lines: [String] = []
-        lines.append("func \(function.name.text)\(parameterClause) throws -> \(executorResultType) {")
+        lines.append("\(modifierPrefix)func \(function.name.text)\(parameterClause) throws -> \(executorResultType) {")
         lines.append("    try execute { __xlContext in")
         lines.append("        try __xlContext.\(function.name.text)(\(argumentList))")
         lines.append("    }")
