@@ -17,11 +17,18 @@
 - Added `UPDATE` support scoped by a `WITH` common table expression through
   `XLWithStatement.update`, so a factored common table expression can drive an
   update, for example `with(cte).update(t).set { ... }.from(cte).where(...)`.
-- Recorded the new conflict-resolution, replace, upsert, and update-with-CTE
-  surfaces in the #190
-  canonical SQLite conformance inventory. It records 109 public-surface feature records: 101
+- Added `INSERT ... RETURNING` through the `Returning` clause and the
+  `returning(_:)` method on insert statements (including `ON CONFLICT` upserts).
+  A returning statement is fetchable — `makeRequest(with:).fetchAll()` yields the
+  affected rows projected through the supplied result. SQLite rejects
+  statement-aliased names in `RETURNING`, so the returned columns render
+  unqualified; the statement executes on a write connection and is not
+  observable as a live query. Requires SQLite 3.35.0.
+- Recorded the new conflict-resolution, replace, upsert, update-with-CTE, and
+  insert-returning surfaces in the #190
+  canonical SQLite conformance inventory. It records 110 public-surface feature records: 102
   supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-  5 unimplemented. Of the 154 evidence records, 96 exercise real SQLite and
+  5 unimplemented. Of the 158 evidence records, 98 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
 ### Migration
