@@ -15,12 +15,15 @@ public macro SQLResult() = #externalMacro(module: "SQLMacros", type: "SQLResultM
 ///
 /// Defines the `@SQLQuery` macro.
 ///
-/// Spike (#359): attaches to a statement-returning function in a database
+/// Spike (#359/#369): attaches to a query-specification function in a database
 /// extension and generates two peers — a value-free statement builder whose
 /// parameter references are rewritten to typed `XLNamedBindingReference`
-/// placeholders, and a `fetchAll` executor that binds the parameter values
-/// through an immutable invocation packet. Generated names are provisional
-/// while #26 settles the packaging decision.
+/// placeholders, and an executor that binds the parameter values through an
+/// immutable invocation packet. The fetch is dispatched from the function's
+/// return annotation: `[Row]` (or the legacy `any/some XLQueryStatement<Row>`)
+/// fetches all rows, `Row?` fetches one. Direct-result specifications write
+/// their body with the trapping `sqlResult {}` entry point instead of `sql {}`.
+/// Generated names are provisional while #26 settles the packaging decision.
 ///
 @attached(peer, names: arbitrary)
 public macro SQLQuery() = #externalMacro(module: "SQLMacros", type: "SQLQueryMacro")

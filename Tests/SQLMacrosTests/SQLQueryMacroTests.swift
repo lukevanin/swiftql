@@ -340,7 +340,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
 
     ///
     /// A `[Row]` direct-result signature (no `XLQueryStatement` boilerplate)
-    /// dispatches to `fetchAll`. The spec calls the trapping `sqlQuery` entry
+    /// dispatches to `fetchAll`. The spec calls the trapping `sqlResult` entry
     /// point; the generated statement builder swaps it for the real `sql`
     /// builder and declares the value-free `any XLQueryStatement<Row>` result.
     ///

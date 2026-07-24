@@ -2,8 +2,9 @@
 //  SQLQueryMacro.swift
 //  SwiftQL
 //
-//  Spike (#359): attached peer macro that rewrites a statement-returning
-//  function into a value-free statement builder plus a `fetchAll` executor.
+//  Spike (#359/#369): attached peer macro that rewrites a query-specification
+//  function into a value-free statement builder plus an executor whose fetch
+//  (`fetchAll` / `fetchOne`) is dispatched from the return annotation.
 //
 
 import Foundation
@@ -14,14 +15,16 @@ import SwiftSyntaxMacros
 
 
 ///
-/// Declares a statement-returning function as a reusable prepared query.
+/// Declares a query-specification function as a reusable prepared query.
 ///
 /// The attached function builds a `SELECT` statement from its parameters. The
 /// macro generates two peers: a value-free statement builder in which every
 /// parameter reference is replaced by a typed `XLNamedBindingReference`, and an
 /// executor that renders the statement once per call through the enclosing
 /// database's `makeRequest(with:)`, binds the parameter values into an
-/// immutable invocation packet, and returns the `fetchAll` rows.
+/// immutable invocation packet, and fetches the result. The fetch is dispatched
+/// from the function's return annotation: `[Row]` (or the legacy
+/// `any/some XLQueryStatement<Row>`) fetches all rows, `Row?` fetches one.
 ///
 public struct SQLQueryMacro {
 }
@@ -108,7 +111,7 @@ internal struct SQLQueryReturnShape {
     /// `true` when the function declares its result directly (`[Row]` / `Row?`,
     /// spike #369); `false` for the legacy `XLQueryStatement<Row>` spelling
     /// (#359). In the direct-result case the statement-builder peer must swap
-    /// the trapping `sqlQuery` entry point for the real `sql` builder.
+    /// the trapping `sqlResult` entry point for the real `sql` builder.
     var isDirectResult: Bool
 }
 
@@ -480,8 +483,8 @@ internal final class SQLQueryParameterRewriter: SyntaxRewriter {
     private let replacements: [String: String]
 
     /// Identifier renames applied to references that are *not* parameters —
-    /// used to swap the trapping `sqlQuery` spec entry point for the real `sql`
-    /// builder in the direct-result encoding (#369).
+    /// used to swap the trapping `sqlResult` spec entry point for the real
+    /// `sql` builder in the direct-result encoding (#369).
     private let calleeRenames: [String: String]
 
     init(parameters: [SQLQueryParameter], calleeRenames: [String: String] = [:]) {

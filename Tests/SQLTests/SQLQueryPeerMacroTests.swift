@@ -14,29 +14,6 @@ import GRDB
 import SwiftQL
 
 
-///
-/// Spike (#369): the trapping direct-result entry point.
-///
-/// A `@SQLQuery` spec written with a direct result type (`[Row]` / `Row?`) calls
-/// this instead of `sql {}` so the function type-checks without the
-/// `XLQueryStatement` boilerplate. It is only a type-check anchor and a syntax
-/// source for the macro; invoking it directly traps loudly, because the real
-/// work happens in the generated executor peer. The macro rewrites this callee
-/// back to `sql {}` when it emits the value-free statement builder.
-///
-/// The name is provisional — `sqlQuery` is already the labeled-closure statement
-/// builder, so the direct-result anchor needs its own name.
-///
-func sqlResult<Row, Result>(
-    @XLQueryExpressionBuilder _ builder: (XLSchema) -> any XLQueryStatement<Row>
-) -> Result {
-    fatalError(
-        "'sqlResult' marks a @SQLQuery specification, not an executor. "
-        + "Call the generated executor peer (e.g. fetchPersonByName) instead."
-    )
-}
-
-
 extension GRDBDatabase {
 
     @SQLQuery
