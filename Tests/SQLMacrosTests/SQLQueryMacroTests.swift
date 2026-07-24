@@ -67,7 +67,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                         layout: __xlLayout,
                         bindings: [
-                            _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -120,8 +120,8 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                         layout: __xlLayout,
                         bindings: [
-                            _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
-                            _xlQueryParameterBinding(minimumAge, named: "minimumAge", in: __xlLayout),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                            try _xlQueryParameterBinding(minimumAge, named: "minimumAge", in: __xlLayout),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -174,7 +174,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                         layout: __xlLayout,
                         bindings: [
-                            _xlQueryParameterBinding(nickname, named: "nickname", in: __xlLayout),
+                            try _xlQueryParameterBinding(nickname, named: "nickname", in: __xlLayout),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -227,7 +227,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                         layout: __xlLayout,
                         bindings: [
-                            _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
@@ -280,7 +280,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                         layout: __xlLayout,
                         bindings: [
-                            _xlQueryParameterBinding(`class`, named: "class", in: __xlLayout),
+                            try _xlQueryParameterBinding(`class`, named: "class", in: __xlLayout),
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)

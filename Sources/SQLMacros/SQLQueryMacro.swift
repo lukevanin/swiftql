@@ -351,7 +351,7 @@ internal struct SQLQueryBuilder {
             lines.append("        layout: __xlLayout,")
             lines.append("        bindings: [")
             for parameter in parameters {
-                lines.append("            _xlQueryParameterBinding(\(parameter.swiftName), named: \"\(parameter.placeholderName)\", in: __xlLayout),")
+                lines.append("            try _xlQueryParameterBinding(\(parameter.swiftName), named: \"\(parameter.placeholderName)\", in: __xlLayout),")
             }
             lines.append("        ]")
             lines.append("    ).validatingComplete()")
