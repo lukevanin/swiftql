@@ -389,7 +389,7 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "'@SQLQuery' requires the function to return 'any XLQueryStatement<Row>' with an explicit row type. The row type declares the executor's result element.",
+                    message: "'@SQLQuery' requires the function to return 'any XLQueryStatement<Row>' or 'some XLQueryStatement<Row>' with an explicit row type. The row type declares the executor's result element.",
                     line: 3,
                     column: 25
                 )
@@ -612,6 +612,44 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
                     message: "'name' shadows a query parameter inside the '@SQLQuery' body. The macro rewrites every reference to 'name' into a named binding, so a shadowing declaration would change what those references mean. Rename the declaration.",
                     line: 4,
                     column: 15
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    func test_parameterMemberAccess_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func personByName(name: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name.uppercased())
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func personByName(name: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name.uppercased())
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'name' cannot be used through member access in a '@SQLQuery' body. A parameter reference is rewritten to a named binding as a whole expression; compute the derived value before building the statement, or pass it as a separate parameter.",
+                    line: 8,
+                    column: 34
                 )
             ],
             macros: makeTestMacros()

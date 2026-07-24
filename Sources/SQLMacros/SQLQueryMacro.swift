@@ -161,6 +161,14 @@ internal struct SQLQueryBuilder {
         shadowingVisitor.walk(body)
         diagnostics.append(contentsOf: shadowingVisitor.diagnostics)
 
+        if shadowingVisitor.diagnostics.isEmpty {
+            // A shadowed name makes lexical parameter analysis unreliable, so
+            // member-access checking waits until the shadowing is resolved.
+            let memberAccessVisitor = SQLQueryParameterMemberAccessVisitor(parameters: parameters)
+            memberAccessVisitor.walk(body)
+            diagnostics.append(contentsOf: memberAccessVisitor.diagnostics)
+        }
+
         guard diagnostics.isEmpty else {
             throw DiagnosticsError(diagnostics: diagnostics)
         }
@@ -289,7 +297,7 @@ internal struct SQLQueryBuilder {
                 Diagnostic(
                     node: Syntax(function.signature.returnClause?.type) ?? Syntax(function.signature),
                     id: "sqlquery-return-type",
-                    message: "'@SQLQuery' requires the function to return 'any XLQueryStatement<Row>' with an explicit row type. The row type declares the executor's result element."
+                    message: "'@SQLQuery' requires the function to return 'any XLQueryStatement<Row>' or 'some XLQueryStatement<Row>' with an explicit row type. The row type declares the executor's result element."
                 )
             )
             return ""
@@ -448,5 +456,44 @@ internal final class SQLQueryShadowingVisitor: SyntaxVisitor {
                 message: "'\(identifier)' shadows a query parameter inside the '@SQLQuery' body. The macro rewrites every reference to '\(identifier)' into a named binding, so a shadowing declaration would change what those references mean. Rename the declaration."
             )
         )
+    }
+}
+
+
+///
+/// Rejects member access whose base is a query parameter.
+///
+/// A parameter reference must be rewriteable to a named binding as a whole
+/// expression. An access such as `name.lowercased()` transforms the value in
+/// Swift, which no placeholder can represent, so the generated peer would fail
+/// to type-check.
+///
+internal final class SQLQueryParameterMemberAccessVisitor: SyntaxVisitor {
+
+    private let parameterNames: Set<String>
+
+    private(set) var diagnostics: [Diagnostic] = []
+
+    init(parameters: [SQLQueryParameter]) {
+        self.parameterNames = Set(parameters.map(\.placeholderName))
+        super.init(viewMode: .sourceAccurate)
+    }
+
+    override func visit(_ node: MemberAccessExprSyntax) -> SyntaxVisitorContinueKind {
+        guard let base = node.base?.as(DeclReferenceExprSyntax.self) else {
+            return .visitChildren
+        }
+        let identifier = normalizedIdentifier(base.baseName.text)
+        guard parameterNames.contains(identifier) else {
+            return .visitChildren
+        }
+        diagnostics.append(
+            Diagnostic(
+                node: base,
+                id: "sqlquery-parameter-member-access",
+                message: "'\(identifier)' cannot be used through member access in a '@SQLQuery' body. A parameter reference is rewritten to a named binding as a whole expression; compute the derived value before building the statement, or pass it as a separate parameter."
+            )
+        )
+        return .visitChildren
     }
 }
