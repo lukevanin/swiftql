@@ -10,6 +10,14 @@ on:
 permissions:
   contents: read
 
+# Superseded pull-request runs are cancelled; pushes to main queue instead so
+# an in-progress main run is never cancelled. Workflow-level concurrency is
+# ignored when release.yml invokes this workflow via workflow_call, so release
+# runs are never cancelled or queued behind other compatibility runs.
+concurrency:
+  group: swift-compatibility-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   release-tooling:
     name: Release tooling fixtures
@@ -62,6 +70,10 @@ jobs:
 
   coverage:
     name: Swift 6.0 / first-party source coverage
+    # Release-evidence sweep: pushes to main and release workflow_call runs
+    # only. Pull requests get their compatibility signal from the
+    # compatibility job's pinned Linux and macOS cells.
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: macos-15
     timeout-minutes: 60
     env:
@@ -171,6 +183,10 @@ jobs:
 
   swift-series:
     name: Swift ${{ matrix.swift_series }} / Apple clean resolution
+    # Full-series sweep: pushes to main and release workflow_call runs only.
+    # Pull requests get their compatibility signal from the compatibility
+    # job's pinned Linux and macOS cells.
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:

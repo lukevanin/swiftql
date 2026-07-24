@@ -169,6 +169,36 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn("#if canImport(Darwin)", benchmark_cli)
         self.assertIn("#elseif canImport(Glibc)", benchmark_cli)
 
+    def test_pull_request_runs_cancel_superseded_and_reduce_to_core_cells(
+        self,
+    ) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "concurrency:\n"
+            "  group: swift-compatibility-${{ github.ref }}\n"
+            "  cancel-in-progress: "
+            "${{ github.event_name == 'pull_request' }}\n",
+            workflow,
+        )
+        self.assertNotIn("cancel-in-progress: true", workflow)
+
+        release_tooling = workflow.split("\n  release-tooling:\n", maxsplit=1)[1]
+        coverage = release_tooling.split("\n  coverage:\n", maxsplit=1)[1]
+        swift_series = coverage.split("\n  swift-series:\n", maxsplit=1)[1]
+        compatibility = swift_series.split(
+            "\n  compatibility:\n", maxsplit=1
+        )[1]
+        release_tooling = release_tooling.split("\n  coverage:\n", maxsplit=1)[0]
+        coverage = coverage.split("\n  swift-series:\n", maxsplit=1)[0]
+        swift_series = swift_series.split("\n  compatibility:\n", maxsplit=1)[0]
+
+        pull_request_skip = "if: ${{ github.event_name != 'pull_request' }}"
+        self.assertIn(pull_request_skip, coverage)
+        self.assertIn(pull_request_skip, swift_series)
+        self.assertNotIn(pull_request_skip, release_tooling)
+        self.assertNotIn(pull_request_skip, compatibility)
+
     def test_compatibility_commands_use_selected_path_toolchain(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         compatibility = workflow.split("\n  compatibility:\n", maxsplit=1)[1]
