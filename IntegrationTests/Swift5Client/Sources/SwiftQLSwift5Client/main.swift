@@ -239,6 +239,12 @@ private func executeFixture(
     }
     try validateDeclaredQueryMacros(database: database)
 
+    // Issue #256's downstream `@SQLTable`/`@SQLResult` regression corpus:
+    // reserved/escaped/Unicode identifiers, BLOBs, optionals, enum-backed
+    // columns, a wide row, and composite/nested result selection, all
+    // compiled and executed from this real separate package.
+    try runMacroRegressionFixtures(database: database)
+
     let token = try database.contextualBinding(
         DownstreamToken.self,
         expressedAs: Int.self,

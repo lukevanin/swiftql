@@ -85,6 +85,18 @@
   `@SQLResult` composite), so a property type the macro cannot resolve as
   either is rejected with an actionable message instead of only failing
   downstream with an opaque protocol-conformance error.
+- Added the issue #256 `@SQLTable`/`@SQLResult` macro regression corpus:
+  expansion and diagnostic tests for reserved/escaped and Unicode
+  identifiers, SQL-keyword-like property names, doubly-wrapped optionals,
+  every reserved generated-member name, mixed access-control modifiers, and
+  a wide (12-property) row; and a checked-in downstream consumer fixture
+  (`IntegrationTests/Swift5Client`) that compiles and executes BLOBs,
+  optionals, `XLEnum` columns, a wide row, and composite/nested result
+  selection against real SQLite without `@testable`. Each case's provenance
+  and disposition (including the still-unsupported optional composite
+  property, gated on issue #6) is recorded in
+  `Tests/SQLMacrosTests/MacroRegressionCorpus.json`, a sibling to the #190
+  SQL-syntax conformance inventory scoped to macro code-generation instead.
 
 ### Migration
 
