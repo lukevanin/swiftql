@@ -200,7 +200,7 @@ final class SQLiteValueConformanceBoundaryTests: XCTestCase {
             "syntax.compound.direct-scalar-gap": 43,
             "syntax.cte.materialization-hints-gap": 10,
             "syntax.ddl.typed-model-gap": 139,
-            "syntax.dml.returning-gap": 53,
+            "syntax.dml.returning-gap": 58,
             "syntax.join.natural-using-gap": 45,
         ]
         let featuresByID = Dictionary(

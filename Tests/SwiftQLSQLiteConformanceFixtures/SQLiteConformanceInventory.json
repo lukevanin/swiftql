@@ -2381,6 +2381,35 @@
       "environment_ids": [
         "sqlite-3.51.0-macos-arm64"
       ]
+    },
+    {
+      "id": "evidence.syntax.dml.render-delete-returning",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testDeleteReturning",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-delete-returning",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testDeleteReturningYieldsDeletedRows",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
     }
   ],
   "suites": [
@@ -6417,10 +6446,59 @@
       "provenance": []
     },
     {
+      "id": "syntax.dml.delete-returning",
+      "kind": "syntax",
+      "family": "dml",
+      "title": "DELETE ... RETURNING clause",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDeleteReturningStatement",
+          "source_path": "Sources/SwiftQL/Statements/SQLReturningStatement.swift",
+          "source_tokens": [
+            "XLDeleteReturningStatement"
+          ]
+        },
+        {
+          "symbol": "returning(_:)",
+          "source_path": "Sources/SwiftQL/Statements/SQLReturningStatement.swift",
+          "source_tokens": [
+            "returning"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_returning.html",
+        "https://www.sqlite.org/lang_delete.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.35.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A generated result projection supplies the returned column layout and row decoder."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.dml.render-delete-returning",
+        "evidence.syntax.dml.sqlite-delete-returning"
+      ],
+      "deviations": [
+        "SQLite rejects statement-aliased identifiers in a RETURNING list, so the returned columns are rendered as bare unqualified names.",
+        "A RETURNING statement executes on a write connection inside a transaction and is not observable as a live query."
+      ],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": []
+    },
+    {
       "id": "syntax.dml.returning-gap",
       "kind": "syntax",
       "family": "dml",
-      "title": "UPDATE and DELETE RETURNING clauses",
+      "title": "UPDATE RETURNING clause",
       "status": "unimplemented",
       "adoption_status": "syntax-gated",
       "public_api": [
@@ -6429,13 +6507,6 @@
           "source_path": "Sources/SwiftQL/Statements/SQLUpdateStatement.swift",
           "source_tokens": [
             "XLUpdateStatement"
-          ]
-        },
-        {
-          "symbol": "XLDeleteStatement",
-          "source_path": "Sources/SwiftQL/Statements/SQLDeleteStatement.swift",
-          "source_tokens": [
-            "XLDeleteStatement"
           ]
         }
       ],
@@ -6454,16 +6525,15 @@
       ],
       "evidence_ids": [],
       "deviations": [
-        "The UPDATE and DELETE statement protocols are write-only and do not yet expose RETURNING rows. INSERT ... RETURNING shipped in issue #57 (syntax.dml.insert-returning)."
+        "The UPDATE statement protocol is write-only and does not yet expose RETURNING rows. INSERT ... RETURNING shipped in issue #57 and DELETE ... RETURNING in issue #53."
       ],
       "follow_up_issues": [
-        53,
         58
       ],
       "deferral": {
-        "blocking_issue": 53,
+        "blocking_issue": 58,
         "target_milestone": "v1.4",
-        "reason": "Issue #57 shipped INSERT ... RETURNING and the shared clause mechanism; #53 and #58 extend it to DELETE and UPDATE."
+        "reason": "Issues #57 and #53 shipped INSERT and DELETE RETURNING on the shared clause mechanism; #58 extends it to UPDATE."
       },
       "provenance": []
     },

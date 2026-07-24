@@ -207,6 +207,26 @@ final class XLDataChangingExecutionTests: XCTestCase {
         XCTAssertEqual(try allTestRows(), [])
     }
 
+    // MARK: - DELETE ... RETURNING
+
+    func testDeleteReturningYieldsDeletedRows() throws {
+        try createUniqueTestTable()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 1))).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "b", value: 2))).execute()
+
+        let schema = XLSchema()
+        let t = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let statement = delete(t)
+            .where(t.id == "a")
+            .returning(projection)
+
+        let deleted: [TestTable] = try database.makeRequest(with: statement).fetchAll()
+
+        XCTAssertEqual(deleted, [TestTable(id: "a", value: 1)])
+        XCTAssertEqual(try allTestRows(), [TestTable(id: "b", value: 2)])
+    }
+
     func testUpsertDoUpdateWithWhereOnlyUpdatesQualifyingRows() throws {
         try createUniqueTestTable()
         try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 10))).execute()

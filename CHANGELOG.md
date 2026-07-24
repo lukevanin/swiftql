@@ -21,11 +21,13 @@
   statement-aliased names in `RETURNING`, so the returned columns render
   unqualified; the statement executes on a write connection and is not
   observable as a live query. Requires SQLite 3.35.0.
-- Recorded the new conflict-resolution, replace, upsert, and insert-returning
-  surfaces in the #190
-  canonical SQLite conformance inventory. It records 109 public-surface feature records: 101
+- Added `DELETE ... RETURNING` through the same `returning(_:)` clause on delete
+  statements, yielding the deleted rows. Requires SQLite 3.35.0.
+- Recorded the new conflict-resolution, replace, upsert, insert-returning, and
+  delete-returning surfaces in the #190
+  canonical SQLite conformance inventory. It records 110 public-surface feature records: 102
   supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-  5 unimplemented. Of the 156 evidence records, 97 exercise real SQLite and
+  5 unimplemented. Of the 158 evidence records, 98 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
 ### Migration
