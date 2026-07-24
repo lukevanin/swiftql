@@ -404,6 +404,16 @@ public protocol XLDatabase {
     /// Creates a prepared delete request from a delete statement.
     ///
     func makeRequest(with statement: any XLDeleteStatement) -> any XLWriteRequest
+
+    ///
+    /// The identity a render-once cache keys on, or `nil` to opt out.
+    ///
+    /// A macro-generated `@SQLQuery`/`@SQLQueries` executor (issues #18/#26)
+    /// renders its statement once per declaration and reuses the request; this
+    /// key scopes that reuse. Returning `nil` (the default) renders on every
+    /// call. See ``XLPreparedQueryCacheKey``.
+    ///
+    var preparedQueryCacheKey: XLPreparedQueryCacheKey? { get }
 }
 
 extension XLDatabase {
@@ -430,5 +440,14 @@ extension XLDatabase {
             "\(type(of: self)) does not support RETURNING statements. Override "
             + "XLDatabase.makeRequest(with: any XLReturningStatement) to add support."
         )
+    }
+
+    ///
+    /// Default render-once opt-out for adapters that do not render SQL
+    /// deterministically per dialect, or that predate ``XLPreparedQueryCacheKey``.
+    /// A macro-generated executor renders on every call exactly as before.
+    ///
+    public var preparedQueryCacheKey: XLPreparedQueryCacheKey? {
+        nil
     }
 }
