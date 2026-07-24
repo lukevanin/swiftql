@@ -516,7 +516,7 @@ public struct Join: XLTableStatement {
         switch kind {
         case .naturalJoin, .naturalLeftJoin, .crossJoin:
             return
-        case .innerJoin, .leftJoin:
+        case .innerJoin, .leftJoin, .rightJoin:
             break
         }
         if let constraint {
