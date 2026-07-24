@@ -135,6 +135,8 @@ Scalar results and write statements (INSERT/UPDATE/DELETE, RETURNING) are **out 
 
 `sqlQuery` is already the labeled-closure statement builder in `SQLFunctionalSyntax.swift`, so the trapping direct-result anchor needs a different name (`sqlResult` is the provisional pick). All names above are open for #26 to settle at representative call sites.
 
+**Known limitation — same-name overloads collide.** Peer names are derived from the attached function's base name only (`personByNameStatement`, `fetchPersonByName`, `__xlPersonByNameCache`), so two `@SQLQuery` functions sharing a base name but differing in parameter list (a legal Swift overload) generate colliding peer declarations. This is a pre-existing limitation from #359, not introduced by #361's cache peer, and it fails **loudly** (a duplicate-declaration compile error), not silently — consistent with this spike's pattern of leaving compiler-catchable shapes to the compiler. A real fix needs a disambiguation scheme (e.g. a parameter-list-derived suffix) and is a naming decision for #26 to settle when generated names are frozen.
+
 ---
 
 ## 8. Recommended v1.5.1 implementation shape
