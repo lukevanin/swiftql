@@ -536,6 +536,35 @@
       ]
     },
     {
+      "id": "evidence.syntax.dml.render-update-select",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLUpdateExpressionBuilderTests.swift",
+      "test_case": "XLUpdateExpressionBuilderTests.testUpdateFrom",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-update-select",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testUpdateFromSubquerySelect",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
       "id": "evidence.syntax.expression.compile-fail-between-mismatched-types",
       "source_path": "Tests/CompileFail/BetweenMismatchedTypes.swift",
       "test_case": "compile-fail.between-mismatched-types",
@@ -6184,7 +6213,7 @@
       "id": "syntax.dml.current-crud",
       "kind": "syntax",
       "family": "dml",
-      "title": "Current INSERT, INSERT SELECT, UPDATE, and DELETE statement clauses",
+      "title": "Current INSERT, INSERT SELECT, UPDATE, UPDATE SELECT, and DELETE statement clauses",
       "status": "supported",
       "adoption_status": "already-covered",
       "public_api": [
@@ -6208,6 +6237,13 @@
           "source_tokens": [
             "Delete"
           ]
+        },
+        {
+          "symbol": "fromExpression(as:statement:)",
+          "source_path": "Sources/SwiftQL/Expression Builder/SQLUpdateExpressionBuilder.swift",
+          "source_tokens": [
+            "fromExpression"
+          ]
         }
       ],
       "sqlite_documentation_urls": [
@@ -6228,7 +6264,9 @@
       "evidence_ids": [
         "evidence.syntax.dml.sqlite-delete",
         "evidence.syntax.dml.sqlite-insert-select",
-        "evidence.syntax.dml.sqlite-update"
+        "evidence.syntax.dml.sqlite-update",
+        "evidence.syntax.dml.render-update-select",
+        "evidence.syntax.dml.sqlite-update-select"
       ],
       "deviations": [
         "Conflict algorithms, UPSERT, and RETURNING are separate deferred sub-surfaces."

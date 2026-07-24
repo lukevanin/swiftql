@@ -26,11 +26,15 @@
 - Added `UPDATE ... RETURNING` through the same `returning(_:)` clause on update
   statements, yielding the updated rows. This completes RETURNING for INSERT,
   UPDATE, and DELETE. Requires SQLite 3.35.0.
-- Recorded the new conflict-resolution, replace, upsert, and RETURNING
-  (insert, delete, update) surfaces in the #190
+- Confirmed and recorded the SELECT forms of data-changing statements:
+  `INSERT ... SELECT` and the `UPDATE ... SET ... FROM (SELECT ...)` form (built
+  with `fromExpression`). Both now carry real-SQLite execution evidence in the
+  conformance inventory.
+- Recorded the new conflict-resolution, replace, upsert, RETURNING
+  (insert, delete, update), and INSERT/UPDATE SELECT surfaces in the #190
   canonical SQLite conformance inventory. It records 110 public-surface feature records: 103
   supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-  4 unimplemented. Of the 160 evidence records, 99 exercise real SQLite and
+  4 unimplemented. Of the 162 evidence records, 100 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
 ### Migration
