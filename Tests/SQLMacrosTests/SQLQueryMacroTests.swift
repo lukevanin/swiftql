@@ -335,6 +335,187 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
             macros: makeTestMacros()
         )
     }
+
+    // MARK: - Spike #369: direct-result signatures + return-shape dispatch
+
+    ///
+    /// A `[Row]` direct-result signature (no `XLQueryStatement` boilerplate)
+    /// dispatches to `fetchAll`. The spec calls the trapping `sqlResult` entry
+    /// point; the generated statement builder swaps it for the real `sql`
+    /// builder and declares the value-free `any XLQueryStatement<Row>` result.
+    ///
+    func test_directResultArray_dispatchesFetchAll() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func personByName(name: String) -> [Person] {
+                    sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func personByName(name: String) -> [Person] {
+                    sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                    }
+                }
+
+                func personByNameStatement() -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == XLNamedBindingReference<String>(name: "name"))
+                    }
+                }
+
+                func fetchPersonByName(name: String) throws -> [Person] {
+                    let __xlStatement = personByNameStatement()
+                    let __xlRequest = self.makeRequest(with: __xlStatement)
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// A `Row?` direct-result signature dispatches to `fetchOne` and returns an
+    /// optional row. This is the only source of the cardinality — the return
+    /// annotation — since the macro is declaration-local.
+    ///
+    func test_directResultOptional_dispatchesFetchOne() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func personByExactName(name: String) -> Person? {
+                    sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func personByExactName(name: String) -> Person? {
+                    sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                    }
+                }
+
+                func personByExactNameStatement() -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == XLNamedBindingReference<String>(name: "name"))
+                    }
+                }
+
+                func fetchPersonByExactName(name: String) throws -> Person? {
+                    let __xlStatement = personByExactNameStatement()
+                    let __xlRequest = self.makeRequest(with: __xlStatement)
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return try __xlRequest.fetchOne(bindings: __xlPacket)
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// The `sqlResult` -> `sql` swap applies only in callee position. A
+    /// reference that merely names the entry point elsewhere in the body is
+    /// left untouched. (The expansion is syntactic, so the contrived non-callee
+    /// reference needs no runtime meaning.)
+    ///
+    func test_directResult_calleeRenameAppliesOnlyInCalleePosition() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func auditedPersonByName(name: String) -> [Person] {
+                    sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                        audit(sqlResult)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func auditedPersonByName(name: String) -> [Person] {
+                    sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                        audit(sqlResult)
+                    }
+                }
+
+                func auditedPersonByNameStatement() -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == XLNamedBindingReference<String>(name: "name"))
+                        audit(sqlResult)
+                    }
+                }
+
+                func fetchAuditedPersonByName(name: String) throws -> [Person] {
+                    let __xlStatement = auditedPersonByNameStatement()
+                    let __xlRequest = self.makeRequest(with: __xlStatement)
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
 }
 
 
@@ -389,7 +570,7 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "'@SQLQuery' requires the function to return 'any XLQueryStatement<Row>' or 'some XLQueryStatement<Row>' with an explicit row type. The row type declares the executor's result element.",
+                    message: "'@SQLQuery' requires the function to return '[Row]' (fetch all), 'Row?' (fetch one), or the legacy 'any/some XLQueryStatement<Row>', with an explicit row type. The row type declares the executor's result element and the shape selects the fetch.",
                     line: 3,
                     column: 25
                 )
@@ -674,6 +855,91 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
                     message: "'@SQLQuery' requires a function body that returns the query statement.",
                     line: 3,
                     column: 19
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// A parameter named after a statement-builder entry point would be
+    /// rewritten wherever the builder is called, corrupting the generated code.
+    ///
+    func test_reservedParameterName_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func rowsMatching(sql: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == sql)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func rowsMatching(sql: String) -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == sql)
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQuery' cannot bind a parameter named 'sql'. The name collides with a statement-builder entry point, so rewriting its references would corrupt the builder call in the generated peer. Rename the parameter.",
+                    line: 3,
+                    column: 23
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// The `sqlResult` -> `sql` swap matches only an unqualified callee, so a
+    /// qualified spelling is rejected rather than left to trap at runtime in
+    /// the generated statement builder.
+    ///
+    func test_qualifiedEntryPoint_emitsError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func personByName(name: String) -> [Person] {
+                    SwiftQL.sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func personByName(name: String) -> [Person] {
+                    SwiftQL.sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name == name)
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'sqlResult' must be called unqualified in a '@SQLQuery' specification. The macro rewrites the entry point lexically and cannot distinguish a module qualifier from another object's member of the same name.",
+                    line: 4,
+                    column: 9
                 )
             ],
             macros: makeTestMacros()
