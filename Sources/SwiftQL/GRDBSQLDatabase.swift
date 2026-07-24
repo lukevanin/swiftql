@@ -866,6 +866,17 @@ public struct GRDBDatabase: XLDatabase {
         self.liveQueryRetryScheduler = liveQueryRetryScheduler
     }
     
+    /// Scopes render-once cache entries to this database's connection pool and
+    /// dialect. Rendering depends only on the dialect; the database identifier
+    /// keeps a per-declaration `static` cache from binding one pool's request to
+    /// another database (see ``XLPreparedQueryCacheKey``).
+    public var preparedQueryCacheKey: XLPreparedQueryCacheKey? {
+        XLPreparedQueryCacheKey(
+            databaseIdentifier: driver.databaseIdentifier,
+            dialectIdentifier: dialect.descriptor.identity
+        )
+    }
+
     public func makeRequest<Row>(with statement: any XLQueryStatement<Row>) -> any XLRequest<Row> {
         let encoding = encoder.makeSQL(statement)
         return GRDBRequest(

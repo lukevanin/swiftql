@@ -39,6 +39,7 @@ extension SQLQueryMacro: PeerMacro {
         let builder = try SQLQueryBuilder(node: node, declaration: declaration)
         return [
             DeclSyntax(stringLiteral: builder.makeStatementFunction()),
+            DeclSyntax(stringLiteral: builder.makeRenderOnceCacheDeclaration()),
             DeclSyntax(stringLiteral: builder.makeExecutorFunction()),
         ]
     }
@@ -564,6 +565,20 @@ internal struct SQLQueryBuilder {
         "fetch\(function.name.text.prefix(1).uppercased())\(function.name.text.dropFirst())"
     }
 
+    private var renderOnceCacheName: String {
+        "__xl\(function.name.text.prefix(1).uppercased())\(function.name.text.dropFirst())Cache"
+    }
+
+    ///
+    /// Generates the per-declaration render-once cache. It is a `static` peer so
+    /// one cache is shared across every invocation of the specification, letting
+    /// the executor render the statement once per database/dialect and reuse the
+    /// request (spike #361).
+    ///
+    func makeRenderOnceCacheDeclaration() -> String {
+        "private static let \(renderOnceCacheName) = XLRenderOnceCache<\(rowType)>()"
+    }
+
     ///
     /// Generates the value-free statement builder. The rewritten body renders
     /// named placeholders instead of inline value literals, so the SQL text is
@@ -616,8 +631,9 @@ internal struct SQLQueryBuilder {
         let fetchCall = fetchCallName
         var lines: [String] = []
         lines.append("\(modifierPrefix)func \(executorFunctionName)\(parameterClause) throws -> \(resultType) {")
-        lines.append("    let __xlStatement = \(statementFunctionName)()")
-        lines.append("    let __xlRequest = self.makeRequest(with: __xlStatement)")
+        lines.append("    let __xlRequest = Self.\(renderOnceCacheName).request(for: self) {")
+        lines.append("        \(statementFunctionName)()")
+        lines.append("    }")
         lines.append("    let __xlLayout = __xlRequest.parameterLayout")
         if parameters.isEmpty {
             lines.append("    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()")
