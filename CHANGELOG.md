@@ -44,6 +44,25 @@
 - Added the `DeclaredQueries` DocC article covering the `@SQLQuery` and
   `@SQLQueries` forms, the frozen-literal guard, render-once caching and its
   concurrency/`Sendable` story, and the v1.5 transitional-syntax note.
+- Added typed multi-statement transaction scopes (issue #284):
+  `XLTransactionalDatabase.withTransaction(_:)` runs an ordered sequence of
+  typed `XLRequest`/`XLWriteRequest` invocations — reads and writes alike —
+  on one pinned GRDB connection as a single atomic unit, committing only
+  after the whole body succeeds and rolling back every write on a
+  preparation, binding, execution, decoding, or user-thrown failure, with no
+  GRDB type anywhere in the contract. `@SQLQueries`'s generated `execute(_:)`
+  is now sugar over this same primitive, so declared-query calls and
+  `makeRequest(with:)` calls in one `execute(_:)` closure commit or roll back
+  together. Calling `withTransaction(_:)` again from inside an active body —
+  whether on the scope it was given or on the original database captured
+  from the enclosing closure — is rejected with a catchable
+  `XLTransactionScopeError.nestedTransactionUnsupported` before any pool
+  access, instead of the uncatchable crash GRDB's own reentrant-write guard
+  would otherwise raise. A scope value used after its body returns throws
+  `.scopeEscaped`; `publish()`/`publishOne()` inside a transaction throws
+  `.liveQueriesUnsupportedInTransaction`; an already-cancelled task throws
+  `CancellationError` before the transaction opens. Documented in
+  `GettingStarted`'s "Typed multi-statement transaction scopes".
 
 ### Migration
 
@@ -69,6 +88,13 @@ including third-party `XLDatabase` adapters, source-compatible.
   duplicate-declaration compile error, not a silent one.
 - Only one `@SQLQueries`-attached extension is supported per database type; a
   second would redeclare `Context` and `execute(_:)`.
+- `withTransaction(_:)` does not support nested transactions or savepoints —
+  a nested call is rejected outright rather than silently composed — and
+  cancellation is checked only once, before the transaction opens; the
+  synchronous body has no cooperative mid-transaction cancellation point.
+  Both remain tracked by v2 issue #113, matching the disposition the shared
+  `SQLiteTransactionConformanceFixtures` capability table (issue #253)
+  already recorded for the driver-level contract.
 
 ## [1.4.6] - 2026-07-25
 
