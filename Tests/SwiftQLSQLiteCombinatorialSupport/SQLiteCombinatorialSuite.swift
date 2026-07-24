@@ -218,7 +218,6 @@ private extension SQLiteCombinatorialSuite {
             title: "CTE materialization hints"
         ),
         GatedPrerequisite(issue: 139, id: "typed-ddl", title: "typed DDL"),
-        GatedPrerequisite(issue: 57, id: "dml-returning", title: "DML RETURNING"),
         GatedPrerequisite(
             issue: 45,
             id: "natural-using-joins",

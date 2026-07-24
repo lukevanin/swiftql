@@ -200,13 +200,23 @@ final class SQLiteValueConformanceBoundaryTests: XCTestCase {
             "syntax.compound.direct-scalar-gap": 43,
             "syntax.cte.materialization-hints-gap": 10,
             "syntax.ddl.typed-model-gap": 139,
-            "syntax.dml.returning-gap": 57,
             "syntax.join.natural-using-gap": 45,
         ]
         let featuresByID = Dictionary(
             uniqueKeysWithValues: inventory.features.map { ($0.id, $0) }
         )
-        XCTAssertEqual(gatedBlockers.count, 5)
+        XCTAssertEqual(gatedBlockers.count, 4)
+
+        // Issues #57, #53, and #58 shipped INSERT, DELETE, and UPDATE RETURNING,
+        // so this record is supported rather than gated. Its id keeps the -gap
+        // suffix for stable suite references.
+        let returning = try XCTUnwrap(
+            featuresByID["syntax.dml.returning-gap"]
+        )
+        XCTAssertEqual(returning.status, .supported)
+        XCTAssertEqual(returning.adoptionStatus, .alreadyCovered)
+        XCTAssertNil(returning.deferral)
+        XCTAssertFalse(returning.evidenceIDs.isEmpty)
 
         // Issue #70 shipped the nullable-table and flattened-scalar subquery
         // shapes, so this record is supported rather than gated.
