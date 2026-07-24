@@ -418,12 +418,12 @@ extension XLDatabase {
     ///
     /// Default `RETURNING` support for adapters that predate the clause.
     ///
-    /// Adding ``makeRequest(with:)-(XLReturningStatement)`` as a protocol
-    /// requirement would source-break existing third-party `XLDatabase`
-    /// conformers, so this default keeps them compiling. An adapter that can
-    /// execute a data-changing statement and read its returned rows overrides
-    /// this method; until then, constructing a `RETURNING` request traps with a
-    /// clear message rather than silently dropping the clause.
+    /// ``makeRequest(with:)-(XLReturningStatement)`` is a protocol requirement;
+    /// adding it *without* a default would source-break existing third-party
+    /// `XLDatabase` conformers. This default keeps them compiling. An adapter
+    /// that can execute a data-changing statement and read its returned rows
+    /// overrides this method; until then, constructing a `RETURNING` request
+    /// traps with a clear message rather than silently dropping the clause.
     ///
     public func makeRequest<Row>(with statement: any XLReturningStatement<Row>) -> any XLRequest<Row> {
         preconditionFailure(
