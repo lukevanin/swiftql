@@ -88,7 +88,6 @@ public struct Returning<Row>: XLEncodable, XLRowReadable {
 /// `RETURNING` clause.
 ///
 public protocol XLReturningStatement<Row>: XLEncodable, XLRowReadable {
-    associatedtype Row
 }
 
 
