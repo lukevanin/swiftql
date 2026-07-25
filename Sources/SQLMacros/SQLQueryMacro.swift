@@ -92,12 +92,13 @@ internal func normalizedIdentifier(_ text: String) -> String {
 ///
 /// With a direct-result signature the return annotation is the only source of
 /// cardinality. `[Row]` maps to `fetchAll`, `Row?` to `fetchOne`, and a bare
-/// `Row` to `exactlyOne` (fetch all, then validate the count is exactly one).
+/// `Row` to `exactlyOne` (fetch at most two rows, then validate the count is
+/// exactly one, without decoding/retaining every matching row).
 ///
 internal enum SQLQueryCardinality {
     case many        // [Row]  -> fetchAll
     case one         // Row?   -> fetchOne
-    case exactlyOne  // Row    -> fetchAll, then validate count == 1
+    case exactlyOne  // Row    -> fetchAtMost(2), then validate count == 1
 }
 
 

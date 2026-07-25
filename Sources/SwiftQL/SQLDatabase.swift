@@ -241,7 +241,8 @@ extension XLRequest {
         _ limit: Int,
         bindings: any XLInvocationBindingPacket
     ) throws -> [Row] {
-        Array(try fetchAll(bindings: bindings).prefix(limit))
+        precondition(limit >= 0, "fetchAtMost(_:bindings:) requires limit >= 0, got \(limit).")
+        return Array(try fetchAll(bindings: bindings).prefix(limit))
     }
 
     /// Compatibility default for existing adapters. Invalid packets fail on
