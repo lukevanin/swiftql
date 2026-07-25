@@ -160,6 +160,7 @@ public protocol XLRequest<Row> {
     /// Use this to check a query's cardinality (e.g. "zero, one, or more than one row?") without paying
     /// to decode and retain every row when many might match.
     ///
+    /// - Precondition: `limit >= 0`.
     /// - Throws: The original query-execution or row-decoding error.
     ///
     func fetchAtMost(_ limit: Int, bindings: any XLInvocationBindingPacket) throws -> [Row]

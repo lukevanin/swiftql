@@ -107,7 +107,7 @@ extension GRDBDatabase {
 }
 
 let matches = try database.personByName(name: "John Doe")
-// Equivalent explicit, connection-scoped form:
+// Equivalent explicit form:
 let sameMatches = try database.execute { context in
     try context.personByName(name: "John Doe")
 }
@@ -115,7 +115,11 @@ let sameMatches = try database.execute { context in
 
 `execute(_:)` and the generated `Context` type let you run more than one
 declared query in the same scope without repeating a database lookup per
-call.
+call. This scope does not by itself pin one physical connection --
+`context`'s executors still check out their own connection from the pool per
+call, the same as calling `database.personByName(name:)` directly. A scope
+that pins every operation to one connection, with atomic commit/rollback, is
+a separate capability (issue #284).
 
 ## Render-once caching
 

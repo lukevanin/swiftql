@@ -66,6 +66,17 @@ public struct XLPreparedQueryCacheKey: Hashable, Sendable {
 /// call through an immutable invocation packet — so reusing it across threads is
 /// safe.
 ///
+/// Retention trade-off: for the GRDB adapter, a cached `XLRequest` retains its
+/// `GRDBInvocationExecutor` → `GRDBDatabaseDriver` → `DatabasePool` chain. Since
+/// the macro emits one cache as a `static` peer per declaration, invoking a
+/// declared query keeps that database pool alive for the process lifetime, even
+/// if every other reference to the owning database is released. This mirrors an
+/// accepted trade-off from the milestone #28 spike (long-lived databases pay
+/// nothing extra; a short-lived database that only ever calls declared queries
+/// once is retained longer than it otherwise would be). A per-instance store or
+/// an eviction/weak-referencing scheme is future work if that trade-off proves
+/// wrong for a real workload; there is no correctness issue today.
+///
 public final class XLRenderOnceCache<Row>: @unchecked Sendable {
 
     private let lock = NSLock()

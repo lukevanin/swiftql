@@ -331,6 +331,7 @@ struct GRDBRequest<Row>: XLRequest {
         limit: Int,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws -> [Row] {
+        precondition(limit >= 0, "fetchAtMost(_:bindings:) requires limit >= 0, got \(limit).")
         guard limit > 0 else {
             return []
         }
