@@ -24,7 +24,8 @@ keeps the eager `collectAllRows`/`collectFirstRow` compatibility shims correct
 (a retained row gets its own storage when the buffer is refilled), so no
 `[[XLSQLiteValue]]` matrix is materialized and the bounded-memory guarantee from
 #248 is preserved. Instrumented stop/failure and buffer-aliasing tests stay
-green (`GRDBDriverContractTests`, full `swift test`: 743 tests, 0 failures).
+green (`GRDBDriverContractTests`, full `swift test`: 806 tests, 0 failures on
+the v1.4.6 release commit).
 
 ## Method
 

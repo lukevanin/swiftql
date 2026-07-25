@@ -42,6 +42,14 @@ This matches the #128 baseline machine and toolchain. The machine was **not**
 idle during timing (concurrent unrelated Swift test suites), so process spread
 is genuine and is reported rather than hidden.
 
+The timing runs were captured from a working tree that had the change under
+test applied but not yet committed, so `timing-summary.json` records
+`repositoryState` as `dirty`. That is expected for a before/after diagnostic
+and does not affect the numbers: the deterministic allocation counts above are
+the provenance-independent primary evidence, and the timing figures are
+directional. The recorded revision is the same base commit for both conditions;
+only the source under test differs.
+
 ## What the profile attributed
 
 Rendering, not construction, dominates the phase. Per-operation heap
