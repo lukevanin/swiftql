@@ -93,11 +93,6 @@ private func installAllocationCounter() -> Bool {
     return true
 }
 
-private struct AllocationSample {
-    var count: Int
-    var bytes: Int
-}
-
 private func measureAllocations(iterations: Int, _ body: () -> Void) -> AllocationSample {
     // Warm once outside the count to settle any one-time lazy state.
     body()
@@ -109,6 +104,13 @@ private func measureAllocations(iterations: Int, _ body: () -> Void) -> Allocati
     return AllocationSample(count: allocationProbe.count, bytes: allocationProbe.bytes)
 }
 #endif
+
+// Platform-independent: the malloc-hook counting that populates this on Darwin
+// is not, but the value type is used by both branches of `profileCase`.
+private struct AllocationSample {
+    var count: Int
+    var bytes: Int
+}
 
 // MARK: - Timing
 
