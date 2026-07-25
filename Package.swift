@@ -21,6 +21,10 @@ let package = Package(
             name: "swiftql-benchmark",
             targets: ["SwiftQLBenchmarkCLI"]
         ),
+        .executable(
+            name: "swiftql-construction-profile",
+            targets: ["SwiftQLConstructionProfile"]
+        ),
     ],
     dependencies: [
         // Depend on the latest Swift 5.9 prerelease of SwiftSyntax
@@ -108,6 +112,14 @@ let package = Package(
             name: "SwiftQLBenchmarkCLI",
             dependencies: ["SwiftQLBenchmarks"],
             path: "Benchmarks/Sources/SwiftQLBenchmarkCLI"
+        ),
+
+        // Deterministic allocation + sub-phase timing profiler for issue #166.
+        // Diagnostic evidence, not part of the #128 benchmark report or any gate.
+        .executableTarget(
+            name: "SwiftQLConstructionProfile",
+            dependencies: ["SwiftQL"],
+            path: "Benchmarks/Sources/SwiftQLConstructionProfile"
         ),
 
         // Package-private research engine for issue #132. This deliberately
