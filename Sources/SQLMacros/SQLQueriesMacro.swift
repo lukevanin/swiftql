@@ -145,6 +145,8 @@ extension SQLQueriesMacro: MemberMacro {
         lines.append("    let database: \(databaseType)")
         for builder in builders {
             lines.append("")
+            lines.append(indent(builder.makeRenderOnceCacheDeclaration(), by: 4))
+            lines.append("")
             lines.append(indent(builder.makeContextExecutorFunction(modifierPrefix: modifierPrefix), by: 4))
         }
         lines.append("}")
@@ -182,18 +184,23 @@ extension SQLQueryBuilder {
 
     ///
     /// Generates the connection-scoped executor for the `Context` container.
-    /// The value-free statement is built inline from the rewritten body, so
-    /// the specification's placeholder SQL invariant carries over unchanged.
+    /// The value-free statement is built inline from the rewritten body and
+    /// prepared through this specification's own `XLRenderOnceCache` (a
+    /// sibling `static` member of `Context`, emitted alongside this
+    /// function), so the container form gets the same render-once behavior
+    /// as the `@SQLQuery` peer macro's executor rather than re-rendering SQL
+    /// on every call.
     ///
     func makeContextExecutorFunction(modifierPrefix: String) -> String {
         let parameterClause = function.signature.parameterClause.trimmedDescription
         // The rewritten body is a code block; applying it as a closure yields
         // the value-free statement without a separate builder symbol.
-        let statementExpression = indentSkippingFirstLine(rewrittenBodyText, by: 4)
+        let statementExpression = indentSkippingFirstLine(rewrittenBodyText, by: 8)
         var lines: [String] = []
         lines.append("\(modifierPrefix)func \(function.name.text)\(parameterClause) throws -> \(executorResultType) {")
-        lines.append("    let __xlStatement: any XLQueryStatement<\(rowType)> = \(statementExpression)()")
-        lines.append("    let __xlRequest = database.makeRequest(with: __xlStatement)")
+        lines.append("    let __xlRequest = Self.\(renderOnceCacheName).request(for: database) {")
+        lines.append("        \(statementExpression)()")
+        lines.append("    }")
         lines.append("    let __xlLayout = __xlRequest.parameterLayout")
         if parameters.isEmpty {
             lines.append("    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()")

@@ -84,16 +84,19 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                 struct Context {
                     let database: MyDatabase
 
+                    private static let __xlPersonByNameCache = XLRenderOnceCache<Person>()
+
                     func personByName(name: String) throws -> [Person] {
-                        let __xlStatement: any XLQueryStatement<Person> = {
-                            sql { schema in
-                                let person = schema.table(Person.self)
-                                Select(person)
-                                From(person)
-                                Where(person.name == XLNamedBindingReference<String>(name: "name"))
-                            }
-                        }()
-                        let __xlRequest = database.makeRequest(with: __xlStatement)
+                        let __xlRequest = Self.__xlPersonByNameCache.request(for: database) {
+                            {
+                                sql { schema in
+                                    let person = schema.table(Person.self)
+                                    Select(person)
+                                    From(person)
+                                    Where(person.name == XLNamedBindingReference<String>(name: "name"))
+                                }
+                            }()
+                        }
                         let __xlLayout = __xlRequest.parameterLayout
                         let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                             layout: __xlLayout,
@@ -104,16 +107,19 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                         return try __xlRequest.fetchAll(bindings: __xlPacket)
                     }
 
+                    private static let __xlPersonByIdCache = XLRenderOnceCache<Person>()
+
                     func personById(id: String) throws -> Person? {
-                        let __xlStatement: any XLQueryStatement<Person> = {
-                            sql { schema in
-                                let person = schema.table(Person.self)
-                                Select(person)
-                                From(person)
-                                Where(person.id == XLNamedBindingReference<String>(name: "id"))
-                            }
-                        }()
-                        let __xlRequest = database.makeRequest(with: __xlStatement)
+                        let __xlRequest = Self.__xlPersonByIdCache.request(for: database) {
+                            {
+                                sql { schema in
+                                    let person = schema.table(Person.self)
+                                    Select(person)
+                                    From(person)
+                                    Where(person.id == XLNamedBindingReference<String>(name: "id"))
+                                }
+                            }()
+                        }
                         let __xlLayout = __xlRequest.parameterLayout
                         let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                             layout: __xlLayout,
@@ -186,16 +192,19 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                 struct Context {
                     let database: MyDatabase
 
+                    private static let __xlPeopleByClassCache = XLRenderOnceCache<Person>()
+
                     func peopleByClass(`class`: String) throws -> [Person] {
-                        let __xlStatement: any XLQueryStatement<Person> = {
-                            sql { schema in
-                                let person = schema.table(Person.self)
-                                Select(person)
-                                From(person)
-                                Where(person.name == XLNamedBindingReference<String>(name: "class"))
-                            }
-                        }()
-                        let __xlRequest = database.makeRequest(with: __xlStatement)
+                        let __xlRequest = Self.__xlPeopleByClassCache.request(for: database) {
+                            {
+                                sql { schema in
+                                    let person = schema.table(Person.self)
+                                    Select(person)
+                                    From(person)
+                                    Where(person.name == XLNamedBindingReference<String>(name: "class"))
+                                }
+                            }()
+                        }
                         let __xlLayout = __xlRequest.parameterLayout
                         let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
                             layout: __xlLayout,
@@ -262,15 +271,18 @@ final class SQLQueriesMacroAccessLevelTests: XCTestCase {
                 public struct Context {
                     let database: MyDatabase
 
+                    private static let __xlAllPeopleCache = XLRenderOnceCache<Person>()
+
                     public func allPeople() throws -> [Person] {
-                        let __xlStatement: any XLQueryStatement<Person> = {
-                            sql { schema in
-                                let person = schema.table(Person.self)
-                                Select(person)
-                                From(person)
-                            }
-                        }()
-                        let __xlRequest = database.makeRequest(with: __xlStatement)
+                        let __xlRequest = Self.__xlAllPeopleCache.request(for: database) {
+                            {
+                                sql { schema in
+                                    let person = schema.table(Person.self)
+                                    Select(person)
+                                    From(person)
+                                }
+                            }()
+                        }
                         let __xlLayout = __xlRequest.parameterLayout
                         let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()
                         return try __xlRequest.fetchAll(bindings: __xlPacket)

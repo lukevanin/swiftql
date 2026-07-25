@@ -593,7 +593,9 @@ internal struct SQLQueryBuilder {
         "fetch\(function.name.text.prefix(1).uppercased())\(function.name.text.dropFirst())"
     }
 
-    private var renderOnceCacheName: String {
+    // Not `private`: shared with the `@SQLQueries` container executor
+    // generation in `SQLQueriesMacro.swift`, a different file in this target.
+    var renderOnceCacheName: String {
         "__xl\(function.name.text.prefix(1).uppercased())\(function.name.text.dropFirst())Cache"
     }
 

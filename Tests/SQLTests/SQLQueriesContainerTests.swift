@@ -55,6 +55,26 @@ extension GRDBDatabase {
 }
 
 
+/// Captures logged SQL text so a test can inspect what was actually rendered
+/// and executed, without any internal render-count hook.
+private final class RecordingLogger: XLLogger {
+    private let lock = NSLock()
+    private var messages: [String] = []
+
+    func log(level: XLLogLevel, message: String) {
+        lock.lock()
+        messages.append(message)
+        lock.unlock()
+    }
+
+    var allMessages: [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return messages
+    }
+}
+
+
 final class XLQueriesContainerTests: XCTestCase {
 
     var databasePool: DatabasePool!
@@ -150,6 +170,48 @@ final class XLQueriesContainerTests: XCTestCase {
         }
         XCTAssertEqual(all, [TestTable(id: "alpha", value: 1)])
         XCTAssertEqual(one, TestTable(id: "beta", value: 9))
+    }
+
+
+    // MARK: - Render-once caching
+
+    ///
+    /// The container form's `Context` executor is prepared through its own
+    /// `XLRenderOnceCache` (Copilot review, PR #386) the same way the
+    /// `@SQLQuery` peer macro's executor is, rather than re-rendering SQL on
+    /// every call. Proven the same way `SQLQueryRenderOnceCacheTests` proves
+    /// it for the peer form: the executed SQL text is byte-identical across
+    /// calls with different argument values and carries a named placeholder,
+    /// never an inlined literal -- a re-rendering-per-call implementation
+    /// would inline each call's `id` value into the SQL text instead.
+    ///
+    func testContextExecutorRendersOnceAcrossCallsWithDifferentArguments() throws {
+        let logger = RecordingLogger()
+        let formatter = XLiteFormatter(identifierFormattingOptions: .mysqlCompatible)
+        let loggingDatabase = try GRDBDatabase(databasePool: databasePool, formatter: formatter, logger: logger)
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "beta", value: 9))
+
+        _ = try loggingDatabase.containerRowsMatchingID(id: "alpha")
+        _ = try loggingDatabase.containerRowsMatchingID(id: "beta")
+        _ = try loggingDatabase.containerRowsMatchingID(id: "alpha")
+
+        let fetchLogs = logger.allMessages.filter { $0.contains("fetchAll:") }
+        XCTAssertEqual(fetchLogs.count, 3, "expected one log line per call")
+        let renderedSQLTexts = Set(
+            fetchLogs.compactMap { message -> String? in
+                guard let start = message.range(of: "<<<"), let end = message.range(of: ">>>") else {
+                    return nil
+                }
+                return String(message[start.upperBound..<end.lowerBound])
+            }
+        )
+        XCTAssertEqual(renderedSQLTexts.count, 1, "every call must reuse the same rendered SQL text")
+        let renderedSQL = try XCTUnwrap(renderedSQLTexts.first)
+        XCTAssertTrue(renderedSQL.contains(":id"), "the reused SQL must bind a placeholder")
+        XCTAssertFalse(renderedSQL.contains("'alpha'"), "no call's argument may be inlined as a literal")
+        XCTAssertFalse(renderedSQL.contains("'beta'"), "no call's argument may be inlined as a literal")
     }
 
 
