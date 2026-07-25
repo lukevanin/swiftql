@@ -28,6 +28,11 @@ private struct ImplicitSquareFunction: XLCustomFunction {
         numberOfArguments: 1
     )
 
+    /// Synthetic per-call delay. Shared with `testCustomFunctionCallRegistersOnEveryPooledConnection`,
+    /// which forces `DatabasePool` to service several calls at once and depends on this value to
+    /// guarantee more than one physical reader connection executes this function.
+    static let executionDelay: TimeInterval = 0.08
+
     private let value: any XLExpression<Int>
 
     init(_ value: any XLExpression<Int>) {
@@ -42,7 +47,7 @@ private struct ImplicitSquareFunction: XLCustomFunction {
 
     static func execute(reader: XLColumnReader) throws -> Int {
         let value = try reader.readInteger(at: 0)
-        Thread.sleep(forTimeInterval: 0.08)
+        Thread.sleep(forTimeInterval: executionDelay)
         return value * value
     }
 }
@@ -171,7 +176,7 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
         let database = try makeDatabase(maximumReaderCount: maximumReaderCount)
 
         let iterations = 8
-        let functionDelay = 0.08
+        let functionDelay = ImplicitSquareFunction.executionDelay
         let resultsLock = NSLock()
         var results: [Int: Result<Int?, Error>] = [:]
 
