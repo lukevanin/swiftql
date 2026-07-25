@@ -30,6 +30,7 @@ private final class ConcurrentRenderProbe: @unchecked Sendable {
 
     private let lock = NSLock()
     private var count = 0
+    private var mismatchedSlotKeys: [[XLBindingKey]] = []
 
     init(database: GRDBDatabase) {
         self.database = database
@@ -45,6 +46,23 @@ private final class ConcurrentRenderProbe: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return count
+    }
+
+    /// Records a request's slot keys if they don't match the expected shape.
+    /// XCTest's failure recording isn't thread-safe, so a concurrent racing
+    /// caller records here instead of asserting directly; the test asserts
+    /// once, after `DispatchQueue.concurrentPerform` returns.
+    func recordIfMismatched(_ slotKeys: [XLBindingKey], expected: [XLBindingKey]) {
+        guard slotKeys != expected else { return }
+        lock.lock()
+        mismatchedSlotKeys.append(slotKeys)
+        lock.unlock()
+    }
+
+    var allMismatchedSlotKeys: [[XLBindingKey]] {
+        lock.lock()
+        defer { lock.unlock() }
+        return mismatchedSlotKeys
     }
 }
 
@@ -137,12 +155,24 @@ final class XLQueryRenderOnceCacheTests: XCTestCase {
                 return probe.database.rowsMatchingIDStatement()
             }
             // Every racing caller receives a usable request with the layout.
-            XCTAssertEqual(request.parameterLayout.slots.map(\.key), [.named("id")])
+            // XCTest's failure recording isn't thread-safe across
+            // concurrentPerform's worker threads, so mismatches are recorded
+            // on the lock-guarded probe and asserted once below instead of
+            // asserting directly from each racing closure.
+            probe.recordIfMismatched(
+                request.parameterLayout.slots.map(\.key),
+                expected: [.named("id")]
+            )
         }
         XCTAssertEqual(
             probe.buildCount,
             1,
             "concurrent first use must render the statement exactly once"
+        )
+        XCTAssertEqual(
+            probe.allMismatchedSlotKeys,
+            [],
+            "every racing caller must receive a usable request with the expected layout"
         )
     }
 
