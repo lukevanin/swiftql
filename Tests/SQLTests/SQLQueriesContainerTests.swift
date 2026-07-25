@@ -117,7 +117,7 @@ final class XLQueriesContainerTests: XCTestCase {
         XCTAssertThrowsError(try database.containerTheOnlyRowMatchingID(id: "gamma")) { error in
             XCTAssertEqual(
                 error as? XLQueryCardinalityError,
-                .exactlyOneRowExpected(actual: 0)
+                .noRowsMatched
             )
         }
     }

@@ -485,7 +485,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
     ///
     /// A bare `Row` direct-result signature (v1.5.1 extension) dispatches to a
     /// fetch-all-then-validate-count executor that throws
-    /// `XLQueryCardinalityError.exactlyOneRowExpected` when the query does not
+    /// `XLQueryCardinalityError.noRowsMatched/.moreThanOneRowMatched` when the query does not
     /// match exactly one row.
     ///
     func test_directResultBareRow_dispatchesExactlyOne() {
@@ -537,10 +537,14 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         ]
                     ).validatingComplete()
                     let __xlRows = try __xlRequest.fetchAtMost(2, bindings: __xlPacket)
-                    guard __xlRows.count == 1 else {
-                        throw XLQueryCardinalityError.exactlyOneRowExpected(actual: __xlRows.count)
+                    switch __xlRows.count {
+                    case 0:
+                        throw XLQueryCardinalityError.noRowsMatched
+                    case 1:
+                        return __xlRows[0]
+                    default:
+                        throw XLQueryCardinalityError.moreThanOneRowMatched
                     }
-                    return __xlRows[0]
                 }
             }
             """,

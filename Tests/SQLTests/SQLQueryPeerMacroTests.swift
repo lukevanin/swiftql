@@ -282,7 +282,7 @@ final class XLQueryPeerMacroTests: XCTestCase {
         XCTAssertThrowsError(try database.fetchTheOnlyRowMatchingID(id: "missing")) { error in
             XCTAssertEqual(
                 error as? XLQueryCardinalityError,
-                .exactlyOneRowExpected(actual: 0)
+                .noRowsMatched
             )
         }
     }
@@ -295,7 +295,7 @@ final class XLQueryPeerMacroTests: XCTestCase {
         XCTAssertThrowsError(try database.fetchTheOnlyRowMatchingID(id: "alpha")) { error in
             XCTAssertEqual(
                 error as? XLQueryCardinalityError,
-                .exactlyOneRowExpected(actual: 2)
+                .moreThanOneRowMatched
             )
         }
     }

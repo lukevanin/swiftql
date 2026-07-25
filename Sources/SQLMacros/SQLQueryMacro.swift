@@ -661,10 +661,14 @@ internal struct SQLQueryBuilder {
         case .exactlyOne:
             return [
                 "let __xlRows = try \(requestVariable).fetchAtMost(2, bindings: \(packetVariable))",
-                "guard __xlRows.count == 1 else {",
-                "    throw XLQueryCardinalityError.exactlyOneRowExpected(actual: __xlRows.count)",
+                "switch __xlRows.count {",
+                "case 0:",
+                "    throw XLQueryCardinalityError.noRowsMatched",
+                "case 1:",
+                "    return __xlRows[0]",
+                "default:",
+                "    throw XLQueryCardinalityError.moreThanOneRowMatched",
                 "}",
-                "return __xlRows[0]",
             ]
         }
     }

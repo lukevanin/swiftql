@@ -115,7 +115,9 @@ public func sqlResult<Row, Result>(
 ) -> Result {
     fatalError(
         "'sqlResult' marks a @SQLQuery/@SQLQueries specification, not an "
-        + "executor. Call the macro-generated executor peer instead."
+        + "executor. Call the macro-generated executor instead -- a peer "
+        + "function for @SQLQuery, or a member of the database/Context for "
+        + "@SQLQueries."
     )
 }
 
@@ -126,21 +128,29 @@ public func sqlResult<Row, Result>(
 /// `Row` result) but the rendered query matched zero rows or more than one.
 ///
 /// No `XLRequest` fetch operation enforces "zero or many is an error" on its
-/// own, so the generated executor fetches every matching row and validates
-/// the count itself before returning the single element.
+/// own, so the generated executor calls `fetchAtMost(2, bindings:)` and
+/// validates the count itself before returning the single element. Fetching
+/// at most two rows -- rather than every matching row -- means a query that
+/// accidentally matches many rows is rejected cheaply, but also means the
+/// "more than one" case never has an exact matched-row count to report:
+/// there are separate cases below instead of one case carrying a
+/// possibly-misleading `Int`.
 ///
 public enum XLQueryCardinalityError: Error, Equatable, Sendable, LocalizedError {
 
-    case exactlyOneRowExpected(actual: Int)
+    /// The query matched zero rows.
+    case noRowsMatched
+
+    /// The query matched more than one row. The exact count is unknown --
+    /// the executor stops fetching as soon as a second row is seen.
+    case moreThanOneRowMatched
 
     public var errorDescription: String? {
         switch self {
-        case .exactlyOneRowExpected(0):
+        case .noRowsMatched:
             return "'@SQLQuery'/'@SQLQueries' declared a result of exactly one row, "
                 + "but the query matched 0 rows."
-        case .exactlyOneRowExpected:
-            // The executor fetches at most two rows to reject a many-row match cheaply, so any
-            // count above 1 here means "more than one" rather than an exact total.
+        case .moreThanOneRowMatched:
             return "'@SQLQuery'/'@SQLQueries' declared a result of exactly one row, "
                 + "but the query matched more than one row."
         }
