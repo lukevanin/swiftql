@@ -345,7 +345,7 @@ struct GRDBRequest<Row>: XLRequest {
                 return items.count < limit ? .advance : .stop
             }
             catch {
-                logger?.error("fetchAtMost : Cannot decode entity: \(error)")
+                logger?.error("fetchAtMost(\(limit)): Cannot decode entity: \(error)")
                 throw error
             }
         }
