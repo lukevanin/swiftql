@@ -242,6 +242,9 @@ extension XLRequest {
         bindings: any XLInvocationBindingPacket
     ) throws -> [Row] {
         precondition(limit >= 0, "fetchAtMost(_:bindings:) requires limit >= 0, got \(limit).")
+        guard limit > 0 else {
+            return []
+        }
         return Array(try fetchAll(bindings: bindings).prefix(limit))
     }
 
