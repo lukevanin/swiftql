@@ -1488,7 +1488,7 @@ final class MetaBuilderTests: XCTestCase {
         }
         let expectedFieldsExpression = (0..<propertyCount)
             .map { "_swiftQLStaticField\($0).fields" }
-            .joined(separator: " + ")
-        XCTAssertTrue(source.contains("fields: \(expectedFieldsExpression),"))
+            .joined(separator: ", ")
+        XCTAssertTrue(source.contains("fields: [\(expectedFieldsExpression)].flatMap { $0 },"))
     }
 }
