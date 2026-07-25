@@ -821,6 +821,14 @@ private extension XLBindingKey {
 /// calls from different threads are unrelated activations — each has its own
 /// thread dictionary — and both must succeed, serialized safely by GRDB's own
 /// writer queue.
+///
+/// Callers must enter `withActive(_:_:)` on the same thread that will run
+/// `body` -- for the GRDB adapter, that means *inside* the
+/// `databasePool.write(_:)` closure, not around it. GRDB dispatches that
+/// closure onto its own writer thread, which is not necessarily the caller's
+/// thread; marking active before calling `databasePool.write` would leave a
+/// reentrant call made from inside `body` unable to see the marker, silently
+/// defeating this guard.
 final class GRDBTransactionScopeTracker: @unchecked Sendable {
 
     static let shared = GRDBTransactionScopeTracker()

@@ -1276,8 +1276,15 @@ extension GRDBDatabase: XLTransactionalDatabase {
         if Task.isCancelled {
             throw CancellationError()
         }
-        return try GRDBTransactionScopeTracker.shared.withActive(driver.databaseIdentifier) {
-            try databasePool.write { database in
+        // `withActive` must be entered *inside* `databasePool.write`'s
+        // closure, not around it: GRDB runs that closure on its own writer
+        // thread, not necessarily the caller's thread, and the tracker marks
+        // a thread active via `Thread.current.threadDictionary`. A reentrant
+        // call from inside `body` runs on this same writer thread (it is
+        // still on the same call stack), so marking active here is what
+        // `preconditionNotRootReentrant()` actually observes.
+        return try databasePool.write { database in
+            try GRDBTransactionScopeTracker.shared.withActive(driver.databaseIdentifier) {
                 let box = GRDBPinnedConnectionBox(database)
                 defer { box.invalidate() }
                 let scope = GRDBDatabase(
