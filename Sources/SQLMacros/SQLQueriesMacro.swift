@@ -28,9 +28,11 @@ import SwiftSyntaxMacros
 ///
 /// Generated members:
 ///   * `struct Context` — connection-scoped executors; one per specification.
-///   * `execute(_:)` — runs a closure against a context. The current
-///     implementation binds the context directly to the database; connection
-///     pooling and transaction scoping remain future runtime-design work.
+///   * `execute(_:)` — runs a closure against a context pinned to one
+///     transaction (issue #284's `XLTransactionalDatabase.withTransaction(_:)`):
+///     every declared-query call and `context.database.makeRequest(with:)`
+///     call inside the closure runs on one pinned connection, committing
+///     together on success and rolling back together on any failure.
 ///   * One database-level convenience executor per specification, defined as
 ///     sugar over `execute`, so the implicit form is transparently the
 ///     explicit one.
