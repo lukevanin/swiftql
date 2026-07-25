@@ -644,8 +644,11 @@ internal struct MetaBuilder {
                     context.line("fields: [],")
                 }
                 else {
+                    // A single `.flatMap` over the per-property field arrays copies each
+                    // element once; chaining `+` between them would instead recopy every
+                    // earlier array on each concatenation (quadratic in property count).
                     context.line(
-                        "fields: " + fieldGroups.map { "\($0).fields" }.joined(separator: " + ") + ","
+                        "fields: [" + fieldGroups.map { "\($0).fields" }.joined(separator: ", ") + "].flatMap { $0 },"
                     )
                 }
                 context.block(
@@ -679,7 +682,10 @@ internal struct MetaBuilder {
                             context.line("try \(terms[0])")
                         }
                         else {
-                            context.line("try \(terms.joined(separator: " + "))")
+                            // See the `fields:` array above: a single `.flatMap` over the
+                            // per-property encoded arrays avoids the quadratic recopying
+                            // that chaining `+` between them would cause.
+                            context.line("try [\(terms.joined(separator: ", "))].flatMap { $0 }")
                         }
                     }
                 }

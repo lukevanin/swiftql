@@ -155,9 +155,10 @@ public enum XLStaticRowLayoutError:
 /// closures, but never a model instance, database, SQL reader, or invocation
 /// value. Generated row-layout factories assign its declaration position and
 /// SQL alias.
-public protocol XLStaticSelectFieldProtocol<FieldValue, FieldDialect> {
-    associatedtype FieldValue
-    associatedtype FieldDialect: XLValueCodingDialect
+public protocol XLStaticSelectFieldProtocol<FieldValue, FieldDialect>: XLStaticRowFieldSource {
+    // `FieldValue`/`FieldDialect` are inherited from `XLStaticRowFieldSource`,
+    // not redeclared -- redeclaring the constrained `FieldDialect` here would
+    // just restate its `XLValueCodingDialect` bound.
 
     func positioned(at index: Int, alias: String) -> Self
     func erased() throws -> XLAnyStaticSelectField<FieldDialect>
@@ -326,9 +327,6 @@ extension XLStaticSelectField: XLStaticSelectFieldProtocol {
 }
 
 
-extension XLStaticSelectField: XLStaticRowFieldSource {}
-
-
 /// The expression-bearing, type-erased half of one static row field.
 ///
 /// Its public metadata is driver-neutral. The retained expression is used only
@@ -430,6 +428,16 @@ public protocol XLStaticRowFieldSource<FieldValue, FieldDialect> {
 
 extension XLStaticSelectFieldProtocol {
     /// The default scalar contribution: exactly one positioned slot.
+    ///
+    /// `XLStaticSelectFieldProtocol` itself declares conformance to
+    /// `XLStaticRowFieldSource` (rather than each conforming type declaring
+    /// it individually), so every existing `XLStaticSelectFieldProtocol`
+    /// conformer -- including custom types declared outside this module
+    /// before `XLStaticRowFieldSource` existed -- automatically satisfies it
+    /// too via this one default implementation. A generated
+    /// `staticRowLayout(using:...)` factory constrained to
+    /// `XLStaticRowFieldSource` remains source-compatible with every prior
+    /// scalar field type.
     public func grouped(
         at index: Int,
         alias: String

@@ -881,10 +881,10 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("try _swiftQLStaticField0.read(from: _swiftQLStaticReader)"))
         XCTAssertTrue(
             source.contains(
-                "try _swiftQLStaticField0.encode(_swiftQLStaticRow.`switch`) + _swiftQLStaticField1.encode(_swiftQLStaticRow.values)"
+                "try [_swiftQLStaticField0.encode(_swiftQLStaticRow.`switch`), _swiftQLStaticField1.encode(_swiftQLStaticRow.values)].flatMap { $0 }"
             )
         )
-        XCTAssertTrue(source.contains("fields: _swiftQLStaticField0.fields + _swiftQLStaticField1.fields,"))
+        XCTAssertTrue(source.contains("fields: [_swiftQLStaticField0.fields, _swiftQLStaticField1.fields].flatMap { $0 },"))
     }
 
     func test_staticRowLayoutGenerationAvoidsReaderAndRowPropertyCollisions() throws {
@@ -908,7 +908,7 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("encode: { _swiftQLStaticRow in"))
         XCTAssertTrue(
             source.contains(
-                "try _swiftQLStaticField0.encode(_swiftQLStaticRow.reader) + _swiftQLStaticField1.encode(_swiftQLStaticRow.row)"
+                "try [_swiftQLStaticField0.encode(_swiftQLStaticRow.reader), _swiftQLStaticField1.encode(_swiftQLStaticRow.row)].flatMap { $0 }"
             )
         )
         XCTAssertFalse(source.contains("decode: { reader in"))
@@ -1018,7 +1018,7 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("some SwiftQL.XLStaticRowFieldSource<Employee, _SwiftQLStaticDialect>"))
         XCTAssertTrue(source.contains("let _swiftQLStaticField0 = try employee.grouped(at: 0, alias: \"employee\")"))
         XCTAssertFalse(source.contains("_swiftQLStaticOffset"))
-        XCTAssertTrue(source.contains("fields: _swiftQLStaticField0.fields,"))
+        XCTAssertTrue(source.contains("fields: [_swiftQLStaticField0.fields].flatMap { $0 },"))
         XCTAssertTrue(source.contains("employee: try _swiftQLStaticField0.read(from: _swiftQLStaticReader)"))
         XCTAssertTrue(source.contains("encode: { _swiftQLStaticRow in"))
         XCTAssertTrue(source.contains("try _swiftQLStaticField0.encode(_swiftQLStaticRow.employee)"))
@@ -1042,12 +1042,12 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("let _swiftQLStaticField0 = try employee.grouped(at: 0, alias: \"employee\")"))
         XCTAssertTrue(source.contains("_swiftQLStaticOffset = _swiftQLStaticField0.count"))
         XCTAssertTrue(source.contains("let _swiftQLStaticField1 = try company.grouped(at: _swiftQLStaticOffset, alias: \"company\")"))
-        XCTAssertTrue(source.contains("fields: _swiftQLStaticField0.fields + _swiftQLStaticField1.fields,"))
+        XCTAssertTrue(source.contains("fields: [_swiftQLStaticField0.fields, _swiftQLStaticField1.fields].flatMap { $0 },"))
         XCTAssertTrue(source.contains("employee: try _swiftQLStaticField0.read(from: _swiftQLStaticReader)"))
         XCTAssertTrue(source.contains("company: try _swiftQLStaticField1.read(from: _swiftQLStaticReader)"))
         XCTAssertTrue(
             source.contains(
-                "try _swiftQLStaticField0.encode(_swiftQLStaticRow.employee) + _swiftQLStaticField1.encode(_swiftQLStaticRow.company)"
+                "try [_swiftQLStaticField0.encode(_swiftQLStaticRow.employee), _swiftQLStaticField1.encode(_swiftQLStaticRow.company)].flatMap { $0 }"
             )
         )
     }
@@ -1080,7 +1080,7 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("let _swiftQLStaticField2 = try company.grouped(at: _swiftQLStaticOffset, alias: \"company\")"))
         XCTAssertTrue(
             source.contains(
-                "fields: _swiftQLStaticField0.fields + _swiftQLStaticField1.fields + _swiftQLStaticField2.fields,"
+                "fields: [_swiftQLStaticField0.fields, _swiftQLStaticField1.fields, _swiftQLStaticField2.fields].flatMap { $0 },"
             )
         )
     }
@@ -1113,7 +1113,7 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("department: some SwiftQL.XLStaticRowFieldSource<Department, _SwiftQLStaticDialect>"))
         XCTAssertTrue(source.contains("let _swiftQLStaticField0 = try headcount.grouped(at: 0, alias: \"headcount\")"))
         XCTAssertTrue(source.contains("let _swiftQLStaticField1 = try department.grouped(at: _swiftQLStaticOffset, alias: \"department\")"))
-        XCTAssertTrue(source.contains("fields: _swiftQLStaticField0.fields + _swiftQLStaticField1.fields,"))
+        XCTAssertTrue(source.contains("fields: [_swiftQLStaticField0.fields, _swiftQLStaticField1.fields].flatMap { $0 },"))
     }
 
     func test_emptyStaticRowLayoutGenerationDefersInitializerToDecodeClosure() throws {
