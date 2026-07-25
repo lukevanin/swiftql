@@ -216,6 +216,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
 /// reused for unrelated work.
 final class GRDBPinnedConnectionBox: @unchecked Sendable {
 
+    private let lock = NSLock()
     private var database: Database?
 
     init(_ database: Database) {
@@ -224,13 +225,24 @@ final class GRDBPinnedConnectionBox: @unchecked Sendable {
 
     /// Invalidates the box. Called once, when the owning
     /// `databasePool.write` access is about to return (commit or rollback).
+    ///
+    /// Synchronized against `connection(makeConnection:)` so a scope value
+    /// that escapes to another thread reads a consistent, already-invalidated
+    /// `database` instead of racing this write -- a scope value used after
+    /// its body returns must reliably throw `.scopeEscaped`, never trip a
+    /// data race.
     func invalidate() {
+        lock.lock()
+        defer { lock.unlock() }
         database = nil
     }
 
     func connection(
         makeConnection: (Database) -> GRDBDatabaseDriverConnection
     ) throws -> GRDBDatabaseDriverConnection {
+        lock.lock()
+        let database = self.database
+        lock.unlock()
         guard let database else {
             throw XLTransactionScopeError.scopeEscaped
         }

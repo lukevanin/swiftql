@@ -102,12 +102,15 @@ public enum XLTransactionScopeError: Error, Equatable, Sendable, LocalizedError 
     case scopeEscaped
 
     ///
-    /// `withTransaction(_:)` was called again from inside an already-active
-    /// transaction body on the same database. The v1 driver has no
-    /// savepoint hook, so a nested call cannot commit or roll back only its
-    /// own writes; re-entering the connection pool from inside an open
-    /// transaction can also deadlock. Rejected before any nested work runs,
-    /// so no partial state exists to roll back.
+    /// Either `withTransaction(_:)` was called again from inside an
+    /// already-active transaction body, or the original (root, unpinned)
+    /// database was used from inside an active body instead of the pinned
+    /// scope value it was given -- both re-enter the same connection pool
+    /// while a transaction is open. The v1 driver has no savepoint hook, so
+    /// a nested call cannot commit or roll back only its own writes; pool
+    /// re-entry can also deadlock or hand two operations different
+    /// connections. Rejected before any nested work runs, so no partial
+    /// state exists to roll back.
     ///
     case nestedTransactionUnsupported
 
@@ -125,7 +128,7 @@ public enum XLTransactionScopeError: Error, Equatable, Sendable, LocalizedError 
         case .scopeEscaped:
             return "A transaction-scoped database, request, or write request was used after its 'withTransaction(_:)' body returned. Transaction-scoped values must not escape the closure."
         case .nestedTransactionUnsupported:
-            return "'withTransaction(_:)' was called again from inside an active transaction body. Nested transactions and savepoints are not supported; perform every operation in one body instead."
+            return "'withTransaction(_:)' was called again from inside an active transaction body, or the original (root) database was used instead of the pinned scope value the body was given -- both re-enter the connection pool while a transaction is open. Nested transactions and savepoints are not supported; perform every operation in one body using the scope value it receives instead."
         case .liveQueriesUnsupportedInTransaction:
             return "Live-query 'publish()'/'publishOne()' is not supported inside a 'withTransaction(_:)' body. Fetch with 'fetchAll()'/'fetchOne()' instead, or observe outside the transaction."
         }
