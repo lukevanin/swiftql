@@ -152,7 +152,18 @@ public protocol XLRequest<Row> {
 
     /// Fetches all rows with one immutable per-invocation binding packet.
     func fetchAll(bindings: any XLInvocationBindingPacket) throws -> [Row]
-    
+
+    ///
+    /// Fetches at most `limit` rows with one immutable per-invocation binding packet, stopping as soon
+    /// as `limit` rows have been decoded rather than materializing every matching row.
+    ///
+    /// Use this to check a query's cardinality (e.g. "zero, one, or more than one row?") without paying
+    /// to decode and retain every row when many might match.
+    ///
+    /// - Throws: The original query-execution or row-decoding error.
+    ///
+    func fetchAtMost(_ limit: Int, bindings: any XLInvocationBindingPacket) throws -> [Row]
+
     ///
     /// Fetches the first row returned by the query.
     ///
@@ -220,6 +231,16 @@ extension XLRequest {
     ) throws -> Row? {
         try validateCompatibilityBindings(bindings)
         return try fetchOne()
+    }
+
+    /// Compatibility default for adapters that do not implement early-stopping decode: fetches every
+    /// row and truncates. Adapters that can decode incrementally (e.g. `GRDBRequest`) override this to
+    /// actually stop after `limit` rows.
+    public func fetchAtMost(
+        _ limit: Int,
+        bindings: any XLInvocationBindingPacket
+    ) throws -> [Row] {
+        Array(try fetchAll(bindings: bindings).prefix(limit))
     }
 
     /// Compatibility default for existing adapters. Invalid packets fail on

@@ -306,6 +306,51 @@ struct GRDBRequest<Row>: XLRequest {
         return items
     }
     
+    func fetchAtMost(
+        _ limit: Int,
+        bindings: any XLInvocationBindingPacket
+    ) throws -> [Row] {
+        let packet = try executor.sqlitePacket(bindings)
+        logger?.debug(
+            "fetchAtMost(\(limit)): <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+        return try decodeRows(packet: packet, limit: limit)
+    }
+
+    private func decodeRows(
+        packet: XLInvocationBindings<XLSQLiteValue>,
+        limit: Int
+    ) throws -> [Row] {
+        var driver = executor.driver
+        return try driver.withReadConnection { connection in
+            try decodeRows(packet: packet, limit: limit, in: &connection)
+        }
+    }
+
+    private func decodeRows(
+        packet: XLInvocationBindings<XLSQLiteValue>,
+        limit: Int,
+        in connection: inout GRDBDatabaseDriverConnection
+    ) throws -> [Row] {
+        guard limit > 0 else {
+            return []
+        }
+        let rowDecoder = GRDBRowDecoder(reader: reader)
+        var items: [Row] = []
+
+        try executor.forEachRow(packet: packet, in: &connection) { values in
+            do {
+                let item = try rowDecoder.decode(values: values)
+                items.append(item)
+                return items.count < limit ? .advance : .stop
+            }
+            catch {
+                logger?.error("fetchAtMost : Cannot decode entity: \(error)")
+                throw error
+            }
+        }
+        return items
+    }
+
     func fetchOne() throws -> Row? {
         try fetchOne(bindings: compatibilityPacket())
     }

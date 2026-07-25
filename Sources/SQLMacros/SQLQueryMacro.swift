@@ -477,6 +477,7 @@ internal struct SQLQueryBuilder {
         if let returnType,
            returnType.trimmedDescription != "Void",
            returnType.trimmedDescription != "()",
+           returnType.trimmedDescription != "Swift.Void",
            let (_, arguments) = genericConstraint(of: returnType),
            arguments == nil {
             return SQLQueryReturnShape(
@@ -646,9 +647,10 @@ internal struct SQLQueryBuilder {
     /// Generates the lines that fetch the result and return it from an
     /// executor body, dispatched from ``SQLQueryReturnShape/cardinality``.
     ///
-    /// `.exactlyOne` fetches every matching row and validates the count itself,
-    /// because no `XLRequest` fetch operation enforces "zero or many is an
-    /// error" on its own.
+    /// `.exactlyOne` fetches at most two matching rows via `fetchAtMost(_:bindings:)` and validates
+    /// the count itself, because no `XLRequest` fetch operation enforces "zero or many is an error" on
+    /// its own. Fetching at most two rows (rather than every row) keeps a query that accidentally
+    /// matches many rows cheap to reject.
     ///
     func makeFetchLines(requestVariable: String, packetVariable: String) -> [String] {
         switch returnShape.cardinality {
@@ -658,7 +660,7 @@ internal struct SQLQueryBuilder {
             return ["return try \(requestVariable).fetchOne(bindings: \(packetVariable))"]
         case .exactlyOne:
             return [
-                "let __xlRows = try \(requestVariable).fetchAll(bindings: \(packetVariable))",
+                "let __xlRows = try \(requestVariable).fetchAtMost(2, bindings: \(packetVariable))",
                 "guard __xlRows.count == 1 else {",
                 "    throw XLQueryCardinalityError.exactlyOneRowExpected(actual: __xlRows.count)",
                 "}",

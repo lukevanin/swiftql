@@ -135,9 +135,14 @@ public enum XLQueryCardinalityError: Error, Equatable, Sendable, LocalizedError 
 
     public var errorDescription: String? {
         switch self {
-        case .exactlyOneRowExpected(let actual):
+        case .exactlyOneRowExpected(0):
             return "'@SQLQuery'/'@SQLQueries' declared a result of exactly one row, "
-                + "but the query matched \(actual) row(s)."
+                + "but the query matched 0 rows."
+        case .exactlyOneRowExpected:
+            // The executor fetches at most two rows to reject a many-row match cheaply, so any
+            // count above 1 here means "more than one" rather than an exact total.
+            return "'@SQLQuery'/'@SQLQueries' declared a result of exactly one row, "
+                + "but the query matched more than one row."
         }
     }
 }

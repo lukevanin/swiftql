@@ -536,7 +536,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                             try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
                         ]
                     ).validatingComplete()
-                    let __xlRows = try __xlRequest.fetchAll(bindings: __xlPacket)
+                    let __xlRows = try __xlRequest.fetchAtMost(2, bindings: __xlPacket)
                     guard __xlRows.count == 1 else {
                         throw XLQueryCardinalityError.exactlyOneRowExpected(actual: __xlRows.count)
                     }
@@ -699,6 +699,47 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
             expandedSource: """
             extension MyDatabase {
                 func allPeople() -> Void {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQuery' requires the function to return '[Row]' (fetch all), 'Row?' (fetch one), 'Row' (fetch exactly one), or the legacy 'any/some XLQueryStatement<Row>', with an explicit row type. The row type declares the executor's result element and the shape selects the fetch.",
+                    line: 3,
+                    column: 25
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// `Swift.Void` is the same type as the bare `Void` spelling covered by
+    /// `test_voidReturn_emitsMissingRowTypeError` above, and must be excluded
+    /// from the bare-`Row` fallback the same way (Copilot review, PR #381).
+    ///
+    func test_moduleQualifiedVoidReturn_emitsMissingRowTypeError() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func allPeople() -> Swift.Void {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func allPeople() -> Swift.Void {
                     sql { schema in
                         let person = schema.table(Person.self)
                         Select(person)
