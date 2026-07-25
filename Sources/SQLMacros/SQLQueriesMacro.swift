@@ -229,7 +229,13 @@ extension SQLQueryBuilder {
                 arguments.append(value)
             }
             else {
-                arguments.append("\(parameter.firstName.text): \(value)")
+                // The call-site label must be unescaped even when the
+                // parameter's own spelling is backtick-escaped (a reserved
+                // keyword like `class`): Swift call-site argument labels are
+                // never backtick-escaped, only the referenced local variable
+                // is. `value` keeps its original (possibly escaped) spelling.
+                let label = normalizedIdentifier(parameter.firstName.text)
+                arguments.append("\(label): \(value)")
             }
         }
         let argumentList = arguments.joined(separator: ", ")

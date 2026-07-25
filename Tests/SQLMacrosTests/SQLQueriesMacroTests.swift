@@ -145,6 +145,82 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
             macros: makeTestMacros()
         )
     }
+
+    ///
+    /// A backtick-escaped parameter label (a Swift reserved keyword, e.g.
+    /// `class`) must not carry its backticks into the generated database-level
+    /// executor's call-site argument label -- Swift call-site labels are never
+    /// backtick-escaped, only the referenced local variable is (Copilot
+    /// review, PR #381).
+    ///
+    func test_escapedKeywordParameterLabel_databaseExecutorUsesUnescapedLabel() {
+        assertMacroExpansion(
+            """
+            @SQLQueries
+            extension MyDatabase {
+                private struct Query {
+                    func peopleByClass(`class`: String) -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                            Where(person.name == `class`)
+                        }
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                private struct Query {
+                    func peopleByClass(`class`: String) -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                            Where(person.name == `class`)
+                        }
+                    }
+                }
+
+                struct Context {
+                    let database: MyDatabase
+
+                    func peopleByClass(`class`: String) throws -> [Person] {
+                        let __xlStatement: any XLQueryStatement<Person> = {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                                Where(person.name == XLNamedBindingReference<String>(name: "class"))
+                            }
+                        }()
+                        let __xlRequest = database.makeRequest(with: __xlStatement)
+                        let __xlLayout = __xlRequest.parameterLayout
+                        let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                            layout: __xlLayout,
+                            bindings: [
+                                try _xlQueryParameterBinding(`class`, named: "class", in: __xlLayout),
+                            ]
+                        ).validatingComplete()
+                        return try __xlRequest.fetchAll(bindings: __xlPacket)
+                    }
+                }
+
+                func execute<__XLResult>(_ __xlWork: (Context) throws -> __XLResult) throws -> __XLResult {
+                    try __xlWork(Context(database: self))
+                }
+
+                func peopleByClass(`class`: String) throws -> [Person] {
+                    try execute { __xlContext in
+                        try __xlContext.peopleByClass(class: `class`)
+                    }
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
 }
 
 
