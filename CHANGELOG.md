@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.4.6] - 2026-07-25
+
+### Changed
+
+- Reduced SwiftQL query construction-and-rendering allocations without changing
+  rendered SQL, entity metadata, query semantics, or the public 1.x API. A
+  deterministic allocation profile attributed roughly three-quarters of the
+  `swiftql_construction_and_rendering` phase's allocations to rendering;
+  single-argument token append, a single-token `build()` fast path, and a
+  one/two-component `scopedName` fast path cut render allocations about 15% and
+  the phase median about 13-17% across the #128 harness read cases, with
+  byte-identical SQL. No absolute CI latency gate was added (#166).
+- Reused one per-row normalization buffer on the incremental GRDB decode path,
+  removing the per-row `[XLSQLiteValue]` allocation (and a redundant `Array`
+  copy) while preserving the #248 bounded-memory guarantee — the typed decode
+  path materializes no intermediate matrix. This is an allocation-only change
+  and is latency-neutral on the #250 harness, which showed the incremental
+  regression is decode-compute bound rather than allocation bound; the
+  remaining latency work is tracked in #353 (#266).
+
+### Added
+
+- Added the `swiftql-construction-profile` diagnostic executable. It counts
+  per-operation heap allocations through the in-process `malloc_logger` hook and
+  splits construction versus rendering timing for the #128 read queries. It is
+  diagnostic evidence for #166, not part of any product runtime or a CI gate.
+
+### Migration
+
+No migration is required for v1.4.6. Every change is internal; the public API,
+entity metadata, and rendered SQL are unchanged.
+
 ## [1.4.5] - 2026-07-24
 
 ### Added

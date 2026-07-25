@@ -289,13 +289,15 @@ is tracked by the
 ### Direct scalar rows
 
 Scalar SELECTs already have enough information to decode a direct Swift value.
-The remaining wrapper requirement comes from compound-query and common-table
-metadata that assumes every row is a macro-generated `XLResult`.
+The remaining wrapper requirement came from compound-query and common-table
+metadata that assumed every row is a macro-generated `XLResult`.
 
-v1.4 should let ordinary and recursive CTEs return `T` or `T?` directly. The
-implementation should preserve the existing row reader across compound branches
-and expose an adapter-neutral scalar CTE reference with a stable typed value
-column. `SQLScalarResult` remains source-compatible during v1; it becomes a
+v1.4 lets ordinary and recursive CTEs return `T` or `T?` directly
+([#43](https://github.com/lukevanin/swiftql/issues/43), delivered in the
+[v1.4.5](https://github.com/lukevanin/swiftql/milestone/15) milestone). The
+implementation preserves the existing row reader across compound branches and
+exposes an adapter-neutral scalar CTE reference with a stable typed value
+column. `SQLScalarResult` remains source-compatible during v1; it is now a
 legacy shim rather than a requirement. Scalar-subquery conversion and nested
 optional flattening remain separate concerns.
 

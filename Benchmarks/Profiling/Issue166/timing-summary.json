@@ -1,0 +1,291 @@
+{
+  "after": {
+    "bounded_write": {
+      "medians": [
+        16.542,
+        16.166,
+        16.292,
+        17.292,
+        16.583,
+        16.542,
+        17.375,
+        17.459
+      ],
+      "p95": [
+        17.542,
+        16.958,
+        17.667,
+        70.583,
+        16.875,
+        17.75,
+        18.292,
+        18.5
+      ]
+    },
+    "deterministic_row_decode": {
+      "medians": [
+        26.75,
+        27.791,
+        27.125,
+        27.125,
+        28.792,
+        27.875,
+        28.833,
+        28.73
+      ],
+      "p95": [
+        27.875,
+        30.75,
+        28.958,
+        67.917,
+        29.292,
+        65.167,
+        90.0,
+        30.167
+      ]
+    },
+    "representative_multi_join_read": {
+      "medians": [
+        38.5,
+        38.958,
+        39.708,
+        38.875,
+        40.375,
+        40.625,
+        40.416,
+        43.541
+      ],
+      "p95": [
+        46.5,
+        52.875,
+        42.458,
+        39.5,
+        47.959,
+        45.292,
+        123.042,
+        48.334
+      ]
+    },
+    "simple_parameterized_lookup": {
+      "medians": [
+        28.042,
+        23.958,
+        24.334,
+        25.521,
+        25.125,
+        25.916,
+        24.792,
+        24.792
+      ],
+      "p95": [
+        30.209,
+        27.542,
+        51.917,
+        79.083,
+        87.417,
+        98.625,
+        59.625,
+        60.167
+      ]
+    }
+  },
+  "before": {
+    "bounded_write": {
+      "medians": [
+        20.083,
+        19.917,
+        21.042,
+        19.667,
+        20.375,
+        20.0,
+        20.167,
+        19.145
+      ],
+      "p95": [
+        20.541,
+        20.625,
+        24.125,
+        46.916,
+        46.208,
+        42.5,
+        49.291,
+        19.959
+      ]
+    },
+    "deterministic_row_decode": {
+      "medians": [
+        32.605,
+        31.125,
+        34.334,
+        31.625,
+        31.458,
+        31.666,
+        32.395,
+        32.541
+      ],
+      "p95": [
+        169.625,
+        36.875,
+        41.458,
+        122.042,
+        70.208,
+        32.458,
+        131.583,
+        253.166
+      ]
+    },
+    "representative_multi_join_read": {
+      "medians": [
+        47.584,
+        49.084,
+        51.208,
+        49.625,
+        46.917,
+        46.0,
+        47.125,
+        45.834
+      ],
+      "p95": [
+        48.084,
+        493.291,
+        52.125,
+        324.541,
+        52.458,
+        103.542,
+        107.458,
+        56.542
+      ]
+    },
+    "simple_parameterized_lookup": {
+      "medians": [
+        29.292,
+        29.042,
+        30.208,
+        29.167,
+        28.0,
+        28.709,
+        29.375,
+        28.792
+      ],
+      "p95": [
+        29.916,
+        29.375,
+        30.5,
+        30.0,
+        29.667,
+        28.959,
+        29.792,
+        77.0
+      ]
+    }
+  },
+  "environment": {
+    "configuration": {
+      "sampleCount": 500,
+      "warmupCount": 50
+    },
+    "database": {
+      "compileOptions": [
+        "ATOMIC_INTRINSICS=1",
+        "BUG_COMPATIBLE_20160819",
+        "CCCRYPT256",
+        "CODEC=see-cccrypt",
+        "COMPILER=clang-21.0.0",
+        "DEFAULT_AUTOVACUUM",
+        "DEFAULT_CACHE_SIZE=2000",
+        "DEFAULT_CKPTFULLFSYNC",
+        "DEFAULT_FILE_FORMAT=4",
+        "DEFAULT_JOURNAL_SIZE_LIMIT=32768",
+        "DEFAULT_LOOKASIDE=1200,102",
+        "DEFAULT_MEMSTATUS=0",
+        "DEFAULT_MMAP_SIZE=0",
+        "DEFAULT_PAGE_SIZE=4096",
+        "DEFAULT_PCACHE_INITSZ=20",
+        "DEFAULT_RECURSIVE_TRIGGERS",
+        "DEFAULT_SECTOR_SIZE=4096",
+        "DEFAULT_SYNCHRONOUS=2",
+        "DEFAULT_WAL_AUTOCHECKPOINT=1000",
+        "DEFAULT_WAL_SYNCHRONOUS=1",
+        "DEFAULT_WORKER_THREADS=0",
+        "DIRECT_OVERFLOW_READ",
+        "DQS=3",
+        "ENABLE_API_ARMOR",
+        "ENABLE_BYTECODE_VTAB",
+        "ENABLE_COLUMN_METADATA",
+        "ENABLE_DBSTAT_VTAB",
+        "ENABLE_FTS3",
+        "ENABLE_FTS3_PARENTHESIS",
+        "ENABLE_FTS3_TOKENIZER",
+        "ENABLE_FTS4",
+        "ENABLE_FTS5",
+        "ENABLE_LOCKING_STYLE=1",
+        "ENABLE_MATH_FUNCTIONS",
+        "ENABLE_NORMALIZE",
+        "ENABLE_PREUPDATE_HOOK",
+        "ENABLE_RTREE",
+        "ENABLE_SESSION",
+        "ENABLE_SETLK_TIMEOUT",
+        "ENABLE_SNAPSHOT",
+        "ENABLE_SQLLOG",
+        "ENABLE_STMT_SCANSTATUS",
+        "ENABLE_UNKNOWN_SQL_FUNCTION",
+        "ENABLE_UPDATE_DELETE_LIMIT",
+        "HAS_CODEC_RESTRICTED",
+        "HAVE_ISNAN",
+        "MALLOC_SOFT_LIMIT=1024",
+        "MAX_ATTACHED=10",
+        "MAX_COLUMN=2000",
+        "MAX_COMPOUND_SELECT=500",
+        "MAX_DEFAULT_PAGE_SIZE=8192",
+        "MAX_EXPR_DEPTH=1000",
+        "MAX_FUNCTION_ARG=127",
+        "MAX_LENGTH=2147483645",
+        "MAX_LIKE_PATTERN_LENGTH=50000",
+        "MAX_MMAP_SIZE=1073741824",
+        "MAX_PAGE_COUNT=1073741823",
+        "MAX_PAGE_SIZE=65536",
+        "MAX_SQL_LENGTH=1000000000",
+        "MAX_TRIGGER_DEPTH=1000",
+        "MAX_VARIABLE_NUMBER=500000",
+        "MAX_VDBE_OP=250000000",
+        "MAX_WORKER_THREADS=8",
+        "MUTEX_UNFAIR",
+        "OMIT_AUTORESET",
+        "OMIT_LOAD_EXTENSION",
+        "STMTJRNL_SPILL=131072",
+        "SYSTEM_MALLOC",
+        "TEMP_STORE=1",
+        "THREADSAFE=2",
+        "USE_URI"
+      ],
+      "journalMode": "wal",
+      "pageSizeBytes": 4096,
+      "sqliteSourceID": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "sqliteVersion": "3.51.0",
+      "storage": "temporary file-backed SQLite database",
+      "synchronous": 1
+    },
+    "environment": {
+      "activeProcessorCount": 14,
+      "architecture": "arm64",
+      "buildConfiguration": "release",
+      "grdbRevision": "2cf6c756e1e5ef6901ebae16576a7e4e4b834622",
+      "grdbVersion": "6.29.3",
+      "machineModel": "Mac16,8",
+      "operatingSystem": "Version 26.5.1 (Build 25F80)",
+      "physicalMemoryBytes": 25769803776,
+      "processor": "Apple M4 Pro",
+      "processorCount": 14,
+      "repositoryRevision": "b0443b3710ab6db655a8539f2d0cde821ec3945e",
+      "repositoryState": "dirty",
+      "sdkVersion": "26.5",
+      "swiftVersion": "swift-driver version: 1.148.6 Apple Swift version 6.3.2 (swiftlang-6.3.2.1.108 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+      "xcodeVersion": "Xcode 26.5\nBuild version 17F42"
+    }
+  },
+  "note": "Per-process construction+rendering statistics (microseconds). Raw #128 reports were not committed to keep the evidence directory small; regenerate with the documented command. Machine has background load, so process spread is real and reported.",
+  "phase": "swiftql_construction_and_rendering",
+  "processesPerCondition": 8,
+  "samples": 500,
+  "warmups": 50
+}
