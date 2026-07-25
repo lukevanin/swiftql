@@ -20,15 +20,16 @@ import SwiftSyntaxMacros
 /// Declares a query-specification function as a reusable prepared query.
 ///
 /// The attached function builds a `SELECT` statement from its parameters. The
-/// macro generates two peers: a value-free statement builder in which every
-/// parameter reference is replaced by a typed `XLNamedBindingReference`, and an
-/// executor that renders the statement once per call through the enclosing
-/// database's `makeRequest(with:)`, binds the parameter values into an
-/// immutable invocation packet, and fetches the result. The fetch is dispatched
-/// from the function's return annotation: `[Row]` (or the legacy
-/// `any/some XLQueryStatement<Row>`) fetches all rows, `Row?` fetches one, and
-/// a bare `Row` fetches exactly one row, throwing if the query matches zero or
-/// more than one row.
+/// macro generates three peers: a value-free statement builder in which every
+/// parameter reference is replaced by a typed `XLNamedBindingReference`, a
+/// per-declaration `XLRenderOnceCache` that renders the statement once per
+/// `(databaseIdentifier, dialectIdentifier)` and reuses that rendered request
+/// on every later call, and an executor that binds the parameter values into
+/// an immutable invocation packet per call and fetches the result. The fetch
+/// is dispatched from the function's return annotation: `[Row]` (or the
+/// legacy `any/some XLQueryStatement<Row>`) fetches all rows, `Row?` fetches
+/// one, and a bare `Row` fetches exactly one row, throwing if the query
+/// matches zero or more than one row.
 ///
 public struct SQLQueryMacro {
 }
