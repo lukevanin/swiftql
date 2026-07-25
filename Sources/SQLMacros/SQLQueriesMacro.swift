@@ -69,31 +69,13 @@ extension SQLQueriesMacro: MemberMacro {
 
         var builders: [SQLQueryBuilder] = []
         var diagnostics: [Diagnostic] = []
-        var foundContainer = false
-        for member in extensionDecl.memberBlock.members {
-            guard let container = member.decl.as(StructDeclSyntax.self),
-                  container.name.text == "Query" else {
-                continue
-            }
-            foundContainer = true
-            for containerMember in container.memberBlock.members {
-                guard let function = containerMember.decl.as(FunctionDeclSyntax.self) else {
-                    continue
-                }
-                do {
-                    builders.append(try SQLQueryBuilder(
-                        node: node,
-                        declaration: function,
-                        macroName: "@SQLQueries"
-                    ))
-                }
-                catch let error as DiagnosticsError {
-                    diagnostics.append(contentsOf: error.diagnostics)
-                }
+        let containers = extensionDecl.memberBlock.members.compactMap { member in
+            member.decl.as(StructDeclSyntax.self).flatMap { container in
+                container.name.text == "Query" ? container : nil
             }
         }
 
-        guard foundContainer else {
+        guard let container = containers.first else {
             throw DiagnosticsError(diagnostics: [
                 Diagnostic(
                     node: node,
@@ -102,6 +84,36 @@ extension SQLQueriesMacro: MemberMacro {
                 )
             ])
         }
+
+        // A second `Query` container's specifications would silently merge into the same
+        // generated executor set with no indication which container a given executor came
+        // from -- diagnose it instead of merging.
+        for extraContainer in containers.dropFirst() {
+            diagnostics.append(
+                Diagnostic(
+                    node: Syntax(extraContainer),
+                    id: "sqlqueries-multiple-containers",
+                    message: "'@SQLQueries' found more than one nested 'struct Query' container in this extension. Declare every query specification in a single 'Query' container."
+                )
+            )
+        }
+
+        for containerMember in container.memberBlock.members {
+            guard let function = containerMember.decl.as(FunctionDeclSyntax.self) else {
+                continue
+            }
+            do {
+                builders.append(try SQLQueryBuilder(
+                    node: node,
+                    declaration: function,
+                    macroName: "@SQLQueries"
+                ))
+            }
+            catch let error as DiagnosticsError {
+                diagnostics.append(contentsOf: error.diagnostics)
+            }
+        }
+
         guard diagnostics.isEmpty else {
             throw DiagnosticsError(diagnostics: diagnostics)
         }

@@ -308,4 +308,72 @@ final class SQLQueriesMacroDiagnosticTests: XCTestCase {
             macros: makeTestMacros()
         )
     }
+
+    ///
+    /// Two `Query` containers in the same extension would otherwise silently
+    /// merge their specifications into one generated executor set with no
+    /// indication which container a given executor came from (Copilot
+    /// review, PR #381).
+    ///
+    func test_multipleQueryContainers_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLQueries
+            extension MyDatabase {
+                private struct Query {
+                    func personByName(name: String) -> Person? {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                            Where(person.name == name)
+                        }
+                    }
+                }
+                private struct Query {
+                    func personByAge(age: Int) -> Person? {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                            Where(person.age == age)
+                        }
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                private struct Query {
+                    func personByName(name: String) -> Person? {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                            Where(person.name == name)
+                        }
+                    }
+                }
+                private struct Query {
+                    func personByAge(age: Int) -> Person? {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                            Where(person.age == age)
+                        }
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQueries' found more than one nested 'struct Query' container in this extension. Declare every query specification in a single 'Query' container.",
+                    line: 13,
+                    column: 5
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
 }

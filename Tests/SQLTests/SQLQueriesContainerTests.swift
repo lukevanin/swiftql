@@ -74,6 +74,7 @@ final class XLQueriesContainerTests: XCTestCase {
     }
 
     override func tearDown() {
+        try? databasePool?.close()
         databasePool = nil
         database = nil
     }

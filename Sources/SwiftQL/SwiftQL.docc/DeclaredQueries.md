@@ -72,7 +72,7 @@ The macro derives everything from the signature:
   | --- | --- | --- |
   | `[Row]` | fetch all | `[Row]` |
   | `Row?` | fetch first-or-none | `Row?` |
-  | `Row` (bare, non-optional, non-array) | fetch exactly one | `Row`, throws `XLQueryCardinalityError.exactlyOneRowExpected` on zero or many rows |
+  | `Row` (bare, non-optional, non-array) | fetch exactly one | `Row`, throws `XLQueryCardinalityError.noRowsMatched` on zero rows or `.moreThanOneRowMatched` on more than one |
   | legacy `any/some XLQueryStatement<Row>` | fetch all | `[Row]` |
 
   The legacy `XLQueryStatement<Row>` spelling from the encoding's original

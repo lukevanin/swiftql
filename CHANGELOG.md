@@ -10,8 +10,8 @@
   value-free statement builder and a cached, cardinality-dispatched executor.
   Labeled parameters and result cardinality are derived from the function's
   own signature: `[Row]` fetches all rows, `Row?` fetches zero-or-one, a bare
-  `Row` fetches exactly one (throwing `XLQueryCardinalityError
-  .exactlyOneRowExpected` on zero or many rows), and the legacy `any/some
+  `Row` fetches exactly one (throwing `XLQueryCardinalityError.noRowsMatched`
+  or `.moreThanOneRowMatched`), and the legacy `any/some
   XLQueryStatement<Row>` spelling fetches all rows. Every invocation
   constructs a fresh, immutable binding packet; callers never construct or
   mutate a binding themselves and never bind by textual SQL substitution.

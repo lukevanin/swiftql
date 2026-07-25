@@ -105,6 +105,7 @@ final class XLQueryPeerMacroTests: XCTestCase {
     }
 
     override func tearDown() {
+        try? databasePool?.close()
         encoder = nil
         databasePool = nil
         database = nil
