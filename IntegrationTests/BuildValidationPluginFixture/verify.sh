@@ -37,7 +37,7 @@ if [ -z "$REPORT" ]; then
     echo "FAIL: no report file was produced"
     exit 1
 fi
-if ! grep -q '"overall_verdict" : "passed"' "$REPORT"; then
+if ! grep -Eq '"overall_verdict"[[:space:]]*:[[:space:]]*"passed"' "$REPORT"; then
     echo "FAIL: expected overall_verdict passed"
     cat "$REPORT"
     exit 1
