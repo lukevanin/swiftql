@@ -311,6 +311,28 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
         )
     }
 
+    func testManifestRejectsUnrecognizedCardinalityRawValue() {
+        let manifest = Support.manifest(queries: [
+            SQLiteBuildValidationQueryEntry(
+                id: "bad-cardinality",
+                definitionIdentity: "tests/bad-cardinality@1",
+                descriptorIdentity: "swiftql-query-v1-deadbeef",
+                sql: "SELECT 1",
+                dialectIdentifier: XLSQLiteDialect.identity.rawValue,
+                cardinality: 99,
+                results: [Support.result()]
+            ),
+        ])
+        XCTAssertThrowsError(try manifest.validating()) { error in
+            guard case .invalidQuery(let queryID, let reason) =
+                error as? SQLiteBuildValidationManifestError else {
+                return XCTFail("Expected invalid query, received \(error)")
+            }
+            XCTAssertEqual(queryID, "bad-cardinality")
+            XCTAssertTrue(reason.contains("cardinality"))
+        }
+    }
+
     func testManifestRejectsIncompleteCodecMetadata() {
         let incompleteCodec = Support.codec(keyID: "")
         assertInvalidQuery(
@@ -384,6 +406,26 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
         ])
 
         XCTAssertNoThrow(try manifest.validating(against: registry))
+    }
+
+    /// `validating(against:)` takes `any SQLiteBuildValidationReferenceRegistry`
+    /// so a caller that stores its registry as a type-erased existential (e.g.
+    /// a property typed `any SQLiteBuildValidationReferenceRegistry`) can pass
+    /// it directly, without requiring the concrete conforming type at the call site.
+    func testManifestValidatingAgainstAcceptsATypeErasedRegistry() {
+        let erased: any SQLiteBuildValidationReferenceRegistry =
+            SQLiteBuildValidationStaticReferenceRegistry(
+                conformanceFeatureIDs: ["syntax.select.core"],
+                conformanceCaseIDs: ["c191.v1.select.j-inner.w-named-binding"],
+                northwindAnchorCaseIDs: ["northwind.cte.order-subtotals"]
+            )
+        let manifest = Support.manifest(queries: [
+            Support.query(
+                id: "erased-registry",
+                conformanceFeatureIDs: ["syntax.select.core"]
+            ),
+        ])
+        XCTAssertNoThrow(try manifest.validating(against: erased))
     }
 
     func testManifestFailsClosedOnUnresolvedFeatureCaseAndAnchorReferences() {

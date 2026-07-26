@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLCore
 
 
 /// A versioned, deterministic sidecar for static SwiftQL query descriptors.
@@ -113,7 +114,7 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
     /// `northwind_anchor_case_id` in every query must resolve; an unresolved
     /// reference fails closed rather than passing silently.
     public func validating(
-        against registry: some SQLiteBuildValidationReferenceRegistry
+        against registry: any SQLiteBuildValidationReferenceRegistry
     ) throws -> Self {
         let validated = try validating()
         for query in validated.queries {
@@ -165,6 +166,12 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
             throw SQLiteBuildValidationManifestError.invalidQuery(
                 query.id,
                 "query identities and SQL must not be empty"
+            )
+        }
+        guard XLQueryCardinality(rawValue: query.cardinality) != nil else {
+            throw SQLiteBuildValidationManifestError.invalidQuery(
+                query.id,
+                "cardinality \(query.cardinality) is not a recognized XLQueryCardinality raw value"
             )
         }
         guard !query.conformanceFeatureIDs.contains(where: \.isEmpty),
