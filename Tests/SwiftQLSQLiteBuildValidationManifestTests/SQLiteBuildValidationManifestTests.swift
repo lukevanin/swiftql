@@ -434,7 +434,8 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
     func testPlaceholderScannerTreatsDoubledClosingBracketAsEscapedInsideQuotedIdentifier() {
         // "[x]]y:fake]" is one bracket-quoted identifier ("x]y:fake") where
         // "]]" escapes a literal "]", matching the doubled-delimiter escape
-        // already honored for '/"/`. A scanner that stops at the first "]"
+        // already honored for the single-quote, double-quote, and backtick
+        // delimiters. A scanner that stops at the first "]"
         // would incorrectly split out ":fake" as a placeholder occurrence.
         let analysis = SQLiteBuildValidationManifestPlaceholderScanner.scan(
             "SELECT [x]]y:fake] AS col, :real AS r"
