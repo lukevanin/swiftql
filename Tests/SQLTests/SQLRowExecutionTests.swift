@@ -78,19 +78,29 @@ final class SQLRowExecutionTests: XCTestCase {
         try database.makeRequest(with: sqlCreate(TestTable.self)).execute()
         try database.makeRequest(with: sqlInsert(TestTable(id: "bar", value: 42))).execute()
 
-        // Fulfill on every path — failure, mismatch, or success — so a
-        // regression fails immediately with its real message instead of
-        // hanging until the timeout.
+        // Fulfill on every path — failure, finishing with no value, mismatch,
+        // or success — so a regression fails immediately with its real
+        // message instead of hanging until the timeout. Over-fulfillment is
+        // allowed since a live query may emit more than one snapshot.
         let expectation = expectation(description: "published rows")
+        expectation.assertForOverFulfill = false
+        var receivedValue = false
         database.makeRequest(with: makeTwoColumnStatement()).publish()
             .sink(
                 receiveCompletion: { completion in
-                    if case .failure(let error) = completion {
+                    switch completion {
+                    case .failure(let error):
                         XCTFail("Unexpected publisher failure: \(error)")
                         expectation.fulfill()
+                    case .finished:
+                        if !receivedValue {
+                            XCTFail("Publisher finished without emitting a value")
+                            expectation.fulfill()
+                        }
                     }
                 },
                 receiveValue: { rows in
+                    receivedValue = true
                     XCTAssertEqual(rows.map { $0._0 }, ["bar"])
                     expectation.fulfill()
                 }
