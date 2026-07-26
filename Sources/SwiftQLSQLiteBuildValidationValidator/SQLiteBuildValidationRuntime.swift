@@ -406,8 +406,12 @@ private func sortedUniqueRuntimeStrings(_ values: [String]) -> [String] {
 }
 
 
-/// SQLite compares function and collation names with ASCII case folding.
-private func sqliteASCIIFolded(_ value: String) -> String {
+/// SQLite compares function, collation, module, and extension names with
+/// ASCII case folding. Shared (not `private`) so environment normalization
+/// in `SQLiteBuildValidationReport.swift` can fold extension names the same
+/// way, keeping capability matching and canonical-report determinism
+/// consistent.
+func sqliteASCIIFolded(_ value: String) -> String {
     String(decoding: value.utf8.map { byte in
         if byte >= 0x41, byte <= 0x5A {
             return byte + 0x20

@@ -35,7 +35,11 @@ public struct SQLiteBuildValidationEnvironment:
         capabilityIDs: [String] = []
     ) {
         self.codecIdentifiers = Self.sortedUnique(codecIdentifiers)
-        self.extensionNames = Self.sortedUnique(extensionNames)
+        // Fold before deduping: extension-name matching is ASCII
+        // case-insensitive (SQLiteBuildValidationRuntimeMetadata.hasExtension),
+        // so "MyExt" and "myext" are the same semantic requirement and must
+        // not survive as two distinct entries in the canonical report.
+        self.extensionNames = Self.sortedUnique(extensionNames.map(sqliteASCIIFolded))
         self.capabilityIDs = Self.sortedUnique(capabilityIDs)
     }
 

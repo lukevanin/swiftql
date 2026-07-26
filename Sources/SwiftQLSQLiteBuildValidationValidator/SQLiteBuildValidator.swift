@@ -154,7 +154,7 @@ public enum SQLiteBuildValidator {
                 verdict: .failed,
                 stage: .runtime,
                 code: "runtime.capture",
-                message: "SQLite runtime metadata capture failed: \(String(describing: error))."
+                message: "SQLite runtime metadata capture failed with an unexpected \(String(reflecting: type(of: error)))."
             ))
         }
 
@@ -257,7 +257,7 @@ private extension SQLiteBuildValidator {
                     verdict: .failed,
                     stage: .prepare,
                     code: "sqlite.prepare.failed",
-                    message: "SQLite preparation failed: \(String(describing: error)).",
+                    message: "SQLite preparation failed with an unexpected \(String(reflecting: type(of: error))).",
                     query: query
                 ))
             }

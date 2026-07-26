@@ -255,6 +255,17 @@ final class SQLiteBuildValidatorIntegrationTests: XCTestCase {
         }
     }
 
+    /// `SQLiteBuildValidationEnvironment` claims semantically equivalent
+    /// invocations produce byte-identical canonical reports. Since extension
+    /// matching is ASCII case-insensitive, "MyExt" and "myext" are the same
+    /// requirement and must fold to one canonical entry, not two.
+    func testEnvironmentNormalizesExtensionNameCaseForDeterminism() {
+        let mixedCase = SQLiteBuildValidationEnvironment(extensionNames: ["MyExt", "myext"])
+        let lowercaseOnly = SQLiteBuildValidationEnvironment(extensionNames: ["myext"])
+        XCTAssertEqual(mixedCase.extensionNames, ["myext"])
+        XCTAssertEqual(mixedCase, lowercaseOnly)
+    }
+
     func testMissingCodecIsUnsupportedUntilSuppliedInEnvironment() throws {
         let codec = SQLiteBuildValidationCodecReference(
             keyID: "tests.codec.value",
