@@ -266,9 +266,19 @@ struct GRDBRequest<Row>: XLRequest {
         packet: XLInvocationBindings<XLSQLiteValue>
     ) throws -> [Row] {
         var driver = executor.driver
-        return try driver.withReadConnection { connection in
-            try decodeRows(packet: packet, in: &connection)
+        // Accumulate into an outer array and return Void from the closure,
+        // instead of returning [Row] directly from withReadConnection<Result>.
+        // On the pinned Swift 5.9.2 compatibility cell, instantiating that
+        // generic reabstraction boundary with a 2+ generic-parameter Row type
+        // (e.g. #row's SQLRow2...6) crashes swift-frontend in IRGen
+        // (NativeConventionSchema::mapIntoNative). This shape has no cost on
+        // any other Row type and protects every multi-generic result type
+        // from the same bug, not just #row's.
+        var items: [Row] = []
+        try driver.withReadConnection { connection in
+            items = try decodeRows(packet: packet, in: &connection)
         }
+        return items
     }
 
     private func decodeRows(
