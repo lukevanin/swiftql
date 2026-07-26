@@ -46,6 +46,36 @@ declared as `resources:`; expect a benign "found N file(s) which are
 unhandled" build note for them, since they are inputs to the plugin, not
 bundle resources for the target's own product.
 
+## Quick start
+
+1. Add the plugin to a target's `plugins: [...]` array (see
+   [Opting in](#opting-in) above).
+2. Place `swiftql-build-validation-manifest.json` (a
+   [#292 manifest](SQLiteBuildValidationManifest.md)) and
+   `swiftql-build-validation-snapshot.sqlite` (the schema snapshot it
+   describes) directly in that target's own source directory.
+3. Run `swift build`. On a clean build, or after either file changes, the
+   plugin runs `swiftql-build-validate` before the target compiles:
+
+   ![swift build succeeding, showing the plugin's validation step for each opted-in target](Assets/sqlite-build-validation-plugin-build-pass.png)
+
+   A report per target lands under
+   `.build/plugins/outputs/<package>/<target>/SwiftQLSQLiteBuildValidationPlugin/swiftql-build-validation-report.json`.
+
+4. If a query stops matching the snapshot, the build fails at that step and
+   forwards the validator's diagnostic directly to `swift build`'s output —
+   no separate report-inspection step needed:
+
+   ![swift build failing after a query references a dropped table, with the validator's diagnostic forwarded to build output](Assets/sqlite-build-validation-plugin-build-fail.png)
+
+5. Rebuilding with no changes skips validation entirely (SwiftPM sees the
+   command's declared inputs are unchanged); fixing the manifest or snapshot
+   and rebuilding re-runs it and restores a passing build.
+
+For a self-contained, runnable version of this walkthrough see
+`IntegrationTests/BuildValidationPluginFixture` and its `verify.sh`, which
+drives exactly these steps against the real pinned Northwind snapshot.
+
 ## Package layout example
 
 See `IntegrationTests/BuildValidationPluginFixture` for a complete, runnable
