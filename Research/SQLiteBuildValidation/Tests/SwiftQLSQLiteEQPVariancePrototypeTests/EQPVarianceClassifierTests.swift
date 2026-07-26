@@ -76,6 +76,33 @@ final class EQPVarianceClassifierTests: XCTestCase {
         XCTAssertThrowsError(try EQPVarianceClassifier.compare(baseline: baseline, comparison: comparison))
     }
 
+    /// A duplicate statement id (corrupted evidence file, or a capture
+    /// pipeline bug) must be a structured error, not a `Dictionary` trap.
+    func testDuplicateStatementIDThrowsRatherThanTrapping() {
+        let duplicated = EQPCaptureRun(
+            label: "a",
+            captureMethod: "test",
+            runtimeMetadata: .fixture(),
+            statements: [
+                EQPStatementCapture(statementID: "dup", rows: []),
+                EQPStatementCapture(statementID: "dup", rows: [EQPRow(id: 1, parent: 0, notused: 0, detail: "SCAN t0")]),
+            ]
+        )
+        let other = EQPCaptureRun(
+            label: "b",
+            captureMethod: "test",
+            runtimeMetadata: .fixture(),
+            statements: [EQPStatementCapture(statementID: "dup", rows: [])]
+        )
+        XCTAssertThrowsError(try EQPVarianceClassifier.compare(baseline: duplicated, comparison: other)) { error in
+            guard case EQPVarianceClassifierError.duplicateStatementID(let id, runLabel: let label) = error else {
+                return XCTFail("expected duplicateStatementID, got \(error)")
+            }
+            XCTAssertEqual(id, "dup")
+            XCTAssertEqual(label, "a")
+        }
+    }
+
     // MARK: - Synthetic fixtures for axes not observed in the real 3.51.0/3.53.2 pair
 
     /// Illustrative only: this exact shape was not observed between the two

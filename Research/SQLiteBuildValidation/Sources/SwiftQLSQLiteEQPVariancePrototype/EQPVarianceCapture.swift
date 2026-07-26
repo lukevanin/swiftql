@@ -6,6 +6,7 @@ import SwiftQLSQLiteBuildValidationPrototype
 
 package enum EQPVarianceCaptureError: Error, Sendable {
     case emptyCorpus
+    case invalidBinding(statementID: String, reason: String)
 }
 
 
@@ -33,7 +34,7 @@ package enum EQPVarianceCapture {
             let rows = try Row.fetchAll(
                 database,
                 sql: "EXPLAIN QUERY PLAN \(statement.renderedSQL)",
-                arguments: arguments(for: statement.bindings)
+                arguments: try arguments(for: statement.bindings, statementID: statement.id)
             ).map { row -> EQPRow in
                 EQPRow(
                     id: row["id"],
@@ -53,21 +54,42 @@ package enum EQPVarianceCapture {
         )
     }
 
+    /// Throws rather than silently dropping or reinterpreting a malformed
+    /// binding: a missing named key or a mix of named/indexed keys within one
+    /// statement would otherwise produce a capture with quietly missing or
+    /// wrongly-positioned bound values instead of a clear failure.
     package static func arguments(
-        for bindings: [SQLiteCombinatorialBinding]
-    ) -> StatementArguments {
+        for bindings: [SQLiteCombinatorialBinding],
+        statementID: String
+    ) throws -> StatementArguments {
         guard !bindings.isEmpty else {
             return StatementArguments()
         }
-        if bindings.allSatisfy({ $0.keyKind == .named }) {
-            let pairs = bindings.compactMap { binding -> (String, DatabaseValue)? in
-                guard let keyName = binding.keyName else {
-                    return nil
-                }
-                return (keyName, databaseValue(binding.taggedValue))
-            }
-            return StatementArguments(Dictionary(uniqueKeysWithValues: pairs))
+
+        let allNamed = bindings.allSatisfy { $0.keyKind == .named }
+        let allIndexed = bindings.allSatisfy { $0.keyKind == .indexed }
+        guard allNamed || allIndexed else {
+            throw EQPVarianceCaptureError.invalidBinding(
+                statementID: statementID,
+                reason: "bindings mix named and indexed keys"
+            )
         }
+
+        if allNamed {
+            var pairs: [String: DatabaseValue] = [:]
+            pairs.reserveCapacity(bindings.count)
+            for binding in bindings {
+                guard let keyName = binding.keyName else {
+                    throw EQPVarianceCaptureError.invalidBinding(
+                        statementID: statementID,
+                        reason: "named binding at logical index \(binding.logicalIndex) has no key_name"
+                    )
+                }
+                pairs[keyName] = databaseValue(binding.taggedValue)
+            }
+            return StatementArguments(pairs)
+        }
+
         return StatementArguments(
             bindings
                 .sorted { $0.logicalIndex < $1.logicalIndex }

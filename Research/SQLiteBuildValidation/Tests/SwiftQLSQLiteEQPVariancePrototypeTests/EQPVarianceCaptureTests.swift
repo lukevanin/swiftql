@@ -1,10 +1,63 @@
 import XCTest
 import GRDB
 import SwiftQLNorthwindFixtures
+import SwiftQLSQLiteCombinatorialSupport
 import SwiftQLSQLiteEQPVariancePrototype
 
 
 final class EQPVarianceCaptureTests: XCTestCase {
+    func testArgumentsThrowsRatherThanDroppingAMissingNamedKey() {
+        // A malformed named binding with no key_name: silently dropping it
+        // would bind fewer values than the rendered SQL expects.
+        let malformed = SQLiteCombinatorialBinding(
+            logicalIndex: 0,
+            keyKind: .named,
+            keyName: nil,
+            keyIndex: nil,
+            storage: .integer,
+            taggedValue: .integer(1),
+            repeatCount: 1
+        )
+        XCTAssertThrowsError(
+            try EQPVarianceCapture.arguments(for: [malformed], statementID: "s1")
+        ) { error in
+            guard case EQPVarianceCaptureError.invalidBinding(let statementID, _) = error else {
+                return XCTFail("expected invalidBinding, got \(error)")
+            }
+            XCTAssertEqual(statementID, "s1")
+        }
+    }
+
+    func testArgumentsThrowsOnMixedNamedAndIndexedBindings() {
+        let named = SQLiteCombinatorialBinding(
+            logicalIndex: 0,
+            keyKind: .named,
+            keyName: "a",
+            keyIndex: nil,
+            storage: .integer,
+            taggedValue: .integer(1),
+            repeatCount: 1
+        )
+        let indexed = SQLiteCombinatorialBinding(
+            logicalIndex: 1,
+            keyKind: .indexed,
+            keyName: nil,
+            keyIndex: 2,
+            storage: .integer,
+            taggedValue: .integer(2),
+            repeatCount: 1
+        )
+        XCTAssertThrowsError(
+            try EQPVarianceCapture.arguments(for: [named, indexed], statementID: "s2")
+        ) { error in
+            guard case EQPVarianceCaptureError.invalidBinding(let statementID, _) = error else {
+                return XCTFail("expected invalidBinding, got \(error)")
+            }
+            XCTAssertEqual(statementID, "s2")
+        }
+    }
+
+
     func testCaptureIsByteIdenticalAcrossRepeatedRunsInProcess() throws {
         let corpus = try EQPVarianceCorpus.assemble()
         let pool = try NorthwindFixture.validatedReadOnlyPool()

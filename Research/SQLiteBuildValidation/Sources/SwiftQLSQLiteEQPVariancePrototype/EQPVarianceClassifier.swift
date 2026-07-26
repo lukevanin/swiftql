@@ -50,6 +50,7 @@ package struct EQPVarianceStatementComparison: Codable, Equatable, Sendable {
 
 package enum EQPVarianceClassifierError: Error, Sendable {
     case statementSetMismatch(onlyInBaseline: [String], onlyInComparison: [String])
+    case duplicateStatementID(String, runLabel: String)
 }
 
 
@@ -62,12 +63,8 @@ package enum EQPVarianceClassifier {
         baseline: EQPCaptureRun,
         comparison: EQPCaptureRun
     ) throws -> [EQPVarianceStatementComparison] {
-        let baselineByID = Dictionary(
-            uniqueKeysWithValues: baseline.statements.map { ($0.statementID, $0.rows) }
-        )
-        let comparisonByID = Dictionary(
-            uniqueKeysWithValues: comparison.statements.map { ($0.statementID, $0.rows) }
-        )
+        let baselineByID = try rowsByStatementID(baseline.statements, runLabel: baseline.label)
+        let comparisonByID = try rowsByStatementID(comparison.statements, runLabel: comparison.label)
         let baselineIDs = Set(baselineByID.keys)
         let comparisonIDs = Set(comparisonByID.keys)
         guard baselineIDs == comparisonIDs else {
@@ -87,6 +84,26 @@ package enum EQPVarianceClassifier {
                 comparisonRows: comparisonRows
             )
         }
+    }
+
+    /// Builds a statement-id-keyed lookup without trapping on a duplicate id
+    /// (e.g. a corrupted evidence file or a capture-pipeline bug): duplicates
+    /// are a structured error here, not a crash.
+    private static func rowsByStatementID(
+        _ statements: [EQPStatementCapture],
+        runLabel: String
+    ) throws -> [String: [EQPRow]] {
+        var result: [String: [EQPRow]] = [:]
+        result.reserveCapacity(statements.count)
+        for statement in statements {
+            guard result.updateValue(statement.rows, forKey: statement.statementID) == nil else {
+                throw EQPVarianceClassifierError.duplicateStatementID(
+                    statement.statementID,
+                    runLabel: runLabel
+                )
+            }
+        }
+        return result
     }
 
     package static func classify(
