@@ -304,6 +304,42 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
         )
     }
 
+    func testManifestValidatingSucceedsWhenParametersMatchSQLPlaceholders() throws {
+        let parameter = Support.parameter(
+            logicalIndex: 0, physicalIndex: 1, identity: "parameter/first", keyName: "first"
+        )
+        let manifest = Support.manifest(queries: [
+            Support.query(sql: "SELECT :first AS first", parameters: [parameter]),
+        ])
+        XCTAssertNoThrow(try manifest.validating())
+    }
+
+    /// `validateStructure` cross-checks declared parameters against the raw
+    /// SQL, independent of the `init(id:descriptor:...)` projection path —
+    /// this is the fail-closed contract for a manifest decoded straight from
+    /// externally authored/edited JSON.
+    func testManifestRejectsParametersInconsistentWithSQLPlaceholders() {
+        // Declared parameter has no corresponding placeholder in the SQL.
+        assertInvalidQuery(
+            Support.query(sql: "SELECT 1", parameters: [Support.parameter()]),
+            contains: "do not match the placeholders found in SQL"
+        )
+        // SQL contains a placeholder the manifest never declares.
+        assertInvalidQuery(
+            Support.query(sql: "SELECT :first"),
+            contains: "do not match the placeholders found in SQL"
+        )
+        // The declared spelling disagrees with the actual placeholder at
+        // that physical index.
+        let wrongSpelling = Support.parameter(
+            logicalIndex: 0, physicalIndex: 1, identity: "parameter/first", keyName: "wrong"
+        )
+        assertInvalidQuery(
+            Support.query(sql: "SELECT :first", parameters: [wrongSpelling]),
+            contains: "does not match its placeholder occurrence"
+        )
+    }
+
     func testManifestRejectsEmptySQL() {
         assertInvalidQuery(
             Support.query(sql: ""),

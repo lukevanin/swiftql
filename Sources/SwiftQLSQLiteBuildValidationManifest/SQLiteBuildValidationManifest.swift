@@ -242,6 +242,7 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
                 "logical parameters must not share a physical SQLite slot"
             )
         }
+        try validatePlaceholders(for: query)
 
         for (offset, result) in query.results.enumerated() {
             guard result.index == offset,
@@ -257,6 +258,41 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
             }
             try validateNullability(result.nullability, queryID: query.id)
             try validateCodec(result.codec, queryID: query.id)
+        }
+    }
+
+    /// Cross-checks declared parameter metadata against the placeholders
+    /// actually present in `query.sql`. This is the check the `init(id:
+    /// descriptor:...)` projection satisfies by construction (it derives
+    /// physical indices from the same scanner) but that an externally
+    /// authored or hand-edited manifest — decoded straight from JSON — is
+    /// not otherwise forced to satisfy. Without it, a manifest could declare
+    /// a parameter absent from its own SQL, omit one the SQL actually uses,
+    /// or assign it a physical index SQLite's first-encounter placeholder
+    /// ordering would not produce, and still pass structural validation.
+    private static func validatePlaceholders(
+        for query: SQLiteBuildValidationQueryEntry
+    ) throws {
+        let placeholders = SQLiteBuildValidationManifestPlaceholderScanner.scan(
+            query.sql
+        )
+        let scannedPhysicalIndices = Set(placeholders.occurrences.map(\.physicalIndex))
+        let declaredPhysicalIndices = Set(query.parameters.map(\.physicalIndex))
+        guard scannedPhysicalIndices == declaredPhysicalIndices else {
+            throw SQLiteBuildValidationManifestError.invalidQuery(
+                query.id,
+                "declared parameter physical indices \(declaredPhysicalIndices.sorted()) do not match the placeholders found in SQL \(scannedPhysicalIndices.sorted())"
+            )
+        }
+        for parameter in query.parameters {
+            guard let occurrence = placeholders.occurrences.first(where: {
+                $0.physicalIndex == parameter.physicalIndex
+            }), occurrence.spelling == parameter.expectedSQLiteSpelling else {
+                throw SQLiteBuildValidationManifestError.invalidQuery(
+                    query.id,
+                    "parameter at physical index \(parameter.physicalIndex) declares spelling '\(parameter.expectedSQLiteSpelling)', which does not match its placeholder occurrence in SQL"
+                )
+            }
         }
     }
 
