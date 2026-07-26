@@ -439,12 +439,25 @@ struct GRDBDatabaseDriverConnection:
             statement.statement,
             arguments: statementArguments(statement)
         )
+        // One reusable normalization buffer for the whole fetch. RowCursor
+        // reuses its row storage, and the streaming contract requires the
+        // callback to consume (decode or copy) each row before advancing, so a
+        // synchronous, non-retaining consumer (the typed decode path) reuses
+        // this buffer's storage row-to-row instead of allocating a fresh
+        // `[XLSQLiteValue]` per row. A consumer that retains the row (the eager
+        // `collectAllRows`/`collectFirstRow` compatibility shims) keeps a second
+        // reference, so `removeAll(keepingCapacity:)` copy-on-writes a fresh
+        // buffer for the next row and the retained values stay intact. The typed
+        // decode path (the hot path) therefore materializes no intermediate
+        // matrix; the eager `collectAllRows`/`collectFirstRow` compatibility
+        // shims still build only the result they already contract to return.
+        var values: [XLSQLiteValue] = []
         while let row = try cursor.next() {
-            // RowCursor reuses its row storage. Normalize all values before
-            // invoking the callback or advancing to the next SQLite row.
-            let values = Array(
-                row.databaseValues.map(\.sqliteDialectValue)
-            )
+            values.removeAll(keepingCapacity: true)
+            values.reserveCapacity(row.count)
+            for databaseValue in row.databaseValues {
+                values.append(databaseValue.sqliteDialectValue)
+            }
             if try body(values) == .stop {
                 return
             }

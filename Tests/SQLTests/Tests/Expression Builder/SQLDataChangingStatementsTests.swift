@@ -84,4 +84,176 @@ final class XLDataChangingStatementsTests: XCTestCase {
             "INSERT OR IGNORE INTO Test AS t0 (id,value) VALUES ('foo',42)"
         )
     }
+
+
+    // MARK: - REPLACE
+
+    func testReplace() {
+        let expression = sql { schema in
+            let t = schema.table(TestTable.self)
+            Replace(t)
+            Values(instanceValues())
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "REPLACE INTO Test AS t0 (id,value) VALUES ('foo',42)"
+        )
+    }
+
+    func testReplaceFunctional() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let expression = replace(t).values(instanceValues())
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "REPLACE INTO Test AS t0 (id,value) VALUES ('foo',42)"
+        )
+    }
+
+
+    // MARK: - ON CONFLICT (upsert)
+
+    func testOnConflictDoNothingWithTarget() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let expression = insert(t)
+            .values(instanceValues())
+            .onConflictDoNothing("id")
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "INSERT INTO Test AS t0 (id,value) VALUES ('foo',42) ON CONFLICT (id) DO NOTHING"
+        )
+    }
+
+    func testOnConflictDoUpdateWithExcluded() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let excluded = schema.excluded(TestTable.self)
+        let expression = insert(t)
+            .values(instanceValues())
+            .onConflict("id", doUpdate: { row in row.value = excluded.value })
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "INSERT INTO Test AS t0 (id,value) VALUES ('foo',42) ON CONFLICT (id) DO UPDATE SET value = excluded.value"
+        )
+    }
+
+    func testOnConflictDoUpdateWithWhere() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let excluded = schema.excluded(TestTable.self)
+        let expression = insert(t)
+            .values(instanceValues())
+            .onConflict(
+                OnConflict.doUpdate(
+                    on: "id",
+                    set: { row in row.value = excluded.value },
+                    where: excluded.value > t.value
+                )
+            )
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "INSERT INTO Test AS t0 (id,value) VALUES ('foo',42) ON CONFLICT (id) DO UPDATE SET value = excluded.value WHERE (excluded.value > t0.value)"
+        )
+    }
+
+    // MARK: - INSERT ... RETURNING
+
+    func testInsertValuesReturning() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let expression = insert(t)
+            .values(instanceValues())
+            .returning(t)
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "INSERT INTO Test AS t0 (id,value) VALUES ('foo',42) RETURNING id, value"
+        )
+    }
+
+    func testInsertOnConflictReturning() {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let expression = insert(t)
+            .values(instanceValues())
+            .onConflictDoNothing("id")
+            .returning(t)
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "INSERT INTO Test AS t0 (id,value) VALUES ('foo',42) ON CONFLICT (id) DO NOTHING RETURNING id, value"
+        )
+    }
+
+
+    // MARK: - UPDATE ... RETURNING
+
+    func testUpdateReturning() {
+        let schema = XLSchema()
+        let t = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let expression = update(t)
+            .set { row in row.value = 99 }
+            .where(t.id == "a")
+            .returning(projection)
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "UPDATE Test AS t0 SET value = 99 WHERE (t0.id == 'a') RETURNING id, value"
+        )
+    }
+
+
+    // MARK: - DELETE ... RETURNING
+
+    func testDeleteReturning() {
+        let schema = XLSchema()
+        let t = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let expression = delete(t)
+            .where(t.value == 42)
+            .returning(projection)
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "DELETE FROM Test AS t0 WHERE (t0.value == 42) RETURNING id, value"
+        )
+    }
+
+
+    /// The `excluded` pseudo table renders as the bare `excluded` keyword when
+    /// used as a table source — never as the aliased base table — so accidental
+    /// use outside an upsert produces `FROM excluded`, which SQLite rejects,
+    /// rather than silently querying the underlying table.
+    func testExcludedRendersAsBarePseudoTable() {
+        let schema = XLSchema()
+        let excluded = schema.excluded(TestTable.self)
+        let expression = sql { _ in
+            Select(excluded)
+            From(excluded)
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "SELECT excluded.id AS id, excluded.value AS value FROM excluded"
+        )
+    }
+
+
+    // MARK: - UPDATE with common table expression
+
+    func testUpdateWithCommonTable() {
+        let schema = XLSchema()
+        let source = schema.commonTable { schema in
+            let t = schema.table(TestTable.self)
+            return select(t).from(t)
+        }
+        let t = schema.into(TestTable.self)
+        let s = schema.table(source)
+        let expression = with(source)
+            .update(t)
+            .set { row in row.value = s.value + 100 }
+            .from(s)
+            .where(t.id == s.id)
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "WITH cte0 AS (SELECT t0.id AS id, t0.value AS value FROM Test AS t0) UPDATE Test AS t0 SET value = (t1.value + 100) FROM cte0 AS t1 WHERE (t0.id == t1.id)"
+        )
+    }
 }

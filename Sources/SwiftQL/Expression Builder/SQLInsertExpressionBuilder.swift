@@ -33,8 +33,22 @@ import Foundation
     public static func buildPartialBlock<Row>(first: Insert<Row>) -> XLInsertTableStatement<Row> {
         XLInsertTableStatement(components: XLInsertStatementComponents(insert: first))
     }
-    
-    
+
+    ///
+    /// Constructs a Replace expression.
+    ///
+    public static func buildPartialBlock<Row>(first: Replace<Row>) -> XLInsertTableStatement<Row> {
+        XLInsertTableStatement(components: XLInsertStatementComponents(insert: first.insert))
+    }
+
+    ///
+    /// Constructs a Replace expression using a With expression.
+    ///
+    public static func buildPartialBlock<Row>(accumulated: XLWithStatement, next: Replace<Row>) -> XLInsertTableStatement<Row> {
+        XLInsertTableStatement(components: XLInsertStatementComponents(commonTables: accumulated.commonTables, insert: next.insert))
+    }
+
+
     // MARK: Insert
     
     ///

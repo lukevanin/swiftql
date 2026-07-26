@@ -18,6 +18,13 @@ struct NullableSubqueryJoinRow: Equatable {
 
 
 @SQLResult
+struct RightJoinRow: Equatable {
+    let company: String?
+    let employee: String
+}
+
+
+@SQLResult
 struct ColumnsResultShadowingProjection: Equatable {
     let id: String
     let result: Int
@@ -648,6 +655,64 @@ final class XLExecutionTests: XCTestCase {
             [
                 NullableSubqueryJoinRow(company: "Staffed", employee: "Worker"),
                 NullableSubqueryJoinRow(company: "Empty", employee: nil),
+            ]
+        )
+    }
+
+    /// A `RIGHT JOIN`, executed. Every joined (right-hand) `Employee` row must
+    /// appear, and the `FROM` (left-hand, nullable) `Company` columns must be
+    /// NULL for the employee whose `companyId` matches no company — which is
+    /// only observable through execution, not rendering.
+    func testRightJoinExecutesWithUnmatchedRows() throws {
+        try skipUnlessSQLiteSupportsOuterJoins()
+        try database.makeRequest(with: sqlCreate(CompanyTable.self)).execute()
+        try createEmployeeTable()
+        try database.makeRequest(with: sqlInsert(CompanyTable(id: "c1", name: "Staffed"))).execute()
+        try insertEmployee(EmployeeTable(id: "e1", name: "Worker", companyId: "c1", managerEmployeeId: nil))
+        try insertEmployee(EmployeeTable(id: "e2", name: "Ghost", companyId: "cX", managerEmployeeId: nil))
+
+        let statement = sql { schema in
+            let company = schema.nullableTable(CompanyTable.self)
+            let employee = schema.table(EmployeeTable.self)
+            Select(RightJoinRow.columns(company: company.name, employee: employee.name))
+            From(company)
+            Join.Right(employee, on: employee.companyId == company.id)
+            OrderBy(employee.id.ascending())
+        }
+
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(
+            rows,
+            [
+                RightJoinRow(company: "Staffed", employee: "Worker"),
+                RightJoinRow(company: nil, employee: "Ghost"),
+            ]
+        )
+    }
+
+    /// The same `RIGHT JOIN` built with the fluent statement API.
+    func testRightJoinFluentExecutesWithUnmatchedRows() throws {
+        try skipUnlessSQLiteSupportsOuterJoins()
+        try database.makeRequest(with: sqlCreate(CompanyTable.self)).execute()
+        try createEmployeeTable()
+        try database.makeRequest(with: sqlInsert(CompanyTable(id: "c1", name: "Staffed"))).execute()
+        try insertEmployee(EmployeeTable(id: "e1", name: "Worker", companyId: "c1", managerEmployeeId: nil))
+        try insertEmployee(EmployeeTable(id: "e2", name: "Ghost", companyId: "cX", managerEmployeeId: nil))
+
+        let schema = XLSchema()
+        let company = schema.nullableTable(CompanyTable.self)
+        let employee = schema.table(EmployeeTable.self)
+        let statement = select(RightJoinRow.columns(company: company.name, employee: employee.name))
+            .from(company)
+            .rightJoin(employee, on: employee.companyId == company.id)
+            .orderBy(employee.id.ascending())
+
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(
+            rows,
+            [
+                RightJoinRow(company: "Staffed", employee: "Worker"),
+                RightJoinRow(company: nil, employee: "Ghost"),
             ]
         )
     }
@@ -1665,8 +1730,52 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(try finalResult.element(at: 1).value, 690)
 
     }
-    
-    
+
+    /// Executes an `UPDATE ... SET ... FROM (SELECT ...) WHERE ...` — the SELECT
+    /// form of an update — against real SQLite, matching the rendered coverage in
+    /// `XLUpdateExpressionBuilderTests.testUpdateFrom`.
+    func testUpdateFromSubquerySelect() throws {
+        try database.makeRequest(with: sqlCreate(CompanyTable.self)).execute()
+        try database.makeRequest(with: sqlInsert(CompanyTable(id: "aapl", name: "Apple"))).execute()
+        try database.makeRequest(with: sqlInsert(CompanyTable(id: "goog", name: "Google"))).execute()
+
+        try database.makeRequest(with: sqlCreate(Temp.self)).execute()
+        try database.makeRequest(with: sqlInsert(Temp(id: "aapl", value: "prefix"))).execute()
+        try database.makeRequest(with: sqlInsert(Temp(id: "goog", value: "prefix"))).execute()
+
+        let updateStatement = sql { schema in
+            let t = schema.into(Temp.self)
+            let s = schema.fromExpression { schema in
+                let company = schema.table(CompanyTable.self)
+                Select(company)
+                From(company)
+            }
+            Update(t)
+            Setting<Temp> { row in
+                row.value = t.value + " " + s.name
+            }
+            From(s)
+            Where(t.id == s.id)
+        }
+        try database.makeRequest(with: updateStatement).execute()
+
+        let selectStatement = sql { schema in
+            let t = schema.table(Temp.self)
+            Select(t)
+            From(t)
+            OrderBy(t.id.ascending())
+        }
+        let rows = try database.makeRequest(with: selectStatement).fetchAll()
+        XCTAssertEqual(
+            rows,
+            [
+                Temp(id: "aapl", value: "prefix Apple"),
+                Temp(id: "goog", value: "prefix Google"),
+            ]
+        )
+    }
+
+
     // MARK: Delete
     
     
@@ -2075,6 +2184,31 @@ final class XLExecutionTests: XCTestCase {
     }
     
     
+    /// Skips a test when the linked SQLite is older than 3.39.0, the release that
+    /// introduced `RIGHT JOIN` and `FULL OUTER JOIN`.
+    private func skipUnlessSQLiteSupportsOuterJoins() throws {
+        let version = try databasePool.read { database in
+            try String.fetchOne(database, sql: "SELECT sqlite_version()") ?? ""
+        }
+        // Parse each component's leading numeric prefix so pre-release suffixes
+        // (e.g. "3.39.1rc1") do not drop or misread a component.
+        let components = version
+            .split(separator: ".")
+            .map { Int($0.prefix(while: \.isNumber)) ?? 0 }
+        let required = [3, 39, 0]
+        var supported = true
+        for index in required.indices {
+            let value = index < components.count ? components[index] : 0
+            if value != required[index] {
+                supported = value > required[index]
+                break
+            }
+        }
+        if !supported {
+            throw XCTSkip("RIGHT JOIN and FULL OUTER JOIN require SQLite 3.39.0 or later; linked SQLite is \(version).")
+        }
+    }
+
     private func createEmployeeTable() throws {
         let createStatement = sqlCreate(EmployeeTable.self)
         try database.makeRequest(with: createStatement).execute()

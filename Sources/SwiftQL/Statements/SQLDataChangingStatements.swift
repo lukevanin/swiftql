@@ -14,3 +14,84 @@ public func insert<T>(_ meta: T, or action: XLInsertOrAction) -> XLInsertTableSt
     let components = XLInsertStatementComponents(insert: Insert(meta, or: action))
     return XLInsertTableStatement(components: components)
 }
+
+
+///
+/// Constructs a `REPLACE INTO` statement.
+///
+public func replace<T>(_ meta: T) -> XLInsertTableStatement<T.Row> where T: XLMetaNamedResult {
+    let components = XLInsertStatementComponents(insert: Replace(meta).insert)
+    return XLInsertTableStatement(components: components)
+}
+
+
+extension XLWithStatement {
+
+    ///
+    /// Constructs a `REPLACE INTO` statement scoped by the with clause's common
+    /// table expressions.
+    ///
+    public func replace<T>(_ meta: T) -> XLInsertTableStatement<T.Row> where T: XLMetaNamedResult {
+        XLInsertTableStatement(
+            components: XLInsertStatementComponents(commonTables: commonTables, insert: Replace(meta).insert)
+        )
+    }
+}
+
+
+// MARK: - On Conflict (upsert)
+
+
+///
+/// An insert statement with a trailing `ON CONFLICT` upsert clause.
+///
+public struct XLInsertOnConflictStatement<Table>: XLInsertStatement {
+
+    public let components: XLInsertStatementComponents<Table>
+}
+
+
+extension XLInsertTableValuesStatement {
+
+    ///
+    /// Appends an `ON CONFLICT` upsert clause to an inserted-values statement.
+    ///
+    public func onConflict(_ clause: OnConflict<Table>) -> XLInsertOnConflictStatement<Table> {
+        XLInsertOnConflictStatement(components: components.appending(clause))
+    }
+}
+
+
+extension XLInsertTableValuesStatement where Table: XLTable {
+
+    ///
+    /// Appends an `ON CONFLICT (targets) DO UPDATE SET ...` upsert clause.
+    ///
+    /// At least one conflict target is required, because SQLite rejects
+    /// `DO UPDATE` without a conflict target. Use ``onConflictDoNothing(_:)``
+    /// for the targetless `ON CONFLICT DO NOTHING` form.
+    ///
+    public func onConflict(
+        _ firstTarget: XLName,
+        _ otherTargets: XLName...,
+        doUpdate values: @escaping (inout Table.MetaUpdate) -> Void
+    ) -> XLInsertOnConflictStatement<Table> {
+        onConflict(
+            OnConflict(
+                targets: [firstTarget] + otherTargets,
+                resolution: .update(Setting<Table>(values), filter: nil)
+            )
+        )
+    }
+
+    ///
+    /// Appends an `ON CONFLICT (targets) DO NOTHING` upsert clause.
+    ///
+    public func onConflictDoNothing(
+        _ targets: XLName...
+    ) -> XLInsertOnConflictStatement<Table> {
+        onConflict(
+            OnConflict(targets: targets, resolution: .nothing)
+        )
+    }
+}

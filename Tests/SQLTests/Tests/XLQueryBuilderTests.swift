@@ -199,6 +199,23 @@ final class QueryBuilderTests: XCTestCase {
     }
     
     
+    func test_select_from_nullable_rightJoin() throws {
+
+        let schema = XLSchema()
+
+        let company = schema.nullableTable(CompanyTable.self)
+        let employee = schema.table(EmployeeTable.self)
+
+        var query = QueryBuilder(select: employee)
+        query = query.from(company)
+        query = query.rightJoin(employee, on: employee.companyId == company.id)
+
+        let finalResult = try encoder.makeSQL(query.build()).sql
+
+        XCTAssertEqual(finalResult, "SELECT `t1`.`id` AS `id`, `t1`.`name` AS `name`, `t1`.`companyId` AS `companyId`, `t1`.`managerEmployeeId` AS `managerEmployeeId` FROM `Company` AS `t0` RIGHT JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`)")
+    }
+
+
     func test_select_from_leftJoin_and() throws {
         
         let schema = XLSchema()

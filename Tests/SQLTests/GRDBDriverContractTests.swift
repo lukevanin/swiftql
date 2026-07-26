@@ -886,6 +886,58 @@ final class GRDBDriverContractTests: XCTestCase {
         )
     }
 
+    func testReusedNormalizationBufferDoesNotAliasRetainedRows() throws {
+        // The cursor loop reuses one normalization buffer across rows. A consumer
+        // that retains each streamed row (via the callback, or via the eager
+        // `fetchAll`/`collectAllRows` shim) must still see distinct, correct
+        // values for every row — copy-on-write gives the retained row its own
+        // storage when the buffer is refilled for the next row.
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        var driver = GRDBDatabaseDriver(
+            databasePool: fixture.databasePool,
+            dialect: XLSQLiteDialect()
+        )
+        let create = makeLogicalStatement(
+            for: driver,
+            sql: "CREATE TABLE buffer_rows (id INTEGER PRIMARY KEY, label TEXT)"
+        )
+        let insert = makeLogicalStatement(
+            for: driver,
+            sql: """
+                INSERT INTO buffer_rows (id, label) VALUES
+                (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd'), (5, 'e'), (6, 'f')
+                """
+        )
+        let select = makeLogicalStatement(
+            for: driver,
+            sql: "SELECT id, label FROM buffer_rows ORDER BY id"
+        )
+        try driver.withWriteConnection { connection in
+            try connection.execute(connection.prepare(create))
+            try connection.execute(connection.prepare(insert))
+        }
+
+        let expected: [[XLSQLiteValue]] = (1 ... 6).map { index in
+            [.integer(Int64(index)), .text(String(UnicodeScalar(UInt8(96 + index))))]
+        }
+
+        var retainedByCallback: [[XLSQLiteValue]] = []
+        var eagerlyCollected: [[XLSQLiteValue]] = []
+        try driver.withReadConnection { connection in
+            let statement = try connection.prepare(select)
+            try connection.forEachRow(statement) { row in
+                retainedByCallback.append(row)
+                return .advance
+            }
+            eagerlyCollected = try connection.fetchAll(statement)
+        }
+
+        XCTAssertEqual(retainedByCallback, expected)
+        XCTAssertEqual(eagerlyCollected, expected)
+    }
+
     private func makeLogicalStatement(
         for driver: GRDBDatabaseDriver,
         sql: String

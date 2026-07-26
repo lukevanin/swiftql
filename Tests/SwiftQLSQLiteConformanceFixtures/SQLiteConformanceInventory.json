@@ -426,8 +426,8 @@
     },
     {
       "id": "evidence.syntax.cte.sqlite-recursive",
-      "source_path": "Tests/SQLTests/RecursiveCTEConstructionPrototypeTests.swift",
-      "test_case": "RecursiveCTEConstructionPrototypeTests.testGeneratedCompositeReferenceRendersAndExecutesRecursiveCTE",
+      "source_path": "Tests/SQLTests/RecursiveCommonTableConstructionTests.swift",
+      "test_case": "RecursiveCommonTableConstructionTests.testCompositeReferenceRendersAndExecutesRecursiveCTE",
       "runner_path": null,
       "layers": [
         "execution",
@@ -527,6 +527,35 @@
       "layers": [
         "execution",
         "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.render-update-select",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLUpdateExpressionBuilderTests.swift",
+      "test_case": "XLUpdateExpressionBuilderTests.testUpdateFrom",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-update-select",
+      "source_path": "Tests/SQLTests/SQLExecutionTests.swift",
+      "test_case": "XLExecutionTests.testUpdateFromSubquerySelect",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
         "semantic-oracle",
         "swift-typecheck"
       ],
@@ -2195,6 +2224,267 @@
       "id": "evidence.syntax.dml.sqlite-insert-or-replace",
       "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
       "test_case": "XLDataChangingExecutionTests.testInsertOrReplaceOverwritesExistingRow",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.render-replace",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testReplace",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-replace",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testReplaceOverwritesConflictingRow",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.render-upsert-do-nothing",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testOnConflictDoNothingWithTarget",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.render-upsert-do-update",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testOnConflictDoUpdateWithExcluded",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.render-upsert-do-update-where",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testOnConflictDoUpdateWithWhere",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-upsert-do-update",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testUpsertDoUpdateUsesExcludedValue",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-upsert-do-nothing",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testUpsertDoNothingKeepsExistingRow",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-upsert-where",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testUpsertDoUpdateWithWhereOnlyUpdatesQualifyingRows",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.render-update-common-table",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testUpdateWithCommonTable",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-update-common-table",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testUpdateWithCommonTableAppliesDerivedValues",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.render-insert-returning",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testInsertValuesReturning",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.render-insert-on-conflict-returning",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testInsertOnConflictReturning",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-insert-returning",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testInsertReturningYieldsInsertedRow",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-upsert-returning",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testUpsertDoUpdateReturningYieldsUpdatedRow",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.render-delete-returning",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testDeleteReturning",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-delete-returning",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testDeleteReturningYieldsDeletedRows",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.dml.render-update-returning",
+      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "test_case": "XLDataChangingStatementsTests.testUpdateReturning",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.dml.sqlite-update-returning",
+      "source_path": "Tests/SQLTests/SQLDataChangingExecutionTests.swift",
+      "test_case": "XLDataChangingExecutionTests.testUpdateReturningYieldsUpdatedRows",
       "runner_path": null,
       "layers": [
         "execution",
@@ -5952,7 +6242,7 @@
       "id": "syntax.dml.current-crud",
       "kind": "syntax",
       "family": "dml",
-      "title": "Current INSERT, INSERT SELECT, UPDATE, and DELETE statement clauses",
+      "title": "Current INSERT, INSERT SELECT, UPDATE, UPDATE SELECT, and DELETE statement clauses",
       "status": "supported",
       "adoption_status": "already-covered",
       "public_api": [
@@ -5976,6 +6266,13 @@
           "source_tokens": [
             "Delete"
           ]
+        },
+        {
+          "symbol": "fromExpression(as:statement:)",
+          "source_path": "Sources/SwiftQL/Expression Builder/SQLUpdateExpressionBuilder.swift",
+          "source_tokens": [
+            "fromExpression"
+          ]
         }
       ],
       "sqlite_documentation_urls": [
@@ -5996,7 +6293,9 @@
       "evidence_ids": [
         "evidence.syntax.dml.sqlite-delete",
         "evidence.syntax.dml.sqlite-insert-select",
-        "evidence.syntax.dml.sqlite-update"
+        "evidence.syntax.dml.sqlite-update",
+        "evidence.syntax.dml.render-update-select",
+        "evidence.syntax.dml.sqlite-update-select"
       ],
       "deviations": [
         "Conflict algorithms, UPSERT, and RETURNING are separate deferred sub-surfaces."
@@ -6064,37 +6363,200 @@
       "provenance": []
     },
     {
-      "id": "syntax.dml.returning-gap",
+      "id": "syntax.dml.replace",
       "kind": "syntax",
       "family": "dml",
-      "title": "INSERT, UPDATE, and DELETE RETURNING clauses",
-      "status": "unimplemented",
-      "adoption_status": "syntax-gated",
+      "title": "REPLACE statement",
+      "status": "supported",
+      "adoption_status": "already-covered",
       "public_api": [
         {
-          "symbol": "XLInsertStatement",
-          "source_path": "Sources/SwiftQL/Statements/SQLInsertStatement.swift",
+          "symbol": "Replace",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
           "source_tokens": [
-            "XLInsertStatement"
+            "Replace"
           ]
         },
         {
-          "symbol": "XLUpdateStatement",
-          "source_path": "Sources/SwiftQL/Statements/SQLUpdateStatement.swift",
+          "symbol": "replace(_:)",
+          "source_path": "Sources/SwiftQL/Statements/SQLDataChangingStatements.swift",
           "source_tokens": [
-            "XLUpdateStatement"
-          ]
-        },
-        {
-          "symbol": "XLDeleteStatement",
-          "source_path": "Sources/SwiftQL/Statements/SQLDeleteStatement.swift",
-          "source_tokens": [
-            "XLDeleteStatement"
+            "replace"
           ]
         }
       ],
       "sqlite_documentation_urls": [
-        "https://www.sqlite.org/lang_returning.html"
+        "https://www.sqlite.org/lang_replace.html",
+        "https://www.sqlite.org/lang_insert.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.0.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A generated writable table supplies insert metadata."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.dml.render-replace",
+        "evidence.syntax.dml.sqlite-replace"
+      ],
+      "deviations": [
+        "REPLACE INTO is the SQLite shorthand for INSERT OR REPLACE INTO."
+      ],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": []
+    },
+    {
+      "id": "syntax.dml.upsert",
+      "kind": "syntax",
+      "family": "dml",
+      "title": "INSERT ... ON CONFLICT upsert clause",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "OnConflict",
+          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_tokens": [
+            "OnConflict"
+          ]
+        },
+        {
+          "symbol": "XLInsertOnConflictStatement",
+          "source_path": "Sources/SwiftQL/Statements/SQLDataChangingStatements.swift",
+          "source_tokens": [
+            "XLInsertOnConflictStatement"
+          ]
+        },
+        {
+          "symbol": "onConflict(_:doUpdate:)",
+          "source_path": "Sources/SwiftQL/Statements/SQLDataChangingStatements.swift",
+          "source_tokens": [
+            "onConflict"
+          ]
+        },
+        {
+          "symbol": "onConflictDoNothing(_:)",
+          "source_path": "Sources/SwiftQL/Statements/SQLDataChangingStatements.swift",
+          "source_tokens": [
+            "onConflictDoNothing"
+          ]
+        },
+        {
+          "symbol": "excluded(_:)",
+          "source_path": "Sources/SwiftQL/SQLFunctionalSyntax.swift",
+          "source_tokens": [
+            "excluded"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_upsert.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.24.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A generated writable table supplies insert and update metadata, and the excluded pseudo-table exposes proposed row values."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.dml.render-upsert-do-nothing",
+        "evidence.syntax.dml.render-upsert-do-update",
+        "evidence.syntax.dml.render-upsert-do-update-where",
+        "evidence.syntax.dml.sqlite-upsert-do-update",
+        "evidence.syntax.dml.sqlite-upsert-do-nothing",
+        "evidence.syntax.dml.sqlite-upsert-where"
+      ],
+      "deviations": [
+        "Conflict targets are rendered as bare column names because SQLite rejects statement-aliased identifiers in the ON CONFLICT target list.",
+        "The excluded pseudo table is rendered as the bare excluded keyword and its columns qualify as excluded.<column>, so a DO UPDATE assignment refers to the candidate row rather than the aliased base table."
+      ],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": []
+    },
+    {
+      "id": "syntax.dml.update-common-table",
+      "kind": "syntax",
+      "family": "dml",
+      "title": "UPDATE statement scoped by a WITH common table expression",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLWithStatement.update(_:)",
+          "source_path": "Sources/SwiftQL/Statements/SQLWithStatement.swift",
+          "source_tokens": [
+            "update"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_with.html",
+        "https://www.sqlite.org/lang_update.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.8.3",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A generated writable table supplies update metadata, and a common table expression supplies the derived source rows."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.dml.render-update-common-table",
+        "evidence.syntax.dml.sqlite-update-common-table"
+      ],
+      "deviations": [
+        "The covering evidence combines the WITH clause with UPDATE ... FROM to reference the common table expression, which SQLite supports from 3.33.0 onward."
+      ],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": []
+    },
+    {
+      "id": "syntax.dml.insert-returning",
+      "kind": "syntax",
+      "family": "dml",
+      "title": "INSERT ... RETURNING clause",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "Returning",
+          "source_path": "Sources/SwiftQL/Statements/SQLReturningStatement.swift",
+          "source_tokens": [
+            "Returning"
+          ]
+        },
+        {
+          "symbol": "XLInsertReturningStatement",
+          "source_path": "Sources/SwiftQL/Statements/SQLReturningStatement.swift",
+          "source_tokens": [
+            "XLInsertReturningStatement"
+          ]
+        },
+        {
+          "symbol": "returning(_:)",
+          "source_path": "Sources/SwiftQL/Statements/SQLReturningStatement.swift",
+          "source_tokens": [
+            "returning"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_returning.html",
+        "https://www.sqlite.org/lang_insert.html"
       ],
       "not_sqlite_syntax_reason": null,
       "minimum_sqlite_version": "3.35.0",
@@ -6104,22 +6566,119 @@
         "sqlite-core-parser"
       ],
       "schema_requirements": [
-        "DML statements need typed result-row and cardinality metadata."
+        "A generated result projection supplies the returned column layout and row decoder."
       ],
-      "evidence_ids": [],
+      "evidence_ids": [
+        "evidence.syntax.dml.render-insert-returning",
+        "evidence.syntax.dml.render-insert-on-conflict-returning",
+        "evidence.syntax.dml.sqlite-insert-returning",
+        "evidence.syntax.dml.sqlite-upsert-returning"
+      ],
       "deviations": [
-        "The current DML statement protocols are write-only and do not expose RETURNING rows."
+        "SQLite rejects statement-aliased identifiers in a RETURNING list, so the returned columns are rendered as bare unqualified names.",
+        "A RETURNING statement executes on a write connection inside a transaction and is not observable as a live query; publishing one fails with XLReturningRequestError.observationUnsupported."
       ],
-      "follow_up_issues": [
-        53,
-        57,
-        58
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": []
+    },
+    {
+      "id": "syntax.dml.delete-returning",
+      "kind": "syntax",
+      "family": "dml",
+      "title": "DELETE ... RETURNING clause",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLDeleteReturningStatement",
+          "source_path": "Sources/SwiftQL/Statements/SQLReturningStatement.swift",
+          "source_tokens": [
+            "XLDeleteReturningStatement"
+          ]
+        },
+        {
+          "symbol": "returning(_:)",
+          "source_path": "Sources/SwiftQL/Statements/SQLReturningStatement.swift",
+          "source_tokens": [
+            "returning"
+          ]
+        }
       ],
-      "deferral": {
-        "blocking_issue": 57,
-        "target_milestone": "v1.4",
-        "reason": "Issue #57 is the first atomic RETURNING implementation; #53 and #58 cover DELETE and UPDATE."
-      },
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_returning.html",
+        "https://www.sqlite.org/lang_delete.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.35.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A generated result projection supplies the returned column layout and row decoder."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.dml.render-delete-returning",
+        "evidence.syntax.dml.sqlite-delete-returning"
+      ],
+      "deviations": [
+        "SQLite rejects statement-aliased identifiers in a RETURNING list, so the returned columns are rendered as bare unqualified names.",
+        "A RETURNING statement executes on a write connection inside a transaction and is not observable as a live query."
+      ],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": []
+    },
+    {
+      "id": "syntax.dml.returning-gap",
+      "kind": "syntax",
+      "family": "dml",
+      "title": "UPDATE ... RETURNING clause",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLUpdateReturningStatement",
+          "source_path": "Sources/SwiftQL/Statements/SQLReturningStatement.swift",
+          "source_tokens": [
+            "XLUpdateReturningStatement"
+          ]
+        },
+        {
+          "symbol": "returning(_:)",
+          "source_path": "Sources/SwiftQL/Statements/SQLReturningStatement.swift",
+          "source_tokens": [
+            "returning"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_returning.html",
+        "https://www.sqlite.org/lang_update.html"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.35.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser"
+      ],
+      "schema_requirements": [
+        "A generated result projection supplies the returned column layout and row decoder."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.dml.render-update-returning",
+        "evidence.syntax.dml.sqlite-update-returning"
+      ],
+      "deviations": [
+        "SQLite rejects statement-aliased identifiers in a RETURNING list, so the returned columns are rendered as bare unqualified names.",
+        "A RETURNING statement executes on a write connection inside a transaction and is not observable as a live query.",
+        "The record id retains the -gap suffix for stable suite references; INSERT and DELETE RETURNING are tracked separately as syntax.dml.insert-returning and syntax.dml.delete-returning."
+      ],
+      "follow_up_issues": [],
+      "deferral": null,
       "provenance": []
     },
     {
@@ -6885,7 +7444,7 @@
       "deviations": [
         "Built-in collations render as bare grammar tokens while a registered name renders as a quoted identifier. Both spellings resolve to the same sequence in SQLite; the split keeps issue #169's guarantee that `collate(_:)` is not an arbitrary raw-SQL escape hatch, because a caller-supplied name is escaped by the identifier formatter rather than concatenated into the keyword.",
         "Registration is the application's responsibility and is not verified when the expression is built. An unregistered name fails at preparation with `no such collation sequence` rather than silently falling back to BINARY.",
-        "`XLCollation` changed from an enum to a `RawRepresentable` struct so a name outside the three built-ins can be expressed. Every existing spelling — `.binary`, `.nocase`, `.rtrim`, `rawValue`, `init(rawValue:)` — is preserved, but exhaustive `switch` over the former enum cases no longer compiles.",
+        "`XLCollation` changed from an enum to a `RawRepresentable` struct so a name outside the three built-ins can be expressed. Every existing spelling \u2014 `.binary`, `.nocase`, `.rtrim`, `rawValue`, `init(rawValue:)` \u2014 is preserved, but exhaustive `switch` over the former enum cases no longer compiles.",
         "Equality and hashing use the collation name alone. The flag selecting bare-token versus quoted rendering is excluded, so `.nocase` and a hand-named `NOCASE` are one value: they name the same collating sequence and differ only in a spelling SQLite treats as equivalent."
       ],
       "follow_up_issues": [],

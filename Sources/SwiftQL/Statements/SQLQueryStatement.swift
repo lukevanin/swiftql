@@ -99,22 +99,22 @@ extension XLSimpleSelectQueryStatement {
     
     // MARK: Union
     
-    public func union(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> where Row: XLResult, Row.MetaResult: XLRowReadable, Row.MetaResult.Row == Row {
+    public func union(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> {
         let union = BooleanClause<Row>(kind: .union, lhs: components, rhs: statement().components)
         return XLQueryUnionStatement(components: XLQueryStatementComponents(reader: union, components: [union]))
     }
-    
-    public func unionAll(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> where Row: XLResult, Row.MetaResult: XLRowReadable, Row.MetaResult.Row == Row {
+
+    public func unionAll(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> {
         let union = BooleanClause<Row>(kind: .unionAll, lhs: components, rhs: statement().components)
         return XLQueryUnionStatement(components: XLQueryStatementComponents(reader: union, components: [union]))
     }
-    
-    public func intersect(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> where Row: XLResult, Row.MetaResult: XLRowReadable, Row.MetaResult.Row == Row {
+
+    public func intersect(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> {
         let union = BooleanClause<Row>(kind: .intersect, lhs: components, rhs: statement().components)
         return XLQueryUnionStatement(components: XLQueryStatementComponents(reader: union, components: [union]))
     }
-    
-    public func except(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> where Row: XLResult, Row.MetaResult: XLRowReadable, Row.MetaResult.Row == Row {
+
+    public func except(_ statement: () -> any XLQueryStatement<Row>) -> XLQueryUnionStatement<Row> {
         let union = BooleanClause<Row>(kind: .except, lhs: components, rhs: statement().components)
         return XLQueryUnionStatement(components: XLQueryStatementComponents(reader: union, components: [union]))
     }
@@ -131,6 +131,14 @@ public struct XLQuerySelectStatement<Row>: XLQueryStatement, XLSimpleSelectQuery
     // MARK: From
     
     public func from<T>(_ t: T) -> XLQueryTableStatement<Row> where T: XLMetaNamedResult {
+        XLQueryTableStatement(components: components.appending(From(t)))
+    }
+
+    ///
+    /// Adds a `FROM` clause whose table can resolve to `NULL`, for use as the
+    /// left-hand table of a `RIGHT JOIN` or either side of a `FULL OUTER JOIN`.
+    ///
+    public func from<T>(_ t: T) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult {
         XLQueryTableStatement(components: components.appending(From(t)))
     }
 }
@@ -159,6 +167,52 @@ public struct XLQueryTableStatement<Row>: XLQueryStatement, XLSimpleSelectQueryS
 
     public func leftJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult, U: XLBoolean {
         XLQueryTableStatement(components: components.appending(Join(kind: .leftJoin, table: t, constraint: condition)))
+    }
+
+    ///
+    /// Adds a `RIGHT JOIN`. The joined table stays non-nullable; declare the
+    /// `FROM` table with `nullableTable(_:)` so its columns decode as optionals.
+    /// Requires SQLite 3.39.0 or later.
+    ///
+    public func rightJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNamedResult, U: XLBoolean {
+        XLQueryTableStatement(components: components.appending(Join(kind: .rightJoin, table: t, constraint: condition)))
+    }
+
+    ///
+    /// Adds an inner join whose constraint is a `USING (columns...)` clause.
+    ///
+    public func innerJoin<T>(_ t: T, using firstColumn: XLName, _ otherColumns: XLName...) -> XLQueryTableStatement<Row> where T: XLMetaNamedResult {
+        XLQueryTableStatement(components: components.appending(Join(kind: .innerJoin, table: t, using: [firstColumn] + otherColumns)))
+    }
+
+    ///
+    /// Adds a left join whose constraint is a `USING (columns...)` clause.
+    ///
+    public func leftJoin<T>(_ t: T, using firstColumn: XLName, _ otherColumns: XLName...) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult {
+        XLQueryTableStatement(components: components.appending(Join(kind: .leftJoin, table: t, using: [firstColumn] + otherColumns)))
+    }
+
+    ///
+    /// Adds a natural (inner) join, which implicitly matches every shared column.
+    ///
+    public func naturalJoin<T>(_ t: T) -> XLQueryTableStatement<Row> where T: XLMetaNamedResult {
+        XLQueryTableStatement(components: components.appending(Join(kind: .naturalJoin, table: t, constraint: nil)))
+    }
+
+    ///
+    /// Adds a natural left join, whose joined table can resolve to `NULL`.
+    ///
+    public func naturalLeftJoin<T>(_ t: T) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult {
+        XLQueryTableStatement(components: components.appending(Join(kind: .naturalLeftJoin, table: t, constraint: nil)))
+    }
+
+    ///
+    /// Adds a `FULL OUTER JOIN`. Both sides can be `NULL`: the joined table is
+    /// nullable, and the `FROM` table must be declared with `nullableTable(_:)`.
+    /// Requires SQLite 3.39.0 or later.
+    ///
+    public func fullOuterJoin<T, U>(_ t: T, on condition: any XLExpression<U>) -> XLQueryTableStatement<Row> where T: XLMetaNullableNamedResult, U: XLBoolean {
+        XLQueryTableStatement(components: components.appending(Join(kind: .fullOuterJoin, table: t, constraint: condition)))
     }
 
     // MARK: Where

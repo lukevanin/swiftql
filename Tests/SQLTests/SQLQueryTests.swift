@@ -41,6 +41,26 @@ final class XLQueryTests: XCTestCase {
         let expression = select(t1).from(t0).innerJoin(t1, on: t1.id == t0.id )
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT `t1`.`id` AS `id`, `t1`.`value` AS `value` FROM `Test` AS `t0` INNER JOIN `Test` AS `t1` ON (`t1`.`id` == `t0`.`id`)")
     }
+
+    func testSelectRightJoinRendersNullableFromAndNonNullableJoinedTable() {
+        let s = XLSchema()
+        let t0 = s.nullableTable(TestTable.self)
+        let t1 = s.table(TestTable.self)
+        let expression = select(t1).from(t0).rightJoin(t1, on: t1.id == t0.id)
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT `t1`.`id` AS `id`, `t1`.`value` AS `value` FROM `Test` AS `t0` RIGHT JOIN `Test` AS `t1` ON (`t1`.`id` IS `t0`.`id`)")
+    }
+
+    func testRightJoinExpressionBuilderRendersRightJoinKeyword() {
+        let statement = sql { schema in
+            let company = schema.nullableTable(CompanyTable.self)
+            let employee = schema.table(EmployeeTable.self)
+            Select(RightJoinRow.columns(company: company.name, employee: employee.name))
+            From(company)
+            Join.Right(employee, on: employee.companyId == company.id)
+            OrderBy(employee.id.ascending())
+        }
+        XCTAssertEqual(encoder.makeSQL(statement).sql, "SELECT `t0`.`name` AS `company`, `t1`.`name` AS `employee` FROM `Company` AS `t0` RIGHT JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`) ORDER BY `t1`.`id` ASC")
+    }
     
 
     func testSelectJoinJoin() {

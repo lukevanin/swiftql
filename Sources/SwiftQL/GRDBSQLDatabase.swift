@@ -141,6 +141,13 @@ struct GRDBRequest<Row>: XLRequest {
     
     private let reader: any XLRowReadable<Row>
 
+    /// A `RETURNING` statement writes as it reads, so its rows must be decoded
+    /// on a write connection inside a transaction; a plain query reads on a
+    /// read-only connection. Observation is unsupported in the write mode
+    /// because re-running a data-changing statement on every database change is
+    /// never the intended behavior.
+    private let requiresWriteConnection: Bool
+
     private let liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy
 
     private let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
@@ -148,7 +155,7 @@ struct GRDBRequest<Row>: XLRequest {
     private var compatibilityBindings: XLInvocationBindings<XLSQLiteValue>
 
     private var compatibilityBindingError: XLInvocationBindingError?
-    
+
     init(
         driver: GRDBDatabaseDriver,
         codingConfiguration: XLValueCodingConfiguration,
@@ -157,9 +164,11 @@ struct GRDBRequest<Row>: XLRequest {
         logicalStatement: XLLogicalPreparedStatement,
         parameterLayoutError: XLInvocationBindingError? = nil,
         valueEncodingError: XLSQLValueEncodingError? = nil,
+        requiresWriteConnection: Bool = false,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
         liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
     ) {
+        self.requiresWriteConnection = requiresWriteConnection
         self.executor = GRDBInvocationExecutor(
             driver: driver,
             logicalStatement: logicalStatement,
@@ -266,6 +275,11 @@ struct GRDBRequest<Row>: XLRequest {
         packet: XLInvocationBindings<XLSQLiteValue>
     ) throws -> [Row] {
         var driver = executor.driver
+        if requiresWriteConnection {
+            return try driver.withTransaction { connection in
+                try decodeRows(packet: packet, in: &connection)
+            }
+        }
         return try driver.withReadConnection { connection in
             try decodeRows(packet: packet, in: &connection)
         }
@@ -302,14 +316,28 @@ struct GRDBRequest<Row>: XLRequest {
         let packet = try executor.sqlitePacket(bindings)
         logger?.debug(
             "fetchOne: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-        guard let values = try executor.fetchOne(bindings: packet) else {
+        let values: [XLSQLiteValue]?
+        if requiresWriteConnection {
+            var driver = executor.driver
+            values = try driver.withTransaction { connection in
+                try executor.fetchOne(packet: packet, in: &connection)
+            }
+        }
+        else {
+            values = try executor.fetchOne(bindings: packet)
+        }
+        guard let values else {
             return nil
         }
 
         return try GRDBRowDecoder(reader: reader).decode(values: values)
     }
-    
+
     func publish() -> AnyPublisher<[Row], Error> {
+        if requiresWriteConnection {
+            return Fail(error: XLReturningRequestError.observationUnsupported)
+                .eraseToAnyPublisher()
+        }
         do {
             return publish(bindings: try compatibilityPacket())
         }
@@ -336,6 +364,10 @@ struct GRDBRequest<Row>: XLRequest {
     }
 
     func publishOne() -> AnyPublisher<Row?, Error> {
+        if requiresWriteConnection {
+            return Fail(error: XLReturningRequestError.observationUnsupported)
+                .eraseToAnyPublisher()
+        }
         do {
             return publishOne(bindings: try compatibilityPacket())
         }
@@ -937,6 +969,22 @@ public struct GRDBDatabase: XLDatabase {
         )
     }
     
+    public func makeRequest<Row>(with statement: any XLReturningStatement<Row>) -> any XLRequest<Row> {
+        let encoding = encoder.makeSQL(statement)
+        return GRDBRequest(
+            driver: driver,
+            codingConfiguration: codingConfiguration,
+            logger: logger,
+            reader: statement,
+            logicalStatement: logicalStatement(for: encoding),
+            parameterLayoutError: preparedParameterLayoutError(for: encoding),
+            valueEncodingError: encoding.valueEncodingError,
+            requiresWriteConnection: true,
+            liveQueryRetryPolicy: liveQueryRetryPolicy,
+            liveQueryRetryScheduler: liveQueryRetryScheduler
+        )
+    }
+
     public func makeRequest(with statement: any XLUpdateStatement) -> XLWriteRequest {
         makeWriteRequest(with: statement)
     }

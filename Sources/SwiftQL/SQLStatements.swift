@@ -102,22 +102,26 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
     }
     
     private let kind: Kind
-    
+
     private let lhs: any XLEncodable
 
     private let rhs: any XLEncodable
-    
+
     private let row: (XLRowReader) throws -> Row
-    
-    internal init(kind: Kind, lhs: any XLEncodable, rhs: any XLEncodable) where Row: XLResult, Row.MetaResult: XLRowReadable, Row.MetaResult.Row == Row {
+
+    ///
+    /// Combines two branches, preserving the first branch's existing row reader.
+    ///
+    /// The compound result decodes with the same reader as its left branch
+    /// rather than reconstructing metadata from `Row: XLResult`, so a direct
+    /// scalar branch (`select(expr)`) flows through `UNION` / `UNION ALL` /
+    /// `INTERSECT` / `EXCEPT` without a boxed `@SQLResult` wrapper.
+    ///
+    internal init(kind: Kind, lhs: XLQueryStatementComponents<Row>, rhs: any XLEncodable) {
         self.kind = kind
         self.lhs = lhs
         self.rhs = rhs
-        
-        let namespace = XLNamespace.table()
-        let dependency = XLUnionDependency()
-        let meta = Row.makeSQLAnonymousResult(namespace: namespace, dependency: dependency)
-        self.row = meta.readRow
+        self.row = lhs.readRow
     }
     
     public func makeSQL(context: inout XLBuilder) {
@@ -330,6 +334,157 @@ public struct Insert<Row>: XLEncodable, XLRowWritable {
 }
 
 
+///
+/// Replace statement.
+///
+/// `REPLACE INTO` is the SQLite shorthand for `INSERT OR REPLACE INTO`. A row
+/// that would violate a uniqueness constraint is deleted before the new row is
+/// inserted.
+///
+public struct Replace<Row>: XLEncodable, XLRowWritable {
+
+    internal let insert: Insert<Row>
+
+    public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row {
+        self.insert = Insert(table: meta._dependency, keyword: "REPLACE INTO")
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        insert.makeSQL(context: &context)
+    }
+}
+
+
+// MARK: - On Conflict (upsert)
+
+
+///
+/// The action taken by an `ON CONFLICT` upsert clause when a candidate row
+/// conflicts with an existing row.
+///
+public enum XLConflictResolution<Row> {
+
+    ///
+    /// Skip the conflicting candidate row without raising an error
+    /// (`ON CONFLICT ... DO NOTHING`).
+    ///
+    case nothing
+
+    ///
+    /// Update the existing conflicting row (`ON CONFLICT ... DO UPDATE SET ...`),
+    /// optionally constrained by a `WHERE` predicate that must hold for the
+    /// update to apply.
+    ///
+    case update(Setting<Row>, filter: (any XLExpression)?)
+}
+
+
+///
+/// On-conflict (upsert) clause.
+///
+/// Renders the SQLite `ON CONFLICT` clause that follows the values or select
+/// source of an insert statement. A candidate row that conflicts with an
+/// existing row on the named conflict target is either skipped
+/// (``XLConflictResolution/nothing``) or updates the existing row
+/// (``XLConflictResolution/update(_:filter:)``).
+///
+/// The conflict target is a list of column names identifying the uniqueness
+/// constraint to resolve. SQLite requires unqualified column names here, so the
+/// target is expressed with ``XLName`` values rather than qualified column
+/// expressions. When computing updated values, the `excluded` pseudo table —
+/// obtained through ``XLSchema/excluded(_:)`` — refers to the candidate row,
+/// for example `row.value = excluded.value`.
+///
+public struct OnConflict<Row>: XLEncodable {
+
+    private let targets: [XLName]
+
+    private let resolution: XLConflictResolution<Row>
+
+    internal init(
+        targets: [XLName],
+        resolution: XLConflictResolution<Row>
+    ) {
+        self.targets = targets
+        self.resolution = resolution
+    }
+
+    ///
+    /// Creates an `ON CONFLICT ... DO NOTHING` clause with an optional conflict
+    /// target.
+    ///
+    public static func doNothing(on targets: XLName...) -> OnConflict {
+        OnConflict(targets: targets, resolution: .nothing)
+    }
+
+    ///
+    /// Creates an `ON CONFLICT (targets) DO UPDATE SET ...` clause.
+    ///
+    /// At least one conflict target is required: SQLite rejects `DO UPDATE`
+    /// without a conflict target. Use ``doNothing(on:)`` for the targetless
+    /// `ON CONFLICT DO NOTHING` form.
+    ///
+    public static func doUpdate(
+        on firstTarget: XLName,
+        _ otherTargets: XLName...,
+        set values: @escaping (inout Row.MetaUpdate) -> Void
+    ) -> OnConflict where Row: XLTable {
+        OnConflict(
+            targets: [firstTarget] + otherTargets,
+            resolution: .update(Setting<Row>(values), filter: nil)
+        )
+    }
+
+    ///
+    /// Creates an `ON CONFLICT (targets) DO UPDATE SET ... WHERE ...` clause.
+    ///
+    /// At least one conflict target is required, because SQLite rejects
+    /// `DO UPDATE` without a conflict target. The `WHERE` predicate constrains
+    /// which conflicting rows are updated; rows that fail the predicate are
+    /// left unchanged without raising an error.
+    ///
+    public static func doUpdate<B>(
+        on firstTarget: XLName,
+        _ otherTargets: XLName...,
+        set values: @escaping (inout Row.MetaUpdate) -> Void,
+        where filter: any XLExpression<B>
+    ) -> OnConflict where Row: XLTable, B: XLBoolean {
+        OnConflict(
+            targets: [firstTarget] + otherTargets,
+            resolution: .update(Setting<Row>(values), filter: filter)
+        )
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        if targets.isEmpty {
+            context.unaryOperator("ON CONFLICT") { _ in }
+        }
+        else {
+            context.unaryPrefix("ON CONFLICT") { context in
+                context.parenthesis { context in
+                    context.list(separator: .list) { list in
+                        for target in targets {
+                            list.listItem { item in
+                                item.name(target)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        switch resolution {
+        case .nothing:
+            context.unaryOperator("DO NOTHING") { _ in }
+        case .update(let setting, let filter):
+            context.unaryPrefix("DO UPDATE", expression: setting.makeSQL)
+            if let filter {
+                context.unaryPrefix("WHERE", expression: filter.makeSQL)
+            }
+        }
+    }
+}
+
+
 // MARK: - Values
 
 
@@ -433,6 +588,17 @@ public struct From: XLTableStatement {
         self.table = meta
     }
 
+    ///
+    /// Specifies a `FROM` table whose columns can resolve to `NULL`.
+    ///
+    /// Used for the left-hand table of a `RIGHT JOIN` (and either table of a
+    /// `FULL OUTER JOIN`), where unmatched rows fill the `FROM` table's columns
+    /// with `NULL`. Build the nullable table reference with `nullableTable(_:as:)`.
+    ///
+    public init<T>(_ meta: T) where T: XLMetaNullableNamedResult {
+        self.table = meta
+    }
+
     public func makeSQL(context: inout XLBuilder) {
         context.unaryPrefix("FROM", expression: table.makeSQL)
     }
@@ -447,26 +613,36 @@ public struct From: XLTableStatement {
 ///
 /// Joins a table in a select statement.
 ///
-/// > Note: Right joins are not supported.  A workaround is to LEFT JOIN, and swap the tables in the FROM and
-/// JOIN clauses.
-///
 /// Inner and left joins combine tables using an `ON` predicate. A cross join
 /// returns every combination of rows from its two tables; SQLite also preserves
 /// the left-to-right loop order for an explicit `CROSS JOIN`.
+///
+/// A right join (``Right(_:on:)``) keeps every row of the joined table and fills
+/// the `FROM` table's columns with `NULL` when there is no match; declare that
+/// `FROM` table with `nullableTable(_:as:)` so its columns
+/// decode as optionals. `RIGHT JOIN` requires SQLite 3.39.0 or later.
 ///
 public struct Join: XLTableStatement {
     
     public enum Kind: String, CaseIterable {
         case innerJoin = "INNER JOIN"
         case leftJoin = "LEFT JOIN"
+        case rightJoin = "RIGHT JOIN"
+        case fullOuterJoin = "FULL OUTER JOIN"
         case crossJoin = "CROSS JOIN"
+        case naturalJoin = "NATURAL JOIN"
+        case naturalLeftJoin = "NATURAL LEFT JOIN"
     }
-    
+
     private let kind: Kind
-    
+
     private let table: XLEncodable
-    
+
     private let constraint: (any XLExpression)?
+
+    /// Column names shared by both tables for a `USING (...)` join constraint.
+    /// Mutually exclusive with `constraint`; `NATURAL` joins use neither.
+    private let using: [XLName]?
 
     ///
     /// `Join` is a synonym for `Join.Inner`.
@@ -479,12 +655,38 @@ public struct Join: XLTableStatement {
         self.kind = kind
         self.table = table
         self.constraint = constraint
+        self.using = nil
     }
- 
+
+    internal init(kind: Kind, table: XLEncodable, using: [XLName]) {
+        self.kind = kind
+        self.table = table
+        self.constraint = nil
+        self.using = using
+    }
+
     public func makeSQL(context: inout XLBuilder) {
         context.unaryPrefix(kind.rawValue, expression: table.makeSQL)
+        // NATURAL and CROSS joins never take an ON/USING constraint, even if one
+        // were supplied through the internal initializer.
+        switch kind {
+        case .naturalJoin, .naturalLeftJoin, .crossJoin:
+            return
+        case .innerJoin, .leftJoin, .rightJoin, .fullOuterJoin:
+            break
+        }
         if let constraint {
             context.unaryPrefix("ON", expression: constraint.makeSQL)
+        } else if let using {
+            context.unaryPrefix("USING", expression: { context in
+                context.parenthesis { context in
+                    context.list(separator: .list) { list in
+                        for column in using {
+                            list.listItem { $0.name(column) }
+                        }
+                    }
+                }
+            })
         }
     }
     
@@ -510,10 +712,76 @@ public struct Join: XLTableStatement {
     }
 
     ///
+    /// Creates an inner join whose constraint is a `USING (columns...)` clause.
+    ///
+    /// A `USING` join matches rows where the named columns — which must exist in
+    /// both tables — are equal, and SQLite coalesces each named column into a
+    /// single output column.
+    ///
+    public static func Inner<T>(_ table: T, using firstColumn: XLName, _ otherColumns: XLName...) -> Join where T: XLMetaNamedResult {
+        Join(kind: .innerJoin, table: table, using: [firstColumn] + otherColumns)
+    }
+
+    ///
     /// Creates a left join with a column constraint.
     ///
     public static func Left<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNullableNamedResult, U: XLBoolean {
         Join(kind: .leftJoin, table: table, constraint: constraint)
+    }
+
+    ///
+    /// Creates a right join with a column constraint.
+    ///
+    /// A `RIGHT JOIN` keeps every row of the joined (right-hand) `table` and
+    /// fills the columns of the `FROM` (left-hand) table with `NULL` when there
+    /// is no match. The joined table therefore stays non-nullable, while the
+    /// `FROM` table must be declared with `nullableTable(_:as:)`
+    /// so its columns decode as optionals.
+    ///
+    /// > Important: `RIGHT JOIN` requires SQLite 3.39.0 (2022-06-25) or later.
+    ///
+    public static func Right<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNamedResult, U: XLBoolean {
+        Join(kind: .rightJoin, table: table, constraint: constraint)
+    }
+
+    ///
+    /// Creates a left join whose constraint is a `USING (columns...)` clause.
+    ///
+    public static func Left<T>(_ table: T, using firstColumn: XLName, _ otherColumns: XLName...) -> Join where T: XLMetaNullableNamedResult {
+        Join(kind: .leftJoin, table: table, using: [firstColumn] + otherColumns)
+    }
+
+    ///
+    /// Creates a natural (inner) join.
+    ///
+    /// A `NATURAL JOIN` implicitly matches every column the two tables share by
+    /// name and takes no `ON` or `USING` constraint. If the tables share no
+    /// column names it degenerates to a cross join.
+    ///
+    public static func Natural<T>(_ table: T) -> Join where T: XLMetaNamedResult {
+        Join(kind: .naturalJoin, table: table, constraint: nil)
+    }
+
+    ///
+    /// Creates a natural left join, whose joined table can resolve to `NULL`.
+    ///
+    public static func NaturalLeft<T>(_ table: T) -> Join where T: XLMetaNullableNamedResult {
+        Join(kind: .naturalLeftJoin, table: table, constraint: nil)
+    }
+
+    ///
+    /// Creates a full outer join with a column constraint.
+    ///
+    /// A `FULL OUTER JOIN` keeps every row of both tables, filling the other
+    /// table's columns with `NULL` where there is no match. Both sides must
+    /// therefore decode as optionals: the joined table is nullable
+    /// (`XLMetaNullableNamedResult`) and the `FROM` table must be declared with
+    /// `nullableTable(_:as:)`.
+    ///
+    /// > Important: `FULL OUTER JOIN` requires SQLite 3.39.0 (2022-06-25) or later.
+    ///
+    public static func FullOuter<T, U>(_ table: T, on constraint: any XLExpression<U>) -> Join where T: XLMetaNullableNamedResult, U: XLBoolean {
+        Join(kind: .fullOuterJoin, table: table, constraint: constraint)
     }
 
     ///

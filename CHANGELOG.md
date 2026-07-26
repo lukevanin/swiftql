@@ -1,5 +1,92 @@
 # Changelog
 
+## [1.4.6] - 2026-07-25
+
+### Changed
+
+- Reduced SwiftQL query construction-and-rendering allocations without changing
+  rendered SQL, entity metadata, query semantics, or the public 1.x API. A
+  deterministic allocation profile attributed roughly three-quarters of the
+  `swiftql_construction_and_rendering` phase's allocations to rendering;
+  single-argument token append, a single-token `build()` fast path, and a
+  one/two-component `scopedName` fast path cut render allocations about 15% and
+  the phase median about 13-17% across the #128 harness read cases, with
+  byte-identical SQL. No absolute CI latency gate was added (#166).
+- Reused one per-row normalization buffer on the incremental GRDB decode path,
+  removing the per-row `[XLSQLiteValue]` allocation (and a redundant `Array`
+  copy) while preserving the #248 bounded-memory guarantee — the typed decode
+  path materializes no intermediate matrix. This is an allocation-only change
+  and is latency-neutral on the #250 harness, which showed the incremental
+  regression is decode-compute bound rather than allocation bound; the
+  remaining latency work is tracked in #353 (#266).
+
+### Added
+
+- Added the `swiftql-construction-profile` diagnostic executable. It counts
+  per-operation heap allocations through the in-process `malloc_logger` hook and
+  splits construction versus rendering timing for the #128 read queries. It is
+  diagnostic evidence for #166, not part of any product runtime or a CI gate.
+
+### Migration
+
+No migration is required for v1.4.6. Every change is internal; the public API,
+entity metadata, and rendered SQL are unchanged.
+
+## [1.4.5] - 2026-07-24
+
+### Added
+
+- Added `NATURAL JOIN` and `USING (columns...)` join constraints through
+  `Join.Natural(_:)`, `Join.NaturalLeft(_:)`, `Join.Inner(_:using:)`, and
+  `Join.Left(_:using:)`, plus the fluent `naturalJoin`/`naturalLeftJoin` and
+  `innerJoin(_:using:)`/`leftJoin(_:using:)` methods (also on `QueryBuilder`).
+  A join renders exactly one of `ON <expr>`, `USING (cols)`, or — for
+  `NATURAL` — no constraint at all.
+- Added `RIGHT JOIN` through `Join.Right(_:on:)` and the fluent/`QueryBuilder`
+  `rightJoin` methods. The joined (right-hand) table stays non-nullable; the
+  `FROM` (left-hand) table must be declared with `XLSchema.nullableTable(_:as:)`
+  so its columns decode as optionals when a joined row has no match. Requires
+  SQLite 3.39.0 (2022-06) or later.
+- Added `FULL OUTER JOIN` and completed `CROSS JOIN` coverage on `QueryBuilder`
+  through `Join.FullOuter(_:on:)` and the fluent/`QueryBuilder`
+  `fullOuterJoin`/`crossJoin` methods. A full outer join requires both sides
+  nullable — the joined table via `XLMetaNullableNamedResult`, the `FROM`
+  table via `nullableTable(_:as:)` — unlike `LEFT JOIN`, where only the
+  joined side is nullable. Requires SQLite 3.39.0 or later. The previously
+  broken `Join.Outer`, which emitted an invalid bare `OUTER JOIN`, stays
+  removed in favor of `Join.Left`/`Join.FullOuter`.
+- Added `MATERIALIZED` / `NOT MATERIALIZED` hints on common table expressions
+  through a `materialization: XLCommonTableMaterialization` parameter on
+  `XLSchema.commonTable`, `recursiveCommonTable`, `recursiveCommonTableExpression`,
+  and the new scalar common-table constructors below. Omitting it — the
+  default, `.unspecified` — renders the unchanged `alias AS (...)` form.
+- Added a direct scalar common-table-expression surface —
+  `XLSchema.scalarCommonTable`, `recursiveScalarCommonTable`,
+  `scalarCommonTableExpression`, and `recursiveScalarCommonTableExpression` —
+  so a `T`-typed recursive or non-recursive CTE no longer needs a
+  one-property `@SQLResult`/`SQLScalarResult<T>` wrapper solely to carry one
+  scalar column. The CTE renders an explicit column list (`cte(value) AS
+  (...)` by default) instead of changing every scalar `SELECT`'s visible
+  column label. `SQLScalarResult` remains source-compatible as a legacy shim.
+- `UNION`, `UNION ALL`, `INTERSECT`, and `EXCEPT` on a chained statement no
+  longer require `Row: XLResult`; they now reuse the first branch's existing
+  row reader instead of rebuilding one from `Row: XLResult`, so a compound
+  query over a bare literal type (`Int`, `String`, ...) composes without a
+  result wrapper.
+- Replaced the internal mutable recursive-CTE completion cell with an
+  alias-first, two-phase, value-semantic `XLRecursiveCommonTableDraft`. The
+  self-reference passed to a recursive CTE's body is now derived from its
+  reserved alias alone, and completion is transactional: a throwing body
+  rolls the draft back to its declared state so it can be retried.
+  `recursiveCommonTable` and `recursiveCommonTableExpression` keep their
+  existing signatures and render byte-for-byte identical SQL.
+
+### Migration
+
+No migration is required for v1.4.5. Every change is additive: existing
+joins, common table expressions, and `SQLScalarResult` usage compile and
+render unchanged.
+
 ## [1.4.4] - 2026-07-23
 
 ### Added
@@ -8,10 +95,36 @@
   and the functional `insert(_:or:)`. The conflict algorithm is part of the
   `INSERT` keyword and applies to every uniqueness constraint the statement
   violates.
-- Recorded the new conflict-resolution surface in the #190 canonical SQLite
-  conformance inventory. It records 106 public-surface feature records: 98
+- Added the `REPLACE INTO` statement through `Replace` and the functional
+  `replace(_:)`, the SQLite shorthand for `INSERT OR REPLACE INTO`.
+- Added `INSERT ... ON CONFLICT` upsert support through `OnConflict`, the
+  functional `onConflict`/`onConflictDoNothing` methods, and `XLSchema.excluded`
+  for referencing the proposed row. Both `DO NOTHING` and `DO UPDATE SET ...`
+  (with an optional `WHERE` filter) forms are covered.
+- Added `UPDATE` support scoped by a `WITH` common table expression through
+  `XLWithStatement.update`, so a factored common table expression can drive an
+  update, for example `with(cte).update(t).set { ... }.from(cte).where(...)`.
+- Added `INSERT ... RETURNING` through the `Returning` clause and the
+  `returning(_:)` method on insert statements (including `ON CONFLICT` upserts).
+  A returning statement is fetchable — `makeRequest(with:).fetchAll()` yields the
+  affected rows projected through the supplied result. SQLite rejects
+  statement-aliased names in `RETURNING`, so the returned columns render
+  unqualified; the statement executes on a write connection and is not
+  observable as a live query. Requires SQLite 3.35.0.
+- Added `DELETE ... RETURNING` through the same `returning(_:)` clause on delete
+  statements, yielding the deleted rows. Requires SQLite 3.35.0.
+- Added `UPDATE ... RETURNING` through the same `returning(_:)` clause on update
+  statements, yielding the updated rows. This completes RETURNING for INSERT,
+  UPDATE, and DELETE. Requires SQLite 3.35.0.
+- Confirmed and recorded the SELECT forms of data-changing statements:
+  `INSERT ... SELECT` and the `UPDATE ... SET ... FROM (SELECT ...)` form (built
+  with `fromExpression`). Both now carry real-SQLite execution evidence in the
+  conformance inventory.
+- Recorded the new conflict-resolution, replace, upsert, update-with-CTE,
+  RETURNING (insert, delete, update), and INSERT/UPDATE SELECT surfaces in the
+  #190 canonical SQLite conformance inventory. It records 111 public-surface feature records: 104
   supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-  5 unimplemented. Of the 144 evidence records, 91 exercise real SQLite and
+  4 unimplemented. Of the 164 evidence records, 101 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
 ### Migration
