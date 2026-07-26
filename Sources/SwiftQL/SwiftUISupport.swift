@@ -5,11 +5,13 @@
 //  Created by Luke Van In on 2026/07/26.
 //
 
+import Dispatch
 import Foundation
 #if canImport(Combine)
 import Combine
 #else
 import OpenCombine
+import OpenCombineDispatch
 #endif
 
 
@@ -22,7 +24,7 @@ import OpenCombine
 /// `Cancellable` by hand:
 ///
 /// ```swift
-/// final class PeopleViewModel {
+/// final class PeopleViewModel: ObservableObject {
 ///     let people: XLQueryObserver<Person>
 ///
 ///     init(database: some XLDatabase) {
@@ -33,8 +35,9 @@ import OpenCombine
 ///
 /// A view reads `observer.rows` and `observer.error` in its `body`; SwiftUI
 /// re-renders whenever either `@Published` property changes. Observation
-/// starts immediately on initialization, on the main queue, and stops when
-/// the observer is deallocated.
+/// starts immediately on initialization and stops when the observer is
+/// deallocated; every delivered value is received on the main queue, though
+/// the underlying fetch may begin on whatever thread triggers it.
 ///
 public final class XLQueryObserver<Row>: ObservableObject {
 
