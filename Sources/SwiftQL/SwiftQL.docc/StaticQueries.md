@@ -189,8 +189,10 @@ order and retain the corresponding typed encode/decode behavior.
 
 `@SQLTable` and `@SQLResult` generate a nominal
 `staticRowLayout(using:...)` factory alongside the existing `columns(...)`
-factory. Supply one `XLStaticSelectField` for each property. Intrinsic v1
-literals can use `XLStaticSelectField.intrinsic`; contextual values use
+factory. Supply one `XLStaticSelectField` for each scalar property (or a
+nested `XLStaticRowLayout` for a composite one -- see "Select a nested
+composite property" below). Intrinsic v1 literals can use
+`XLStaticSelectField.intrinsic`; contextual values use
 `XLValueCodingConfiguration.staticResultField`, with an explicit intrinsic
 storage carrier such as `String.self` and a codec selection when needed.
 
@@ -201,9 +203,11 @@ The public field type is
 pass `field.expression` to `queryCapture(_:matching:identifiedBy:)` and reuse
 `field.codecSelection`. The resulting capture must have the same storage and
 selected codec identity as the field. Generated layout factories accept each
-concrete field through a primary-associated-type protocol, so every property
-keeps its independently inferred `Storage` without synthesized generic names
-that can shadow model generics.
+property's argument through `XLStaticRowFieldSource`, a primary-associated-type
+protocol that both a scalar `XLStaticSelectField` and a nested
+`XLStaticRowLayout` conform to, so every property keeps its independently
+inferred `Storage` without synthesized generic names that can shadow model
+generics.
 
 The factory assigns declaration indices and SQL aliases, validates them through
 `XLStaticRowMetadata`, and returns `XLStaticRowLayout`. Constructing that layout
@@ -230,6 +234,92 @@ table APIs remain the v1 compatibility path. Their `XLLiteral` behavior,
 including `wrapSQL`, is unchanged. Contextual-only properties compile in
 generated metadata, but must use a static layout for value encoding and row
 decoding instead of the v1 `MetaInsert`/`MetaUpdate` and introspection path.
+
+## Select a nested composite property
+
+A stored property does not have to be a scalar `XLLiteral` column. It can
+instead be another `@SQLTable`/`@SQLResult` type, selecting that type's whole
+row as one nested value:
+
+```text
+@SQLTable struct Employee {
+    let id: Int
+    let name: String
+    let companyID: Int
+}
+
+@SQLTable struct Company {
+    let id: Int
+    let title: String
+}
+
+@SQLResult struct EmployeeCompany {
+    let employee: Employee
+    let company: Company
+}
+```
+
+SQL has no nested row shape, so `EmployeeCompany`'s generated
+`staticRowLayout(using:...)` factory selects every one of `Employee`'s columns
+and every one of `Company`'s columns as flat, individually aliased SQL result
+columns, then reconstructs the nested `Employee` and `Company` values before
+building `EmployeeCompany`. Build the composite layout by passing each nested
+type's own layout as that property's argument:
+
+```text
+let employeeLayout = try Employee.staticRowLayout(
+    using: XLSQLiteDialect.self,
+    id: /* ... */,
+    name: /* ... */,
+    companyID: /* ... */
+)
+let companyLayout = try Company.staticRowLayout(
+    using: XLSQLiteDialect.self,
+    id: /* ... */,
+    title: /* ... */
+)
+let combined = try EmployeeCompany.staticRowLayout(
+    using: XLSQLiteDialect.self,
+    employee: employeeLayout,
+    company: companyLayout
+)
+```
+
+Nesting a composite property requires no different call shape than an
+ordinary scalar one: every generated factory parameter accepts any
+`XLStaticRowFieldSource<Value, Dialect>` value, and both an ordinary
+`XLStaticSelectField` (through a default implementation) and an already-built
+`XLStaticRowLayout` conform to it. The factory never has to decide which case
+applies -- Swift's own conformance checking resolves it from whatever value
+the caller passes. Each property's `grouped(at:alias:)` call reports how many
+flat SQL slots it occupies through its runtime `count`, so an outer layout's
+generated code only ever accumulates a running slot offset; it does not need
+to know any property's arity in advance. A scalar property always
+contributes exactly one slot; `employee` and `company` each contribute every
+one of their own flattened slots, re-aliased with the property name as a
+prefix (`employee_id`, `employee_name`, `employee_companyID`, `company_id`,
+`company_title`) so the flattened SQL output columns stay unique. Nesting
+composes: a composite property's own value can itself have been built by
+nesting a further composite property, since an `XLStaticRowLayout` returned
+by one factory is exactly the kind of value another factory's composite
+property accepts.
+
+A composite property is not a value-free carrier the way a scalar field is --
+building it requires supplying the nested type's own real column
+selections -- so it is ordinarily built once per query alongside the tables it
+references, then passed to the outer `staticRowLayout(using:...)` call. A
+composite property must be non-optional; representing "this whole nested
+value is absent" (for example, from an outer join) is not yet supported and
+is tracked as follow-up work.
+
+The macro has no semantic access to a property's own type declaration -- it
+may not even be in the same file -- so it cannot itself distinguish a scalar
+`XLLiteral` property from a nested composite one at expansion time; both are
+just a named type. A property type it cannot resolve as either shape at all
+(a tuple, a function type, or another shape `resolveColumnType` rejects)
+is still reported with an explicit, actionable diagnostic naming both
+supported forms, rather than compiling into generated code that only fails
+downstream with an opaque protocol-conformance error.
 
 ## Stable identity
 
