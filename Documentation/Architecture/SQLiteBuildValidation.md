@@ -406,7 +406,10 @@ Three atomic v1.5 follow-ups are recommended:
    query descriptors.**](https://github.com/lukevanin/swiftql/issues/292)
    Specify versioned canonical JSON, query/descriptor identity,
    parameter/result/codec layout, schema identity, capabilities, and #190/#191
-   references. No database I/O, macro implementation, or query-identity change.
+   references. No database I/O, macro implementation, or query-identity
+   change. Delivered as `SwiftQLSQLiteBuildValidationManifest`; see
+   [SQLiteBuildValidationManifest.md](SQLiteBuildValidationManifest.md) for
+   the schema, determinism, and registry-resolution contract.
 2. [**#293: Ship a standalone SQLite static-query build
    validator.**](https://github.com/lukevanin/swiftql/issues/293) Consume the
    manifest and snapshot, own a read-only connection, call
