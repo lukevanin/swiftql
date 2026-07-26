@@ -333,6 +333,69 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
         }
     }
 
+    func testManifestRejectsCardinalityResultCountMismatches() {
+        let commandWithResults = Support.manifest(queries: [
+            SQLiteBuildValidationQueryEntry(
+                id: "command-with-results",
+                definitionIdentity: "tests/command-with-results@1",
+                descriptorIdentity: "swiftql-query-v1-deadbeef",
+                sql: "DELETE FROM t",
+                dialectIdentifier: XLSQLiteDialect.identity.rawValue,
+                cardinality: XLQueryCardinality.command.rawValue,
+                results: [Support.result()]
+            ),
+        ])
+        XCTAssertThrowsError(try commandWithResults.validating()) { error in
+            guard case .invalidQuery(_, let reason) =
+                error as? SQLiteBuildValidationManifestError else {
+                return XCTFail("Expected invalid query, received \(error)")
+            }
+            XCTAssertTrue(reason.contains("must not declare result slots"))
+        }
+
+        let rowWithNoResults = Support.manifest(queries: [
+            SQLiteBuildValidationQueryEntry(
+                id: "row-with-no-results",
+                definitionIdentity: "tests/row-with-no-results@1",
+                descriptorIdentity: "swiftql-query-v1-deadbeef",
+                sql: "SELECT 1",
+                dialectIdentifier: XLSQLiteDialect.identity.rawValue,
+                cardinality: XLQueryCardinality.exactlyOne.rawValue,
+                results: []
+            ),
+        ])
+        XCTAssertThrowsError(try rowWithNoResults.validating()) { error in
+            guard case .invalidQuery(_, let reason) =
+                error as? SQLiteBuildValidationManifestError else {
+                return XCTFail("Expected invalid query, received \(error)")
+            }
+            XCTAssertTrue(reason.contains("requires at least one result slot"))
+        }
+    }
+
+    func testManifestRejectsUnrecognizedNullabilityRawValue() {
+        assertInvalidQuery(
+            Support.query(parameters: [
+                Support.parameter()
+            ].map { param in
+                SQLiteBuildValidationParameterEntry(
+                    logicalIndex: param.logicalIndex,
+                    physicalIndex: param.physicalIndex,
+                    identity: param.identity,
+                    keyKind: param.keyKind,
+                    keyName: param.keyName,
+                    keyIndex: param.keyIndex,
+                    valueTypeIdentifier: param.valueTypeIdentifier,
+                    valueTypeName: param.valueTypeName,
+                    nullability: "maybe",
+                    codec: param.codec,
+                    storageIdentifier: param.storageIdentifier
+                )
+            }),
+            contains: "nullability"
+        )
+    }
+
     func testManifestRejectsIncompleteCodecMetadata() {
         let incompleteCodec = Support.codec(keyID: "")
         assertInvalidQuery(

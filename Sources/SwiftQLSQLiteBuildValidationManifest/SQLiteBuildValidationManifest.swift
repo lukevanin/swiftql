@@ -168,11 +168,27 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
                 "query identities and SQL must not be empty"
             )
         }
-        guard XLQueryCardinality(rawValue: query.cardinality) != nil else {
+        guard let cardinality = XLQueryCardinality(rawValue: query.cardinality) else {
             throw SQLiteBuildValidationManifestError.invalidQuery(
                 query.id,
                 "cardinality \(query.cardinality) is not a recognized XLQueryCardinality raw value"
             )
+        }
+        switch cardinality {
+        case .command:
+            guard query.results.isEmpty else {
+                throw SQLiteBuildValidationManifestError.invalidQuery(
+                    query.id,
+                    "command cardinality must not declare result slots"
+                )
+            }
+        case .exactlyOne, .zeroOrOne, .many:
+            guard !query.results.isEmpty else {
+                throw SQLiteBuildValidationManifestError.invalidQuery(
+                    query.id,
+                    "row cardinality requires at least one result slot"
+                )
+            }
         }
         guard !query.conformanceFeatureIDs.contains(where: \.isEmpty),
               !query.conformanceCaseIDs.contains(where: \.isEmpty),
@@ -196,6 +212,7 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
                     "parameter metadata must be contiguous and complete"
                 )
             }
+            try validateNullability(parameter.nullability, queryID: query.id)
             switch parameter.keyKind {
             case .named:
                 guard let name = parameter.keyName, !name.isEmpty,
@@ -238,7 +255,20 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
                     "result metadata must be contiguous and complete"
                 )
             }
+            try validateNullability(result.nullability, queryID: query.id)
             try validateCodec(result.codec, queryID: query.id)
+        }
+    }
+
+    private static func validateNullability(
+        _ nullability: String,
+        queryID: String
+    ) throws {
+        guard XLParameterNullability(rawValue: nullability) != nil else {
+            throw SQLiteBuildValidationManifestError.invalidQuery(
+                queryID,
+                "nullability '\(nullability)' is not a recognized XLParameterNullability raw value"
+            )
         }
     }
 
