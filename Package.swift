@@ -21,9 +21,17 @@ let package = Package(
             name: "SwiftQLSQLiteBuildValidationManifest",
             targets: ["SwiftQLSQLiteBuildValidationManifest"]
         ),
+        .library(
+            name: "SwiftQLSQLiteBuildValidationValidator",
+            targets: ["SwiftQLSQLiteBuildValidationValidator"]
+        ),
         .executable(
             name: "swiftql-benchmark",
             targets: ["SwiftQLBenchmarkCLI"]
+        ),
+        .executable(
+            name: "swiftql-build-validate",
+            targets: ["SwiftQLSQLiteBuildValidationValidatorCLI"]
         ),
     ],
     dependencies: [
@@ -122,6 +130,27 @@ let package = Package(
         .target(
             name: "SwiftQLSQLiteBuildValidationManifest",
             dependencies: ["SwiftQLCore"]
+        ),
+
+        // Standalone SQLite static-query build validator (#293). Consumes
+        // the #292 manifest and an explicit checked-in SQLite snapshot, owns
+        // one dedicated read-only/query-only connection per run, and
+        // prepares each manifest entry with sqlite3_prepare_v3. No prepared
+        // statement escapes this target: SQLitePrepareV3Probe returns copied
+        // Swift values only.
+        .target(
+            name: "SwiftQLSQLiteBuildValidationValidator",
+            dependencies: [
+                "SwiftQLCore",
+                "SwiftQLSQLiteBuildValidationManifest",
+                .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "CSQLite", package: "GRDB.swift"),
+            ]
+        ),
+
+        .executableTarget(
+            name: "SwiftQLSQLiteBuildValidationValidatorCLI",
+            dependencies: ["SwiftQLSQLiteBuildValidationValidator"]
         ),
 
         // Package-private research engine for issue #132. This deliberately
@@ -225,6 +254,20 @@ let package = Package(
                 "SwiftQLSQLiteConformanceFixtures",
                 "SwiftQLSQLiteCombinatorialSupport",
                 "SwiftQLNorthwindFixtures",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ]
+        ),
+
+        .testTarget(
+            name: "SwiftQLSQLiteBuildValidationValidatorTests",
+            dependencies: [
+                "SwiftQLCore",
+                "SwiftQL",
+                "SwiftQLSQLiteBuildValidationManifest",
+                "SwiftQLSQLiteBuildValidationValidator",
+                "SwiftQLNorthwindFixtures",
+                "SwiftQLSQLiteConformanceFixtures",
+                "SwiftQLSQLiteCombinatorialSupport",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
