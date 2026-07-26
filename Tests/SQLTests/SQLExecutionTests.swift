@@ -2203,8 +2203,11 @@ final class XLExecutionTests: XCTestCase {
         // SQLScalarResult<Data> array without incident). XCTAssertTrue's
         // fixed Bool signature needs no such reabstraction.
         let rows = try database.makeRequest(with: statement).fetchAll()
-        XCTAssertTrue(rows.count == 1)
-        XCTAssertTrue(rows[0].scalarValue == 42)
+        guard let onlyRow = rows.first, rows.count == 1 else {
+            XCTFail("Expected exactly one row, got \(rows.count)")
+            return
+        }
+        XCTAssertTrue(onlyRow.scalarValue == 42)
     }
 
 
