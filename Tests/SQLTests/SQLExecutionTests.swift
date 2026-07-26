@@ -24,6 +24,17 @@ struct ColumnsResultShadowingProjection: Equatable {
 }
 
 
+/// Issue #162: both columns must decode as a single-layer `Int?`, never
+/// `Int??`, regardless of whether NULL originates from an aggregate over a
+/// NULL-valued row or from a non-aggregate subquery matching zero rows.
+@SQLResult
+struct C162SubqueryFlattenRow: Equatable {
+    let id: String
+    let sumOfMatches: Int?
+    let firstValue: Int?
+}
+
+
 @SQLTable(name: "BetweenInput")
 struct BetweenInput: Equatable, Identifiable {
     let id: String
@@ -2065,10 +2076,91 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(finalResult[0]["id"], "69420")
         XCTAssertEqual(finalResult[0]["date"], "2030-01-01T00:00:00.001")
     }
-    
-    
+
+
+    // MARK: - Optional scalar subquery flattening (#162)
+
+    /// Exercises both origins of a NULL scalar-subquery result against real
+    /// SQLite: an aggregate over a row whose value is NULL, and a
+    /// non-aggregate subquery that matches zero rows. Both must decode as a
+    /// single-layer `Int?` alongside the ordinary non-NULL case, with no
+    /// `XLTypeAffinityExpression` wrapper.
+    func testScalarSubqueryFlattensOptionalResultAcrossNullOrigins() throws {
+        // Temp drives the outer iteration; TestTable is a correlated
+        // aggregate source (non-nullable, so an empty group surfaces NULL
+        // only via SUM's SQL semantics); TestNullablesTable is a correlated
+        // non-aggregate source whose stored value can itself be NULL.
+        try database.makeRequest(with: sqlCreate(Temp.self)).execute()
+        try createTestTable()
+        try database.makeRequest(with: sqlCreate(TestNullablesTable.self)).execute()
+
+        for id in ["hasValue", "allNullDetail", "noDetailRows"] {
+            try database.makeRequest(
+                with: sqlInsert(Temp(id: id, value: ""))
+            ).execute()
+        }
+        // No TestTable row for "allNullDetail" or "noDetailRows": their
+        // correlated SUM aggregates a zero-row group ("a row containing
+        // NULL", produced by SQL aggregate semantics rather than a stored
+        // NULL).
+        try insertTest(TestTable(id: "hasValue", value: 42))
+
+        try database.makeRequest(
+            with: sqlInsert(TestNullablesTable(id: "hasValue", value: 42))
+        ).execute()
+        // A stored NULL ("a row containing NULL", from data this time).
+        try database.makeRequest(
+            with: sqlInsert(TestNullablesTable(id: "allNullDetail", value: nil))
+        ).execute()
+        // No TestNullablesTable row at all for "noDetailRows" ("no row").
+
+        let statement = sql { schema in
+            let driver = schema.table(Temp.self)
+            // Correlated subqueries must capture the outer `schema`
+            // directly (continuing its alias numbering) rather than take a
+            // fresh `(schema: XLSchema) in` parameter, which opens a new
+            // namespace restarting at `t0` and would shadow `driver`'s own
+            // alias instead of correlating against it.
+            let sumExpression: any XLExpression<Int?> = subqueryExpression {
+                let t = schema.table(TestTable.self)
+                Select(t.value.sumOrNull())
+                From(t)
+                Where(t.id == driver.id)
+            }
+            let firstValueExpression: any XLExpression<Int?> = subqueryExpression {
+                let d = schema.table(TestNullablesTable.self)
+                Select(d.value)
+                From(d)
+                Where(d.id == driver.id)
+            }
+            Select(C162SubqueryFlattenRow.columns(
+                id: driver.id,
+                sumOfMatches: sumExpression,
+                firstValue: firstValueExpression
+            ))
+            From(driver)
+            OrderBy(driver.id.ascending())
+        }
+        let results = try database.makeRequest(with: statement).fetchAll()
+
+        XCTAssertEqual(
+            results,
+            [
+                // Both fields NULL: sum over an empty TestTable group, and a
+                // TestNullablesTable row whose stored value is NULL.
+                C162SubqueryFlattenRow(id: "allNullDetail", sumOfMatches: nil, firstValue: nil),
+                // Both fields resolve to a real value.
+                C162SubqueryFlattenRow(id: "hasValue", sumOfMatches: 42, firstValue: 42),
+                // Both fields NULL: sum over an empty TestTable group again,
+                // and zero TestNullablesTable rows at all ("no row").
+                C162SubqueryFlattenRow(id: "noDetailRows", sumOfMatches: nil, firstValue: nil),
+            ]
+        )
+    }
+
+
     // MARK: - Helpers
-    
+
     private func createTestTable() throws {
         let createStatement = sqlCreate(TestTable.self)
         try database.makeRequest(with: createStatement).execute()
