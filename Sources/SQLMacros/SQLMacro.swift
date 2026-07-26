@@ -158,5 +158,6 @@ extension SQLResultMacro: ExtensionMacro {
         SQLQueryMacro.self,
         SQLQueriesMacro.self,
         SQLFunctionMacro.self,
+        SQLRowMacro.self,
     ]
 }

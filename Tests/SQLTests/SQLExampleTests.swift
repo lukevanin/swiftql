@@ -811,6 +811,37 @@ final class XLDocumentationTests: XCTestCase {
         ])
     }
 
+    func testExample_RowMacro() throws {
+        let statement = sql { schema in
+            let person = schema.table(Person.self)
+            let occupation = schema.nullableTable(Occupation.self)
+            Select(#row(person.name, occupation.name))
+            From(person)
+            Join.Left(occupation, on: occupation.id == person.occupationId)
+        }
+        let sql = encoder.makeSQL(statement).sql
+        XCTAssertEqual(sql, "SELECT t0.name AS _0, t1.name AS _1 FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId)")
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows.map { $0._0 }, ["John Doe", "Jane Doe", "Yogi Bear"])
+        XCTAssertEqual(rows.map { $0._1 }, ["Engineer", "Scientist", nil])
+    }
+
+    func testExample_RowMacro_ReferencedInWhereClause() throws {
+        let statement = sql { schema in
+            let person = schema.table(Person.self)
+            let occupation = schema.nullableTable(Occupation.self)
+            let row = #row(person.name, occupation.name)
+            Select(row)
+            From(person)
+            Join.Left(occupation, on: occupation.id == person.occupationId)
+            Where(row._0 != "Fred")
+        }
+        let sql = encoder.makeSQL(statement).sql
+        XCTAssertEqual(sql, "SELECT t0.name AS _0, t1.name AS _1 FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId) WHERE (_0 != 'Fred')")
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows.map { $0._0 }, ["John Doe", "Jane Doe", "Yogi Bear"])
+    }
+
     func testExample_LeftJoin_Functional_NullRows() throws {
         let statement = sqlQuery { schema in
             let person = schema.table(Person.self)
@@ -2167,6 +2198,8 @@ extension XLDocumentationTests {
 
     func testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs() throws {
         try testExample_LeftJoin_Statement_NullRows()
+        try testExample_RowMacro()
+        try testExample_RowMacro_ReferencedInWhereClause()
         try testExample_Subquery()
 
         let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testGroupConcatVariants

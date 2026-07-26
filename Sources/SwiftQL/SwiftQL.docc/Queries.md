@@ -168,6 +168,46 @@ let query = sql { schema in
 > Tip: Use `Join.Cross` or `Join.Inner` to perform a cross or inner 
 join respectively.
 
+### Ad hoc rows with `#row`
+
+Declaring a `@SQLResult` type is the right choice when a projection is reused
+or its columns deserve real names. For a quick, one-off projection that is
+used in a single query, the `#row(...)` macro builds the same kind of column
+set without declaring a type first:
+
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
+```swift
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    let occupation = schema.nullableTable(Occupation.self)
+    Select(#row(person.name, occupation.name))
+    From(person)
+    Join.Left(occupation, on: occupation.id == person.occupationId)
+}
+```
+
+`#row` accepts between one and six column expressions. A single column
+decodes into ``SQLScalarResult``; two to six columns decode into the matching
+`SQLRow2`...`SQLRow6` type, whose fields are named positionally (`_0`, `_1`,
+...) since the columns have no caller-chosen name:
+
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
+```swift
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    let occupation = schema.nullableTable(Occupation.self)
+    let row = #row(person.name, occupation.name)
+    Select(row)
+    From(person)
+    Join.Left(occupation, on: occupation.id == person.occupationId)
+    Where(row._0 != "Fred")
+}
+```
+
+> Tip: Reach for a named `@SQLResult` type once a projection's columns need
+> descriptive names, or once the projection is reused across more than one
+> query.
+
 ## Group By
 
 Use the group by clause to return aggregate results, or results where a single
