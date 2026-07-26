@@ -1130,7 +1130,13 @@ final class XLPublisherTests: XCTestCase {
         let initialExpectation = expectation(description: "initial rows")
         let updateExpectation = expectation(description: "updated rows")
         observer.$rows
-            .dropFirst() // skip the @Published wrapper's initial [] before subscription delivers.
+            // No dropFirst(): the observer starts observing in its own
+            // initializer, above, so the real first fetch may already have
+            // delivered by the time this test subscribes to $rows — an
+            // ordinal drop could discard the only matching value. Matching
+            // on content instead of position is robust either way, since
+            // the @Published wrapper's initial [] default matches neither
+            // condition below.
             .sink { rows in
                 if rows == [TestTable(id: "bar", value: 42)] {
                     initialExpectation.fulfill()
@@ -1157,7 +1163,10 @@ final class XLPublisherTests: XCTestCase {
 
         let updateExpectation = expectation(description: "first row")
         observer.$row
-            .dropFirst()
+            // See the parallel comment in
+            // testQueryObserverRepublishesRowsAndObservesDirectWrites: no
+            // dropFirst(), since an ordinal drop could discard the real
+            // first value depending on timing.
             .sink { row in
                 if row == TestTable(id: "first", value: 1) {
                     updateExpectation.fulfill()
