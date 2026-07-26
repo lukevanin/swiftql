@@ -17,6 +17,10 @@ let package = Package(
             name: "SwiftQL",
             targets: ["SwiftQL"]
         ),
+        .library(
+            name: "SwiftQLSQLiteBuildValidationManifest",
+            targets: ["SwiftQLSQLiteBuildValidationManifest"]
+        ),
         .executable(
             name: "swiftql-benchmark",
             targets: ["SwiftQLBenchmarkCLI"]
@@ -110,6 +114,16 @@ let package = Package(
             path: "Benchmarks/Sources/SwiftQLBenchmarkCLI"
         ),
 
+        // Versioned, deterministic sidecar manifest for static SwiftQL query
+        // descriptors (#292). No SQLite I/O, no macro/plugin logic. #190/#191/
+        // #254 reference resolution is injected via
+        // SQLiteBuildValidationReferenceRegistry rather than depending on
+        // their test-only targets.
+        .target(
+            name: "SwiftQLSQLiteBuildValidationManifest",
+            dependencies: ["SwiftQLCore"]
+        ),
+
         // Package-private research engine for issue #132. This deliberately
         // remains outside the package's public products while the descriptor
         // sidecar and build lifecycle are being evaluated.
@@ -200,6 +214,19 @@ let package = Package(
             name: "SwiftQLBenchmarkTests",
             dependencies: ["SwiftQLBenchmarks"],
             path: "Benchmarks/Tests/SwiftQLBenchmarkTests"
+        ),
+
+        .testTarget(
+            name: "SwiftQLSQLiteBuildValidationManifestTests",
+            dependencies: [
+                "SwiftQLCore",
+                "SwiftQL",
+                "SwiftQLSQLiteBuildValidationManifest",
+                "SwiftQLSQLiteConformanceFixtures",
+                "SwiftQLSQLiteCombinatorialSupport",
+                "SwiftQLNorthwindFixtures",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ]
         ),
 
         .testTarget(

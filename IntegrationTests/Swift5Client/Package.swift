@@ -14,6 +14,7 @@ let package = Package(
             dependencies: [
                 .product(name: "SwiftQLCore", package: "SwiftQL"),
                 .product(name: "SwiftQL", package: "SwiftQL"),
+                .product(name: "SwiftQLSQLiteBuildValidationManifest", package: "SwiftQL"),
             ]
         ),
     ],

@@ -1,6 +1,7 @@
 import Foundation
 import SwiftQL
 import SwiftQLCore
+import SwiftQLSQLiteBuildValidationManifest
 
 #if compiler(<6.0)
 #error("The downstream compatibility fixture must use the supported Swift 6 compiler.")
@@ -350,10 +351,94 @@ private func executeFixture(
     return try request.fetchOne()
 }
 
+private func validateBuildValidationManifestFixture() throws {
+    let statement = XLStaticStatementDefinition(
+        sql: "SELECT :id AS id",
+        dialectRequirement: XLDialectRequirement(
+            identity: XLSQLiteDialect.identity,
+            capabilities: [.namedBindings]
+        ),
+        parameterLayout: try XLParameterLayout(slots: [
+            XLParameterSlot(
+                index: XLLogicalParameterIndex(0),
+                key: .named("id"),
+                valueTypeIdentifier: XLValueTypeIdentifier(rawValue: "swift.string"),
+                valueTypeName: "Swift.String",
+                nullability: .required,
+                codecIdentity: nil,
+                codingContext: XLValueCodingContext(
+                    site: .parameter,
+                    path: XLValueCodingPath(["parameter", "id"])
+                )
+            )
+        ])
+    )
+    let descriptor = try XLStaticQueryDescriptor(
+        definitionIdentity: XLQueryDefinitionIdentity(
+            path: ["downstream", "manifest-fixture"],
+            version: 1
+        ),
+        statement: statement,
+        parameters: [
+            XLStaticQueryParameterMetadata(
+                identity: try XLQuerySlotIdentity(path: ["parameter", "id"]),
+                slot: statement.parameterLayout.slot(
+                    at: XLLogicalParameterIndex(0)
+                )!,
+                storageIdentifier: XLValueStorageIdentifier(rawValue: "text")
+            )
+        ],
+        results: try XLStaticQueryResultMetadata(slots: [
+            XLStaticQueryResultSlot(
+                index: XLLogicalResultIndex(0),
+                identity: try XLQuerySlotIdentity(path: ["result", "id"]),
+                valueTypeIdentifier: XLValueTypeIdentifier(rawValue: "swift.string"),
+                valueTypeName: "Swift.String",
+                nullability: .required,
+                codecIdentity: nil,
+                storageIdentifier: XLValueStorageIdentifier(rawValue: "text"),
+                codingContext: XLValueCodingContext(
+                    site: .result,
+                    path: XLValueCodingPath(["result", "id"])
+                )
+            )
+        ]),
+        cardinality: .exactlyOne
+    )
+
+    let query = try SQLiteBuildValidationQueryEntry(
+        id: "downstream.manifest-fixture",
+        descriptor: descriptor,
+        declaredAliases: ["id"]
+    )
+    let manifest = SQLiteBuildValidationManifest(
+        conformanceInventoryVersion: "downstream-fixture",
+        combinatorialManifestVersion: "downstream-fixture",
+        schemaSnapshot: SQLiteBuildValidationSchemaSnapshot(
+            identifier: "downstream-fixture",
+            databaseSHA256: String(repeating: "a", count: 64),
+            databaseByteCount: 1,
+            schemaRowCount: 1,
+            schemaFingerprint: String(repeating: "b", count: 16)
+        ),
+        queries: [query]
+    )
+
+    let validated = try manifest.validating()
+    let data = try validated.canonicalJSONData()
+    let roundTripped = try SQLiteBuildValidationManifest.decode(data)
+    guard roundTripped == validated,
+          try roundTripped.canonicalJSONData() == data
+    else {
+        throw FixtureError.invalidCoreContract
+    }
+}
+
 private func runFixture() throws {
     try validateLiteralReaderCompatibility()
     try validateRowReaderCompatibility()
     try validateSeparatorCompatibility()
+    try validateBuildValidationManifestFixture()
     let codingConfiguration = try validateCoreContractProduct()
 
     let directory = FileManager.default.temporaryDirectory
