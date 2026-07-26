@@ -11,26 +11,25 @@ import Foundation
 ///
 /// Returns the minimum value from a list of expressions.
 ///
+/// Takes at least two expressions: SQLite's scalar `MIN` is meaningless with
+/// fewer, and a single argument would otherwise parse as the aggregate
+/// `MIN(expr)` instead — enforced in the signature rather than at runtime, so
+/// misuse fails to compile instead of trapping.
 @available(*, deprecated, message: "Use a.min(b, ...) instead. min(_:) will be removed in SwiftQL 2.")
-public func min<T>(_ values: any XLExpression<T>...) -> some XLExpression<T> where T: XLComparable & XLLiteral {
-    precondition(
-        values.count >= 2,
-        "min(_:) requires at least two expressions. SQLite's scalar MIN is meaningless with fewer — a single argument parses as the aggregate MIN(expr) instead."
-    )
-    return XLFunction(name: "MIN", parameters: values)
+public func min<T>(_ first: any XLExpression<T>, _ second: any XLExpression<T>, _ rest: any XLExpression<T>...) -> some XLExpression<T> where T: XLComparable & XLLiteral {
+    XLFunction(name: "MIN", parameters: [first, second] + rest)
 }
 
 
-///
 /// Returns the maximum value from a list of expressions.
 ///
+/// Takes at least two expressions: SQLite's scalar `MAX` is meaningless with
+/// fewer, and a single argument would otherwise parse as the aggregate
+/// `MAX(expr)` instead — enforced in the signature rather than at runtime, so
+/// misuse fails to compile instead of trapping.
 @available(*, deprecated, message: "Use a.max(b, ...) instead. max(_:) will be removed in SwiftQL 2.")
-public func max<T>(_ values: any XLExpression<T>...) -> some XLExpression<T> where T: XLComparable & XLLiteral {
-    precondition(
-        values.count >= 2,
-        "max(_:) requires at least two expressions. SQLite's scalar MAX is meaningless with fewer — a single argument parses as the aggregate MAX(expr) instead."
-    )
-    return XLFunction(name: "MAX", parameters: values)
+public func max<T>(_ first: any XLExpression<T>, _ second: any XLExpression<T>, _ rest: any XLExpression<T>...) -> some XLExpression<T> where T: XLComparable & XLLiteral {
+    XLFunction(name: "MAX", parameters: [first, second] + rest)
 }
 
 
