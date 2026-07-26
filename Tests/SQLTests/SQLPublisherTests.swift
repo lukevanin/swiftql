@@ -1119,6 +1119,57 @@ final class XLPublisherTests: XCTestCase {
         wait(for: [updateExpectation], timeout: 2)
     }
 
+    // MARK: - SwiftUI observers (#28)
+
+    func testQueryObserverRepublishesRowsAndObservesDirectWrites() throws {
+        try createTestTable()
+        try insertTest.execute(TestTable(id: "bar", value: 42))
+
+        let observer = XLQueryObserver(database.makeRequest(with: orderedStatement()))
+
+        let initialExpectation = expectation(description: "initial rows")
+        let updateExpectation = expectation(description: "updated rows")
+        observer.$rows
+            .dropFirst() // skip the @Published wrapper's initial [] before subscription delivers.
+            .sink { rows in
+                if rows == [TestTable(id: "bar", value: 42)] {
+                    initialExpectation.fulfill()
+                }
+                else if rows == [
+                    TestTable(id: "bar", value: 42),
+                    TestTable(id: "foo", value: 9000),
+                ] {
+                    updateExpectation.fulfill()
+                }
+            }
+            .store(in: &cancellables)
+
+        wait(for: [initialExpectation], timeout: 2)
+        try insertDirect(TestTable(id: "foo", value: 9000))
+        wait(for: [updateExpectation], timeout: 2)
+        XCTAssertNil(observer.error)
+    }
+
+    func testQueryRowObserverRepublishesRowAndObservesDirectWrites() throws {
+        try createTestTable()
+
+        let observer = XLQueryRowObserver(database.makeRequest(with: orderedStatement()))
+
+        let updateExpectation = expectation(description: "first row")
+        observer.$row
+            .dropFirst()
+            .sink { row in
+                if row == TestTable(id: "first", value: 1) {
+                    updateExpectation.fulfill()
+                }
+            }
+            .store(in: &cancellables)
+
+        try insertDirect(TestTable(id: "first", value: 1))
+        wait(for: [updateExpectation], timeout: 2)
+        XCTAssertNil(observer.error)
+    }
+
     // MARK: - Helpers
 
     private func orderedStatement() -> any XLQueryStatement<TestTable> {
