@@ -276,6 +276,7 @@ public struct Setting<Row>: XLEncodable {
     /// `table` is the same reference passed to the enclosing `Update(_:)`,
     /// though callers typically pass the same one.
     public init<T>(_ table: T, _ values: (inout Row.MetaUpdate) -> Void) where T: XLMetaWritableTable, T.Row == Row, Row: XLTable {
+        _ = table // Only a type witness for inferring Row; never read.
         var meta = Row.MetaUpdate()
         values(&meta)
         self.values = meta
