@@ -13,7 +13,11 @@ import Foundation
 ///
 @available(*, deprecated, message: "Use a.min(b, ...) instead. min(_:) will be removed in SwiftQL 2.")
 public func min<T>(_ values: any XLExpression<T>...) -> some XLExpression<T> where T: XLComparable & XLLiteral {
-    XLFunction(name: "MIN", parameters: values)
+    precondition(
+        values.count >= 2,
+        "min(_:) requires at least two expressions. SQLite's scalar MIN is meaningless with fewer — a single argument parses as the aggregate MIN(expr) instead."
+    )
+    return XLFunction(name: "MIN", parameters: values)
 }
 
 
@@ -22,7 +26,11 @@ public func min<T>(_ values: any XLExpression<T>...) -> some XLExpression<T> whe
 ///
 @available(*, deprecated, message: "Use a.max(b, ...) instead. max(_:) will be removed in SwiftQL 2.")
 public func max<T>(_ values: any XLExpression<T>...) -> some XLExpression<T> where T: XLComparable & XLLiteral {
-    XLFunction(name: "MAX", parameters: values)
+    precondition(
+        values.count >= 2,
+        "max(_:) requires at least two expressions. SQLite's scalar MAX is meaningless with fewer — a single argument parses as the aggregate MAX(expr) instead."
+    )
+    return XLFunction(name: "MAX", parameters: values)
 }
 
 
