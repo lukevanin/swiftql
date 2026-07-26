@@ -415,7 +415,9 @@ Three atomic v1.5 follow-ups are recommended:
    manifest and snapshot, own a read-only connection, call
    `sqlite3_prepare_v3`, produce stable fail-closed diagnostics, and validate a
    real downstream fixture. No plugin, macro, DDL, migrations, or statement
-   persistence.
+   persistence. Delivered as `SwiftQLSQLiteBuildValidationValidator` and the
+   `swiftql-build-validate` CLI; see
+   [SQLiteBuildValidationValidator.md](SQLiteBuildValidationValidator.md).
 3. [**#294: Add a SwiftPM build-tool plugin wrapper for SQLite query
    validation.**](https://github.com/lukevanin/swiftql/issues/294) Use declared
    inputs/outputs and invoke the standalone tool. No validation logic, schema

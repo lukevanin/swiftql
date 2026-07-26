@@ -1,7 +1,9 @@
 import Foundation
+import GRDB
 import SwiftQL
 import SwiftQLCore
 import SwiftQLSQLiteBuildValidationManifest
+import SwiftQLSQLiteBuildValidationValidator
 
 #if compiler(<6.0)
 #error("The downstream compatibility fixture must use the supported Swift 6 compiler.")
@@ -437,11 +439,82 @@ private func validateBuildValidationManifestFixture() throws {
     }
 }
 
+private func validateBuildValidationValidatorFixture() throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("swiftql-build-validator-fixture-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(
+        at: directory,
+        withIntermediateDirectories: false
+    )
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let databaseURL = directory.appendingPathComponent("fixture.sqlite")
+
+    let writeQueue = try DatabaseQueue(path: databaseURL.path)
+    try writeQueue.write { database in
+        try database.execute(sql: "CREATE TABLE t (id INTEGER)")
+    }
+    try writeQueue.close()
+
+    let databaseData = try Data(contentsOf: databaseURL, options: .mappedIfSafe)
+    let databaseSHA256 = SQLiteBuildValidationSHA256.hexDigest(of: databaseData)
+
+    var readConfiguration = Configuration()
+    readConfiguration.readonly = true
+    let readQueue = try DatabaseQueue(path: databaseURL.path, configuration: readConfiguration)
+    let runtimeMetadata = try readQueue.read { database in
+        try SQLiteBuildValidationRuntime.capture(from: database)
+    }
+    try readQueue.close()
+
+    let manifest = SQLiteBuildValidationManifest(
+        conformanceInventoryVersion: "downstream-fixture",
+        combinatorialManifestVersion: "downstream-fixture",
+        schemaSnapshot: SQLiteBuildValidationSchemaSnapshot(
+            identifier: "downstream-fixture",
+            databaseSHA256: databaseSHA256,
+            databaseByteCount: databaseData.count,
+            schemaRowCount: runtimeMetadata.schemaRowCount,
+            schemaFingerprint: runtimeMetadata.schemaFNV1A64
+        ),
+        queries: [
+            SQLiteBuildValidationQueryEntry(
+                id: "downstream.validator-fixture",
+                definitionIdentity: "downstream/validator-fixture@1",
+                descriptorIdentity: "swiftql-query-v1-downstream-validator-fixture",
+                sql: "SELECT 1 AS value",
+                dialectIdentifier: XLSQLiteDialect.identity.rawValue,
+                cardinality: XLQueryCardinality.exactlyOne.rawValue,
+                results: [
+                    SQLiteBuildValidationResultEntry(
+                        index: 0,
+                        identity: "result/value",
+                        declaredAlias: "value",
+                        valueTypeIdentifier: "swift.int",
+                        valueTypeName: "Swift.Int",
+                        nullability: "required",
+                        codec: nil,
+                        storageIdentifier: "integer"
+                    ),
+                ]
+            ),
+        ]
+    )
+
+    let report = try SQLiteBuildValidator.validate(
+        manifest: manifest,
+        againstDatabaseAt: databaseURL
+    )
+    guard report.overallVerdict == .passed, report.diagnostics.isEmpty else {
+        throw FixtureError.invalidCoreContract
+    }
+}
+
 private func runFixture() throws {
     try validateLiteralReaderCompatibility()
     try validateRowReaderCompatibility()
     try validateSeparatorCompatibility()
     try validateBuildValidationManifestFixture()
+    try validateBuildValidationValidatorFixture()
     let codingConfiguration = try validateCoreContractProduct()
 
     let directory = FileManager.default.temporaryDirectory
