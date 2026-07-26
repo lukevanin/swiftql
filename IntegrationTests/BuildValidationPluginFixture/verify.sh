@@ -19,7 +19,9 @@ set -eu
 cd "$(dirname "$0")"
 
 MANIFEST="Sources/ValidatedLibrary/swiftql-build-validation-manifest.json"
-VALID_MANIFEST_BACKUP=$(mktemp)
+# Explicit template so this works identically across BSD (macOS) and GNU
+# mktemp implementations, which differ on bare invocations.
+VALID_MANIFEST_BACKUP=$(mktemp "${TMPDIR:-/tmp}/swiftql-plugin-verify.XXXXXX")
 cp "$MANIFEST" "$VALID_MANIFEST_BACKUP"
 trap 'cp "$VALID_MANIFEST_BACKUP" "$MANIFEST"; rm -f "$VALID_MANIFEST_BACKUP"' EXIT
 
