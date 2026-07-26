@@ -115,11 +115,15 @@ let sameMatches = try database.execute { context in
 
 `execute(_:)` and the generated `Context` type let you run more than one
 declared query in the same scope without repeating a database lookup per
-call. This scope does not by itself pin one physical connection --
-`context`'s executors still check out their own connection from the pool per
-call, the same as calling `database.personByName(name:)` directly. A scope
-that pins every operation to one connection, with atomic commit/rollback, is
-a separate capability (issue #284).
+call. Since issue #284, `execute(_:)` is sugar over the adapter-neutral typed
+transaction scope described in <doc:GettingStarted>'s "Typed multi-statement
+transaction scopes": it commits only after the whole closure returns and
+rolls back everything the closure did on any failure, so
+`context.database.makeRequest(with:)` calls interleaved with declared-query
+calls in the same closure commit or roll back together. `Context.database` is
+the pinned scope, not the original database — pass it to `makeRequest(with:)`
+for any operation the closure needs beyond the container's own declared
+queries.
 
 ## Render-once caching
 

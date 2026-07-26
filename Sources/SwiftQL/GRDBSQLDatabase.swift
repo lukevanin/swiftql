@@ -446,18 +446,26 @@ struct GRDBRequest<Row>: XLRequest {
     }
     
     private func publisher<T>(fetch: @escaping (Database) throws -> T) -> AnyPublisher<T, Error> {
+        // A transaction-scoped driver (issue #284) has no pool to track: its
+        // connection is invalidated the instant the `withTransaction(_:)`
+        // body returns, so there is nothing a `ValueObservation` could keep
+        // observing. Fail predictably instead of crashing on a `nil` pool.
+        guard let databasePool = executor.driver.databasePool else {
+            return Fail(error: XLTransactionScopeError.liveQueriesUnsupportedInTransaction)
+                .eraseToAnyPublisher()
+        }
         let makeSource = {
 #if canImport(Combine)
             ValueObservation
                 .tracking(fetch)
-                .publisher(in: executor.driver.databasePool)
+                .publisher(in: databasePool)
                 .eraseToAnyPublisher()
 #else
             GRDBOpenCombineValuePublisher { onError, onChange in
                 ValueObservation
                     .tracking(fetch)
                     .start(
-                        in: executor.driver.databasePool,
+                        in: databasePool,
                         onError: onError,
                         onChange: onChange
                     )
@@ -944,6 +952,23 @@ public struct GRDBDatabase: XLDatabase {
         self.liveQueryRetryScheduler = liveQueryRetryScheduler
     }
 
+    /// Constructs a transaction-scoped copy of this database (issue #284),
+    /// pinned to `pinnedDriver`'s connection. Every other field is copied
+    /// unchanged, so a pinned scope renders through the same encoder,
+    /// dialect, coding snapshot, logger, and live-query retry policy as the
+    /// database ``withTransaction(_:)`` was called on.
+    private init(pinnedDriver: GRDBDatabaseDriver, pinnedFrom other: GRDBDatabase) {
+        self.dialect = other.dialect
+        self.encoder = other.encoder
+        self.codingConfiguration = other.codingConfiguration
+        self.databasePool = other.databasePool
+        self.driverIdentifier = other.driverIdentifier
+        self.driver = pinnedDriver
+        self.logger = other.logger
+        self.liveQueryRetryPolicy = other.liveQueryRetryPolicy
+        self.liveQueryRetryScheduler = other.liveQueryRetryScheduler
+    }
+
     /// Scopes render-once cache entries (issues #18/#26) to this database and
     /// dialect. Rendering depends only on the dialect; the database identifier
     /// keeps a per-declaration `static` cache from binding one database's
@@ -1211,5 +1236,63 @@ public struct GRDBDatabase: XLDatabase {
             entities: encoding.entities,
             parameterLayout: encoding.parameterLayout
         )
+    }
+}
+
+
+extension GRDBDatabase: XLTransactionalDatabase {
+
+    /// Runs `body` against one pinned `DatabasePool` connection inside one
+    /// real GRDB transaction (issue #284): `databasePool.write(_:)` opens the
+    /// transaction, hands `body` a `GRDBDatabase` pinned to that connection,
+    /// commits when `body` returns normally, and rolls back — preserving the
+    /// original error — when `body` throws. See ``XLTransactionalDatabase``
+    /// for the full ordering, atomicity, and lifetime contract.
+    ///
+    /// Rejects two cases before any transaction work happens:
+    /// - calling `withTransaction(_:)` again from inside an already-active
+    ///   body on this database throws
+    ///   ``XLTransactionScopeError/nestedTransactionUnsupported`` without
+    ///   touching the pool;
+    /// - a task that is already cancelled when this is called throws
+    ///   `CancellationError` before opening the transaction. The body itself
+    ///   runs synchronously to completion once started, so there is no later
+    ///   cooperative cancellation point.
+    public func withTransaction<Result>(
+        _ body: (GRDBDatabase) throws -> Result
+    ) throws -> Result {
+        // Rejects reentry on the pinned scope itself (fast, value-level,
+        // thread-independent) and reentry through the original, unpinned
+        // database captured from inside an active body (thread-scoped; see
+        // `GRDBTransactionScopeTracker`). Both checks run before touching
+        // `databasePool.write`, because GRDB's own reentrant-write guard is
+        // an uncatchable `fatalError`.
+        guard !driver.isPinned else {
+            throw XLTransactionScopeError.nestedTransactionUnsupported
+        }
+        guard !GRDBTransactionScopeTracker.shared.isActive(driver.databaseIdentifier) else {
+            throw XLTransactionScopeError.nestedTransactionUnsupported
+        }
+        if Task.isCancelled {
+            throw CancellationError()
+        }
+        // `withActive` must be entered *inside* `databasePool.write`'s
+        // closure, not around it: GRDB runs that closure on its own writer
+        // thread, not necessarily the caller's thread, and the tracker marks
+        // a thread active via `Thread.current.threadDictionary`. A reentrant
+        // call from inside `body` runs on this same writer thread (it is
+        // still on the same call stack), so marking active here is what
+        // `preconditionNotRootReentrant()` actually observes.
+        return try databasePool.write { database in
+            try GRDBTransactionScopeTracker.shared.withActive(driver.databaseIdentifier) {
+                let box = GRDBPinnedConnectionBox(database)
+                defer { box.invalidate() }
+                let scope = GRDBDatabase(
+                    pinnedDriver: driver.pinned(to: box),
+                    pinnedFrom: self
+                )
+                return try body(scope)
+            }
+        }
     }
 }

@@ -28,9 +28,11 @@ import SwiftSyntaxMacros
 ///
 /// Generated members:
 ///   * `struct Context` — connection-scoped executors; one per specification.
-///   * `execute(_:)` — runs a closure against a context. The current
-///     implementation binds the context directly to the database; connection
-///     pooling and transaction scoping remain future runtime-design work.
+///   * `execute(_:)` — runs a closure against a context pinned to one
+///     transaction (issue #284's `XLTransactionalDatabase.withTransaction(_:)`):
+///     every declared-query call and `context.database.makeRequest(with:)`
+///     call inside the closure runs on one pinned connection, committing
+///     together on success and rolling back together on any failure.
 ///   * One database-level convenience executor per specification, defined as
 ///     sugar over `execute`, so the implicit form is transparently the
 ///     explicit one.
@@ -154,14 +156,22 @@ extension SQLQueriesMacro: MemberMacro {
     }
 
     ///
-    /// Generates the `execute` entry point. The current implementation binds
-    /// the context straight to the database; connection checkout and
-    /// transaction scoping are runtime design left for future work.
+    /// Generates the `execute` entry point. `execute(_:)` runs `__xlWork`
+    /// inside a real transaction (issue #284) by delegating to
+    /// `withTransaction(_:)` (``XLTransactionalDatabase``): the extended
+    /// database type must conform to `XLTransactionalDatabase` for the
+    /// generated code to compile, exactly as it must already conform to
+    /// `XLDatabase` for `makeRequest(with:)`. `Context` binds to the pinned
+    /// scope `withTransaction(_:)` hands back, so every generated executor
+    /// the closure calls — and any `execute` calls it makes on the outer
+    /// database convenience form — commits or rolls back together.
     ///
     private static func makeExecuteFunction(modifierPrefix: String) -> String {
         var lines: [String] = []
         lines.append("\(modifierPrefix)func execute<__XLResult>(_ __xlWork: (Context) throws -> __XLResult) throws -> __XLResult {")
-        lines.append("    try __xlWork(Context(database: self))")
+        lines.append("    try withTransaction { __xlScope in")
+        lines.append("        try __xlWork(Context(database: __xlScope))")
+        lines.append("    }")
         lines.append("}")
         return lines.joined(separator: "\n")
     }

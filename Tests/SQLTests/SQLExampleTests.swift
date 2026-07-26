@@ -1202,6 +1202,18 @@ extension XLDocumentationTests {
         let workingAgeRequest = database.makeRequest(with: workingAgeQuery)
         XCTAssertEqual(try workingAgeRequest.fetchAll().count, 3)
 
+        let (workingAgeCount, insertedID) = try database.withTransaction { scope in
+            let newHire = Person(id: "txn-scope-a", occupationId: nil, name: "Grace", age: 29)
+            try scope.makeRequest(with: sqlInsert(newHire)).execute()
+            let promoted = Person(id: "txn-scope-b", occupationId: nil, name: "Harold", age: 45)
+            try scope.makeRequest(with: sqlInsert(promoted)).execute()
+            let matches = try scope.makeRequest(with: workingAgeQuery).fetchAll()
+            return (matches.count, newHire.id)
+        }
+        XCTAssertEqual(workingAgeCount, 5)
+        XCTAssertEqual(insertedID, "txn-scope-a")
+        XCTAssertEqual(try workingAgeRequest.fetchAll().count, 5)
+
         let nameParameter = XLNamedBindingReference<String>(name: "name")
         let peopleByNameQuery = sql { schema in
             let person = schema.table(Person.self)
