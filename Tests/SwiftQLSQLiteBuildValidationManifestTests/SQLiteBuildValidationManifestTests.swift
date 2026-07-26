@@ -128,6 +128,26 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
         }
     }
 
+    func testDescriptorProjectionRejectsIndexedParameterAbsentFromSQL() throws {
+        let descriptor = try Support.mixedBindingDescriptor(
+            codec: Support.descriptorCodec(),
+            sql: "SELECT 1 AS indexed_value, :token AS token"
+        )
+        XCTAssertThrowsError(
+            try SQLiteBuildValidationQueryEntry(
+                id: "projection.missing-indexed-parameter",
+                descriptor: descriptor
+            )
+        ) { error in
+            guard case .invalidQuery(let queryID, let reason) =
+                    error as? SQLiteBuildValidationManifestError else {
+                return XCTFail("Expected invalid query, received \(error)")
+            }
+            XCTAssertEqual(queryID, "projection.missing-indexed-parameter")
+            XCTAssertTrue(reason.contains("?5"))
+        }
+    }
+
     // MARK: - Determinism (Done-When #2)
 
     func testManifestCanonicalizesOrderingAndIsByteIdenticalAcrossReorderingAndRepeatedRuns() throws {
@@ -231,6 +251,24 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
             XCTAssertEqual(
                 error as? SQLiteBuildValidationManifestError,
                 .duplicateQueryID("duplicate")
+            )
+        }
+    }
+
+    /// Reports the lexicographically smallest duplicated id rather than an
+    /// arbitrary one, so the diagnostic does not vary with Dictionary's
+    /// process-randomized iteration order across multiple duplicate groups.
+    func testManifestReportsDeterministicDuplicateQueryIDAcrossMultipleGroups() {
+        let manifest = Support.manifest(queries: [
+            Support.query(id: "zebra"),
+            Support.query(id: "zebra"),
+            Support.query(id: "apple"),
+            Support.query(id: "apple"),
+        ])
+        XCTAssertThrowsError(try manifest.validating()) { error in
+            XCTAssertEqual(
+                error as? SQLiteBuildValidationManifestError,
+                .duplicateQueryID("apple")
             )
         }
     }

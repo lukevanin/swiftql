@@ -351,6 +351,15 @@ public struct SQLiteBuildValidationQueryEntry: Codable, Equatable, Sendable {
                 keyKind = .indexed
                 keyName = nil
                 keyIndex = zeroBasedIndex
+                let spelling = "?\(zeroBasedIndex + 1)"
+                guard placeholders.occurrences.contains(
+                    where: { $0.spelling == spelling }
+                ) else {
+                    throw SQLiteBuildValidationManifestError.invalidQuery(
+                        id,
+                        "indexed parameter '\(spelling)' is absent from descriptor SQL"
+                    )
+                }
                 physicalIndex = zeroBasedIndex + 1
             }
             projectedParameters.append(SQLiteBuildValidationParameterEntry(

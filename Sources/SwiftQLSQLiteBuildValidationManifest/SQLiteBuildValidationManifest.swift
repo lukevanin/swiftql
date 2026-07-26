@@ -82,8 +82,15 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
             )
         }
 
+        // Dictionary iteration order is not stable across processes, so pick
+        // the lexicographically smallest duplicated id rather than `.first`
+        // over an unordered grouping — the reported id must not vary between
+        // runs of the same input.
         let duplicateQueryID = Dictionary(grouping: queries, by: \.id)
-            .first { $0.value.count > 1 }?.key
+            .filter { $0.value.count > 1 }
+            .keys
+            .sorted()
+            .first
         if let duplicateQueryID {
             throw SQLiteBuildValidationManifestError.duplicateQueryID(duplicateQueryID)
         }
