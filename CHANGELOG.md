@@ -97,6 +97,13 @@
   property, gated on issue #6) is recorded in
   `Tests/SQLMacrosTests/MacroRegressionCorpus.json`, a sibling to the #190
   SQL-syntax conformance inventory scoped to macro code-generation instead.
+- Added the `@SQLFunction` macro (#25), which generates the `XLCustomFunctionDefinition`
+  and `makeSQL(context:)` boilerplate for a custom `XLCustomFunction` conformer
+  from its stored properties — one positional SQL argument per property, in
+  declaration order. `execute(reader:)`, the actual computation, is still
+  written by hand. The macro is opt-in sugar: hand-written `XLCustomFunction`
+  conformances that implement `definition` and `makeSQL` themselves keep
+  working unchanged.
 
 ### Migration
 
