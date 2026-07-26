@@ -529,6 +529,23 @@ public struct HaversineDistance: XLCustomFunction {
 }
 
 
+// Compiled scenario for <doc:DeclaredQueries> (issues #18/#26): a `@SQLQuery`
+// declaration lowers the signature-driven specification into a value-free
+// statement builder and a cached, cardinality-dispatched executor.
+extension GRDBDatabase {
+
+    @SQLQuery
+    func personByExactName(name: String) -> Person? {
+        sqlResult { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.name == name)
+        }
+    }
+}
+
+
 final class XLDocumentationTests: XCTestCase {
     
     var encoder: XLiteEncoder!
@@ -2168,5 +2185,19 @@ extension XLDocumentationTests {
         let _: (XLGRDBLiveQueryRetryTests) -> () throws -> Void =
             XLGRDBLiveQueryRetryTests
                 .testRealGRDBObservationRecoversFromInjectedBusyAndKeepsObserving
+    }
+
+    func testDocumentationDeclaredQueries() throws {
+        XCTAssertEqual(try database.fetchPersonByExactName(name: "John Doe"), johnDoe)
+        XCTAssertNil(try database.fetchPersonByExactName(name: "Nobody"))
+
+        let _: (XLQueryPeerMacroTests) -> () throws -> Void =
+            XLQueryPeerMacroTests.testDirectResultOptionalExecutorFetchesSingleRow
+        let _: (XLQueryPeerMacroTests) -> () throws -> Void =
+            XLQueryPeerMacroTests.testBareRowExecutorThrowsWhenMultipleRowsMatch
+        let _: (XLQueriesContainerTests) -> () throws -> Void =
+            XLQueriesContainerTests.testExecuteClosureRunsMultipleQueriesInOneScope
+        let _: (XLQueryRenderOnceCacheTests) -> () throws -> Void =
+            XLQueryRenderOnceCacheTests.testCachedExecutorServesDifferentArgumentsWithStablePlaceholderSQL
     }
 }

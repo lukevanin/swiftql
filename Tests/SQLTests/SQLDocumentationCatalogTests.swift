@@ -107,6 +107,10 @@ private let documentationTests = [
         "XLDocumentationTests.testDocumentationLiveQueryPublishers",
         XLDocumentationTests.testDocumentationLiveQueryPublishers
     ),
+    DocumentationTestReference(
+        "XLDocumentationTests.testDocumentationDeclaredQueries",
+        XLDocumentationTests.testDocumentationDeclaredQueries
+    ),
 ]
 
 
@@ -116,6 +120,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         "BuiltinFunctions.md": "XLDocumentationTests.testDocumentationConditionalAndScalarFunctions",
         "CustomFunctions.md": "XLDocumentationTests.testDocumentationCustomFunctionRegistrationAndExecution",
         "CustomTypes.md": "XLDocumentationTests.testDocumentationCustomTypeRoundTrips",
+        "DeclaredQueries.md": "XLDocumentationTests.testDocumentationDeclaredQueries",
         "Enums.md": "XLDocumentationTests.testDocumentationEnumValues",
         "Expressions.md": "XLDocumentationTests.testDocumentationExpressions",
         "FunctionalSyntax.md": "XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations",
@@ -440,7 +445,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         let firstReleaseHeading = changelog
             .components(separatedBy: .newlines)
             .first(where: { $0.hasPrefix("## [") })
-        XCTAssertEqual(firstReleaseHeading, "## [1.4.6] - 2026-07-25")
+        XCTAssertEqual(firstReleaseHeading, "## [1.5.1] - 2026-07-24")
     }
 
     func testREADMERepositoryLinksResolveWithExactCase() throws {

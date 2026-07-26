@@ -306,6 +306,52 @@ struct GRDBRequest<Row>: XLRequest {
         return items
     }
     
+    func fetchAtMost(
+        _ limit: Int,
+        bindings: any XLInvocationBindingPacket
+    ) throws -> [Row] {
+        let packet = try executor.sqlitePacket(bindings)
+        logger?.debug(
+            "fetchAtMost(\(limit)): <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+        return try decodeRows(packet: packet, limit: limit)
+    }
+
+    private func decodeRows(
+        packet: XLInvocationBindings<XLSQLiteValue>,
+        limit: Int
+    ) throws -> [Row] {
+        var driver = executor.driver
+        return try driver.withReadConnection { connection in
+            try decodeRows(packet: packet, limit: limit, in: &connection)
+        }
+    }
+
+    private func decodeRows(
+        packet: XLInvocationBindings<XLSQLiteValue>,
+        limit: Int,
+        in connection: inout GRDBDatabaseDriverConnection
+    ) throws -> [Row] {
+        precondition(limit >= 0, "fetchAtMost(_:bindings:) requires limit >= 0, got \(limit).")
+        guard limit > 0 else {
+            return []
+        }
+        let rowDecoder = GRDBRowDecoder(reader: reader)
+        var items: [Row] = []
+
+        try executor.forEachRow(packet: packet, in: &connection) { values in
+            do {
+                let item = try rowDecoder.decode(values: values)
+                items.append(item)
+                return items.count < limit ? .advance : .stop
+            }
+            catch {
+                logger?.error("fetchAtMost(\(limit)): Cannot decode entity: \(error)")
+                throw error
+            }
+        }
+        return items
+    }
+
     func fetchOne() throws -> Row? {
         try fetchOne(bindings: compatibilityPacket())
     }
@@ -897,7 +943,20 @@ public struct GRDBDatabase: XLDatabase {
         self.liveQueryRetryPolicy = liveQueryRetryPolicy
         self.liveQueryRetryScheduler = liveQueryRetryScheduler
     }
-    
+
+    /// Scopes render-once cache entries (issues #18/#26) to this database and
+    /// dialect. Rendering depends only on the dialect; the database identifier
+    /// keeps a per-declaration `static` cache from binding one database's
+    /// request to another. The driver assigns a fresh identifier per init, so
+    /// the scope is per `GRDBDatabase` instance rather than per `DatabasePool`
+    /// (see ``XLPreparedQueryCacheKey``).
+    public var preparedQueryCacheKey: XLPreparedQueryCacheKey? {
+        XLPreparedQueryCacheKey(
+            databaseIdentifier: driver.databaseIdentifier,
+            dialectIdentifier: dialect.descriptor.identity
+        )
+    }
+
     public func makeRequest<Row>(with statement: any XLQueryStatement<Row>) -> any XLRequest<Row> {
         let encoding = encoder.makeSQL(statement)
         return GRDBRequest(

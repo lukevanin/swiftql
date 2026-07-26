@@ -1,5 +1,75 @@
 # Changelog
 
+## [1.5.1] - 2026-07-24
+
+### Added
+
+- Added `@SQLQuery` (issues #18/#26), an attached peer macro that lowers a
+  query-specification function — an instance method on a database extension
+  whose body builds a `sql { }` statement from its own parameters — into a
+  value-free statement builder and a cached, cardinality-dispatched executor.
+  Labeled parameters and result cardinality are derived from the function's
+  own signature: `[Row]` fetches all rows, `Row?` fetches zero-or-one, a bare
+  `Row` fetches exactly one (throwing `XLQueryCardinalityError.noRowsMatched`
+  or `.moreThanOneRowMatched`), and the legacy `any/some
+  XLQueryStatement<Row>` spelling fetches all rows. Every invocation
+  constructs a fresh, immutable binding packet; callers never construct or
+  mutate a binding themselves and never bind by textual SQL substitution.
+- Added `@SQLQueries` (issues #18/#26, the recommended packaging), an
+  attached member macro that reads every specification out of a nested
+  `private struct Query` container inside one `@SQLQueries`-attached database
+  extension, and generates the executors as members of the database itself —
+  carrying the specification's own name (`personByName(name:)`, not
+  `fetchPersonByName`) because they land in a different scope. Generates a
+  connection-scoped `Context`, an `execute(_:)` entry point for running
+  several declared queries in one scope, and one database-level convenience
+  executor per specification.
+- Added the frozen-literal guard: both macros reject, at the declaration
+  site, every parameter-reference shape their signature-driven rewrite cannot
+  turn into a named placeholder — a string interpolation, a nested-closure
+  capture, a direct call argument, a local-binding initializer, a
+  hand-constructed binding, a shadowing declaration, member access on a
+  parameter, a collection-typed parameter, and an unreferenced parameter.
+  Every remaining reference shape the rewrite reaches is rewritten to a named
+  placeholder, so the encoding has no path that silently freezes a stale
+  argument value into the cached SQL.
+- Added `XLRenderOnceCache` and `XLPreparedQueryCacheKey`: each declaration
+  renders its value-free statement to SQL at most once per
+  `(databaseIdentifier, dialectIdentifier)` and reuses the resulting request
+  on every later call, so the underlying GRDB connection reuses one physical
+  prepared statement across calls with different argument values.
+  `GRDBDatabase.preparedQueryCacheKey` opts the GRDB adapter into this
+  reuse; `XLDatabase.preparedQueryCacheKey` defaults to `nil` (render on every
+  call) so existing third-party adapters keep compiling.
+- Added the `DeclaredQueries` DocC article covering the `@SQLQuery` and
+  `@SQLQueries` forms, the frozen-literal guard, render-once caching and its
+  concurrency/`Sendable` story, and the v1.5 transitional-syntax note.
+
+### Migration
+
+No migration is required for v1.5.1. `@SQLQuery` and `@SQLQueries` are new,
+additive macros; the one new `XLDatabase.preparedQueryCacheKey` protocol
+requirement has a default (`nil`) that keeps every existing conformer,
+including third-party `XLDatabase` adapters, source-compatible.
+
+### Known limitations
+
+- Only `SELECT`-shaped specifications are supported; a write statement
+  (`INSERT`/`UPDATE`/`DELETE`, with or without `RETURNING`) is not yet an
+  accepted return shape. A `.command` cardinality dispatching to
+  `XLWriteRequest.execute` remains future work.
+- Collection-typed parameters (`[T]`, `Set`, `Dictionary`) are rejected,
+  because a variable-length `IN` list would change the rendered SQL text with
+  the element count.
+- The generated executor is synchronous and throwing; an `async` variant is
+  additive future work.
+- Peer and member names are derived from the specification's base name only,
+  so two `@SQLQuery` functions sharing a base name but differing in
+  parameter list generate colliding peer declarations — a loud
+  duplicate-declaration compile error, not a silent one.
+- Only one `@SQLQueries`-attached extension is supported per database type; a
+  second would redeclare `Context` and `execute(_:)`.
+
 ## [1.4.6] - 2026-07-25
 
 ### Changed

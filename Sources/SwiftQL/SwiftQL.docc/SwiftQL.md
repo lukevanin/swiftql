@@ -130,6 +130,7 @@ replacing SQLite's runtime type rules.
 - <doc:GettingStarted>
 - <doc:Queries>
 - <doc:StaticQueries>
+- <doc:DeclaredQueries>
 - <doc:LiveQueries>
 - <doc:Expressions>
 - <doc:RealValues>
