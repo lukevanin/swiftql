@@ -13,10 +13,11 @@ import XCTest
 @testable import SwiftQL
 
 
-/// Computes `value * value` after a short synthetic delay.
+/// Computes `value * value`.
 ///
-/// The delay lets `testCustomFunctionCallRegistersOnEveryPooledConnection` force `DatabasePool` to service
-/// several calls at once, guaranteeing more than one physical reader connection executes this function.
+/// `testCustomFunctionCallRegistersOnEveryPooledConnection` installs a ``ConcurrencyRendezvous`` in
+/// ``rendezvous`` to force -- and directly observe -- simultaneous execution across several pooled
+/// connections. Every other test leaves it `nil`, so the function does no synchronization at all.
 ///
 /// `makeSQL` opts into implicit registration by calling `customFunctionCall` instead of `simpleFunction`
 /// directly.
@@ -28,10 +29,9 @@ private struct ImplicitSquareFunction: XLCustomFunction {
         numberOfArguments: 1
     )
 
-    /// Synthetic per-call delay. Shared with `testCustomFunctionCallRegistersOnEveryPooledConnection`,
-    /// which forces `DatabasePool` to service several calls at once and depends on this value to
-    /// guarantee more than one physical reader connection executes this function.
-    static let executionDelay: TimeInterval = 0.08
+    /// Optional barrier that blocks each invocation inside the function body until enough
+    /// invocations are executing at once. `nil` unless a test explicitly installs one.
+    static let rendezvous = LockedValue<ConcurrencyRendezvous?>(nil)
 
     private let value: any XLExpression<Int>
 
@@ -47,7 +47,7 @@ private struct ImplicitSquareFunction: XLCustomFunction {
 
     static func execute(reader: XLColumnReader) throws -> Int {
         let value = try reader.readInteger(at: 0)
-        Thread.sleep(forTimeInterval: executionDelay)
+        rendezvous.read()?.arriveAndWait()
         return value * value
     }
 }
@@ -171,43 +171,67 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
     /// test forces genuine concurrent use of more than one reader connection and confirms the implicitly
     /// registered function works correctly no matter which connection actually served a given call -- not
     /// just whichever connection happened to run first.
+    ///
+    /// Concurrency is **observed**, never inferred from elapsed time. A ``ConcurrencyRendezvous``
+    /// installed into the function body blocks each invocation until `maximumReaderCount` of them are
+    /// inside it simultaneously. Because SQLite runs at most one statement at a time per physical
+    /// connection, `maximumReaderCount` simultaneous executions prove at least that many *distinct*
+    /// connections each executed the implicitly registered function. A loaded CI runner only makes the
+    /// rendezvous take longer to complete, never changes the verdict; a genuinely serialized pool can
+    /// never reach it and fails on the barrier's own timeout with a precise diagnosis.
     func testCustomFunctionCallRegistersOnEveryPooledConnection() throws {
         let maximumReaderCount = 4
         let database = try makeDatabase(maximumReaderCount: maximumReaderCount)
 
         let iterations = 8
-        let functionDelay = ImplicitSquareFunction.executionDelay
         let results = LockedValue<[Int: Result<Int?, Error>]>([:])
+        let rendezvous = ConcurrencyRendezvous(target: maximumReaderCount, timeout: 30)
+        ImplicitSquareFunction.rendezvous.withValue { $0 = rendezvous }
+        defer { ImplicitSquareFunction.rendezvous.withValue { $0 = nil } }
 
-        let start = Date()
-        DispatchQueue.concurrentPerform(iterations: iterations) { index in
-            let value = index + 1
-            let statement = sql { _ in Select(ImplicitSquareFunction(value)) }
-            let outcome: Result<Int?, Error>
-            do {
-                outcome = .success(try database.makeRequest(with: statement).fetchOne())
+        // Dedicated threads rather than `DispatchQueue.concurrentPerform`: the rendezvous needs
+        // `maximumReaderCount` genuinely simultaneous callers, and `concurrentPerform` is free to run
+        // its iterations on fewer threads than that (it sizes itself to the machine's active core
+        // count), which would stall the barrier for reasons unrelated to the pool.
+        let completed = DispatchGroup()
+        for index in 0 ..< iterations {
+            completed.enter()
+            let worker = Thread {
+                defer { completed.leave() }
+                let value = index + 1
+                let statement = sql { _ in Select(ImplicitSquareFunction(value)) }
+                let outcome: Result<Int?, Error>
+                do {
+                    outcome = .success(try database.makeRequest(with: statement).fetchOne())
+                }
+                catch {
+                    outcome = .failure(error)
+                }
+                results.withValue { $0[value] = outcome }
             }
-            catch {
-                outcome = .failure(error)
-            }
-            results.withValue { $0[value] = outcome }
+            worker.name = "implicit-registration-\(index)"
+            worker.start()
         }
-        let elapsed = Date().timeIntervalSince(start)
 
-        // Every call executes the function-side sleep. Serialized onto one connection this would take at
-        // least `iterations * functionDelay`; serviced across `maximumReaderCount` connections it should
-        // take roughly `ceil(iterations / maximumReaderCount) * functionDelay`. A generous threshold well
-        // below the fully serial figure confirms the pool actually used more than one physical connection
-        // concurrently, rather than this test accidentally exercising only a single connection.
-        let fullySerialDuration = Double(iterations) * functionDelay
-        XCTAssertLessThan(
-            elapsed,
-            fullySerialDuration * 0.7,
+        XCTAssertEqual(
+            completed.wait(timeout: .now() + 60),
+            .success,
+            "Concurrent pooled reads did not all finish."
+        )
+
+        XCTAssertTrue(
+            rendezvous.didReachTarget,
             """
-            Expected concurrent pooled reads to overlap across multiple connections; measured \
-            \(elapsed)s (fully-serial would be \(fullySerialDuration)s) suggests they ran on just one \
-            connection, which would not exercise this test's purpose.
+            Only \(rendezvous.peakConcurrency) invocation(s) of the custom function ever executed at \
+            once, short of the \(maximumReaderCount) required to rendezvous. The pool served these \
+            reads on fewer physical connections than expected, so this test would not have exercised \
+            registration across multiple connections.
             """
+        )
+        XCTAssertGreaterThanOrEqual(
+            rendezvous.peakConcurrency,
+            maximumReaderCount,
+            "Expected at least \(maximumReaderCount) distinct pooled connections to execute the function."
         )
 
         let finalResults = results.read()
@@ -222,6 +246,79 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
                 XCTFail("value \(value) never completed")
             }
         }
+    }
+}
+
+
+/// A one-shot barrier that makes genuine concurrency directly observable instead of inferring it
+/// from elapsed time.
+///
+/// Each caller announces its arrival and blocks until `target` callers are inside simultaneously,
+/// at which point every waiter is released and the barrier stays open for the rest of the run. The
+/// highest simultaneous occupancy is recorded in ``peakConcurrency``.
+///
+/// This is deliberately a synchronization proof rather than a timing measurement: a slow or loaded
+/// machine only delays the rendezvous, it cannot change the outcome. If the work under test is
+/// actually serialized, the first caller is never joined and every waiter unblocks on `timeout`
+/// with ``didReachTarget`` still `false`, so the test fails deterministically and says why.
+private final class ConcurrencyRendezvous: @unchecked Sendable {
+
+    private let condition = NSCondition()
+
+    private let target: Int
+
+    private let timeout: TimeInterval
+
+    private var currentlyInside = 0
+
+    private var peak = 0
+
+    private var isOpen = false
+
+    /// - Parameters:
+    ///   - target: The number of simultaneous callers required to release the barrier.
+    ///   - timeout: How long a caller waits for the others before giving up. Generous by design --
+    ///     it is a deadlock backstop, not a performance assertion.
+    init(target: Int, timeout: TimeInterval) {
+        self.target = target
+        self.timeout = timeout
+    }
+
+    /// Records this caller as executing, then blocks until `target` callers are executing at once
+    /// (or the barrier has already opened, or `timeout` elapses).
+    func arriveAndWait() {
+        condition.lock()
+        defer { condition.unlock() }
+
+        currentlyInside += 1
+        peak = max(peak, currentlyInside)
+        if currentlyInside >= target {
+            isOpen = true
+            condition.broadcast()
+        }
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while !isOpen {
+            guard condition.wait(until: deadline) else {
+                break
+            }
+        }
+
+        currentlyInside -= 1
+    }
+
+    /// Whether `target` callers were ever inside simultaneously.
+    var didReachTarget: Bool {
+        condition.lock()
+        defer { condition.unlock() }
+        return isOpen
+    }
+
+    /// The highest number of callers observed executing simultaneously.
+    var peakConcurrency: Int {
+        condition.lock()
+        defer { condition.unlock() }
+        return peak
     }
 }
 
