@@ -411,9 +411,10 @@ let query = sql { schema in
 In this query the occupation name is coalesced to `No occupation` when no 
 `Occupation` record is associated with the `Person`.
 
-Chain multiple fallbacks by nesting one `coalesce`/`??` inside another —
-SQLite's own `COALESCE` is variadic, and nesting renders the same way. `??` is
-right-associative, so `a ?? b ?? c` parses as `a ?? (b ?? c)`:
+Chain multiple fallbacks by nesting one `coalesce`/`??` inside another — a
+nested `COALESCE(a, COALESCE(b, c))` is semantically equivalent to SQLite's
+own variadic `COALESCE(a, b, c)`. `??` is right-associative, so `a ?? b ?? c`
+parses as `a ?? (b ?? c)`:
 
 <!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
