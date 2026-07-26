@@ -1285,6 +1285,14 @@ extension XLDocumentationTests {
         try testExample_Coalesce()
         try testExample_IfCaseWhenThenElse()
 
+        let preferredName = XLNamedBindingReference<String?>(name: "preferredName")
+        let nickname = XLNamedBindingReference<String?>(name: "nickname")
+        let expression = preferredName ?? nickname ?? "Anonymous"
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "COALESCE(:preferredName, COALESCE(:nickname, 'Anonymous'))"
+        )
+
         let literalBounds = sql { schema in
             let person = schema.table(Person.self)
             Select(person)
