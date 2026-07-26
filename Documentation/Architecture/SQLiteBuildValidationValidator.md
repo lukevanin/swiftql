@@ -50,9 +50,11 @@ swiftql-build-validate: overall verdict failed
   plugin-fixture.missing-table: [failed] prepare.sqlite.prepare.failed: no such table: totally_missing_table
 ```
 
-Every diagnostic line names the failing `queryID`, its verdict, and a
-`stage.code` pair, so a broken query can be traced straight back to the
-manifest entry that declared it. See
+Every diagnostic line names a verdict and a `stage.code` pair; per-query
+diagnostics (like the one above) are also prefixed with the failing
+`queryID`, so a broken query can be traced straight back to the manifest
+entry that declared it. Report-level diagnostics — not tied to any single
+query — are printed the same way but without a `queryID` prefix. See
 [the plugin doc](SQLiteBuildValidationPlugin.md#quick-start) for the same
 two outcomes surfacing as an ordinary `swift build` pass/fail.
 
