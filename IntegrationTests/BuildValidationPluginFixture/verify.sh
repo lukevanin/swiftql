@@ -46,7 +46,9 @@ if ! swift build > /tmp/swiftql-plugin-verify-1.log 2>&1; then
     exit 1
 fi
 REPORTS=$(report_paths)
-REPORT_COUNT=$(printf '%s\n' "$REPORTS" | grep -c .)
+# `grep -c` exits 1 when it counts zero matches, which would trip `set -e`
+# and skip the explicit failure message below before it can print.
+REPORT_COUNT=$(printf '%s\n' "$REPORTS" | grep -c . || true)
 if [ "$REPORT_COUNT" -ne 2 ]; then
     echo "FAIL: expected 2 report files (one per opted-in target), found $REPORT_COUNT"
     printf '%s\n' "$REPORTS"
@@ -100,6 +102,9 @@ fi
 echo "OK"
 
 echo "== 5. Touching the manifest re-runs validation with a byte-identical report =="
+# A short delay before touching guards against filesystem mtime granularity
+# masking the change on very fast reruns.
+sleep 1
 touch "$MANIFEST"
 if ! swift build > /tmp/swiftql-plugin-verify-5.log 2>&1; then
     echo "FAIL: expected rebuild after touch to succeed"
