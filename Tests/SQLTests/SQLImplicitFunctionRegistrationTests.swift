@@ -178,7 +178,9 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
         let iterations = 8
         let functionDelay = ImplicitSquareFunction.executionDelay
         let resultsLock = NSLock()
-        var results: [Int: Result<Int?, Error>] = [:]
+        // Manually synchronized by `resultsLock` below; the strict-concurrency checker cannot see
+        // that the lock makes cross-closure access safe.
+        nonisolated(unsafe) var results: [Int: Result<Int?, Error>] = [:]
 
         let start = Date()
         DispatchQueue.concurrentPerform(iterations: iterations) { index in

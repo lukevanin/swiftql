@@ -66,15 +66,29 @@ public struct XLCustomFunctionRegistration: Sendable {
     /// Creates a registration for one custom function type.
     public static func make<F>(_ type: F.Type) -> XLCustomFunctionRegistration
     where F: XLCustomFunction, F.T: DatabaseValueConvertible {
-        XLCustomFunctionRegistration(
-            definition: F.definition,
+        // Captured as plain values rather than the generic metatype `F.Type` itself, so GRDB's
+        // `@Sendable` function closure below never needs to carry an unconstrained generic
+        // parameter across the isolation boundary.
+        let functionDefinition = F.definition
+        // `F.execute` is a static function with no captured state -- calling it concurrently
+        // from multiple pooled connections is exactly this feature's purpose -- so it is safe to
+        // treat as `@Sendable`. `unsafeBitCast` only changes the compile-time `@Sendable`
+        // annotation, never the function value's runtime representation, so this is safe
+        // regardless of what concrete type `F` turns out to be; the strict-concurrency checker
+        // cannot infer that safety for a reference derived from an unconstrained generic type.
+        let executeFunction = unsafeBitCast(
+            F.execute(reader:) as (XLColumnReader) throws -> F.T,
+            to: (@Sendable (XLColumnReader) throws -> F.T).self
+        )
+        return XLCustomFunctionRegistration(
+            definition: functionDefinition,
             makeDatabaseFunction: {
                 DatabaseFunction(
-                    F.definition.name,
-                    argumentCount: Int(F.definition.numberOfArguments),
+                    functionDefinition.name,
+                    argumentCount: Int(functionDefinition.numberOfArguments),
                     function: { values in
                         let reader = GRDBValuesAdapter(values: values)
-                        return try F.execute(reader: reader)
+                        return try executeFunction(reader)
                     }
                 )
             }

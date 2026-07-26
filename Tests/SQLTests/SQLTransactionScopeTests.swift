@@ -545,8 +545,11 @@ final class SQLTransactionScopeTests: XCTestCase {
     func testWithTransactionThrowsCancellationErrorWhenTheTaskIsAlreadyCancelledBeforeStarting() async throws {
         try createTestTable()
 
+        // Captured locally rather than via `self.database` so the `@Sendable` `Task` closure below
+        // does not need to capture the non-Sendable test-case instance.
+        let database = self.database!
         let task = Task {
-            try self.database.withTransaction { scope in
+            try database.withTransaction { scope in
                 try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
             }
         }
@@ -568,14 +571,19 @@ final class SQLTransactionScopeTests: XCTestCase {
     func testConcurrentIndependentTransactionsBothCommitWithoutCorruptingEachOther() throws {
         try createTestTable()
 
+        // Captured locally so the `@Sendable` dispatch closures below do not need to capture the
+        // non-Sendable test-case instance; `firstError`/`secondError` are synchronized by
+        // `DispatchGroup.enter()`/`leave()` (each is written by exactly one closure, read only
+        // after both have left), which the strict-concurrency checker cannot see.
+        let database = self.database!
         let group = DispatchGroup()
-        var firstError: Error?
-        var secondError: Error?
+        nonisolated(unsafe) var firstError: Error?
+        nonisolated(unsafe) var secondError: Error?
 
         group.enter()
         DispatchQueue.global().async {
             do {
-                try self.database.withTransaction { scope in
+                try database.withTransaction { scope in
                     try scope.makeRequest(with: sqlInsert(TestTable(id: "first", value: 1))).execute()
                 }
             }
@@ -588,7 +596,7 @@ final class SQLTransactionScopeTests: XCTestCase {
         group.enter()
         DispatchQueue.global().async {
             do {
-                try self.database.withTransaction { scope in
+                try database.withTransaction { scope in
                     try scope.makeRequest(with: sqlInsert(TestTable(id: "second", value: 2))).execute()
                 }
             }
@@ -614,15 +622,21 @@ final class SQLTransactionScopeTests: XCTestCase {
     func testConcurrentPoolReadDuringAnOpenTransactionDoesNotObserveTheUncommittedWrite() throws {
         try createTestTable()
 
+        // Captured locally so the `@Sendable` dispatch closure below does not need to capture the
+        // non-Sendable test-case instance; `observedDuringTransaction` is synchronized by the
+        // `writeIsVisible`/`readIsDone` semaphores (written once, read only after `readIsDone`
+        // signals), which the strict-concurrency checker cannot see.
+        let database = self.database!
+        nonisolated(unsafe) let selectAllQuery = selectAllTestRowsQuery()
         let writeIsVisible = DispatchSemaphore(value: 0)
         let readIsDone = DispatchSemaphore(value: 0)
-        var observedDuringTransaction: [TestTable] = []
+        nonisolated(unsafe) var observedDuringTransaction: [TestTable] = []
 
         let readerQueue = DispatchQueue(label: "transaction-scope-concurrent-reader")
         readerQueue.async {
             writeIsVisible.wait()
-            observedDuringTransaction = (try? self.database.makeRequest(
-                with: self.selectAllTestRowsQuery()
+            observedDuringTransaction = (try? database.makeRequest(
+                with: selectAllQuery
             ).fetchAll()) ?? []
             readIsDone.signal()
         }

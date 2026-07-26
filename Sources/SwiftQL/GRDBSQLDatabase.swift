@@ -1247,6 +1247,14 @@ public struct GRDBDatabase: XLDatabase {
 }
 
 
+/// `@unchecked Sendable` because sharing one value across threads and connections is this type's
+/// whole purpose: `databasePool` hands any given call to whichever of several pooled physical
+/// connections is idle, so every stored property is designed to be read concurrently from
+/// multiple threads. The strict-concurrency checker cannot see that GRDB's own pool
+/// synchronization already makes this safe.
+extension GRDBDatabase: @unchecked Sendable {}
+
+
 extension GRDBDatabase: XLTransactionalDatabase {
 
     /// Runs `body` against one pinned `DatabasePool` connection inside one
