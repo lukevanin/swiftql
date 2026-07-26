@@ -83,11 +83,27 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
             )
         }
 
+        // `Codable`'s synthesized initializer decodes each stored property
+        // directly and never calls the canonicalizing memberwise
+        // initializer below, so a manifest fresh off `JSONDecoder` may still
+        // have unsorted/undeduplicated queries, parameters, results, or
+        // id-set fields even though it is otherwise semantically valid.
+        // Re-normalize before running structural checks against it so a
+        // reordered-but-valid manifest doesn't spuriously fail contiguity
+        // checks that assume canonical ordering.
+        let normalizedQueries = Self(
+            formatVersion: formatVersion,
+            conformanceInventoryVersion: conformanceInventoryVersion,
+            combinatorialManifestVersion: combinatorialManifestVersion,
+            schemaSnapshot: schemaSnapshot,
+            queries: queries
+        ).queries
+
         // Dictionary iteration order is not stable across processes, so pick
         // the lexicographically smallest duplicated id rather than `.first`
         // over an unordered grouping — the reported id must not vary between
         // runs of the same input.
-        let duplicateQueryID = Dictionary(grouping: queries, by: \.id)
+        let duplicateQueryID = Dictionary(grouping: normalizedQueries, by: \.id)
             .filter { $0.value.count > 1 }
             .keys
             .sorted()
@@ -95,7 +111,7 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
         if let duplicateQueryID {
             throw SQLiteBuildValidationManifestError.duplicateQueryID(duplicateQueryID)
         }
-        for query in queries {
+        for query in normalizedQueries {
             try Self.validateStructure(query)
         }
         return Self(
@@ -103,7 +119,7 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
             conformanceInventoryVersion: conformanceInventoryVersion,
             combinatorialManifestVersion: combinatorialManifestVersion,
             schemaSnapshot: schemaSnapshot,
-            queries: queries
+            queries: normalizedQueries
         )
     }
 

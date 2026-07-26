@@ -304,6 +304,51 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
         )
     }
 
+    /// `Codable`'s synthesized decoder populates stored properties directly
+    /// and never routes through the canonicalizing memberwise initializer,
+    /// so JSON whose `parameters`/`results` arrays are not already in
+    /// canonical order (but is otherwise a perfectly valid manifest) must
+    /// still decode and validate successfully rather than spuriously
+    /// failing the contiguity checks in `validateStructure`.
+    func testDecodeAcceptsAndNormalizesOutOfOrderJSON() throws {
+        let first = Support.parameter(
+            logicalIndex: 0, physicalIndex: 1, identity: "parameter/first", keyName: "first"
+        )
+        let second = Support.parameter(
+            logicalIndex: 1, physicalIndex: 2, identity: "parameter/second", keyName: "second"
+        )
+        let manifest = Support.manifest(queries: [
+            Support.query(
+                sql: "SELECT :first AS first, :second AS second",
+                parameters: [first, second],
+                results: [
+                    Support.result(index: 0, identity: "result/first", declaredAlias: "first"),
+                    Support.result(index: 1, identity: "result/second", declaredAlias: "second"),
+                ]
+            ),
+        ])
+        let canonicalData = try manifest.canonicalJSONData()
+
+        var json = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: canonicalData) as? [String: Any]
+        )
+        var queries = try XCTUnwrap(json["queries"] as? [[String: Any]])
+        var query = queries[0]
+        query["parameters"] = Array(
+            (query["parameters"] as? [Any] ?? []).reversed()
+        )
+        query["results"] = Array(
+            (query["results"] as? [Any] ?? []).reversed()
+        )
+        queries[0] = query
+        json["queries"] = queries
+        let shuffledData = try JSONSerialization.data(withJSONObject: json)
+
+        let decoded = try SQLiteBuildValidationManifest.decode(shuffledData)
+        XCTAssertEqual(decoded, try manifest.validating())
+        XCTAssertEqual(try decoded.canonicalJSONData(), canonicalData)
+    }
+
     func testManifestValidatingSucceedsWhenParametersMatchSQLPlaceholders() throws {
         let parameter = Support.parameter(
             logicalIndex: 0, physicalIndex: 1, identity: "parameter/first", keyName: "first"
