@@ -9,7 +9,7 @@ import Foundation
 
 
 ///
-/// Returns the miniumum value from a list of expressions.
+/// Returns the minimum value from a list of expressions.
 ///
 @available(*, deprecated, message: "Use a.min(b, ...) instead. min(_:) will be removed in SwiftQL 2.")
 public func min<T>(_ values: any XLExpression<T>...) -> some XLExpression<T> where T: XLComparable & XLLiteral {
