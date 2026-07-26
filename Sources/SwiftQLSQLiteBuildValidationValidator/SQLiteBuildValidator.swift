@@ -30,7 +30,8 @@ public enum SQLiteBuildValidator {
         let databaseURL = databaseURL.standardizedFileURL
             .resolvingSymlinksInPath()
             .standardizedFileURL
-        let manifest = try manifest.validating()
+        // Validation happens exactly once, inside the `in:` overload below —
+        // this overload deliberately does not pre-validate `manifest` itself.
         let resourceValues = try databaseURL.resourceValues(
             forKeys: [.isRegularFileKey]
         )
