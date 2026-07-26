@@ -54,7 +54,13 @@ struct SwiftQLSQLiteBuildValidationPlugin: BuildToolPlugin {
         }
 
         let validatorTool = try context.tool(named: Self.validatorToolName)
-        let reportPath = context.pluginWorkDirectory.appending(Self.reportFileName)
+        // Namespaced by target name: without this, every target adopting
+        // the plugin would share one report path, causing write races and
+        // letting SwiftPM consider a target's command "up to date" based on
+        // another target's output.
+        let reportPath = context.pluginWorkDirectory
+            .appending(target.name)
+            .appending(Self.reportFileName)
 
         return [
             .buildCommand(

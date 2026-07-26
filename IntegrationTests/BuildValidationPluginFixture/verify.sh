@@ -6,6 +6,8 @@
 #
 # Checks, in order:
 #   1. A valid manifest builds successfully and produces a "passed" report.
+#   1b. A second target adopting the plugin produces its own report at a
+#       distinct path, proving reports don't collide across targets.
 #   2. An invalid manifest fails the build and forwards the validator's
 #      actionable diagnostic to stderr.
 #   3. Restoring the valid manifest builds successfully again.
@@ -21,8 +23,19 @@ VALID_MANIFEST_BACKUP=$(mktemp)
 cp "$MANIFEST" "$VALID_MANIFEST_BACKUP"
 trap 'cp "$VALID_MANIFEST_BACKUP" "$MANIFEST"; rm -f "$VALID_MANIFEST_BACKUP"' EXIT
 
-report_path() {
-    find .build -name swiftql-build-validation-report.json 2>/dev/null | head -1
+report_paths() {
+    # Scoped to the plugin's own declared-output directory: SwiftPM also
+    # copies each target's declared plugin outputs into that target's
+    # resource bundle, which would otherwise double-count these.
+    find .build/plugins/outputs -name swiftql-build-validation-report.json 2>/dev/null | sort
+}
+
+assert_passed_report() {
+    if ! grep -Eq '"overall_verdict"[[:space:]]*:[[:space:]]*"passed"' "$1"; then
+        echo "FAIL: expected overall_verdict passed in $1"
+        cat "$1"
+        exit 1
+    fi
 }
 
 echo "== 1. Valid manifest builds and reports passed =="
@@ -32,16 +45,22 @@ if ! swift build > /tmp/swiftql-plugin-verify-1.log 2>&1; then
     cat /tmp/swiftql-plugin-verify-1.log
     exit 1
 fi
-REPORT=$(report_path)
-if [ -z "$REPORT" ]; then
-    echo "FAIL: no report file was produced"
+REPORTS=$(report_paths)
+REPORT_COUNT=$(printf '%s\n' "$REPORTS" | grep -c .)
+if [ "$REPORT_COUNT" -ne 2 ]; then
+    echo "FAIL: expected 2 report files (one per opted-in target), found $REPORT_COUNT"
+    printf '%s\n' "$REPORTS"
     exit 1
 fi
-if ! grep -Eq '"overall_verdict"[[:space:]]*:[[:space:]]*"passed"' "$REPORT"; then
-    echo "FAIL: expected overall_verdict passed"
-    cat "$REPORT"
+REPORT=$(printf '%s\n' "$REPORTS" | grep ValidatedLibrary | grep -v Second | head -1)
+SECOND_REPORT=$(printf '%s\n' "$REPORTS" | grep SecondValidatedLibrary | head -1)
+if [ -z "$REPORT" ] || [ -z "$SECOND_REPORT" ] || [ "$REPORT" = "$SECOND_REPORT" ]; then
+    echo "FAIL: expected two distinct, target-namespaced report paths"
+    printf '%s\n' "$REPORTS"
     exit 1
 fi
+assert_passed_report "$REPORT"
+assert_passed_report "$SECOND_REPORT"
 echo "OK"
 
 echo "== 2. Invalid manifest fails the build with the actionable diagnostic =="
