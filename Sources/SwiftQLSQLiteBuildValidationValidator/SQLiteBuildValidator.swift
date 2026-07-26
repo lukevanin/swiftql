@@ -441,6 +441,7 @@ private extension SQLiteBuildValidator {
     ) -> Bool {
         let preparationBlockingCodes = Set([
             "capability.collation",
+            "capability.compile-option",
             "capability.dialect",
             "capability.dialect-flags",
             "capability.extension",

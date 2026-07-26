@@ -29,7 +29,7 @@ public enum SQLiteBuildValidationSHA256 {
     ]
 
     public static func hexDigest(of data: Data) -> String {
-        let bytes = digest(Array(data))
+        let bytes = digest(data)
         let digits = Array("0123456789abcdef".utf8)
         var encoded: [UInt8] = []
         encoded.reserveCapacity(bytes.count * 2)
@@ -40,8 +40,11 @@ public enum SQLiteBuildValidationSHA256 {
         return String(decoding: encoded, as: UTF8.self)
     }
 
-    private static func digest(_ input: [UInt8]) -> [UInt8] {
-        var message = input
+    // `message` is the sole owner of this buffer from construction, so the
+    // padding appends below mutate in place instead of triggering a
+    // copy-on-write duplicate of the (potentially large) snapshot bytes.
+    private static func digest(_ input: Data) -> [UInt8] {
+        var message = Array(input)
         let bitCount = UInt64(message.count) &* 8
         message.append(0x80)
         while message.count % 64 != 56 {

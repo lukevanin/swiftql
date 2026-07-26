@@ -165,6 +165,30 @@ final class SQLiteBuildValidatorIntegrationTests: XCTestCase {
         }
     }
 
+    /// `capability.compile-option` must gate preparation exactly like every
+    /// other capability code — a query missing a required compile option
+    /// must never reach `sqlite3_prepare_v3` at all.
+    func testMissingCompileOptionCapabilitySkipsPreparation() throws {
+        let manifest = Support.manifest(queries: [
+            Support.query(
+                sql: "SELECT 1 AS value",
+                requiredCapabilities: ["compile-option:DEFINITELY_MISSING_OPTION"]
+            ),
+        ])
+        try Support.withValidatorOwnedNorthwindURL { url in
+            let report = try SQLiteBuildValidator.validate(
+                manifest: manifest,
+                againstDatabaseAt: url
+            )
+            XCTAssertEqual(report.overallVerdict, .unsupported)
+            let outcome = try XCTUnwrap(report.outcomes.first)
+            XCTAssertTrue(outcome.diagnostics.contains {
+                $0.code == "capability.compile-option" && $0.verdict == .unsupported
+            })
+            XCTAssertNil(outcome.preparedShape)
+        }
+    }
+
     func testMissingCodecIsUnsupportedUntilSuppliedInEnvironment() throws {
         let codec = SQLiteBuildValidationCodecReference(
             keyID: "tests.codec.value",

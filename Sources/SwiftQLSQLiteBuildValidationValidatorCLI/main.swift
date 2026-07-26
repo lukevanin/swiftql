@@ -1,6 +1,12 @@
 import Foundation
 import SwiftQLSQLiteBuildValidationValidator
 
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
+
 
 func writeStandardError(_ message: String) {
     FileHandle.standardError.write(Data((message + "\n").utf8))
