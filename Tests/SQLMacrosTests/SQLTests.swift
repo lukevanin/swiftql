@@ -246,9 +246,40 @@ final class SQLMacroDiagnosticTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "Type '(Int) -> Int' cannot be used as a column type.",
+                    message: "Type '(Int) -> Int' cannot be used as a column type. Use a named type that conforms to 'XLLiteral' for a scalar column, or a nested '@SQLTable'/'@SQLResult' type for a composite column selection.",
                     line: 3,
                     column: 19
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    // A property type the macro cannot resolve as either a scalar `XLLiteral`
+    // column or a nested `@SQLTable`/`@SQLResult` composite (here, a tuple
+    // type -- the shape someone reaching for issue #6's composite selection
+    // might mistakenly try) is rejected at expansion time with a message
+    // naming both supported shapes, rather than compiling into generated
+    // code that only fails downstream with an opaque protocol-conformance
+    // error.
+    func test_unresolvableAsScalarOrComposite_emitsActionableDiagnostic() {
+        assertMacroExpansion(
+            """
+            @SQLResult
+            struct EmployeeCompany {
+                let pair: (Employee, Company)
+            }
+            """,
+            expandedSource: """
+            struct EmployeeCompany {
+                let pair: (Employee, Company)
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Type '(Employee, Company)' cannot be used as a column type. Use a named type that conforms to 'XLLiteral' for a scalar column, or a nested '@SQLTable'/'@SQLResult' type for a composite column selection.",
+                    line: 3,
+                    column: 15
                 )
             ],
             macros: makeTestMacros()
@@ -393,7 +424,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "Type '(Int) -> Int' cannot be used as a column type.",
+                    message: "Type '(Int) -> Int' cannot be used as a column type. Use a named type that conforms to 'XLLiteral' for a scalar column, or a nested '@SQLTable'/'@SQLResult' type for a composite column selection.",
                     line: 3,
                     column: 15
                 )
@@ -427,6 +458,109 @@ final class SQLMacroDiagnosticTests: XCTestCase {
                     message: "'static' properties cannot be used as columns. Move the property to an extension of the type to exclude it from the generated columns.",
                     line: 4,
                     column: 5
+                ),
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    // MARK: - #256 regression corpus: additional malformed shapes and
+    // reserved-name collisions
+    //
+    // Case shapes below are inspired by the kind of awkward declarations
+    // mature Swift code-generation test suites (e.g. `@Observable`/`Codable`
+    // synthesis, popular SQLite/ORM macro libraries) commonly exercise --
+    // doubly-wrapped optionals, and every one of the macro's own reserved
+    // generated-member names, not only one representative. No upstream code
+    // is copied; only the shape of the case is adapted. See
+    // `MacroRegressionCorpus.json` (case IDs `macro.malformed.double-
+    // optional-column-type` and `macro.reserved-names.*`) for the
+    // provenance record.
+
+    // A doubly-wrapped optional (`Int??`) is a shape a plain `T?` property
+    // could plausibly be mistyped as, and is a case mature codegen test
+    // suites (e.g. Codable synthesis) commonly probe. `resolveColumnType`
+    // only unwraps one level of `Optional`, so this is rejected with the
+    // same actionable diagnostic as any other type it cannot resolve as a
+    // scalar or composite column, rather than silently double-unwrapping or
+    // producing a confusing generic-substitution failure downstream.
+    func test_doublyWrappedOptionalColumnType_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                var count: Int??
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var count: Int??
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Type 'Int??' cannot be used as a column type. Use a named type that conforms to 'XLLiteral' for a scalar column, or a nested '@SQLTable'/'@SQLResult' type for a composite column selection.",
+                    line: 3,
+                    column: 16
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    // `_namespace` is only one of several property names the macro reserves
+    // for its own generated members (see `MetaBuilder.reservedPropertyNames`
+    // and the nominal `Nullable`/`Row`/`RowIterator`/`Dependency`/`Basis`
+    // types every expansion declares). Every reserved name must be reported,
+    // not only the first one covered by `test_reservedPropertyName_emitsError`
+    // above, so a future change that narrows the check to a single literal
+    // name would be caught here.
+    func test_everyReservedPropertyName_emitsErrorForEach() {
+        assertMacroExpansion(
+            """
+            @SQLResult
+            struct Sample {
+                var Row: Int
+                var RowIterator: Int
+                var Dependency: Int
+                var Basis: Int
+                var Nullable: Int
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var Row: Int
+                var RowIterator: Int
+                var Dependency: Int
+                var Basis: Int
+                var Nullable: Int
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Property name 'Row' conflicts with a member generated by the macro. Rename the property.",
+                    line: 3,
+                    column: 9
+                ),
+                DiagnosticSpec(
+                    message: "Property name 'RowIterator' conflicts with a member generated by the macro. Rename the property.",
+                    line: 4,
+                    column: 9
+                ),
+                DiagnosticSpec(
+                    message: "Property name 'Dependency' conflicts with a member generated by the macro. Rename the property.",
+                    line: 5,
+                    column: 9
+                ),
+                DiagnosticSpec(
+                    message: "Property name 'Basis' conflicts with a member generated by the macro. Rename the property.",
+                    line: 6,
+                    column: 9
+                ),
+                DiagnosticSpec(
+                    message: "Property name 'Nullable' conflicts with a member generated by the macro. Rename the property.",
+                    line: 7,
+                    column: 9
                 ),
             ],
             macros: makeTestMacros()
@@ -527,6 +661,114 @@ final class SQLMacroExpansionTests: XCTestCase {
 
                 public init(`index`: Int) {
                         self.`index` = `index`
+                  }
+            }
+            """,
+            macros: makeMemberTestMacros()
+        )
+    }
+
+    // MARK: - #256 regression corpus: identifier shapes
+    //
+    // See `MacroRegressionCorpus.json` for the provenance record backing
+    // each case below. Case shapes are inspired by the kind of awkward
+    // identifiers mature Swift code-generation test suites commonly probe
+    // (Unicode identifiers, and Swift-legal names that collide with SQL
+    // keywords); no code is copied from any upstream source.
+
+    // A property name using non-ASCII Unicode letters is a legal Swift
+    // identifier and requires no special handling: the macro treats every
+    // property name as an opaque token copied verbatim into the generated
+    // initializer and SQL alias, so a Unicode name exercises exactly the
+    // same code path as an ASCII one. This pins that no ASCII-only
+    // assumption (e.g. accidental byte-length or ASCII-range validation)
+    // has crept into name handling.
+    func test_memberwiseInitializer_unicodePropertyName() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                var café: String
+                var 名前: String
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var café: String
+                var 名前: String
+
+                public init(café: String, 名前: String) {
+                        self.café = café
+                        self.名前 = 名前
+                  }
+            }
+            """,
+            macros: makeMemberTestMacros()
+        )
+    }
+
+    // `order`, `group`, and `select` are reserved words in SQL but ordinary,
+    // unreserved identifiers in Swift, so they need no backtick escaping as
+    // property names. Every SQL identifier SwiftQL renders is always
+    // double-quoted (`XLSQLiteDialect.formatIdentifier`), so these are never
+    // actually ambiguous at the SQL level either; this test only pins that
+    // the macro does not mistakenly require (or reject) backticks for a
+    // Swift-legal name just because it reads like a SQL keyword.
+    func test_memberwiseInitializer_sqlKeywordLikePropertyNames() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Sample {
+                var order: Int
+                var group: String
+                var select: Bool
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var order: Int
+                var group: String
+                var select: Bool
+
+                public init(order: Int, group: String, select: Bool) {
+                        self.order = order
+                        self.group = group
+                        self.select = select
+                  }
+            }
+            """,
+            macros: makeMemberTestMacros()
+        )
+    }
+
+    // Explicit access-control modifiers (`public`, `private`, `fileprivate`)
+    // on individual stored properties are not among the modifiers
+    // `MetaBuilder` inspects (only `static`/`class`, `lazy`, and
+    // `weak`/`unowned` affect column classification), so a property keeps
+    // its own declared visibility and still becomes a column. This pins
+    // that mixing access levels within one declaration does not trip a
+    // false-positive diagnostic or silently drop a property from the
+    // generated initializer.
+    func test_memberwiseInitializer_explicitAccessControlModifiersAreIgnored() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            public struct Sample {
+                public var id: Int
+                private var secret: String
+                fileprivate var note: String
+            }
+            """,
+            expandedSource: """
+            public struct Sample {
+                public var id: Int
+                private var secret: String
+                fileprivate var note: String
+
+                public init(id: Int, secret: String, note: String) {
+                        self.id = id
+                        self.secret = secret
+                        self.note = note
                   }
             }
             """,
@@ -842,14 +1084,18 @@ final class MetaBuilderTests: XCTestCase {
 
         XCTAssertFalse(Parser.parse(source: source).hasError)
         XCTAssertTrue(source.contains("public static func staticRowLayout<_SwiftQLStaticDialect>"))
-        XCTAssertTrue(source.contains("some SwiftQL.XLStaticSelectFieldProtocol<Element?, _SwiftQLStaticDialect>"))
-        XCTAssertTrue(source.contains("some SwiftQL.XLStaticSelectFieldProtocol<Array<Element>, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("some SwiftQL.XLStaticRowFieldSource<Element?, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("some SwiftQL.XLStaticRowFieldSource<Array<Element>, _SwiftQLStaticDialect>"))
         XCTAssertFalse(source.contains("_SwiftQLStaticStorage"))
-        XCTAssertTrue(source.contains("let _swiftQLStaticField0 = `switch`.positioned(at: 0, alias: \"switch\")"))
-        XCTAssertTrue(source.contains("let _swiftQLStaticField1 = values.positioned(at: 1, alias: \"values\")"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField0 = try `switch`.grouped(at: 0, alias: \"switch\")"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField1 = try values.grouped(at: _swiftQLStaticOffset, alias: \"values\")"))
         XCTAssertTrue(source.contains("try _swiftQLStaticField0.read(from: _swiftQLStaticReader)"))
-        XCTAssertTrue(source.contains("try _swiftQLStaticField1.encode(_swiftQLStaticRow.values)"))
-        XCTAssertTrue(source.contains("try _swiftQLStaticField0.erased()"))
+        XCTAssertTrue(
+            source.contains(
+                "try [_swiftQLStaticField0.encode(_swiftQLStaticRow.`switch`), _swiftQLStaticField1.encode(_swiftQLStaticRow.values)].flatMap { $0 }"
+            )
+        )
+        XCTAssertTrue(source.contains("fields: [_swiftQLStaticField0.fields, _swiftQLStaticField1.fields].flatMap { $0 },"))
     }
 
     func test_staticRowLayoutGenerationAvoidsReaderAndRowPropertyCollisions() throws {
@@ -866,12 +1112,16 @@ final class MetaBuilderTests: XCTestCase {
         let metaSource = builder.makeMetaResultExtension(table: false)
 
         XCTAssertFalse(Parser.parse(source: source).hasError)
-        XCTAssertTrue(source.contains("let _swiftQLStaticField0 = reader.positioned"))
-        XCTAssertTrue(source.contains("let _swiftQLStaticField1 = row.positioned"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField0 = try reader.grouped"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField1 = try row.grouped"))
         XCTAssertTrue(source.contains("decode: { _swiftQLStaticReader in"))
         XCTAssertTrue(source.contains("reader: try _swiftQLStaticField0.read(from: _swiftQLStaticReader)"))
         XCTAssertTrue(source.contains("encode: { _swiftQLStaticRow in"))
-        XCTAssertTrue(source.contains("try _swiftQLStaticField1.encode(_swiftQLStaticRow.row)"))
+        XCTAssertTrue(
+            source.contains(
+                "try [_swiftQLStaticField0.encode(_swiftQLStaticRow.reader), _swiftQLStaticField1.encode(_swiftQLStaticRow.row)].flatMap { $0 }"
+            )
+        )
         XCTAssertFalse(source.contains("decode: { reader in"))
         XCTAssertFalse(source.contains("encode: { row in"))
         XCTAssertTrue(metaSource.contains("readRow(reader _swiftQLRowReader: XLRowReader)"))
@@ -901,9 +1151,9 @@ final class MetaBuilderTests: XCTestCase {
 
         XCTAssertFalse(Parser.parse(source: source).hasError)
         XCTAssertTrue(source.contains("staticRowLayout<_SwiftQLStaticDialect_1>"))
-        XCTAssertTrue(source.contains("XLStaticSelectFieldProtocol<Dialect, _SwiftQLStaticDialect_1>"))
-        XCTAssertTrue(source.contains("let _swiftQLStaticField0_1 = dialect.positioned"))
-        XCTAssertTrue(source.contains("let _swiftQLStaticField3 = _swiftQLStaticField0.positioned"))
+        XCTAssertTrue(source.contains("XLStaticRowFieldSource<Dialect, _SwiftQLStaticDialect_1>"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField0_1 = try dialect.grouped"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField3 = try _swiftQLStaticField0.grouped"))
         XCTAssertTrue(source.contains("decode: { _swiftQLStaticReader_1 in"))
         XCTAssertTrue(source.contains("encode: { _swiftQLStaticRow_1 in"))
         XCTAssertFalse(source.contains("staticRowLayout<Dialect>"))
@@ -930,12 +1180,12 @@ final class MetaBuilderTests: XCTestCase {
         )
         XCTAssertTrue(
             staticSource.contains(
-                "XLStaticSelectFieldProtocol<_SwiftQLStaticDialect, _SwiftQLStaticDialect_1>"
+                "XLStaticRowFieldSource<_SwiftQLStaticDialect, _SwiftQLStaticDialect_1>"
             )
         )
         XCTAssertTrue(
             staticSource.contains(
-                "XLStaticSelectFieldProtocol<Box<Array<_SwiftQLStaticDialect?>>, _SwiftQLStaticDialect_1>"
+                "XLStaticRowFieldSource<Box<Array<_SwiftQLStaticDialect?>>, _SwiftQLStaticDialect_1>"
             )
         )
         XCTAssertTrue(
@@ -943,6 +1193,138 @@ final class MetaBuilderTests: XCTestCase {
                 "readRow(reader _swiftQLRowReader_1: XLRowReader) throws -> _swiftQLRowReader"
             )
         )
+    }
+
+    // MARK: - Composite (nested `@SQLTable`/`@SQLResult`) properties
+    //
+    // A stored property whose type is itself a generated `@SQLTable`/
+    // `@SQLResult` type is, from `MetaBuilder`'s point of view, syntactically
+    // indistinguishable from any other nominal-type property: the macro has
+    // no semantic access to the property type's own declaration (it may not
+    // even be in the same file), so it cannot tell "nested composite" apart
+    // from "scalar `XLLiteral`" at expansion time. Composite support is
+    // therefore uniform code generation, not macro-side detection: every
+    // property -- scalar or composite -- goes through the same
+    // `some SwiftQL.XLStaticRowFieldSource<Type, Dialect>` parameter and the
+    // same `.grouped(at:alias:)` / running-offset accumulation. Whether a
+    // given call site actually supplies a scalar field or a nested
+    // `XLStaticRowLayout` is resolved later, by Swift's own conformance
+    // checking. These tests pin the exact generated shape for the
+    // property-count patterns issue #6 calls out; `StaticRowLayoutGRDBTests`
+    // exercises the same generated code with a real nested composite value
+    // and a real SQLite database.
+
+    func test_staticRowLayoutGeneration_singleCompositeProperty() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct EmployeeOnly {
+                let employee: Employee
+            }
+            """
+        )
+        let source = builder.makeStaticRowLayoutFunction()
+
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+        XCTAssertTrue(source.contains("some SwiftQL.XLStaticRowFieldSource<Employee, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField0 = try employee.grouped(at: 0, alias: \"employee\")"))
+        XCTAssertFalse(source.contains("_swiftQLStaticOffset"))
+        XCTAssertTrue(source.contains("fields: [_swiftQLStaticField0.fields].flatMap { $0 },"))
+        XCTAssertTrue(source.contains("employee: try _swiftQLStaticField0.read(from: _swiftQLStaticReader)"))
+        XCTAssertTrue(source.contains("encode: { _swiftQLStaticRow in"))
+        XCTAssertTrue(source.contains("try _swiftQLStaticField0.encode(_swiftQLStaticRow.employee)"))
+    }
+
+    func test_staticRowLayoutGeneration_multipleCompositeProperties() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct EmployeeCompany {
+                let employee: Employee
+                let company: Company
+            }
+            """
+        )
+        let source = builder.makeStaticRowLayoutFunction()
+
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+        XCTAssertTrue(source.contains("employee: some SwiftQL.XLStaticRowFieldSource<Employee, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("company: some SwiftQL.XLStaticRowFieldSource<Company, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField0 = try employee.grouped(at: 0, alias: \"employee\")"))
+        XCTAssertTrue(source.contains("_swiftQLStaticOffset = _swiftQLStaticField0.count"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField1 = try company.grouped(at: _swiftQLStaticOffset, alias: \"company\")"))
+        XCTAssertTrue(source.contains("fields: [_swiftQLStaticField0.fields, _swiftQLStaticField1.fields].flatMap { $0 },"))
+        XCTAssertTrue(source.contains("employee: try _swiftQLStaticField0.read(from: _swiftQLStaticReader)"))
+        XCTAssertTrue(source.contains("company: try _swiftQLStaticField1.read(from: _swiftQLStaticReader)"))
+        XCTAssertTrue(
+            source.contains(
+                "try [_swiftQLStaticField0.encode(_swiftQLStaticRow.employee), _swiftQLStaticField1.encode(_swiftQLStaticRow.company)].flatMap { $0 }"
+            )
+        )
+    }
+
+    func test_staticRowLayoutGeneration_mixOfScalarAndCompositeProperties() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct EmployeeWithBadge {
+                let badgeNumber: Int
+                let employee: Employee
+                let company: Company
+            }
+            """
+        )
+        let source = builder.makeStaticRowLayoutFunction()
+
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+        // Every property -- scalar or composite -- gets the identical
+        // parameter shape; there is no macro-side branch between them.
+        XCTAssertTrue(source.contains("badgeNumber: some SwiftQL.XLStaticRowFieldSource<Int, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("employee: some SwiftQL.XLStaticRowFieldSource<Employee, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("company: some SwiftQL.XLStaticRowFieldSource<Company, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField0 = try badgeNumber.grouped(at: 0, alias: \"badgeNumber\")"))
+        // A third property means the running offset is genuinely
+        // reassigned, so it is generated as `var`.
+        XCTAssertTrue(source.contains("var _swiftQLStaticOffset = _swiftQLStaticField0.count"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField1 = try employee.grouped(at: _swiftQLStaticOffset, alias: \"employee\")"))
+        XCTAssertTrue(source.contains("_swiftQLStaticOffset += _swiftQLStaticField1.count"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField2 = try company.grouped(at: _swiftQLStaticOffset, alias: \"company\")"))
+        XCTAssertTrue(
+            source.contains(
+                "fields: [_swiftQLStaticField0.fields, _swiftQLStaticField1.fields, _swiftQLStaticField2.fields].flatMap { $0 },"
+            )
+        )
+    }
+
+    func test_staticRowLayoutGeneration_nestedInsideNestedComposite() throws {
+        // `Department` is itself a composite result nesting `Employee` and
+        // `Company` (mirroring `EmployeeCompany` above); `DepartmentReport`
+        // then nests `Department` a further level deep alongside a scalar
+        // property. `MetaBuilder` only ever sees `DepartmentReport`'s own
+        // declared properties, so the generated code is identical in shape
+        // to any other single-composite-plus-scalar case -- depth is
+        // handled entirely by `XLStaticRowLayout.grouped(at:alias:)`
+        // recursing through however many nested layouts are passed to it at
+        // the call site, not by anything the macro generates differently
+        // here. `StaticRowLayoutGRDBTests` proves the recursive flattening
+        // actually works end to end against a real database.
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct DepartmentReport {
+                let headcount: Int
+                let department: Department
+            }
+            """
+        )
+        let source = builder.makeStaticRowLayoutFunction()
+
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+        XCTAssertTrue(source.contains("headcount: some SwiftQL.XLStaticRowFieldSource<Int, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("department: some SwiftQL.XLStaticRowFieldSource<Department, _SwiftQLStaticDialect>"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField0 = try headcount.grouped(at: 0, alias: \"headcount\")"))
+        XCTAssertTrue(source.contains("let _swiftQLStaticField1 = try department.grouped(at: _swiftQLStaticOffset, alias: \"department\")"))
+        XCTAssertTrue(source.contains("fields: [_swiftQLStaticField0.fields, _swiftQLStaticField1.fields].flatMap { $0 },"))
     }
 
     func test_emptyStaticRowLayoutGenerationDefersInitializerToDecodeClosure() throws {
@@ -998,5 +1380,115 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("output.id = value"))
         XCTAssertTrue(source.contains("var output = MetaUpdate()"))
         XCTAssertTrue(source.contains("output.id = SwiftQL._xlLegacyValueExpression(value)"))
+    }
+
+    // MARK: - #256 regression corpus: builder-level shape checks
+    //
+    // See `MacroRegressionCorpus.json` for the provenance record backing
+    // each case below.
+
+    // A backticked Swift-reserved keyword must have its backticks stripped
+    // from every generated *SQL* alias, not only the memberwise initializer
+    // covered by `test_memberwiseInitializer_backtickedName` above -- the
+    // full `@SQLTable` extension declares several independent generated
+    // members (`MetaWritableTable`, `MetaInsert`, `MetaUpdate`, `SQLReader`,
+    // `MetaCreate`) that each re-derive their own column name from the same
+    // property, so a regression that only fixed one of them would still
+    // ship a `"class"` column at the SQL level.
+    func test_metaTableExtension_backtickedReservedKeywordStripsBackticksAcrossEveryGeneratedMember() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+                var `class`: Int
+            }
+            """
+        )
+        let source = builder.makeMetaTableExtension()
+
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+        // MetaInsert / MetaUpdate / SQLReader-facing column name literal.
+        XCTAssertTrue(source.contains("XLName(\"class\")"))
+        // MetaCreate's rendered column definition.
+        XCTAssertTrue(source.contains("column(name: XLName(\"class\"), nullable: false)"))
+        // The Swift-side property name keeps its backticks everywhere it is
+        // referenced as an identifier.
+        XCTAssertTrue(source.contains("`class`"))
+        XCTAssertFalse(source.contains("XLName(\"`class`\")"))
+    }
+
+    // A struct member that is never a column at all -- a subscript, a
+    // nested type declaration, and an ordinary method -- must be silently
+    // skipped rather than diagnosed or accidentally collected, alongside one
+    // genuine stored property. `collectProperties` only iterates
+    // `VariableDeclSyntax` members, so this pins that the filter continues
+    // to hold as the struct grows other kinds of members.
+    func test_nonPropertyMembersAreIgnoredNotCollectedAsColumns() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+                var id: Int
+
+                subscript(index: Int) -> Int { index }
+
+                struct Nested {
+                    var value: Int
+                }
+
+                func describe() -> String { "sample" }
+            }
+            """
+        )
+
+        XCTAssertEqual(builder.properties.count, 1)
+        XCTAssertEqual(builder.properties[0].name, "id")
+    }
+
+    // A wide row (more properties than any existing fixture) exercises the
+    // running-offset accumulation in `makeStaticRowLayoutFunction()` at a
+    // scale closer to a real denormalized table than the two- and
+    // three-property cases already covered by the composite-property tests
+    // above, and pins that every property -- not just the first and last --
+    // is threaded through `fields`, `decode`, and `encode`.
+    func test_staticRowLayoutGeneration_manyStoredPropertiesAccumulateSequentialOffsets() throws {
+        let propertyCount = 12
+        let declarations = (0..<propertyCount).map { "    var field\($0): Int" }.joined(separator: "\n")
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct WideRow {
+            \(declarations)
+            }
+            """
+        )
+        let source = builder.makeStaticRowLayoutFunction()
+
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+        XCTAssertEqual(builder.properties.count, propertyCount)
+        for index in 0..<propertyCount {
+            XCTAssertTrue(
+                source.contains("field\(index): some SwiftQL.XLStaticRowFieldSource<Int, _SwiftQLStaticDialect>"),
+                "missing parameter for field\(index)"
+            )
+            XCTAssertTrue(
+                source.contains("field\(index): try _swiftQLStaticField\(index).read(from: _swiftQLStaticReader)"),
+                "missing decode line for field\(index)"
+            )
+        }
+        // The offset is reassigned for every property after the first, so
+        // it must be a `var`, and every field group after the first
+        // contributes to it.
+        XCTAssertTrue(source.contains("var _swiftQLStaticOffset = _swiftQLStaticField0.count"))
+        for index in 1..<(propertyCount - 1) {
+            XCTAssertTrue(
+                source.contains("_swiftQLStaticOffset += _swiftQLStaticField\(index).count"),
+                "missing offset accumulation after field\(index)"
+            )
+        }
+        let expectedFieldsExpression = (0..<propertyCount)
+            .map { "_swiftQLStaticField\($0).fields" }
+            .joined(separator: ", ")
+        XCTAssertTrue(source.contains("fields: [\(expectedFieldsExpression)].flatMap { $0 },"))
     }
 }

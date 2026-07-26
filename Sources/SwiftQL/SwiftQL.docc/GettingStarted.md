@@ -17,10 +17,10 @@ introduction to SQL, see the
 Add the latest published SwiftQL package to your dependencies:
 
 ```text
-.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.4.3")
+.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.5.1")
 ```
 
-Version 1.4.3 is the published package. This guide's basic request path remains
+Version 1.5.1 is the published package. This guide's basic request path remains
 supported in v1.3, and its static-query and contextual-codec APIs remain
 available from version 1.2.0 or later. Pin a source revision only when
 intentionally testing later changes from `main`.
@@ -321,6 +321,87 @@ Execute the request whenever it is needed:
 ```swift
 let workingAgePeople = try workingAgeRequest.fetchAll()
 ```
+
+#### Typed multi-statement transaction scopes
+
+`GRDBDatabase.withTransaction(_:)` (issue #284, `XLTransactionalDatabase`) runs
+an ordered sequence of typed requests — reads and writes alike — as one atomic
+unit on a single pinned connection, without ever naming a GRDB type. It is the
+typed counterpart to the driver-level `withTransaction` described above: where
+the driver hands an adapter integration a raw connection, this hands ordinary
+application code another `GRDBDatabase`, so the body is just more
+`makeRequest(with:)` calls (and, inside a `@SQLQueries` extension, more
+`Context` calls — `execute(_:)` is sugar over this same primitive).
+
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
+```swift
+let (workingAgeCount, insertedID) = try database.withTransaction { scope in
+    let newHire = Person(id: "txn-scope-a", occupationId: nil, name: "Grace", age: 29)
+    try scope.makeRequest(with: sqlInsert(newHire)).execute()
+    let promoted = Person(id: "txn-scope-b", occupationId: nil, name: "Harold", age: 45)
+    try scope.makeRequest(with: sqlInsert(promoted)).execute()
+    let matches = try scope.makeRequest(with: workingAgeQuery).fetchAll()
+    return (matches.count, newHire.id)
+}
+```
+
+Ordering, atomicity, and lifetime work exactly as the driver-level contract
+above describes, plus the guarantees a typed, adapter-neutral surface adds:
+
+- **Order and results.** Every request the body issues runs in source order
+  on the one connection `withTransaction(_:)` pinned for this call; an
+  ordinary local variable carries one operation's result to a later one or to
+  the transaction's own return value.
+- **Commit and rollback.** The whole body is one commit unit: it commits only
+  after the body returns normally, and rolls back every write the body
+  performed — on a preparation, binding, execution, decoding, or user-thrown
+  failure alike — before rethrowing the original, unmodified error.
+- **Read-your-writes.** A read issued from the scope observes an earlier,
+  still-uncommitted write from the same body, because both run on the same
+  pinned connection.
+- **No GRDB type in the contract.** The scope handed to the body is another
+  `GRDBDatabase` — the exact same type the rest of this article uses — never a
+  GRDB `Database`, `DatabasePool`, or statement handle.
+
+Three cases are rejected before any transaction work happens, each with a
+predictable, catchable `XLTransactionScopeError` rather than a crash or silent
+wrong answer:
+
+- **Nested transactions and savepoints are not supported.** Calling
+  `withTransaction(_:)` again from inside an active body — on the scope it was
+  given, *or* on the original database captured from the enclosing scope —
+  throws `.nestedTransactionUnsupported`. The v1 driver has no savepoint hook,
+  so a nested call cannot prove it would only commit or roll back its own
+  writes; re-entering the connection pool from inside an open transaction can
+  also deadlock or silently lease a different connection that only sees the
+  database's last *committed* state, missing the transaction's own
+  uncommitted writes.
+- **The scope must not escape the body.** A request, write request, or scope
+  value used after `withTransaction(_:)` returns throws `.scopeEscaped`: the
+  pinned connection is invalidated the instant the body returns, so
+  continuing would silently touch a connection GRDB may already be reusing
+  for unrelated work.
+- **Live queries are not supported inside a transaction.** `publish()` /
+  `publishOne()` on a transaction-scoped request throws
+  `.liveQueriesUnsupportedInTransaction`: `ValueObservation` tracks a
+  connection pool across commits over time, and a transaction-scoped
+  connection is invalidated before there is anything to observe.
+
+Cancellation is checked once, at the very start of `withTransaction(_:)`: a
+task that is already cancelled throws `CancellationError` before opening the
+transaction. The body itself runs synchronously to completion once started —
+there is no later cooperative cancellation point, so mid-transaction
+cancellation is not a supported capability of this v1 surface, not a silently
+ignored one.
+
+`withTransaction(_:)` is a non-macro v1 compatibility API: a plain closure
+over `XLTransactionalDatabase`, available on the same Swift 5.9 floor as the
+rest of this article, independent of the `@SQLQuery`/`@SQLQueries` macros
+described in <doc:DeclaredQueries>. Composing with those macros needs no
+separate transaction-aware spelling — a `@SQLQueries` extension's generated
+`execute(_:)` already calls `withTransaction(_:)` internally, so every
+declared query it runs shares the same pinned connection as any
+`makeRequest(with:)` call alongside it in the same body.
 
 ## Named bindings
 

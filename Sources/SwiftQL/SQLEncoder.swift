@@ -110,13 +110,19 @@ public struct XLEncoding {
     /// SQLite parses partial SQL.
     public let valueEncodingError: XLSQLValueEncodingError?
 
+    /// Custom scalar functions referenced by `sql`, keyed by their SQLite registration
+    /// signature. A driver can register these on demand instead of requiring the caller to
+    /// register every custom function upfront.
+    public let customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
+
     public init(
         sql: String,
         entities: Set<String>,
         dialectRequirement: XLDialectRequirement,
         parameterLayout: XLParameterLayout = .empty,
         parameterLayoutError: XLInvocationBindingError? = nil,
-        valueEncodingError: XLSQLValueEncodingError? = nil
+        valueEncodingError: XLSQLValueEncodingError? = nil,
+        customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
     ) {
         self.sql = sql
         self.entities = entities
@@ -124,6 +130,7 @@ public struct XLEncoding {
         self.parameterLayout = parameterLayout
         self.parameterLayoutError = parameterLayoutError
         self.valueEncodingError = valueEncodingError
+        self.customFunctions = customFunctions
     }
 }
 
@@ -241,7 +248,19 @@ public protocol XLBuilder {
     /// - Parameter name: Entity name.
     ///
     mutating func entity(_ name: String)
-    
+
+    ///
+    /// Records a custom scalar function referenced while rendering.
+    ///
+    /// Builders that do not collect custom-function registrations remain source compatible
+    /// through the default no-op implementation. `XLBuilder.customFunctionCall(_:parameters:)`
+    /// calls this so a driver can register the function on demand instead of requiring the
+    /// caller to register it upfront.
+    ///
+    /// - Parameter registration: Identity and registration thunk for the referenced function.
+    ///
+    mutating func customFunction(_ registration: XLCustomFunctionRegistration)
+
     ///
     /// Adds a `nil` literal.
     ///
@@ -461,6 +480,8 @@ extension XLBuilder {
     public mutating func valueEncodingFailed(
         _ error: XLSQLValueEncodingError
     ) {}
+
+    public mutating func customFunction(_ registration: XLCustomFunctionRegistration) {}
 
     public mutating func parameter(_ slot: XLParameterSlot) {
         switch slot.key {

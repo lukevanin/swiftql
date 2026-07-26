@@ -1,5 +1,159 @@
 # Changelog
 
+## [1.5.1] - 2026-07-26
+
+### Added
+
+- Added `@SQLQuery` (issues #18/#26), an attached peer macro that lowers a
+  query-specification function — an instance method on a database extension
+  whose body builds a `sql { }` statement from its own parameters — into a
+  value-free statement builder and a cached, cardinality-dispatched executor.
+  Labeled parameters and result cardinality are derived from the function's
+  own signature: `[Row]` fetches all rows, `Row?` fetches zero-or-one, a bare
+  `Row` fetches exactly one (throwing `XLQueryCardinalityError.noRowsMatched`
+  or `.moreThanOneRowMatched`), and the legacy `any/some
+  XLQueryStatement<Row>` spelling fetches all rows. Every invocation
+  constructs a fresh, immutable binding packet; callers never construct or
+  mutate a binding themselves and never bind by textual SQL substitution.
+- Added `@SQLQueries` (issues #18/#26, the recommended packaging), an
+  attached member macro that reads every specification out of a nested
+  `private struct Query` container inside one `@SQLQueries`-attached database
+  extension, and generates the executors as members of the database itself —
+  carrying the specification's own name (`personByName(name:)`, not
+  `fetchPersonByName`) because they land in a different scope. Generates a
+  connection-scoped `Context`, an `execute(_:)` entry point for running
+  several declared queries in one scope, and one database-level convenience
+  executor per specification.
+- Added the frozen-literal guard: both macros reject, at the declaration
+  site, every parameter-reference shape their signature-driven rewrite cannot
+  turn into a named placeholder — a string interpolation, a nested-closure
+  capture, a direct call argument, a local-binding initializer, a
+  hand-constructed binding, a shadowing declaration, member access on a
+  parameter, a collection-typed parameter, and an unreferenced parameter.
+  Every remaining reference shape the rewrite reaches is rewritten to a named
+  placeholder, so the encoding has no path that silently freezes a stale
+  argument value into the cached SQL.
+- Added `XLRenderOnceCache` and `XLPreparedQueryCacheKey`: each declaration
+  renders its value-free statement to SQL at most once per
+  `(databaseIdentifier, dialectIdentifier)` and reuses the resulting request
+  on every later call, so the underlying GRDB connection reuses one physical
+  prepared statement across calls with different argument values.
+  `GRDBDatabase.preparedQueryCacheKey` opts the GRDB adapter into this
+  reuse; `XLDatabase.preparedQueryCacheKey` defaults to `nil` (render on every
+  call) so existing third-party adapters keep compiling.
+- Added the `DeclaredQueries` DocC article covering the `@SQLQuery` and
+  `@SQLQueries` forms, the frozen-literal guard, render-once caching and its
+  concurrency/`Sendable` story, and the v1.5 transitional-syntax note.
+- Added typed multi-statement transaction scopes (issue #284):
+  `XLTransactionalDatabase.withTransaction(_:)` runs an ordered sequence of
+  typed `XLRequest`/`XLWriteRequest` invocations — reads and writes alike —
+  on one pinned GRDB connection as a single atomic unit, committing only
+  after the whole body succeeds and rolling back every write on a
+  preparation, binding, execution, decoding, or user-thrown failure, with no
+  GRDB type anywhere in the contract. `@SQLQueries`'s generated `execute(_:)`
+  is now sugar over this same primitive, so declared-query calls and
+  `makeRequest(with:)` calls in one `execute(_:)` closure commit or roll back
+  together. Calling `withTransaction(_:)` again from inside an active body —
+  whether on the scope it was given or on the original database captured
+  from the enclosing closure — is rejected with a catchable
+  `XLTransactionScopeError.nestedTransactionUnsupported` before any pool
+  access, instead of the uncatchable crash GRDB's own reentrant-write guard
+  would otherwise raise. A scope value used after its body returns throws
+  `.scopeEscaped`; `publish()`/`publishOne()` inside a transaction throws
+  `.liveQueriesUnsupportedInTransaction`; an already-cancelled task throws
+  `CancellationError` before the transaction opens. Documented in
+  `GettingStarted`'s "Typed multi-statement transaction scopes".
+- Added composite/nested result selection (issue #6): a stored property on an
+  `@SQLTable`/`@SQLResult` type can now itself be another `@SQLTable`/
+  `@SQLResult` type. The generated `staticRowLayout(using:...)` factory
+  flattens every one of the nested type's own columns into the enclosing
+  type's flat SQL result (re-aliased with the property name as a prefix, e.g.
+  `employee_id`, `employee_name`), and reconstructs the nested value before
+  building the enclosing type. Nesting composes to any depth, since a
+  composite property's argument is itself the nested type's own
+  `staticRowLayout(using:...)` result.
+- Added the `XLStaticRowFieldSource` protocol and `XLStaticFieldGroup` type to
+  `SwiftQL`. Every generated `staticRowLayout(using:...)` parameter now takes
+  an `XLStaticRowFieldSource` value; both an ordinary `XLStaticSelectField`
+  (through a default implementation, so no scalar call site changes) and an
+  `XLStaticRowLayout` (for a nested composite property) conform to it. The
+  macro has no semantic access to a property's type declaration, so it never
+  has to detect which case applies -- Swift's own conformance checking
+  resolves it from whichever value the caller passes to a given property.
+- Extended the unsupported-column-type diagnostic to name both supported
+  property shapes (a scalar `XLLiteral` column, or a nested `@SQLTable`/
+  `@SQLResult` composite), so a property type the macro cannot resolve as
+  either is rejected with an actionable message instead of only failing
+  downstream with an opaque protocol-conformance error.
+- Added the issue #256 `@SQLTable`/`@SQLResult` macro regression corpus:
+  expansion and diagnostic tests for reserved/escaped and Unicode
+  identifiers, SQL-keyword-like property names, doubly-wrapped optionals,
+  every reserved generated-member name, mixed access-control modifiers, and
+  a wide (12-property) row; and a checked-in downstream consumer fixture
+  (`IntegrationTests/Swift5Client`) that compiles and executes BLOBs,
+  optionals, `XLEnum` columns, a wide row, and composite/nested result
+  selection against real SQLite without `@testable`. Each case's provenance
+  and disposition (including the still-unsupported optional composite
+  property, gated on issue #6) is recorded in
+  `Tests/SQLMacrosTests/MacroRegressionCorpus.json`, a sibling to the #190
+  SQL-syntax conformance inventory scoped to macro code-generation instead.
+- Added the `@SQLFunction` macro (#25), which generates the `XLCustomFunctionDefinition`
+  and `makeSQL(context:)` boilerplate for a custom `XLCustomFunction` conformer
+  from its stored properties — one positional SQL argument per property, in
+  declaration order. `execute(reader:)`, the actual computation, is still
+  written by hand. The macro is opt-in sugar: hand-written `XLCustomFunction`
+  conformances that implement `definition` and `makeSQL` themselves keep
+  working unchanged.
+- Added implicit custom-function registration. A custom function conforming to
+  `XLCustomFunction` can opt in by calling the new
+  `XLBuilder.customFunctionCall(_:parameters:)` from `makeSQL(context:)`
+  instead of `simpleFunction(name:parameters:)`. `GRDBDatabase` then registers
+  the function with SQLite automatically the first time a rendered statement
+  referencing it executes, without requiring a `GRDBDatabaseBuilder.addFunction`
+  call beforehand. Because `GRDB.DatabasePool` maintains several persistent
+  reader connections and a registration only affects the one physical
+  connection it runs on, the function is (cheaply) re-registered on every
+  execution rather than tracked as "already registered" once, so it works
+  correctly no matter which pooled connection services a given call.
+  `GRDBDatabaseBuilder.addFunction` is unchanged and continues to work exactly
+  as before for functions that keep calling `simpleFunction` directly, or for
+  callers who prefer registering everything upfront.
+
+### Migration
+
+No migration is required for v1.5.1. `@SQLQuery` and `@SQLQueries` are new,
+additive macros; the one new `XLDatabase.preparedQueryCacheKey` protocol
+requirement has a default (`nil`) that keeps every existing conformer,
+including third-party `XLDatabase` adapters, source-compatible.
+
+### Known limitations
+
+- Only `SELECT`-shaped specifications are supported; a write statement
+  (`INSERT`/`UPDATE`/`DELETE`, with or without `RETURNING`) is not yet an
+  accepted return shape. A `.command` cardinality dispatching to
+  `XLWriteRequest.execute` remains future work.
+- Collection-typed parameters (`[T]`, `Set`, `Dictionary`) are rejected,
+  because a variable-length `IN` list would change the rendered SQL text with
+  the element count.
+- The generated executor is synchronous and throwing; an `async` variant is
+  additive future work.
+- Peer and member names are derived from the specification's base name only,
+  so two `@SQLQuery` functions sharing a base name but differing in
+  parameter list generate colliding peer declarations — a loud
+  duplicate-declaration compile error, not a silent one.
+- Only one `@SQLQueries`-attached extension is supported per database type; a
+  second would redeclare `Context` and `execute(_:)`.
+- A composite/nested `@SQLTable`/`@SQLResult` property must be
+  non-optional; an optional nested composite (representing an absent
+  value from an outer join, for example) is not yet supported.
+- `withTransaction(_:)` does not support nested transactions or savepoints —
+  a nested call is rejected outright rather than silently composed — and
+  cancellation is checked only once, before the transaction opens; the
+  synchronous body has no cooperative mid-transaction cancellation point.
+  Both remain tracked by v2 issue #113, matching the disposition the shared
+  `SQLiteTransactionConformanceFixtures` capability table (issue #253)
+  already recorded for the driver-level contract.
+
 ## [1.4.6] - 2026-07-25
 
 ### Changed

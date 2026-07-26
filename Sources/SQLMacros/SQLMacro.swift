@@ -155,5 +155,8 @@ extension SQLResultMacro: ExtensionMacro {
     let providingMacros: [Macro.Type] = [
         SQLTableMacro.self,
         SQLResultMacro.self,
+        SQLQueryMacro.self,
+        SQLQueriesMacro.self,
+        SQLFunctionMacro.self,
     ]
 }

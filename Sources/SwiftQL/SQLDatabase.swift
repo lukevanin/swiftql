@@ -152,7 +152,19 @@ public protocol XLRequest<Row> {
 
     /// Fetches all rows with one immutable per-invocation binding packet.
     func fetchAll(bindings: any XLInvocationBindingPacket) throws -> [Row]
-    
+
+    ///
+    /// Fetches at most `limit` rows with one immutable per-invocation binding packet, stopping as soon
+    /// as `limit` rows have been decoded rather than materializing every matching row.
+    ///
+    /// Use this to check a query's cardinality (e.g. "zero, one, or more than one row?") without paying
+    /// to decode and retain every row when many might match.
+    ///
+    /// - Precondition: `limit >= 0`.
+    /// - Throws: The original query-execution or row-decoding error.
+    ///
+    func fetchAtMost(_ limit: Int, bindings: any XLInvocationBindingPacket) throws -> [Row]
+
     ///
     /// Fetches the first row returned by the query.
     ///
@@ -220,6 +232,20 @@ extension XLRequest {
     ) throws -> Row? {
         try validateCompatibilityBindings(bindings)
         return try fetchOne()
+    }
+
+    /// Compatibility default for adapters that do not implement early-stopping decode: fetches every
+    /// row and truncates. Adapters that can decode incrementally (e.g. `GRDBRequest`) override this to
+    /// actually stop after `limit` rows.
+    public func fetchAtMost(
+        _ limit: Int,
+        bindings: any XLInvocationBindingPacket
+    ) throws -> [Row] {
+        precondition(limit >= 0, "fetchAtMost(_:bindings:) requires limit >= 0, got \(limit).")
+        guard limit > 0 else {
+            return []
+        }
+        return Array(try fetchAll(bindings: bindings).prefix(limit))
     }
 
     /// Compatibility default for existing adapters. Invalid packets fail on
@@ -404,6 +430,16 @@ public protocol XLDatabase {
     /// Creates a prepared delete request from a delete statement.
     ///
     func makeRequest(with statement: any XLDeleteStatement) -> any XLWriteRequest
+
+    ///
+    /// The identity a render-once cache keys on, or `nil` to opt out.
+    ///
+    /// A macro-generated `@SQLQuery`/`@SQLQueries` executor (issues #18/#26)
+    /// renders its statement once per declaration and reuses the request; this
+    /// key scopes that reuse. Returning `nil` (the default) renders on every
+    /// call. See ``XLPreparedQueryCacheKey``.
+    ///
+    var preparedQueryCacheKey: XLPreparedQueryCacheKey? { get }
 }
 
 extension XLDatabase {
@@ -430,5 +466,14 @@ extension XLDatabase {
             "\(type(of: self)) does not support RETURNING statements. Override "
             + "XLDatabase.makeRequest(with: any XLReturningStatement) to add support."
         )
+    }
+
+    ///
+    /// Default render-once opt-out for adapters that do not render SQL
+    /// deterministically per dialect, or that predate ``XLPreparedQueryCacheKey``.
+    /// A macro-generated executor renders on every call exactly as before.
+    ///
+    public var preparedQueryCacheKey: XLPreparedQueryCacheKey? {
+        nil
     }
 }
