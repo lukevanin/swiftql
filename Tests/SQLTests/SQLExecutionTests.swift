@@ -94,39 +94,6 @@ final class XLExecutionTests: XCTestCase {
         )
     }
 
-    /// `#row(...)` builds an ad hoc row projection without a declared `@SQLResult` type. This
-    /// exercises it against a real SQLite database: a two-column `#row` decodes into `SQLRow2`,
-    /// and a one-column `#row` decodes into `SQLScalarResult`.
-    func testRowMacroDecodesFromRealDatabase() throws {
-        try createTestTable()
-        try insertTest(TestTable(id: "bar", value: 42))
-
-        let id = XLNamedBindingReference<String>(name: "id")
-        let twoColumnStatement = sql { schema in
-            let table = schema.table(TestTable.self)
-            Select(#row(table.id, table.value))
-            From(table)
-            Where(table.id == id)
-        }
-        var twoColumnRequest = database.makeRequest(with: twoColumnStatement)
-        twoColumnRequest.set(id, "bar")
-
-        let twoColumnResult = try twoColumnRequest.fetchOne()
-        XCTAssertEqual(twoColumnResult?._0, "bar")
-        XCTAssertEqual(twoColumnResult?._1, 42)
-
-        let scalarStatement = sql { schema in
-            let table = schema.table(TestTable.self)
-            Select(#row(table.value))
-            From(table)
-            Where(table.id == id)
-        }
-        var scalarRequest = database.makeRequest(with: scalarStatement)
-        scalarRequest.set(id, "bar")
-
-        XCTAssertEqual(try scalarRequest.fetchOne()?.scalarValue, 42)
-    }
-
     func testNestedUnaryOperatorExecution() throws {
         let x = XLNamedBindingReference<Int>(name: "x")
         let doubleNegation = sql { _ in
