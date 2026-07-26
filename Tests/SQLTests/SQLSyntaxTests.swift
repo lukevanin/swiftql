@@ -569,8 +569,29 @@ final class XLSyntaxTests: XCTestCase {
         let expression = x ?? 7
         XCTAssertEqual(encoder.makeSQL(expression).sql, "COALESCE(:x, 7)")
     }
-    
-    
+
+
+    /// Issue #7: chaining two optional fallbacks composes by nesting one
+    /// `coalesce`/`??` inside another, rather than needing a dedicated
+    /// optional-rhs overload — `x.coalesce(y.coalesce(7))` and its `??`
+    /// equivalent both render as SQLite's own variadic `COALESCE`.
+    func test_TwoOptionalIntegerBindings_Coalesce_Integer() {
+        let x = XLNamedBindingReference<Optional<Int>>(name: "x")
+        let y = XLNamedBindingReference<Optional<Int>>(name: "y")
+        let expression = x.coalesce(y.coalesce(7))
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "COALESCE(:x, COALESCE(:y, 7))")
+    }
+
+
+    func test_TwoOptionalIntegerBindings_CoalescingOperator_Integer() {
+        let x = XLNamedBindingReference<Optional<Int>>(name: "x")
+        let y = XLNamedBindingReference<Optional<Int>>(name: "y")
+        // `??` is right-associative, so this parses as `x ?? (y ?? 7)`.
+        let expression = x ?? y ?? 7
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "COALESCE(:x, COALESCE(:y, 7))")
+    }
+
+
     // MARK: - Text concatenation
     
     func test_TextBinding_Plus_String() {

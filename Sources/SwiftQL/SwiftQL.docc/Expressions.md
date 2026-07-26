@@ -411,6 +411,27 @@ let query = sql { schema in
 In this query the occupation name is coalesced to `No occupation` when no 
 `Occupation` record is associated with the `Person`.
 
+Chain multiple fallbacks by nesting one `coalesce`/`??` inside another —
+SQLite's own `COALESCE` is variadic, and nesting renders the same way. `??` is
+right-associative, so `a ?? b ?? c` parses as `a ?? (b ?? c)`:
+
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
+```swift
+let preferredName = XLNamedBindingReference<String?>(name: "preferredName")
+let nickname = XLNamedBindingReference<String?>(name: "nickname")
+let expression = preferredName ?? nickname ?? "Anonymous"
+```
+
+This renders `COALESCE(:preferredName, COALESCE(:nickname, 'Anonymous'))`.
+
+> Warning: `??` only renders `COALESCE` when its left-hand side is a concrete
+> SwiftQL expression (a column, binding, or another expression). Applying it
+> to a plain Swift `Optional` value — for example while assembling a
+> parameter to pass to GRDB directly — resolves to the standard library's
+> `??` instead, silently returning a plain value with no `COALESCE` emitted
+> at all. `coalesce` and `??` are only interchangeable when the receiver is
+> already an `XLExpression`.
+
 ## In operator
 
 The `in` operator is a logical operator used in `Where` clauses to determine if 
