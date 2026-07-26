@@ -98,6 +98,30 @@ whereas `.null` is a present value and is accepted only for a nullable slot.
 This packet isolation does not make the current request facade `Sendable` or
 promise that one request can be shared directly across tasks.
 
+### SwiftUI
+
+``XLQueryObserver`` and ``XLQueryRowObserver`` wrap `publish()`/`publishOne()`
+as `ObservableObject`s, so a view model can adopt a live query directly with
+`@StateObject`/`@ObservedObject` instead of managing a `Cancellable` by hand:
+
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
+```swift
+final class PeopleListModel: ObservableObject {
+    let people: XLQueryObserver<Person>
+
+    init(database: some XLDatabase, query: some XLQueryStatement<Person>) {
+        people = XLQueryObserver(database.makeRequest(with: query))
+    }
+}
+```
+
+A SwiftUI view reads `people.rows` and `people.error` in its `body`; both are
+`@Published`, so the view re-renders whenever either changes. Observation
+starts immediately on initialization and stops when the observer is
+deallocated — the same demand, transaction, and cancellation semantics
+described below apply, since both types subscribe through the same
+`publish()`/`publishOne()` publishers.
+
 ### Retry Policy
 
 Live queries are terminal by default. Configure a GRDB database or builder with
