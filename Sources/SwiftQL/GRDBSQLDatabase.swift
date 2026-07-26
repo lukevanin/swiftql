@@ -165,6 +165,7 @@ struct GRDBRequest<Row>: XLRequest {
         parameterLayoutError: XLInvocationBindingError? = nil,
         valueEncodingError: XLSQLValueEncodingError? = nil,
         requiresWriteConnection: Bool = false,
+        customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:],
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
         liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
     ) {
@@ -173,7 +174,8 @@ struct GRDBRequest<Row>: XLRequest {
             driver: driver,
             logicalStatement: logicalStatement,
             parameterLayoutError: parameterLayoutError,
-            valueEncodingError: valueEncodingError
+            valueEncodingError: valueEncodingError,
+            customFunctions: customFunctions
         )
         self.codingConfiguration = codingConfiguration
         self.logger = logger
@@ -514,13 +516,15 @@ struct GRDBWriteRequest: XLWriteRequest {
         logger: XLLogger?,
         logicalStatement: XLLogicalPreparedStatement,
         parameterLayoutError: XLInvocationBindingError? = nil,
-        valueEncodingError: XLSQLValueEncodingError? = nil
+        valueEncodingError: XLSQLValueEncodingError? = nil,
+        customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
     ) {
         self.executor = GRDBInvocationExecutor(
             driver: driver,
             logicalStatement: logicalStatement,
             parameterLayoutError: parameterLayoutError,
-            valueEncodingError: valueEncodingError
+            valueEncodingError: valueEncodingError,
+            customFunctions: customFunctions
         )
         self.codingConfiguration = codingConfiguration
         self.logger = logger
@@ -992,6 +996,7 @@ public struct GRDBDatabase: XLDatabase {
             logicalStatement: logicalStatement(for: encoding),
             parameterLayoutError: preparedParameterLayoutError(for: encoding),
             valueEncodingError: encoding.valueEncodingError,
+            customFunctions: encoding.customFunctions,
             liveQueryRetryPolicy: liveQueryRetryPolicy,
             liveQueryRetryScheduler: liveQueryRetryScheduler
         )
@@ -1012,7 +1017,8 @@ public struct GRDBDatabase: XLDatabase {
                 driver: driver,
                 logicalStatement: logicalStatement(for: encoding),
                 parameterLayoutError: preparedParameterLayoutError(for: encoding),
-                valueEncodingError: encoding.valueEncodingError
+                valueEncodingError: encoding.valueEncodingError,
+                customFunctions: encoding.customFunctions
             )
         )
     }
@@ -1093,7 +1099,8 @@ public struct GRDBDatabase: XLDatabase {
             logger: logger,
             logicalStatement: logicalStatement(for: encoding),
             parameterLayoutError: preparedParameterLayoutError(for: encoding),
-            valueEncodingError: encoding.valueEncodingError
+            valueEncodingError: encoding.valueEncodingError,
+            customFunctions: encoding.customFunctions
         )
     }
 

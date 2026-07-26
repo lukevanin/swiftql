@@ -87,6 +87,42 @@ public struct HaversineDistance: XLCustomFunction {
 }
 ```
 
+## Implicit vs explicit registration
+
+The `makeSQL` implementation above calls `context.simpleFunction(name:)` directly. Doing so
+opts the function out of implicit registration: it must be installed upfront, as shown below,
+or SQLite rejects any statement that calls it with a "no such function" error.
+
+To have SwiftQL register the function automatically instead -- the first time a rendered
+statement calls it, on whichever physical connection happens to execute it -- call
+`context.customFunctionCall(_:parameters:)` from `makeSQL` instead of `simpleFunction`:
+
+<!-- test: XLDocumentationTests.testDocumentationCustomFunctionRegistrationAndExecution -->
+```swift
+public func makeSQL(context: inout XLBuilder) {
+    context.customFunctionCall(Self.self) { context in
+        context.listItem(expression: fromLatitude.makeSQL)
+        context.listItem(expression: fromLongitude.makeSQL)
+        context.listItem(expression: toLatitude.makeSQL)
+        context.listItem(expression: toLongitude.makeSQL)
+    }
+}
+```
+
+With that change, `GRDBDatabase` registers the function with SQLite the first time a rendered
+statement referencing it executes -- there is no need to call `builder.addFunction(_:)` at all.
+`GRDB.DatabasePool` maintains several persistent reader connections and a registration only
+affects the one physical connection it runs on, so SwiftQL re-registers on every execution
+rather than tracking a single "already registered" flag: whichever pooled connection happens
+to service a given call gets the function registered on it before the call runs. SQLite's
+underlying `sqlite3_create_function` call is cheap, so this repetition is not a meaningful
+runtime cost.
+
+Calling `builder.addFunction(_:)` upfront continues to work exactly as before, for functions
+that use `simpleFunction` directly or for callers who prefer to register everything upfront.
+The two approaches are independent: implicit registration via `customFunctionCall` is an
+additional option, not a replacement for `addFunction`.
+
 ## Generating the boilerplate with `@SQLFunction`
 
 `definition` and `makeSQL(context:)` follow the same shape for every custom
@@ -155,9 +191,9 @@ generated or hand-written, so the rest of this guide applies unchanged.
 
 ## Installing the function
 
-Once the function is defined it needs to be installed on the database. For GRDB 
-this can be done by adding the function in the configuration, or by using the 
-`GRDBDatabaseBuilder` provided by SwiftQL:
+A function whose `makeSQL` calls `simpleFunction` directly, as `HaversineDistance` does above,
+still needs to be installed on the database upfront. For GRDB this can be done by adding the
+function in the configuration, or by using the `GRDBDatabaseBuilder` provided by SwiftQL:
 
 <!-- test: XLDocumentationTests.testDocumentationCustomFunctionRegistrationAndExecution -->
 ```swift
