@@ -266,9 +266,23 @@ struct GRDBRequest<Row>: XLRequest {
         packet: XLInvocationBindings<XLSQLiteValue>
     ) throws -> [Row] {
         var driver = executor.driver
-        return try driver.withReadConnection { connection in
-            try decodeRows(packet: packet, in: &connection)
+        // Accumulate into an outer array and return Void from the closure,
+        // instead of returning [Row] directly from withReadConnection<Result>.
+        // On the pinned Swift 5.9.2 compatibility cell, instantiating that
+        // specific generic reabstraction boundary with a 2+ generic-parameter
+        // Row type (e.g. #row's SQLRow2...6) crashes swift-frontend in IRGen
+        // (NativeConventionSchema::mapIntoNative). This shape has no cost on
+        // any other Row type, and it protects this one fetchAll() boundary
+        // from that crash — it is not a blanket fix for the bug class: the
+        // publish()/publishOne() paths below independently hit the same
+        // crash through their own generic publisher/witness-method return
+        // types, which is why #row's 2+-column shapes stay gated to Swift
+        // 6.0+ (SQLRowMacro.swift) rather than being unlocked by this change.
+        var items: [Row] = []
+        try driver.withReadConnection { connection in
+            items = try decodeRows(packet: packet, in: &connection)
         }
+        return items
     }
 
     private func decodeRows(

@@ -2178,6 +2178,39 @@ final class XLExecutionTests: XCTestCase {
     }
 
 
+    // MARK: - #row (#408)
+
+    /// `#row`'s one-column shape (`SQLScalarResult`, a single generic
+    /// parameter) is available on every compatibility cell, unlike the
+    /// two-to-six column shapes gated to Swift 6.0+ in SQLRowMacro.swift.
+    /// Deliberately not gated, so this actually runs on the Swift 5.9 cells
+    /// too.
+    func testRowMacroOneColumnDecodesThroughFetchAll() throws {
+        try createTestTable()
+        try insertTest(TestTable(id: "bar", value: 42))
+
+        let statement = sql { schema in
+            let table = schema.table(TestTable.self)
+            Select(#row(table.value))
+            From(table)
+        }
+        // XCTAssertTrue, not XCTAssertEqual: confirmed in a Docker repro
+        // against the pinned Swift 5.9.2 toolchain that XCTAssertEqual's
+        // generic <T: Equatable> signature triggers an IRGen reabstraction
+        // crash here (a property of this test's specific code shape, not of
+        // #row or the production decode path — testStringToDataRoundTrip
+        // below uses XCTAssertEqual against a fetchAll()-decoded
+        // SQLScalarResult<Data> array without incident). XCTAssertTrue's
+        // fixed Bool signature needs no such reabstraction.
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        guard let onlyRow = rows.first, rows.count == 1 else {
+            XCTFail("Expected exactly one row, got \(rows.count)")
+            return
+        }
+        XCTAssertTrue(onlyRow.scalarValue == 42)
+    }
+
+
     // MARK: - Helpers
 
     private func createTestTable() throws {
