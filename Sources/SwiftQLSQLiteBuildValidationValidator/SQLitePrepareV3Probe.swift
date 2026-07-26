@@ -171,7 +171,7 @@ public enum SQLitePrepareV3Probe {
                     let message = copiedString(sqlite3_errmsg(connection))
                         ?? "sqlite3_prepare_v3 failed without an error message."
                     if let statement {
-                        _ = sqlite3_finalize(statement)
+                        try finalizeOrThrowFinalizeFailure(statement, connection: connection)
                     }
                     throw SQLitePrepareV3ProbeError.sqlitePrepare(
                         resultCode: resultCode,
@@ -184,7 +184,7 @@ public enum SQLitePrepareV3Probe {
                       tail > cursor,
                       tail <= endAddress else {
                     if let statement {
-                        _ = sqlite3_finalize(statement)
+                        try finalizeOrThrowFinalizeFailure(statement, connection: connection)
                     }
                     throw syntheticPrepareFailure(
                         resultCode: SQLITE_MISUSE,
@@ -231,11 +231,27 @@ public enum SQLitePrepareV3Probe {
             ))
         }
 
-        let finalizeResultCode = sqlite3_finalize(statement)
         // Check the finalize result before considering inspection's outcome:
         // a failing finalize is a statement-lifecycle problem in its own
         // right and must not be silently discarded just because inspection
         // also failed (or, worse, masked by an unrelated inspection error).
+        try finalizeOrThrowFinalizeFailure(statement, connection: connection)
+        switch inspection {
+        case .failure(let error):
+            throw error
+        case .success(let shape):
+            return shape
+        }
+    }
+
+    /// Finalizes `statement` and throws `.sqliteFinalize` if finalization
+    /// itself fails, so a statement-lifecycle problem is never silently
+    /// discarded on any path that must otherwise finalize-and-continue.
+    private static func finalizeOrThrowFinalizeFailure(
+        _ statement: OpaquePointer,
+        connection: OpaquePointer
+    ) throws {
+        let finalizeResultCode = sqlite3_finalize(statement)
         guard finalizeResultCode == SQLITE_OK else {
             let extendedResultCode = sqlite3_extended_errcode(connection)
             let message = copiedString(sqlite3_errmsg(connection))
@@ -245,12 +261,6 @@ public enum SQLitePrepareV3Probe {
                 extendedResultCode: extendedResultCode,
                 message: message
             )
-        }
-        switch inspection {
-        case .failure(let error):
-            throw error
-        case .success(let shape):
-            return shape
         }
     }
 
