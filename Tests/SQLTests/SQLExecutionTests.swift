@@ -24,14 +24,18 @@ struct ColumnsResultShadowingProjection: Equatable {
 }
 
 
-/// Issue #162: both columns must decode as a single-layer `Int?`, never
-/// `Int??`, regardless of whether NULL originates from an aggregate over a
-/// NULL-valued row or from a non-aggregate subquery matching zero rows.
+/// Issue #162: `sumOfMatches`/`firstValue` must decode as a single-layer
+/// `Int?`, never `Int??`, regardless of whether NULL originates from an
+/// aggregate over an empty group or from a non-aggregate subquery matching
+/// zero rows. `detailRowExists` makes the "no row" vs. "a row containing
+/// NULL" distinction observable in the query result itself — `firstValue`
+/// alone decodes to `nil` in both cases.
 @SQLResult
 struct C162SubqueryFlattenRow: Equatable {
     let id: String
     let sumOfMatches: Int?
     let firstValue: Int?
+    let detailRowExists: Bool?
 }
 
 
@@ -2081,9 +2085,9 @@ final class XLExecutionTests: XCTestCase {
     // MARK: - Optional scalar subquery flattening (#162)
 
     /// Exercises both origins of a NULL scalar-subquery result against real
-    /// SQLite: an aggregate over a row whose value is NULL, and a
-    /// non-aggregate subquery that matches zero rows. Both must decode as a
-    /// single-layer `Int?` alongside the ordinary non-NULL case, with no
+    /// SQLite: an aggregate over an empty group, and a non-aggregate
+    /// subquery that matches zero rows. Both must decode as a single-layer
+    /// `Int?` alongside the ordinary non-NULL case, with no
     /// `XLTypeAffinityExpression` wrapper.
     func testScalarSubqueryFlattensOptionalResultAcrossNullOrigins() throws {
         // Temp drives the outer iteration; TestTable is a correlated
@@ -2133,10 +2137,21 @@ final class XLExecutionTests: XCTestCase {
                 From(d)
                 Where(d.id == driver.id)
             }
+            // COUNT is an aggregate, so it always returns exactly one row —
+            // this observably distinguishes "a row containing NULL" (count
+            // 1) from "no row" (count 0) even though firstValue decodes to
+            // nil in both cases.
+            let detailRowExistsExpression: any XLExpression<Bool?> = subqueryExpression {
+                let d = schema.table(TestNullablesTable.self)
+                Select(d.id.count() > 0)
+                From(d)
+                Where(d.id == driver.id)
+            }
             Select(C162SubqueryFlattenRow.columns(
                 id: driver.id,
                 sumOfMatches: sumExpression,
-                firstValue: firstValueExpression
+                firstValue: firstValueExpression,
+                detailRowExists: detailRowExistsExpression
             ))
             From(driver)
             OrderBy(driver.id.ascending())
@@ -2146,14 +2161,18 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(
             results,
             [
-                // Both fields NULL: sum over an empty TestTable group, and a
-                // TestNullablesTable row whose stored value is NULL.
-                C162SubqueryFlattenRow(id: "allNullDetail", sumOfMatches: nil, firstValue: nil),
-                // Both fields resolve to a real value.
-                C162SubqueryFlattenRow(id: "hasValue", sumOfMatches: 42, firstValue: 42),
-                // Both fields NULL: sum over an empty TestTable group again,
-                // and zero TestNullablesTable rows at all ("no row").
-                C162SubqueryFlattenRow(id: "noDetailRows", sumOfMatches: nil, firstValue: nil),
+                // firstValue is NULL because the matching TestNullablesTable
+                // row's stored value is NULL — detailRowExists (true) is what
+                // makes "a row containing NULL" observable here.
+                C162SubqueryFlattenRow(id: "allNullDetail", sumOfMatches: nil, firstValue: nil, detailRowExists: true),
+                // All fields resolve to a real value.
+                C162SubqueryFlattenRow(id: "hasValue", sumOfMatches: 42, firstValue: 42, detailRowExists: true),
+                // firstValue is NULL because there is no matching
+                // TestNullablesTable row at all — detailRowExists (false)
+                // distinguishes this "no row" case from allNullDetail above,
+                // even though firstValue alone decodes identically (nil) in
+                // both.
+                C162SubqueryFlattenRow(id: "noDetailRows", sumOfMatches: nil, firstValue: nil, detailRowExists: false),
             ]
         )
     }
