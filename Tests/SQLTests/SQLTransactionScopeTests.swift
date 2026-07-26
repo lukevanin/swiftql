@@ -572,13 +572,11 @@ final class SQLTransactionScopeTests: XCTestCase {
         try createTestTable()
 
         // Captured locally so the `@Sendable` dispatch closures below do not need to capture the
-        // non-Sendable test-case instance; `firstError`/`secondError` are synchronized by
-        // `DispatchGroup.enter()`/`leave()` (each is written by exactly one closure, read only
-        // after both have left), which the strict-concurrency checker cannot see.
+        // non-Sendable test-case instance.
         let database = self.database!
         let group = DispatchGroup()
-        nonisolated(unsafe) var firstError: Error?
-        nonisolated(unsafe) var secondError: Error?
+        let firstError = LockedValue<Error?>(nil)
+        let secondError = LockedValue<Error?>(nil)
 
         group.enter()
         DispatchQueue.global().async {
@@ -588,7 +586,7 @@ final class SQLTransactionScopeTests: XCTestCase {
                 }
             }
             catch {
-                firstError = error
+                firstError.withValue { $0 = error }
             }
             group.leave()
         }
@@ -601,14 +599,14 @@ final class SQLTransactionScopeTests: XCTestCase {
                 }
             }
             catch {
-                secondError = error
+                secondError.withValue { $0 = error }
             }
             group.leave()
         }
 
         XCTAssertEqual(group.wait(timeout: .now() + 10), .success)
-        XCTAssertNil(firstError)
-        XCTAssertNil(secondError)
+        XCTAssertNil(firstError.read())
+        XCTAssertNil(secondError.read())
         XCTAssertEqual(try freshRows().map(\.id).sorted(), ["first", "second"])
     }
 
@@ -623,21 +621,20 @@ final class SQLTransactionScopeTests: XCTestCase {
         try createTestTable()
 
         // Captured locally so the `@Sendable` dispatch closure below does not need to capture the
-        // non-Sendable test-case instance; `observedDuringTransaction` is synchronized by the
-        // `writeIsVisible`/`readIsDone` semaphores (written once, read only after `readIsDone`
-        // signals), which the strict-concurrency checker cannot see.
+        // non-Sendable test-case instance.
         let database = self.database!
-        nonisolated(unsafe) let selectAllQuery = selectAllTestRowsQuery()
+        let selectAllQuery = LockedValue(selectAllTestRowsQuery())
         let writeIsVisible = DispatchSemaphore(value: 0)
         let readIsDone = DispatchSemaphore(value: 0)
-        nonisolated(unsafe) var observedDuringTransaction: [TestTable] = []
+        let observedDuringTransaction = LockedValue<[TestTable]>([])
 
         let readerQueue = DispatchQueue(label: "transaction-scope-concurrent-reader")
         readerQueue.async {
             writeIsVisible.wait()
-            observedDuringTransaction = (try? database.makeRequest(
-                with: selectAllQuery
+            let rows = (try? database.makeRequest(
+                with: selectAllQuery.read()
             ).fetchAll()) ?? []
+            observedDuringTransaction.withValue { $0 = rows }
             readIsDone.signal()
         }
 
@@ -648,10 +645,34 @@ final class SQLTransactionScopeTests: XCTestCase {
         }
 
         XCTAssertEqual(
-            observedDuringTransaction,
+            observedDuringTransaction.read(),
             [],
             "A concurrent pool reader must not see an uncommitted write from a pinned transaction."
         )
         XCTAssertEqual(try freshRows(), [TestTable(id: "alpha", value: 1)])
+    }
+}
+
+
+/// Manually synchronized mutable state safe to capture in a `@Sendable` closure -- the
+/// strict-concurrency checker cannot see that a lock makes cross-closure access safe.
+private final class LockedValue<Value>: @unchecked Sendable {
+
+    private let lock = NSLock()
+
+    private var value: Value
+
+    init(_ value: Value) {
+        self.value = value
+    }
+
+    func withValue<Result>(_ body: (inout Value) -> Result) -> Result {
+        lock.lock()
+        defer { lock.unlock() }
+        return body(&value)
+    }
+
+    func read() -> Value {
+        withValue { $0 }
     }
 }

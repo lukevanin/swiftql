@@ -177,10 +177,7 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
 
         let iterations = 8
         let functionDelay = ImplicitSquareFunction.executionDelay
-        let resultsLock = NSLock()
-        // Manually synchronized by `resultsLock` below; the strict-concurrency checker cannot see
-        // that the lock makes cross-closure access safe.
-        nonisolated(unsafe) var results: [Int: Result<Int?, Error>] = [:]
+        let results = LockedValue<[Int: Result<Int?, Error>]>([:])
 
         let start = Date()
         DispatchQueue.concurrentPerform(iterations: iterations) { index in
@@ -193,9 +190,7 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
             catch {
                 outcome = .failure(error)
             }
-            resultsLock.lock()
-            results[value] = outcome
-            resultsLock.unlock()
+            results.withValue { $0[value] = outcome }
         }
         let elapsed = Date().timeIntervalSince(start)
 
@@ -215,9 +210,10 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
             """
         )
 
-        XCTAssertEqual(results.count, iterations)
+        let finalResults = results.read()
+        XCTAssertEqual(finalResults.count, iterations)
         for value in 1...iterations {
-            switch results[value] {
+            switch finalResults[value] {
             case .success(let squared):
                 XCTAssertEqual(squared, value * value, "value \(value)")
             case .failure(let error):
@@ -226,5 +222,29 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
                 XCTFail("value \(value) never completed")
             }
         }
+    }
+}
+
+
+/// Manually synchronized mutable state safe to capture in a `@Sendable` closure -- the
+/// strict-concurrency checker cannot see that a lock makes cross-closure access safe.
+private final class LockedValue<Value>: @unchecked Sendable {
+
+    private let lock = NSLock()
+
+    private var value: Value
+
+    init(_ value: Value) {
+        self.value = value
+    }
+
+    func withValue<Result>(_ body: (inout Value) -> Result) -> Result {
+        lock.lock()
+        defer { lock.unlock() }
+        return body(&value)
+    }
+
+    func read() -> Value {
+        withValue { $0 }
     }
 }
