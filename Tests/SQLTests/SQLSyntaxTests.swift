@@ -979,19 +979,19 @@ final class XLSyntaxTests: XCTestCase {
     
     func testMinFunction() {
         let x = XLNamedBindingReference<Int>(name: "x")
-        let expression = min(x, 12)
+        let expression = x.min(12)
         XCTAssertEqual(encoder.makeSQL(expression).sql, "MIN(:x, 12)")
     }
-    
+
     func testMaxFunction() {
         let x = XLNamedBindingReference<Int>(name: "x")
-        let expression = max(x, 12)
+        let expression = x.max(12)
         XCTAssertEqual(encoder.makeSQL(expression).sql, "MAX(:x, 12)")
     }
-    
+
     func testMinMaxFunction() {
         let x = XLNamedBindingReference<Int>(name: "x")
-        let expression = min(max(x, 0), 1)
+        let expression = x.max(0).min(1)
         XCTAssertEqual(encoder.makeSQL(expression).sql, "MIN(MAX(:x, 0), 1)")
     }
     
