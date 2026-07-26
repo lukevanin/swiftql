@@ -489,7 +489,10 @@ private extension SQLiteBuildValidator {
         if let name = suffix(of: id, after: "extension:") {
             return runtimeMetadata.hasExtension(named: name)
         }
-        switch id {
+        // Fold case here too, matching isOpaqueCapability/capabilityDiagnosticCode
+        // — otherwise an id like "SQLite-JSON-Functions" is classified as the
+        // JSON-functions capability but never resolves as available.
+        switch id.lowercased() {
         case "named-bindings", "indexed-bindings", "sqlite-core-parser",
              "sqlite-storage-classes", "compound-select", "recursive-cte",
              "transactions":

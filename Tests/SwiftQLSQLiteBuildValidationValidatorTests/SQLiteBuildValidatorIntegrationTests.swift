@@ -211,6 +211,26 @@ final class SQLiteBuildValidatorIntegrationTests: XCTestCase {
         }
     }
 
+    /// The fixed-literal capability switch (named-bindings, transactions,
+    /// sqlite-json-functions, ...) must fold case exactly like the prefixed
+    /// (function:/collation:/...) capabilities do.
+    func testFixedLiteralCapabilityMatchingIsCaseInsensitive() throws {
+        let manifest = Support.manifest(queries: [
+            Support.query(
+                sql: "SELECT 1 AS value",
+                requiredCapabilities: ["Transactions", "SQLite-JSON-Functions"]
+            ),
+        ])
+        try Support.withValidatorOwnedNorthwindURL { url in
+            let report = try SQLiteBuildValidator.validate(
+                manifest: manifest,
+                againstDatabaseAt: url
+            )
+            XCTAssertEqual(report.overallVerdict, .passed)
+            XCTAssertTrue(try XCTUnwrap(report.outcomes.first).diagnostics.isEmpty)
+        }
+    }
+
     func testMissingCodecIsUnsupportedUntilSuppliedInEnvironment() throws {
         let codec = SQLiteBuildValidationCodecReference(
             keyID: "tests.codec.value",
