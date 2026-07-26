@@ -141,6 +141,28 @@ let package = Package(
             path: "Research/SQLiteBuildValidation/Sources/SwiftQLSQLiteBuildValidationPrototypeCLI"
         ),
 
+        // Package-private research engine for issue #390 (milestone 29 spike).
+        // Measures EXPLAIN QUERY PLAN determinism across reachable SQLite
+        // builds. Deliberately outside the package's public products: this is
+        // measurement/evidence only, not a shipping diagnostic or public API.
+        .target(
+            name: "SwiftQLSQLiteEQPVariancePrototype",
+            dependencies: [
+                "SwiftQLSQLiteBuildValidationPrototype",
+                "SwiftQLNorthwindFixtures",
+                "SwiftQLSQLiteConformanceFixtures",
+                "SwiftQLSQLiteCombinatorialSupport",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            path: "Research/SQLiteBuildValidation/Sources/SwiftQLSQLiteEQPVariancePrototype"
+        ),
+
+        .executableTarget(
+            name: "SwiftQLSQLiteEQPVarianceCLI",
+            dependencies: ["SwiftQLSQLiteEQPVariancePrototype"],
+            path: "Research/SQLiteBuildValidation/Sources/SwiftQLSQLiteEQPVarianceCLI"
+        ),
+
         // A test target used to develop the macro implementation.
         .testTarget(
             name: "SwiftQLCoreTests",
@@ -226,6 +248,19 @@ let package = Package(
                 .product(name: "GRDB", package: "GRDB.swift"),
             ],
             path: "Research/SQLiteBuildValidation/Tests/SwiftQLSQLiteBuildValidationPrototypeTests"
+        ),
+
+        .testTarget(
+            name: "SwiftQLSQLiteEQPVariancePrototypeTests",
+            dependencies: [
+                "SwiftQLSQLiteEQPVariancePrototype",
+                "SwiftQLSQLiteBuildValidationPrototype",
+                "SwiftQLNorthwindFixtures",
+                "SwiftQLSQLiteCombinatorialSupport",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            path: "Research/SQLiteBuildValidation/Tests/SwiftQLSQLiteEQPVariancePrototypeTests",
+            resources: [.copy("Evidence")]
         ),
     ]
 )

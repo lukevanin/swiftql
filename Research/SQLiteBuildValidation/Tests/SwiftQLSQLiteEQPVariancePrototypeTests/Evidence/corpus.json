@@ -1,0 +1,4091 @@
+[
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.cte.ordinary-nullable.except",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "WITH \"nullable_seed\" AS (SELECT 1 AS \"value\") SELECT \"nullable_rows\".\"value\" AS \"value\" FROM \"nullable_seed\" AS \"nullable_rows\" EXCEPT SELECT NULL AS \"value\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.cte.ordinary-nullable.intersect",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "WITH \"nullable_seed\" AS (SELECT 1 AS \"value\") SELECT \"nullable_rows\".\"value\" AS \"value\" FROM \"nullable_seed\" AS \"nullable_rows\" INTERSECT SELECT 1 AS \"value\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.cte.ordinary-nullable.union",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "WITH \"nullable_seed\" AS (SELECT 1 AS \"value\") SELECT \"nullable_rows\".\"value\" AS \"value\" FROM \"nullable_seed\" AS \"nullable_rows\" UNION SELECT NULL AS \"value\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.cte.ordinary-nullable.union-all",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "WITH \"nullable_seed\" AS (SELECT 1 AS \"value\") SELECT \"nullable_rows\".\"value\" AS \"value\" FROM \"nullable_seed\" AS \"nullable_rows\" UNION ALL SELECT NULL AS \"value\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.cte.ordinary-required.except",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "WITH \"required_seed\" AS (SELECT 1 AS \"value\") SELECT \"required_rows\".\"value\" AS \"value\" FROM \"required_seed\" AS \"required_rows\" EXCEPT SELECT 2 AS \"value\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.cte.ordinary-required.intersect",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "WITH \"required_seed\" AS (SELECT 1 AS \"value\") SELECT \"required_rows\".\"value\" AS \"value\" FROM \"required_seed\" AS \"required_rows\" INTERSECT SELECT 1 AS \"value\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.cte.ordinary-required.union",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "WITH \"required_seed\" AS (SELECT 1 AS \"value\") SELECT \"required_rows\".\"value\" AS \"value\" FROM \"required_seed\" AS \"required_rows\" UNION SELECT 2 AS \"value\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.cte.ordinary-required.union-all",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "WITH \"required_seed\" AS (SELECT 1 AS \"value\") SELECT \"required_rows\".\"value\" AS \"value\" FROM \"required_seed\" AS \"required_rows\" UNION ALL SELECT 2 AS \"value\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.cte.recursive-required.except",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "WITH \"integer_sequence\" AS (SELECT 1 AS \"value\" UNION ALL SELECT (\"t0\".\"value\" + 1) AS \"value\" FROM \"integer_sequence\" AS \"t0\" WHERE (\"t0\".\"value\" < 3)) SELECT \"recursive_rows\".\"value\" AS \"value\" FROM \"integer_sequence\" AS \"recursive_rows\" EXCEPT SELECT 2 AS \"value\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.cte.recursive-required.intersect",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "WITH \"integer_sequence\" AS (SELECT 1 AS \"value\" UNION ALL SELECT (\"t0\".\"value\" + 1) AS \"value\" FROM \"integer_sequence\" AS \"t0\" WHERE (\"t0\".\"value\" < 3)) SELECT \"recursive_rows\".\"value\" AS \"value\" FROM \"integer_sequence\" AS \"recursive_rows\" INTERSECT SELECT 2 AS \"value\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.cte.recursive-required.union",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "WITH \"integer_sequence\" AS (SELECT 1 AS \"value\" UNION ALL SELECT (\"t0\".\"value\" + 1) AS \"value\" FROM \"integer_sequence\" AS \"t0\" WHERE (\"t0\".\"value\" < 3)) SELECT \"recursive_rows\".\"value\" AS \"value\" FROM \"integer_sequence\" AS \"recursive_rows\" UNION SELECT 2 AS \"value\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.cte.recursive-required.union-all",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "WITH \"integer_sequence\" AS (SELECT 1 AS \"value\" UNION ALL SELECT (\"t0\".\"value\" + 1) AS \"value\" FROM \"integer_sequence\" AS \"t0\" WHERE (\"t0\".\"value\" < 3)) SELECT \"recursive_rows\".\"value\" AS \"value\" FROM \"integer_sequence\" AS \"recursive_rows\" UNION ALL SELECT 2 AS \"value\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "blob"
+        }
+      }
+    ],
+    "id" : "c191.v1.expression.cast-text-blob",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:text_value AS BLOB)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "42"
+        }
+      }
+    ],
+    "id" : "c191.v1.expression.cast-text-integer",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:text_value AS INTEGER)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "integer_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 254
+        }
+      }
+    ],
+    "id" : "c191.v1.expression.comparable-min",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT MIN(:integer_value, 191)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "2026-07-19T12:00:00Z"
+        }
+      }
+    ],
+    "id" : "c191.v1.expression.date-unixepoch",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT unixepoch(:text_value)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_index" : 0,
+        "key_kind" : "indexed",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 191
+        }
+      }
+    ],
+    "id" : "c191.v1.expression.indexed-binding",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT ?1",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "[1,2,3]"
+        }
+      }
+    ],
+    "id" : "c191.v1.expression.json-array-length",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT json_array_length(:text_value)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "{\"ok\":true}"
+        }
+      }
+    ],
+    "id" : "c191.v1.expression.json-valid",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT json_valid(:text_value)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "integer_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : -7
+        }
+      }
+    ],
+    "id" : "c191.v1.expression.numeric-abs",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT ABS(:integer_value)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "real_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "3.9"
+        }
+      }
+    ],
+    "id" : "c191.v1.expression.numeric-floor",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT FLOOR(:real_value)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "real_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "3.14159"
+        }
+      }
+    ],
+    "id" : "c191.v1.expression.numeric-round",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT ROUND(:real_value, 2)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "integer_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 3
+        }
+      }
+    ],
+    "id" : "c191.v1.expression.operator-arithmetic-precedence",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT ((:integer_value + 7) * 2)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "ALFKI"
+        }
+      }
+    ],
+    "id" : "c191.v1.expression.operator-glob",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:text_value GLOB 'A*')",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "case"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "integer_value",
+        "logical_index" : 1,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 191
+        }
+      }
+    ],
+    "id" : "c191.v1.expression.string-printf",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT printf('%s-%d', :text_value, :integer_value)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.northwind.compound-customer-supplier-cities",
+    "northwind_anchor_case_ids" : [
+      "northwind.compound.customer-supplier-cities"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"city\" AS \"city\", \"t0\".\"companyName\" AS \"companyName\", \"t0\".\"contactName\" AS \"contactName\", 'Customers' AS \"relationship\" FROM \"Customers\" AS \"t0\" UNION SELECT \"t1\".\"city\" AS \"city\", \"t1\".\"companyName\" AS \"companyName\", \"t1\".\"contactName\" AS \"contactName\", 'Suppliers' AS \"relationship\" FROM \"Suppliers\" AS \"t1\" ORDER BY \"city\" ASC, \"companyName\" ASC, \"relationship\" ASC, \"contactName\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.northwind.cte-order-subtotals",
+    "northwind_anchor_case_ids" : [
+      "northwind.cte.order-subtotals"
+    ],
+    "rendered_sql" : "WITH \"cte0\" AS (SELECT \"t0\".\"orderID\" AS \"orderID\", COALESCE(SUM(((\"t0\".\"unitPrice\" * CAST(\"t0\".\"quantity\" AS REAL)) * (1.0 - \"t0\".\"discount\"))), 0.0) AS \"subtotal\" FROM \"Order Details\" AS \"t0\" GROUP BY \"t0\".\"orderID\") SELECT \"t0\".\"orderID\" AS \"orderID\", \"t0\".\"subtotal\" AS \"subtotal\" FROM \"cte0\" AS \"t0\" WHERE (\"t0\".\"orderID\" == 10248) ORDER BY \"t0\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.g-customer-id.h-count-greater-than-one.o-ascending",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" GROUP BY \"t0\".\"customerID\" HAVING (COUNT(\"t0\".\"orderID\") > 1) ORDER BY \"t0\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-cross.g-customer-id.h-count-greater-than-one",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\" GROUP BY \"t0\".\"customerID\" HAVING (COUNT(\"t0\".\"orderID\") > 1)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-cross.l-five.x-two",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.deterministic-pagination"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\" LIMIT 5 OFFSET 2",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-cross.o-ascending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\" ORDER BY \"t0\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-cross.o-collated",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\" ORDER BY (\"t0\".\"customerID\" COLLATE NOCASE) ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-cross.o-descending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\" ORDER BY \"t0\".\"orderID\" DESC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-cross.w-empty-in",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\" WHERE (\"t0\".\"orderID\" IN ())",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-cross.w-in-list",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\" WHERE (\"t0\".\"orderID\" IN (10248, 10249, 10250))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "customer_input",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "VINET' OR 1=1 --"
+        }
+      }
+    ],
+    "id" : "c191.v1.select.j-cross.w-injection-binding",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\" WHERE (\"t0\".\"customerID\" == :customer_input)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-cross.w-literal",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\" WHERE (\"t0\".\"orderID\" == 10248)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "minimum_order_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 10248
+        }
+      }
+    ],
+    "id" : "c191.v1.select.j-cross.w-named-binding",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\" WHERE (\"t0\".\"orderID\" >= :minimum_order_id)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-cross.w-null-comparison",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\" WHERE (\"t0\".\"shipRegion\" ISNULL)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-cross.w-precedence",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\" WHERE (((\"t0\".\"orderID\" > 10248) AND (\"t0\".\"employeeID\" == 1)) OR (\"t0\".\"customerID\" == 'VINET'))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "repeated_employee_id",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 5
+        }
+      }
+    ],
+    "id" : "c191.v1.select.j-cross.w-repeated-binding",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\" WHERE ((\"t0\".\"employeeID\" >= :repeated_employee_id) AND (\"t0\".\"employeeID\" <= :repeated_employee_id))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-inner.o-ascending",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.customer-order-employee-product"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" INNER JOIN \"Customers\" AS \"customers_join\" ON (\"t0\".\"customerID\" == \"customers_join\".\"customerID\") ORDER BY \"t0\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-inner.o-collated",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.customer-order-employee-product"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" INNER JOIN \"Customers\" AS \"customers_join\" ON (\"t0\".\"customerID\" == \"customers_join\".\"customerID\") ORDER BY (\"t0\".\"customerID\" COLLATE NOCASE) ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-inner.w-empty-in",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.customer-order-employee-product"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" INNER JOIN \"Customers\" AS \"customers_join\" ON (\"t0\".\"customerID\" == \"customers_join\".\"customerID\") WHERE (\"t0\".\"orderID\" IN ())",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-inner.w-in-list",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.customer-order-employee-product"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" INNER JOIN \"Customers\" AS \"customers_join\" ON (\"t0\".\"customerID\" == \"customers_join\".\"customerID\") WHERE (\"t0\".\"orderID\" IN (10248, 10249, 10250))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "customer_input",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "VINET' OR 1=1 --"
+        }
+      }
+    ],
+    "id" : "c191.v1.select.j-inner.w-injection-binding",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.customer-order-employee-product"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" INNER JOIN \"Customers\" AS \"customers_join\" ON (\"t0\".\"customerID\" == \"customers_join\".\"customerID\") WHERE (\"t0\".\"customerID\" == :customer_input)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-inner.w-literal",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.customer-order-employee-product"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" INNER JOIN \"Customers\" AS \"customers_join\" ON (\"t0\".\"customerID\" == \"customers_join\".\"customerID\") WHERE (\"t0\".\"orderID\" == 10248)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "minimum_order_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 10248
+        }
+      }
+    ],
+    "id" : "c191.v1.select.j-inner.w-named-binding",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.customer-order-employee-product"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" INNER JOIN \"Customers\" AS \"customers_join\" ON (\"t0\".\"customerID\" == \"customers_join\".\"customerID\") WHERE (\"t0\".\"orderID\" >= :minimum_order_id)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-inner.w-null-comparison",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.customer-order-employee-product",
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" INNER JOIN \"Customers\" AS \"customers_join\" ON (\"t0\".\"customerID\" == \"customers_join\".\"customerID\") WHERE (\"t0\".\"shipRegion\" ISNULL)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-inner.w-precedence",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.customer-order-employee-product"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" INNER JOIN \"Customers\" AS \"customers_join\" ON (\"t0\".\"customerID\" == \"customers_join\".\"customerID\") WHERE (((\"t0\".\"orderID\" > 10248) AND (\"t0\".\"employeeID\" == 1)) OR (\"t0\".\"customerID\" == 'VINET'))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-left.o-ascending",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.left-null-manager"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") ORDER BY \"t0\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-left.o-descending",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.left-null-manager"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") ORDER BY \"t0\".\"orderID\" DESC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-left.w-empty-in",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.left-null-manager"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE (\"t0\".\"orderID\" IN ())",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-left.w-in-list",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.left-null-manager"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE (\"t0\".\"orderID\" IN (10248, 10249, 10250))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "customer_input",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "VINET' OR 1=1 --"
+        }
+      }
+    ],
+    "id" : "c191.v1.select.j-left.w-injection-binding",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.left-null-manager"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE (\"t0\".\"customerID\" == :customer_input)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-left.w-literal",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.left-null-manager"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE (\"t0\".\"orderID\" == 10248)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "minimum_order_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 10248
+        }
+      }
+    ],
+    "id" : "c191.v1.select.j-left.w-named-binding",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.left-null-manager"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE (\"t0\".\"orderID\" >= :minimum_order_id)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.j-left.w-precedence",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.left-null-manager"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE (((\"t0\".\"orderID\" > 10248) AND (\"t0\".\"employeeID\" == 1)) OR (\"t0\".\"customerID\" == 'VINET'))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "repeated_employee_id",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 5
+        }
+      }
+    ],
+    "id" : "c191.v1.select.j-left.w-repeated-binding",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.left-null-manager"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE ((\"t0\".\"employeeID\" >= :repeated_employee_id) AND (\"t0\".\"employeeID\" <= :repeated_employee_id))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-aggregate-count.j-cross",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT COUNT(\"t0\".\"orderID\") FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-aggregate-count.j-left",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having",
+      "northwind.join.left-null-manager"
+    ],
+    "rendered_sql" : "SELECT COUNT(\"t0\".\"orderID\") FROM \"Orders\" AS \"t0\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"t0\".\"employeeID\" IS \"employees_join\".\"employeeID\")",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-aggregate-count.o-ascending",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT COUNT(\"t0\".\"orderID\") FROM \"Orders\" AS \"t0\" ORDER BY \"t0\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-aggregate-count.o-collated",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT COUNT(\"t0\".\"orderID\") FROM \"Orders\" AS \"t0\" ORDER BY (\"t0\".\"customerID\" COLLATE NOCASE) ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "repeated_employee_id",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 5
+        }
+      }
+    ],
+    "id" : "c191.v1.select.p-aggregate-count.s-subquery-alias.j-inner.w-repeated-binding.g-customer-id.h-count-greater-than-one.o-descending.l-five.x-two",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having",
+      "northwind.join.customer-order-employee-product",
+      "northwind.select.deterministic-pagination"
+    ],
+    "rendered_sql" : "SELECT COUNT(\"orders_case\".\"orderID\") FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\" INNER JOIN \"Customers\" AS \"customers_join\" ON (\"orders_case\".\"customerID\" == \"customers_join\".\"customerID\") WHERE ((\"orders_case\".\"employeeID\" >= :repeated_employee_id) AND (\"orders_case\".\"employeeID\" <= :repeated_employee_id)) GROUP BY \"orders_case\".\"customerID\" HAVING (COUNT(\"orders_case\".\"orderID\") > 1) ORDER BY \"orders_case\".\"orderID\" DESC LIMIT 5 OFFSET 2",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-aggregate-count.s-table-alias",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT COUNT(\"orders_case\".\"orderID\") FROM \"Orders\" AS \"orders_case\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-aggregate-count.w-empty-in",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT COUNT(\"t0\".\"orderID\") FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" IN ())",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-aggregate-count.w-in-list",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT COUNT(\"t0\".\"orderID\") FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" IN (10248, 10249, 10250))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "customer_input",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "VINET' OR 1=1 --"
+        }
+      }
+    ],
+    "id" : "c191.v1.select.p-aggregate-count.w-injection-binding",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT COUNT(\"t0\".\"orderID\") FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"customerID\" == :customer_input)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-aggregate-count.w-literal",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT COUNT(\"t0\".\"orderID\") FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" == 10248)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "minimum_order_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 10248
+        }
+      }
+    ],
+    "id" : "c191.v1.select.p-aggregate-count.w-named-binding",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT COUNT(\"t0\".\"orderID\") FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" >= :minimum_order_id)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-aggregate-count.w-null-comparison",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having",
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT COUNT(\"t0\".\"orderID\") FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"shipRegion\" ISNULL)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-aggregate-count.w-precedence",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT COUNT(\"t0\".\"orderID\") FROM \"Orders\" AS \"t0\" WHERE (((\"t0\".\"orderID\" > 10248) AND (\"t0\".\"employeeID\" == 1)) OR (\"t0\".\"customerID\" == 'VINET'))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-nullable-region.j-cross",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"shipRegion\" FROM \"Orders\" AS \"t0\" CROSS JOIN \"Customers\" AS \"customers_cross\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-nullable-region.j-inner",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.customer-order-employee-product",
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"shipRegion\" FROM \"Orders\" AS \"t0\" INNER JOIN \"Customers\" AS \"customers_join\" ON (\"t0\".\"customerID\" == \"customers_join\".\"customerID\")",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-nullable-region.o-ascending",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"shipRegion\" FROM \"Orders\" AS \"t0\" ORDER BY \"t0\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-nullable-region.o-descending",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"shipRegion\" FROM \"Orders\" AS \"t0\" ORDER BY \"t0\".\"orderID\" DESC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-nullable-region.s-subquery-alias",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"shipRegion\" FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-nullable-region.s-table-alias.j-left.w-null-comparison.g-customer-id.h-count-greater-than-one.o-collated.l-five.x-two",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having",
+      "northwind.join.left-null-manager",
+      "northwind.select.deterministic-pagination",
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"shipRegion\" FROM \"Orders\" AS \"orders_case\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"orders_case\".\"employeeID\" IS \"employees_join\".\"employeeID\") WHERE (\"orders_case\".\"shipRegion\" ISNULL) GROUP BY \"orders_case\".\"customerID\" HAVING (COUNT(\"orders_case\".\"orderID\") > 1) ORDER BY (\"orders_case\".\"customerID\" COLLATE NOCASE) ASC LIMIT 5 OFFSET 2",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-nullable-region.w-empty-in",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"shipRegion\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" IN ())",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-nullable-region.w-in-list",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"shipRegion\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" IN (10248, 10249, 10250))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "customer_input",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "VINET' OR 1=1 --"
+        }
+      }
+    ],
+    "id" : "c191.v1.select.p-nullable-region.w-injection-binding",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"shipRegion\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"customerID\" == :customer_input)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-nullable-region.w-literal",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"shipRegion\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" == 10248)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "minimum_order_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 10248
+        }
+      }
+    ],
+    "id" : "c191.v1.select.p-nullable-region.w-named-binding",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"shipRegion\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" >= :minimum_order_id)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.p-nullable-region.w-precedence",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"shipRegion\" FROM \"Orders\" AS \"t0\" WHERE (((\"t0\".\"orderID\" > 10248) AND (\"t0\".\"employeeID\" == 1)) OR (\"t0\".\"customerID\" == 'VINET'))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "repeated_employee_id",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 5
+        }
+      }
+    ],
+    "id" : "c191.v1.select.p-nullable-region.w-repeated-binding",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"shipRegion\" FROM \"Orders\" AS \"t0\" WHERE ((\"t0\".\"employeeID\" >= :repeated_employee_id) AND (\"t0\".\"employeeID\" <= :repeated_employee_id))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-subquery-alias.j-cross",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\" CROSS JOIN \"Customers\" AS \"customers_cross\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-subquery-alias.j-left",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.left-null-manager"
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\" LEFT JOIN \"Employees\" AS \"employees_join\" ON (\"orders_case\".\"employeeID\" IS \"employees_join\".\"employeeID\")",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-subquery-alias.o-ascending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\" ORDER BY \"orders_case\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-subquery-alias.o-collated",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\" ORDER BY (\"orders_case\".\"customerID\" COLLATE NOCASE) ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-subquery-alias.w-empty-in",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\" WHERE (\"orders_case\".\"orderID\" IN ())",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-subquery-alias.w-in-list",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\" WHERE (\"orders_case\".\"orderID\" IN (10248, 10249, 10250))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "customer_input",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "VINET' OR 1=1 --"
+        }
+      }
+    ],
+    "id" : "c191.v1.select.s-subquery-alias.w-injection-binding",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\" WHERE (\"orders_case\".\"customerID\" == :customer_input)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-subquery-alias.w-literal",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\" WHERE (\"orders_case\".\"orderID\" == 10248)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "minimum_order_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 10248
+        }
+      }
+    ],
+    "id" : "c191.v1.select.s-subquery-alias.w-named-binding",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\" WHERE (\"orders_case\".\"orderID\" >= :minimum_order_id)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-subquery-alias.w-null-comparison",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\" WHERE (\"orders_case\".\"shipRegion\" ISNULL)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-subquery-alias.w-precedence",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM (SELECT \"source_orders\".\"orderID\" AS \"orderID\", \"source_orders\".\"customerID\" AS \"customerID\", \"source_orders\".\"employeeID\" AS \"employeeID\", \"source_orders\".\"shippedDate\" AS \"shippedDate\", \"source_orders\".\"shipRegion\" AS \"shipRegion\" FROM \"Orders\" AS \"source_orders\") AS \"orders_case\" WHERE (((\"orders_case\".\"orderID\" > 10248) AND (\"orders_case\".\"employeeID\" == 1)) OR (\"orders_case\".\"customerID\" == 'VINET'))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-table-alias.j-cross",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM \"Orders\" AS \"orders_case\" CROSS JOIN \"Customers\" AS \"customers_cross\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-table-alias.j-inner",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.customer-order-employee-product"
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM \"Orders\" AS \"orders_case\" INNER JOIN \"Customers\" AS \"customers_join\" ON (\"orders_case\".\"customerID\" == \"customers_join\".\"customerID\")",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-table-alias.o-ascending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM \"Orders\" AS \"orders_case\" ORDER BY \"orders_case\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-table-alias.o-descending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM \"Orders\" AS \"orders_case\" ORDER BY \"orders_case\".\"orderID\" DESC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-table-alias.w-empty-in",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM \"Orders\" AS \"orders_case\" WHERE (\"orders_case\".\"orderID\" IN ())",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-table-alias.w-in-list",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM \"Orders\" AS \"orders_case\" WHERE (\"orders_case\".\"orderID\" IN (10248, 10249, 10250))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "customer_input",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "VINET' OR 1=1 --"
+        }
+      }
+    ],
+    "id" : "c191.v1.select.s-table-alias.w-injection-binding",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM \"Orders\" AS \"orders_case\" WHERE (\"orders_case\".\"customerID\" == :customer_input)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-table-alias.w-literal",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM \"Orders\" AS \"orders_case\" WHERE (\"orders_case\".\"orderID\" == 10248)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "minimum_order_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 10248
+        }
+      }
+    ],
+    "id" : "c191.v1.select.s-table-alias.w-named-binding",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM \"Orders\" AS \"orders_case\" WHERE (\"orders_case\".\"orderID\" >= :minimum_order_id)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.s-table-alias.w-precedence",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM \"Orders\" AS \"orders_case\" WHERE (((\"orders_case\".\"orderID\" > 10248) AND (\"orders_case\".\"employeeID\" == 1)) OR (\"orders_case\".\"customerID\" == 'VINET'))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "repeated_employee_id",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 5
+        }
+      }
+    ],
+    "id" : "c191.v1.select.s-table-alias.w-repeated-binding",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"orders_case\".\"orderID\" FROM \"Orders\" AS \"orders_case\" WHERE ((\"orders_case\".\"employeeID\" >= :repeated_employee_id) AND (\"orders_case\".\"employeeID\" <= :repeated_employee_id))",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-empty-in.g-customer-id.h-count-greater-than-one",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" IN ()) GROUP BY \"t0\".\"customerID\" HAVING (COUNT(\"t0\".\"orderID\") > 1)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-empty-in.l-five.x-two",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.deterministic-pagination"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" IN ()) LIMIT 5 OFFSET 2",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-empty-in.o-ascending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" IN ()) ORDER BY \"t0\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-empty-in.o-collated",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" IN ()) ORDER BY (\"t0\".\"customerID\" COLLATE NOCASE) ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-empty-in.o-descending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" IN ()) ORDER BY \"t0\".\"orderID\" DESC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-in-list.g-customer-id.h-count-greater-than-one",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" IN (10248, 10249, 10250)) GROUP BY \"t0\".\"customerID\" HAVING (COUNT(\"t0\".\"orderID\") > 1)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-in-list.l-five.x-two",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.deterministic-pagination"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" IN (10248, 10249, 10250)) LIMIT 5 OFFSET 2",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-in-list.o-ascending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" IN (10248, 10249, 10250)) ORDER BY \"t0\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-in-list.o-collated",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" IN (10248, 10249, 10250)) ORDER BY (\"t0\".\"customerID\" COLLATE NOCASE) ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-in-list.o-descending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" IN (10248, 10249, 10250)) ORDER BY \"t0\".\"orderID\" DESC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "customer_input",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "VINET' OR 1=1 --"
+        }
+      }
+    ],
+    "id" : "c191.v1.select.w-injection-binding.g-customer-id.h-count-greater-than-one",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"customerID\" == :customer_input) GROUP BY \"t0\".\"customerID\" HAVING (COUNT(\"t0\".\"orderID\") > 1)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "customer_input",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "VINET' OR 1=1 --"
+        }
+      }
+    ],
+    "id" : "c191.v1.select.w-injection-binding.l-five.x-two",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.deterministic-pagination"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"customerID\" == :customer_input) LIMIT 5 OFFSET 2",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "customer_input",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "VINET' OR 1=1 --"
+        }
+      }
+    ],
+    "id" : "c191.v1.select.w-injection-binding.o-ascending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"customerID\" == :customer_input) ORDER BY \"t0\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "customer_input",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "VINET' OR 1=1 --"
+        }
+      }
+    ],
+    "id" : "c191.v1.select.w-injection-binding.o-collated",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"customerID\" == :customer_input) ORDER BY (\"t0\".\"customerID\" COLLATE NOCASE) ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "customer_input",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "VINET' OR 1=1 --"
+        }
+      }
+    ],
+    "id" : "c191.v1.select.w-injection-binding.o-descending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"customerID\" == :customer_input) ORDER BY \"t0\".\"orderID\" DESC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-literal.g-customer-id.h-count-greater-than-one",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" == 10248) GROUP BY \"t0\".\"customerID\" HAVING (COUNT(\"t0\".\"orderID\") > 1)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-literal.l-five.x-two",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.deterministic-pagination"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" == 10248) LIMIT 5 OFFSET 2",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-literal.o-ascending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" == 10248) ORDER BY \"t0\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-literal.o-collated",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" == 10248) ORDER BY (\"t0\".\"customerID\" COLLATE NOCASE) ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-literal.o-descending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" == 10248) ORDER BY \"t0\".\"orderID\" DESC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "minimum_order_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 10248
+        }
+      }
+    ],
+    "id" : "c191.v1.select.w-named-binding.g-customer-id.h-count-greater-than-one",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" >= :minimum_order_id) GROUP BY \"t0\".\"customerID\" HAVING (COUNT(\"t0\".\"orderID\") > 1)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "minimum_order_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 10248
+        }
+      }
+    ],
+    "id" : "c191.v1.select.w-named-binding.g-customer-id.o-ascending.l-five.x-two",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having",
+      "northwind.select.deterministic-pagination"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" >= :minimum_order_id) GROUP BY \"t0\".\"customerID\" ORDER BY \"t0\".\"orderID\" ASC LIMIT 5 OFFSET 2",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "minimum_order_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 10248
+        }
+      }
+    ],
+    "id" : "c191.v1.select.w-named-binding.o-collated",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" >= :minimum_order_id) ORDER BY (\"t0\".\"customerID\" COLLATE NOCASE) ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "minimum_order_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 10248
+        }
+      }
+    ],
+    "id" : "c191.v1.select.w-named-binding.o-descending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"orderID\" >= :minimum_order_id) ORDER BY \"t0\".\"orderID\" DESC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-null-comparison.o-ascending",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"shipRegion\" ISNULL) ORDER BY \"t0\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-null-comparison.o-descending",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.nullable-shipping"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"shipRegion\" ISNULL) ORDER BY \"t0\".\"orderID\" DESC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-precedence.g-customer-id.h-count-greater-than-one",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (((\"t0\".\"orderID\" > 10248) AND (\"t0\".\"employeeID\" == 1)) OR (\"t0\".\"customerID\" == 'VINET')) GROUP BY \"t0\".\"customerID\" HAVING (COUNT(\"t0\".\"orderID\") > 1)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-precedence.l-five",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (((\"t0\".\"orderID\" > 10248) AND (\"t0\".\"employeeID\" == 1)) OR (\"t0\".\"customerID\" == 'VINET')) LIMIT 5",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-precedence.l-five.x-two",
+    "northwind_anchor_case_ids" : [
+      "northwind.select.deterministic-pagination"
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (((\"t0\".\"orderID\" > 10248) AND (\"t0\".\"employeeID\" == 1)) OR (\"t0\".\"customerID\" == 'VINET')) LIMIT 5 OFFSET 2",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-precedence.o-ascending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (((\"t0\".\"orderID\" > 10248) AND (\"t0\".\"employeeID\" == 1)) OR (\"t0\".\"customerID\" == 'VINET')) ORDER BY \"t0\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-precedence.o-collated",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (((\"t0\".\"orderID\" > 10248) AND (\"t0\".\"employeeID\" == 1)) OR (\"t0\".\"customerID\" == 'VINET')) ORDER BY (\"t0\".\"customerID\" COLLATE NOCASE) ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c191.v1.select.w-precedence.o-descending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (((\"t0\".\"orderID\" > 10248) AND (\"t0\".\"employeeID\" == 1)) OR (\"t0\".\"customerID\" == 'VINET')) ORDER BY \"t0\".\"orderID\" DESC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "repeated_employee_id",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 5
+        }
+      }
+    ],
+    "id" : "c191.v1.select.w-repeated-binding.o-ascending",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE ((\"t0\".\"employeeID\" >= :repeated_employee_id) AND (\"t0\".\"employeeID\" <= :repeated_employee_id)) ORDER BY \"t0\".\"orderID\" ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "repeated_employee_id",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 5
+        }
+      }
+    ],
+    "id" : "c191.v1.select.w-repeated-binding.o-collated",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE ((\"t0\".\"employeeID\" >= :repeated_employee_id) AND (\"t0\".\"employeeID\" <= :repeated_employee_id)) ORDER BY (\"t0\".\"customerID\" COLLATE NOCASE) ASC",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c286.v1.expression.aggregate-average-distinct",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT AVG(DISTINCT CAST(\"t0\".\"employeeID\" AS REAL)) FROM \"Orders\" AS \"t0\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c286.v1.expression.aggregate-count-distinct",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT COUNT(DISTINCT \"t0\".\"employeeID\") FROM \"Orders\" AS \"t0\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c286.v1.expression.aggregate-group-concat-distinct",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT GROUP_CONCAT(DISTINCT \"t0\".\"customerID\") FROM \"Orders\" AS \"t0\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c286.v1.expression.aggregate-max-distinct",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT MAX(DISTINCT \"t0\".\"employeeID\") FROM \"Orders\" AS \"t0\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c286.v1.expression.aggregate-min-distinct",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT MIN(DISTINCT \"t0\".\"employeeID\") FROM \"Orders\" AS \"t0\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c286.v1.expression.aggregate-sum-distinct",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT SUM(DISTINCT \"t0\".\"employeeID\") FROM \"Orders\" AS \"t0\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "blob_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "blob",
+        "tagged_value" : {
+          "tag" : "blob",
+          "value" : "626c6f62"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-blob-text",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:blob_value AS TEXT)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "boolean_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 1
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-bool-integer",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT :boolean_value",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "integer_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 42
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-integer-real",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:integer_value AS REAL)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "integer_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 42
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-integer-text",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:integer_value AS TEXT)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "optional_blob_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-optional-blob-text",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:optional_blob_value AS TEXT)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "optional_boolean_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-optional-bool-integer",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT :optional_boolean_value",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "optional_integer_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-optional-integer-real",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:optional_integer_value AS REAL)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "optional_integer_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-optional-integer-text",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:optional_integer_value AS TEXT)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "optional_real_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-optional-real-integer",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:optional_real_value AS INTEGER)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "optional_real_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-optional-real-text",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:optional_real_value AS TEXT)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "optional_text_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-optional-text-blob",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:optional_text_value AS BLOB)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "optional_text_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-optional-text-integer",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:optional_text_value AS INTEGER)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "optional_text_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-optional-text-real",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:optional_text_value AS REAL)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "real_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "42.75"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-real-integer",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:real_value AS INTEGER)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "real_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "42.5"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-real-text",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:real_value AS TEXT)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "42.5"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.cast-text-real",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT CAST(:text_value AS REAL)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "integer_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 254
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.comparable-max",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT MAX(:integer_value, 191)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "{\"items\":[1,2,3]}"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.json-array-length-path",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT json_array_length(:text_value, '$.items')",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "real_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "3.6"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.numeric-round-no-places",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT ROUND(:real_value)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "optional_real_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.numeric-round-optional",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT ROUND(:optional_real_value)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_value",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "case"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "integer_value",
+        "logical_index" : 1,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 286
+        }
+      }
+    ],
+    "id" : "c286.v1.expression.string-printf-array",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT printf('%s-%d', :text_value, :integer_value)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "bool_true",
+        "logical_index" : 0,
+        "repeat_count" : 3,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 1
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "bool_false",
+        "logical_index" : 1,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 0
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "bool_null",
+        "logical_index" : 2,
+        "repeat_count" : 5,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.boolean-and-shapes",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:bool_true AND :bool_false) AS \"required\", (:bool_true AND :bool_null) AS \"rightOptional\", (:bool_null AND :bool_true) AS \"leftOptional\", (:bool_null AND :bool_null) AS \"bothOptional\", (:bool_null AND :bool_false) AS \"shortCircuit\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "bool_true",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 1
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "bool_null",
+        "logical_index" : 1,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.boolean-not-shapes",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (NOT :bool_true) AS \"required\", (NOT :bool_null) AS \"optional\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "bool_true",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 1
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "bool_false",
+        "logical_index" : 1,
+        "repeat_count" : 3,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 0
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "bool_null",
+        "logical_index" : 2,
+        "repeat_count" : 5,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.boolean-or-shapes",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:bool_true OR :bool_false) AS \"required\", (:bool_true OR :bool_null) AS \"rightOptional\", (:bool_null OR :bool_false) AS \"leftOptional\", (:bool_null OR :bool_null) AS \"bothOptional\", (:bool_false OR :bool_null) AS \"shortCircuit\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_null",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional_seven",
+        "logical_index" : 1,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "real_null",
+        "logical_index" : 2,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_null",
+        "logical_index" : 3,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.coalesce-storage-classes",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT COALESCE(:int_null, 0) AS \"integerFallback\", COALESCE(:int_optional_seven, 0) AS \"integerPresent\", COALESCE(:real_null, 1.5) AS \"realFallback\", COALESCE(:text_null, 'fallback') AS \"textFallback\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_null",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.coalescing-operator",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT COALESCE(:int_null, 42)",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional",
+        "logical_index" : 0,
+        "repeat_count" : 5,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 3
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional_b",
+        "logical_index" : 1,
+        "repeat_count" : 4,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 5
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_null",
+        "logical_index" : 2,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.comparison-both-optional",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:int_optional < :int_optional_b) AS \"less\", (:int_optional <= :int_optional_b) AS \"lessOrEqual\", (:int_optional > :int_optional_b) AS \"greater\", (:int_optional >= :int_optional_b) AS \"greaterOrEqual\", (:int_optional > :int_null) AS \"nullOperand\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional",
+        "logical_index" : 0,
+        "repeat_count" : 4,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 3
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_right",
+        "logical_index" : 1,
+        "repeat_count" : 5,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 3
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_null",
+        "logical_index" : 2,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.comparison-left-optional",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:int_optional < :int_right) AS \"less\", (:int_optional <= :int_right) AS \"lessOrEqual\", (:int_optional > :int_right) AS \"greater\", (:int_optional >= :int_right) AS \"greaterOrEqual\", (:int_null > :int_right) AS \"nullOperand\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_left",
+        "logical_index" : 0,
+        "repeat_count" : 4,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_right",
+        "logical_index" : 1,
+        "repeat_count" : 4,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 3
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.comparison-required",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:int_left < :int_right) AS \"less\", (:int_left <= :int_right) AS \"lessOrEqual\", (:int_left > :int_right) AS \"greater\", (:int_left >= :int_right) AS \"greaterOrEqual\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_left",
+        "logical_index" : 0,
+        "repeat_count" : 5,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional",
+        "logical_index" : 1,
+        "repeat_count" : 4,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 3
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_null",
+        "logical_index" : 2,
+        "repeat_count" : 1,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.comparison-right-optional",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:int_left < :int_optional) AS \"less\", (:int_left <= :int_optional) AS \"lessOrEqual\", (:int_left > :int_optional) AS \"greater\", (:int_left >= :int_optional) AS \"greaterOrEqual\", (:int_left > :int_null) AS \"nullOperand\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_left",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional",
+        "logical_index" : 1,
+        "repeat_count" : 3,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 3
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_right",
+        "logical_index" : 2,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 3
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional_b",
+        "logical_index" : 3,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 5
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_null",
+        "logical_index" : 4,
+        "repeat_count" : 3,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.equality-optional-shapes",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:int_left IS :int_optional) AS \"rightOptional\", (:int_optional IS :int_right) AS \"leftOptional\", (:int_optional IS :int_optional_b) AS \"bothOptional\", (:int_left IS :int_null) AS \"nullOperand\", (:int_null IS :int_null) AS \"bothNull\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_left",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_right",
+        "logical_index" : 1,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 3
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_left",
+        "logical_index" : 2,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "alfa"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.equality-required",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:int_left == :int_right) AS \"integerEqual\", (:int_left != :int_right) AS \"integerNotEqual\", (:text_left == :text_left) AS \"textEqual\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_left",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional",
+        "logical_index" : 1,
+        "repeat_count" : 3,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 3
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_right",
+        "logical_index" : 2,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 3
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional_b",
+        "logical_index" : 3,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 5
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_null",
+        "logical_index" : 4,
+        "repeat_count" : 3,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.inequality-optional-shapes",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:int_left IS NOT :int_optional) AS \"rightOptional\", (:int_optional IS NOT :int_right) AS \"leftOptional\", (:int_optional IS NOT :int_optional_b) AS \"bothOptional\", (:int_left IS NOT :int_null) AS \"nullOperand\", (:int_null IS NOT :int_null) AS \"bothNull\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional_seven",
+        "logical_index" : 0,
+        "repeat_count" : 5,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional_two",
+        "logical_index" : 1,
+        "repeat_count" : 5,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 2
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.integer-arithmetic-both-optional",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:int_optional_seven + :int_optional_two) AS \"add\", (:int_optional_seven - :int_optional_two) AS \"subtract\", (:int_optional_seven * :int_optional_two) AS \"multiply\", (:int_optional_seven / :int_optional_two) AS \"divide\", (:int_optional_seven % :int_optional_two) AS \"modulo\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional_seven",
+        "logical_index" : 0,
+        "repeat_count" : 5,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_two",
+        "logical_index" : 1,
+        "repeat_count" : 5,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 2
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.integer-arithmetic-left-optional",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:int_optional_seven + :int_two) AS \"add\", (:int_optional_seven - :int_two) AS \"subtract\", (:int_optional_seven * :int_two) AS \"multiply\", (:int_optional_seven / :int_two) AS \"divide\", (:int_optional_seven % :int_two) AS \"modulo\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_seven",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_null",
+        "logical_index" : 1,
+        "repeat_count" : 5,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_two",
+        "logical_index" : 2,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 2
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional_seven",
+        "logical_index" : 3,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.integer-arithmetic-null-propagation",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:int_seven + :int_null) AS \"add\", (:int_null - :int_two) AS \"subtract\", (:int_optional_seven * :int_null) AS \"multiply\", (:int_seven / :int_null) AS \"divide\", (:int_null % :int_two) AS \"modulo\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_seven",
+        "logical_index" : 0,
+        "repeat_count" : 5,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_two",
+        "logical_index" : 1,
+        "repeat_count" : 5,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 2
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.integer-arithmetic-required",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:int_seven + :int_two) AS \"add\", (:int_seven - :int_two) AS \"subtract\", (:int_seven * :int_two) AS \"multiply\", (:int_seven / :int_two) AS \"divide\", (:int_seven % :int_two) AS \"modulo\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_seven",
+        "logical_index" : 0,
+        "repeat_count" : 5,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional_two",
+        "logical_index" : 1,
+        "repeat_count" : 5,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 2
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.integer-arithmetic-right-optional",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:int_seven + :int_optional_two) AS \"add\", (:int_seven - :int_optional_two) AS \"subtract\", (:int_seven * :int_optional_two) AS \"multiply\", (:int_seven / :int_optional_two) AS \"divide\", (:int_seven % :int_optional_two) AS \"modulo\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_seven",
+        "logical_index" : 0,
+        "repeat_count" : 4,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_two",
+        "logical_index" : 1,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 2
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_negative_seven",
+        "logical_index" : 2,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : -7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_three",
+        "logical_index" : 3,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 3
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_negative_three",
+        "logical_index" : 4,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : -3
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.integer-division-boundaries",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:int_seven / :int_two) AS \"truncation\", (:int_negative_seven / :int_two) AS \"negativeTruncation\", (:int_seven / 0) AS \"divideByZero\", (:int_seven % 0) AS \"moduloByZero\", (:int_negative_seven % :int_three) AS \"negativeDividendModulo\", (:int_seven % :int_negative_three) AS \"negativeDivisorModulo\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_null",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional_seven",
+        "logical_index" : 1,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_seven",
+        "logical_index" : 2,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.optional-predicates",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:int_null ISNULL) AS \"isNullOnNull\", (:int_optional_seven ISNULL) AS \"isNullOnValue\", (:int_null NOTNULL) AS \"notNullOnNull\", (:int_optional_seven NOTNULL) AS \"notNullOnValue\", :int_seven AS \"widened\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "real_optional_seven",
+        "logical_index" : 0,
+        "repeat_count" : 4,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "7.0"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "real_optional_two",
+        "logical_index" : 1,
+        "repeat_count" : 4,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "2.0"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.real-arithmetic-both-optional",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:real_optional_seven + :real_optional_two) AS \"add\", (:real_optional_seven - :real_optional_two) AS \"subtract\", (:real_optional_seven * :real_optional_two) AS \"multiply\", (:real_optional_seven / :real_optional_two) AS \"divide\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "real_optional_seven",
+        "logical_index" : 0,
+        "repeat_count" : 4,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "7.0"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "real_two",
+        "logical_index" : 1,
+        "repeat_count" : 4,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "2.0"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.real-arithmetic-left-optional",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:real_optional_seven + :real_two) AS \"add\", (:real_optional_seven - :real_two) AS \"subtract\", (:real_optional_seven * :real_two) AS \"multiply\", (:real_optional_seven / :real_two) AS \"divide\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "real_seven",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "7.0"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "real_null",
+        "logical_index" : 1,
+        "repeat_count" : 4,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "real_two",
+        "logical_index" : 2,
+        "repeat_count" : 1,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "2.0"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "real_optional_seven",
+        "logical_index" : 3,
+        "repeat_count" : 1,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "7.0"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.real-arithmetic-null-propagation",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:real_seven + :real_null) AS \"add\", (:real_null - :real_two) AS \"subtract\", (:real_optional_seven * :real_null) AS \"multiply\", (:real_seven / :real_null) AS \"divide\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "real_seven",
+        "logical_index" : 0,
+        "repeat_count" : 4,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "7.0"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "real_two",
+        "logical_index" : 1,
+        "repeat_count" : 4,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "2.0"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.real-arithmetic-required",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:real_seven + :real_two) AS \"add\", (:real_seven - :real_two) AS \"subtract\", (:real_seven * :real_two) AS \"multiply\", (:real_seven / :real_two) AS \"divide\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "real_seven",
+        "logical_index" : 0,
+        "repeat_count" : 4,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "7.0"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "real_optional_two",
+        "logical_index" : 1,
+        "repeat_count" : 4,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "2.0"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.real-arithmetic-right-optional",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:real_seven + :real_optional_two) AS \"add\", (:real_seven - :real_optional_two) AS \"subtract\", (:real_seven * :real_optional_two) AS \"multiply\", (:real_seven / :real_optional_two) AS \"divide\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "real_seven",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "7.0"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "real_two",
+        "logical_index" : 1,
+        "repeat_count" : 1,
+        "storage" : "real",
+        "tagged_value" : {
+          "tag" : "real",
+          "value" : "2.0"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.real-division-boundaries",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:real_seven / :real_two) AS \"exactHalf\", (:real_seven / 0.0) AS \"divideByZero\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_alfa",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "alfa"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_beta",
+        "logical_index" : 1,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "beta"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_null",
+        "logical_index" : 2,
+        "repeat_count" : 4,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.text-concatenation-null",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:text_alfa || :text_beta) AS \"required\", (:text_alfa || :text_null) AS \"rightOptional\", (:text_null || :text_beta) AS \"leftOptional\", (:text_null || :text_null) AS \"bothOptional\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_alfa",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "alfa"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_beta",
+        "logical_index" : 1,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "beta"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_optional_beta",
+        "logical_index" : 2,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "beta"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_optional_alfa",
+        "logical_index" : 3,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "alfa"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.text-concatenation-shapes",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:text_alfa || :text_beta) AS \"required\", (:text_alfa || :text_optional_beta) AS \"rightOptional\", (:text_optional_alfa || :text_beta) AS \"leftOptional\", (:text_optional_alfa || :text_optional_beta) AS \"bothOptional\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_alfa",
+        "logical_index" : 0,
+        "repeat_count" : 3,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "alfa"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.text-glob-case-sensitivity",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:text_alfa GLOB 'a*') AS \"lowercasePattern\", (:text_alfa GLOB 'A*') AS \"uppercasePattern\", (:text_alfa GLOB '?lfa') AS \"singleCharacterWildcard\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_alfa",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "alfa"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_null",
+        "logical_index" : 1,
+        "repeat_count" : 4,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.text-glob-null-propagation",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:text_alfa GLOB 'a*') AS \"required\", (:text_alfa GLOB :text_null) AS \"rightOptional\", (:text_null GLOB 'a*') AS \"leftOptional\", (:text_null GLOB :text_null) AS \"bothOptional\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_alfa",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "alfa"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_optional_beta",
+        "logical_index" : 1,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "beta"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_optional_alfa",
+        "logical_index" : 2,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "alfa"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.text-glob-shapes",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:text_alfa GLOB 'a*') AS \"required\", (:text_alfa GLOB :text_optional_beta) AS \"rightOptional\", (:text_optional_alfa GLOB 'a*') AS \"leftOptional\", (:text_optional_alfa GLOB :text_optional_beta) AS \"bothOptional\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_alfa",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "alfa"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_upper",
+        "logical_index" : 1,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "ALFA"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_accented",
+        "logical_index" : 2,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "Ä"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.text-like-ascii-case-folding",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:text_alfa LIKE 'A%') AS \"asciiLower\", (:text_upper LIKE 'a%') AS \"asciiUpper\", (:text_accented LIKE 'ä') AS \"nonASCII\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_alfa",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "alfa"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_null",
+        "logical_index" : 1,
+        "repeat_count" : 4,
+        "storage" : "null",
+        "tagged_value" : {
+          "tag" : "null"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.text-like-null-propagation",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:text_alfa LIKE 'a%') AS \"required\", (:text_alfa LIKE :text_null) AS \"rightOptional\", (:text_null LIKE 'a%') AS \"leftOptional\", (:text_null LIKE :text_null) AS \"bothOptional\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "text_alfa",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "alfa"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_optional_beta",
+        "logical_index" : 1,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "beta"
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "text_optional_alfa",
+        "logical_index" : 2,
+        "repeat_count" : 2,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "alfa"
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.text-like-shapes",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT (:text_alfa LIKE 'a%') AS \"required\", (:text_alfa LIKE :text_optional_beta) AS \"rightOptional\", (:text_optional_alfa LIKE 'a%') AS \"leftOptional\", (:text_optional_alfa LIKE :text_optional_beta) AS \"bothOptional\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_seven",
+        "logical_index" : 0,
+        "repeat_count" : 2,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_two",
+        "logical_index" : 1,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 2
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.unary-nesting",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT -(-(:int_seven)) AS \"doubleNegation\", -((:int_seven + :int_two)) AS \"negatedSum\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "int_seven",
+        "logical_index" : 0,
+        "repeat_count" : 3,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      },
+      {
+        "key_kind" : "named",
+        "key_name" : "int_optional_seven",
+        "logical_index" : 1,
+        "repeat_count" : 3,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 7
+        }
+      }
+    ],
+    "id" : "c287.v1.expression.unary-shapes",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT ~(:int_seven) AS \"bitwiseNot\", ~(:int_optional_seven) AS \"optionalBitwiseNot\", +(:int_seven) AS \"unaryPlus\", +(:int_optional_seven) AS \"optionalUnaryPlus\", -(:int_seven) AS \"unaryMinus\", -(:int_optional_seven) AS \"optionalUnaryMinus\"",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "in_subquery_employee_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : -1
+        }
+      }
+    ],
+    "id" : "c288.v1.subquery.in-query-builder-empty",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"employeeID\" IN (SELECT \"t0\".\"employeeID\" FROM \"Employees\" AS \"t0\" WHERE (\"t0\".\"employeeID\" == :in_subquery_employee_id))) ORDER BY \"t0\".\"orderID\" ASC LIMIT 5",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "in_subquery_employee_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 5
+        }
+      }
+    ],
+    "id" : "c288.v1.subquery.in-query-builder-nonempty",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"employeeID\" IN (SELECT \"t0\".\"employeeID\" FROM \"Employees\" AS \"t0\" WHERE (\"t0\".\"employeeID\" == :in_subquery_employee_id))) ORDER BY \"t0\".\"orderID\" ASC LIMIT 5",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "in_subquery_customer_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "text",
+        "tagged_value" : {
+          "tag" : "text",
+          "value" : "VINET"
+        }
+      }
+    ],
+    "id" : "c288.v1.subquery.in-query-functional-nonempty",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"customerID\" IN (SELECT \"t1\".\"customerID\" FROM \"Customers\" AS \"t1\" WHERE (\"t1\".\"customerID\" == :in_subquery_customer_id))) ORDER BY \"t0\".\"orderID\" ASC LIMIT 5",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "in_table_employee_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : -1
+        }
+      }
+    ],
+    "id" : "c288.v1.subquery.in-table-empty",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "WITH \"cte0\" AS (SELECT \"t0\".\"employeeID\" AS \"employeeID\" FROM \"Employees\" AS \"t0\" WHERE (\"t0\".\"employeeID\" == :in_table_employee_id)) SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"employeeID\" IN \"cte0\") ORDER BY \"t0\".\"orderID\" ASC LIMIT 5",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+      {
+        "key_kind" : "named",
+        "key_name" : "in_table_employee_id",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 4
+        }
+      }
+    ],
+    "id" : "c288.v1.subquery.in-table-nonempty",
+    "northwind_anchor_case_ids" : [
+
+    ],
+    "rendered_sql" : "WITH \"cte0\" AS (SELECT \"t0\".\"employeeID\" AS \"employeeID\" FROM \"Employees\" AS \"t0\" WHERE (\"t0\".\"employeeID\" == :in_table_employee_id)) SELECT \"t0\".\"orderID\" FROM \"Orders\" AS \"t0\" WHERE (\"t0\".\"employeeID\" IN \"cte0\") ORDER BY \"t0\".\"orderID\" ASC LIMIT 5",
+    "source" : "combinatorial"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c390.northwind.aggregate.grouped-having",
+    "northwind_anchor_case_ids" : [
+      "northwind.aggregate.grouped-having"
+    ],
+    "rendered_sql" : "SELECT CustomerID AS customerID, COUNT(OrderID) AS orderCount\nFROM Orders\nGROUP BY CustomerID\nHAVING COUNT(OrderID) >= 10\nORDER BY orderCount DESC, customerID ASC",
+    "source" : "northwind_anchor"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c390.northwind.compound.customer-supplier-cities",
+    "northwind_anchor_case_ids" : [
+      "northwind.compound.customer-supplier-cities"
+    ],
+    "rendered_sql" : "SELECT City AS city, CompanyName AS companyName,\n       ContactName AS contactName, 'Customers' AS relationship\nFROM Customers\nUNION\nSELECT City AS city, CompanyName AS companyName,\n       ContactName AS contactName, 'Suppliers' AS relationship\nFROM Suppliers\nORDER BY city, companyName, relationship, contactName",
+    "source" : "northwind_anchor"
+  },
+  {
+    "bindings" : [
+      {
+        "key_index" : 1,
+        "key_kind" : "indexed",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 10248
+        }
+      }
+    ],
+    "id" : "c390.northwind.cte.order-subtotals",
+    "northwind_anchor_case_ids" : [
+      "northwind.cte.order-subtotals"
+    ],
+    "rendered_sql" : "WITH order_subtotals AS (\n    SELECT OrderID AS orderID,\n           SUM(UnitPrice * Quantity * (1.0 - Discount)) AS subtotal\n    FROM \"Order Details\"\n    GROUP BY OrderID\n)\nSELECT orderID, subtotal\nFROM order_subtotals\nWHERE orderID = ?\nORDER BY orderID",
+    "source" : "northwind_anchor"
+  },
+  {
+    "bindings" : [
+      {
+        "key_index" : 1,
+        "key_kind" : "indexed",
+        "logical_index" : 0,
+        "repeat_count" : 1,
+        "storage" : "integer",
+        "tagged_value" : {
+          "tag" : "integer",
+          "value" : 10248
+        }
+      }
+    ],
+    "id" : "c390.northwind.join.customer-order-employee-product",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.customer-order-employee-product"
+    ],
+    "rendered_sql" : "SELECT o.OrderID AS orderID, c.CustomerID AS customerID,\n       c.CompanyName AS companyName, e.EmployeeID AS employeeID,\n       e.LastName AS employeeLastName, p.ProductID AS productID,\n       p.ProductName AS productName, d.UnitPrice AS unitPrice,\n       d.Quantity AS quantity, d.Discount AS discount\nFROM Orders AS o\nJOIN Customers AS c ON c.CustomerID = o.CustomerID\nJOIN Employees AS e ON e.EmployeeID = o.EmployeeID\nJOIN \"Order Details\" AS d ON d.OrderID = o.OrderID\nJOIN Products AS p ON p.ProductID = d.ProductID\nWHERE o.OrderID = ?\nORDER BY p.ProductID",
+    "source" : "northwind_anchor"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c390.northwind.join.left-null-manager",
+    "northwind_anchor_case_ids" : [
+      "northwind.join.left-null-manager"
+    ],
+    "rendered_sql" : "SELECT e.EmployeeID AS employeeID,\n       e.LastName AS employeeLastName,\n       m.EmployeeID AS managerID,\n       m.LastName AS managerLastName\nFROM Employees AS e\nLEFT JOIN Employees AS m ON e.ReportsTo = m.EmployeeID\nORDER BY e.EmployeeID",
+    "source" : "northwind_anchor"
+  },
+  {
+    "bindings" : [
+
+    ],
+    "id" : "c390.northwind.subquery.products-above-average",
+    "northwind_anchor_case_ids" : [
+      "northwind.subquery.products-above-average"
+    ],
+    "rendered_sql" : "SELECT ProductID AS productID, ProductName AS productName,\n       UnitPrice AS unitPrice\nFROM Products\nWHERE UnitPrice > (SELECT AVG(UnitPrice) FROM Products)\nORDER BY UnitPrice DESC, ProductID ASC",
+    "source" : "northwind_anchor"
+  }
+]
