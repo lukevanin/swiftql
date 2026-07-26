@@ -1129,6 +1129,10 @@ final class XLPublisherTests: XCTestCase {
 
         let initialExpectation = expectation(description: "initial rows")
         let updateExpectation = expectation(description: "updated rows")
+        // A live query may emit consecutive equal snapshots, so either
+        // condition below could fire more than once.
+        initialExpectation.assertForOverFulfill = false
+        updateExpectation.assertForOverFulfill = false
         observer.$rows
             // No dropFirst(): the observer starts observing in its own
             // initializer, above, so the real first fetch may already have
@@ -1162,6 +1166,9 @@ final class XLPublisherTests: XCTestCase {
         let observer = XLQueryRowObserver(database.makeRequest(with: orderedStatement()))
 
         let updateExpectation = expectation(description: "first row")
+        // A live query may emit consecutive equal snapshots, so the
+        // condition below could fire more than once.
+        updateExpectation.assertForOverFulfill = false
         observer.$row
             // See the parallel comment in
             // testQueryObserverRepublishesRowsAndObservesDirectWrites: no
