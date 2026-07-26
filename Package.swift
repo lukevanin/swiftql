@@ -33,6 +33,10 @@ let package = Package(
             name: "swiftql-build-validate",
             targets: ["SwiftQLSQLiteBuildValidationValidatorCLI"]
         ),
+        .plugin(
+            name: "SwiftQLSQLiteBuildValidationPlugin",
+            targets: ["SwiftQLSQLiteBuildValidationPlugin"]
+        ),
     ],
     dependencies: [
         // Depend on the latest Swift 5.9 prerelease of SwiftSyntax
@@ -151,6 +155,16 @@ let package = Package(
         .executableTarget(
             name: "SwiftQLSQLiteBuildValidationValidatorCLI",
             dependencies: ["SwiftQLSQLiteBuildValidationValidator"]
+        ),
+
+        // Thin SwiftPM build-tool plugin wrapper around the standalone
+        // validator (#294). Declares the manifest/snapshot as explicit
+        // command inputs and the report as an explicit output; owns no
+        // validation logic, schema inference, or second report format.
+        .plugin(
+            name: "SwiftQLSQLiteBuildValidationPlugin",
+            capability: .buildTool(),
+            dependencies: ["SwiftQLSQLiteBuildValidationValidatorCLI"]
         ),
 
         // Package-private research engine for issue #132. This deliberately

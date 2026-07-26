@@ -421,7 +421,9 @@ Three atomic v1.5 follow-ups are recommended:
 3. [**#294: Add a SwiftPM build-tool plugin wrapper for SQLite query
    validation.**](https://github.com/lukevanin/swiftql/issues/294) Use declared
    inputs/outputs and invoke the standalone tool. No validation logic, schema
-   inference, or second report format in the plugin.
+   inference, or second report format in the plugin. Delivered as
+   `SwiftQLSQLiteBuildValidationPlugin`; see
+   [SQLiteBuildValidationPlugin.md](SQLiteBuildValidationPlugin.md).
 
 A separate macro-integration follow-up would duplicate #26 and is not proposed.
 
