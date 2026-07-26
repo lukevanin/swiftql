@@ -265,7 +265,20 @@ public struct Setting<Row>: XLEncodable {
         values(&meta)
         self.values = meta
     }
-    
+
+    /// Infers `Row` from the table reference passed to the enclosing
+    /// `Update(_:)`, instead of restating it as an explicit generic
+    /// argument (`Setting<Row>`). Swift cannot infer `Row` from the closure
+    /// alone here — `Row.MetaUpdate` is a dependent associated type, and a
+    /// `Setting { ... }` statement is type-checked before `Update(_:)`'s own
+    /// `Row` can flow across a result-builder statement boundary — so the
+    /// table reference stands in as the concrete witness.
+    public init<T>(_ table: T, _ values: (inout Row.MetaUpdate) -> Void) where T: XLMetaWritableTable, T.Row == Row, Row: XLTable {
+        var meta = Row.MetaUpdate()
+        values(&meta)
+        self.values = meta
+    }
+
     public init<S>(_ values: S) where S: XLMetaUpdate, S.Row == Row {
         self.values = values
     }

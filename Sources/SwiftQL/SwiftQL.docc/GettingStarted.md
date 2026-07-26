@@ -396,7 +396,7 @@ to `42`:
 let updateFredStatement = sql { schema in
     let person = schema.into(Person.self)
     Update(person)
-    Setting<Person> { row in
+    Setting(person) { row in
         row.age = 42
     }
     Where(person.id == "fred")
@@ -406,7 +406,9 @@ try database.makeRequest(with: updateFredStatement).execute()
 ```
 
 Use `schema.into()` for the table modified by a result-builder update or delete
-statement.
+statement. Passing the same table reference to `Setting(_:_:)` lets Swift infer
+which row type the closure updates, so the type does not need to be repeated
+as an explicit `Setting<Row>` generic argument.
 
 > Warning: An update without a `Where` clause modifies every row in the table.
 
@@ -420,7 +422,7 @@ let ageParameter = XLNamedBindingReference<Int>(name: "age")
 let updateAgeStatement = sql { schema in
     let person = schema.into(Person.self)
     Update(person)
-    Setting<Person> { row in
+    Setting(person) { row in
         row.age = ageParameter
     }
     Where(person.id == personIDParameter)
