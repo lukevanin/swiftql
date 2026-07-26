@@ -79,7 +79,7 @@ struct SwiftQLSQLiteBuildValidationPlugin: BuildToolPlugin {
 }
 
 
-enum SwiftQLSQLiteBuildValidationPluginError: Error, CustomStringConvertible {
+enum SwiftQLSQLiteBuildValidationPluginError: Error, CustomStringConvertible, LocalizedError {
     case unsupportedTargetKind(String)
     case missingInputFiles(target: String, missingManifest: Bool, missingSnapshot: Bool)
 
@@ -98,4 +98,9 @@ enum SwiftQLSQLiteBuildValidationPluginError: Error, CustomStringConvertible {
             return "Target '\(target)' opts into SwiftQLSQLiteBuildValidationPlugin but is missing \(missing.joined(separator: " and ")) in its target directory."
         }
     }
+
+    // SwiftPM surfaces plugin failures via `error.localizedDescription`, which
+    // ignores `CustomStringConvertible` and falls back to a generic message
+    // unless `LocalizedError.errorDescription` is also provided.
+    var errorDescription: String? { description }
 }
