@@ -445,8 +445,32 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
     }
     
     
+    /// Issue #69: `sql` itself works as a table subquery, inferring the
+    /// shape from the surrounding `From(...)` context — the same rendering
+    /// as `testInlineSubquery`, spelled with `sql` instead of
+    /// `subqueryExpression`.
+    func testInlineSubqueryUsingSqlAsSubquery() {
+        let expression = sql { schema in
+            let t = schema.table(TestTable.self)
+            Select(t)
+            From(
+                sql { _ in
+                    Select(t)
+                    From(t)
+                    Where(t.value > 10)
+                }
+            )
+            Where(t.value < 10)
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "SELECT t0.id AS id, t0.value AS value FROM (SELECT t0.id AS id, t0.value AS value FROM Test AS t0 WHERE (t0.value > 10)) AS t0 WHERE (t0.value < 10)"
+        )
+    }
+
+
     // MARK: - Scalar select
-    
+
     func testScalarSelect() {
         let expression = sql { schema in
             let t = schema.table(TestTable.self)
@@ -494,6 +518,27 @@ final class XLQueryExpressionBuilderTests: XCTestCase {
             From(t)
         }
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, (SELECT SUM(t1.value) FROM Test AS t1) AS value FROM Test AS t0")
+    }
+
+    /// Issue #69: `sql` also works as a scalar subquery, inferring the shape
+    /// from the surrounding column-assignment context — the same rendering
+    /// as `testSelectSubqueryAggregate`, spelled with `sql` instead of
+    /// `subqueryExpression`.
+    func testSelectSubqueryAggregateUsingSqlAsSubquery() {
+        let expression = sql { schema in
+            let t = schema.table(TestTable.self)
+            let r = TestColumns.columns(
+                id: t.id,
+                value: sql { schema in
+                    let t = schema.table(TestTable.self)
+                    Select(t.value.sumOrNull())
+                    From(t)
+                }
+            )
+            Select(r)
+            From(t)
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, (SELECT SUM(t0.value) FROM Test AS t0) AS value FROM Test AS t0")
     }
 
     func testScalarSelectWhereIn() {
