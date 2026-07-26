@@ -78,16 +78,20 @@ final class SQLRowExecutionTests: XCTestCase {
         try database.makeRequest(with: sqlCreate(TestTable.self)).execute()
         try database.makeRequest(with: sqlInsert(TestTable(id: "bar", value: 42))).execute()
 
+        // Fulfill on every path — failure, mismatch, or success — so a
+        // regression fails immediately with its real message instead of
+        // hanging until the timeout.
         let expectation = expectation(description: "published rows")
         database.makeRequest(with: makeTwoColumnStatement()).publish()
             .sink(
                 receiveCompletion: { completion in
                     if case .failure(let error) = completion {
                         XCTFail("Unexpected publisher failure: \(error)")
+                        expectation.fulfill()
                     }
                 },
                 receiveValue: { rows in
-                    guard rows.map({ $0._0 }) == ["bar"] else { return }
+                    XCTAssertEqual(rows.map { $0._0 }, ["bar"])
                     expectation.fulfill()
                 }
             )
