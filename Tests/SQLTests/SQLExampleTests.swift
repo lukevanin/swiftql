@@ -1214,7 +1214,7 @@ extension XLDocumentationTests {
         let updateFredStatement = sql { schema in
             let person = schema.into(Person.self)
             Update(person)
-            Setting<Person> { row in
+            Setting(person) { row in
                 row.age = 42
             }
             Where(person.id == "fred")
@@ -1226,7 +1226,7 @@ extension XLDocumentationTests {
         let updateAgeStatement = sql { schema in
             let person = schema.into(Person.self)
             Update(person)
-            Setting<Person> { row in
+            Setting(person) { row in
                 row.age = ageParameter
             }
             Where(person.id == personIDParameter)
