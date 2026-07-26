@@ -19,17 +19,19 @@
 /// A single column expands to ``SQLScalarResult``; two to six columns expand to the matching
 /// ``SQLRow2``...``SQLRow6`` type, whose fields are named positionally (`_0`, `_1`, ...).
 ///
-/// Available on Swift 6.0 and later only. Decoding a 2+ generic-parameter result type
-/// (`SQLRow2`...`SQLRow6`) through `fetchAll()`/`publish()` crashes swift-frontend in IRGen
-/// on the pinned Swift 5.9.2 compatibility cell (`NativeConventionSchema::mapIntoNative`).
-/// See #408 and COMPATIBILITY.md.
+/// The two-to-six column shapes are available on Swift 6.0 and later only. Decoding a
+/// 2+ generic-parameter result type (`SQLRow2`...`SQLRow6`) through `fetchAll()`/`publish()`
+/// crashes swift-frontend in IRGen on the pinned Swift 5.9.2 compatibility cell
+/// (`NativeConventionSchema::mapIntoNative`). The one-column shape (`SQLScalarResult`, a single
+/// generic parameter) is unaffected and available on every compatibility cell. See #408 and
+/// COMPATIBILITY.md.
 ///
-#if compiler(>=6.0)
 @freestanding(expression)
 public macro row<C0>(
     _ c0: any XLExpression<C0>
 ) -> SQLScalarResult<C0>.MetaResult = #externalMacro(module: "SQLMacros", type: "SQLRowMacro") where C0: XLLiteral & XLExpression
 
+#if compiler(>=6.0)
 @freestanding(expression)
 public macro row<C0, C1>(
     _ c0: any XLExpression<C0>,
