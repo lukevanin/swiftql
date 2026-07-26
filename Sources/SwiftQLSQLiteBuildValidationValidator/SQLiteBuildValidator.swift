@@ -690,11 +690,26 @@ private extension SQLiteBuildValidator {
                 sqliteResultCode: resultCode,
                 sqliteExtendedResultCode: extendedResultCode
             )
+        case .sqliteFinalize(let resultCode, let extendedResultCode, let message):
+            return SQLiteBuildValidationDiagnostic(
+                verdict: .failed,
+                stage: .prepare,
+                code: "sqlite.finalize.failed",
+                message: message,
+                query: query,
+                sqliteResultCode: resultCode,
+                sqliteExtendedResultCode: extendedResultCode
+            )
         }
     }
 
     static func suffix(of value: String, after prefix: String) -> String? {
-        guard value.hasPrefix(prefix) else {
+        // Case-insensitive to match isOpaqueCapability/capabilityDiagnosticCode,
+        // which both fold to lowercase before prefix-matching. A capability
+        // like "Function:JSON_VALID" must still resolve here, or it silently
+        // falls through to "unavailable" even though it is a recognized,
+        // observable capability.
+        guard value.lowercased().hasPrefix(prefix.lowercased()) else {
             return nil
         }
         let suffix = String(value.dropFirst(prefix.count))

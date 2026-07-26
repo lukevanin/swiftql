@@ -189,6 +189,28 @@ final class SQLiteBuildValidatorIntegrationTests: XCTestCase {
         }
     }
 
+    /// Capability-ID prefix classification folds case before comparing
+    /// (`isOpaqueCapability`/`capabilityDiagnosticCode`), so resolution
+    /// against captured runtime evidence must too — a mixed-case id like
+    /// "Function:ABS" must still resolve against the real `ABS` builtin
+    /// instead of silently falling through to "unavailable".
+    func testCapabilityMatchingIsCaseInsensitive() throws {
+        let manifest = Support.manifest(queries: [
+            Support.query(
+                sql: "SELECT 1 AS value",
+                requiredCapabilities: ["Function:ABS"]
+            ),
+        ])
+        try Support.withValidatorOwnedNorthwindURL { url in
+            let report = try SQLiteBuildValidator.validate(
+                manifest: manifest,
+                againstDatabaseAt: url
+            )
+            XCTAssertEqual(report.overallVerdict, .passed)
+            XCTAssertTrue(try XCTUnwrap(report.outcomes.first).diagnostics.isEmpty)
+        }
+    }
+
     func testMissingCodecIsUnsupportedUntilSuppliedInEnvironment() throws {
         let codec = SQLiteBuildValidationCodecReference(
             keyID: "tests.codec.value",

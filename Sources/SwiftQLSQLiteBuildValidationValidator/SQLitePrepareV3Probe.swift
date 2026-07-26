@@ -96,6 +96,14 @@ public enum SQLitePrepareV3ProbeError: Error, Equatable, Sendable {
         extendedResultCode: Int32,
         message: String
     )
+    /// A distinct case from `sqlitePrepare` so the validator's report
+    /// taxonomy does not misclassify a `sqlite3_finalize` failure — a
+    /// statement-lifecycle problem — as a preparation failure.
+    case sqliteFinalize(
+        resultCode: Int32,
+        extendedResultCode: Int32,
+        message: String
+    )
 }
 
 
@@ -232,7 +240,7 @@ public enum SQLitePrepareV3Probe {
                 let extendedResultCode = sqlite3_extended_errcode(connection)
                 let message = copiedString(sqlite3_errmsg(connection))
                     ?? "sqlite3_finalize failed without an error message."
-                throw SQLitePrepareV3ProbeError.sqlitePrepare(
+                throw SQLitePrepareV3ProbeError.sqliteFinalize(
                     resultCode: finalizeResultCode,
                     extendedResultCode: extendedResultCode,
                     message: message
