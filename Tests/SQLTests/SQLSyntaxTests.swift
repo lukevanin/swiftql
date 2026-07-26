@@ -1573,7 +1573,25 @@ final class XLSyntaxTests: XCTestCase {
         let expression = select(r).from(t)
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, (SELECT SUM(t1.value) FROM Test AS t1) AS value FROM Test AS t0")
     }
-    
+
+    /// The schema-parameter closure shape of the same flattening overload
+    /// exercised by `testSelectSubqueryAggregate` (issue #162): a scalar
+    /// subquery over an already-optional expression yields `Int?`, not
+    /// `Int??`, with no `XLTypeAffinityExpression` wrapper required.
+    func testSelectSubqueryAggregateWithSchemaParameter() {
+        let s = XLSchema()
+        let t = s.table(TestTable.self)
+        let r = TestColumns.columns(
+            id: t.id,
+            value: subquery { schema in
+                let t = schema.table(TestTable.self)
+                return select(t.value.sumOrNull()).from(t)
+            }
+        )
+        let expression = select(r).from(t)
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, (SELECT SUM(t0.value) FROM Test AS t0) AS value FROM Test AS t0")
+    }
+
     func testScalarSelectWhereIn() {
         let schema = XLSchema()
         let t = schema.table(TestTable.self)
