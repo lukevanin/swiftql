@@ -40,71 +40,47 @@ public enum SQLiteBuildValidationSHA256 {
         return String(decoding: encoded, as: UTF8.self)
     }
 
-    // `message` is the sole owner of this buffer from construction, so the
-    // padding appends below mutate in place instead of triggering a
-    // copy-on-write duplicate of the (potentially large) snapshot bytes.
+    // Processes the input directly from its own backing storage instead of
+    // copying it into a padded buffer first: for a large checked-in
+    // snapshot, that copy would otherwise hold the full file in memory a
+    // second time alongside whatever `Data` the caller already mapped. Only
+    // the final, fixed-size (at most 128-byte) padded tail is materialized.
     private static func digest(_ input: Data) -> [UInt8] {
-        var message = Array(input)
-        let bitCount = UInt64(message.count) &* 8
-        message.append(0x80)
-        while message.count % 64 != 56 {
-            message.append(0)
-        }
-        for shift in stride(from: 56, through: 0, by: -8) {
-            message.append(UInt8(truncatingIfNeeded: bitCount >> UInt64(shift)))
-        }
-
         var state = initialState
-        var words = [UInt32](repeating: 0, count: 64)
-        for blockStart in stride(from: 0, to: message.count, by: 64) {
-            for index in 0..<16 {
-                let offset = blockStart + index * 4
-                words[index] =
-                    UInt32(message[offset]) << 24 |
-                    UInt32(message[offset + 1]) << 16 |
-                    UInt32(message[offset + 2]) << 8 |
-                    UInt32(message[offset + 3])
-            }
-            for index in 16..<64 {
-                words[index] = smallSigma1(words[index - 2])
-                    &+ words[index - 7]
-                    &+ smallSigma0(words[index - 15])
-                    &+ words[index - 16]
+        let totalCount = input.count
+        let bitCount = UInt64(totalCount) &* 8
+
+        input.withUnsafeBytes { (rawBuffer: UnsafeRawBufferPointer) in
+            var offset = 0
+            while offset + 64 <= totalCount {
+                processBlock(
+                    UnsafeRawBufferPointer(rebasing: rawBuffer[offset..<(offset + 64)]),
+                    state: &state
+                )
+                offset += 64
             }
 
-            var a = state[0]
-            var b = state[1]
-            var c = state[2]
-            var d = state[3]
-            var e = state[4]
-            var f = state[5]
-            var g = state[6]
-            var h = state[7]
-            for index in 0..<64 {
-                let temporary1 = h
-                    &+ bigSigma1(e)
-                    &+ choose(e, f, g)
-                    &+ roundConstants[index]
-                    &+ words[index]
-                let temporary2 = bigSigma0(a) &+ majority(a, b, c)
-                h = g
-                g = f
-                f = e
-                e = d &+ temporary1
-                d = c
-                c = b
-                b = a
-                a = temporary1 &+ temporary2
+            var tail = Array(rawBuffer[offset..<totalCount])
+            tail.append(0x80)
+            while tail.count % 64 != 56 {
+                tail.append(0)
+            }
+            for shift in stride(from: 56, through: 0, by: -8) {
+                tail.append(UInt8(truncatingIfNeeded: bitCount >> UInt64(shift)))
             }
 
-            state[0] &+= a
-            state[1] &+= b
-            state[2] &+= c
-            state[3] &+= d
-            state[4] &+= e
-            state[5] &+= f
-            state[6] &+= g
-            state[7] &+= h
+            tail.withUnsafeBytes { (tailBuffer: UnsafeRawBufferPointer) in
+                var tailOffset = 0
+                while tailOffset < tailBuffer.count {
+                    processBlock(
+                        UnsafeRawBufferPointer(
+                            rebasing: tailBuffer[tailOffset..<(tailOffset + 64)]
+                        ),
+                        state: &state
+                    )
+                    tailOffset += 64
+                }
+            }
         }
 
         var output: [UInt8] = []
@@ -116,6 +92,62 @@ public enum SQLiteBuildValidationSHA256 {
             output.append(UInt8(truncatingIfNeeded: word))
         }
         return output
+    }
+
+    /// Processes exactly one 64-byte block, updating `state` in place.
+    private static func processBlock(
+        _ block: UnsafeRawBufferPointer,
+        state: inout [UInt32]
+    ) {
+        var words = [UInt32](repeating: 0, count: 64)
+        for index in 0..<16 {
+            let offset = index * 4
+            words[index] =
+                UInt32(block[offset]) << 24 |
+                UInt32(block[offset + 1]) << 16 |
+                UInt32(block[offset + 2]) << 8 |
+                UInt32(block[offset + 3])
+        }
+        for index in 16..<64 {
+            words[index] = smallSigma1(words[index - 2])
+                &+ words[index - 7]
+                &+ smallSigma0(words[index - 15])
+                &+ words[index - 16]
+        }
+
+        var a = state[0]
+        var b = state[1]
+        var c = state[2]
+        var d = state[3]
+        var e = state[4]
+        var f = state[5]
+        var g = state[6]
+        var h = state[7]
+        for index in 0..<64 {
+            let temporary1 = h
+                &+ bigSigma1(e)
+                &+ choose(e, f, g)
+                &+ roundConstants[index]
+                &+ words[index]
+            let temporary2 = bigSigma0(a) &+ majority(a, b, c)
+            h = g
+            g = f
+            f = e
+            e = d &+ temporary1
+            d = c
+            c = b
+            b = a
+            a = temporary1 &+ temporary2
+        }
+
+        state[0] &+= a
+        state[1] &+= b
+        state[2] &+= c
+        state[3] &+= d
+        state[4] &+= e
+        state[5] &+= f
+        state[6] &+= g
+        state[7] &+= h
     }
 
     private static func rotateRight(_ value: UInt32, by count: UInt32) -> UInt32 {

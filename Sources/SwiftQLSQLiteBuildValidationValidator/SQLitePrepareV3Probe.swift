@@ -232,20 +232,24 @@ public enum SQLitePrepareV3Probe {
         }
 
         let finalizeResultCode = sqlite3_finalize(statement)
+        // Check the finalize result before considering inspection's outcome:
+        // a failing finalize is a statement-lifecycle problem in its own
+        // right and must not be silently discarded just because inspection
+        // also failed (or, worse, masked by an unrelated inspection error).
+        guard finalizeResultCode == SQLITE_OK else {
+            let extendedResultCode = sqlite3_extended_errcode(connection)
+            let message = copiedString(sqlite3_errmsg(connection))
+                ?? "sqlite3_finalize failed without an error message."
+            throw SQLitePrepareV3ProbeError.sqliteFinalize(
+                resultCode: finalizeResultCode,
+                extendedResultCode: extendedResultCode,
+                message: message
+            )
+        }
         switch inspection {
         case .failure(let error):
             throw error
         case .success(let shape):
-            guard finalizeResultCode == SQLITE_OK else {
-                let extendedResultCode = sqlite3_extended_errcode(connection)
-                let message = copiedString(sqlite3_errmsg(connection))
-                    ?? "sqlite3_finalize failed without an error message."
-                throw SQLitePrepareV3ProbeError.sqliteFinalize(
-                    resultCode: finalizeResultCode,
-                    extendedResultCode: extendedResultCode,
-                    message: message
-                )
-            }
             return shape
         }
     }
