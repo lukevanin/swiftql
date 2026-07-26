@@ -110,7 +110,7 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
           --codec <identity>     Available codec identity (repeatable)
           --extension <name>     Registered extension name (repeatable)
           --capability <id>      Explicit caller-owned capability (repeatable)
-          --help                 Show this help
+          --help, -h              Show this help
         """
 
     public static func preflightOutputSafety(
