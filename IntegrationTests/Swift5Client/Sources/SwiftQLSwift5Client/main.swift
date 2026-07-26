@@ -373,6 +373,11 @@ private func validateBuildValidationManifestFixture() throws {
             )
         ])
     )
+    guard let idParameterSlot = statement.parameterLayout.slot(
+        at: XLLogicalParameterIndex(0)
+    ) else {
+        throw FixtureError.invalidCoreContract
+    }
     let descriptor = try XLStaticQueryDescriptor(
         definitionIdentity: XLQueryDefinitionIdentity(
             path: ["downstream", "manifest-fixture"],
@@ -382,9 +387,7 @@ private func validateBuildValidationManifestFixture() throws {
         parameters: [
             XLStaticQueryParameterMetadata(
                 identity: try XLQuerySlotIdentity(path: ["parameter", "id"]),
-                slot: statement.parameterLayout.slot(
-                    at: XLLogicalParameterIndex(0)
-                )!,
+                slot: idParameterSlot,
                 storageIdentifier: XLValueStorageIdentifier(rawValue: "text")
             )
         ],

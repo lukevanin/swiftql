@@ -304,6 +304,13 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
         )
     }
 
+    func testManifestRejectsEmptySQL() {
+        assertInvalidQuery(
+            Support.query(sql: ""),
+            contains: "SQL must not be empty"
+        )
+    }
+
     func testManifestRejectsIncompleteCodecMetadata() {
         let incompleteCodec = Support.codec(keyID: "")
         assertInvalidQuery(
@@ -335,6 +342,19 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
                 file: file, line: line
             )
         }
+    }
+
+    // MARK: - Placeholder scanner
+
+    func testPlaceholderScannerTreatsDoubledClosingBracketAsEscapedInsideQuotedIdentifier() {
+        // "[x]]y:fake]" is one bracket-quoted identifier ("x]y:fake") where
+        // "]]" escapes a literal "]", matching the doubled-delimiter escape
+        // already honored for '/"/`. A scanner that stops at the first "]"
+        // would incorrectly split out ":fake" as a placeholder occurrence.
+        let analysis = SQLiteBuildValidationManifestPlaceholderScanner.scan(
+            "SELECT [x]]y:fake] AS col, :real AS r"
+        )
+        XCTAssertEqual(analysis.occurrences.map(\.spelling), [":real"])
     }
 
     // MARK: - Reference resolution against real #190/#191/#254 registries (Done-When #3b)

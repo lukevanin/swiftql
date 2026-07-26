@@ -38,6 +38,7 @@ enum SQLiteBuildValidationManifestTestSupport {
 
     static func query(
         id: String = "query.id",
+        sql: String = "SELECT 1",
         conformanceFeatureIDs: [String] = [],
         conformanceCaseIDs: [String] = [],
         northwindAnchorCaseIDs: [String] = [],
@@ -52,7 +53,7 @@ enum SQLiteBuildValidationManifestTestSupport {
             conformanceFeatureIDs: conformanceFeatureIDs,
             conformanceCaseIDs: conformanceCaseIDs,
             northwindAnchorCaseIDs: northwindAnchorCaseIDs,
-            sql: "SELECT 1",
+            sql: sql,
             dialectIdentifier: XLSQLiteDialect.identity.rawValue,
             cardinality: XLQueryCardinality.exactlyOne.rawValue,
             parameters: parameters,

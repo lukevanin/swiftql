@@ -160,10 +160,11 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
         guard !query.id.isEmpty,
               !query.definitionIdentity.isEmpty,
               !query.descriptorIdentity.isEmpty,
-              !query.dialectIdentifier.isEmpty else {
+              !query.dialectIdentifier.isEmpty,
+              !query.sql.isEmpty else {
             throw SQLiteBuildValidationManifestError.invalidQuery(
                 query.id,
-                "query and descriptor identities must not be empty"
+                "query identities and SQL must not be empty"
             )
         }
         guard !query.conformanceFeatureIDs.contains(where: \.isEmpty),
@@ -254,7 +255,7 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
 
     private static func isLowercaseHex(_ value: String, count: Int) -> Bool {
         value.count == count && value.allSatisfy {
-            $0.isNumber || ("a" ... "f").contains($0)
+            ("0" ... "9").contains($0) || ("a" ... "f").contains($0)
         }
     }
 

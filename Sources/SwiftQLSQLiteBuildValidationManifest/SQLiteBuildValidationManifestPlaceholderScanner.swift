@@ -169,10 +169,15 @@ private extension SQLiteBuildValidationManifestPlaceholderScanner {
     static func skipBracketQuoted(startingAt index: Int, bytes: [UInt8]) -> Int {
         var index = index
         while index < bytes.count {
-            if bytes[index] == 0x5D {
-                return index + 1
+            guard bytes[index] == 0x5D else {
+                index += 1
+                continue
             }
-            index += 1
+            if byte(at: index + 1, in: bytes) == 0x5D {
+                index += 2
+                continue
+            }
+            return index + 1
         }
         return index
     }
