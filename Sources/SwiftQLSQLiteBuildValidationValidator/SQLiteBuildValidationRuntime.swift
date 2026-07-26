@@ -104,15 +104,24 @@ public struct SQLiteBuildValidationRuntimeMetadata:
     }
 
     public func hasModule(named name: String) -> Bool {
-        moduleCapabilities.contains(name)
+        let requiredName = sqliteASCIIFolded(name)
+        return moduleNames.contains {
+            sqliteASCIIFolded($0) == requiredName
+        }
     }
 
     public func hasCompileOption(_ option: String) -> Bool {
-        compileOptionCapabilities.contains(option)
+        let requiredOption = sqliteASCIIFolded(option)
+        return compileOptions.contains {
+            sqliteASCIIFolded($0) == requiredOption
+        }
     }
 
     public func hasExtension(named name: String) -> Bool {
-        extensionCapabilities.contains(name)
+        let requiredName = sqliteASCIIFolded(name)
+        return extensionNames.contains {
+            sqliteASCIIFolded($0) == requiredName
+        }
     }
 }
 

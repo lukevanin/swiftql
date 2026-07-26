@@ -231,6 +231,30 @@ final class SQLiteBuildValidatorIntegrationTests: XCTestCase {
         }
     }
 
+    /// `hasExtension`/`hasModule`/`hasCompileOption` must ASCII-fold like
+    /// `hasFunction`/`hasCollation` already do — a caller-supplied extension
+    /// name in different case than the required capability id must still
+    /// resolve.
+    func testExtensionCapabilityMatchingIsCaseInsensitive() throws {
+        let manifest = Support.manifest(queries: [
+            Support.query(
+                sql: "SELECT 1 AS value",
+                requiredCapabilities: ["Extension:MyExt"]
+            ),
+        ])
+        try Support.withValidatorOwnedNorthwindURL { url in
+            let report = try SQLiteBuildValidator.validate(
+                manifest: manifest,
+                againstDatabaseAt: url,
+                environment: SQLiteBuildValidationEnvironment(
+                    extensionNames: ["myext"]
+                )
+            )
+            XCTAssertEqual(report.overallVerdict, .passed)
+            XCTAssertTrue(try XCTUnwrap(report.outcomes.first).diagnostics.isEmpty)
+        }
+    }
+
     func testMissingCodecIsUnsupportedUntilSuppliedInEnvironment() throws {
         let codec = SQLiteBuildValidationCodecReference(
             keyID: "tests.codec.value",
