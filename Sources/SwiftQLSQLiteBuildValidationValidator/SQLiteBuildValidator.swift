@@ -114,7 +114,7 @@ public enum SQLiteBuildValidator {
                     verdict: .failed,
                     stage: .schema,
                     code: "schema.byte-count",
-                    message: "Schema snapshot byte count is \(observedDatabaseByteCount); expected \(validatedManifest.schemaSnapshot.databaseByteCount)."
+                    message: "Observed database byte count is \(observedDatabaseByteCount); the manifest's schema snapshot declares \(validatedManifest.schemaSnapshot.databaseByteCount)."
                 ))
             }
         } else {
@@ -131,7 +131,7 @@ public enum SQLiteBuildValidator {
                     verdict: .failed,
                     stage: .schema,
                     code: "schema.snapshot-sha",
-                    message: "Schema snapshot SHA-256 is \(observedDatabaseSHA256.lowercased()); expected \(validatedManifest.schemaSnapshot.databaseSHA256)."
+                    message: "Observed database SHA-256 is \(observedDatabaseSHA256.lowercased()); the manifest's schema snapshot declares \(validatedManifest.schemaSnapshot.databaseSHA256)."
                 ))
             }
         } else {
@@ -165,7 +165,7 @@ public enum SQLiteBuildValidator {
                     verdict: .failed,
                     stage: .schema,
                     code: "schema.row-count",
-                    message: "Schema contains \(runtimeMetadata.schemaRowCount) sqlite_schema rows; expected \(validatedManifest.schemaSnapshot.schemaRowCount)."
+                    message: "Observed sqlite_schema row count is \(runtimeMetadata.schemaRowCount); the manifest's schema snapshot declares \(validatedManifest.schemaSnapshot.schemaRowCount)."
                 ))
             }
             if runtimeMetadata.schemaFNV1A64 != validatedManifest.schemaSnapshot.schemaFingerprint {
@@ -173,7 +173,7 @@ public enum SQLiteBuildValidator {
                     verdict: .failed,
                     stage: .schema,
                     code: "schema.fingerprint",
-                    message: "Schema FNV-1a-64 is \(runtimeMetadata.schemaFNV1A64); expected \(validatedManifest.schemaSnapshot.schemaFingerprint)."
+                    message: "Observed schema FNV-1a-64 is \(runtimeMetadata.schemaFNV1A64); the manifest's schema snapshot declares \(validatedManifest.schemaSnapshot.schemaFingerprint)."
                 ))
             }
         }
