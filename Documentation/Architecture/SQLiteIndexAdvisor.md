@@ -244,11 +244,14 @@ either shape as the starting point. Both fixes are proven end to end by
   happens to be a case where narrowing is obviously worthwhile (`CustomerID`
   equality); a stats-driven advisor might reject candidates this prototype
   accepts, or vice versa, on a differently-shaped dataset.
-- **Only the driving table's `full_table_scan` roots are considered** —
+- **Only root-level `full_table_scan`/`automatic_covering_index` nodes are
+  considered — never a nested node inside a subquery or CTE.** A plan's
+  roots are a generic forest of top-level nodes (any of the tables involved,
+  plus non-table nodes like a temp B-tree), not just one "driving" table;
   extending detection to remediate a `temp_b_tree_for_order_by`/
   `temp_b_tree_for_group_by` node (eliminating a sort, not just avoiding a
-  scan), or to inner-joined tables specifically, is straightforward future
-  work using the same #391 shapes, not attempted in this pass.
+  scan), or to a remediable node nested inside a subquery, is straightforward
+  future work using the same #391 shapes, not attempted in this pass.
 - **Partial and expression indices are not implemented.** A partial index
   (`CREATE INDEX … WHERE …`) could serve some of the false-positive cases
   above if the filtered subset were small — e.g. an index on `Employees`
