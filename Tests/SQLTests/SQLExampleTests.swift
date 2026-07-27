@@ -2189,7 +2189,7 @@ extension XLDocumentationTests {
         let profileTextBindings = try XLInvocationBindings<XLSQLiteValue>(
             layout: profileTextRequest.parameterLayout,
             bindings: [
-                profileTextParameter.encode(profile, in: profileTextRequest.parameterLayout)
+                try profileTextParameter.encode(profile, in: profileTextRequest.parameterLayout)
             ]
         ).validatingComplete()
         let storedProfileJSON = try profileTextRequest.fetchOne(bindings: profileTextBindings)
