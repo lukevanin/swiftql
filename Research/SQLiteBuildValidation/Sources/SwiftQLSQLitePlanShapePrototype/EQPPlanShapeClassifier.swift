@@ -6,11 +6,15 @@ import SwiftQLSQLiteEQPVariancePrototype
 /// classifies every node into a named shape.
 ///
 /// First indexes rows by `parent` id, then recursively builds the tree
-/// top-down from the roots (`parent == 0`) through that index — so, unlike
-/// the row list itself, this does not depend on rows arriving in any
-/// particular order. Classification is a pure function of the row's own
-/// `detail` text plus its already-known parent shape (needed only to
-/// distinguish a correlated scalar subquery, see `isRowLoopingShape`); it
+/// top-down from the roots (`parent == 0`) through that index. Parent-child
+/// adjacency comes entirely from each row's own `parent` field, not from its
+/// position in the row list. Sibling order is not independent of input order,
+/// though: children of the same parent (and the top-level roots) keep the
+/// relative order they had in the input rows, so this is deterministic for a
+/// given capture but not permutation-invariant against an arbitrary
+/// reordering of the same rows. Classification is a pure function of the
+/// row's own `detail` text plus its already-known parent shape (needed only
+/// to distinguish a correlated scalar subquery, see `isRowLoopingShape`); it
 /// never depends on SQLite version, host, or any other provenance field.
 package enum EQPPlanShapeClassifier {
     package static func classify(rows: [EQPRow], statementID: String) -> EQPPlan {
