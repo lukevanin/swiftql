@@ -43,11 +43,13 @@ plus `unclassified` as the honest fallback for genuinely unrecognised text.
 
 ## Classification
 
-`EQPPlanShapeClassifier.classify(rows:statementID:)` builds the tree with a
-single top-down pass: EQP always emits a parent row before its children
-(SQLite's own guarantee), so children are classified after — and with
-knowledge of — their parent's already-known shape. That parent-awareness is
-needed for exactly one distinction:
+`EQPPlanShapeClassifier.classify(rows:statementID:)` first indexes rows by
+`parent` id, then recursively builds the tree top-down from the roots
+(`parent == 0`) through that index — so, unlike the row list itself, this
+does not depend on rows arriving in any particular order. Building top-down
+means a node's children are classified after — and with knowledge of — their
+parent's already-known shape. That parent-awareness is needed for exactly
+one distinction:
 
 ### Correlated vs. uncorrelated scalar subquery
 

@@ -178,7 +178,10 @@ let package = Package(
 
         .executableTarget(
             name: "SwiftQLSQLitePlanShapeCLI",
-            dependencies: ["SwiftQLSQLitePlanShapePrototype"],
+            dependencies: [
+                "SwiftQLSQLitePlanShapePrototype",
+                "SwiftQLSQLiteEQPVariancePrototype",
+            ],
             path: "Research/SQLiteBuildValidation/Sources/SwiftQLSQLitePlanShapeCLI"
         ),
 

@@ -5,13 +5,13 @@ import SwiftQLSQLiteEQPVariancePrototype
 /// Builds a normalised plan tree from one statement's raw EQP rows and
 /// classifies every node into a named shape.
 ///
-/// EQP always emits a parent row before its children (SQLite's own
-/// guarantee), so a single top-down pass — classify a row, then its children
-/// — is enough to build the tree without a second traversal. Classification
-/// is a pure function of the row's own `detail` text plus its already-known
-/// parent shape (needed only to distinguish a correlated scalar subquery,
-/// see `isRowLoopingShape`); it never depends on SQLite version, host, or
-/// any other provenance field.
+/// First indexes rows by `parent` id, then recursively builds the tree
+/// top-down from the roots (`parent == 0`) through that index — so, unlike
+/// the row list itself, this does not depend on rows arriving in any
+/// particular order. Classification is a pure function of the row's own
+/// `detail` text plus its already-known parent shape (needed only to
+/// distinguish a correlated scalar subquery, see `isRowLoopingShape`); it
+/// never depends on SQLite version, host, or any other provenance field.
 package enum EQPPlanShapeClassifier {
     package static func classify(rows: [EQPRow], statementID: String) -> EQPPlan {
         var childrenByParent: [Int64: [EQPRow]] = [:]
