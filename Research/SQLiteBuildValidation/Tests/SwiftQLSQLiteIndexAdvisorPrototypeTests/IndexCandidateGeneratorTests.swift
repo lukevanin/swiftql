@@ -140,8 +140,10 @@ final class IndexCandidateGeneratorTests: XCTestCase {
     /// an arbitrary JSON file and hand its `ddl` straight to
     /// `Database.execute(sql:)` — an unescaped `"` in an identifier could
     /// break out of the quoted-identifier context and inject arbitrary SQL.
-    /// `indexName` is already sanitized to `[a-z0-9_]`, so this only matters
-    /// for `table`/`columns` as they appear verbatim in the DDL.
+    /// `indexName` is already sanitized (lowercased, with every character
+    /// that isn't a letter or number replaced by `_` — Unicode-aware via
+    /// `Character.isLetter`/`isNumber`, not limited to ASCII), so this only
+    /// matters for `table`/`columns` as they appear verbatim in the DDL.
     func testDDLEscapesEmbeddedQuoteInTableAndColumnNames() {
         let candidate = candidate(table: #"Weird"Table"#, columns: [#"co"l"#])
         XCTAssertEqual(

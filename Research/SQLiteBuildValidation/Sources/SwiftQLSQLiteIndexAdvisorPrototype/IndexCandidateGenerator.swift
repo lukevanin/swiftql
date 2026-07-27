@@ -15,10 +15,10 @@ package struct RemediableCandidate: Equatable, Sendable {
 
 
 /// A candidate index: a real table name plus an ordered column list, ready
-/// to render as `CREATE INDEX` DDL. `representativeStatementID`/`Alias`
-/// name one concrete statement this candidate can be verified against (the
-/// first one found); `sourceStatementIDs` keeps every contributing
-/// statement for provenance.
+/// to render as `CREATE INDEX` DDL. `representativeStatementID` and
+/// `representativeAlias` name one concrete statement this candidate can be
+/// verified against (the first one found); `sourceStatementIDs` keeps every
+/// contributing statement for provenance.
 package struct IndexCandidate: Equatable, Sendable {
     package let table: String
     package let columns: [String]
