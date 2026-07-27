@@ -62,10 +62,17 @@ below.
 ### Finding remediable statements
 
 `IndexCandidateGenerator.remediableCandidates(for:plan:)` walks a #391
-classified plan's root nodes for `full_table_scan` shapes, and — where the
-statement's SQL yields a non-empty candidate column list for that node's
-alias, and the alias resolves to a real table — produces a
-`RemediableCandidate`. No signal, no resolvable table, no candidate.
+classified plan's root nodes for `full_table_scan` **or
+`automatic_covering_index`** shapes, and — where the statement's SQL yields
+a non-empty candidate column list for that node's alias, and the alias
+resolves to a real table — produces a `RemediableCandidate`. No signal, no
+resolvable table, no candidate. (`automatic_covering_index` was added here
+for the same reason it was added to the improvement rule below: the
+join-key/range-column finding's fixture has its remediable root classified
+as `automatic_covering_index`, not `full_table_scan`, so the improvement
+rule accepting that shape was unreachable end to end until this scan also
+looked for it — caught by Copilot review, confirmed by
+`IndexCandidateGeneratorTests.testRemediableCandidatesIncludesAutomaticCoveringIndexRoots`.)
 
 ### Deduplication
 
@@ -74,7 +81,13 @@ same `(table, columns)` (recording every contributing statement id, and
 keeping the first occurrence as the concrete statement to verify against),
 then drops any candidate whose column list is an **exact prefix** of
 another surviving candidate on the same table — a wider index already
-serves every query the narrower prefix would have.
+serves every query the narrower prefix would have. A dropped prefix
+candidate's source statement ids are folded into every wider candidate it
+prefixes before being discarded, so a statement that only ever produced the
+narrower prefix is still attributed to the index that now serves it,
+instead of silently disappearing from the evidence (caught by Copilot
+review; confirmed by
+`IndexCandidateGeneratorTests.testDeduplicatePreservesPrefixCandidateSourceStatementIDs`).
 
 ### Scratch-copy verification
 

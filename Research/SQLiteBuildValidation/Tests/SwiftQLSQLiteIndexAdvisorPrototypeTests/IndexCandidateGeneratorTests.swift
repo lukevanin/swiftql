@@ -104,6 +104,20 @@ final class IndexCandidateGeneratorTests: XCTestCase {
         XCTAssertEqual(deduped.map(\.columns), [["CustomerID", "OrderDate"]])
     }
 
+    /// A dropped prefix candidate's provenance must not be lost: `s1`
+    /// contributed only `(CustomerID)`, which never survives on its own,
+    /// but `s1` is still attributed to the wider `(CustomerID, OrderDate)`
+    /// index that now serves it.
+    func testDeduplicatePreservesPrefixCandidateSourceStatementIDs() {
+        let remediables = [
+            RemediableCandidate(table: "Orders", columns: ["CustomerID"], statementID: "s1", alias: "t0"),
+            RemediableCandidate(table: "Orders", columns: ["CustomerID", "OrderDate"], statementID: "s2", alias: "t0"),
+        ]
+        let deduped = IndexCandidateGenerator.deduplicate(remediables)
+        XCTAssertEqual(deduped.count, 1)
+        XCTAssertEqual(deduped[0].sourceStatementIDs, ["s1", "s2"])
+    }
+
     func testDeduplicateKeepsNonPrefixCandidatesOnTheSameTable() {
         let remediables = [
             RemediableCandidate(table: "Orders", columns: ["CustomerID"], statementID: "s1", alias: "t0"),
@@ -119,6 +133,50 @@ final class IndexCandidateGeneratorTests: XCTestCase {
             candidate.ddl,
             #"CREATE INDEX "ix_advisor_order_details_orderid_productid" ON "Order Details" ("OrderID", "ProductID")"#
         )
+    }
+
+    // MARK: - Finding remediable statements
+
+    /// The improvement rule accepts `automatic_covering_index` as a
+    /// remediable "before" shape (see `IndexCandidateVerifierTests`), but
+    /// that's only reachable end to end if `remediableCandidates` actually
+    /// looks for that root shape too, not only `full_table_scan`. These are
+    /// the same three real EQP rows from the Products/Categories scratch-copy
+    /// finding, hand-built here so this is a pure unit test of the
+    /// generator's root-shape scan, independent of a live database.
+    ///
+    /// `Categories AS c` (the driving side of the `LEFT JOIN`, a genuine
+    /// `full_table_scan` root) also yields a candidate here, same as the
+    /// driving-side false positive in
+    /// `IndexCandidateVerifierTests.testRealFalsePositiveFromDrivingSideJoinKeyIsRejected`
+    /// — `remediableCandidates` surfaces every remediable root regardless of
+    /// whether verification will later confirm it as an improvement.
+    func testRemediableCandidatesIncludesAutomaticCoveringIndexRoots() {
+        let rows = [
+            EQPRow(id: 1, parent: 0, notused: 0, detail: "SCAN c"),
+            EQPRow(id: 2, parent: 0, notused: 0, detail: "BLOOM FILTER ON p (CategoryID=?)"),
+            EQPRow(
+                id: 3,
+                parent: 0,
+                notused: 0,
+                detail: "SEARCH p USING AUTOMATIC COVERING INDEX (CategoryID=?) LEFT-JOIN"
+            ),
+        ]
+        let statement = EQPVarianceStatement(
+            id: "test.remediable.automatic-covering-index",
+            source: .northwindAnchor,
+            renderedSQL: """
+                SELECT p.ProductID FROM Categories AS c
+                LEFT JOIN Products AS p ON p.CategoryID = c.CategoryID
+                WHERE p.UnitPrice > 20
+                """,
+            northwindAnchorCaseIDs: [],
+            bindings: []
+        )
+        let plan = EQPPlanShapeClassifier.classify(rows: rows, statementID: statement.id)
+        let candidates = IndexCandidateGenerator.remediableCandidates(for: statement, plan: plan)
+        XCTAssertEqual(candidates.map(\.table), ["Categories", "Products"])
+        XCTAssertEqual(candidates.map(\.columns), [["CategoryID"], ["CategoryID", "UnitPrice"]])
     }
 
     // MARK: - Real corpus, real #390/#391 evidence

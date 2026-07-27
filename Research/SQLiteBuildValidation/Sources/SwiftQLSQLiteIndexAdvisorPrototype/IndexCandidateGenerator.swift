@@ -100,14 +100,21 @@ package enum IndexCandidateGenerator {
         return columns
     }
 
-    /// Finds every `full_table_scan` **root** node in a classified plan —
+    /// Shapes worth proposing a candidate for: a `full_table_scan` (nothing
+    /// indexes it yet), and SQLite's own `automatic_covering_index` (it
+    /// already built an ephemeral index at query time, which is exactly the
+    /// situation a real, persistent index replaces — see the join-key/
+    /// range-column finding in `SQLiteIndexAdvisor.md`).
+    private static let remediableRootShapes: Set<EQPPlanShapeKind> = [.fullTableScan, .automaticCoveringIndex]
+
+    /// Finds every remediable **root** node in a classified plan —
     /// deliberately not a recursive walk into every child node; see this
     /// issue's write-up ("only the driving table's roots are considered" —
     /// remediating a nested scan is left as future work) — and, where this
     /// statement's SQL yields a non-empty candidate column list for that
     /// node's table alias and the alias resolves to a real table (see
     /// `IndexCandidateExtraction.tableAliasMap`), produces a remediable
-    /// candidate. A full table scan with no equality/range/join/order-by
+    /// candidate. A remediable root with no equality/range/join/order-by
     /// signal, or whose alias can't be confidently resolved, yields nothing
     /// — never a guess.
     package static func remediableCandidates(
@@ -117,7 +124,7 @@ package enum IndexCandidateGenerator {
         let tableAliases = IndexCandidateExtraction.tableAliasMap(in: statement.renderedSQL)
         var candidates: [RemediableCandidate] = []
         for root in plan.roots {
-            guard root.shape == .fullTableScan,
+            guard remediableRootShapes.contains(root.shape),
                   let alias = root.attributes.table,
                   let table = tableAliases[alias] else {
                 continue
@@ -142,6 +149,10 @@ package enum IndexCandidateGenerator {
     /// candidate whose column list is an exact prefix of another surviving
     /// candidate on the same table — a wider index already serves every
     /// query the narrower prefix would have, so keeping both is redundant.
+    /// A dropped prefix candidate's `sourceStatementIDs` are folded into
+    /// every wider candidate it prefixes before being discarded, so the
+    /// statements that only ever produced the narrower prefix are still
+    /// attributed to the index that now serves them.
     package static func deduplicate(_ remediables: [RemediableCandidate]) -> [IndexCandidate] {
         var merged: [String: IndexCandidate] = [:]
         for remediable in remediables {
@@ -166,15 +177,42 @@ package enum IndexCandidateGenerator {
         }
 
         let all = Array(merged.values)
-        return all.filter { candidate in
-            !all.contains { other in
+
+        func widerCandidates(prefixedBy candidate: IndexCandidate) -> [IndexCandidate] {
+            all.filter { other in
                 other.table == candidate.table
                     && other.columns.count > candidate.columns.count
                     && Array(other.columns.prefix(candidate.columns.count)) == candidate.columns
             }
-        }.sorted { lhs, rhs in
-            lhs.table != rhs.table ? lhs.table < rhs.table : lhs.columns.lexicographicallyPrecedes(rhs.columns)
         }
+
+        var additionalSources: [String: [String]] = [:]
+        for candidate in all {
+            let wider = widerCandidates(prefixedBy: candidate)
+            for widerCandidate in wider {
+                let widerKey = "\(widerCandidate.table)\u{0}\(widerCandidate.columns.joined(separator: "\u{0}"))"
+                additionalSources[widerKey, default: []].append(contentsOf: candidate.sourceStatementIDs)
+            }
+        }
+
+        return all
+            .filter { widerCandidates(prefixedBy: $0).isEmpty }
+            .map { survivor -> IndexCandidate in
+                let key = "\(survivor.table)\u{0}\(survivor.columns.joined(separator: "\u{0}"))"
+                guard let extra = additionalSources[key] else {
+                    return survivor
+                }
+                return IndexCandidate(
+                    table: survivor.table,
+                    columns: survivor.columns,
+                    sourceStatementIDs: Array(Set(survivor.sourceStatementIDs + extra)),
+                    representativeStatementID: survivor.representativeStatementID,
+                    representativeAlias: survivor.representativeAlias
+                )
+            }
+            .sorted { lhs, rhs in
+                lhs.table != rhs.table ? lhs.table < rhs.table : lhs.columns.lexicographicallyPrecedes(rhs.columns)
+            }
     }
 
     private static func orderedUnique(_ values: [String]) -> [String] {
