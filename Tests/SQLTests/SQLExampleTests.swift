@@ -2003,6 +2003,201 @@ extension XLDocumentationTests {
             invoiceRecord
         )
 
+        // JSON `Codable` columns (mirrors CustomTypes.md's "JSON `Codable`
+        // columns" section).
+        struct ContactAddress: Codable, Equatable {
+            var street: String
+            var city: String
+        }
+
+        enum ContactMethod: Codable, Equatable {
+            case email(String)
+            case phone(String)
+        }
+
+        struct CustomerProfile: Codable, Equatable {
+            var name: String
+            var tags: [String]
+            var address: ContactAddress?
+            var contact: ContactMethod
+            var loyaltyPoints: Int
+
+            enum CodingKeys: String, CodingKey {
+                case name, tags, address, contact, loyaltyPoints
+            }
+
+            init(
+                name: String,
+                tags: [String],
+                address: ContactAddress?,
+                contact: ContactMethod,
+                loyaltyPoints: Int = 0
+            ) {
+                self.name = name
+                self.tags = tags
+                self.address = address
+                self.contact = contact
+                self.loyaltyPoints = loyaltyPoints
+            }
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                name = try container.decode(String.self, forKey: .name)
+                tags = try container.decode([String].self, forKey: .tags)
+                address = try container.decodeIfPresent(ContactAddress.self, forKey: .address)
+                contact = try container.decode(ContactMethod.self, forKey: .contact)
+                loyaltyPoints = try container.decodeIfPresent(Int.self, forKey: .loyaltyPoints) ?? 0
+            }
+        }
+
+        let profileType = XLValueTypeIdentifier(rawValue: "com.example.customer-profile")
+        let profileTextKey = XLValueCodecKey(id: "com.example.customer-profile.text", version: 1)
+        let profileBlobKey = XLValueCodecKey(id: "com.example.customer-profile.blob", version: 1)
+
+        let profileTextCodec = XLJSONValueCodec.text(
+            key: profileTextKey,
+            valueTypeIdentifier: profileType
+        ) as XLValueCodec<CustomerProfile, XLSQLiteDialect>
+        let profileBlobCodec = XLJSONValueCodec.blob(
+            key: profileBlobKey,
+            valueTypeIdentifier: profileType
+        ) as XLValueCodec<CustomerProfile, XLSQLiteDialect>
+
+        let profileRegistry = try XLValueCodecRegistry()
+            .registering(profileTextCodec)
+            .registering(profileBlobCodec)
+        let profileCoding = try XLValueCodingConfiguration(
+            registry: profileRegistry,
+            defaultCodecKeys: [profileTextKey]
+        )
+
+        let profile = CustomerProfile(
+            name: "Ada Lovelace",
+            tags: ["engineer", "mathematician"],
+            address: ContactAddress(street: "12 Analytical Ave", city: "London"),
+            contact: .email("ada@example.com"),
+            loyaltyPoints: 42
+        )
+        let profileParameterContext = XLValueCodingContext(
+            site: .parameter,
+            path: XLValueCodingPath("customer.profile")
+        )
+
+        let textValue = try profileCoding.encode(
+            profile,
+            using: dialect,
+            context: profileParameterContext,
+            selection: XLValueCodecSelection(explicitCodecKey: profileTextKey)
+        )
+        let blobValue = try profileCoding.encode(
+            profile,
+            using: dialect,
+            context: profileParameterContext,
+            selection: XLValueCodecSelection(explicitCodecKey: profileBlobKey)
+        )
+
+        let decodedFromText = try profileCoding.decode(
+            CustomerProfile.self,
+            from: textValue,
+            using: dialect,
+            context: resultContext,
+            selection: XLValueCodecSelection(explicitCodecKey: profileTextKey)
+        )
+        let decodedFromBlob = try profileCoding.decode(
+            CustomerProfile.self,
+            from: blobValue,
+            using: dialect,
+            context: resultContext,
+            selection: XLValueCodecSelection(explicitCodecKey: profileBlobKey)
+        )
+        XCTAssertEqual(decodedFromText, profile)
+        XCTAssertEqual(decodedFromBlob, profile)
+
+        do {
+            _ = try profileCoding.decode(
+                CustomerProfile.self,
+                from: .text("{this is not valid json"),
+                using: dialect,
+                context: resultContext,
+                selection: XLValueCodecSelection(explicitCodecKey: profileTextKey)
+            )
+            XCTFail("Expected a structured decoding failure.")
+        }
+        catch let XLValueCodecError.decodingFailed(codec, _, message) {
+            XCTAssertEqual(codec, profileTextKey)
+            XCTAssertTrue(message.contains("JSON decoding"))
+        }
+
+        struct JSONMetric: Codable, Equatable {
+            let sampleCount: Int
+            let averageValue: Double
+        }
+
+        let metricType = XLValueTypeIdentifier(rawValue: "com.example.json-metric")
+        let metricDefaultKeysKey = XLValueCodecKey(id: "com.example.json-metric.default-keys", version: 1)
+        let metricSnakeCaseKey = XLValueCodecKey(id: "com.example.json-metric.snake-case", version: 1)
+
+        let metricDefaultKeysCodec = XLJSONValueCodec.text(
+            key: metricDefaultKeysKey,
+            valueTypeIdentifier: metricType
+        ) as XLValueCodec<JSONMetric, XLSQLiteDialect>
+        let metricSnakeCaseCodec = XLJSONValueCodec.text(
+            key: metricSnakeCaseKey,
+            valueTypeIdentifier: metricType,
+            configuration: XLJSONCodecConfiguration(
+                keyEncodingStrategy: .convertToSnakeCase,
+                keyDecodingStrategy: .convertFromSnakeCase
+            )
+        ) as XLValueCodec<JSONMetric, XLSQLiteDialect>
+
+        let metricRegistry = try XLValueCodecRegistry()
+            .registering(metricDefaultKeysCodec)
+            .registering(metricSnakeCaseCodec)
+        let metricCoding = try XLValueCodingConfiguration(registry: metricRegistry)
+        let metric = JSONMetric(sampleCount: 12, averageValue: 3.5)
+        XCTAssertEqual(
+            try metricCoding.decode(
+                JSONMetric.self,
+                from: try metricCoding.encode(
+                    metric,
+                    using: dialect,
+                    context: profileParameterContext,
+                    selection: XLValueCodecSelection(explicitCodecKey: metricSnakeCaseKey)
+                ),
+                using: dialect,
+                context: resultContext,
+                selection: XLValueCodecSelection(explicitCodecKey: metricSnakeCaseKey)
+            ),
+            metric
+        )
+
+        let jsonCodecDatabase = try GRDBDatabase(
+            url: contextualDirectory.appendingPathComponent("json-fixture.sqlite"),
+            codingConfiguration: profileCoding,
+            logger: nil
+        )
+        let profileTextParameter = try jsonCodecDatabase.contextualBinding(
+            CustomerProfile.self,
+            expressedAs: String.self,
+            named: "profileText",
+            selection: XLValueCodecSelection(explicitCodecKey: profileTextKey)
+        )
+        let profileTextQuery = sql { _ in
+            Select(profileTextParameter)
+        }
+        let profileTextRequest = jsonCodecDatabase.makeRequest(with: profileTextQuery)
+        let profileTextBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: profileTextRequest.parameterLayout,
+            bindings: [
+                try profileTextParameter.encode(profile, in: profileTextRequest.parameterLayout)
+            ]
+        ).validatingComplete()
+        let storedProfileJSON = try profileTextRequest.fetchOne(bindings: profileTextBindings)
+        guard case .text(let expectedProfileJSON) = textValue else {
+            return XCTFail("Expected TEXT storage")
+        }
+        XCTAssertEqual(storedProfileJSON, expectedProfileJSON)
+
         try testExample_Date()
         try testExample_DateConstant()
         try testExample_DateParameter()
