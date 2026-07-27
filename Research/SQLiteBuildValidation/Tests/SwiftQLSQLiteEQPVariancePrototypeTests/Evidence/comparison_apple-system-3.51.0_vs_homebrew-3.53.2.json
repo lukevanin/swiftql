@@ -1,0 +1,6556 @@
+[
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE nullable_seed",
+        "id" : 5,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 5
+      },
+      {
+        "detail" : "SCAN nullable_rows",
+        "id" : 10,
+        "notused" : 16,
+        "parent" : 2
+      },
+      {
+        "detail" : "EXCEPT USING TEMP B-TREE",
+        "id" : 17,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 18,
+        "notused" : 0,
+        "parent" : 17
+      }
+    ],
+    "classification" : "materialization_strategy_change",
+    "comparison_rows" : [
+      {
+        "detail" : "MERGE (EXCEPT)",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "CO-ROUTINE nullable_seed",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 7,
+        "notused" : 0,
+        "parent" : 6
+      },
+      {
+        "detail" : "SCAN nullable_rows",
+        "id" : 12,
+        "notused" : 16,
+        "parent" : 4
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "RIGHT",
+        "id" : 28,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 30,
+        "notused" : 0,
+        "parent" : 28
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-nullable.except"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE nullable_seed",
+        "id" : 5,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 5
+      },
+      {
+        "detail" : "SCAN nullable_rows",
+        "id" : 10,
+        "notused" : 16,
+        "parent" : 2
+      },
+      {
+        "detail" : "INTERSECT USING TEMP B-TREE",
+        "id" : 18,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 18
+      }
+    ],
+    "classification" : "materialization_strategy_change",
+    "comparison_rows" : [
+      {
+        "detail" : "MERGE (INTERSECT)",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "CO-ROUTINE nullable_seed",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 7,
+        "notused" : 0,
+        "parent" : 6
+      },
+      {
+        "detail" : "SCAN nullable_rows",
+        "id" : 12,
+        "notused" : 16,
+        "parent" : 4
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "RIGHT",
+        "id" : 28,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 30,
+        "notused" : 0,
+        "parent" : 28
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-nullable.intersect"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE nullable_seed",
+        "id" : 5,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 5
+      },
+      {
+        "detail" : "SCAN nullable_rows",
+        "id" : 10,
+        "notused" : 16,
+        "parent" : 2
+      },
+      {
+        "detail" : "UNION USING TEMP B-TREE",
+        "id" : 17,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 18,
+        "notused" : 0,
+        "parent" : 17
+      }
+    ],
+    "classification" : "materialization_strategy_change",
+    "comparison_rows" : [
+      {
+        "detail" : "MERGE (UNION)",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "CO-ROUTINE nullable_seed",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 7,
+        "notused" : 0,
+        "parent" : 6
+      },
+      {
+        "detail" : "SCAN nullable_rows",
+        "id" : 12,
+        "notused" : 16,
+        "parent" : 4
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "RIGHT",
+        "id" : 28,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 30,
+        "notused" : 0,
+        "parent" : 28
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-nullable.union"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE nullable_seed",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 5,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SCAN nullable_rows",
+        "id" : 9,
+        "notused" : 16,
+        "parent" : 2
+      },
+      {
+        "detail" : "UNION ALL",
+        "id" : 15,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 16,
+        "notused" : 0,
+        "parent" : 15
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE nullable_seed",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 5,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SCAN nullable_rows",
+        "id" : 9,
+        "notused" : 16,
+        "parent" : 2
+      },
+      {
+        "detail" : "UNION ALL",
+        "id" : 15,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 16,
+        "notused" : 0,
+        "parent" : 15
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-nullable.union-all"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE required_seed",
+        "id" : 5,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 5
+      },
+      {
+        "detail" : "SCAN required_rows",
+        "id" : 10,
+        "notused" : 16,
+        "parent" : 2
+      },
+      {
+        "detail" : "EXCEPT USING TEMP B-TREE",
+        "id" : 17,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 18,
+        "notused" : 0,
+        "parent" : 17
+      }
+    ],
+    "classification" : "materialization_strategy_change",
+    "comparison_rows" : [
+      {
+        "detail" : "MERGE (EXCEPT)",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "CO-ROUTINE required_seed",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 7,
+        "notused" : 0,
+        "parent" : 6
+      },
+      {
+        "detail" : "SCAN required_rows",
+        "id" : 12,
+        "notused" : 16,
+        "parent" : 4
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "RIGHT",
+        "id" : 28,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 30,
+        "notused" : 0,
+        "parent" : 28
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-required.except"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE required_seed",
+        "id" : 5,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 5
+      },
+      {
+        "detail" : "SCAN required_rows",
+        "id" : 10,
+        "notused" : 16,
+        "parent" : 2
+      },
+      {
+        "detail" : "INTERSECT USING TEMP B-TREE",
+        "id" : 18,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 18
+      }
+    ],
+    "classification" : "materialization_strategy_change",
+    "comparison_rows" : [
+      {
+        "detail" : "MERGE (INTERSECT)",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "CO-ROUTINE required_seed",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 7,
+        "notused" : 0,
+        "parent" : 6
+      },
+      {
+        "detail" : "SCAN required_rows",
+        "id" : 12,
+        "notused" : 16,
+        "parent" : 4
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "RIGHT",
+        "id" : 28,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 30,
+        "notused" : 0,
+        "parent" : 28
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-required.intersect"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE required_seed",
+        "id" : 5,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 5
+      },
+      {
+        "detail" : "SCAN required_rows",
+        "id" : 10,
+        "notused" : 16,
+        "parent" : 2
+      },
+      {
+        "detail" : "UNION USING TEMP B-TREE",
+        "id" : 17,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 18,
+        "notused" : 0,
+        "parent" : 17
+      }
+    ],
+    "classification" : "materialization_strategy_change",
+    "comparison_rows" : [
+      {
+        "detail" : "MERGE (UNION)",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "CO-ROUTINE required_seed",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 7,
+        "notused" : 0,
+        "parent" : 6
+      },
+      {
+        "detail" : "SCAN required_rows",
+        "id" : 12,
+        "notused" : 16,
+        "parent" : 4
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "RIGHT",
+        "id" : 28,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 30,
+        "notused" : 0,
+        "parent" : 28
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-required.union"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE required_seed",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 5,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SCAN required_rows",
+        "id" : 9,
+        "notused" : 16,
+        "parent" : 2
+      },
+      {
+        "detail" : "UNION ALL",
+        "id" : 15,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 16,
+        "notused" : 0,
+        "parent" : 15
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE required_seed",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 5,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SCAN required_rows",
+        "id" : 9,
+        "notused" : 16,
+        "parent" : 2
+      },
+      {
+        "detail" : "UNION ALL",
+        "id" : 15,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 16,
+        "notused" : 0,
+        "parent" : 15
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-required.union-all"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE integer_sequence",
+        "id" : 5,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SETUP",
+        "id" : 8,
+        "notused" : 0,
+        "parent" : 5
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 8
+      },
+      {
+        "detail" : "RECURSIVE STEP",
+        "id" : 20,
+        "notused" : 0,
+        "parent" : 5
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 21,
+        "notused" : 216,
+        "parent" : 20
+      },
+      {
+        "detail" : "SCAN recursive_rows",
+        "id" : 31,
+        "notused" : 215,
+        "parent" : 2
+      },
+      {
+        "detail" : "EXCEPT USING TEMP B-TREE",
+        "id" : 38,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 39,
+        "notused" : 0,
+        "parent" : 38
+      }
+    ],
+    "classification" : "materialization_strategy_change",
+    "comparison_rows" : [
+      {
+        "detail" : "MERGE (EXCEPT)",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "CO-ROUTINE integer_sequence",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SETUP",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 6
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 10,
+        "notused" : 0,
+        "parent" : 9
+      },
+      {
+        "detail" : "RECURSIVE STEP",
+        "id" : 21,
+        "notused" : 0,
+        "parent" : 6
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 22,
+        "notused" : 216,
+        "parent" : 21
+      },
+      {
+        "detail" : "SCAN recursive_rows",
+        "id" : 33,
+        "notused" : 215,
+        "parent" : 4
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 40,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "RIGHT",
+        "id" : 49,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 51,
+        "notused" : 0,
+        "parent" : 49
+      }
+    ],
+    "statement_id" : "c191.v1.cte.recursive-required.except"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE integer_sequence",
+        "id" : 5,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SETUP",
+        "id" : 8,
+        "notused" : 0,
+        "parent" : 5
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 8
+      },
+      {
+        "detail" : "RECURSIVE STEP",
+        "id" : 20,
+        "notused" : 0,
+        "parent" : 5
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 21,
+        "notused" : 216,
+        "parent" : 20
+      },
+      {
+        "detail" : "SCAN recursive_rows",
+        "id" : 31,
+        "notused" : 215,
+        "parent" : 2
+      },
+      {
+        "detail" : "INTERSECT USING TEMP B-TREE",
+        "id" : 39,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 40,
+        "notused" : 0,
+        "parent" : 39
+      }
+    ],
+    "classification" : "materialization_strategy_change",
+    "comparison_rows" : [
+      {
+        "detail" : "MERGE (INTERSECT)",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "CO-ROUTINE integer_sequence",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SETUP",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 6
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 10,
+        "notused" : 0,
+        "parent" : 9
+      },
+      {
+        "detail" : "RECURSIVE STEP",
+        "id" : 21,
+        "notused" : 0,
+        "parent" : 6
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 22,
+        "notused" : 216,
+        "parent" : 21
+      },
+      {
+        "detail" : "SCAN recursive_rows",
+        "id" : 33,
+        "notused" : 215,
+        "parent" : 4
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 40,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "RIGHT",
+        "id" : 49,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 51,
+        "notused" : 0,
+        "parent" : 49
+      }
+    ],
+    "statement_id" : "c191.v1.cte.recursive-required.intersect"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE integer_sequence",
+        "id" : 5,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SETUP",
+        "id" : 8,
+        "notused" : 0,
+        "parent" : 5
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 8
+      },
+      {
+        "detail" : "RECURSIVE STEP",
+        "id" : 20,
+        "notused" : 0,
+        "parent" : 5
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 21,
+        "notused" : 216,
+        "parent" : 20
+      },
+      {
+        "detail" : "SCAN recursive_rows",
+        "id" : 31,
+        "notused" : 215,
+        "parent" : 2
+      },
+      {
+        "detail" : "UNION USING TEMP B-TREE",
+        "id" : 38,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 39,
+        "notused" : 0,
+        "parent" : 38
+      }
+    ],
+    "classification" : "materialization_strategy_change",
+    "comparison_rows" : [
+      {
+        "detail" : "MERGE (UNION)",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "CO-ROUTINE integer_sequence",
+        "id" : 6,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SETUP",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 6
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 10,
+        "notused" : 0,
+        "parent" : 9
+      },
+      {
+        "detail" : "RECURSIVE STEP",
+        "id" : 21,
+        "notused" : 0,
+        "parent" : 6
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 22,
+        "notused" : 216,
+        "parent" : 21
+      },
+      {
+        "detail" : "SCAN recursive_rows",
+        "id" : 33,
+        "notused" : 215,
+        "parent" : 4
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 40,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "RIGHT",
+        "id" : 49,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 51,
+        "notused" : 0,
+        "parent" : 49
+      }
+    ],
+    "statement_id" : "c191.v1.cte.recursive-required.union"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE integer_sequence",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SETUP",
+        "id" : 7,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 8,
+        "notused" : 0,
+        "parent" : 7
+      },
+      {
+        "detail" : "RECURSIVE STEP",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 20,
+        "notused" : 216,
+        "parent" : 19
+      },
+      {
+        "detail" : "SCAN recursive_rows",
+        "id" : 30,
+        "notused" : 215,
+        "parent" : 2
+      },
+      {
+        "detail" : "UNION ALL",
+        "id" : 36,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 37,
+        "notused" : 0,
+        "parent" : 36
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "COMPOUND QUERY",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT-MOST SUBQUERY",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "CO-ROUTINE integer_sequence",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SETUP",
+        "id" : 7,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 8,
+        "notused" : 0,
+        "parent" : 7
+      },
+      {
+        "detail" : "RECURSIVE STEP",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 20,
+        "notused" : 216,
+        "parent" : 19
+      },
+      {
+        "detail" : "SCAN recursive_rows",
+        "id" : 30,
+        "notused" : 215,
+        "parent" : 2
+      },
+      {
+        "detail" : "UNION ALL",
+        "id" : 36,
+        "notused" : 0,
+        "parent" : 1
+      },
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 37,
+        "notused" : 0,
+        "parent" : 36
+      }
+    ],
+    "statement_id" : "c191.v1.cte.recursive-required.union-all"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.expression.cast-text-blob"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.expression.cast-text-integer"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.expression.comparable-min"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.expression.date-unixepoch"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.expression.indexed-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.expression.json-array-length"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.expression.json-valid"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.expression.numeric-abs"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.expression.numeric-floor"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.expression.numeric-round"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.expression.operator-arithmetic-precedence"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.expression.operator-glob"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.expression.string-printf"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "MERGE (UNION)",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 4
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 16,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "RIGHT",
+        "id" : 28,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN t1",
+        "id" : 31,
+        "notused" : 216,
+        "parent" : 28
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 40,
+        "notused" : 0,
+        "parent" : 28
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "MERGE (UNION)",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 4
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 16,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "RIGHT",
+        "id" : 28,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN t1",
+        "id" : 31,
+        "notused" : 216,
+        "parent" : 28
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 40,
+        "notused" : 0,
+        "parent" : 28
+      }
+    ],
+    "statement_id" : "c191.v1.northwind.compound-customer-supplier-cities"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "CO-ROUTINE cte0",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t0 USING INDEX sqlite_autoindex_Order Details_1 (OrderID=?)",
+        "id" : 9,
+        "notused" : 62,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 52,
+        "notused" : 82,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "CO-ROUTINE cte0",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t0 USING INDEX sqlite_autoindex_Order Details_1 (OrderID=?)",
+        "id" : 9,
+        "notused" : 62,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 52,
+        "notused" : 82,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.northwind.cte-order-subtotals"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 46,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 46,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.g-customer-id.h-count-greater-than-one.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 9,
+        "notused" : 209,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 11,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 9,
+        "notused" : 209,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 11,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.g-customer-id.h-count-greater-than-one"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 9,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 9,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.l-five.x-two"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 6,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 6,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 6,
+        "notused" : 209,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 14,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 6,
+        "notused" : 209,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 14,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.o-collated"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 6,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 6,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.o-descending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 6,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 6,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-empty-in"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 61,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 22,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 61,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 22,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-in-list"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 7,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 7,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-injection-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 45,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 6,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 45,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 6,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-literal"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 3,
+        "notused" : 196,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 5,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 3,
+        "notused" : 196,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 5,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-named-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 7,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 7,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-null-comparison"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 11,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 11,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-precedence"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 9,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 9,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-repeated-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 6,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 6,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 6,
+        "notused" : 44,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 16,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 6,
+        "notused" : 44,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 16,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.o-collated"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 6,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 6,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.w-empty-in"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 61,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 22,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 61,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 22,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.w-in-list"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 3,
+        "notused" : 44,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 9,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 3,
+        "notused" : 44,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 9,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.w-injection-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 45,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 6,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 45,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 6,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.w-literal"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 3,
+        "notused" : 196,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 5,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 3,
+        "notused" : 196,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 5,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.w-named-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 7,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 7,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.w-null-comparison"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 11,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 11,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.w-precedence"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.o-descending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.w-empty-in"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.w-in-list"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.w-injection-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 45,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 45,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.w-literal"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 2,
+        "notused" : 196,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 2,
+        "notused" : 196,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.w-named-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.w-precedence"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.w-repeated-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 6,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 6,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.j-cross"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH employees_join USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "id" : 6,
+        "notused" : 45,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH employees_join USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "id" : 6,
+        "notused" : 45,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.j-left"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.o-collated"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 12,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 18,
+        "notused" : 44,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 23,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 66,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 12,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 18,
+        "notused" : 44,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 23,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 66,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.s-subquery-alias.j-inner.w-repeated-binding.g-customer-id.h-count-greater-than-one.o-descending.l-five.x-two"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.s-table-alias"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.w-empty-in"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.w-in-list"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.w-injection-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.w-literal"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 3,
+        "notused" : 196,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 3,
+        "notused" : 196,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.w-named-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.w-null-comparison"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.w-precedence"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 5,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 5,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.j-cross"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 5,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 5,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.j-inner"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.o-descending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.s-subquery-alias"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 12,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH employees_join USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "id" : 16,
+        "notused" : 45,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 21,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 69,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 12,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH employees_join USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "id" : 16,
+        "notused" : 45,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 21,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 69,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.s-table-alias.j-left.w-null-comparison.g-customer-id.h-count-greater-than-one.o-collated.l-five.x-two"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.w-empty-in"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.w-in-list"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.w-injection-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.w-literal"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 2,
+        "notused" : 196,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 2,
+        "notused" : 196,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.w-named-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.w-precedence"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.w-repeated-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 5,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 5,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.j-cross"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.j-left"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 10,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 10,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.o-collated"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.w-empty-in"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH source_orders USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH source_orders USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.w-in-list"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.w-injection-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH source_orders USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH source_orders USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.w-literal"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH source_orders USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 2,
+        "notused" : 196,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH source_orders USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 2,
+        "notused" : 196,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.w-named-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.w-null-comparison"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN source_orders",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.w-precedence"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 5,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "id" : 5,
+        "notused" : 209,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.j-cross"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 5,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 5,
+        "notused" : 44,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.j-inner"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.o-descending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.w-empty-in"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH orders_case USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH orders_case USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.w-in-list"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.w-injection-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH orders_case USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH orders_case USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 2,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.w-literal"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH orders_case USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 2,
+        "notused" : 196,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH orders_case USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 2,
+        "notused" : 196,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.w-named-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.w-precedence"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN orders_case",
+        "id" : 2,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.w-repeated-binding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-empty-in.g-customer-id.h-count-greater-than-one"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-empty-in.l-five.x-two"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-empty-in.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 11,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 11,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-empty-in.o-collated"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-empty-in.o-descending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 6,
+        "notused" : 61,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 25,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 6,
+        "notused" : 61,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 25,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-in-list.g-customer-id.h-count-greater-than-one"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 6,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 6,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-in-list.l-five.x-two"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-in-list.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 61,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 27,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 61,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 27,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-in-list.o-collated"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 61,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-in-list.o-descending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 6,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 6,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-injection-binding.g-customer-id.h-count-greater-than-one"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 6,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 6,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-injection-binding.l-five.x-two"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-injection-binding.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 12,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 12,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-injection-binding.o-collated"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-injection-binding.o-descending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 6,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 6,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-literal.g-customer-id.h-count-greater-than-one"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 6,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 6,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-literal.l-five.x-two"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-literal.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-literal.o-collated"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 3,
+        "notused" : 33,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-literal.o-descending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 6,
+        "notused" : 196,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 8,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 6,
+        "notused" : 196,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 8,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-named-binding.g-customer-id.h-count-greater-than-one"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 11,
+        "notused" : 196,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 13,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 51,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 11,
+        "notused" : 196,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 13,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 51,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-named-binding.g-customer-id.o-ascending.l-five.x-two"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 3,
+        "notused" : 196,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 10,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 3,
+        "notused" : 196,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 10,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-named-binding.o-collated"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 3,
+        "notused" : 196,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "id" : 3,
+        "notused" : 196,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-named-binding.o-descending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-null-comparison.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-null-comparison.o-descending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 6,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 14,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 6,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 14,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-precedence.g-customer-id.h-count-greater-than-one"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-precedence.l-five"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 6,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 6,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-precedence.l-five.x-two"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-precedence.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 16,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 16,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-precedence.o-collated"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-precedence.o-descending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-repeated-binding.o-ascending"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 14,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 14,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-repeated-binding.o-collated"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "USE TEMP B-TREE FOR avg(DISTINCT)",
+        "id" : 3,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "USE TEMP B-TREE FOR avg(DISTINCT)",
+        "id" : 3,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.aggregate-average-distinct"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "USE TEMP B-TREE FOR count(DISTINCT)",
+        "id" : 3,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "USE TEMP B-TREE FOR count(DISTINCT)",
+        "id" : 3,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.aggregate-count-distinct"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "USE TEMP B-TREE FOR group_concat(DISTINCT)",
+        "id" : 3,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "USE TEMP B-TREE FOR group_concat(DISTINCT)",
+        "id" : 3,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.aggregate-group-concat-distinct"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "USE TEMP B-TREE FOR max(DISTINCT)",
+        "id" : 3,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "USE TEMP B-TREE FOR max(DISTINCT)",
+        "id" : 3,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.aggregate-max-distinct"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "USE TEMP B-TREE FOR min(DISTINCT)",
+        "id" : 3,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "USE TEMP B-TREE FOR min(DISTINCT)",
+        "id" : 3,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.aggregate-min-distinct"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "USE TEMP B-TREE FOR sum(DISTINCT)",
+        "id" : 3,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "USE TEMP B-TREE FOR sum(DISTINCT)",
+        "id" : 3,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN t0",
+        "id" : 5,
+        "notused" : 216,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.aggregate-sum-distinct"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-blob-text"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-bool-integer"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-integer-real"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-integer-text"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-blob-text"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-bool-integer"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-integer-real"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-integer-text"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-real-integer"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-real-text"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-text-blob"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-text-integer"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-text-real"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-real-integer"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-real-text"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-text-real"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.comparable-max"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.json-array-length-path"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.numeric-round-no-places"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.numeric-round-optional"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c286.v1.expression.string-printf-array"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.boolean-and-shapes"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.boolean-not-shapes"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.boolean-or-shapes"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.coalesce-storage-classes"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.coalescing-operator"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.comparison-both-optional"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.comparison-left-optional"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.comparison-required"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.comparison-right-optional"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.equality-optional-shapes"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.equality-required"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.inequality-optional-shapes"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.integer-arithmetic-both-optional"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.integer-arithmetic-left-optional"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.integer-arithmetic-null-propagation"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.integer-arithmetic-required"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.integer-arithmetic-right-optional"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.integer-division-boundaries"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.optional-predicates"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.real-arithmetic-both-optional"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.real-arithmetic-left-optional"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.real-arithmetic-null-propagation"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.real-arithmetic-required"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.real-arithmetic-right-optional"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.real-division-boundaries"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-concatenation-null"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-concatenation-shapes"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-glob-case-sensitivity"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-glob-null-propagation"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-glob-shapes"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-like-ascii-case-folding"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-like-null-propagation"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-like-shapes"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.unary-nesting"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN CONSTANT ROW",
+        "id" : 1,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c287.v1.expression.unary-shapes"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "LIST SUBQUERY 1",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 12,
+        "notused" : 33,
+        "parent" : 9
+      },
+      {
+        "detail" : "CREATE BLOOM FILTER",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 9
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "LIST SUBQUERY 1",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 12,
+        "notused" : 33,
+        "parent" : 9
+      },
+      {
+        "detail" : "CREATE BLOOM FILTER",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 9
+      }
+    ],
+    "statement_id" : "c288.v1.subquery.in-query-builder-empty"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "LIST SUBQUERY 1",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 12,
+        "notused" : 33,
+        "parent" : 9
+      },
+      {
+        "detail" : "CREATE BLOOM FILTER",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 9
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "LIST SUBQUERY 1",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 12,
+        "notused" : 33,
+        "parent" : 9
+      },
+      {
+        "detail" : "CREATE BLOOM FILTER",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 9
+      }
+    ],
+    "statement_id" : "c288.v1.subquery.in-query-builder-nonempty"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "LIST SUBQUERY 1",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t1 USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 12,
+        "notused" : 39,
+        "parent" : 9
+      },
+      {
+        "detail" : "CREATE BLOOM FILTER",
+        "id" : 22,
+        "notused" : 0,
+        "parent" : 9
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "LIST SUBQUERY 1",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t1 USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 12,
+        "notused" : 39,
+        "parent" : 9
+      },
+      {
+        "detail" : "CREATE BLOOM FILTER",
+        "id" : 22,
+        "notused" : 0,
+        "parent" : 9
+      }
+    ],
+    "statement_id" : "c288.v1.subquery.in-query-functional-nonempty"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "LIST SUBQUERY 2",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 12,
+        "notused" : 33,
+        "parent" : 9
+      },
+      {
+        "detail" : "CREATE BLOOM FILTER",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 9
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "LIST SUBQUERY 2",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 12,
+        "notused" : 33,
+        "parent" : 9
+      },
+      {
+        "detail" : "CREATE BLOOM FILTER",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 9
+      }
+    ],
+    "statement_id" : "c288.v1.subquery.in-table-empty"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "LIST SUBQUERY 2",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 12,
+        "notused" : 33,
+        "parent" : 9
+      },
+      {
+        "detail" : "CREATE BLOOM FILTER",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 9
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN t0",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "LIST SUBQUERY 2",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 12,
+        "notused" : 33,
+        "parent" : 9
+      },
+      {
+        "detail" : "CREATE BLOOM FILTER",
+        "id" : 19,
+        "notused" : 0,
+        "parent" : 9
+      }
+    ],
+    "statement_id" : "c288.v1.subquery.in-table-nonempty"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN Orders",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 47,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN Orders",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 47,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c390.northwind.aggregate.grouped-having"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "MERGE (UNION)",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN Customers",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 4
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 16,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "RIGHT",
+        "id" : 28,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN Suppliers",
+        "id" : 31,
+        "notused" : 216,
+        "parent" : 28
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 40,
+        "notused" : 0,
+        "parent" : 28
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "MERGE (UNION)",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "LEFT",
+        "id" : 4,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN Customers",
+        "id" : 7,
+        "notused" : 216,
+        "parent" : 4
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 16,
+        "notused" : 0,
+        "parent" : 4
+      },
+      {
+        "detail" : "RIGHT",
+        "id" : 28,
+        "notused" : 0,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN Suppliers",
+        "id" : 31,
+        "notused" : 216,
+        "parent" : 28
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 40,
+        "notused" : 0,
+        "parent" : 28
+      }
+    ],
+    "statement_id" : "c390.northwind.compound.customer-supplier-cities"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "CO-ROUTINE order_subtotals",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH Order Details USING INDEX sqlite_autoindex_Order Details_1 (OrderID=?)",
+        "id" : 9,
+        "notused" : 62,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN order_subtotals",
+        "id" : 51,
+        "notused" : 82,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "CO-ROUTINE order_subtotals",
+        "id" : 2,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH Order Details USING INDEX sqlite_autoindex_Order Details_1 (OrderID=?)",
+        "id" : 9,
+        "notused" : 62,
+        "parent" : 2
+      },
+      {
+        "detail" : "SCAN order_subtotals",
+        "id" : 51,
+        "notused" : 82,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c390.northwind.cte.order-subtotals"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SEARCH o USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 9,
+        "notused" : 45,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH c USING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 12,
+        "notused" : 46,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 18,
+        "notused" : 45,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH d USING INDEX sqlite_autoindex_Order Details_1 (OrderID=?)",
+        "id" : 21,
+        "notused" : 62,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH p USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 27,
+        "notused" : 45,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 44,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "id_renumbering_only",
+    "comparison_rows" : [
+      {
+        "detail" : "SEARCH o USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 12,
+        "notused" : 45,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH c USING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "id" : 15,
+        "notused" : 46,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 21,
+        "notused" : 45,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH d USING INDEX sqlite_autoindex_Order Details_1 (OrderID=?)",
+        "id" : 24,
+        "notused" : 62,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH p USING INTEGER PRIMARY KEY (rowid=?)",
+        "id" : 30,
+        "notused" : 45,
+        "parent" : 0
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 47,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c390.northwind.join.customer-order-employee-product"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN e",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH m USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "id" : 6,
+        "notused" : 45,
+        "parent" : 0
+      }
+    ],
+    "classification" : "identical",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN e",
+        "id" : 4,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SEARCH m USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "id" : 6,
+        "notused" : 45,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c390.northwind.join.left-null-manager"
+  },
+  {
+    "baseline_rows" : [
+      {
+        "detail" : "SCAN Products",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCALAR SUBQUERY 1",
+        "id" : 8,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN Products",
+        "id" : 13,
+        "notused" : 216,
+        "parent" : 8
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 29,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "classification" : "id_renumbering_only",
+    "comparison_rows" : [
+      {
+        "detail" : "SCAN Products",
+        "id" : 3,
+        "notused" : 216,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCALAR SUBQUERY 1",
+        "id" : 9,
+        "notused" : 0,
+        "parent" : 0
+      },
+      {
+        "detail" : "SCAN Products",
+        "id" : 14,
+        "notused" : 216,
+        "parent" : 9
+      },
+      {
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "id" : 30,
+        "notused" : 0,
+        "parent" : 0
+      }
+    ],
+    "statement_id" : "c390.northwind.subquery.products-above-average"
+  }
+]
