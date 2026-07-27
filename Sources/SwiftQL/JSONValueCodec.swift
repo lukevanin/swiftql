@@ -79,17 +79,17 @@ public struct XLJSONCodecConfiguration: Hashable, Sendable {
         case deferredToData
     }
 
-    public var keyEncodingStrategy: KeyEncodingStrategy
+    public let keyEncodingStrategy: KeyEncodingStrategy
 
-    public var keyDecodingStrategy: KeyDecodingStrategy
+    public let keyDecodingStrategy: KeyDecodingStrategy
 
-    public var dateEncodingStrategy: DateEncodingStrategy
+    public let dateEncodingStrategy: DateEncodingStrategy
 
-    public var dateDecodingStrategy: DateDecodingStrategy
+    public let dateDecodingStrategy: DateDecodingStrategy
 
-    public var dataEncodingStrategy: DataEncodingStrategy
+    public let dataEncodingStrategy: DataEncodingStrategy
 
-    public var dataDecodingStrategy: DataDecodingStrategy
+    public let dataDecodingStrategy: DataDecodingStrategy
 
     /// Sorts object keys while encoding so two calls that encode equal
     /// values produce byte-identical JSON.
@@ -97,7 +97,7 @@ public struct XLJSONCodecConfiguration: Hashable, Sendable {
     /// This is a canonicalization aid for stable storage and comparison, not
     /// a schema guarantee: it only orders keys that `Value`'s `Encodable`
     /// implementation already writes. Defaults to `true`.
-    public var sortsKeys: Bool
+    public let sortsKeys: Bool
 
     public init(
         keyEncodingStrategy: KeyEncodingStrategy = .useDefaultKeys,
@@ -271,7 +271,6 @@ public enum XLJSONValueCodec {
                     )
                 }
                 return try _XLJSONTranscoder.decode(
-                    Value.self,
                     from: Data(text.utf8),
                     using: configuration
                 )
@@ -316,7 +315,6 @@ public enum XLJSONValueCodec {
                     )
                 }
                 return try _XLJSONTranscoder.decode(
-                    Value.self,
                     from: data,
                     using: configuration
                 )
@@ -354,7 +352,6 @@ private enum _XLJSONTranscoder {
     }
 
     static func decode<Value: Decodable>(
-        _ valueType: Value.Type,
         from data: Data,
         using configuration: XLJSONCodecConfiguration
     ) throws -> Value {

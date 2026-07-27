@@ -229,13 +229,15 @@ final class JSONValueCodecContractTests: XCTestCase {
         _ profile: JSONCodecFixtureProfile,
         using configuration: XLValueCodingConfiguration
     ) throws -> String {
+        // A non-TEXT result here would mean the codec/registry wiring in
+        // this test regressed, so fail the test rather than skip it.
         guard case .text(let json) = try configuration.encode(
             profile,
             using: dialect,
             context: parameterContext,
             selection: XLValueCodecSelection(explicitCodecKey: jsonCodecFixtureTextKey)
         ) else {
-            throw XCTSkip("Expected TEXT storage")
+            throw JSONValueCodecTestFixtureError.expectedTextStorage
         }
         return json
     }
@@ -403,4 +405,9 @@ final class JSONValueCodecContractTests: XCTestCase {
             metric
         )
     }
+}
+
+
+private enum JSONValueCodecTestFixtureError: Error {
+    case expectedTextStorage
 }
