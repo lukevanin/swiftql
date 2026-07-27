@@ -86,9 +86,12 @@ package enum IndexCandidateGenerator {
         return columns
     }
 
-    /// Finds every `full_table_scan` node in a classified plan and, where
-    /// this statement's SQL yields a non-empty candidate column list for
-    /// that node's table alias and the alias resolves to a real table (see
+    /// Finds every `full_table_scan` **root** node in a classified plan —
+    /// deliberately not a recursive walk into every child node; see this
+    /// issue's write-up ("only the driving table's roots are considered" —
+    /// remediating a nested scan is left as future work) — and, where this
+    /// statement's SQL yields a non-empty candidate column list for that
+    /// node's table alias and the alias resolves to a real table (see
     /// `IndexCandidateExtraction.tableAliasMap`), produces a remediable
     /// candidate. A full table scan with no equality/range/join/order-by
     /// signal, or whose alias can't be confidently resolved, yields nothing

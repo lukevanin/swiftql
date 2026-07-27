@@ -33,7 +33,9 @@ package struct JoinKey: Equatable, Sendable {
 /// (`("t0"."orderID" == 10248)`) and this repo's own hand-written Northwind
 /// anchor style (`o.OrderID = ?`, no quotes, no wrapping parens) — via a
 /// single identifier scanner that accepts both forms. A `WHERE` clause
-/// containing a top-level `OR`, or a conjunct that isn't a plain
+/// containing `OR` *anywhere* — not just at the top level; this check is a
+/// blunt substring test, deliberately more conservative than "does this
+/// `OR` actually change precedence" — or a conjunct that isn't a plain
 /// column/operator comparison, yields no comparisons for that clause —
 /// never a guessed or partial one. Statements this extractor can't
 /// confidently read simply produce no candidate, the same "never coerce"

@@ -29,9 +29,10 @@ deliberately refuses to guess at) reads, for one table alias in one
 statement's rendered SQL:
 
 - `WHERE`-clause equality and range comparisons (conjuncts joined only by
-  top-level `AND`; a top-level `OR`, or a conjunct that isn't a plain
-  column/operator comparison, yields nothing for that clause rather than a
-  guess).
+  top-level `AND`; an `OR` anywhere in the clause — a blunt substring check,
+  deliberately more conservative than "does this `OR` actually change
+  precedence" — or a conjunct that isn't a plain column/operator
+  comparison, yields nothing for that clause rather than a guess).
 - `JOIN … ON` equality (or `IS`, for a nullable left join) key columns.
 - `ORDER BY` columns, ignoring `COLLATE`/`ASC`/`DESC`.
 - The alias→real-table-name map (`tableAliasMap`), which explicitly excludes
