@@ -259,7 +259,7 @@ SwiftQL currently supports the following aggregate functions:
 API                               | Input             | Result    | Behavior
 ----------------------------------|-------------------|-----------|-------------------------------------------
 `count()`                         | Any               | `Int`     | Number of non-NULL values; zero for empty input.
-`count(all())`                    | All rows          | `Int`     | Number of input rows, rendered as `COUNT(*)`.
+`all().count()`                   | All rows          | `Int`     | Number of input rows, rendered as `COUNT(*)`.
 `minOrNull()`                     | Any comparable    | `T?`      | Minimum non-NULL value.
 `maxOrNull()`                     | Any comparable    | `T?`      | Maximum non-NULL value.
 `averageOrNull()`                 | `Int`, `Double`, or either nullable form | `Double?` | Average (arithmetic mean) of non-NULL values.
@@ -281,7 +281,7 @@ It always returns a `Double`, ignores individual NULL values, and returns `0.0`
 for empty or all-NULL input. Existing `sum()` and `sumOrNull()` behavior is
 unchanged.
 
-Use `count(all())` when NULL values must still contribute to the row count.
+Use `all().count()` when NULL values must still contribute to the row count.
 
 <!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift

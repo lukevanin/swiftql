@@ -854,7 +854,7 @@ final class XLDocumentationTests: XCTestCase {
             let occupation = schema.nullableTable(Occupation.self)
             let result = PersonOccupation.columns(
                 person: person.name,
-                occupation: iif(occupation.name.isNull(), then: "Unemployed", else: "Employed")
+                occupation: occupation.name.isNull().iif(then: "Unemployed", else: "Employed")
             )
             return select(result).from(person).leftJoin(occupation, on: occupation.id == person.occupationId)
         }
@@ -2131,6 +2131,20 @@ extension XLDocumentationTests {
             XLCustomCollationTests.testCustomCollationOrdersByRegisteredSequence
         let _: (XLCustomCollationTests) -> () throws -> Void =
             XLCustomCollationTests.testUnregisteredCollationFailsAtPreparation
+
+        let x = XLNamedBindingReference<Int>(name: "x")
+        let smallest = x.min(0, 10)
+        let largest = x.max(0, 10)
+        XCTAssertEqual(encoder.makeSQL(smallest).sql, "MIN(:x, 0, 10)")
+        XCTAssertEqual(encoder.makeSQL(largest).sql, "MAX(:x, 0, 10)")
+
+        let name = XLNamedBindingReference<String>(name: "name")
+        let age = XLNamedBindingReference<Int>(name: "age")
+        let formatted = "%s is %d years old".printf(name, age)
+        XCTAssertEqual(
+            encoder.makeSQL(formatted).sql,
+            "printf('%s is %d years old', :name, :age)"
+        )
     }
 
     func testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs() throws {

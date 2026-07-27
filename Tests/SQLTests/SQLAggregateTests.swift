@@ -102,7 +102,7 @@ final class XLAggregateTests: XCTestCase {
         assertExpressionType(text.groupConcatOrNull(separator: "|"), Optional<String>.self)
         assertExpressionType(integer.count(), Int.self)
         assertExpressionType(all(), XLAllColumns.self)
-        assertExpressionType(count(all()), Int.self)
+        assertExpressionType(all().count(), Int.self)
         assertExpressionType(integer.sumOrNull().coalesce(-99), Int.self)
 
         XCTAssertEqual(encoder.makeSQL(integer.minOrNull()).sql, "MIN(:integer)")
@@ -134,7 +134,7 @@ final class XLAggregateTests: XCTestCase {
         )
         XCTAssertEqual(encoder.makeSQL(integer.count()).sql, "COUNT(:integer)")
         XCTAssertEqual(encoder.makeSQL(all()).sql, "*")
-        XCTAssertEqual(encoder.makeSQL(count(all())).sql, "COUNT(*)")
+        XCTAssertEqual(encoder.makeSQL(all().count()).sql, "COUNT(*)")
         XCTAssertEqual(
             encoder.makeSQL(integer.sumOrNull().coalesce(-99)).sql,
             "COALESCE(SUM(:integer), -99)"
@@ -284,7 +284,7 @@ final class XLAggregateTests: XCTestCase {
                     nullableRealTotal: input.nullableRealValue.total(),
                     concatenated: input.textValue.groupConcatOrNull(),
                     pipeConcatenated: input.textValue.groupConcatOrNull(separator: "|"),
-                    rowCount: count(all()),
+                    rowCount: all().count(),
                     integerCount: input.integerValue.count(),
                     coalescedSum: input.integerValue.sumOrNull().coalesce(-99)
                 )
