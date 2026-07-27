@@ -193,9 +193,13 @@ final class UUIDValueCodecGRDBTests: XCTestCase {
                 )
             }
         ) { error in
-            XCTAssertTrue(
-                "\(error)".contains("UNIQUE"),
-                "Expected a UNIQUE constraint failure, received \(error)."
+            guard let databaseError = error as? DatabaseError else {
+                return XCTFail("Expected a GRDB DatabaseError, received \(error).")
+            }
+            XCTAssertEqual(
+                databaseError.extendedResultCode,
+                .SQLITE_CONSTRAINT_UNIQUE,
+                "Expected a UNIQUE constraint failure, received \(databaseError)."
             )
         }
 

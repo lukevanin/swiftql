@@ -147,11 +147,20 @@ private let _xlUUIDValueTypeIdentifier = XLValueTypeIdentifier(
 /// Structured decoding failures specific to the built-in UUID presets.
 ///
 /// `XLValueCodec` wraps whatever a decode closure throws into
-/// ``XLValueCodecError/decodingFailed(codec:context:message:)``, which
-/// already carries the failing codec's key and coding context. This type
-/// supplies the UUID-specific detail -- the invalid text, or the wrong byte
-/// count -- that becomes that wrapped error's message.
-public enum XLUUIDValueCodecError: Error, Equatable, Sendable, LocalizedError {
+/// ``XLValueCodecError/decodingFailed(codec:context:message:)`` using
+/// `String(describing:)`, not `localizedDescription`, and already carries the
+/// failing codec's key and coding context. This type supplies the
+/// UUID-specific detail -- the invalid text, or the wrong byte count -- that
+/// becomes that wrapped error's message; `CustomStringConvertible` forwards
+/// to `errorDescription` so `String(describing:)` renders that same
+/// human-readable text instead of the synthesized case dump.
+public enum XLUUIDValueCodecError:
+    Error,
+    Equatable,
+    Sendable,
+    LocalizedError,
+    CustomStringConvertible
+{
 
     /// The stored text is not a UUID `Foundation.UUID(uuidString:)` accepts.
     case invalidText(String, context: XLValueCodingContext)
@@ -177,5 +186,13 @@ public enum XLUUIDValueCodecError: Error, Equatable, Sendable, LocalizedError {
         case .unexpectedDialectValue(let value, let context):
             return "Expected a UUID-compatible SQLite storage class, received \(value) at \(context)."
         }
+    }
+
+    public var description: String {
+        // `errorDescription`'s switch is exhaustive and every case returns a
+        // concrete string, so this is never the fallback in practice; it
+        // exists only to keep `description` total without recursing back
+        // into `String(describing:)`, which would call this property again.
+        errorDescription ?? "XLUUIDValueCodecError"
     }
 }
