@@ -15,6 +15,25 @@ import XCTest
 import GRDB
 import SwiftQL
 
+/// Converts a public `XLSQLiteValue` into a GRDB bind argument using only public API. This file
+/// uses a plain `import SwiftQL` (not `@testable`), so it cannot reach the internal
+/// `XLSQLiteValue.databaseValue` conversion `@testable`-importing integration tests use.
+private func documentationDatabaseValue(_ value: XLSQLiteValue) -> DatabaseValueConvertible? {
+    switch value {
+    case .null:
+        return nil
+    case .integer(let rawValue):
+        return rawValue
+    case .real(let rawValue):
+        return rawValue
+    case .text(let rawValue):
+        return rawValue
+    case .blob(let rawValue):
+        return rawValue
+    }
+}
+
+
 private enum DocumentationDateCodecError: Error {
     case invalidText(String)
     case unexpectedValue(XLSQLiteValue)
@@ -72,6 +91,21 @@ private let integerDateCodec = XLValueCodec<Date, XLSQLiteDialect>(
         return Date(timeIntervalSince1970: TimeInterval(seconds))
     }
 )
+
+
+// Issue #66: `filedAt` and `reviewedAt` are both `Date`, but each selects a
+// different one of the two codecs registered above -- no wrapper type, and no
+// `selection: .explicit(...)` written anywhere a caller uses this type.
+@SQLTable
+struct InvoiceRecord: Equatable {
+    let id: Int
+
+    @SQLCodec(decimalDateCodecKey)
+    let filedAt: Date
+
+    @SQLCodec(integerDateCodecKey)
+    let reviewedAt: Date
+}
 
 
 struct MyUUID: XLCustomType, XLComparable, Equatable, Sendable {
@@ -1877,6 +1911,96 @@ extension XLDocumentationTests {
             try XLInvocationBindings<XLSQLiteValue>(
                 layout: nullRequest.parameterLayout
             ).validatingComplete()
+        )
+
+        // Issue #66: `@SQLCodec` property-level selection round trips through
+        // insert and projection using the generated `staticResultField(_:...)`
+        // convenience -- neither call site below writes `.explicit(...)`.
+        XCTAssertEqual(
+            InvoiceRecord._swiftQLPropertyCodecKeys,
+            ["filedAt": decimalDateCodecKey, "reviewedAt": integerDateCodecKey]
+        )
+        try codecDatabase.databasePool.write { db in
+            try db.execute(
+                sql: """
+                    CREATE TABLE InvoiceRecord (
+                        id INTEGER NOT NULL,
+                        filedAt TEXT NOT NULL,
+                        reviewedAt INTEGER NOT NULL
+                    )
+                    """
+            )
+        }
+        let invoiceTable = XLSchema().table(InvoiceRecord.self, as: "invoice")
+        let invoiceLayout = try InvoiceRecord.staticRowLayout(
+            using: XLSQLiteDialect.self,
+            id: XLStaticSelectField<Int, Int, XLSQLiteDialect>.intrinsic(
+                selecting: invoiceTable.id,
+                identifiedBy: XLQuerySlotIdentity(path: ["invoice", "id"])
+            ),
+            filedAt: InvoiceRecord.staticResultField(
+                filedAt: invoiceTable.filedAt,
+                storedAs: String.self,
+                identifiedBy: XLQuerySlotIdentity(path: ["invoice", "filed-at"]),
+                using: codecDatabase.dialect,
+                configuration: codingConfiguration
+            ),
+            reviewedAt: InvoiceRecord.staticResultField(
+                reviewedAt: invoiceTable.reviewedAt,
+                storedAs: Int.self,
+                identifiedBy: XLQuerySlotIdentity(path: ["invoice", "reviewed-at"]),
+                using: codecDatabase.dialect,
+                configuration: codingConfiguration
+            )
+        )
+        let invoiceRecord = InvoiceRecord(
+            id: 1,
+            filedAt: Date(timeIntervalSince1970: 172_800),
+            reviewedAt: Date(timeIntervalSince1970: 259_200)
+        )
+        let invoiceValues = try invoiceLayout.encode(invoiceRecord)
+        XCTAssertEqual(
+            invoiceValues,
+            [.integer(1), .text("172800.0"), .integer(259_200)]
+        )
+        try codecDatabase.databasePool.write { db in
+            try db.execute(
+                sql: """
+                    INSERT INTO InvoiceRecord (id, filedAt, reviewedAt)
+                    VALUES (?, ?, ?)
+                    """,
+                arguments: StatementArguments(
+                    invoiceValues.map(documentationDatabaseValue)
+                )
+            )
+        }
+        let invoiceSelect = sql { _ in
+            Select(invoiceLayout)
+            From(invoiceTable)
+        }
+        let invoiceEncoding = try XLiteEncoder(dialect: codecDatabase.dialect)
+            .makeValidatedSQL(invoiceSelect)
+        let invoiceDescriptor = try XLStaticQueryDescriptor(
+            definitionIdentity: XLQueryDefinitionIdentity(
+                path: ["docs", "custom-types", "invoice-record"],
+                version: 1
+            ),
+            statement: XLStaticStatementDefinition(validating: invoiceEncoding),
+            parameters: [],
+            results: invoiceLayout.metadata.results,
+            cardinality: .exactlyOne
+        )
+        let preparedInvoice = try codecDatabase.prepareInvocation(
+            with: XLTypedStaticQueryDescriptor(
+                descriptor: invoiceDescriptor,
+                layout: invoiceLayout
+            )
+        )
+        XCTAssertEqual(
+            try preparedInvoice.fetchExactlyOne(
+                bindings: preparedInvoice.makeInvocationBindings()
+            ),
+            invoiceRecord
         )
 
         try testExample_Date()

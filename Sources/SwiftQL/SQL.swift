@@ -13,6 +13,24 @@ public macro SQLTable(name: String? = nil) = #externalMacro(module: "SQLMacros",
 public macro SQLResult() = #externalMacro(module: "SQLMacros", type: "SQLResultMacro")
 
 ///
+/// Defines the `@SQLCodec` macro.
+///
+/// Issue #66: attach to one stored property of an `@SQLTable`/`@SQLResult` type to select a
+/// named contextual value codec for that property alone, without wrapping or changing the
+/// property's Swift value type, its mutability, or the type's memberwise initializer. `key` is
+/// any expression whose static type is `XLValueCodecKey` -- typically a codec preset's own key
+/// (e.g. `SQLite.Date.iso8601.identity.key`) or `XLValueCodecKey(id:version:)` directly. The
+/// macro carries this key as metadata only: it never performs conversion itself, and the
+/// selected codec must still be registered with the database's `XLValueCodingConfiguration` for
+/// resolution to succeed. Two properties of the same Swift type may each select a different
+/// codec this way, letting them use different storage conventions while the database/query
+/// coding configuration remains the default policy for every other property. See
+/// <doc:CustomTypes> for the selection precedence and a worked round-trip example.
+///
+@attached(peer, names: arbitrary)
+public macro SQLCodec(_ key: XLValueCodecKey) = #externalMacro(module: "SQLMacros", type: "SQLCodecMacro")
+
+///
 /// Defines the `@SQLQuery` macro.
 ///
 /// Issues #18/#26 (ported from the milestone #28 spike): attaches to a
