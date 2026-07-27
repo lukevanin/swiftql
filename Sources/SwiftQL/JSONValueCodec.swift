@@ -1,32 +1,6 @@
 import Foundation
 
 
-/// SQLite storage representation produced by a JSON `Codable` codec.
-///
-/// `TEXT` and `BLOB` are not interchangeable. They are distinct SQLite
-/// storage classes with distinct stable ``XLValueCodecIdentity`` values, so a
-/// codec built for one storage never silently accepts or reinterprets bytes
-/// produced for the other; a mismatch fails with
-/// `XLValueCodecError.storageMismatch`.
-public enum XLJSONValueCodecStorage: String, Hashable, Sendable {
-
-    /// UTF-8 encoded JSON text, stored as SQLite `TEXT`.
-    case text
-
-    /// Raw JSON bytes, stored as SQLite `BLOB`.
-    case blob
-
-    var storageClass: XLSQLiteStorageClass {
-        switch self {
-        case .text:
-            return .text
-        case .blob:
-            return .blob
-        }
-    }
-}
-
-
 /// An immutable, `Sendable` snapshot of the `JSONEncoder`/`JSONDecoder`
 /// strategies used by ``XLJSONValueCodec`` factories.
 ///
