@@ -8,8 +8,10 @@ For the exact, evidence-backed detail — every API name, constraint, and SQLite
 version requirement — read [CHANGELOG.md](CHANGELOG.md). That file is the
 canonical record; this one is a reading aid.
 
-Every 1.x release so far has been source-compatible: upgrading within 1.x has
-not required changing working code.
+Almost every 1.x release has been purely additive. The one exception so far is
+1.4.3, where `unixEpoch(_:)` changed its return type from `Int` to
+`TimeInterval`. Each entry below ends with whether it affects code you already
+wrote.
 
 ## 1.5.2 — build-time query validation
 
