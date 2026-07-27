@@ -25,7 +25,7 @@ public enum XLDateTextCodecError: Error, Equatable, Sendable, LocalizedError {
     case unsupportedPrecision(fractionalSecondDigits: Int)
 
     /// `XLDateTextFormat` was asked for a UTC offset that is not a whole
-    /// number of seconds strictly between -24h and +24h.
+    /// number of minutes strictly between -24h and +24h.
     case unsupportedOffsetSeconds(Int)
 
     public var errorDescription: String? {

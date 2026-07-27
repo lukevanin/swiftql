@@ -313,10 +313,15 @@ private let xlDateTextCalendar: Calendar = {
 /// Compiled once and reused: `NSRegularExpression` performs no internal
 /// mutation while matching, so sharing a compiled pattern across calls and
 /// threads is safe, unlike a shared `DateFormatter`.
+///
+/// The `Z`/`±HH:MM` offset suffix is mandatory, not optional: every codec
+/// this file builds always renders one (see `xlOffsetSuffix`), and text with
+/// no offset at all is genuinely ambiguous about the instant it names rather
+/// than merely differently formatted, so it is rejected instead of parsed.
 private let xlDateTextPattern: NSRegularExpression = {
     // Fixed, hand-verified literal pattern; this initializer cannot fail.
     try! NSRegularExpression(
-        pattern: #"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})?$"#
+        pattern: #"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$"#
     )
 }()
 

@@ -327,6 +327,7 @@ final class DateTextCodecContractTests: XCTestCase {
             "2023-11-31T00:00:00.000Z",  // November has 30 days
             "2023-11-14T25:00:00.000Z",  // hour 25
             "2023-11-14 22:13:20.000Z",  // missing 'T' separator
+            "2023-11-14T22:13:20.123",  // missing offset/Z: an ambiguous instant
             "",
         ] {
             XCTAssertThrowsError(
