@@ -1775,6 +1775,61 @@ extension XLDocumentationTests {
             path: XLValueCodingPath("invoice.dueDate")
         )
 
+        let standardDateRegistry = try XLValueCodecRegistry()
+            .registering(XLDateTextCodec.standard)
+        let standardDateCoding = try XLValueCodingConfiguration(
+            registry: standardDateRegistry,
+            defaultCodecKeys: [XLDateTextCodec.standardKey]
+        )
+        let standardEncoded = try standardDateCoding.encode(
+            Date(timeIntervalSince1970: 1_700_000_000.123),
+            using: dialect,
+            context: XLValueCodingContext(
+                site: .parameter,
+                path: XLValueCodingPath("event.occurredAt")
+            )
+        )
+        XCTAssertEqual(standardEncoded, .text("2023-11-14T22:13:20.123Z"))
+        XCTAssertThrowsError(
+            try standardDateCoding.encode(
+                XLDateTextCodec.minimumSupportedDate.addingTimeInterval(-1),
+                using: dialect,
+                context: parameterContext
+            )
+        ) { error in
+            guard case .encodingFailed? = error as? XLValueCodecError else {
+                return XCTFail("Expected an encodingFailed wrapper, received \(error).")
+            }
+        }
+
+        let secondsOnlyFormat = try XLDateTextFormat(
+            fractionalSecondDigits: 0,
+            utcOffsetSeconds: 0
+        )
+        let secondsOnlyDateCodec = XLDateTextCodec.custom(
+            key: XLValueCodecKey(id: "com.example.date.seconds-only", version: 1),
+            format: secondsOnlyFormat
+        )
+        let coexistingDateRegistry = try XLValueCodecRegistry()
+            .registering(XLDateTextCodec.standard)
+            .registering(secondsOnlyDateCodec)
+        // Neither is a default here: both target the same stable value-type
+        // identifier, so each call selects its codec explicitly instead.
+        let coexistingDateCoding = try XLValueCodingConfiguration(
+            registry: coexistingDateRegistry
+        )
+        XCTAssertEqual(
+            try coexistingDateCoding.encode(
+                Date(timeIntervalSince1970: 1_700_000_000),
+                using: dialect,
+                context: parameterContext,
+                selection: XLValueCodecSelection(
+                    explicitCodecKey: secondsOnlyDateCodec.identity.key
+                )
+            ),
+            .text("2023-11-14T22:13:20Z")
+        )
+
         XCTAssertEqual(
             try codingConfiguration.encode(
                 date,

@@ -107,6 +107,101 @@ or storage identifier as a schema/data migration. These values are also the
 stable components available to schema and query fingerprinting; do not derive
 durable identity from Swift runtime type names or hashes.
 
+### Standard SQLite Date TEXT codec
+
+`XLDateTextCodec` ships a ready-made pair of `Date`-as-`TEXT` codecs so most
+applications never have to hand-write the `decimalDateCodec` shown above.
+`XLDateTextCodec.standard` is a versioned preset: fixed proleptic-Gregorian
+calendar, UTC offset, millisecond fractional precision, and a `Z`-suffixed
+`YYYY-MM-DDTHH:MM:SS.SSSZ` text — matching one of the time-string formats
+SQLite's own `date`, `time`, `datetime`, `julianday`, and `strftime` functions
+already parse, and comparable with `<`, `>`, `BETWEEN`, and `ORDER BY` without
+a dialect conversion expression. Nothing about the preset reads
+`Locale.current`, `TimeZone.current`, or any other process- or user-dependent
+default.
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+let standardDateRegistry = try XLValueCodecRegistry()
+    .registering(XLDateTextCodec.standard)
+let standardDateCoding = try XLValueCodingConfiguration(
+    registry: standardDateRegistry,
+    defaultCodecKeys: [XLDateTextCodec.standardKey]
+)
+let standardEncoded = try standardDateCoding.encode(
+    Date(timeIntervalSince1970: 1_700_000_000.123),
+    using: XLSQLiteDialect(),
+    context: XLValueCodingContext(
+        site: .parameter,
+        path: XLValueCodingPath("event.occurredAt")
+    )
+)
+// .text("2023-11-14T22:13:20.123Z")
+```
+
+Because the standard preset's text is fixed-width and zero-padded in every
+field, SQLite's default `BINARY` collation orders it identically to
+chronological order for every date it can represent: proleptic-Gregorian
+years `0001` through `9999`
+(`XLDateTextCodec.minimumSupportedDate` ... `XLDateTextCodec.maximumSupportedDate`).
+A `Date` outside that range fails to encode with a structured
+`XLDateTextCodecError.unsupportedDate` wrapped in
+`XLValueCodecError.encodingFailed`; SwiftQL never silently clamps or wraps it
+into a representable year.
+
+An application that needs a different fixed offset or fractional precision —
+but not a different locale, calendar, or arbitrary field order — builds its
+own named codec from an explicit `XLDateTextFormat` instead of writing
+encode/decode closures by hand:
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+let secondsOnlyFormat = try XLDateTextFormat(
+    fractionalSecondDigits: 0,
+    utcOffsetSeconds: 0
+)
+let secondsOnlyDateCodec = XLDateTextCodec.custom(
+    key: XLValueCodecKey(id: "com.example.date.seconds-only", version: 1),
+    format: secondsOnlyFormat
+)
+```
+
+`XLDateTextFormat`'s offset is a fixed number of seconds, not a named
+`TimeZone` identifier: a named zone observes daylight-saving transitions,
+which would make the same offset text mean different instants on different
+days. `XLDateTextCodec` never promises lexicographic-equals-chronological
+ordering for a custom format the way it does for the standard preset — that
+property only holds when every field stays fixed-width and zero-padded with a
+fixed offset, and SwiftQL does not verify that for a caller-supplied format.
+
+Both codecs can be registered together and coexist, the same way
+`decimalDateCodec` and `integerDateCodec` coexist above: registering two
+codecs for the same stable value-type identifier is fine, but making more
+than one of them a database default at once is a rejected `duplicateDefault`
+(see "Selection and errors" below). Each property, parameter, or result site
+that needs the non-default codec selects it explicitly with
+`XLValueCodecSelection(explicitCodecKey:)`; `XLDateTextCodec` does not add a
+new selection mechanism beyond the one already shown for `decimalDateCodec`
+and `integerDateCodec`.
+
+A custom `XLDateTextFormat` stays directly usable by SQLite's date/time
+functions and comparison operators too, as long as it keeps the
+`YYYY-MM-DDTHH:MM:SS[.SSS][Z|±HH:MM]` field order and separators — the only
+things `XLDateTextFormat` varies are the fractional digit count and the fixed
+offset, and SQLite's time-string grammar accepts both a `Z` and an explicit
+`±HH:MM` suffix. Value coding stays deliberately separate from SQL-level date
+arithmetic: `XLDateTextCodec` does not wire a `julianday`/`strftime`
+conversion helper into SwiftQL's expression builders, so a query that needs
+one composes it with a raw SQL date/time function call at the call site; that
+expression-builder integration is tracked separately from value coding.
+
+Changing `fractionalSecondDigits`, `utcOffsetSeconds`, or
+`usesZuluDesignatorForUTC` changes the bytes a codec produces. Give the new
+format its own `XLValueCodecKey` (or bump an existing key's version) and
+migrate stored rows explicitly, the same as any other codec key or version
+change described above; `XLDateTextCodec` never reformats existing text on
+your behalf.
+
 ### Selection and errors
 
 Codec selection uses one deterministic order:
