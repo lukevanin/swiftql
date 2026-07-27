@@ -1,0 +1,6862 @@
+[
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+
+                    ],
+                    "detail" : "SCAN CONSTANT ROW",
+                    "shape" : "constant_row_scan"
+                  }
+                ],
+                "detail" : "CO-ROUTINE nullable_seed",
+                "shape" : "co_routine_subquery_or_cte"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "nullable_rows"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN nullable_rows",
+                "shape" : "full_table_scan"
+              }
+            ],
+            "detail" : "LEFT-MOST SUBQUERY",
+            "shape" : "compound_query_strategy"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN CONSTANT ROW",
+                "shape" : "constant_row_scan"
+              }
+            ],
+            "detail" : "EXCEPT USING TEMP B-TREE",
+            "shape" : "temp_b_tree_for_compound_operation"
+          }
+        ],
+        "detail" : "COMPOUND QUERY",
+        "shape" : "compound_query_strategy"
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-nullable.except"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+
+                    ],
+                    "detail" : "SCAN CONSTANT ROW",
+                    "shape" : "constant_row_scan"
+                  }
+                ],
+                "detail" : "CO-ROUTINE nullable_seed",
+                "shape" : "co_routine_subquery_or_cte"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "nullable_rows"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN nullable_rows",
+                "shape" : "full_table_scan"
+              }
+            ],
+            "detail" : "LEFT-MOST SUBQUERY",
+            "shape" : "compound_query_strategy"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN CONSTANT ROW",
+                "shape" : "constant_row_scan"
+              }
+            ],
+            "detail" : "INTERSECT USING TEMP B-TREE",
+            "shape" : "temp_b_tree_for_compound_operation"
+          }
+        ],
+        "detail" : "COMPOUND QUERY",
+        "shape" : "compound_query_strategy"
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-nullable.intersect"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+
+                    ],
+                    "detail" : "SCAN CONSTANT ROW",
+                    "shape" : "constant_row_scan"
+                  }
+                ],
+                "detail" : "CO-ROUTINE nullable_seed",
+                "shape" : "co_routine_subquery_or_cte"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "nullable_rows"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN nullable_rows",
+                "shape" : "full_table_scan"
+              }
+            ],
+            "detail" : "LEFT-MOST SUBQUERY",
+            "shape" : "compound_query_strategy"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN CONSTANT ROW",
+                "shape" : "constant_row_scan"
+              }
+            ],
+            "detail" : "UNION USING TEMP B-TREE",
+            "shape" : "temp_b_tree_for_compound_operation"
+          }
+        ],
+        "detail" : "COMPOUND QUERY",
+        "shape" : "compound_query_strategy"
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-nullable.union"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+
+                    ],
+                    "detail" : "SCAN CONSTANT ROW",
+                    "shape" : "constant_row_scan"
+                  }
+                ],
+                "detail" : "CO-ROUTINE nullable_seed",
+                "shape" : "co_routine_subquery_or_cte"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "nullable_rows"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN nullable_rows",
+                "shape" : "full_table_scan"
+              }
+            ],
+            "detail" : "LEFT-MOST SUBQUERY",
+            "shape" : "compound_query_strategy"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN CONSTANT ROW",
+                "shape" : "constant_row_scan"
+              }
+            ],
+            "detail" : "UNION ALL",
+            "shape" : "compound_query_strategy"
+          }
+        ],
+        "detail" : "COMPOUND QUERY",
+        "shape" : "compound_query_strategy"
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-nullable.union-all"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+
+                    ],
+                    "detail" : "SCAN CONSTANT ROW",
+                    "shape" : "constant_row_scan"
+                  }
+                ],
+                "detail" : "CO-ROUTINE required_seed",
+                "shape" : "co_routine_subquery_or_cte"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "required_rows"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN required_rows",
+                "shape" : "full_table_scan"
+              }
+            ],
+            "detail" : "LEFT-MOST SUBQUERY",
+            "shape" : "compound_query_strategy"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN CONSTANT ROW",
+                "shape" : "constant_row_scan"
+              }
+            ],
+            "detail" : "EXCEPT USING TEMP B-TREE",
+            "shape" : "temp_b_tree_for_compound_operation"
+          }
+        ],
+        "detail" : "COMPOUND QUERY",
+        "shape" : "compound_query_strategy"
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-required.except"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+
+                    ],
+                    "detail" : "SCAN CONSTANT ROW",
+                    "shape" : "constant_row_scan"
+                  }
+                ],
+                "detail" : "CO-ROUTINE required_seed",
+                "shape" : "co_routine_subquery_or_cte"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "required_rows"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN required_rows",
+                "shape" : "full_table_scan"
+              }
+            ],
+            "detail" : "LEFT-MOST SUBQUERY",
+            "shape" : "compound_query_strategy"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN CONSTANT ROW",
+                "shape" : "constant_row_scan"
+              }
+            ],
+            "detail" : "INTERSECT USING TEMP B-TREE",
+            "shape" : "temp_b_tree_for_compound_operation"
+          }
+        ],
+        "detail" : "COMPOUND QUERY",
+        "shape" : "compound_query_strategy"
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-required.intersect"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+
+                    ],
+                    "detail" : "SCAN CONSTANT ROW",
+                    "shape" : "constant_row_scan"
+                  }
+                ],
+                "detail" : "CO-ROUTINE required_seed",
+                "shape" : "co_routine_subquery_or_cte"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "required_rows"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN required_rows",
+                "shape" : "full_table_scan"
+              }
+            ],
+            "detail" : "LEFT-MOST SUBQUERY",
+            "shape" : "compound_query_strategy"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN CONSTANT ROW",
+                "shape" : "constant_row_scan"
+              }
+            ],
+            "detail" : "UNION USING TEMP B-TREE",
+            "shape" : "temp_b_tree_for_compound_operation"
+          }
+        ],
+        "detail" : "COMPOUND QUERY",
+        "shape" : "compound_query_strategy"
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-required.union"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+
+                    ],
+                    "detail" : "SCAN CONSTANT ROW",
+                    "shape" : "constant_row_scan"
+                  }
+                ],
+                "detail" : "CO-ROUTINE required_seed",
+                "shape" : "co_routine_subquery_or_cte"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "required_rows"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN required_rows",
+                "shape" : "full_table_scan"
+              }
+            ],
+            "detail" : "LEFT-MOST SUBQUERY",
+            "shape" : "compound_query_strategy"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN CONSTANT ROW",
+                "shape" : "constant_row_scan"
+              }
+            ],
+            "detail" : "UNION ALL",
+            "shape" : "compound_query_strategy"
+          }
+        ],
+        "detail" : "COMPOUND QUERY",
+        "shape" : "compound_query_strategy"
+      }
+    ],
+    "statement_id" : "c191.v1.cte.ordinary-required.union-all"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+                      {
+                        "attributes" : {
+                          "constrained_columns" : [
+
+                          ],
+                          "is_automatic" : false,
+                          "is_covering" : false
+                        },
+                        "children" : [
+
+                        ],
+                        "detail" : "SCAN CONSTANT ROW",
+                        "shape" : "constant_row_scan"
+                      }
+                    ],
+                    "detail" : "SETUP",
+                    "shape" : "recursive_cte_step"
+                  },
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+                      {
+                        "attributes" : {
+                          "constrained_columns" : [
+
+                          ],
+                          "is_automatic" : false,
+                          "is_covering" : false,
+                          "table" : "t0"
+                        },
+                        "children" : [
+
+                        ],
+                        "detail" : "SCAN t0",
+                        "shape" : "full_table_scan"
+                      }
+                    ],
+                    "detail" : "RECURSIVE STEP",
+                    "shape" : "recursive_cte_step"
+                  }
+                ],
+                "detail" : "CO-ROUTINE integer_sequence",
+                "shape" : "co_routine_subquery_or_cte"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "recursive_rows"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN recursive_rows",
+                "shape" : "full_table_scan"
+              }
+            ],
+            "detail" : "LEFT-MOST SUBQUERY",
+            "shape" : "compound_query_strategy"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN CONSTANT ROW",
+                "shape" : "constant_row_scan"
+              }
+            ],
+            "detail" : "EXCEPT USING TEMP B-TREE",
+            "shape" : "temp_b_tree_for_compound_operation"
+          }
+        ],
+        "detail" : "COMPOUND QUERY",
+        "shape" : "compound_query_strategy"
+      }
+    ],
+    "statement_id" : "c191.v1.cte.recursive-required.except"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+                      {
+                        "attributes" : {
+                          "constrained_columns" : [
+
+                          ],
+                          "is_automatic" : false,
+                          "is_covering" : false
+                        },
+                        "children" : [
+
+                        ],
+                        "detail" : "SCAN CONSTANT ROW",
+                        "shape" : "constant_row_scan"
+                      }
+                    ],
+                    "detail" : "SETUP",
+                    "shape" : "recursive_cte_step"
+                  },
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+                      {
+                        "attributes" : {
+                          "constrained_columns" : [
+
+                          ],
+                          "is_automatic" : false,
+                          "is_covering" : false,
+                          "table" : "t0"
+                        },
+                        "children" : [
+
+                        ],
+                        "detail" : "SCAN t0",
+                        "shape" : "full_table_scan"
+                      }
+                    ],
+                    "detail" : "RECURSIVE STEP",
+                    "shape" : "recursive_cte_step"
+                  }
+                ],
+                "detail" : "CO-ROUTINE integer_sequence",
+                "shape" : "co_routine_subquery_or_cte"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "recursive_rows"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN recursive_rows",
+                "shape" : "full_table_scan"
+              }
+            ],
+            "detail" : "LEFT-MOST SUBQUERY",
+            "shape" : "compound_query_strategy"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN CONSTANT ROW",
+                "shape" : "constant_row_scan"
+              }
+            ],
+            "detail" : "INTERSECT USING TEMP B-TREE",
+            "shape" : "temp_b_tree_for_compound_operation"
+          }
+        ],
+        "detail" : "COMPOUND QUERY",
+        "shape" : "compound_query_strategy"
+      }
+    ],
+    "statement_id" : "c191.v1.cte.recursive-required.intersect"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+                      {
+                        "attributes" : {
+                          "constrained_columns" : [
+
+                          ],
+                          "is_automatic" : false,
+                          "is_covering" : false
+                        },
+                        "children" : [
+
+                        ],
+                        "detail" : "SCAN CONSTANT ROW",
+                        "shape" : "constant_row_scan"
+                      }
+                    ],
+                    "detail" : "SETUP",
+                    "shape" : "recursive_cte_step"
+                  },
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+                      {
+                        "attributes" : {
+                          "constrained_columns" : [
+
+                          ],
+                          "is_automatic" : false,
+                          "is_covering" : false,
+                          "table" : "t0"
+                        },
+                        "children" : [
+
+                        ],
+                        "detail" : "SCAN t0",
+                        "shape" : "full_table_scan"
+                      }
+                    ],
+                    "detail" : "RECURSIVE STEP",
+                    "shape" : "recursive_cte_step"
+                  }
+                ],
+                "detail" : "CO-ROUTINE integer_sequence",
+                "shape" : "co_routine_subquery_or_cte"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "recursive_rows"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN recursive_rows",
+                "shape" : "full_table_scan"
+              }
+            ],
+            "detail" : "LEFT-MOST SUBQUERY",
+            "shape" : "compound_query_strategy"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN CONSTANT ROW",
+                "shape" : "constant_row_scan"
+              }
+            ],
+            "detail" : "UNION USING TEMP B-TREE",
+            "shape" : "temp_b_tree_for_compound_operation"
+          }
+        ],
+        "detail" : "COMPOUND QUERY",
+        "shape" : "compound_query_strategy"
+      }
+    ],
+    "statement_id" : "c191.v1.cte.recursive-required.union"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+                      {
+                        "attributes" : {
+                          "constrained_columns" : [
+
+                          ],
+                          "is_automatic" : false,
+                          "is_covering" : false
+                        },
+                        "children" : [
+
+                        ],
+                        "detail" : "SCAN CONSTANT ROW",
+                        "shape" : "constant_row_scan"
+                      }
+                    ],
+                    "detail" : "SETUP",
+                    "shape" : "recursive_cte_step"
+                  },
+                  {
+                    "attributes" : {
+                      "constrained_columns" : [
+
+                      ],
+                      "is_automatic" : false,
+                      "is_covering" : false
+                    },
+                    "children" : [
+                      {
+                        "attributes" : {
+                          "constrained_columns" : [
+
+                          ],
+                          "is_automatic" : false,
+                          "is_covering" : false,
+                          "table" : "t0"
+                        },
+                        "children" : [
+
+                        ],
+                        "detail" : "SCAN t0",
+                        "shape" : "full_table_scan"
+                      }
+                    ],
+                    "detail" : "RECURSIVE STEP",
+                    "shape" : "recursive_cte_step"
+                  }
+                ],
+                "detail" : "CO-ROUTINE integer_sequence",
+                "shape" : "co_routine_subquery_or_cte"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "recursive_rows"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN recursive_rows",
+                "shape" : "full_table_scan"
+              }
+            ],
+            "detail" : "LEFT-MOST SUBQUERY",
+            "shape" : "compound_query_strategy"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN CONSTANT ROW",
+                "shape" : "constant_row_scan"
+              }
+            ],
+            "detail" : "UNION ALL",
+            "shape" : "compound_query_strategy"
+          }
+        ],
+        "detail" : "COMPOUND QUERY",
+        "shape" : "compound_query_strategy"
+      }
+    ],
+    "statement_id" : "c191.v1.cte.recursive-required.union-all"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.expression.cast-text-blob"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.expression.cast-text-integer"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.expression.comparable-min"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.expression.date-unixepoch"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.expression.indexed-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.expression.json-array-length"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.expression.json-valid"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.expression.numeric-abs"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.expression.numeric-floor"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.expression.numeric-round"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.expression.operator-arithmetic-precedence"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.expression.operator-glob"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.expression.string-printf"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "t0"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN t0",
+                "shape" : "full_table_scan"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "USE TEMP B-TREE FOR ORDER BY",
+                "shape" : "temp_b_tree_for_order_by"
+              }
+            ],
+            "detail" : "LEFT",
+            "shape" : "compound_query_strategy"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "t1"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN t1",
+                "shape" : "full_table_scan"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "USE TEMP B-TREE FOR ORDER BY",
+                "shape" : "temp_b_tree_for_order_by"
+              }
+            ],
+            "detail" : "RIGHT",
+            "shape" : "compound_query_strategy"
+          }
+        ],
+        "detail" : "MERGE (UNION)",
+        "shape" : "compound_query_strategy"
+      }
+    ],
+    "statement_id" : "c191.v1.northwind.compound-customer-supplier-cities"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+                "OrderID"
+              ],
+              "index_name" : "sqlite_autoindex_Order Details_1",
+              "is_automatic" : false,
+              "is_covering" : false,
+              "table" : "t0"
+            },
+            "children" : [
+
+            ],
+            "detail" : "SEARCH t0 USING INDEX sqlite_autoindex_Order Details_1 (OrderID=?)",
+            "shape" : "index_search"
+          }
+        ],
+        "detail" : "CO-ROUTINE cte0",
+        "shape" : "co_routine_subquery_or_cte"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.northwind.cte-order-subtotals"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "shape" : "temp_b_tree_for_group_by"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.g-customer-id.h-count-greater-than-one.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "shape" : "temp_b_tree_for_group_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.g-customer-id.h-count-greater-than-one"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.l-five.x-two"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.o-collated"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.o-descending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-empty-in"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-in-list"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-injection-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-literal"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-named-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-null-comparison"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-precedence"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-cross.w-repeated-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "CustomerID"
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_join"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "CustomerID"
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_join"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.o-collated"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "CustomerID"
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_join"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.w-empty-in"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "CustomerID"
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_join"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.w-in-list"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "CustomerID"
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_join"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.w-injection-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "CustomerID"
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_join"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.w-literal"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "CustomerID"
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_join"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.w-named-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "CustomerID"
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_join"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.w-null-comparison"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "CustomerID"
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_join"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-inner.w-precedence"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.o-descending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.w-empty-in"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.w-in-list"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.w-injection-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.w-literal"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.w-named-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.w-precedence"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.j-left.w-repeated-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.j-cross"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "employees_join"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH employees_join USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.j-left"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.o-collated"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "source_orders"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN source_orders",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "CustomerID"
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_join"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "shape" : "temp_b_tree_for_group_by"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.s-subquery-alias.j-inner.w-repeated-binding.g-customer-id.h-count-greater-than-one.o-descending.l-five.x-two"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "orders_case"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN orders_case",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.s-table-alias"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.w-empty-in"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.w-in-list"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.w-injection-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.w-literal"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.w-named-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.w-null-comparison"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-aggregate-count.w-precedence"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.j-cross"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "CustomerID"
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_join"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.j-inner"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.o-descending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "source_orders"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN source_orders",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.s-subquery-alias"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "orders_case"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN orders_case",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "employees_join"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH employees_join USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "shape" : "temp_b_tree_for_group_by"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.s-table-alias.j-left.w-null-comparison.g-customer-id.h-count-greater-than-one.o-collated.l-five.x-two"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.w-empty-in"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.w-in-list"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.w-injection-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.w-literal"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.w-named-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.w-precedence"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.p-nullable-region.w-repeated-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "source_orders"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN source_orders",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.j-cross"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "source_orders"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN source_orders",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.j-left"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "source_orders"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN source_orders",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "source_orders"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN source_orders",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.o-collated"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "source_orders"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN source_orders",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.w-empty-in"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "source_orders"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH source_orders USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.w-in-list"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "source_orders"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN source_orders",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.w-injection-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "source_orders"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH source_orders USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.w-literal"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "source_orders"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH source_orders USING INTEGER PRIMARY KEY (rowid>?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.w-named-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "source_orders"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN source_orders",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.w-null-comparison"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "source_orders"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN source_orders",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-subquery-alias.w-precedence"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "orders_case"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN orders_case",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_cross"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+        "shape" : "covering_index_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.j-cross"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "orders_case"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN orders_case",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "CustomerID"
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : true,
+          "table" : "customers_join"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.j-inner"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "orders_case"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN orders_case",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "orders_case"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN orders_case",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.o-descending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "orders_case"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN orders_case",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.w-empty-in"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "orders_case"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH orders_case USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.w-in-list"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "orders_case"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN orders_case",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.w-injection-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "orders_case"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH orders_case USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.w-literal"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "orders_case"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH orders_case USING INTEGER PRIMARY KEY (rowid>?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.w-named-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "orders_case"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN orders_case",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.w-precedence"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "orders_case"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN orders_case",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.s-table-alias.w-repeated-binding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "shape" : "temp_b_tree_for_group_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-empty-in.g-customer-id.h-count-greater-than-one"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-empty-in.l-five.x-two"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-empty-in.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-empty-in.o-collated"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-empty-in.o-descending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "shape" : "temp_b_tree_for_group_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-in-list.g-customer-id.h-count-greater-than-one"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-in-list.l-five.x-two"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-in-list.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-in-list.o-collated"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-in-list.o-descending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-injection-binding.g-customer-id.h-count-greater-than-one"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-injection-binding.l-five.x-two"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-injection-binding.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-injection-binding.o-collated"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-injection-binding.o-descending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-literal.g-customer-id.h-count-greater-than-one"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-literal.l-five.x-two"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-literal.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-literal.o-collated"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-literal.o-descending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "shape" : "temp_b_tree_for_group_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-named-binding.g-customer-id.h-count-greater-than-one"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "shape" : "temp_b_tree_for_group_by"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-named-binding.g-customer-id.o-ascending.l-five.x-two"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-named-binding.o-collated"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-named-binding.o-descending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-null-comparison.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-null-comparison.o-descending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "shape" : "temp_b_tree_for_group_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-precedence.g-customer-id.h-count-greater-than-one"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-precedence.l-five"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-precedence.l-five.x-two"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-precedence.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-precedence.o-collated"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-precedence.o-descending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-repeated-binding.o-ascending"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c191.v1.select.w-repeated-binding.o-collated"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR avg(DISTINCT)",
+        "shape" : "temp_b_tree_for_distinct_aggregate"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.aggregate-average-distinct"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR count(DISTINCT)",
+        "shape" : "temp_b_tree_for_distinct_aggregate"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.aggregate-count-distinct"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR group_concat(DISTINCT)",
+        "shape" : "temp_b_tree_for_distinct_aggregate"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.aggregate-group-concat-distinct"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR max(DISTINCT)",
+        "shape" : "temp_b_tree_for_distinct_aggregate"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.aggregate-max-distinct"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR min(DISTINCT)",
+        "shape" : "temp_b_tree_for_distinct_aggregate"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH t0",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.aggregate-min-distinct"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR sum(DISTINCT)",
+        "shape" : "temp_b_tree_for_distinct_aggregate"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.aggregate-sum-distinct"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-blob-text"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-bool-integer"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-integer-real"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-integer-text"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-blob-text"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-bool-integer"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-integer-real"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-integer-text"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-real-integer"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-real-text"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-text-blob"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-text-integer"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-optional-text-real"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-real-integer"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-real-text"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.cast-text-real"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.comparable-max"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.json-array-length-path"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.numeric-round-no-places"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.numeric-round-optional"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c286.v1.expression.string-printf-array"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.boolean-and-shapes"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.boolean-not-shapes"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.boolean-or-shapes"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.coalesce-storage-classes"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.coalescing-operator"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.comparison-both-optional"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.comparison-left-optional"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.comparison-required"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.comparison-right-optional"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.equality-optional-shapes"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.equality-required"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.inequality-optional-shapes"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.integer-arithmetic-both-optional"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.integer-arithmetic-left-optional"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.integer-arithmetic-null-propagation"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.integer-arithmetic-required"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.integer-arithmetic-right-optional"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.integer-division-boundaries"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.optional-predicates"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.real-arithmetic-both-optional"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.real-arithmetic-left-optional"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.real-arithmetic-null-propagation"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.real-arithmetic-required"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.real-arithmetic-right-optional"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.real-division-boundaries"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-concatenation-null"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-concatenation-shapes"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-glob-case-sensitivity"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-glob-null-propagation"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-glob-shapes"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-like-ascii-case-folding"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-like-null-propagation"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.text-like-shapes"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.unary-nesting"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN CONSTANT ROW",
+        "shape" : "constant_row_scan"
+      }
+    ],
+    "statement_id" : "c287.v1.expression.unary-shapes"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+                "rowid"
+              ],
+              "index_name" : "INTEGER PRIMARY KEY",
+              "is_automatic" : false,
+              "is_covering" : false,
+              "table" : "t0"
+            },
+            "children" : [
+
+            ],
+            "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+            "shape" : "index_search"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+
+            ],
+            "detail" : "CREATE BLOOM FILTER",
+            "shape" : "bloom_filter"
+          }
+        ],
+        "detail" : "LIST SUBQUERY 1",
+        "shape" : "list_subquery"
+      }
+    ],
+    "statement_id" : "c288.v1.subquery.in-query-builder-empty"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+                "rowid"
+              ],
+              "index_name" : "INTEGER PRIMARY KEY",
+              "is_automatic" : false,
+              "is_covering" : false,
+              "table" : "t0"
+            },
+            "children" : [
+
+            ],
+            "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+            "shape" : "index_search"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+
+            ],
+            "detail" : "CREATE BLOOM FILTER",
+            "shape" : "bloom_filter"
+          }
+        ],
+        "detail" : "LIST SUBQUERY 1",
+        "shape" : "list_subquery"
+      }
+    ],
+    "statement_id" : "c288.v1.subquery.in-query-builder-nonempty"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+                "CustomerID"
+              ],
+              "index_name" : "sqlite_autoindex_Customers_1",
+              "is_automatic" : false,
+              "is_covering" : true,
+              "table" : "t1"
+            },
+            "children" : [
+
+            ],
+            "detail" : "SEARCH t1 USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+            "shape" : "index_search"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+
+            ],
+            "detail" : "CREATE BLOOM FILTER",
+            "shape" : "bloom_filter"
+          }
+        ],
+        "detail" : "LIST SUBQUERY 1",
+        "shape" : "list_subquery"
+      }
+    ],
+    "statement_id" : "c288.v1.subquery.in-query-functional-nonempty"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+                "rowid"
+              ],
+              "index_name" : "INTEGER PRIMARY KEY",
+              "is_automatic" : false,
+              "is_covering" : false,
+              "table" : "t0"
+            },
+            "children" : [
+
+            ],
+            "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+            "shape" : "index_search"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+
+            ],
+            "detail" : "CREATE BLOOM FILTER",
+            "shape" : "bloom_filter"
+          }
+        ],
+        "detail" : "LIST SUBQUERY 2",
+        "shape" : "list_subquery"
+      }
+    ],
+    "statement_id" : "c288.v1.subquery.in-table-empty"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "t0"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN t0",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+                "rowid"
+              ],
+              "index_name" : "INTEGER PRIMARY KEY",
+              "is_automatic" : false,
+              "is_covering" : false,
+              "table" : "t0"
+            },
+            "children" : [
+
+            ],
+            "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+            "shape" : "index_search"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+
+            ],
+            "detail" : "CREATE BLOOM FILTER",
+            "shape" : "bloom_filter"
+          }
+        ],
+        "detail" : "LIST SUBQUERY 2",
+        "shape" : "list_subquery"
+      }
+    ],
+    "statement_id" : "c288.v1.subquery.in-table-nonempty"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "Orders"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN Orders",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR GROUP BY",
+        "shape" : "temp_b_tree_for_group_by"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c390.northwind.aggregate.grouped-having"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "Customers"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN Customers",
+                "shape" : "full_table_scan"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "USE TEMP B-TREE FOR ORDER BY",
+                "shape" : "temp_b_tree_for_order_by"
+              }
+            ],
+            "detail" : "LEFT",
+            "shape" : "compound_query_strategy"
+          },
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false
+            },
+            "children" : [
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false,
+                  "table" : "Suppliers"
+                },
+                "children" : [
+
+                ],
+                "detail" : "SCAN Suppliers",
+                "shape" : "full_table_scan"
+              },
+              {
+                "attributes" : {
+                  "constrained_columns" : [
+
+                  ],
+                  "is_automatic" : false,
+                  "is_covering" : false
+                },
+                "children" : [
+
+                ],
+                "detail" : "USE TEMP B-TREE FOR ORDER BY",
+                "shape" : "temp_b_tree_for_order_by"
+              }
+            ],
+            "detail" : "RIGHT",
+            "shape" : "compound_query_strategy"
+          }
+        ],
+        "detail" : "MERGE (UNION)",
+        "shape" : "compound_query_strategy"
+      }
+    ],
+    "statement_id" : "c390.northwind.compound.customer-supplier-cities"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+                "OrderID"
+              ],
+              "index_name" : "sqlite_autoindex_Order Details_1",
+              "is_automatic" : false,
+              "is_covering" : false,
+              "table" : "Order Details"
+            },
+            "children" : [
+
+            ],
+            "detail" : "SEARCH Order Details USING INDEX sqlite_autoindex_Order Details_1 (OrderID=?)",
+            "shape" : "index_search"
+          }
+        ],
+        "detail" : "CO-ROUTINE order_subtotals",
+        "shape" : "co_routine_subquery_or_cte"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "order_subtotals"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN order_subtotals",
+        "shape" : "full_table_scan"
+      }
+    ],
+    "statement_id" : "c390.northwind.cte.order-subtotals"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "o"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH o USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "CustomerID"
+          ],
+          "index_name" : "sqlite_autoindex_Customers_1",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "c"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH c USING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "e"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "OrderID"
+          ],
+          "index_name" : "sqlite_autoindex_Order Details_1",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "d"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH d USING INDEX sqlite_autoindex_Order Details_1 (OrderID=?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "p"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH p USING INTEGER PRIMARY KEY (rowid=?)",
+        "shape" : "index_search"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c390.northwind.join.customer-order-employee-product"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "e"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN e",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+            "rowid"
+          ],
+          "index_name" : "INTEGER PRIMARY KEY",
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "m"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SEARCH m USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+        "shape" : "index_search"
+      }
+    ],
+    "statement_id" : "c390.northwind.join.left-null-manager"
+  },
+  {
+    "roots" : [
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false,
+          "table" : "Products"
+        },
+        "children" : [
+
+        ],
+        "detail" : "SCAN Products",
+        "shape" : "full_table_scan"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+          {
+            "attributes" : {
+              "constrained_columns" : [
+
+              ],
+              "is_automatic" : false,
+              "is_covering" : false,
+              "table" : "Products"
+            },
+            "children" : [
+
+            ],
+            "detail" : "SCAN Products",
+            "shape" : "full_table_scan"
+          }
+        ],
+        "detail" : "SCALAR SUBQUERY 1",
+        "shape" : "scalar_subquery"
+      },
+      {
+        "attributes" : {
+          "constrained_columns" : [
+
+          ],
+          "is_automatic" : false,
+          "is_covering" : false
+        },
+        "children" : [
+
+        ],
+        "detail" : "USE TEMP B-TREE FOR ORDER BY",
+        "shape" : "temp_b_tree_for_order_by"
+      }
+    ],
+    "statement_id" : "c390.northwind.subquery.products-above-average"
+  }
+]
