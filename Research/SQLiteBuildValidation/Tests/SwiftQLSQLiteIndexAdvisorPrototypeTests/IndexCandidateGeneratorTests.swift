@@ -7,7 +7,7 @@ import SwiftQLSQLitePlanShapePrototype
 final class IndexCandidateGeneratorTests: XCTestCase {
     // MARK: - Precedence rule
 
-    func testPrecedenceEqualityThenRangeThenJoinThenOrderBy() {
+    func testPrecedenceEqualityAndJoinThenRangeThenOrderBy() {
         let sql = #"""
             SELECT "t0"."x" FROM "T" AS "t0"
             JOIN "U" AS "u" ON ("t0"."joinCol" == "u"."id")
@@ -16,8 +16,39 @@ final class IndexCandidateGeneratorTests: XCTestCase {
             """#
         XCTAssertEqual(
             IndexCandidateGenerator.candidateColumns(for: "t0", in: sql),
-            ["eq", "rangeA", "joinCol", "sortCol"],
-            "only the FIRST range column is included; the second range column (rangeB) narrows no further"
+            ["eq", "joinCol", "rangeA", "sortCol"],
+            "join keys share the equality tier (both before any range column); "
+                + "only the FIRST range column is included since the second (rangeB) narrows no further"
+        )
+    }
+
+    /// Real, confirmed evidence for the precedence rule, not an assumption:
+    /// `Categories LEFT JOIN Products ON p.CategoryID = c.CategoryID WHERE
+    /// p.UnitPrice > 20 OR p.ProductID IS NULL` puts `Products` on the
+    /// looked-up side of the join, with both a join key (`CategoryID`) and a
+    /// range predicate (`UnitPrice`) on it and no existing index to compete
+    /// with. `CREATE INDEX ON Products(CategoryID, UnitPrice)` (join key
+    /// first) is the index SQLite actually uses, replacing its own
+    /// automatic covering index; `CREATE INDEX ON Products(UnitPrice,
+    /// CategoryID)` (range first) is silently ignored — SQLite falls back
+    /// to the same automatic covering index as if the candidate didn't
+    /// exist. See `IndexCandidateVerifierTests` for the same result
+    /// verified end to end via a real scratch-copy re-plan.
+    func testJoinKeyMustPrecedeRangeColumnForSQLiteToUseTheIndex() {
+        // This is the precedence-logic unit test; IndexCandidateVerifierTests
+        // proves the same ordering against real SQLite via a scratch-copy
+        // re-plan, using an `OR`-qualified WHERE clause there to keep the
+        // LEFT JOIN from being flattened by the planner (this extractor
+        // deliberately doesn't parse `OR` clauses at all, so this simpler
+        // form is what exercises `candidateColumns` directly).
+        let sql = #"""
+            SELECT p.ProductID FROM Categories AS c
+            LEFT JOIN Products AS p ON p.CategoryID = c.CategoryID
+            WHERE p.UnitPrice > 20
+            """#
+        XCTAssertEqual(
+            IndexCandidateGenerator.candidateColumns(for: "p", in: sql),
+            ["CategoryID", "UnitPrice"]
         )
     }
 

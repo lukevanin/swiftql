@@ -43,6 +43,59 @@ final class IndexCandidateVerifierTests: XCTestCase {
         XCTAssertFalse(evidence.isImprovement)
     }
 
+    /// Settles the #396 candidate-column precedence question (join key vs.
+    /// range column) with a real scratch-copy re-plan, not just the unit
+    /// test in `IndexCandidateGeneratorTests`. `Products` is the looked-up
+    /// side of a `LEFT JOIN` on `CategoryID`, filtered by `UnitPrice > 20`,
+    /// with no existing index on either column — SQLite's baseline plan is
+    /// its own ephemeral `automatic_covering_index` on `CategoryID` alone
+    /// (verified below). `CREATE INDEX ON Products(CategoryID, UnitPrice)`
+    /// (join key first) is the index SQLite actually adopts, replacing that
+    /// ephemeral index; `CREATE INDEX ON Products(UnitPrice, CategoryID)`
+    /// (range first) is completely ignored — the after-plan is byte-for-byte
+    /// identical to the before-plan, as if the candidate didn't exist.
+    func testJoinKeyPrecedesRangeColumnConfirmedByRealScratchCopyReplan() throws {
+        let statement = EQPVarianceStatement(
+            id: "test.precedence.products-category-unitprice",
+            source: .northwindAnchor,
+            renderedSQL: """
+                SELECT p.ProductID FROM Categories AS c
+                LEFT JOIN Products AS p ON p.CategoryID = c.CategoryID
+                WHERE p.UnitPrice > 20 OR p.ProductID IS NULL
+                """,
+            northwindAnchorCaseIDs: [],
+            bindings: []
+        )
+
+        let joinKeyFirst = IndexCandidate(
+            table: "Products",
+            columns: ["CategoryID", "UnitPrice"],
+            sourceStatementIDs: [statement.id],
+            representativeStatementID: statement.id,
+            representativeAlias: "p"
+        )
+        let rangeFirst = IndexCandidate(
+            table: "Products",
+            columns: ["UnitPrice", "CategoryID"],
+            sourceStatementIDs: [statement.id],
+            representativeStatementID: statement.id,
+            representativeAlias: "p"
+        )
+
+        let joinKeyFirstEvidence = try IndexCandidateVerifier.verify(candidate: joinKeyFirst, statement: statement)
+        XCTAssertTrue(joinKeyFirstEvidence.isImprovement, joinKeyFirstEvidence.improvementReason)
+        XCTAssertTrue(joinKeyFirstEvidence.improvementReason.contains("automatic_covering_index"))
+        XCTAssertTrue(joinKeyFirstEvidence.improvementReason.contains("CategoryID"))
+
+        let rangeFirstEvidence = try IndexCandidateVerifier.verify(candidate: rangeFirst, statement: statement)
+        XCTAssertFalse(rangeFirstEvidence.isImprovement)
+        XCTAssertEqual(
+            rangeFirstEvidence.beforePlan,
+            rangeFirstEvidence.afterPlan,
+            "the wrongly-ordered index is completely ignored by SQLite; the plan is unchanged"
+        )
+    }
+
     func testVerificationNeverMutatesThePinnedNorthwindSnapshot() throws {
         let before = try NorthwindFixture.validateCanonical()
         _ = try verify(candidateWithColumns: ["customerID", "employeeID"], table: "Orders")

@@ -113,13 +113,18 @@ package enum IndexCandidateVerifier {
 
     /// The improvement rule, stated once here and applied uniformly to every
     /// candidate: kept only when the plan node for `alias` changes from
-    /// `full_table_scan` to `index_search` or `covering_index_scan`, *and*
-    /// the after-plan node reports at least one constrained column — proving
-    /// the new index is actually narrowing the scan, not merely present and
-    /// unused. No cost estimate or row-count comparison is used: the pinned
-    /// snapshot is deliberately unanalyzed (no `sqlite_stat1`), so a
-    /// structural shape change is the only signal available that isn't
-    /// itself an unfounded guess.
+    /// `full_table_scan` **or `automatic_covering_index`** to `index_search`
+    /// or `covering_index_scan`, *and* the after-plan node reports at least
+    /// one constrained column — proving the new index is actually narrowing
+    /// the scan, not merely present and unused. `automatic_covering_index`
+    /// is included alongside `full_table_scan` as a remediable "before"
+    /// shape because it is SQLite's own ephemeral workaround for exactly
+    /// the situation a real index fixes: ejecting and rebuilding a
+    /// throwaway covering index on every execution instead of reusing a
+    /// persistent one. No cost estimate or row-count comparison is used:
+    /// the pinned snapshot is deliberately unanalyzed (no `sqlite_stat1`),
+    /// so a structural shape change is the only signal available that
+    /// isn't itself an unfounded guess.
     private static func applyImprovementRule(
         alias: String,
         before: EQPPlan,
@@ -131,8 +136,12 @@ package enum IndexCandidateVerifier {
         guard let afterNode = findNode(forTable: alias, in: after) else {
             return (false, "no after-plan node found for alias \"\(alias)\"")
         }
-        guard beforeNode.shape == .fullTableScan else {
-            return (false, "before-plan shape was \(beforeNode.shape.rawValue), not full_table_scan")
+        guard beforeNode.shape == .fullTableScan || beforeNode.shape == .automaticCoveringIndex else {
+            return (
+                false,
+                "before-plan shape was \(beforeNode.shape.rawValue), "
+                    + "not full_table_scan or automatic_covering_index"
+            )
         }
         guard afterNode.shape == .indexSearch || afterNode.shape == .coveringIndexScan else {
             return (
@@ -145,7 +154,7 @@ package enum IndexCandidateVerifier {
         }
         return (
             true,
-            "shape changed from full_table_scan to \(afterNode.shape.rawValue), "
+            "shape changed from \(beforeNode.shape.rawValue) to \(afterNode.shape.rawValue), "
                 + "constrained by \(afterNode.attributes.constrainedColumns)"
         )
     }

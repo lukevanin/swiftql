@@ -46,12 +46,18 @@ statement's rendered SQL:
 
 `IndexCandidateGenerator.candidateColumns(for:in:)` orders the derived
 columns by precedence, per SQLite's own left-to-right composite-index rule:
-**equality columns, then at most one range column** (a second range column
+**every equality-constrained column first — a join key is an equality
+constraint too** (SQLite seeks on it per outer row exactly like a `WHERE`
+equality; it just supplies the bound value at run time instead of from the
+statement text) — **then at most one range column** (a second range column
 after the first cannot narrow a B-tree seek any further — SQLite stops
-using the index to narrow at the first range term), **then join-key
-columns, then `ORDER BY` columns** (so the index can also satisfy sort order
-without a temp B-tree). Each column appears once, at its highest-precedence
-position.
+using the index to narrow at the first range term), **then `ORDER BY`
+columns** (so the index can also satisfy sort order without a temp
+B-tree). Each column appears once, at its highest-precedence position.
+
+This ordering is confirmed by a real scratch-copy re-plan, not assumed: see
+[Finding: join keys must precede range columns](#finding-join-keys-must-precede-range-columns)
+below.
 
 ### Finding remediable statements
 
@@ -88,8 +94,11 @@ rather than reimplemented.
 Stated once, applied uniformly to every candidate — no per-case judgment:
 
 > A candidate is kept only when the plan node for the target alias changes
-> from `full_table_scan` to `index_search` or `covering_index_scan`, **and**
-> the after-plan node reports at least one constrained column.
+> from `full_table_scan` **or `automatic_covering_index`** to `index_search`
+> or `covering_index_scan`, **and** the after-plan node reports at least one
+> constrained column.
+
+(`automatic_covering_index` was added to the "before" shapes after the join-key/range-column finding below surfaced a real case where SQLite's own ephemeral index, not a full table scan, was the baseline being improved on.)
 
 No cost estimate or row-count comparison is used. The pinned snapshot is
 deliberately unanalyzed (no `sqlite_stat1` — see [#390](SQLiteEQPVariance.md)),
@@ -151,6 +160,66 @@ secondary index is never chosen; `beforePlan == afterPlan` exactly.
 itself** — the improvement rule rejected all five without needing a
 special case for "driving side of a join" or "already the primary key." That
 is the point of verifying rather than asserting.
+
+### Finding: join keys must precede range columns
+
+The real 214-statement corpus never produced a statement where a table on
+the *looked-up* side of a join carried both a join key and a range
+predicate — so the corpus alone couldn't settle whether a candidate's join
+key should come before or after a range column. Rather than assume either
+ordering (an earlier draft of this prototype used equality → range → join
+→ order-by, which is what the corpus's one real improvement happened to
+produce, coincidentally without ever exercising this exact tiebreak),
+constructing and re-planning a real case settles it:
+
+```sql
+SELECT p.ProductID FROM Categories AS c
+LEFT JOIN Products AS p ON p.CategoryID = c.CategoryID
+WHERE p.UnitPrice > 20 OR p.ProductID IS NULL
+```
+
+`Products` has no existing index beyond its own primary key, and is forced
+onto the looked-up side of the `LEFT JOIN` (the `OR … IS NULL` keeps SQLite
+from converting this into an inner join and reordering the tables).
+SQLite's own baseline plan is its `automatic_covering_index` shape — an
+ephemeral, per-query index on `CategoryID` alone, rebuilt every execution:
+
+```
+SCAN c
+BLOOM FILTER ON p (CategoryID=?)
+SEARCH p USING AUTOMATIC COVERING INDEX (CategoryID=?) LEFT-JOIN
+```
+
+`CREATE INDEX ON Products(CategoryID, UnitPrice)` — join key first — is the
+index SQLite actually adopts, replacing the ephemeral one and dropping the
+bloom-filter step entirely:
+
+```
+SCAN c
+SEARCH p USING COVERING INDEX ix_a (CategoryID=?) LEFT-JOIN
+```
+
+`CREATE INDEX ON Products(UnitPrice, CategoryID)` — range first — is
+**silently ignored**. The after-plan is byte-for-byte identical to the
+baseline, as if the candidate didn't exist:
+
+```
+SCAN c
+BLOOM FILTER ON p (CategoryID=?)
+SEARCH p USING AUTOMATIC COVERING INDEX (CategoryID=?) LEFT-JOIN
+```
+
+This is real, unambiguous confirmation of the general SQLite rule
+`candidateColumns` now implements: **equality-style columns — `WHERE`
+equality and join keys alike — must precede any range column**, because a
+composite index can only be seeded by an equality prefix; nothing after the
+first range column narrows a seek at all. It also surfaced a second,
+directly related gap: the improvement rule's original precondition only
+recognised `full_table_scan` as a remediable "before" shape. Replacing
+SQLite's own ephemeral `automatic_covering_index` with a real, persistent
+one is exactly the same category of improvement, so the rule now accepts
+either shape as the starting point. Both fixes are proven end to end by
+`IndexCandidateVerifierTests.testJoinKeyPrecedesRangeColumnConfirmedByRealScratchCopyReplan`.
 
 ## Coverage and limitations
 

@@ -57,14 +57,28 @@ package struct IndexCandidate: Equatable, Sendable {
 
 package enum IndexCandidateGenerator {
     /// Derives one candidate's column list for `alias` in `sql`, following
-    /// SQLite's own left-to-right composite-index rule: equality-constrained
-    /// columns first (any number of them can narrow a B-tree seek), then at
-    /// most one range-constrained column (a second range column after the
-    /// first cannot narrow the seek any further — SQLite stops using the
-    /// index for narrowing at the first range term), then join-key columns,
-    /// then `ORDER BY` columns (so the index can also satisfy sort order
-    /// without a temp B-tree). Each column is included only once, at its
-    /// highest-precedence position.
+    /// SQLite's own left-to-right composite-index rule: every
+    /// equality-constrained column first — **a join key is an equality
+    /// constraint too** (SQLite seeks on it per outer row exactly like a
+    /// `WHERE` equality, it just supplies the bound value at run time
+    /// instead of from the statement text), so `WHERE`-equality and
+    /// join-key columns share this same leading tier — then at most one
+    /// range-constrained column (a second range column after the first
+    /// cannot narrow the seek any further — SQLite stops using the index
+    /// for narrowing at the first range term), then `ORDER BY` columns (so
+    /// the index can also satisfy sort order without a temp B-tree). Each
+    /// column is included only once, at its highest-precedence position.
+    ///
+    /// This ordering is confirmed, not assumed: a candidate with the join
+    /// key before the range column
+    /// (`Products(CategoryID, UnitPrice)`) is the index SQLite actually uses
+    /// for a `LEFT JOIN` looked-up table filtered on both; the reverse
+    /// order (`Products(UnitPrice, CategoryID)`) is silently ignored by the
+    /// planner, which falls back to its own automatic covering index on the
+    /// join key alone. See
+    /// `IndexCandidateGeneratorTests.testJoinKeyMustPrecedeRangeColumnForSQLiteToUseTheIndex`
+    /// and `IndexCandidateVerifierTests` for the same result verified via a
+    /// real scratch-copy re-plan.
     package static func candidateColumns(for alias: String, in sql: String) -> [String] {
         let comparisons = IndexCandidateExtraction.whereComparisons(for: alias, in: sql)
         let equalityColumns = orderedUnique(comparisons.filter { $0.kind == .equality }.map(\.column))
@@ -74,11 +88,11 @@ package enum IndexCandidateGenerator {
 
         var columns: [String] = []
         columns.append(contentsOf: equalityColumns)
-        if let firstRange = rangeColumns.first(where: { !columns.contains($0) }) {
-            columns.append(firstRange)
-        }
         for column in joinColumns where !columns.contains(column) {
             columns.append(column)
+        }
+        if let firstRange = rangeColumns.first(where: { !columns.contains($0) }) {
+            columns.append(firstRange)
         }
         for column in orderColumns where !columns.contains(column) {
             columns.append(column)
