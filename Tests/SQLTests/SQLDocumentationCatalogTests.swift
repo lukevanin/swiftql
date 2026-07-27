@@ -111,6 +111,10 @@ private let documentationTests = [
         "XLDocumentationTests.testDocumentationDeclaredQueries",
         XLDocumentationTests.testDocumentationDeclaredQueries
     ),
+    DocumentationTestReference(
+        "XLDocumentationTests.testDocumentationNumericDateCodecs",
+        XLDocumentationTests.testDocumentationNumericDateCodecs
+    ),
 ]
 
 
@@ -127,6 +131,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         "GenericTableParameters.md": "XLDocumentationTests.testDocumentationGenericTableParameters",
         "GettingStarted.md": "XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings",
         "LiveQueries.md": "XLDocumentationTests.testDocumentationLiveQueryPublishers",
+        "NumericDateCodecs.md": "XLDocumentationTests.testDocumentationNumericDateCodecs",
         "Queries.md": "XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs",
         "RealValues.md": "XLDocumentationTests.testDocumentationRealValues",
         "StaticQueries.md": "XLDocumentationTests.testDocumentationStaticQueries",
