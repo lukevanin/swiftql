@@ -163,6 +163,28 @@ let package = Package(
             path: "Research/SQLiteBuildValidation/Sources/SwiftQLSQLiteEQPVarianceCLI"
         ),
 
+        // Package-private research engine for issue #391 (milestone 29 spike).
+        // Prototypes a normalised query-plan tree and named shape classifier
+        // over the #390 EQP capture pipeline's raw rows. Deliberately outside
+        // the package's public products: research target only, no report
+        // schema or public API.
+        .target(
+            name: "SwiftQLSQLitePlanShapePrototype",
+            dependencies: [
+                "SwiftQLSQLiteEQPVariancePrototype",
+            ],
+            path: "Research/SQLiteBuildValidation/Sources/SwiftQLSQLitePlanShapePrototype"
+        ),
+
+        .executableTarget(
+            name: "SwiftQLSQLitePlanShapeCLI",
+            dependencies: [
+                "SwiftQLSQLitePlanShapePrototype",
+                "SwiftQLSQLiteEQPVariancePrototype",
+            ],
+            path: "Research/SQLiteBuildValidation/Sources/SwiftQLSQLitePlanShapeCLI"
+        ),
+
         // A test target used to develop the macro implementation.
         .testTarget(
             name: "SwiftQLCoreTests",
@@ -260,6 +282,16 @@ let package = Package(
                 .product(name: "GRDB", package: "GRDB.swift"),
             ],
             path: "Research/SQLiteBuildValidation/Tests/SwiftQLSQLiteEQPVariancePrototypeTests",
+            resources: [.copy("Evidence")]
+        ),
+
+        .testTarget(
+            name: "SwiftQLSQLitePlanShapePrototypeTests",
+            dependencies: [
+                "SwiftQLSQLitePlanShapePrototype",
+                "SwiftQLSQLiteEQPVariancePrototype",
+            ],
+            path: "Research/SQLiteBuildValidation/Tests/SwiftQLSQLitePlanShapePrototypeTests",
             resources: [.copy("Evidence")]
         ),
     ]

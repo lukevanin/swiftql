@@ -1,0 +1,5115 @@
+{
+  "capture_method" : "grdb-in-process",
+  "label" : "apple-system-3.51.0",
+  "runtime_metadata" : {
+    "collations" : [
+      "BINARY",
+      "NOCASE",
+      "RTRIM",
+      "swiftCaseInsensitiveCompare",
+      "swiftCompare",
+      "swiftLocalizedCaseInsensitiveCompare",
+      "swiftLocalizedCompare",
+      "swiftLocalizedStandardCompare"
+    ],
+    "compile_options" : [
+      "ATOMIC_INTRINSICS=1",
+      "BUG_COMPATIBLE_20160819",
+      "CCCRYPT256",
+      "CODEC=see-cccrypt",
+      "COMPILER=clang-21.0.0",
+      "DEFAULT_AUTOVACUUM",
+      "DEFAULT_CACHE_SIZE=2000",
+      "DEFAULT_CKPTFULLFSYNC",
+      "DEFAULT_FILE_FORMAT=4",
+      "DEFAULT_JOURNAL_SIZE_LIMIT=32768",
+      "DEFAULT_LOOKASIDE=1200,102",
+      "DEFAULT_MEMSTATUS=0",
+      "DEFAULT_MMAP_SIZE=0",
+      "DEFAULT_PAGE_SIZE=4096",
+      "DEFAULT_PCACHE_INITSZ=20",
+      "DEFAULT_RECURSIVE_TRIGGERS",
+      "DEFAULT_SECTOR_SIZE=4096",
+      "DEFAULT_SYNCHRONOUS=2",
+      "DEFAULT_WAL_AUTOCHECKPOINT=1000",
+      "DEFAULT_WAL_SYNCHRONOUS=1",
+      "DEFAULT_WORKER_THREADS=0",
+      "DIRECT_OVERFLOW_READ",
+      "DQS=3",
+      "ENABLE_API_ARMOR",
+      "ENABLE_BYTECODE_VTAB",
+      "ENABLE_COLUMN_METADATA",
+      "ENABLE_DBSTAT_VTAB",
+      "ENABLE_FTS3",
+      "ENABLE_FTS3_PARENTHESIS",
+      "ENABLE_FTS3_TOKENIZER",
+      "ENABLE_FTS4",
+      "ENABLE_FTS5",
+      "ENABLE_LOCKING_STYLE=1",
+      "ENABLE_MATH_FUNCTIONS",
+      "ENABLE_NORMALIZE",
+      "ENABLE_PREUPDATE_HOOK",
+      "ENABLE_RTREE",
+      "ENABLE_SESSION",
+      "ENABLE_SETLK_TIMEOUT",
+      "ENABLE_SNAPSHOT",
+      "ENABLE_SQLLOG",
+      "ENABLE_STMT_SCANSTATUS",
+      "ENABLE_UNKNOWN_SQL_FUNCTION",
+      "ENABLE_UPDATE_DELETE_LIMIT",
+      "HAS_CODEC_RESTRICTED",
+      "HAVE_ISNAN",
+      "MALLOC_SOFT_LIMIT=1024",
+      "MAX_ATTACHED=10",
+      "MAX_COLUMN=2000",
+      "MAX_COMPOUND_SELECT=500",
+      "MAX_DEFAULT_PAGE_SIZE=8192",
+      "MAX_EXPR_DEPTH=1000",
+      "MAX_FUNCTION_ARG=127",
+      "MAX_LENGTH=2147483645",
+      "MAX_LIKE_PATTERN_LENGTH=50000",
+      "MAX_MMAP_SIZE=1073741824",
+      "MAX_PAGE_COUNT=1073741823",
+      "MAX_PAGE_SIZE=65536",
+      "MAX_SQL_LENGTH=1000000000",
+      "MAX_TRIGGER_DEPTH=1000",
+      "MAX_VARIABLE_NUMBER=500000",
+      "MAX_VDBE_OP=250000000",
+      "MAX_WORKER_THREADS=8",
+      "MUTEX_UNFAIR",
+      "OMIT_AUTORESET",
+      "OMIT_LOAD_EXTENSION",
+      "STMTJRNL_SPILL=131072",
+      "SYSTEM_MALLOC",
+      "TEMP_STORE=1",
+      "THREADSAFE=2",
+      "USE_URI"
+    ],
+    "extension_names" : [
+
+    ],
+    "functions" : [
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "->"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "->>"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "abs"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "acos"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "acosh"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "asin"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "asinh"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "atan"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "atan2"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "atanh"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "avg"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 0,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "bm25"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "ceil"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "ceiling"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "changes"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "char"
+      },
+      {
+        "argument_count" : -4,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "coalesce"
+      },
+      {
+        "argument_count" : -3,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "concat"
+      },
+      {
+        "argument_count" : -4,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "concat_ws"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "cos"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "cosh"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "count"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "count"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "cume_dist"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "current_date"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "current_time"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "current_timestamp"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "date"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "datetime"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "degrees"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "dense_rank"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "exp"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "first_value"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "floor"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "format"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 524288,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "fts3_tokenizer"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 524288,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "fts3_tokenizer"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 0,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "fts5"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 0,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "fts5_get_locale"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "fts5_insttoken"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 3145728,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "fts5_locale"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "fts5_source_id"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "glob"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "group_concat"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "group_concat"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "hex"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 0,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "highlight"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "ieee754"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "ieee754"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "ieee754_exponent"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "ieee754_from_blob"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "ieee754_inc"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "ieee754_mantissa"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "ieee754_to_blob"
+      },
+      {
+        "argument_count" : -4,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "if"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "ifnull"
+      },
+      {
+        "argument_count" : -4,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "iif"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "instr"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_array"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_array_length"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_array_length"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_error_position"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_extract"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "json_group_array"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "json_group_object"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_insert"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_object"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_patch"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_pretty"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_pretty"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_quote"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_remove"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_replace"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_set"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_type"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_type"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_valid"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "json_valid"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "jsonb"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "jsonb_array"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "jsonb_extract"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "jsonb_group_array"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "jsonb_group_object"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "jsonb_insert"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "jsonb_object"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "jsonb_patch"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "jsonb_remove"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "jsonb_replace"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "jsonb_set"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "julianday"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "lag"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "lag"
+      },
+      {
+        "argument_count" : 3,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "lag"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "last_insert_rowid"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "last_value"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "lead"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "lead"
+      },
+      {
+        "argument_count" : 3,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "lead"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "length"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "like"
+      },
+      {
+        "argument_count" : 3,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "like"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "likelihood"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "likely"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "ln"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "log"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "log"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "log10"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "log2"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "lower"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "ltrim"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "ltrim"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 0,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "match"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 0,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "matchinfo"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 0,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "matchinfo"
+      },
+      {
+        "argument_count" : -3,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "max"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "max"
+      },
+      {
+        "argument_count" : -3,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "min"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "min"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "mod"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "nth_value"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "ntile"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "nullif"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "octet_length"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 0,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "offsets"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 0,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "optimize"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "percent_rank"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "pi"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "pow"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "power"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "printf"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "quote"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "radians"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "random"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "randomblob"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "rank"
+      },
+      {
+        "argument_count" : 3,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "replace"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "round"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "round"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "row_number"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 0,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "rtreecheck"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 0,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "rtreedepth"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 0,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "rtreenode"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "rtrim"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "rtrim"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "sign"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "sin"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "sinh"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 0,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "snippet"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "sqlite_compileoption_get"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "sqlite_compileoption_used"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "sqlite_log"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "sqlite_source_id"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "sqlite_version"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "sqrt"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "strftime"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "string_agg"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "substr"
+      },
+      {
+        "argument_count" : 3,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "substr"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "substring"
+      },
+      {
+        "argument_count" : 3,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "substring"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 3147776,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "subtype"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "sum"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2048,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "swiftcapitalizedstring"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2048,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "swiftlocalizedcapitalizedstring"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2048,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "swiftlocalizedlowercasestring"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2048,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "swiftlocalizeduppercasestring"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2048,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "swiftlowercasestring"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2048,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "swiftuppercasestring"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "tan"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "tanh"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "time"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "timediff"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "w",
+        "name" : "total"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "total_changes"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "trim"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "trim"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "trunc"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "typeof"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "unhex"
+      },
+      {
+        "argument_count" : 2,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "unhex"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "unicode"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "unistr"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "unistr_quote"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "unixepoch"
+      },
+      {
+        "argument_count" : -1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "unknown"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "unlikely"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "upper"
+      },
+      {
+        "argument_count" : 0,
+        "encoding" : "utf8",
+        "flags" : 2097152,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "uuid"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "uuid_blob"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : false,
+        "kind" : "s",
+        "name" : "uuid_str"
+      },
+      {
+        "argument_count" : 1,
+        "encoding" : "utf8",
+        "flags" : 2099200,
+        "is_built_in" : true,
+        "kind" : "s",
+        "name" : "zeroblob"
+      }
+    ],
+    "module_names" : [
+      "bytecode",
+      "dbstat",
+      "fts3",
+      "fts3tokenize",
+      "fts4",
+      "fts4aux",
+      "fts5",
+      "fts5vocab",
+      "json_each",
+      "json_tree",
+      "rtree",
+      "rtree_i32",
+      "tables_used"
+    ],
+    "schema_fnv1a_64" : "e2c8fadbd38c2313",
+    "schema_row_count" : 37,
+    "sqlite_source_id" : "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+    "sqlite_version" : "3.51.0"
+  },
+  "statements" : [
+    {
+      "rows" : [
+        {
+          "detail" : "COMPOUND QUERY",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "LEFT-MOST SUBQUERY",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "CO-ROUTINE nullable_seed",
+          "id" : 5,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 6,
+          "notused" : 0,
+          "parent" : 5
+        },
+        {
+          "detail" : "SCAN nullable_rows",
+          "id" : 10,
+          "notused" : 16,
+          "parent" : 2
+        },
+        {
+          "detail" : "EXCEPT USING TEMP B-TREE",
+          "id" : 17,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 18,
+          "notused" : 0,
+          "parent" : 17
+        }
+      ],
+      "statement_id" : "c191.v1.cte.ordinary-nullable.except"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "COMPOUND QUERY",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "LEFT-MOST SUBQUERY",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "CO-ROUTINE nullable_seed",
+          "id" : 5,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 6,
+          "notused" : 0,
+          "parent" : 5
+        },
+        {
+          "detail" : "SCAN nullable_rows",
+          "id" : 10,
+          "notused" : 16,
+          "parent" : 2
+        },
+        {
+          "detail" : "INTERSECT USING TEMP B-TREE",
+          "id" : 18,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 19,
+          "notused" : 0,
+          "parent" : 18
+        }
+      ],
+      "statement_id" : "c191.v1.cte.ordinary-nullable.intersect"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "COMPOUND QUERY",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "LEFT-MOST SUBQUERY",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "CO-ROUTINE nullable_seed",
+          "id" : 5,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 6,
+          "notused" : 0,
+          "parent" : 5
+        },
+        {
+          "detail" : "SCAN nullable_rows",
+          "id" : 10,
+          "notused" : 16,
+          "parent" : 2
+        },
+        {
+          "detail" : "UNION USING TEMP B-TREE",
+          "id" : 17,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 18,
+          "notused" : 0,
+          "parent" : 17
+        }
+      ],
+      "statement_id" : "c191.v1.cte.ordinary-nullable.union"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "COMPOUND QUERY",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "LEFT-MOST SUBQUERY",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "CO-ROUTINE nullable_seed",
+          "id" : 4,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 5,
+          "notused" : 0,
+          "parent" : 4
+        },
+        {
+          "detail" : "SCAN nullable_rows",
+          "id" : 9,
+          "notused" : 16,
+          "parent" : 2
+        },
+        {
+          "detail" : "UNION ALL",
+          "id" : 15,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 16,
+          "notused" : 0,
+          "parent" : 15
+        }
+      ],
+      "statement_id" : "c191.v1.cte.ordinary-nullable.union-all"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "COMPOUND QUERY",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "LEFT-MOST SUBQUERY",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "CO-ROUTINE required_seed",
+          "id" : 5,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 6,
+          "notused" : 0,
+          "parent" : 5
+        },
+        {
+          "detail" : "SCAN required_rows",
+          "id" : 10,
+          "notused" : 16,
+          "parent" : 2
+        },
+        {
+          "detail" : "EXCEPT USING TEMP B-TREE",
+          "id" : 17,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 18,
+          "notused" : 0,
+          "parent" : 17
+        }
+      ],
+      "statement_id" : "c191.v1.cte.ordinary-required.except"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "COMPOUND QUERY",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "LEFT-MOST SUBQUERY",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "CO-ROUTINE required_seed",
+          "id" : 5,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 6,
+          "notused" : 0,
+          "parent" : 5
+        },
+        {
+          "detail" : "SCAN required_rows",
+          "id" : 10,
+          "notused" : 16,
+          "parent" : 2
+        },
+        {
+          "detail" : "INTERSECT USING TEMP B-TREE",
+          "id" : 18,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 19,
+          "notused" : 0,
+          "parent" : 18
+        }
+      ],
+      "statement_id" : "c191.v1.cte.ordinary-required.intersect"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "COMPOUND QUERY",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "LEFT-MOST SUBQUERY",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "CO-ROUTINE required_seed",
+          "id" : 5,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 6,
+          "notused" : 0,
+          "parent" : 5
+        },
+        {
+          "detail" : "SCAN required_rows",
+          "id" : 10,
+          "notused" : 16,
+          "parent" : 2
+        },
+        {
+          "detail" : "UNION USING TEMP B-TREE",
+          "id" : 17,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 18,
+          "notused" : 0,
+          "parent" : 17
+        }
+      ],
+      "statement_id" : "c191.v1.cte.ordinary-required.union"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "COMPOUND QUERY",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "LEFT-MOST SUBQUERY",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "CO-ROUTINE required_seed",
+          "id" : 4,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 5,
+          "notused" : 0,
+          "parent" : 4
+        },
+        {
+          "detail" : "SCAN required_rows",
+          "id" : 9,
+          "notused" : 16,
+          "parent" : 2
+        },
+        {
+          "detail" : "UNION ALL",
+          "id" : 15,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 16,
+          "notused" : 0,
+          "parent" : 15
+        }
+      ],
+      "statement_id" : "c191.v1.cte.ordinary-required.union-all"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "COMPOUND QUERY",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "LEFT-MOST SUBQUERY",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "CO-ROUTINE integer_sequence",
+          "id" : 5,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SETUP",
+          "id" : 8,
+          "notused" : 0,
+          "parent" : 5
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 9,
+          "notused" : 0,
+          "parent" : 8
+        },
+        {
+          "detail" : "RECURSIVE STEP",
+          "id" : 20,
+          "notused" : 0,
+          "parent" : 5
+        },
+        {
+          "detail" : "SCAN t0",
+          "id" : 21,
+          "notused" : 216,
+          "parent" : 20
+        },
+        {
+          "detail" : "SCAN recursive_rows",
+          "id" : 31,
+          "notused" : 215,
+          "parent" : 2
+        },
+        {
+          "detail" : "EXCEPT USING TEMP B-TREE",
+          "id" : 38,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 39,
+          "notused" : 0,
+          "parent" : 38
+        }
+      ],
+      "statement_id" : "c191.v1.cte.recursive-required.except"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "COMPOUND QUERY",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "LEFT-MOST SUBQUERY",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "CO-ROUTINE integer_sequence",
+          "id" : 5,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SETUP",
+          "id" : 8,
+          "notused" : 0,
+          "parent" : 5
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 9,
+          "notused" : 0,
+          "parent" : 8
+        },
+        {
+          "detail" : "RECURSIVE STEP",
+          "id" : 20,
+          "notused" : 0,
+          "parent" : 5
+        },
+        {
+          "detail" : "SCAN t0",
+          "id" : 21,
+          "notused" : 216,
+          "parent" : 20
+        },
+        {
+          "detail" : "SCAN recursive_rows",
+          "id" : 31,
+          "notused" : 215,
+          "parent" : 2
+        },
+        {
+          "detail" : "INTERSECT USING TEMP B-TREE",
+          "id" : 39,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 40,
+          "notused" : 0,
+          "parent" : 39
+        }
+      ],
+      "statement_id" : "c191.v1.cte.recursive-required.intersect"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "COMPOUND QUERY",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "LEFT-MOST SUBQUERY",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "CO-ROUTINE integer_sequence",
+          "id" : 5,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SETUP",
+          "id" : 8,
+          "notused" : 0,
+          "parent" : 5
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 9,
+          "notused" : 0,
+          "parent" : 8
+        },
+        {
+          "detail" : "RECURSIVE STEP",
+          "id" : 20,
+          "notused" : 0,
+          "parent" : 5
+        },
+        {
+          "detail" : "SCAN t0",
+          "id" : 21,
+          "notused" : 216,
+          "parent" : 20
+        },
+        {
+          "detail" : "SCAN recursive_rows",
+          "id" : 31,
+          "notused" : 215,
+          "parent" : 2
+        },
+        {
+          "detail" : "UNION USING TEMP B-TREE",
+          "id" : 38,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 39,
+          "notused" : 0,
+          "parent" : 38
+        }
+      ],
+      "statement_id" : "c191.v1.cte.recursive-required.union"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "COMPOUND QUERY",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "LEFT-MOST SUBQUERY",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "CO-ROUTINE integer_sequence",
+          "id" : 4,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SETUP",
+          "id" : 7,
+          "notused" : 0,
+          "parent" : 4
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 8,
+          "notused" : 0,
+          "parent" : 7
+        },
+        {
+          "detail" : "RECURSIVE STEP",
+          "id" : 19,
+          "notused" : 0,
+          "parent" : 4
+        },
+        {
+          "detail" : "SCAN t0",
+          "id" : 20,
+          "notused" : 216,
+          "parent" : 19
+        },
+        {
+          "detail" : "SCAN recursive_rows",
+          "id" : 30,
+          "notused" : 215,
+          "parent" : 2
+        },
+        {
+          "detail" : "UNION ALL",
+          "id" : 36,
+          "notused" : 0,
+          "parent" : 1
+        },
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 37,
+          "notused" : 0,
+          "parent" : 36
+        }
+      ],
+      "statement_id" : "c191.v1.cte.recursive-required.union-all"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.expression.cast-text-blob"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.expression.cast-text-integer"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.expression.comparable-min"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.expression.date-unixepoch"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.expression.indexed-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.expression.json-array-length"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.expression.json-valid"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.expression.numeric-abs"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.expression.numeric-floor"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.expression.numeric-round"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.expression.operator-arithmetic-precedence"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.expression.operator-glob"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.expression.string-printf"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "MERGE (UNION)",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "LEFT",
+          "id" : 4,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SCAN t0",
+          "id" : 7,
+          "notused" : 216,
+          "parent" : 4
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 16,
+          "notused" : 0,
+          "parent" : 4
+        },
+        {
+          "detail" : "RIGHT",
+          "id" : 28,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SCAN t1",
+          "id" : 31,
+          "notused" : 216,
+          "parent" : 28
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 40,
+          "notused" : 0,
+          "parent" : 28
+        }
+      ],
+      "statement_id" : "c191.v1.northwind.compound-customer-supplier-cities"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "CO-ROUTINE cte0",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH t0 USING INDEX sqlite_autoindex_Order Details_1 (OrderID=?)",
+          "id" : 9,
+          "notused" : 62,
+          "parent" : 2
+        },
+        {
+          "detail" : "SCAN t0",
+          "id" : 52,
+          "notused" : 82,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.northwind.cte-order-subtotals"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 7,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR GROUP BY",
+          "id" : 9,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 46,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.g-customer-id.h-count-greater-than-one.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 7,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 9,
+          "notused" : 209,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR GROUP BY",
+          "id" : 11,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-cross.g-customer-id.h-count-greater-than-one"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 7,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 9,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-cross.l-five.x-two"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 6,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-cross.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 6,
+          "notused" : 209,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 14,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-cross.o-collated"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 6,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-cross.o-descending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 6,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-cross.w-empty-in"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 3,
+          "notused" : 61,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 22,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-cross.w-in-list"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 7,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-cross.w-injection-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 3,
+          "notused" : 45,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 6,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-cross.w-literal"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+          "id" : 3,
+          "notused" : 196,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 5,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-cross.w-named-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 7,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-cross.w-null-comparison"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 11,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-cross.w-precedence"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 9,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-cross.w-repeated-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "id" : 6,
+          "notused" : 44,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-inner.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "id" : 6,
+          "notused" : 44,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 16,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-inner.o-collated"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "id" : 6,
+          "notused" : 44,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-inner.w-empty-in"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 3,
+          "notused" : 61,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "id" : 22,
+          "notused" : 44,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-inner.w-in-list"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "id" : 3,
+          "notused" : 44,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN t0",
+          "id" : 9,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-inner.w-injection-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 3,
+          "notused" : 45,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "id" : 6,
+          "notused" : 44,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-inner.w-literal"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+          "id" : 3,
+          "notused" : 196,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "id" : 5,
+          "notused" : 44,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-inner.w-named-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "id" : 7,
+          "notused" : 44,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-inner.w-null-comparison"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "id" : 11,
+          "notused" : 44,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-inner.w-precedence"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-left.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-left.o-descending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-left.w-empty-in"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 2,
+          "notused" : 61,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-left.w-in-list"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 2,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-left.w-injection-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 2,
+          "notused" : 45,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-left.w-literal"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+          "id" : 2,
+          "notused" : 196,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-left.w-named-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 2,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-left.w-precedence"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 2,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-left.w-repeated-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 6,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-aggregate-count.j-cross"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH employees_join USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+          "id" : 6,
+          "notused" : 45,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-aggregate-count.j-left"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 5,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-aggregate-count.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 5,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-aggregate-count.o-collated"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN source_orders",
+          "id" : 12,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "id" : 18,
+          "notused" : 44,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR GROUP BY",
+          "id" : 23,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 66,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-aggregate-count.s-subquery-alias.j-inner.w-repeated-binding.g-customer-id.h-count-greater-than-one.o-descending.l-five.x-two"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN orders_case",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-aggregate-count.s-table-alias"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-aggregate-count.w-empty-in"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 3,
+          "notused" : 61,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-aggregate-count.w-in-list"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-aggregate-count.w-injection-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 3,
+          "notused" : 33,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-aggregate-count.w-literal"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+          "id" : 3,
+          "notused" : 196,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-aggregate-count.w-named-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-aggregate-count.w-null-comparison"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-aggregate-count.w-precedence"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 5,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.j-cross"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "id" : 5,
+          "notused" : 44,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.j-inner"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.o-descending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN source_orders",
+          "id" : 2,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.s-subquery-alias"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN orders_case",
+          "id" : 12,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH employees_join USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+          "id" : 16,
+          "notused" : 45,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR GROUP BY",
+          "id" : 21,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 69,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.s-table-alias.j-left.w-null-comparison.g-customer-id.h-count-greater-than-one.o-collated.l-five.x-two"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.w-empty-in"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 2,
+          "notused" : 61,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.w-in-list"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 2,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.w-injection-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 2,
+          "notused" : 33,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.w-literal"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+          "id" : 2,
+          "notused" : 196,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.w-named-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 2,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.w-precedence"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 2,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.w-repeated-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN source_orders",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 5,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-subquery-alias.j-cross"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN source_orders",
+          "id" : 2,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-subquery-alias.j-left"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN source_orders",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-subquery-alias.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN source_orders",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 10,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-subquery-alias.o-collated"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN source_orders",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-subquery-alias.w-empty-in"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH source_orders USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 2,
+          "notused" : 61,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-subquery-alias.w-in-list"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN source_orders",
+          "id" : 2,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-subquery-alias.w-injection-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH source_orders USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 2,
+          "notused" : 33,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-subquery-alias.w-literal"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH source_orders USING INTEGER PRIMARY KEY (rowid>?)",
+          "id" : 2,
+          "notused" : 196,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-subquery-alias.w-named-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN source_orders",
+          "id" : 2,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-subquery-alias.w-null-comparison"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN source_orders",
+          "id" : 2,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-subquery-alias.w-precedence"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN orders_case",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN customers_cross USING COVERING INDEX sqlite_autoindex_Customers_1",
+          "id" : 5,
+          "notused" : 209,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-table-alias.j-cross"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN orders_case",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "id" : 5,
+          "notused" : 44,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-table-alias.j-inner"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN orders_case",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-table-alias.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN orders_case",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-table-alias.o-descending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN orders_case",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-table-alias.w-empty-in"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH orders_case USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 2,
+          "notused" : 61,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-table-alias.w-in-list"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN orders_case",
+          "id" : 2,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-table-alias.w-injection-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH orders_case USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 2,
+          "notused" : 33,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-table-alias.w-literal"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH orders_case USING INTEGER PRIMARY KEY (rowid>?)",
+          "id" : 2,
+          "notused" : 196,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-table-alias.w-named-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN orders_case",
+          "id" : 2,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-table-alias.w-precedence"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN orders_case",
+          "id" : 2,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.s-table-alias.w-repeated-binding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 7,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR GROUP BY",
+          "id" : 9,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-empty-in.g-customer-id.h-count-greater-than-one"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 7,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-empty-in.l-five.x-two"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-empty-in.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 11,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-empty-in.o-collated"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-empty-in.o-descending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 6,
+          "notused" : 61,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR GROUP BY",
+          "id" : 25,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-in-list.g-customer-id.h-count-greater-than-one"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 6,
+          "notused" : 61,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-in-list.l-five.x-two"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 3,
+          "notused" : 61,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-in-list.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 3,
+          "notused" : 61,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 27,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-in-list.o-collated"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 3,
+          "notused" : 61,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-in-list.o-descending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 6,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-injection-binding.g-customer-id.h-count-greater-than-one"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 6,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-injection-binding.l-five.x-two"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-injection-binding.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 12,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-injection-binding.o-collated"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-injection-binding.o-descending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 6,
+          "notused" : 33,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-literal.g-customer-id.h-count-greater-than-one"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 6,
+          "notused" : 33,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-literal.l-five.x-two"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 3,
+          "notused" : 33,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-literal.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 3,
+          "notused" : 33,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-literal.o-collated"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 3,
+          "notused" : 33,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-literal.o-descending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+          "id" : 6,
+          "notused" : 196,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR GROUP BY",
+          "id" : 8,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-named-binding.g-customer-id.h-count-greater-than-one"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+          "id" : 11,
+          "notused" : 196,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR GROUP BY",
+          "id" : 13,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 51,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-named-binding.g-customer-id.o-ascending.l-five.x-two"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+          "id" : 3,
+          "notused" : 196,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 10,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-named-binding.o-collated"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid>?)",
+          "id" : 3,
+          "notused" : 196,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-named-binding.o-descending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-null-comparison.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-null-comparison.o-descending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 6,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR GROUP BY",
+          "id" : 14,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-precedence.g-customer-id.h-count-greater-than-one"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-precedence.l-five"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 6,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-precedence.l-five.x-two"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-precedence.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 16,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-precedence.o-collated"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-precedence.o-descending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-repeated-binding.o-ascending"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 14,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c191.v1.select.w-repeated-binding.o-collated"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "USE TEMP B-TREE FOR avg(DISTINCT)",
+          "id" : 3,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN t0",
+          "id" : 5,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.aggregate-average-distinct"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "USE TEMP B-TREE FOR count(DISTINCT)",
+          "id" : 3,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN t0",
+          "id" : 5,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.aggregate-count-distinct"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "USE TEMP B-TREE FOR group_concat(DISTINCT)",
+          "id" : 3,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN t0",
+          "id" : 5,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.aggregate-group-concat-distinct"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "USE TEMP B-TREE FOR max(DISTINCT)",
+          "id" : 3,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH t0",
+          "id" : 5,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.aggregate-max-distinct"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "USE TEMP B-TREE FOR min(DISTINCT)",
+          "id" : 3,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH t0",
+          "id" : 5,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.aggregate-min-distinct"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "USE TEMP B-TREE FOR sum(DISTINCT)",
+          "id" : 3,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN t0",
+          "id" : 5,
+          "notused" : 216,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.aggregate-sum-distinct"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-blob-text"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-bool-integer"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-integer-real"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-integer-text"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-optional-blob-text"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-optional-bool-integer"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-optional-integer-real"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-optional-integer-text"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-optional-real-integer"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-optional-real-text"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-optional-text-blob"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-optional-text-integer"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-optional-text-real"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-real-integer"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-real-text"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.cast-text-real"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.comparable-max"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.json-array-length-path"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.numeric-round-no-places"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.numeric-round-optional"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c286.v1.expression.string-printf-array"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.boolean-and-shapes"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.boolean-not-shapes"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.boolean-or-shapes"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.coalesce-storage-classes"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.coalescing-operator"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.comparison-both-optional"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.comparison-left-optional"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.comparison-required"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.comparison-right-optional"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.equality-optional-shapes"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.equality-required"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.inequality-optional-shapes"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.integer-arithmetic-both-optional"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.integer-arithmetic-left-optional"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.integer-arithmetic-null-propagation"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.integer-arithmetic-required"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.integer-arithmetic-right-optional"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.integer-division-boundaries"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.optional-predicates"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.real-arithmetic-both-optional"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.real-arithmetic-left-optional"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.real-arithmetic-null-propagation"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.real-arithmetic-required"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.real-arithmetic-right-optional"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.real-division-boundaries"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.text-concatenation-null"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.text-concatenation-shapes"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.text-glob-case-sensitivity"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.text-glob-null-propagation"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.text-glob-shapes"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.text-like-ascii-case-folding"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.text-like-null-propagation"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.text-like-shapes"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.unary-nesting"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN CONSTANT ROW",
+          "id" : 1,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c287.v1.expression.unary-shapes"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "LIST SUBQUERY 1",
+          "id" : 9,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 12,
+          "notused" : 33,
+          "parent" : 9
+        },
+        {
+          "detail" : "CREATE BLOOM FILTER",
+          "id" : 19,
+          "notused" : 0,
+          "parent" : 9
+        }
+      ],
+      "statement_id" : "c288.v1.subquery.in-query-builder-empty"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "LIST SUBQUERY 1",
+          "id" : 9,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 12,
+          "notused" : 33,
+          "parent" : 9
+        },
+        {
+          "detail" : "CREATE BLOOM FILTER",
+          "id" : 19,
+          "notused" : 0,
+          "parent" : 9
+        }
+      ],
+      "statement_id" : "c288.v1.subquery.in-query-builder-nonempty"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "LIST SUBQUERY 1",
+          "id" : 9,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH t1 USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "id" : 12,
+          "notused" : 39,
+          "parent" : 9
+        },
+        {
+          "detail" : "CREATE BLOOM FILTER",
+          "id" : 22,
+          "notused" : 0,
+          "parent" : 9
+        }
+      ],
+      "statement_id" : "c288.v1.subquery.in-query-functional-nonempty"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "LIST SUBQUERY 2",
+          "id" : 9,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 12,
+          "notused" : 33,
+          "parent" : 9
+        },
+        {
+          "detail" : "CREATE BLOOM FILTER",
+          "id" : 19,
+          "notused" : 0,
+          "parent" : 9
+        }
+      ],
+      "statement_id" : "c288.v1.subquery.in-table-empty"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN t0",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "LIST SUBQUERY 2",
+          "id" : 9,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH t0 USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 12,
+          "notused" : 33,
+          "parent" : 9
+        },
+        {
+          "detail" : "CREATE BLOOM FILTER",
+          "id" : 19,
+          "notused" : 0,
+          "parent" : 9
+        }
+      ],
+      "statement_id" : "c288.v1.subquery.in-table-nonempty"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN Orders",
+          "id" : 7,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR GROUP BY",
+          "id" : 9,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 47,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c390.northwind.aggregate.grouped-having"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "MERGE (UNION)",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "LEFT",
+          "id" : 4,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SCAN Customers",
+          "id" : 7,
+          "notused" : 216,
+          "parent" : 4
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 16,
+          "notused" : 0,
+          "parent" : 4
+        },
+        {
+          "detail" : "RIGHT",
+          "id" : 28,
+          "notused" : 0,
+          "parent" : 2
+        },
+        {
+          "detail" : "SCAN Suppliers",
+          "id" : 31,
+          "notused" : 216,
+          "parent" : 28
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 40,
+          "notused" : 0,
+          "parent" : 28
+        }
+      ],
+      "statement_id" : "c390.northwind.compound.customer-supplier-cities"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "CO-ROUTINE order_subtotals",
+          "id" : 2,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH Order Details USING INDEX sqlite_autoindex_Order Details_1 (OrderID=?)",
+          "id" : 9,
+          "notused" : 62,
+          "parent" : 2
+        },
+        {
+          "detail" : "SCAN order_subtotals",
+          "id" : 51,
+          "notused" : 82,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c390.northwind.cte.order-subtotals"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SEARCH o USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 9,
+          "notused" : 45,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH c USING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "id" : 12,
+          "notused" : 46,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH e USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 18,
+          "notused" : 45,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH d USING INDEX sqlite_autoindex_Order Details_1 (OrderID=?)",
+          "id" : 21,
+          "notused" : 62,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH p USING INTEGER PRIMARY KEY (rowid=?)",
+          "id" : 27,
+          "notused" : 45,
+          "parent" : 0
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 44,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c390.northwind.join.customer-order-employee-product"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN e",
+          "id" : 4,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SEARCH m USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+          "id" : 6,
+          "notused" : 45,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c390.northwind.join.left-null-manager"
+    },
+    {
+      "rows" : [
+        {
+          "detail" : "SCAN Products",
+          "id" : 3,
+          "notused" : 216,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCALAR SUBQUERY 1",
+          "id" : 8,
+          "notused" : 0,
+          "parent" : 0
+        },
+        {
+          "detail" : "SCAN Products",
+          "id" : 13,
+          "notused" : 216,
+          "parent" : 8
+        },
+        {
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "id" : 29,
+          "notused" : 0,
+          "parent" : 0
+        }
+      ],
+      "statement_id" : "c390.northwind.subquery.products-above-average"
+    }
+  ]
+}
