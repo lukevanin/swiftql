@@ -646,6 +646,43 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         }
     }
 
+    func testJulianDayRejectsAFiniteStoredValueThatOverflowsWhenConvertedToUnixSeconds() throws {
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        let configuration = try makeConfiguration()
+        var driver = GRDBDatabaseDriver(databasePool: fixture.databasePool, dialect: dialect)
+        let databaseIdentifier = driver.databaseIdentifier
+        // This REAL value is finite, but converting it from a julian-day
+        // number back to unix seconds (`(value - epoch) * 86400`) overflows
+        // to IEEE 754 infinity.
+        let row = try driver.withReadConnection { connection in
+            try XCTUnwrap(
+                connection.fetchOne(
+                    connection.prepare(
+                        logicalStatement(databaseIdentifier: databaseIdentifier, sql: "SELECT 1.0e304, typeof(1.0e304)")
+                    )
+                )
+            )
+        }
+        XCTAssertEqual(row[1], .text("real"))
+
+        let resultContext = XLValueCodingContext(site: .result, path: XLValueCodingPath("julian-day-overflow"))
+        XCTAssertThrowsError(
+            try decode(
+                row[0],
+                preset: XLSQLiteNumericDateCodec.JulianDay.key,
+                configuration: configuration,
+                context: resultContext
+            )
+        ) { error in
+            guard case .decodingFailed(_, _, let message)? = error as? XLValueCodecError else {
+                return XCTFail("Expected a decoding-failed error, received \(error).")
+            }
+            XCTAssertTrue(message.contains("nonFiniteStoredValue"), message)
+        }
+    }
+
     // MARK: - Boundary and randomized representative dates
 
     func testRepresentativeDatesRoundTripThroughRealSQLiteForEveryPreset() throws {

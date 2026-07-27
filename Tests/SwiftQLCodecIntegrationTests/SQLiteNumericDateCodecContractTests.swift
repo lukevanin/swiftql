@@ -319,6 +319,36 @@ final class SQLiteNumericDateCodecContractTests: XCTestCase {
         }
     }
 
+    func testJulianDayRejectsAFiniteStoredValueThatOverflowsOnDecode() {
+        // A stored julian-day REAL can be finite while still being far too
+        // large for `(julianDay - epoch) * secondsPerDay` to stay finite.
+        // Decoding must fail structurally instead of returning a Date backed
+        // by a non-finite time interval.
+        let finiteButOverflowing = XLSQLiteValue.real(1e304)
+        XCTAssertTrue(finiteButOverflowing.storageType == .real)
+        XCTAssertThrowsError(
+            try XLSQLiteNumericDateCodec.JulianDay.codec.decode(
+                finiteButOverflowing,
+                using: dialect,
+                context: resultContext
+            )
+        ) { error in
+            guard case .decodingFailed(_, _, let message)? = error as? XLValueCodecError else {
+                return XCTFail("Expected a decoding-failed error, received \(error).")
+            }
+            XCTAssertTrue(message.contains("nonFiniteStoredValue"), message)
+        }
+
+        // A value just below that threshold still decodes successfully.
+        XCTAssertNoThrow(
+            try XLSQLiteNumericDateCodec.JulianDay.codec.decode(
+                .real(1e303),
+                using: dialect,
+                context: resultContext
+            )
+        )
+    }
+
     // MARK: - Storage-class coercion
 
     func testDecodingTheWrongStorageClassFailsBeforeThePresetsDecodeClosureRuns() {

@@ -18,10 +18,13 @@ public enum XLSQLiteNumericDateCodecError: Error, Equatable, Sendable, Localized
     /// never truncates or wraps a value that does not fit.
     case millisecondsOutOfRange(preset: String, timeIntervalSince1970: Double)
 
-    /// A stored `REAL` value was NaN or infinite when decoding. SQLite
-    /// bindings normalize a NaN parameter to SQL `NULL`, but a computed SQL
-    /// expression (for example, an overflowing multiplication) can still
-    /// produce a stored non-finite `REAL`.
+    /// A stored `REAL` value was NaN or infinite when decoding, or a finite
+    /// stored value produced a non-finite result once the preset converted
+    /// it back to unix seconds (for example, ``XLSQLiteNumericDateCodec/JulianDay``
+    /// decoding a very large but finite julian-day number). SQLite bindings
+    /// normalize a NaN parameter to SQL `NULL`, but a computed SQL expression
+    /// (for example, an overflowing multiplication) can still produce a
+    /// stored non-finite `REAL`.
     case nonFiniteStoredValue(preset: String, value: XLNonFiniteRealValue)
 
     public var errorDescription: String? {
@@ -243,8 +246,14 @@ public enum XLSQLiteNumericDateCodec {
     ///   ``UnixSeconds`` for the same input, on the order of microseconds
     ///   near the present day. It matches the numeric convention `julianday()`
     ///   already uses, which is the point of choosing it.
-    /// - Range: any finite `Double` seconds value is representable; there is
-    ///   no overflow case for this preset.
+    /// - Range: encoding accepts any finite `Double` seconds value (the
+    ///   corresponding julian-day number never overflows a `Double`).
+    ///   Decoding is narrower: converting a stored julian-day number back to
+    ///   unix seconds multiplies by 86,400, so a stored value large enough to
+    ///   overflow that multiplication throws
+    ///   ``XLSQLiteNumericDateCodecError/nonFiniteStoredValue(preset:value:)``
+    ///   rather than returning a `Date` backed by a non-finite time interval.
+    ///   This bound is far outside any date a real application would store.
     /// - Ordering: numeric `REAL` ordering matches chronological ordering.
     ///   Julian day numbers for real-world dates stay positive; only dates
     ///   before -4713-11-24 would produce a negative value.
@@ -314,6 +323,16 @@ public enum XLSQLiteNumericDateCodec {
                     )
                 }
                 let seconds = (julianDay - unixEpochJulianDay) * secondsPerDay
+                // The stored julian-day REAL was finite, but converting a
+                // sufficiently large finite value back to unix seconds can
+                // still overflow to infinity. Fail structurally instead of
+                // returning a Date backed by a non-finite time interval.
+                if let nonFinite = XLNonFiniteRealValue(seconds) {
+                    throw XLSQLiteNumericDateCodecError.nonFiniteStoredValue(
+                        preset: key.id,
+                        value: nonFinite
+                    )
+                }
                 return Date(timeIntervalSince1970: seconds)
             }
         )

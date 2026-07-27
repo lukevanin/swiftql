@@ -136,7 +136,7 @@ doc-only `Date` codec.
 |---|---|---|---|---|---|
 | `UnixMilliseconds` | `INTEGER` | 1970-01-01T00:00:00Z → `0` | milliseconds | nearest ms, round-half-away-from-zero | throws past `Int64` millisecond overflow (≈ ±292,471,208 years) |
 | `UnixSeconds` | `REAL` | 1970-01-01T00:00:00Z → `0.0` | seconds | none | any finite `Double` |
-| `JulianDay` | `REAL` | 1970-01-01T00:00:00Z → `2440587.5` | fractional days | none | any finite `Double` |
+| `JulianDay` | `REAL` | 1970-01-01T00:00:00Z → `2440587.5` | fractional days | none | encodes any finite `Double`; decoding throws past the point where `× 86,400` would overflow |
 
 `UnixMilliseconds` loses sub-millisecond precision by design (maximum 0.5 ms
 round-trip error from rounding alone). `UnixSeconds` is nearly lossless: its
@@ -145,7 +145,12 @@ round-trip error stays at the unit-in-the-last-place level. `JulianDay` loses
 more precision than `UnixSeconds` for the same instant, because adding the
 `2440587.5` day offset consumes mantissa bits that would otherwise represent
 sub-day precision — that cost buys direct compatibility with `julianday()`,
-covered below.
+covered below. `JulianDay`'s decode direction is also narrower than its
+encode direction: converting a stored julian-day number back to unix seconds
+multiplies by 86,400, and a stored value large enough to overflow that
+multiplication fails with a structured decode error instead of producing a
+`Date` backed by a non-finite time interval — a bound far outside any date a
+real application would store.
 
 All three presets store `Date` as a native SQLite number, so a standard index
 on the column sorts in chronological order with no zero-padding or
