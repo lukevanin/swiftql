@@ -150,17 +150,17 @@ apply — nothing is closed.
 
 ## Deferred, with a named future owner
 
-| Item | Why deferred | Future owner |
+| Item | Why deferred | Future owner milestone |
 |---|---|---|
-| Partial indices (`CREATE INDEX … WHERE …`) | Would extend #392's candidate space but no real corpus statement in this pass needed one to resolve a false positive (the join-key false positives are structural, not selectivity-driven) | #396 (index-candidate generation), as a scoped enhancement once the base precedence question above is settled |
-| Expression indices | Same — extends the candidate space, unexercised by this pass's corpus | #396, same as above |
-| Vendored `sqlite3expert.c` | Rejected at scaffolding time (needs a custom SQLite build; the scratch-copy approach #392 validated needs only public API) and re-confirmed here: #392 never needed it | Not planned. A deliberate rejection, not a deferred task. |
-| `sqlite3_stmt_scanstatus` measured costs | Named in this issue's own Required Approach as something to record; **not actually evaluated** by any of #390/#391/#392 — this write-up states that gap honestly rather than retroactively claiming coverage | A new, unscheduled research issue (not yet filed): prototype `sqlite3_stmt_scanstatus` as a way to get *measured* per-operation cost without `ANALYZE`, which could sharpen #392's purely structural improvement rule into a graded one |
+| Partial indices (`CREATE INDEX … WHERE …`) | Would extend #392's candidate space but no real corpus statement in this pass needed one to resolve a false positive (the join-key false positives are structural, not selectivity-driven) | **v1.8** (milestone 30), issue #396, as a scoped enhancement once the base precedence question above is settled |
+| Expression indices | Same — extends the candidate space, unexercised by this pass's corpus | **v1.8** (milestone 30), issue #396, same as above |
+| Vendored `sqlite3expert.c` | Rejected at scaffolding time (needs a custom SQLite build; the scratch-copy approach #392 validated needs only public API) and re-confirmed here: #392 never needed it | **None.** A deliberate rejection, not a deferred task — no milestone owns work that isn't going to happen. |
+| `sqlite3_stmt_scanstatus` measured costs | Named in this issue's own Required Approach as something to record; **not actually evaluated** by any of #390/#391/#392 — this write-up states that gap honestly rather than retroactively claiming coverage | **TBD, no milestone yet.** No issue is filed and no existing milestone (v1.8 or otherwise) scopes this work; it needs triage — likely a v1.8.x follow-up or a v1.9 research spike, once v1.8's structural approach has real usage to compare a graded, measured-cost rule against — before either an issue or a milestone is assigned. |
 
 ## Milestone closure
 
-Milestone 29's four issues (#390, #391, #392, #393) each have an open PR
-and a written architecture doc — [#412](https://github.com/lukevanin/swiftql/pull/412),
+Milestone 29's four issues (#390, #391, #392, #393) were each delivered via
+a PR and a written architecture doc — [#412](https://github.com/lukevanin/swiftql/pull/412),
 [#422](https://github.com/lukevanin/swiftql/pull/422),
 [#427](https://github.com/lukevanin/swiftql/pull/427), and this issue's PR,
 stacked in dependency order. Milestone 29 is ready to close once all four
