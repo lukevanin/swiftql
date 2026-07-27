@@ -2198,6 +2198,155 @@ extension XLDocumentationTests {
         }
         XCTAssertEqual(storedProfileJSON, expectedProfileJSON)
 
+        struct InvoiceToken {
+            let rawValue: Int64
+        }
+
+        let invoiceTokenCodec = XLValueCodec<InvoiceToken, XLSQLiteDialect>(
+            key: XLValueCodecKey(id: "com.example.invoice-token", version: 1),
+            valueTypeIdentifier: XLValueTypeIdentifier(
+                rawValue: "com.example.invoice-token"
+            ),
+            dialectIdentifier: XLSQLiteDialect.identity,
+            storageIdentifier: XLValueStorageIdentifier(
+                rawValue: XLSQLiteStorageClass.integer.rawValue
+            ),
+            encode: { value, _, _ in .integer(value.rawValue) },
+            decode: { value, _, _ in
+                guard case .integer(let rawValue) = value else {
+                    throw DocumentationDateCodecError.unexpectedValue(value)
+                }
+                return InvoiceToken(rawValue: rawValue)
+            }
+        )
+        let applicationCodecDatabase = try GRDBDatabase(
+            url: contextualDirectory.appendingPathComponent("invoice-token.sqlite"),
+            codingConfiguration: try XLValueCodingConfiguration(
+                registry: XLValueCodecRegistry().registering(invoiceTokenCodec),
+                defaultCodecKeys: [invoiceTokenCodec.identity.key]
+            ),
+            logger: nil
+        )
+
+        let tokenParameter = try applicationCodecDatabase.contextualBinding(
+            InvoiceToken.self,
+            expressedAs: Int.self,
+            named: "token"
+        )
+        let tokenQuery = sql { _ in Select(tokenParameter) }
+        let tokenRequest = applicationCodecDatabase.makeRequest(with: tokenQuery)
+        let tokenBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: tokenRequest.parameterLayout,
+            bindings: [
+                try tokenParameter.encode(
+                    InvoiceToken(rawValue: 42),
+                    in: tokenRequest.parameterLayout
+                )
+            ]
+        ).validatingComplete()
+        XCTAssertEqual(try tokenRequest.fetchOne(bindings: tokenBindings), 42)
+
+        let uuidRegistry = try XLValueCodecRegistry()
+            .registering(XLUUIDValueCodec.text)
+            .registering(XLUUIDValueCodec.blob)
+        let uuidCoding = try XLValueCodingConfiguration(registry: uuidRegistry)
+        let uuidDatabaseURL = contextualDirectory
+            .appendingPathComponent("uuid-fixture.sqlite")
+        let uuidCodecDatabase = try GRDBDatabase(
+            url: uuidDatabaseURL,
+            codingConfiguration: uuidCoding,
+            logger: nil
+        )
+        let publicID = try uuidCodecDatabase.contextualBinding(
+            UUID.self,
+            expressedAs: String.self,
+            named: "publicID",
+            selection: XLValueCodecSelection(
+                explicitCodecKey: XLUUIDValueCodec.text.identity.key
+            )
+        )
+        let legacyBadgeID = try uuidCodecDatabase.contextualBinding(
+            UUID.self,
+            expressedAs: Data.self,
+            named: "legacyBadgeID",
+            selection: XLValueCodecSelection(
+                explicitCodecKey: XLUUIDValueCodec.blob.identity.key
+            )
+        )
+        let publicIDQuery = sql { _ in Select(publicID) }
+        let publicIDRequest = uuidCodecDatabase.makeRequest(with: publicIDQuery)
+        let sampleUUID = UUID(
+            uuidString: "E02F7C60-8C7F-4C68-8B62-6F0F1A2B3C4D"
+        )!
+        let publicIDBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: publicIDRequest.parameterLayout,
+            bindings: [
+                try publicID.encode(sampleUUID, in: publicIDRequest.parameterLayout)
+            ]
+        ).validatingComplete()
+        XCTAssertEqual(
+            try publicIDRequest.fetchOne(bindings: publicIDBindings),
+            "e02f7c60-8c7f-4c68-8b62-6f0f1a2b3c4d"
+        )
+        let legacyBadgeIDQuery = sql { _ in Select(legacyBadgeID) }
+        let legacyBadgeIDRequest = uuidCodecDatabase.makeRequest(with: legacyBadgeIDQuery)
+        let legacyBadgeIDBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: legacyBadgeIDRequest.parameterLayout,
+            bindings: [
+                try legacyBadgeID.encode(
+                    sampleUUID,
+                    in: legacyBadgeIDRequest.parameterLayout
+                )
+            ]
+        ).validatingComplete()
+        var expectedBadgeBytes = sampleUUID.uuid
+        let expectedBadgeData = withUnsafeBytes(of: &expectedBadgeBytes) { Data($0) }
+        XCTAssertEqual(
+            try legacyBadgeIDRequest.fetchOne(bindings: legacyBadgeIDBindings),
+            expectedBadgeData
+        )
+
+        enum InvoiceUUIDCodecError: Error {
+            case invalidText(String)
+        }
+
+        let invoiceUUIDCodec = XLValueCodec<UUID, XLSQLiteDialect>(
+            key: XLValueCodecKey(id: "com.example.invoice-uuid.urn", version: 1),
+            valueTypeIdentifier: XLValueTypeIdentifier(rawValue: "foundation.UUID"),
+            dialectIdentifier: XLSQLiteDialect.identity,
+            storageIdentifier: XLValueStorageIdentifier(
+                rawValue: XLSQLiteStorageClass.text.rawValue
+            ),
+            encode: { value, _, _ in
+                .text("urn:uuid:\(value.uuidString.lowercased())")
+            },
+            decode: { value, _, _ in
+                guard case .text(let text) = value,
+                      text.hasPrefix("urn:uuid:"),
+                      let uuid = UUID(uuidString: String(text.dropFirst("urn:uuid:".count))) else {
+                    throw InvoiceUUIDCodecError.invalidText("\(value)")
+                }
+                return uuid
+            }
+        )
+        let invoiceUUIDEncoded = try invoiceUUIDCodec.encode(
+            sampleUUID,
+            using: dialect,
+            context: parameterContext
+        )
+        XCTAssertEqual(
+            invoiceUUIDEncoded,
+            .text("urn:uuid:e02f7c60-8c7f-4c68-8b62-6f0f1a2b3c4d")
+        )
+        XCTAssertEqual(
+            try invoiceUUIDCodec.decode(
+                invoiceUUIDEncoded,
+                using: dialect,
+                context: resultContext
+            ),
+            sampleUUID
+        )
+
         try testExample_Date()
         try testExample_DateConstant()
         try testExample_DateParameter()
