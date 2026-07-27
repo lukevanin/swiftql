@@ -2577,4 +2577,201 @@ extension XLDocumentationTests {
         let _: (XLQueryRenderOnceCacheTests) -> () throws -> Void =
             XLQueryRenderOnceCacheTests.testCachedExecutorServesDifferentArgumentsWithStablePlaceholderSQL
     }
+
+    func testDocumentationNumericDateCodecs() throws {
+        let numericDialect = XLSQLiteDialect()
+        let numericDateContext = XLValueCodingContext(
+            site: .parameter,
+            path: XLValueCodingPath("event.loggedAt")
+        )
+        let numericDateRegistry = try XLValueCodecRegistry()
+            .registeringSQLiteNumericDateCodecs()
+        let numericDateCoding = try XLValueCodingConfiguration(
+            registry: numericDateRegistry
+        )
+
+        XCTAssertThrowsError(
+            try numericDateCoding.encode(
+                Date(timeIntervalSince1970: 0),
+                using: numericDialect,
+                context: numericDateContext
+            )
+        ) { error in
+            guard case .ambiguousCodec(_, _, _, _)? = error as? XLValueCodecError else {
+                return XCTFail("Expected an ambiguous-codec error, received \(error).")
+            }
+        }
+
+        let loggedAt = Date(timeIntervalSince1970: 1_700_000_000.25)
+        XCTAssertEqual(
+            try numericDateCoding.encode(
+                loggedAt,
+                using: numericDialect,
+                context: numericDateContext,
+                selection: XLValueCodecSelection(
+                    explicitCodecKey: XLSQLiteNumericDateCodec.UnixMilliseconds.key
+                )
+            ),
+            .integer(1_700_000_000_250)
+        )
+        XCTAssertEqual(
+            try numericDateCoding.encode(
+                loggedAt,
+                using: numericDialect,
+                context: numericDateContext,
+                selection: XLValueCodecSelection(
+                    explicitCodecKey: XLSQLiteNumericDateCodec.UnixSeconds.key
+                )
+            ),
+            .real(1_700_000_000.25)
+        )
+        XCTAssertEqual(
+            try numericDateCoding.encode(
+                loggedAt,
+                using: numericDialect,
+                context: numericDateContext,
+                selection: XLValueCodecSelection(
+                    explicitCodecKey: XLSQLiteNumericDateCodec.JulianDay.key
+                )
+            ),
+            .real(1_700_000_000.25 / 86_400 + 2_440_587.5)
+        )
+
+        let secondsOnlyRegistry = try XLValueCodecRegistry()
+            .registering(XLSQLiteNumericDateCodec.UnixSeconds.codec)
+        let secondsOnlyCoding = try XLValueCodingConfiguration(
+            registry: secondsOnlyRegistry,
+            defaultCodecKeys: [XLSQLiteNumericDateCodec.UnixSeconds.key]
+        )
+        let defaultEncodedSeconds = try secondsOnlyCoding.encode(
+            loggedAt,
+            using: numericDialect,
+            context: numericDateContext
+        )
+        XCTAssertEqual(defaultEncodedSeconds, .real(1_700_000_000.25))
+
+        XCTAssertThrowsError(
+            try numericDateCoding.encode(
+                Date(timeIntervalSince1970: .nan),
+                using: numericDialect,
+                context: numericDateContext,
+                selection: XLValueCodecSelection(
+                    explicitCodecKey: XLSQLiteNumericDateCodec.UnixSeconds.key
+                )
+            )
+        ) { error in
+            guard case .encodingFailed(_, _, _)? = error as? XLValueCodecError else {
+                return XCTFail("Expected an encoding-failed error, received \(error).")
+            }
+        }
+
+        let numericDateDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swiftql-numeric-date-docs-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: numericDateDirectory,
+            withIntermediateDirectories: false
+        )
+        defer { try? FileManager.default.removeItem(at: numericDateDirectory) }
+
+        let numericDateDatabase = try GRDBDatabase(
+            url: numericDateDirectory.appendingPathComponent("fixture.sqlite"),
+            codingConfiguration: numericDateCoding,
+            logger: nil
+        )
+
+        // A round trip through real SQLite for one preset, mirroring the
+        // `cutoffDate` example in <doc:CustomTypes>.
+        let loggedAtSeconds = try numericDateDatabase.contextualBinding(
+            Date.self,
+            expressedAs: Double.self,
+            named: "loggedAtSeconds",
+            selection: XLValueCodecSelection(
+                explicitCodecKey: XLSQLiteNumericDateCodec.UnixSeconds.key
+            )
+        )
+        let loggedAtQuery = sql { _ in Select(loggedAtSeconds) }
+        let loggedAtRequest = numericDateDatabase.makeRequest(with: loggedAtQuery)
+        let loggedAtBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: loggedAtRequest.parameterLayout,
+            bindings: [
+                try loggedAtSeconds.encode(loggedAt, in: loggedAtRequest.parameterLayout)
+            ]
+        ).validatingComplete()
+        XCTAssertEqual(
+            try loggedAtRequest.fetchOne(bindings: loggedAtBindings),
+            1_700_000_000.25
+        )
+
+        // Two presets coexist in one database: independent parameters,
+        // independent codec metadata.
+        let createdAtMilliseconds = try numericDateDatabase.contextualBinding(
+            Date.self,
+            expressedAs: Int.self,
+            named: "createdAtMilliseconds",
+            selection: XLValueCodecSelection(
+                explicitCodecKey: XLSQLiteNumericDateCodec.UnixMilliseconds.key
+            )
+        )
+        let updatedAtJulianDay = try numericDateDatabase.contextualBinding(
+            Date.self,
+            expressedAs: Double.self,
+            named: "updatedAtJulianDay",
+            selection: XLValueCodecSelection(
+                explicitCodecKey: XLSQLiteNumericDateCodec.JulianDay.key
+            )
+        )
+        let createdAtQuery = sql { _ in Select(createdAtMilliseconds) }
+        let createdAtRequest = numericDateDatabase.makeRequest(with: createdAtQuery)
+        let createdAtBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: createdAtRequest.parameterLayout,
+            bindings: [
+                try createdAtMilliseconds.encode(loggedAt, in: createdAtRequest.parameterLayout)
+            ]
+        ).validatingComplete()
+        XCTAssertEqual(
+            try createdAtRequest.fetchOne(bindings: createdAtBindings),
+            1_700_000_000_250
+        )
+
+        let updatedAtQuery = sql { _ in Select(updatedAtJulianDay) }
+        let updatedAtRequest = numericDateDatabase.makeRequest(with: updatedAtQuery)
+        let updatedAtBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: updatedAtRequest.parameterLayout,
+            bindings: [
+                try updatedAtJulianDay.encode(loggedAt, in: updatedAtRequest.parameterLayout)
+            ]
+        ).validatingComplete()
+        let updatedAtResult = try XCTUnwrap(
+            try updatedAtRequest.fetchOne(bindings: updatedAtBindings)
+        )
+        XCTAssertEqual(updatedAtResult, 1_700_000_000.25 / 86_400 + 2_440_587.5, accuracy: 1e-6)
+
+        // SQLite date/time-function interoperability: a bare REAL julian-day
+        // value needs no modifier, while unix-seconds and unix-milliseconds
+        // values need an explicit 'unixepoch' modifier (and, for
+        // milliseconds, a conversion to seconds first).
+        let interoperabilityRow = try numericDateDatabase.databasePool.read { db in
+            try Row.fetchOne(
+                db,
+                sql: """
+                    SELECT
+                        datetime(?),
+                        datetime(?, 'unixepoch'),
+                        datetime(? / 1000.0, 'unixepoch')
+                    """,
+                arguments: [
+                    1_700_000_000.25 / 86_400 + 2_440_587.5,
+                    1_700_000_000.25,
+                    1_700_000_000_250,
+                ]
+            )
+        }
+        let interoperabilityRowValue = try XCTUnwrap(interoperabilityRow)
+        let interoperabilityDates: [String] = [
+            interoperabilityRowValue[0],
+            interoperabilityRowValue[1],
+            interoperabilityRowValue[2],
+        ]
+        XCTAssertEqual(interoperabilityDates, Array(repeating: "2023-11-14 22:13:20", count: 3))
+    }
 }

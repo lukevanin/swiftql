@@ -141,4 +141,5 @@ replacing SQLite's runtime type rules.
 - <doc:Enums>
 - <doc:CustomFunctions>
 - <doc:CustomTypes>
+- <doc:NumericDateCodecs>
 - <doc:GenericTableParameters>
