@@ -206,5 +206,5 @@ downstream consumer fixture that proves the macros work from another package,
 a reproducible benchmark executable, and warnings-as-errors across every
 supported compiler.
 
-**Affects existing code?** The nonoptional `min`, `max`, `sum`, `average`, and
+**Affects existing code?** The non-optional `min`, `max`, `sum`, `average`, and
 `groupConcat` APIs are deprecated but retained for all of 1.x.

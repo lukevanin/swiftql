@@ -6,8 +6,8 @@ Learn how to define a table and perform basic SQLite operations with SwiftQL.
 
 This guide introduces SwiftQL's essential database operations: creating a
 table, inserting rows, selecting data, binding values, updating rows, and
-deleting rows. Read it start to finish once, then come back to it as a quick
-reference.
+deleting rows. Read it from start to finish once, then come back to it as a
+quick reference.
 
 It stays on the everyday path on purpose. Connection ownership, statement
 preparation, row lifetime, and the exact transaction rules are covered
