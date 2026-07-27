@@ -321,7 +321,7 @@ final class SQLiteNumericDateCodecContractTests: XCTestCase {
 
     // MARK: - Storage-class coercion
 
-    func testDecodingTheWrongStorageClassFailsBeforeThePresetSDecodeClosureRuns() {
+    func testDecodingTheWrongStorageClassFailsBeforeThePresetsDecodeClosureRuns() {
         assertCodecError(
             try XLSQLiteNumericDateCodec.UnixMilliseconds.codec.decode(
                 .real(1234),

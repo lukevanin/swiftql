@@ -18,10 +18,10 @@ public enum XLSQLiteNumericDateCodecError: Error, Equatable, Sendable, Localized
     /// never truncates or wraps a value that does not fit.
     case millisecondsOutOfRange(preset: String, timeIntervalSince1970: Double)
 
-    /// A stored `REAL` value was NaN or infinite when decoding. SQLite binds
-    /// normalize a NaN parameter to SQL `NULL`, but a computed SQL expression
-    /// (for example, an overflowing multiplication) can still produce a
-    /// stored non-finite `REAL`.
+    /// A stored `REAL` value was NaN or infinite when decoding. SQLite
+    /// bindings normalize a NaN parameter to SQL `NULL`, but a computed SQL
+    /// expression (for example, an overflowing multiplication) can still
+    /// produce a stored non-finite `REAL`.
     case nonFiniteStoredValue(preset: String, value: XLNonFiniteRealValue)
 
     public var errorDescription: String? {
@@ -136,10 +136,11 @@ public enum XLSQLiteNumericDateCodec {
                 guard case .integer(let milliseconds) = value else {
                     // Unreachable: `XLValueCodec.decode` already validated the
                     // storage class matches `storageIdentifier` before this
-                    // closure runs.
-                    throw XLSQLiteNumericDateCodecError.nonFiniteStoredValue(
-                        preset: key.id,
-                        value: .notANumber
+                    // closure runs. A domain error here would misrepresent
+                    // what actually happened, so fail loudly on the broken
+                    // invariant instead.
+                    preconditionFailure(
+                        "\(key) decode received a non-integer value after storage validation."
                     )
                 }
                 return Date(timeIntervalSince1970: TimeInterval(milliseconds) / 1000)
@@ -207,10 +208,11 @@ public enum XLSQLiteNumericDateCodec {
             decode: { value, _, _ in
                 guard case .real(let seconds) = value else {
                     // Unreachable: storage class is validated before this
-                    // closure runs.
-                    throw XLSQLiteNumericDateCodecError.nonFiniteStoredValue(
-                        preset: key.id,
-                        value: .notANumber
+                    // closure runs. A domain error here would misrepresent
+                    // what actually happened, so fail loudly on the broken
+                    // invariant instead.
+                    preconditionFailure(
+                        "\(key) decode received a non-real value after storage validation."
                     )
                 }
                 if let nonFinite = XLNonFiniteRealValue(seconds) {
@@ -298,10 +300,11 @@ public enum XLSQLiteNumericDateCodec {
             decode: { value, _, _ in
                 guard case .real(let julianDay) = value else {
                     // Unreachable: storage class is validated before this
-                    // closure runs.
-                    throw XLSQLiteNumericDateCodecError.nonFiniteStoredValue(
-                        preset: key.id,
-                        value: .notANumber
+                    // closure runs. A domain error here would misrepresent
+                    // what actually happened, so fail loudly on the broken
+                    // invariant instead.
+                    preconditionFailure(
+                        "\(key) decode received a non-real value after storage validation."
                     )
                 }
                 if let nonFinite = XLNonFiniteRealValue(julianDay) {
