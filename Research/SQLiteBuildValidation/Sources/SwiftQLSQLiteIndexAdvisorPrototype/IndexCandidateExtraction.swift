@@ -130,7 +130,8 @@ package enum IndexCandidateExtraction {
         for alias in ambiguousAliases {
             bindings.removeValue(forKey: alias)
         }
-        for (alias, table) in bindings where cteNames.contains(table) {
+        let cteAliases = bindings.filter { cteNames.contains($0.value) }.map(\.key)
+        for alias in cteAliases {
             bindings.removeValue(forKey: alias)
         }
         return bindings
