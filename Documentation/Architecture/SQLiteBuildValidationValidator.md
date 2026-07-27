@@ -31,6 +31,33 @@ containing `failed`/`unsupported`; `2` for anything that prevented producing
 a report at all (bad arguments, unreadable manifest, I/O failure) — errors go
 to stderr alongside the usage string.
 
+## Quick start
+
+Given a [#292 manifest](SQLiteBuildValidationManifest.md) and the checked-in
+SQLite snapshot it describes, running the validator produces a canonical JSON
+report and exits `0`:
+
+![swiftql-build-validate running against a valid manifest, exiting 0 with overall_verdict passed](Assets/sqlite-build-validate-cli-pass.png)
+
+If a query no longer matches the snapshot — a dropped table, a renamed
+column, a missing capability — the run exits `1` and prints the offending
+query's diagnostic to stderr so the failure is actionable without opening the
+JSON report at all:
+
+```
+$ swiftql-build-validate --database northwind.sqlite --manifest manifest.json --output report.json
+swiftql-build-validate: overall verdict failed
+  plugin-fixture.missing-table: [failed] prepare.sqlite.prepare.failed: no such table: totally_missing_table
+```
+
+Every diagnostic line names a verdict and a `stage.code` pair; per-query
+diagnostics (like the one above) are also prefixed with the failing
+`queryID`, so a broken query can be traced straight back to the manifest
+entry that declared it. Report-level diagnostics — not tied to any single
+query — are printed the same way but without a `queryID` prefix. See
+[the plugin doc](SQLiteBuildValidationPlugin.md#quick-start) for the same
+two outcomes surfacing as an ordinary `swift build` pass/fail.
+
 ## What it proves, and what it doesn't
 
 Owns one dedicated read-only, query-only `DatabaseQueue` for the entire run
