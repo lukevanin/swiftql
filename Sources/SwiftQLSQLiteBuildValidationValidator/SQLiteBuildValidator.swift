@@ -176,15 +176,61 @@ public enum SQLiteBuildValidator {
                     message: "Observed schema FNV-1a-64 is \(runtimeMetadata.schemaFNV1A64); the manifest's schema snapshot declares \(validatedManifest.schemaSnapshot.schemaFingerprint)."
                 ))
             }
+        } else {
+            // Capture failed above (`runtime.capture`), so these two checks
+            // never ran — report them explicitly rather than letting them
+            // vanish from the diagnostic set.
+            reportDiagnostics.append(SQLiteBuildValidationDiagnostic(
+                verdict: .unsupported,
+                stage: .schema,
+                code: "schema.row-count",
+                message: "Schema row count could not be checked because SQLite runtime metadata capture failed."
+            ))
+            reportDiagnostics.append(SQLiteBuildValidationDiagnostic(
+                verdict: .unsupported,
+                stage: .schema,
+                code: "schema.fingerprint",
+                message: "Schema fingerprint could not be checked because SQLite runtime metadata capture failed."
+            ))
         }
 
-        let outcomes = validatedManifest.queries.map { query in
-            validate(
-                query: query,
-                in: database,
-                runtimeMetadata: runtimeMetadata,
-                environment: environment
-            )
+        // A schema identity mismatch already fails the report outright
+        // (`SQLiteBuildValidationReport.overallVerdict`), independent of
+        // per-query outcomes. Once one is recorded, running every query
+        // against a snapshot already known not to match the manifest is
+        // pointless — skip preparation and emit one deterministic
+        // `unsupported` outcome per manifest entry instead, so callers can
+        // still see which queries were skipped.
+        let hasSchemaIdentityMismatch = reportDiagnostics.contains {
+            $0.stage == .schema && $0.verdict == .failed
+        }
+        let outcomes: [SQLiteBuildValidationQueryOutcome]
+        if hasSchemaIdentityMismatch {
+            outcomes = validatedManifest.queries.map { query in
+                SQLiteBuildValidationQueryOutcome(
+                    query: query,
+                    placeholderAnalysis: SQLiteBuildValidationValidatorPlaceholderScanner.scan(query.sql),
+                    preparedShape: nil,
+                    diagnostics: [
+                        SQLiteBuildValidationDiagnostic(
+                            verdict: .unsupported,
+                            stage: .schema,
+                            code: "schema.mismatch-skipped",
+                            message: "Query validation was skipped because the database snapshot's schema identity does not match the manifest.",
+                            query: query
+                        ),
+                    ]
+                )
+            }
+        } else {
+            outcomes = validatedManifest.queries.map { query in
+                validate(
+                    query: query,
+                    in: database,
+                    runtimeMetadata: runtimeMetadata,
+                    environment: environment
+                )
+            }
         }
         return SQLiteBuildValidationReport(
             manifest: validatedManifest,
