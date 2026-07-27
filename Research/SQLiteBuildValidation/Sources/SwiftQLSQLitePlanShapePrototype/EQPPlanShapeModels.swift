@@ -1,5 +1,4 @@
 import Foundation
-import SwiftQLSQLiteEQPVariancePrototype
 
 
 /// A named EQP plan-node shape. Deliberately more granular than the seven

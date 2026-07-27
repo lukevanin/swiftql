@@ -9,22 +9,54 @@ final class EQPPlanShapeClassifierTests: XCTestCase {
     /// The strongest evidence this classifier can offer: every one of the
     /// 214 real statements' EQP rows, captured from a real SQLite build
     /// against the pinned Northwind snapshot, classifies to a named shape —
-    /// not one falls through to `.unclassified`.
+    /// not one falls through to `.unclassified`. Checked against both real
+    /// builds, not just one: the two builds render materially different
+    /// text for the same statements (#390 Finding 2), so a regression that
+    /// only breaks classification of the newer `MERGE (...)`-style wording
+    /// would otherwise slip through unnoticed.
     func testEveryRealCaptureRowClassifiesWithoutFallingBackToUnclassified() throws {
-        let run = try loadCapture("capture_apple-system-3.51.0.json")
-        var unclassifiedDetails: [String] = []
+        for captureFile in ["capture_apple-system-3.51.0.json", "capture_homebrew-3.53.2.json"] {
+            let run = try loadCapture(captureFile)
+            var unclassifiedDetails: [String] = []
 
-        for statement in run.statements {
-            let plan = EQPPlanShapeClassifier.classify(rows: statement.rows, statementID: statement.statementID)
-            for root in plan.roots {
-                collectUnclassified(root, into: &unclassifiedDetails)
+            for statement in run.statements {
+                let plan = EQPPlanShapeClassifier.classify(rows: statement.rows, statementID: statement.statementID)
+                for root in plan.roots {
+                    collectUnclassified(root, into: &unclassifiedDetails)
+                }
             }
-        }
 
-        XCTAssertTrue(
-            unclassifiedDetails.isEmpty,
-            "unexpected unclassified detail(s): \(unclassifiedDetails)"
-        )
+            XCTAssertTrue(
+                unclassifiedDetails.isEmpty,
+                "\(captureFile): unexpected unclassified detail(s): \(unclassifiedDetails)"
+            )
+        }
+    }
+
+    /// Guards the checked-in `plans_*.json` evidence against silent drift:
+    /// re-classifying each checked-in capture must still produce exactly the
+    /// checked-in plan output. This has no version-skew caveat (unlike
+    /// #390's equivalent check) because classification only ever reads the
+    /// rows already captured in these files — it never opens a database
+    /// connection, so it is not sensitive to which SQLite build this test
+    /// happens to run on.
+    func testCheckedInPlanEvidenceMatchesFreshClassification() throws {
+        let pairs = [
+            ("capture_apple-system-3.51.0.json", "plans_apple-system-3.51.0.json"),
+            ("capture_homebrew-3.53.2.json", "plans_homebrew-3.53.2.json"),
+        ]
+        for (captureFile, plansFile) in pairs {
+            let run = try loadCapture(captureFile)
+            let freshPlans = run.statements
+                .map { EQPPlanShapeClassifier.classify(rows: $0.rows, statementID: $0.statementID) }
+                .sorted { $0.statementID < $1.statementID }
+
+            let plansURL = try pinnedEvidenceURL(named: plansFile)
+            let pinnedPlans = try JSONDecoder().decode([EQPPlan].self, from: Data(contentsOf: plansURL))
+                .sorted { $0.statementID < $1.statementID }
+
+            XCTAssertEqual(freshPlans, pinnedPlans, "\(plansFile) is stale relative to \(captureFile)")
+        }
     }
 
     func testClassificationIsDeterministicAcrossRepeatedRuns() throws {
@@ -194,10 +226,16 @@ private func allShapes(in plan: EQPPlan) -> [EQPPlanShapeKind] {
 
 
 func loadCapture(_ name: String) throws -> EQPCaptureRun {
+    let url = try pinnedEvidenceURL(named: name)
+    return try JSONDecoder().decode(EQPCaptureRun.self, from: Data(contentsOf: url))
+}
+
+
+func pinnedEvidenceURL(named name: String) throws -> URL {
     guard let url = Bundle.module.url(forResource: name, withExtension: nil, subdirectory: "Evidence") else {
         throw EQPPlanShapeFixtureError.missingResource(name)
     }
-    return try JSONDecoder().decode(EQPCaptureRun.self, from: Data(contentsOf: url))
+    return url
 }
 
 
