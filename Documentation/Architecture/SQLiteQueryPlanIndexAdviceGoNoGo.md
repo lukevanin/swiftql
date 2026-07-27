@@ -13,7 +13,7 @@ from this issue. The three prototype PRs it synthesizes are
 [#422](https://github.com/lukevanin/swiftql/pull/422) (issue #391), and
 [#427](https://github.com/lukevanin/swiftql/pull/427) (issue #392).
 
-## Verdict: **GO**, with three scoped corrections to the v1.8 issues
+## Verdict: **GO**, with two scoped corrections to the v1.8 issues
 
 Advisory query-plan analysis and index advice are worth building in v1.8.
 All three legs of the spike produced real, reproducible evidence on the
@@ -29,10 +29,11 @@ pinned Northwind snapshot, not merely a plausible design:
   structurally — without a single special case (#392).
 
 The GO is **scoped**, not unconditional: §"Confirmed and revised v1.8
-issues" below corrects one real discrepancy the spike surfaced (issue #396's
-assumed candidate-column precedence) and adds an evidence-backed caveat to
-two others (issues #394, #395). Nothing in the milestone is closed — see
-[Hard constraint check](#hard-constraint-check).
+issues" below corrects one real discrepancy the spike found and then
+settled with a real fixture (issue #396's candidate-column precedence —
+see [the finding](SQLiteIndexAdvisor.md#finding-join-keys-must-precede-range-columns))
+and adds an evidence-backed caveat to one more (issue #395). Nothing in the
+milestone is closed — see [Hard constraint check](#hard-constraint-check).
 
 **Build-host plans are not device plans.** Every measurement in this spike
 ran on this delivery's build host and one additional local SQLite install.
@@ -88,6 +89,16 @@ coverage, not for having many indexable hot paths — the meaningful result is
 not the yield, it's that **every rejection was structural, not asserted**.
 No case required a hand-written exception.
 
+A follow-up fixture (a `Categories LEFT JOIN Products` statement with both a
+join key and a range predicate on the looked-up table, deliberately built
+to test the case the real corpus never contained) additionally **confirmed
+the candidate-column precedence rule and found a real bug in it**: a
+candidate index with the join key before the range column is the one
+SQLite actually adopts; the reverse order is silently ignored. Fixing this
+also required accepting SQLite's own `automatic_covering_index` shape, not
+only `full_table_scan`, as a remediable "before" state. See
+[the finding](SQLiteIndexAdvisor.md#finding-join-keys-must-precede-range-columns).
+
 Full detail: [`SQLiteIndexAdvisor.md`](SQLiteIndexAdvisor.md).
 
 ## Decided design questions
@@ -104,11 +115,11 @@ scaffold left open is settled here:
    this directly rather than "where the spike decides.")
 2. **What is the improvement rule for keeping a candidate?** The rule
    #392 stated and applied uniformly: kept only when the target alias's
-   plan node changes from `full_table_scan` to `index_search` or
-   `covering_index_scan` *and* the after-plan reports at least one
-   constrained column. No cost estimate — the pinned snapshot is
-   deliberately unanalyzed (see decision 4). This is the "rule version" #397
-   asks to record in its report.
+   plan node changes from `full_table_scan` **or `automatic_covering_index`**
+   to `index_search` or `covering_index_scan` *and* the after-plan reports
+   at least one constrained column. No cost estimate — the pinned snapshot
+   is deliberately unanalyzed (see decision 4). This is the "rule version"
+   #397 asks to record in its report.
 3. **How are unclassified shapes surfaced?** Never coerced into a named
    shape. `EQPPlanShapeKind.unclassified`, with the raw `detail` string
    always retained, so a misclassification is auditable rather than silent.
@@ -133,7 +144,7 @@ was wrong."
 |---|---|---|
 | #394 — Capture normalised plans in build validation | **Confirmed**, body updated | Directly matches #390/#391's proven pipeline. Updated to state the sidecar decision explicitly (design question 1) instead of leaving it open. Still blocked on #292/#293 (v1.5.2 build validator), independent of this spike. |
 | #395 — Emit advisory shape diagnostics | **Confirmed**, caveat added | Full table scan, temp B-tree (`ORDER BY`/`GROUP BY`) are backed by real, cross-build-stable evidence (#390/#391). **Correlated scalar subquery is not** — the real corpus contains zero correlated scalar subqueries; #391's classifier distinguishes it from a plain scalar subquery by a parent-shape heuristic validated only against one synthetic fixture. Issue body updated to require a real correlated-subquery fixture (extending the Northwind anchor corpus) as part of this issue's own Done-When, not assumed proven. |
-| #396 — Generate index candidates from static descriptors | **Revised**: precedence question reopened | The issue's provisional body assumed equality → **join** → range → order-by. #392's validated implementation used equality → **range** → join → order-by, and matches the one real improvement found. Neither ordering was validated against a real inner-joined table with *both* a range predicate and a join key competing for the second index column — #392's corpus didn't contain that shape. Issue body updated to require settling this empirically (build both orderings, re-plan, keep the one SQLite actually prefers) rather than assuming either. Every other requirement (dedup, prefix-collapse, decline-on-unclassified, deterministic ordering) is confirmed by #392's implementation and tests. |
+| #396 — Generate index candidates from static descriptors | **Revised**: precedence question settled with a real fixture | The issue's provisional body assumed equality → **join** → range → order-by. #392's originally-validated implementation instead used equality → **range** → join → order-by, matching the one real corpus improvement found — but that statement never exercised a join key competing with a range column, so the ordering wasn't actually proven. A follow-up fixture (`Categories LEFT JOIN Products` with both a join key and a range predicate on the looked-up table) settled it with a real scratch-copy re-plan: the join key **must** precede the range column — `Products(CategoryID, UnitPrice)` is the index SQLite adopts, `Products(UnitPrice, CategoryID)` is silently ignored. `IndexCandidateGenerator.candidateColumns` is corrected to equality-and-join-merged → range → order-by, and the improvement rule now also accepts `automatic_covering_index` as a remediable "before" shape (this fixture's baseline, not a full scan). Issue body updated to state the settled rule directly. Every other requirement (dedup, prefix-collapse, decline-on-unclassified, deterministic ordering) is confirmed by #392's implementation and tests. |
 | #397 — Verify candidates by re-planning on a scratch copy | **Confirmed as-is** | This is, almost line for line, what #392 built and evidenced: scratch-copy-per-run, same classifier, explicit improvement rule with a recorded version, reject-with-reason, digest-verified cleanup on every path. The one requirement #392 did not address — "note the interaction between a candidate and the write cost it implies" — remains open for #397's implementation; the spike was read-plan-only. |
 | #398 — Surface advice through the SwiftPM build plugin | **Confirmed as-is** | Out of scope for all three spike PRs by design (no build-plugin changes). A downstream consumer of #394/#395/#397's artifacts; nothing in the spike bears on its own requirements. |
 | #399 — `swiftql-index-advisor` codemod | **Confirmed as-is** | Same as #398: downstream consumer, untouched by spike evidence. The fixit-unreachability rationale in its body stands (SwiftPM build-tool plugins cannot emit fixits; a macro cannot open a database). |
