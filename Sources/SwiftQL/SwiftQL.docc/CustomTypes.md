@@ -347,6 +347,252 @@ way an explicit `XLValueCodecSelection` fails elsewhere in this
 document -- with the same `XLValueCodecError` cases, at the same "explicit"
 precedence tier, before any row is touched.
 
+## JSON `Codable` columns
+
+SQLite has no native JSON column type. It stores JSON as `TEXT` or `BLOB`
+bytes, and SwiftQL does not drive SQLite's `json1` functions, validate JSON,
+or create generated/indexed columns on the caller's behalf: those remain the
+application's or a future issue's responsibility. `XLJSONValueCodec` is a
+factory, built on the same contextual codec API described above, that
+converts an application `Codable` value to and from one of those two storage
+representations. It stores no `JSONEncoder`/`JSONDecoder` instance globally
+or between calls; `XLJSONCodecConfiguration` snapshots the relevant
+`Sendable` strategies once, and every encode or decode builds a fresh encoder
+or decoder from that snapshot.
+
+The example below defines a nested `Codable` value with a struct, an array,
+an optional, and an enum field, then registers two `XLJSONValueCodec`
+codecs for it: one storing canonical, sorted-key `TEXT`, the other storing
+the same JSON bytes as `BLOB`. `TEXT` and `BLOB` are different storage
+classes with different stable identities; selecting the wrong one for a
+stored column fails with `XLValueCodecError.storageMismatch` rather than
+silently reinterpreting bytes.
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+struct ContactAddress: Codable, Equatable {
+    var street: String
+    var city: String
+}
+
+enum ContactMethod: Codable, Equatable {
+    case email(String)
+    case phone(String)
+}
+
+struct CustomerProfile: Codable, Equatable {
+    var name: String
+    var tags: [String]
+    var address: ContactAddress?
+    var contact: ContactMethod
+    var loyaltyPoints: Int
+
+    enum CodingKeys: String, CodingKey {
+        case name, tags, address, contact, loyaltyPoints
+    }
+
+    init(
+        name: String,
+        tags: [String],
+        address: ContactAddress?,
+        contact: ContactMethod,
+        loyaltyPoints: Int = 0
+    ) {
+        self.name = name
+        self.tags = tags
+        self.address = address
+        self.contact = contact
+        self.loyaltyPoints = loyaltyPoints
+    }
+
+    // Schema evolution: `loyaltyPoints` was added after JSON rows already
+    // existed. Older stored JSON that omits the key still decodes, using an
+    // explicit application default instead of failing.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        tags = try container.decode([String].self, forKey: .tags)
+        address = try container.decodeIfPresent(ContactAddress.self, forKey: .address)
+        contact = try container.decode(ContactMethod.self, forKey: .contact)
+        loyaltyPoints = try container.decodeIfPresent(Int.self, forKey: .loyaltyPoints) ?? 0
+    }
+}
+
+let profileType = XLValueTypeIdentifier(rawValue: "com.example.customer-profile")
+let profileTextKey = XLValueCodecKey(id: "com.example.customer-profile.text", version: 1)
+let profileBlobKey = XLValueCodecKey(id: "com.example.customer-profile.blob", version: 1)
+
+let profileTextCodec = XLJSONValueCodec.text(
+    key: profileTextKey,
+    valueTypeIdentifier: profileType
+) as XLValueCodec<CustomerProfile, XLSQLiteDialect>
+let profileBlobCodec = XLJSONValueCodec.blob(
+    key: profileBlobKey,
+    valueTypeIdentifier: profileType
+) as XLValueCodec<CustomerProfile, XLSQLiteDialect>
+
+let profileRegistry = try XLValueCodecRegistry()
+    .registering(profileTextCodec)
+    .registering(profileBlobCodec)
+let profileCoding = try XLValueCodingConfiguration(
+    registry: profileRegistry,
+    defaultCodecKeys: [profileTextKey]
+)
+```
+
+Both codecs handle only the nonoptional `CustomerProfile`. Optionality is not
+reinvented here: `encodeOptional`/`decodeOptional` on the resolved codec or
+coding configuration compose with either storage exactly as they do for the
+`Date` codecs above, mapping Swift `nil` directly to SQL `NULL` without
+calling `JSONEncoder`.
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+let profile = CustomerProfile(
+    name: "Ada Lovelace",
+    tags: ["engineer", "mathematician"],
+    address: ContactAddress(street: "12 Analytical Ave", city: "London"),
+    contact: .email("ada@example.com"),
+    loyaltyPoints: 42
+)
+let profileParameterContext = XLValueCodingContext(
+    site: .parameter,
+    path: XLValueCodingPath("customer.profile")
+)
+
+let textValue = try profileCoding.encode(
+    profile,
+    using: dialect,
+    context: profileParameterContext,
+    selection: XLValueCodecSelection(explicitCodecKey: profileTextKey)
+)
+let blobValue = try profileCoding.encode(
+    profile,
+    using: dialect,
+    context: profileParameterContext,
+    selection: XLValueCodecSelection(explicitCodecKey: profileBlobKey)
+)
+
+let decodedFromText = try profileCoding.decode(
+    CustomerProfile.self,
+    from: textValue,
+    using: dialect,
+    context: resultContext,
+    selection: XLValueCodecSelection(explicitCodecKey: profileTextKey)
+)
+let decodedFromBlob = try profileCoding.decode(
+    CustomerProfile.self,
+    from: blobValue,
+    using: dialect,
+    context: resultContext,
+    selection: XLValueCodecSelection(explicitCodecKey: profileBlobKey)
+)
+```
+
+Malformed or incompatible stored bytes fail with a structured, catchable
+error instead of silently producing a default value. The underlying
+`EncodingError`/`DecodingError` text is preserved inside the wrapped
+`XLValueCodecError.decodingFailed`/`.encodingFailed` message, alongside the
+codec key and coding context that produced it:
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+do {
+    _ = try profileCoding.decode(
+        CustomerProfile.self,
+        from: .text("{this is not valid json"),
+        using: dialect,
+        context: resultContext,
+        selection: XLValueCodecSelection(explicitCodecKey: profileTextKey)
+    )
+    preconditionFailure("Expected a structured decoding failure.")
+}
+catch let XLValueCodecError.decodingFailed(codec, _, message) {
+    precondition(codec == profileTextKey)
+    precondition(message.contains("JSON decoding"))
+}
+```
+
+Two configurations of the same `Codable` type coexist without a wrapper
+struct: register a second codec with a different key and JSON key strategy,
+then select each explicitly. Here `JSONMetric` has no explicit `CodingKeys`,
+so `.convertToSnakeCase` changes the persisted field names without changing
+the Swift type:
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+struct JSONMetric: Codable, Equatable {
+    let sampleCount: Int
+    let averageValue: Double
+}
+
+let metricType = XLValueTypeIdentifier(rawValue: "com.example.json-metric")
+let metricDefaultKeysKey = XLValueCodecKey(id: "com.example.json-metric.default-keys", version: 1)
+let metricSnakeCaseKey = XLValueCodecKey(id: "com.example.json-metric.snake-case", version: 1)
+
+let metricDefaultKeysCodec = XLJSONValueCodec.text(
+    key: metricDefaultKeysKey,
+    valueTypeIdentifier: metricType
+) as XLValueCodec<JSONMetric, XLSQLiteDialect>
+let metricSnakeCaseCodec = XLJSONValueCodec.text(
+    key: metricSnakeCaseKey,
+    valueTypeIdentifier: metricType,
+    configuration: XLJSONCodecConfiguration(
+        keyEncodingStrategy: .convertToSnakeCase,
+        keyDecodingStrategy: .convertFromSnakeCase
+    )
+) as XLValueCodec<JSONMetric, XLSQLiteDialect>
+
+let metricRegistry = try XLValueCodecRegistry()
+    .registering(metricDefaultKeysCodec)
+    .registering(metricSnakeCaseCodec)
+let metricCoding = try XLValueCodingConfiguration(registry: metricRegistry)
+```
+
+Storing both representations through a real database uses the same
+`contextualBinding` API shown for `Date` above. `expressedAs: String.self`
+requires `TEXT` storage; `expressedAs: Data.self` requires `BLOB` storage.
+SwiftQL rejects a mismatch between the chosen literal and the resolved
+codec's storage when the contextual reference is created, before any SQL
+runs:
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+let jsonCodecDatabase = try GRDBDatabase(
+    url: databaseURL,
+    codingConfiguration: profileCoding,
+    logger: nil
+)
+let profileTextParameter = try jsonCodecDatabase.contextualBinding(
+    CustomerProfile.self,
+    expressedAs: String.self,
+    named: "profileText",
+    selection: XLValueCodecSelection(explicitCodecKey: profileTextKey)
+)
+let profileTextQuery = sql { _ in
+    Select(profileTextParameter)
+}
+let profileTextRequest = jsonCodecDatabase.makeRequest(with: profileTextQuery)
+let profileTextBindings = try XLInvocationBindings<XLSQLiteValue>(
+    layout: profileTextRequest.parameterLayout,
+    bindings: [
+        profileTextParameter.encode(profile, in: profileTextRequest.parameterLayout)
+    ]
+).validatingComplete()
+let storedProfileJSON = try profileTextRequest.fetchOne(bindings: profileTextBindings)
+```
+
+Treat a change to a JSON codec's `key.id`, `key.version`, `valueTypeIdentifier`,
+or chosen storage (`.text` vs `.blob`) as a data migration in the same way as
+any other codec: they are the stable components schema and query
+fingerprints use, and `TEXT` versus `BLOB` bytes for the same `Codable` type
+are not interchangeable at rest. Because `XLJSONValueCodec`'s `Codable`-to-
+`Data` transcoding is isolated from `XLSQLiteValue`/`XLSQLiteStorageClass`, a
+future PostgreSQL dialect (`JSONB`, tracked separately as issue #137) can
+reuse the same transcoding behind a dialect-native lowering without changing
+this SQLite mapping. SwiftQL does not claim that mapping exists yet, and does
+not offer a cross-database JSON abstraction today.
+
 ## Legacy `XLCustomType` wrappers
 
 For existing v1 code, a custom scalar value satisfies the `XLCustomType`
