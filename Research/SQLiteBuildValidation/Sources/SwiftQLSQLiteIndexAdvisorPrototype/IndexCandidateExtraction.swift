@@ -64,7 +64,7 @@ package enum IndexCandidateExtraction {
             // expression, not the trailing COLLATE/ASC/DESC — e.g.
             // `("t0"."x" COLLATE NOCASE) ASC` — so trim leading "(" alone
             // rather than requiring the whole term to be paren-wrapped.
-            let trimmed = term.trimmingCharacters(in: .whitespaces).drop { $0 == "(" }
+            let trimmed = term.trimmingCharacters(in: .whitespaces).drop(while: { $0 == "(" })
             var scanner = IdentifierScanner(String(trimmed))
             guard let pair = scanner.nextIdentifierPair() else {
                 return nil
