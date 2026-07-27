@@ -159,9 +159,12 @@ apply — nothing is closed.
 
 ## Milestone closure
 
-Milestone 29 ("Spike: SQLite query-plan analysis and index advice") closes
-with this issue. Its three prototype issues (#390, #391, #392) each have a
-merged-when-approved PR and a written architecture doc; this document is
-the fourth and closing piece. Milestone 30 ("v1.8") remains open with its
-six issues as confirmed/revised above, still gated on v1.5.2's build
-validator (#292, #293) landing first.
+Milestone 29's four issues (#390, #391, #392, #393) each have an open PR
+and a written architecture doc — [#412](https://github.com/lukevanin/swiftql/pull/412),
+[#422](https://github.com/lukevanin/swiftql/pull/422),
+[#427](https://github.com/lukevanin/swiftql/pull/427), and this issue's PR,
+stacked in dependency order. Milestone 29 is ready to close once all four
+merge; that merge, and the milestone close itself, is left for the
+maintainer rather than done as part of writing this document. Milestone 30
+("v1.8") remains open with its six issues as confirmed/revised above, still
+gated on v1.5.2's build validator (#292, #293) landing first.
