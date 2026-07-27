@@ -327,6 +327,7 @@ let package = Package(
                 "SwiftQLSQLiteIndexAdvisorPrototype",
                 "SwiftQLSQLitePlanShapePrototype",
                 "SwiftQLSQLiteEQPVariancePrototype",
+                "SwiftQLSQLiteBuildValidationPrototype",
                 "SwiftQLNorthwindFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ],

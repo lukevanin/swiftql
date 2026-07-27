@@ -193,6 +193,13 @@ swift run SwiftQLSQLiteIndexAdvisorCLI verify \
 `IndexCandidateGeneratorTests.testRealCorpusCandidatesMatchCheckedInEvidence`
 and `IndexCandidateVerifierTests.testCheckedInVerificationEvidenceMatchesFreshRun`
 re-run this exact pipeline on every `swift test` invocation and assert
-byte-identity with the checked-in evidence — with no version-skew caveat,
-since neither `IndexCandidate` nor `IndexCandidateEvidence` embeds an SQLite
-version field.
+byte-identity with the checked-in evidence. Neither `IndexCandidate` nor
+`IndexCandidateEvidence` embeds an SQLite version field, so unlike #390's
+equivalent check this assertion is unconditional rather than runtime-gated
+— but that reflects what #390 actually measured (these particular
+index-search/full-scan decisions were stable between the two real builds
+tested there), not a guarantee that every SQLite build plans them
+identically forever. EQP choices remain SQLite-version-dependent in
+principle; if this test ever fails on a different host, its failure message
+prints that host's `sqlite_version()`/`sqlite_source_id()` so the
+difference is diagnosable rather than a bare JSON diff.

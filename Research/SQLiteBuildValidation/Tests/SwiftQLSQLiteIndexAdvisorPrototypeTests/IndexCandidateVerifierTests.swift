@@ -1,5 +1,6 @@
 import XCTest
 import SwiftQLNorthwindFixtures
+import SwiftQLSQLiteBuildValidationPrototype
 import SwiftQLSQLiteEQPVariancePrototype
 import SwiftQLSQLitePlanShapePrototype
 @testable import SwiftQLSQLiteIndexAdvisorPrototype
@@ -50,11 +51,18 @@ final class IndexCandidateVerifierTests: XCTestCase {
     }
 
     /// Guards the checked-in verification evidence against silent drift.
-    /// Unlike #390's runtime-provenance-embedding evidence, `EQPPlan` (and
-    /// therefore `IndexCandidateEvidence`) carries no SQLite version field,
-    /// so this comparison has no version-skew caveat — a fresh verify run
-    /// against this same pinned snapshot must reproduce the checked-in
-    /// evidence exactly, on any host.
+    /// Neither `EQPPlan` nor `IndexCandidateEvidence` embeds an SQLite
+    /// version field, so this assertion is unconditional rather than
+    /// runtime-gated like #390's equivalent check — but that is *not* a
+    /// proof these specific index-search/full-scan decisions are stable
+    /// across every SQLite build, only that #390 observed them stable
+    /// between the two real builds it measured (3.51.0/3.53.2). EQP choices
+    /// remain SQLite-version-dependent in principle (#390's own premise); a
+    /// future SQLite could in principle plan even these simple cases
+    /// differently. If this test ever fails on a host whose SQLite the
+    /// pinned evidence was never verified against, the failure message
+    /// prints that host's `sqlite_version()`/`sqlite_source_id()` so the
+    /// difference is diagnosable rather than a bare JSON diff.
     func testCheckedInVerificationEvidenceMatchesFreshRun() throws {
         let pinnedCandidates = try loadCandidates("candidates.json")
         let pinnedEvidence = try loadEvidence("verification.json")
@@ -69,7 +77,9 @@ final class IndexCandidateVerifierTests: XCTestCase {
                 statement: statement
             ))
         }
-        XCTAssertEqual(fresh, pinnedEvidence)
+
+        let runtime = try currentSQLiteRuntimeDescription()
+        XCTAssertEqual(fresh, pinnedEvidence, "mismatch on \(runtime); if this host's SQLite build genuinely plans one of these statements differently, that's real evidence for this write-up, not just a broken test")
     }
 
     // MARK: - Helpers
@@ -80,6 +90,15 @@ final class IndexCandidateVerifierTests: XCTestCase {
         let corpus = try EQPVarianceCorpus.assemble()
         let statement = try XCTUnwrap(corpus.first { $0.id == candidate.representativeStatementID })
         return try IndexCandidateVerifier.verify(candidate: candidate.asIndexCandidate, statement: statement)
+    }
+
+    private func currentSQLiteRuntimeDescription() throws -> String {
+        try NorthwindFixture.withTemporaryCopy { copy in
+            let metadata = try copy.databasePool.read { database in
+                try SQLiteBuildValidationRuntime.capture(from: database)
+            }
+            return "sqlite_version=\(metadata.sqliteVersion) sqlite_source_id=\(metadata.sqliteSourceID)"
+        }
     }
 }
 
