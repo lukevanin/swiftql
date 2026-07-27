@@ -133,11 +133,13 @@ package enum EQPVarianceCorpus {
         logicalIndex: Int,
         value: Int64
     ) -> SQLiteCombinatorialBinding {
+        // key_index is 0-based, matching the #191 manifest's own convention
+        // (e.g. "c191.v1.expression.indexed-binding" uses key_index: 0).
         SQLiteCombinatorialBinding(
             logicalIndex: logicalIndex,
             keyKind: .indexed,
             keyName: nil,
-            keyIndex: logicalIndex + 1,
+            keyIndex: logicalIndex,
             storage: .integer,
             taggedValue: .integer(value),
             repeatCount: 1

@@ -4027,7 +4027,7 @@
   {
     "bindings" : [
       {
-        "key_index" : 1,
+        "key_index" : 0,
         "key_kind" : "indexed",
         "logical_index" : 0,
         "repeat_count" : 1,
@@ -4048,7 +4048,7 @@
   {
     "bindings" : [
       {
-        "key_index" : 1,
+        "key_index" : 0,
         "key_kind" : "indexed",
         "logical_index" : 0,
         "repeat_count" : 1,

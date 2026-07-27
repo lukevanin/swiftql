@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Second-build EQP capture for issue #390 (milestone 29 spike).
 
-The Swift CLI (`swiftql-eqp-variance capture`) only ever links whatever
-SQLite the Swift toolchain resolves at build time (this repo's system
-libsqlite3, unpinned). To get a second, genuinely distinct SQLite build's
-worth of evidence without vendoring a custom SQLite into the shipping
-package, this script drives Python's own `sqlite3` module (linked against
-a different libsqlite3, e.g. Homebrew's) against the *same* corpus JSON
-exported by `swiftql-eqp-variance export-corpus`, and writes an
-EQPCaptureRun-shaped JSON evidence file in the same schema the Swift side
-uses (see EQPVarianceModels.swift), so both are comparable by the same
-classifier without a schema translation step.
+The Swift CLI (`swift run SwiftQLSQLiteEQPVarianceCLI`) only ever links
+whatever SQLite the Swift toolchain resolves at build time (this repo's
+system libsqlite3, unpinned). To get a second, genuinely distinct SQLite
+build's worth of evidence without vendoring a custom SQLite into the
+shipping package, this script drives Python's own `sqlite3` module (linked
+against a different libsqlite3, e.g. Homebrew's) against the *same* corpus
+JSON exported by `swift run SwiftQLSQLiteEQPVarianceCLI export-corpus`, and
+writes an EQPCaptureRun-shaped JSON evidence file in the same schema the
+Swift side uses (see EQPVarianceModels.swift), so both are comparable by the
+same classifier without a schema translation step.
 
 Research/measurement only. Never mutates the database it reads from: opens
 the given path read-only via the "file:...?mode=ro" URI form.
@@ -139,28 +139,51 @@ def resolve_tagged_value(tagged):
     raise ValueError(f"unknown tagged_value tag: {tag}")
 
 
-def statement_arguments(bindings):
-    """Mirrors EQPVarianceCapture.arguments(for:): all-named bindings bind by
-    name, otherwise all-indexed bindings bind positionally by logical_index.
+class InvalidBindingError(ValueError):
+    pass
+
+
+def statement_arguments(statement_id, bindings):
+    """Mirrors EQPVarianceCapture.arguments(for:statementID:): all-named
+    bindings bind by name, all-indexed bindings bind positionally by
+    logical_index. Raises rather than silently dropping a missing key_name,
+    silently overwriting a duplicate named key, or silently treating a mixed
+    named/indexed binding list as positional.
     """
     if not bindings:
         return {}
-    if all(binding["key_kind"] == "named" for binding in bindings):
-        return {
-            binding["key_name"]: resolve_tagged_value(binding["tagged_value"])
-            for binding in bindings
-        }
+
+    all_named = all(binding["key_kind"] == "named" for binding in bindings)
+    all_indexed = all(binding["key_kind"] == "indexed" for binding in bindings)
+    if not (all_named or all_indexed):
+        raise InvalidBindingError(
+            f"{statement_id}: bindings mix named and indexed keys"
+        )
+
+    if all_named:
+        arguments = {}
+        for binding in bindings:
+            key_name = binding.get("key_name")
+            if not key_name:
+                raise InvalidBindingError(
+                    f"{statement_id}: named binding at logical index "
+                    f"{binding['logical_index']} has no key_name"
+                )
+            if key_name in arguments:
+                raise InvalidBindingError(
+                    f"{statement_id}: duplicate named binding key_name {key_name!r}"
+                )
+            arguments[key_name] = resolve_tagged_value(binding["tagged_value"])
+        return arguments
+
     ordered = sorted(bindings, key=lambda binding: binding["logical_index"])
     return [resolve_tagged_value(binding["tagged_value"]) for binding in ordered]
 
 
 def capture_statement(connection, statement):
-    arguments = statement_arguments(statement["bindings"])
+    arguments = statement_arguments(statement["id"], statement["bindings"])
     sql = f"EXPLAIN QUERY PLAN {statement['rendered_sql']}"
-    if isinstance(arguments, dict):
-        rows = connection.execute(sql, arguments).fetchall()
-    else:
-        rows = connection.execute(sql, arguments).fetchall()
+    rows = connection.execute(sql, arguments).fetchall()
     return {
         "statement_id": statement["id"],
         "rows": [

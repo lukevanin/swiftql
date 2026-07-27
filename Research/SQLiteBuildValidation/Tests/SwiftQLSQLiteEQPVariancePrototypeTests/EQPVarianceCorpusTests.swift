@@ -1,4 +1,5 @@
 import XCTest
+import SwiftQLSQLiteCombinatorialSupport
 import SwiftQLSQLiteEQPVariancePrototype
 
 
@@ -45,5 +46,20 @@ final class EQPVarianceCorpusTests: XCTestCase {
             "northwind.compound.customer-supplier-cities",
             "northwind.cte.order-subtotals",
         ])
+    }
+
+    /// `key_index` is 0-based in the #191 manifest's own convention (e.g.
+    /// "c191.v1.expression.indexed-binding" uses `key_index: 0`); an anchor
+    /// binding using a 1-based `key_index` would be inconsistent evidence
+    /// even though today's capture path only reads `logical_index`.
+    func testIndexedAnchorBindingsUseZeroBasedKeyIndex() {
+        let indexedBindings = EQPVarianceCorpus.northwindAnchorStatements()
+            .flatMap(\.bindings)
+            .filter { $0.keyKind == .indexed }
+
+        XCTAssertFalse(indexedBindings.isEmpty)
+        for binding in indexedBindings {
+            XCTAssertEqual(binding.keyIndex, binding.logicalIndex)
+        }
     }
 }

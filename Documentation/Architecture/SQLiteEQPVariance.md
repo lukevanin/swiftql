@@ -63,7 +63,7 @@ statement, binds the same resolved values the #191 harness uses
 same connection. Two capture methods feed the same schema
 (`EQPCaptureRun`/`EQPStatementCapture`/`EQPRow` in `EQPVarianceModels.swift`):
 
-1. **In-process, GRDB** (`swiftql-eqp-variance capture`) — whatever SQLite
+1. **In-process, GRDB** (`swift run SwiftQLSQLiteEQPVarianceCLI capture`) — whatever SQLite
    the Swift toolchain links (this repo's system libsqlite3, unpinned).
 2. **Out-of-process, Python's `sqlite3` module**
    (`Research/SQLiteBuildValidation/Scripts/capture_eqp.py`) — a second,
@@ -179,7 +179,7 @@ actually reaches — Linux's custom-built SQLite 3.53.3
 Xcode versions or a from-source SQLite build was out of scope for this pass.
 Per this issue's hard constraint, that is recorded as **honestly not
 reachable in this delivery**, not interpolated from the two builds that were
-measured. `swiftql-eqp-variance capture` is a small, self-contained CLI
+measured. `swift run SwiftQLSQLiteEQPVarianceCLI capture` is a small, self-contained CLI
 already wired to run inside any of those CI legs unchanged; wiring an actual
 CI step to capture and archive that evidence is left as follow-up (recorded
 for #393 to schedule against a milestone).

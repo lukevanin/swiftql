@@ -85,7 +85,12 @@ package enum EQPVarianceCapture {
                         reason: "named binding at logical index \(binding.logicalIndex) has no key_name"
                     )
                 }
-                pairs[keyName] = databaseValue(binding.taggedValue)
+                guard pairs.updateValue(databaseValue(binding.taggedValue), forKey: keyName) == nil else {
+                    throw EQPVarianceCaptureError.invalidBinding(
+                        statementID: statementID,
+                        reason: "duplicate named binding key_name \"\(keyName)\""
+                    )
+                }
             }
             return StatementArguments(pairs)
         }

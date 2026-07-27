@@ -57,6 +57,35 @@ final class EQPVarianceCaptureTests: XCTestCase {
         }
     }
 
+    func testArgumentsThrowsRatherThanOverwritingADuplicateNamedKey() {
+        let first = SQLiteCombinatorialBinding(
+            logicalIndex: 0,
+            keyKind: .named,
+            keyName: "a",
+            keyIndex: nil,
+            storage: .integer,
+            taggedValue: .integer(1),
+            repeatCount: 1
+        )
+        let duplicate = SQLiteCombinatorialBinding(
+            logicalIndex: 1,
+            keyKind: .named,
+            keyName: "a",
+            keyIndex: nil,
+            storage: .integer,
+            taggedValue: .integer(2),
+            repeatCount: 1
+        )
+        XCTAssertThrowsError(
+            try EQPVarianceCapture.arguments(for: [first, duplicate], statementID: "s3")
+        ) { error in
+            guard case EQPVarianceCaptureError.invalidBinding(let statementID, _) = error else {
+                return XCTFail("expected invalidBinding, got \(error)")
+            }
+            XCTAssertEqual(statementID, "s3")
+        }
+    }
+
 
     func testCaptureIsByteIdenticalAcrossRepeatedRunsInProcess() throws {
         let corpus = try EQPVarianceCorpus.assemble()
