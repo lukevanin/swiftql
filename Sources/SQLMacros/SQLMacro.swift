@@ -44,6 +44,58 @@ private func makeExtensionDecl(_ source: String) throws -> ExtensionDeclSyntax {
 }
 
 
+///
+/// Shared member list for `SQLTableMacro` and `SQLResultMacro`: the memberwise initializer,
+/// projection factory, static row-layout factory, and (issue #66) the declaration-level codec
+/// metadata -- the stable per-property codec-key dictionary and one `staticResultField(_:...)`
+/// convenience per `@SQLCodec`-annotated property. Kept in one place so both macros stay in sync.
+private func makeCodecAwareMembers(builder: MetaBuilder) throws -> [DeclSyntax] {
+    var members: [DeclSyntax] = [
+        DeclSyntax(stringLiteral: builder.makeMemberwizeInitializer()),
+        DeclSyntax(stringLiteral: builder.makeColumnsFunction()),
+        DeclSyntax(stringLiteral: builder.makeStaticRowLayoutFunction()),
+        DeclSyntax(stringLiteral: builder.makeCodecKeysDeclaration()),
+    ]
+    members.append(
+        contentsOf: builder.makeCodecResultFieldFunctions().map {
+            DeclSyntax(stringLiteral: $0)
+        }
+    )
+    return members
+}
+
+
+// MARK: - SQLCodecMacro
+
+
+///
+/// Declares one stored property's contextual value-codec selection (issue #66).
+///
+/// `@SQLCodec` carries no storage and expands to no declarations of its own: `SQLTableMacro` and
+/// `SQLResultMacro` read the attribute directly from the property's syntax while walking the
+/// struct's members (see `MetaBuilder.collectCodecSelector`), and thread the codec key it names
+/// into that property's generated `staticResultField(_:...)` convenience and into the type's
+/// `_swiftQLPropertyCodecKeys` metadata. The Swift compiler enforces that the argument is a
+/// genuine `XLValueCodecKey` value through this macro's own declared signature in
+/// `Sources/SwiftQL/SQL.swift`; SwiftQL's runtime precedence (`XLValueCodingConfiguration`) still
+/// validates the codec's Swift value type, dialect, and registration when the selection is
+/// resolved, since a registry is a runtime value no macro can see.
+///
+public struct SQLCodecMacro {
+}
+
+extension SQLCodecMacro: PeerMacro {
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        []
+    }
+}
+
+
 // MARK: - SQLTableMacro
 
 
@@ -64,11 +116,7 @@ extension SQLTableMacro: MemberMacro {
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         let builder = try MetaBuilder(node: node, declaration: declaration)
-        return [
-            DeclSyntax(stringLiteral: builder.makeMemberwizeInitializer()),
-            DeclSyntax(stringLiteral: builder.makeColumnsFunction()),
-            DeclSyntax(stringLiteral: builder.makeStaticRowLayoutFunction()),
-        ]
+        return try makeCodecAwareMembers(builder: builder)
     }
 }
 
@@ -118,11 +166,7 @@ extension SQLResultMacro: MemberMacro {
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         let builder = try MetaBuilder(node: node, declaration: declaration)
-        return [
-            DeclSyntax(stringLiteral: builder.makeMemberwizeInitializer()),
-            DeclSyntax(stringLiteral: builder.makeColumnsFunction()),
-            DeclSyntax(stringLiteral: builder.makeStaticRowLayoutFunction()),
-        ]
+        return try makeCodecAwareMembers(builder: builder)
     }
 }
 
@@ -158,5 +202,6 @@ extension SQLResultMacro: ExtensionMacro {
         SQLQueryMacro.self,
         SQLQueriesMacro.self,
         SQLFunctionMacro.self,
+        SQLCodecMacro.self,
     ]
 }

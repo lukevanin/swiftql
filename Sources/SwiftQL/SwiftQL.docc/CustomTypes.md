@@ -275,6 +275,78 @@ bindings in one `XLInvocationBindings` value, validate completeness, and pass
 that packet to the request. Only normalized `XLSQLiteValue` values enter the
 packet; the original `Date`, `UUID`, or custom value is not retained.
 
+### Property-level codec selection
+
+The database default and any query-level key cover most properties, but two
+properties of the *same* Swift type sometimes need two different storage
+conventions on the same table -- one `Date` stored as decimal seconds, another
+stored as an integer, without introducing a wrapper type for either one.
+`@SQLCodec` declares that choice on the property itself. It is metadata only:
+the attribute names a codec key, and the registry/configuration from the
+sections above still perform the actual conversion.
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+@SQLTable
+struct InvoiceRecord: Equatable {
+    let id: Int
+
+    @SQLCodec(decimalDateCodecKey)
+    let filedAt: Date
+
+    @SQLCodec(integerDateCodecKey)
+    let reviewedAt: Date
+}
+```
+
+`@SQLCodec` does not change `filedAt`'s or `reviewedAt`'s Swift type,
+`InvoiceRecord`'s memberwise initializer, or `Equatable`/`Codable`
+behavior -- it never wraps the property. Applying it to a stored property is a schema/data migration for that
+property alone, exactly like changing a codec's key or version: the property
+keeps whichever storage convention its codec key names for as long as that key
+is deployed, independent of every other property and of the database default.
+
+The macro emits the key as stable metadata reachable two ways: a
+`_swiftQLPropertyCodecKeys` dictionary on the generated type (keyed by column
+name), and a generated `staticResultField(_:...)` convenience per annotated
+property that already supplies `selection: .explicit(...)` -- so a caller never
+repeats the key when building a `staticRowLayout(using:...)` argument for that
+property:
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+let invoiceTable = XLSchema().table(InvoiceRecord.self, as: "invoice")
+let invoiceLayout = try InvoiceRecord.staticRowLayout(
+    using: XLSQLiteDialect.self,
+    id: XLStaticSelectField<Int, Int, XLSQLiteDialect>.intrinsic(
+        selecting: invoiceTable.id,
+        identifiedBy: XLQuerySlotIdentity(path: ["invoice", "id"])
+    ),
+    filedAt: InvoiceRecord.staticResultField(
+        filedAt: invoiceTable.filedAt,
+        storedAs: String.self,
+        identifiedBy: XLQuerySlotIdentity(path: ["invoice", "filed-at"]),
+        using: codecDatabase.dialect,
+        configuration: codingConfiguration
+    ),
+    reviewedAt: InvoiceRecord.staticResultField(
+        reviewedAt: invoiceTable.reviewedAt,
+        storedAs: Int.self,
+        identifiedBy: XLQuerySlotIdentity(path: ["invoice", "reviewed-at"]),
+        using: codecDatabase.dialect,
+        configuration: codingConfiguration
+    )
+)
+```
+
+Both codecs must still be registered with the configuration passed to
+`staticResultField`; `@SQLCodec` selects among registered codecs, it does not
+register one. An unregistered key, a key registered for a different Swift
+value type, or a key registered for a different dialect all fail exactly the
+way an explicit `XLValueCodecSelection` fails elsewhere in this
+document -- with the same `XLValueCodecError` cases, at the same "explicit"
+precedence tier, before any row is touched.
+
 ## Legacy `XLCustomType` wrappers
 
 For existing v1 code, a custom scalar value satisfies the `XLCustomType`

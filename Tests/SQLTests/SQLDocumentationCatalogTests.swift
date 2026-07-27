@@ -260,6 +260,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "### Selection and errors",
             "### SQL NULL and optional values",
             "### Contextual parameters and invocation packets",
+            "### Property-level codec selection",
             "## Legacy `XLCustomType` wrappers",
             "## Migrating v1 literals",
         ] {
@@ -280,6 +281,11 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "compatibility invocation packet",
             "`XLV1LiteralCodec` exposes an existing `Sendable` `XLLiteral` implementation",
             "This is a compatibility bridge",
+            "`@SQLCodec` declares that choice on the property itself",
+            "It is metadata only",
+            "it never wraps the property",
+            "a generated `staticResultField(_:...)` convenience per annotated",
+            "`@SQLCodec` selects among registered codecs, it does not",
         ] {
             XCTAssertTrue(
                 contents.contains(semanticPhrase),
