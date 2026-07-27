@@ -1,0 +1,91 @@
+import Foundation
+import SwiftQLSQLiteBuildValidationManifest
+import XCTest
+@testable import SwiftQLSQLiteBuildValidationValidator
+
+
+final class SQLiteBuildValidationValidatorCLIRunnerTests: XCTestCase {
+    typealias Support = SQLiteBuildValidationValidatorTestSupport
+
+    func testRunnerExitsZeroOnPassAndOneOnFailAndWritesCanonicalReport() throws {
+        try Support.withValidatorOwnedNorthwindURL { databaseURL in
+            let workingDirectory = databaseURL.deletingLastPathComponent()
+
+            let passingManifestURL = workingDirectory.appendingPathComponent("passing.json")
+            try Support.manifest(queries: [
+                Support.query(id: "trivial", sql: "SELECT 1 AS value"),
+            ]).canonicalJSONData().write(to: passingManifestURL)
+            let passingOutputURL = workingDirectory.appendingPathComponent("passing-report.json")
+
+            let passingResult = try SQLiteBuildValidationValidatorCLIRunner.run(
+                options: try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [
+                    "--database", databaseURL.path,
+                    "--manifest", passingManifestURL.path,
+                    "--output", passingOutputURL.path,
+                ])
+            )
+            XCTAssertEqual(passingResult.exitCode, 0)
+            XCTAssertEqual(
+                try Data(contentsOf: passingOutputURL),
+                try passingResult.report.canonicalJSONData()
+            )
+
+            let failingManifestURL = workingDirectory.appendingPathComponent("failing.json")
+            try Support.manifest(queries: [
+                Support.query(sql: "SELECT * FROM tests_totally_missing_table"),
+            ]).canonicalJSONData().write(to: failingManifestURL)
+            let failingOutputURL = workingDirectory.appendingPathComponent("failing-report.json")
+
+            let failingResult = try SQLiteBuildValidationValidatorCLIRunner.run(
+                options: try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [
+                    "--database", databaseURL.path,
+                    "--manifest", failingManifestURL.path,
+                    "--output", failingOutputURL.path,
+                ])
+            )
+            XCTAssertEqual(failingResult.exitCode, 1)
+            XCTAssertEqual(failingResult.report.overallVerdict, .failed)
+        }
+    }
+
+    func testOptionsParsingRequiresDatabaseManifestAndOutput() {
+        XCTAssertThrowsError(
+            try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [
+                "--database", "/tmp/a.sqlite",
+            ])
+        ) { error in
+            XCTAssertEqual(
+                error as? SQLiteBuildValidationValidatorCLIError,
+                .requiredOption("--manifest")
+            )
+        }
+    }
+
+    func testHelpBypassesRequiredOptionChecks() throws {
+        let options = try SQLiteBuildValidationValidatorCLIOptions.parse(
+            arguments: ["--help"]
+        )
+        XCTAssertTrue(options.showsHelp)
+    }
+
+    func testPreflightRejectsOutputAliasingInputs() throws {
+        try Support.withValidatorOwnedNorthwindURL { databaseURL in
+            let manifestURL = databaseURL.deletingLastPathComponent()
+                .appendingPathComponent("manifest.json")
+            try Data().write(to: manifestURL)
+
+            XCTAssertThrowsError(
+                try SQLiteBuildValidationValidatorCLIOptions.preflightOutputSafety(
+                    databaseURL: databaseURL,
+                    manifestURL: manifestURL,
+                    outputURL: databaseURL
+                )
+            ) { error in
+                XCTAssertEqual(
+                    error as? SQLiteBuildValidationValidatorCLIError,
+                    .outputConflictsWithInput("--database")
+                )
+            }
+        }
+    }
+}
