@@ -34,7 +34,7 @@ public enum XLSQLiteNumericDateCodecError: Error, Equatable, Sendable, Localized
         case .millisecondsOutOfRange(let preset, let timeIntervalSince1970):
             return "Cannot encode Date(timeIntervalSince1970: \(timeIntervalSince1970)) as \(preset): the millisecond count overflows Int64."
         case .nonFiniteStoredValue(let preset, let value):
-            return "Cannot decode \(preset): the stored REAL is \(value), which is not a finite Date."
+            return "Cannot decode \(preset): decoding produced \(value), which is not a finite Date. Either the stored REAL itself is \(value), or a finite stored REAL became \(value) once this preset converted it to unix seconds."
         }
     }
 }
