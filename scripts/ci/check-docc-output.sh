@@ -25,6 +25,7 @@ main() {
         require_page "$output/data/documentation/swiftql/$slug.json" "$title"
         require_file "$output/documentation/swiftql/$slug/index.html"
     done <<'ARTICLES'
+advancedusage|Advanced usage
 builtinfunctions|Built-in Functions
 customfunctions|Custom Functions
 customtypes|Custom Types

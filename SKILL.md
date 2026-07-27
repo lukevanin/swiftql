@@ -138,10 +138,10 @@ layouts rather than reproducing those contracts in consumer comments.
   expose `DatabaseError` or `XLColumnReadError` where its compatibility policy
   requires those concrete errors.
 
-Read [contextual codecs](https://lukevanin.github.io/swiftql/documentation/swiftql/customtypes/)
-and [prepared execution boundaries](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/)
+Read [contextual codecs](https://lukevanin.github.io/swiftql/documentation/swiftql/customtypes/) and
+[prepared execution boundaries](https://lukevanin.github.io/swiftql/documentation/swiftql/advancedusage/)
 for the exact selection order, structured errors, row lifetime, and driver
-contracts.
+contracts; the everyday API is [getting started](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/).
 
 ## Report v1.3 support from canonical evidence
 

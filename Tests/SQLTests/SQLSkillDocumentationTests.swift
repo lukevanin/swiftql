@@ -226,6 +226,7 @@ final class SQLSkillDocumentationTests: XCTestCase {
             "https://lukevanin.github.io/swiftql/documentation/swiftql/staticqueries/",
             "https://lukevanin.github.io/swiftql/documentation/swiftql/customtypes/",
             "https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/",
+            "https://lukevanin.github.io/swiftql/documentation/swiftql/advancedusage/",
         ] {
             XCTAssertTrue(contents.contains(canonicalURL))
         }

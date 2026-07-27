@@ -68,6 +68,10 @@ private let documentationTests = [
         XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings
     ),
     DocumentationTestReference(
+        "XLDocumentationTests.testDocumentationAdvancedUsage",
+        XLDocumentationTests.testDocumentationAdvancedUsage
+    ),
+    DocumentationTestReference(
         "XLDocumentationTests.testDocumentationExpressions",
         XLDocumentationTests.testDocumentationExpressions
     ),
@@ -117,6 +121,7 @@ private let documentationTests = [
 final class SQLDocumentationCatalogTests: XCTestCase {
 
     private let expectedMarkerByFile = [
+        "AdvancedUsage.md": "XLDocumentationTests.testDocumentationAdvancedUsage",
         "BuiltinFunctions.md": "XLDocumentationTests.testDocumentationConditionalAndScalarFunctions",
         "CustomFunctions.md": "XLDocumentationTests.testDocumentationCustomFunctionRegistrationAndExecution",
         "CustomTypes.md": "XLDocumentationTests.testDocumentationCustomTypeRoundTrips",
@@ -170,17 +175,23 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         )
     }
 
-    func testGettingStartedDocumentsPreparedStatementOwnershipAndFailureSemantics() throws {
-        let gettingStartedURL = documentationCatalogURL()
-            .appendingPathComponent("GettingStarted.md")
-        let contents = try String(contentsOf: gettingStartedURL, encoding: .utf8)
+    /// The execution-model contract moved out of `GettingStarted.md` so the
+    /// onboarding guide stays an onboarding guide. Every heading and phrase
+    /// this test pinned there is still pinned — on the article that now owns
+    /// it.
+    func testAdvancedUsageDocumentsPreparedStatementOwnershipAndFailureSemantics() throws {
+        let advancedUsageURL = documentationCatalogURL()
+            .appendingPathComponent("AdvancedUsage.md")
+        let contents = try String(contentsOf: advancedUsageURL, encoding: .utf8)
 
         for heading in [
-            "#### Dialect and driver responsibilities",
-            "#### Logical and physical preparation",
-            "#### Transactions and bindings",
+            "## Dialect and driver responsibilities",
+            "## Logical and physical preparation",
+            "## Incremental row lifetime",
+            "## Transactions and bindings",
+            "## Typed multi-statement transaction scopes",
         ] {
-            XCTAssertTrue(contents.contains(heading), "GettingStarted.md is missing \(heading).")
+            XCTAssertTrue(contents.contains(heading), "AdvancedUsage.md is missing \(heading).")
         }
 
         for semanticPhrase in [
@@ -193,14 +204,56 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "fresh bindings",
             "current `XLRequest` facade itself is not `Sendable`",
             "Its `GRDBPreparedInvocation` result is",
-            "not the same as SQL `NULL`",
             "normalize transport failures",
             "keeps raw `DatabaseError` and `XLColumnReadError`",
             "fail later on a newly leased connection",
         ] {
             XCTAssertTrue(
                 contents.contains(semanticPhrase),
-                "GettingStarted.md is missing prepared-statement guidance for '\(semanticPhrase)'."
+                "AdvancedUsage.md is missing prepared-statement guidance for '\(semanticPhrase)'."
+            )
+        }
+    }
+
+    /// The onboarding guide keeps the everyday contract a first-time reader
+    /// needs, and keeps pointing at the advanced article for the rest.
+    func testGettingStartedStaysAnOnboardingGuide() throws {
+        let gettingStartedURL = documentationCatalogURL()
+            .appendingPathComponent("GettingStarted.md")
+        let contents = try String(contentsOf: gettingStartedURL, encoding: .utf8)
+
+        for heading in [
+            "## Defining tables",
+            "## Executing statements",
+            "## Inserting data",
+            "## Running select queries",
+            "## Named bindings",
+            "## Update statements",
+            "## Delete statements",
+            "## Grouping work in a transaction",
+            "## Where to go next",
+        ] {
+            XCTAssertTrue(contents.contains(heading), "GettingStarted.md is missing \(heading).")
+        }
+
+        for semanticPhrase in [
+            "not the same as SQL `NULL`",
+            "<doc:AdvancedUsage>",
+        ] {
+            XCTAssertTrue(
+                contents.contains(semanticPhrase),
+                "GettingStarted.md is missing onboarding guidance for '\(semanticPhrase)'."
+            )
+        }
+
+        for relocatedPhrase in [
+            "Physical GRDB statements are connection-bound",
+            "must not re-enter the root pool",
+            "normalize transport failures",
+        ] {
+            XCTAssertFalse(
+                contents.contains(relocatedPhrase),
+                "GettingStarted.md regained execution-model depth that belongs in AdvancedUsage.md: '\(relocatedPhrase)'."
             )
         }
     }
@@ -378,6 +431,8 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "Version 1.5.2 is the published package",
                 "This guide's basic request path remains",
                 "from version 1.2.0 or later",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/AdvancedUsage.md": [
                 "research-only schema-snapshot preparation prototype",
                 "perform physical preparation on the runtime",
             ],
@@ -480,6 +535,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "LICENSE.md",
                 "RELEASING.md",
                 "ROADMAP.md",
+                "WHATSNEW.md",
             ]
         )
         for link in repositoryLinks {
