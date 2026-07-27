@@ -20,6 +20,16 @@
       "name": "SwiftQLCore",
       "source_root": "Sources/SwiftQLCore",
       "allowed_uninstrumented_sources": []
+    },
+    {
+      "name": "SwiftQLSQLiteBuildValidationManifest",
+      "source_root": "Sources/SwiftQLSQLiteBuildValidationManifest",
+      "allowed_uninstrumented_sources": []
+    },
+    {
+      "name": "SwiftQLSQLiteBuildValidationValidator",
+      "source_root": "Sources/SwiftQLSQLiteBuildValidationValidator",
+      "allowed_uninstrumented_sources": []
     }
   ]
 }
