@@ -107,6 +107,26 @@ final class IndexCandidateExtractionTests: XCTestCase {
         ])
     }
 
+    /// Copilot review: `splitTopLevel` tracked paren depth but didn't guard
+    /// against it going negative on an unmatched closing paren. Before the
+    /// fix, that stray `)` threw off the running depth count enough that a
+    /// later `(` coincidentally brought it back to exactly 0 — making the
+    /// comma *inside* that second, genuinely nested group look top-level and
+    /// get split on. This clause has one extra `)` right after `"t0"."a"`,
+    /// then a second, unrelated group `("t0"."b", "t0"."c")`: pre-fix, that
+    /// group's own comma would wrongly split it into two terms, spuriously
+    /// contributing `"c"` in addition to `"a"`. Per this extractor's "never
+    /// guess" contract, an unbalanced clause now fails closed — treated as
+    /// one undivided term — so only the term's leading identifier (`"a"`)
+    /// is read, not a second column pulled from a wrongly-split fragment.
+    func testUnbalancedParenthesesFailClosedRatherThanMisparse() {
+        let sql = #"""
+            SELECT "t0"."x" FROM "T" AS "t0"
+            ORDER BY "t0"."a"), ("t0"."b", "t0"."c")
+            """#
+        XCTAssertEqual(IndexCandidateExtraction.orderByColumns(for: "t0", in: sql), ["a"])
+    }
+
     func testTableAliasMapQuotedStyle() {
         let sql = #"SELECT "t0"."orderID" FROM "Orders" AS "t0" INNER JOIN "Customers" AS "customers_join" ON ("t0"."customerID" == "customers_join"."customerID")"#
         XCTAssertEqual(

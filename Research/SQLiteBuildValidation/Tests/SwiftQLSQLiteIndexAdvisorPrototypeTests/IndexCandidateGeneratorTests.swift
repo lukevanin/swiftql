@@ -135,6 +135,21 @@ final class IndexCandidateGeneratorTests: XCTestCase {
         )
     }
 
+    /// Copilot review: `table`/`columns` come from parsing this prototype's
+    /// own SQL corpus, but the CLI can also decode an `IndexCandidate` from
+    /// an arbitrary JSON file and hand its `ddl` straight to
+    /// `Database.execute(sql:)` — an unescaped `"` in an identifier could
+    /// break out of the quoted-identifier context and inject arbitrary SQL.
+    /// `indexName` is already sanitized to `[a-z0-9_]`, so this only matters
+    /// for `table`/`columns` as they appear verbatim in the DDL.
+    func testDDLEscapesEmbeddedQuoteInTableAndColumnNames() {
+        let candidate = candidate(table: #"Weird"Table"#, columns: [#"co"l"#])
+        XCTAssertEqual(
+            candidate.ddl,
+            #"CREATE INDEX "ix_advisor_weird_table_co_l" ON "Weird""Table" ("co""l")"#
+        )
+    }
+
     // MARK: - Finding remediable statements
 
     /// The improvement rule accepts `automatic_covering_index` as a

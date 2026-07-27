@@ -49,8 +49,18 @@ package struct IndexCandidate: Equatable, Sendable {
     }
 
     package var ddl: String {
-        let columnList = columns.map { "\"\($0)\"" }.joined(separator: ", ")
-        return "CREATE INDEX \"\(indexName)\" ON \"\(table)\" (\(columnList))"
+        let columnList = columns.map(Self.quotedIdentifier).joined(separator: ", ")
+        return "CREATE INDEX \(Self.quotedIdentifier(indexName)) ON \(Self.quotedIdentifier(table)) (\(columnList))"
+    }
+
+    /// Quotes a SQL identifier, escaping any embedded `"` as `""` per
+    /// SQLite's quoting rule — `table`/`columns` come from parsing this
+    /// prototype's own SQL corpus, but the CLI can also decode an
+    /// `IndexCandidate` from an arbitrary JSON file and hand its `ddl` to
+    /// `Database.execute(sql:)`, so an unescaped quote in an identifier
+    /// could otherwise break out of the identifier context.
+    private static func quotedIdentifier(_ identifier: String) -> String {
+        "\"\(identifier.replacingOccurrences(of: "\"", with: "\"\""))\""
     }
 }
 

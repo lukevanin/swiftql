@@ -300,6 +300,11 @@ package enum IndexCandidateExtraction {
         splitTopLevel(unwrapOuterParens(clause), on: " AND ").map(unwrapOuterParens)
     }
 
+    /// Splits `text` on `separator` wherever it occurs at paren depth 0.
+    /// Unbalanced parentheses (depth going negative mid-scan, or never
+    /// returning to zero) never guess at a split — per this extractor's
+    /// "never guess" contract — and instead fail closed by returning `text`
+    /// unsplit, as a single piece.
     private static func splitTopLevel(_ text: String, on separator: String) -> [String] {
         var depth = 0
         var pieces: [String] = []
@@ -310,6 +315,9 @@ package enum IndexCandidateExtraction {
                 depth += 1
             } else if text[index] == ")" {
                 depth -= 1
+                guard depth >= 0 else {
+                    return [text.trimmingCharacters(in: .whitespaces)]
+                }
             }
             if depth == 0, text[index...].hasPrefix(separator) {
                 pieces.append(current)
@@ -321,6 +329,9 @@ package enum IndexCandidateExtraction {
             index = text.index(after: index)
         }
         pieces.append(current)
+        guard depth == 0 else {
+            return [text.trimmingCharacters(in: .whitespaces)]
+        }
         return pieces.map { $0.trimmingCharacters(in: .whitespaces) }
     }
 
