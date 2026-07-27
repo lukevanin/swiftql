@@ -642,7 +642,19 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
             guard case .decodingFailed(_, _, let message)? = error as? XLValueCodecError else {
                 return XCTFail("Expected a decoding-failed error, received \(error).")
             }
-            XCTAssertTrue(message.contains("nonFiniteStoredValue"), message)
+            // `XLValueCodec` wraps a thrown error with `String(describing:)`,
+            // which renders the enum case (not `errorDescription`), so assert
+            // against that exact rendering rather than a loosely-matched
+            // substring.
+            XCTAssertEqual(
+                message,
+                String(
+                    describing: XLSQLiteNumericDateCodecError.nonFiniteStoredValue(
+                        preset: XLSQLiteNumericDateCodec.UnixSeconds.key.id,
+                        value: .positiveInfinity
+                    )
+                )
+            )
         }
     }
 
@@ -679,7 +691,15 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
             guard case .decodingFailed(_, _, let message)? = error as? XLValueCodecError else {
                 return XCTFail("Expected a decoding-failed error, received \(error).")
             }
-            XCTAssertTrue(message.contains("nonFiniteStoredValue"), message)
+            XCTAssertEqual(
+                message,
+                String(
+                    describing: XLSQLiteNumericDateCodecError.nonFiniteStoredValue(
+                        preset: XLSQLiteNumericDateCodec.JulianDay.key.id,
+                        value: .positiveInfinity
+                    )
+                )
+            )
         }
     }
 

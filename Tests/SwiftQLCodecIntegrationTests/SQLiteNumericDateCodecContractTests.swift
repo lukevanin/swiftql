@@ -315,7 +315,19 @@ final class SQLiteNumericDateCodecContractTests: XCTestCase {
             guard case .encodingFailed(_, _, let message)? = error as? XLValueCodecError else {
                 return XCTFail("Expected an encoding-failed error, received \(error).")
             }
-            XCTAssertTrue(message.contains("millisecondsOutOfRange"), message)
+            // `XLValueCodec` wraps a thrown error with `String(describing:)`,
+            // which renders the enum case (not `errorDescription`), so assert
+            // against that exact rendering rather than a loosely-matched
+            // substring.
+            XCTAssertEqual(
+                message,
+                String(
+                    describing: XLSQLiteNumericDateCodecError.millisecondsOutOfRange(
+                        preset: XLSQLiteNumericDateCodec.UnixMilliseconds.key.id,
+                        timeIntervalSince1970: farBeyondInt64Milliseconds.timeIntervalSince1970
+                    )
+                )
+            )
         }
     }
 
@@ -336,7 +348,15 @@ final class SQLiteNumericDateCodecContractTests: XCTestCase {
             guard case .decodingFailed(_, _, let message)? = error as? XLValueCodecError else {
                 return XCTFail("Expected a decoding-failed error, received \(error).")
             }
-            XCTAssertTrue(message.contains("nonFiniteStoredValue"), message)
+            XCTAssertEqual(
+                message,
+                String(
+                    describing: XLSQLiteNumericDateCodecError.nonFiniteStoredValue(
+                        preset: XLSQLiteNumericDateCodec.JulianDay.key.id,
+                        value: .positiveInfinity
+                    )
+                )
+            )
         }
 
         // A value just below that threshold still decodes successfully.
