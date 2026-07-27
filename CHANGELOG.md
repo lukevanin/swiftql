@@ -1,5 +1,56 @@
 # Changelog
 
+## [1.5.2] - 2026-07-27
+
+### Added
+
+- Added a versioned, deterministic SQLite build-validation manifest
+  (issue #292): `SwiftQLSQLiteBuildValidationManifest` projects static
+  `XLStaticQueryDescriptor`s — SQL text, parameters, result columns, required
+  capabilities, and a checked-in schema snapshot's identity/hash/fingerprint —
+  into a canonical JSON sidecar. The manifest cross-checks declared
+  parameters against the raw SQL text before any consumer runs, and resolves
+  #190/#191/#254 conformance references through an injected
+  `SQLiteBuildValidationReferenceRegistry` rather than depending on their
+  test-only fixture targets. Same input always produces byte-identical
+  output: sorted keys, no escaped slashes, sorted/deduplicated arrays.
+- Added the standalone SQLite static-query build validator (issue #293): the
+  `swiftql-build-validate` executable and its `SwiftQLSQLiteBuildValidationValidator`
+  library consume a #292 manifest and its checked-in SQLite snapshot, open one
+  dedicated read-only, query-only connection, and prepare every manifest entry
+  with `sqlite3_prepare_v3` — proving the SQL parses, referenced
+  tables/columns/functions/collations resolve, bind/result metadata matches
+  the manifest, and declared capabilities are present in captured runtime
+  evidence. Verdicts are fail-closed (`passed`/`failed`/`unsupported`, only
+  `passed` succeeds) and the canonical JSON report is deterministic across
+  repeated runs against the same inputs. It does not prove result values, row
+  counts, or runtime behavior — those stay #214's responsibility, and every
+  report names them explicitly under `delegated_checks`.
+- Added `SwiftQLSQLiteBuildValidationPlugin` (issue #294), a SwiftPM
+  `.buildTool()` plugin that wraps the #293 validator into an ordinary `swift
+  build`. A target opts in by listing the plugin and placing a manifest and
+  snapshot directly in its own source directory; the plugin declares them as
+  explicit build-command inputs and the canonical report as an explicit
+  output (never a `.prebuildCommand`), so SwiftPM's own incremental planner —
+  not the plugin — decides when to re-run validation. A `failed` or
+  `unsupported` verdict fails the build and forwards the validator's
+  diagnostic to `swift build`'s output.
+
+### Migration
+
+No migration is required for v1.5.2. The manifest, validator, and plugin are
+new, additive surfaces with no changes to any existing public API.
+
+### Known limitations
+
+- The validator proves schema/parameter/capability agreement with the real
+  SQLite parser, not result values, row counts, or application behavior.
+- A target's manifest and snapshot are hand-authored or externally generated;
+  no macro or tool in this release produces a #292 manifest from source
+  (tracked as a future #26 boundary).
+- The plugin runs `swift build`; it is not integrated into Xcode's own build
+  system UI beyond what SwiftPM plugins already provide there.
+
 ## [1.4.4] - 2026-07-23
 
 ### Added
