@@ -1,6 +1,5 @@
 import XCTest
 import SwiftQLNorthwindFixtures
-import SwiftQLSQLiteBuildValidationPrototype
 import SwiftQLSQLiteEQPVariancePrototype
 import SwiftQLSQLitePlanShapePrototype
 @testable import SwiftQLSQLiteIndexAdvisorPrototype
@@ -96,6 +95,42 @@ final class IndexCandidateVerifierTests: XCTestCase {
         )
     }
 
+    /// Copilot review: `findNode(forTable:in:)` did a plain per-root
+    /// depth-first search, tried root by root in array order — so a nested
+    /// match under an *earlier* root could be returned before a *later*
+    /// root's own direct match was ever considered. Modeled on a real shape
+    /// from the corpus (`c390.northwind.subquery.products-above-average`
+    /// has a root `SCAN Products` and a sibling `SCALAR SUBQUERY 1` root
+    /// whose own child is a second, nested `SCAN Products`), but with the
+    /// non-matching root placed *first* — the real capture's root order
+    /// happens to already put the matching root first, so it wouldn't have
+    /// exercised the bug; this ordering reliably does. Pre-fix this would
+    /// return the nested node (found while recursing into the first root);
+    /// post-fix it returns the second root's own direct match.
+    func testFindNodePrefersRootLevelMatchOverEarlierNestedMatch() {
+        let nestedMatch = EQPPlanNode(
+            detail: "SCAN Products (nested, under the subquery)",
+            shape: .fullTableScan,
+            attributes: EQPPlanShapeAttributes(table: "Products"),
+            children: []
+        )
+        let subqueryRoot = EQPPlanNode(
+            detail: "SCALAR SUBQUERY 1",
+            shape: .scalarSubquery,
+            attributes: .none,
+            children: [nestedMatch]
+        )
+        let rootMatch = EQPPlanNode(
+            detail: "SCAN Products (root, the intended node)",
+            shape: .fullTableScan,
+            attributes: EQPPlanShapeAttributes(table: "Products"),
+            children: []
+        )
+        let plan = EQPPlan(statementID: "test.find-node.root-preferred", roots: [subqueryRoot, rootMatch])
+
+        XCTAssertEqual(IndexCandidateVerifier.findNode(forTable: "Products", in: plan), rootMatch)
+    }
+
     func testVerificationNeverMutatesThePinnedNorthwindSnapshot() throws {
         let before = try NorthwindFixture.validateCanonical()
         _ = try verify(candidateWithColumns: ["customerID", "employeeID"], table: "Orders")
@@ -145,13 +180,12 @@ final class IndexCandidateVerifierTests: XCTestCase {
         return try IndexCandidateVerifier.verify(candidate: candidate.asIndexCandidate, statement: statement)
     }
 
+    /// `validateCanonical()` reads the canonical snapshot through a
+    /// read-only pool — no scratch copy needed just to read
+    /// `sqlite_version()`/`sqlite_source_id()`, unlike `withTemporaryCopy`.
     private func currentSQLiteRuntimeDescription() throws -> String {
-        try NorthwindFixture.withTemporaryCopy { copy in
-            let metadata = try copy.databasePool.read { database in
-                try SQLiteBuildValidationRuntime.capture(from: database)
-            }
-            return "sqlite_version=\(metadata.sqliteVersion) sqlite_source_id=\(metadata.sqliteSourceID)"
-        }
+        let validation = try NorthwindFixture.validateCanonical()
+        return "sqlite_version=\(validation.sqliteVersion) sqlite_source_id=\(validation.sqliteSourceID)"
     }
 }
 

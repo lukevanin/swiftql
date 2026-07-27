@@ -159,7 +159,20 @@ package enum IndexCandidateVerifier {
         )
     }
 
-    private static func findNode(forTable alias: String, in plan: EQPPlan) -> EQPPlanNode? {
+    /// Prefers a **root-level** match across every root before considering
+    /// any nested node — a plain per-root depth-first search, tried root by
+    /// root in order, can return a nested match from an earlier root before
+    /// ever reaching a later root that matches at the top level. A real
+    /// capture with exactly this shape exists in the corpus
+    /// (`c390.northwind.subquery.products-above-average`: a root
+    /// `SCAN Products` alongside a sibling `SCALAR SUBQUERY 1` root whose
+    /// own child is a second, nested `SCAN Products`); `representativeAlias`
+    /// always names a root-level table per `IndexCandidateGenerator`, so the
+    /// root-level match is always the intended node.
+    package static func findNode(forTable alias: String, in plan: EQPPlan) -> EQPPlanNode? {
+        if let rootMatch = plan.roots.first(where: { $0.attributes.table == alias }) {
+            return rootMatch
+        }
         for root in plan.roots {
             if let found = findNode(forTable: alias, in: root) {
                 return found
