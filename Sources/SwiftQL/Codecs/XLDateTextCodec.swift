@@ -228,6 +228,17 @@ public enum XLDateTextCodec {
         guard let fields = xlParseDateText(text) else {
             throw XLDateTextCodecError.invalidText(text)
         }
+        // A named codec is a deterministic representation: text this codec
+        // did not itself produce (a different fractional-digit count or a
+        // different fixed offset) is rejected rather than silently accepted,
+        // so drift away from the codec's configured format surfaces as a
+        // decode error instead of hiding inside a "valid enough" parse.
+        guard
+            fields.fractionDigitCount == format.fractionalSecondDigits,
+            fields.offsetSeconds == format.utcOffsetSeconds
+        else {
+            throw XLDateTextCodecError.invalidText(text)
+        }
 
         var calendar = xlDateTextCalendar
         calendar.timeZone = xlFixedTimeZone(offsetSeconds: fields.offsetSeconds)
@@ -291,7 +302,10 @@ private let xlSupportedDateBoundsContext = XLValueCodingContext(
 /// is taken from this constant, never shared or mutated concurrently.
 private let xlDateTextCalendar: Calendar = {
     var calendar = Calendar(identifier: .iso8601)
-    calendar.timeZone = TimeZone(identifier: "UTC")!
+    // A fixed zero-second offset is guaranteed to succeed, unlike an
+    // identifier lookup, which depends on the platform time zone database
+    // containing an entry named "UTC".
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
     return calendar
 }()
 
@@ -315,6 +329,10 @@ private struct XLParsedDateTextFields {
     let minute: Int
     let second: Int
     let nanosecond: Int
+    /// The number of fractional-second digits actually present in the
+    /// parsed text (`0` when there was no `.` component at all), as opposed
+    /// to `nanosecond`, which is always zero-padded out to nine digits.
+    let fractionDigitCount: Int
     let offsetSeconds: Int
 }
 
@@ -347,12 +365,14 @@ private func xlParseDateText(_ text: String) -> XLParsedDateTextFields? {
     }
 
     var nanosecond = 0
+    var fractionDigitCount = 0
     if let fractionText = group(7) {
         let padded = fractionText + String(repeating: "0", count: 9 - fractionText.count)
         guard let parsed = Int(padded) else {
             return nil
         }
         nanosecond = parsed
+        fractionDigitCount = fractionText.count
     }
 
     var offsetSeconds = 0
@@ -379,6 +399,7 @@ private func xlParseDateText(_ text: String) -> XLParsedDateTextFields? {
         minute: minute,
         second: second,
         nanosecond: nanosecond,
+        fractionDigitCount: fractionDigitCount,
         offsetSeconds: offsetSeconds
     )
 }
@@ -386,8 +407,10 @@ private func xlParseDateText(_ text: String) -> XLParsedDateTextFields? {
 
 private func xlFixedTimeZone(offsetSeconds: Int) -> TimeZone {
     // A fixed-offset zone never has a daylight-saving transition, so this
-    // always succeeds for the range `XLDateTextFormat` accepts.
-    TimeZone(secondsFromGMT: offsetSeconds) ?? TimeZone(identifier: "UTC")!
+    // always succeeds for the range `XLDateTextFormat` accepts. The fallback
+    // is itself a fixed offset (not an identifier lookup) so it carries no
+    // platform time zone database dependency either.
+    TimeZone(secondsFromGMT: offsetSeconds) ?? TimeZone(secondsFromGMT: 0)!
 }
 
 

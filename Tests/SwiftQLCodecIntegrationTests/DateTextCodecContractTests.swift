@@ -231,6 +231,26 @@ final class DateTextCodecContractTests: XCTestCase {
         }
     }
 
+    func testSubMinuteOffsetIsRejectedAtFormatConstruction() {
+        // The encoded `±HH:MM` suffix can only express minute granularity;
+        // a sub-minute offset would compute wall-clock fields with a shift
+        // the rendered suffix cannot represent.
+        XCTAssertThrowsError(try XLDateTextFormat(utcOffsetSeconds: 1)) { error in
+            XCTAssertEqual(
+                error as? XLDateTextCodecError,
+                .unsupportedOffsetSeconds(1)
+            )
+        }
+        XCTAssertThrowsError(try XLDateTextFormat(utcOffsetSeconds: 3_601)) { error in
+            XCTAssertEqual(
+                error as? XLDateTextCodecError,
+                .unsupportedOffsetSeconds(3_601)
+            )
+        }
+        // A whole-minute offset remains valid.
+        XCTAssertNoThrow(try XLDateTextFormat(utcOffsetSeconds: 60))
+    }
+
     // MARK: - Minimum and maximum supported dates
 
     func testMinimumAndMaximumSupportedDatesRoundTrip() throws {
@@ -325,6 +345,48 @@ final class DateTextCodecContractTests: XCTestCase {
                 XCTAssertEqual(context, resultContext)
             }
         }
+    }
+
+    func testDecodeRejectsTextWhoseFractionalDigitsOrOffsetDoNotMatchTheConfiguredFormat() throws {
+        // A named codec is a deterministic representation: text with a
+        // different fractional-digit count or fixed offset than this
+        // codec's own configured format is format drift, not a value this
+        // codec should silently accept.
+        let configuration = try makeConfiguration(defaultKey: XLDateTextCodec.standardKey)
+
+        for mismatchedText in [
+            "2023-11-14T22:13:20Z",  // standard format expects 3 fractional digits, not 0
+            "2023-11-14T22:13:20.00Z",  // 2 fractional digits, not 3
+            "2023-11-14T22:13:20.000000Z",  // 6 fractional digits, not 3
+            "2023-11-14T22:13:20.000+02:00",  // standard format is UTC-only
+        ] {
+            XCTAssertThrowsError(
+                try configuration.decode(
+                    Date.self,
+                    from: .text(mismatchedText),
+                    using: dialect,
+                    context: resultContext
+                ),
+                mismatchedText
+            ) { error in
+                guard case .decodingFailed? = error as? XLValueCodecError else {
+                    return XCTFail(
+                        "\(mismatchedText): expected a decodingFailed wrapper, received \(error)."
+                    )
+                }
+            }
+        }
+
+        // Explicit `+00:00` is numerically the same offset as `Z`, so it is
+        // accepted even though the standard preset always renders `Z`.
+        XCTAssertNoThrow(
+            try configuration.decode(
+                Date.self,
+                from: .text("2023-11-14T22:13:20.123+00:00"),
+                using: dialect,
+                context: resultContext
+            )
+        )
     }
 
     func testStorageClassMismatchIsReportedBeforeTheCodecClosureRuns() throws {

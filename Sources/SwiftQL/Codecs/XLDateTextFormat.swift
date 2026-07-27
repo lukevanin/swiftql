@@ -71,7 +71,10 @@ public struct XLDateTextFormat: Hashable, Sendable {
     ///
     /// `0` is UTC. There is no default derived from the running process's
     /// current time zone: callers state the offset their storage format
-    /// requires.
+    /// requires. Must be a whole number of minutes: the encoded `±HH:MM`
+    /// suffix can only express minute granularity, so a sub-minute offset
+    /// would compute wall-clock fields with a shift the rendered suffix
+    /// cannot represent, silently breaking the round trip.
     public let utcOffsetSeconds: Int
 
     /// Whether an offset of `0` is rendered as the literal `Z` designator
@@ -84,7 +87,8 @@ public struct XLDateTextFormat: Hashable, Sendable {
     ///   - fractionalSecondDigits: Digits of fractional-second precision
     ///     retained in encoded text, `0...9`. Defaults to `3` (milliseconds).
     ///   - utcOffsetSeconds: The fixed UTC offset embedded in encoded text,
-    ///     strictly between -24h and +24h. Defaults to `0` (UTC).
+    ///     strictly between -24h and +24h and a whole number of minutes.
+    ///     Defaults to `0` (UTC).
     ///   - usesZuluDesignatorForUTC: Whether a `0`-second offset renders as
     ///     `Z`. Defaults to `true`.
     /// - Throws: ``XLDateTextCodecError/unsupportedPrecision(fractionalSecondDigits:)``
@@ -100,7 +104,11 @@ public struct XLDateTextFormat: Hashable, Sendable {
                 fractionalSecondDigits: fractionalSecondDigits
             )
         }
-        guard utcOffsetSeconds > -86_400, utcOffsetSeconds < 86_400 else {
+        guard
+            utcOffsetSeconds > -86_400,
+            utcOffsetSeconds < 86_400,
+            utcOffsetSeconds % 60 == 0
+        else {
             throw XLDateTextCodecError.unsupportedOffsetSeconds(utcOffsetSeconds)
         }
         self.fractionalSecondDigits = fractionalSecondDigits
