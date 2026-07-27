@@ -188,15 +188,13 @@ public struct XLJSONCodecConfiguration: Hashable, Sendable {
 /// the default `Error` description.
 public enum XLJSONValueCodecError: Error, CustomStringConvertible, Sendable {
 
-    /// `JSONEncoder` failed to encode the application value.
+    /// `JSONEncoder` failed to encode the application value, or the
+    /// `Codable` implementation itself threw while encoding.
     case encodingFailed(valueType: String, underlying: String)
 
-    /// `JSONDecoder` failed to decode the application value.
+    /// `JSONDecoder` failed to decode the application value, or the
+    /// `Codable` implementation itself threw while decoding.
     case decodingFailed(valueType: String, underlying: String)
-
-    /// Stored `TEXT` bytes were not valid UTF-8, so they cannot be handed to
-    /// `JSONDecoder`.
-    case invalidUTF8TextRepresentation(valueType: String)
 
     public var description: String {
         switch self {
@@ -204,8 +202,6 @@ public enum XLJSONValueCodecError: Error, CustomStringConvertible, Sendable {
             return "JSON encoding of \(valueType) failed: \(underlying)"
         case .decodingFailed(let valueType, let underlying):
             return "JSON decoding of \(valueType) failed: \(underlying)"
-        case .invalidUTF8TextRepresentation(let valueType):
-            return "Stored JSON TEXT for \(valueType) was not valid UTF-8."
         }
     }
 }
@@ -260,20 +256,18 @@ public enum XLJSONValueCodec {
             ),
             encode: { value, _, _ in
                 let data = try _XLJSONTranscoder.encode(value, using: configuration)
-                guard let text = String(data: data, encoding: .utf8) else {
-                    throw XLJSONValueCodecError.invalidUTF8TextRepresentation(
-                        valueType: String(reflecting: Value.self)
-                    )
-                }
-                return .text(text)
+                // `JSONEncoder` always produces UTF-8 bytes, so this
+                // conversion cannot fail; `String(decoding:as:)` reflects
+                // that instead of introducing an unreachable throw.
+                return .text(String(decoding: data, as: UTF8.self))
             },
             decode: { dialectValue, _, _ in
                 // `XLValueCodec.decode` validates the incoming storage class
                 // against `identity.storageIdentifier` before this closure
                 // runs, so `dialectValue` is always `.text` here.
                 guard case .text(let text) = dialectValue else {
-                    throw XLJSONValueCodecError.invalidUTF8TextRepresentation(
-                        valueType: String(reflecting: Value.self)
+                    preconditionFailure(
+                        "XLValueCodec validated TEXT storage before invoking this closure."
                     )
                 }
                 return try _XLJSONTranscoder.decode(
@@ -317,9 +311,8 @@ public enum XLJSONValueCodec {
                 // against `identity.storageIdentifier` before this closure
                 // runs, so `dialectValue` is always `.blob` here.
                 guard case .blob(let data) = dialectValue else {
-                    throw XLJSONValueCodecError.decodingFailed(
-                        valueType: String(reflecting: Value.self),
-                        underlying: "expected BLOB storage"
+                    preconditionFailure(
+                        "XLValueCodec validated BLOB storage before invoking this closure."
                     )
                 }
                 return try _XLJSONTranscoder.decode(
@@ -348,7 +341,11 @@ private enum _XLJSONTranscoder {
         do {
             return try configuration.makeEncoder().encode(value)
         }
-        catch let error as EncodingError {
+        catch {
+            // Catches `EncodingError` from `JSONEncoder` itself as well as
+            // any other error a custom `encode(to:)` implementation throws,
+            // so every failure gets the same "JSON encoding of ... failed"
+            // wrapping instead of only the `EncodingError` case.
             throw XLJSONValueCodecError.encodingFailed(
                 valueType: String(reflecting: Value.self),
                 underlying: String(describing: error)
@@ -364,7 +361,11 @@ private enum _XLJSONTranscoder {
         do {
             return try configuration.makeDecoder().decode(Value.self, from: data)
         }
-        catch let error as DecodingError {
+        catch {
+            // Catches `DecodingError` from `JSONDecoder` itself as well as
+            // any other error a custom `init(from:)` implementation throws,
+            // so every failure gets the same "JSON decoding of ... failed"
+            // wrapping instead of only the `DecodingError` case.
             throw XLJSONValueCodecError.decodingFailed(
                 valueType: String(reflecting: Value.self),
                 underlying: String(describing: error)
