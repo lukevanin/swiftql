@@ -2202,6 +2202,10 @@ extension XLDocumentationTests {
             let rawValue: Int64
         }
 
+        enum InvoiceTokenCodecError: Error {
+            case unexpectedValue(XLSQLiteValue)
+        }
+
         let invoiceTokenCodec = XLValueCodec<InvoiceToken, XLSQLiteDialect>(
             key: XLValueCodecKey(id: "com.example.invoice-token", version: 1),
             valueTypeIdentifier: XLValueTypeIdentifier(
@@ -2214,7 +2218,7 @@ extension XLDocumentationTests {
             encode: { value, _, _ in .integer(value.rawValue) },
             decode: { value, _, _ in
                 guard case .integer(let rawValue) = value else {
-                    throw DocumentationDateCodecError.unexpectedValue(value)
+                    throw InvoiceTokenCodecError.unexpectedValue(value)
                 }
                 return InvoiceToken(rawValue: rawValue)
             }

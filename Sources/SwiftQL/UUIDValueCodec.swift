@@ -126,8 +126,13 @@ public enum XLUUIDValueCodec {
                     context: context
                 )
             }
-            let raw = data.withUnsafeBytes { buffer in
-                buffer.load(as: uuid_t.self)
+            // `Data` gives no alignment guarantee for its backing storage,
+            // so an aligned `load(as: uuid_t.self)` can trap depending on
+            // platform and optimization level. `copyBytes` performs an
+            // unaligned byte-wise copy instead.
+            var raw: uuid_t = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+            withUnsafeMutableBytes(of: &raw) { destination in
+                _ = data.copyBytes(to: destination)
             }
             return UUID(uuid: raw)
         }
