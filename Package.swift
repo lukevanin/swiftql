@@ -185,6 +185,32 @@ let package = Package(
             path: "Research/SQLiteBuildValidation/Sources/SwiftQLSQLitePlanShapeCLI"
         ),
 
+        // Package-private research engine for issue #392 (milestone 29 spike).
+        // Prototypes index-candidate generation and scratch-copy re-plan
+        // verification over the #390/#391 capture and classification
+        // pipeline. Deliberately outside the package's public products:
+        // research target only, no typed index DDL or public API.
+        .target(
+            name: "SwiftQLSQLiteIndexAdvisorPrototype",
+            dependencies: [
+                "SwiftQLSQLitePlanShapePrototype",
+                "SwiftQLSQLiteEQPVariancePrototype",
+                "SwiftQLNorthwindFixtures",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            path: "Research/SQLiteBuildValidation/Sources/SwiftQLSQLiteIndexAdvisorPrototype"
+        ),
+
+        .executableTarget(
+            name: "SwiftQLSQLiteIndexAdvisorCLI",
+            dependencies: [
+                "SwiftQLSQLiteIndexAdvisorPrototype",
+                "SwiftQLSQLitePlanShapePrototype",
+                "SwiftQLSQLiteEQPVariancePrototype",
+            ],
+            path: "Research/SQLiteBuildValidation/Sources/SwiftQLSQLiteIndexAdvisorCLI"
+        ),
+
         // A test target used to develop the macro implementation.
         .testTarget(
             name: "SwiftQLCoreTests",
@@ -292,6 +318,19 @@ let package = Package(
                 "SwiftQLSQLiteEQPVariancePrototype",
             ],
             path: "Research/SQLiteBuildValidation/Tests/SwiftQLSQLitePlanShapePrototypeTests",
+            resources: [.copy("Evidence")]
+        ),
+
+        .testTarget(
+            name: "SwiftQLSQLiteIndexAdvisorPrototypeTests",
+            dependencies: [
+                "SwiftQLSQLiteIndexAdvisorPrototype",
+                "SwiftQLSQLitePlanShapePrototype",
+                "SwiftQLSQLiteEQPVariancePrototype",
+                "SwiftQLNorthwindFixtures",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            path: "Research/SQLiteBuildValidation/Tests/SwiftQLSQLiteIndexAdvisorPrototypeTests",
             resources: [.copy("Evidence")]
         ),
     ]

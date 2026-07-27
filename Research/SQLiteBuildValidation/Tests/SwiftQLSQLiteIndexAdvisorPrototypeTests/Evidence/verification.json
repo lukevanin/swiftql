@@ -1,0 +1,516 @@
+[
+  {
+    "after_plan" : {
+      "roots" : [
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "e"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SCAN e",
+          "shape" : "full_table_scan"
+        },
+        {
+          "attributes" : {
+            "constrained_columns" : [
+              "rowid"
+            ],
+            "index_name" : "INTEGER PRIMARY KEY",
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "m"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SEARCH m USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+          "shape" : "index_search"
+        }
+      ],
+      "statement_id" : "c390.northwind.join.left-null-manager"
+    },
+    "before_plan" : {
+      "roots" : [
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "e"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SCAN e",
+          "shape" : "full_table_scan"
+        },
+        {
+          "attributes" : {
+            "constrained_columns" : [
+              "rowid"
+            ],
+            "index_name" : "INTEGER PRIMARY KEY",
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "m"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SEARCH m USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+          "shape" : "index_search"
+        }
+      ],
+      "statement_id" : "c390.northwind.join.left-null-manager"
+    },
+    "columns" : [
+      "ReportsTo",
+      "EmployeeID"
+    ],
+    "ddl" : "CREATE INDEX \"ix_advisor_employees_reportsto_employeeid\" ON \"Employees\" (\"ReportsTo\", \"EmployeeID\")",
+    "improvement_reason" : "after-plan shape was full_table_scan, expected index_search or covering_index_scan",
+    "is_improvement" : false,
+    "statement_id" : "c390.northwind.join.left-null-manager",
+    "table" : "Employees"
+  },
+  {
+    "after_plan" : {
+      "roots" : [
+        {
+          "attributes" : {
+            "constrained_columns" : [
+              "CustomerID"
+            ],
+            "index_name" : "ix_advisor_orders_customerid_employeeid",
+            "is_automatic" : false,
+            "is_covering" : true,
+            "table" : "t0"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SEARCH t0 USING COVERING INDEX ix_advisor_orders_customerid_employeeid (CustomerID=?)",
+          "shape" : "index_search"
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-left.w-injection-binding"
+    },
+    "before_plan" : {
+      "roots" : [
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "t0"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SCAN t0",
+          "shape" : "full_table_scan"
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-left.w-injection-binding"
+    },
+    "columns" : [
+      "customerID",
+      "employeeID"
+    ],
+    "ddl" : "CREATE INDEX \"ix_advisor_orders_customerid_employeeid\" ON \"Orders\" (\"customerID\", \"employeeID\")",
+    "improvement_reason" : "shape changed from full_table_scan to index_search, constrained by [\"CustomerID\"]",
+    "is_improvement" : true,
+    "statement_id" : "c191.v1.select.j-left.w-injection-binding",
+    "table" : "Orders"
+  },
+  {
+    "after_plan" : {
+      "roots" : [
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "t0"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SCAN t0",
+          "shape" : "full_table_scan"
+        },
+        {
+          "attributes" : {
+            "constrained_columns" : [
+              "CustomerID"
+            ],
+            "index_name" : "sqlite_autoindex_Customers_1",
+            "is_automatic" : false,
+            "is_covering" : true,
+            "table" : "customers_join"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "shape" : "index_search"
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-inner.o-ascending"
+    },
+    "before_plan" : {
+      "roots" : [
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "t0"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SCAN t0",
+          "shape" : "full_table_scan"
+        },
+        {
+          "attributes" : {
+            "constrained_columns" : [
+              "CustomerID"
+            ],
+            "index_name" : "sqlite_autoindex_Customers_1",
+            "is_automatic" : false,
+            "is_covering" : true,
+            "table" : "customers_join"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SEARCH customers_join USING COVERING INDEX sqlite_autoindex_Customers_1 (CustomerID=?)",
+          "shape" : "index_search"
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-inner.o-ascending"
+    },
+    "columns" : [
+      "customerID",
+      "orderID"
+    ],
+    "ddl" : "CREATE INDEX \"ix_advisor_orders_customerid_orderid\" ON \"Orders\" (\"customerID\", \"orderID\")",
+    "improvement_reason" : "after-plan shape was full_table_scan, expected index_search or covering_index_scan",
+    "is_improvement" : false,
+    "statement_id" : "c191.v1.select.j-inner.o-ascending",
+    "table" : "Orders"
+  },
+  {
+    "after_plan" : {
+      "roots" : [
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "orders_case"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SCAN orders_case",
+          "shape" : "full_table_scan"
+        },
+        {
+          "attributes" : {
+            "constrained_columns" : [
+              "rowid"
+            ],
+            "index_name" : "INTEGER PRIMARY KEY",
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "employees_join"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SEARCH employees_join USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+          "shape" : "index_search"
+        },
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false
+          },
+          "children" : [
+
+          ],
+          "detail" : "USE TEMP B-TREE FOR GROUP BY",
+          "shape" : "temp_b_tree_for_group_by"
+        },
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false
+          },
+          "children" : [
+
+          ],
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "shape" : "temp_b_tree_for_order_by"
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.s-table-alias.j-left.w-null-comparison.g-customer-id.h-count-greater-than-one.o-collated.l-five.x-two"
+    },
+    "before_plan" : {
+      "roots" : [
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "orders_case"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SCAN orders_case",
+          "shape" : "full_table_scan"
+        },
+        {
+          "attributes" : {
+            "constrained_columns" : [
+              "rowid"
+            ],
+            "index_name" : "INTEGER PRIMARY KEY",
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "employees_join"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SEARCH employees_join USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN",
+          "shape" : "index_search"
+        },
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false
+          },
+          "children" : [
+
+          ],
+          "detail" : "USE TEMP B-TREE FOR GROUP BY",
+          "shape" : "temp_b_tree_for_group_by"
+        },
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false
+          },
+          "children" : [
+
+          ],
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "shape" : "temp_b_tree_for_order_by"
+        }
+      ],
+      "statement_id" : "c191.v1.select.p-nullable-region.s-table-alias.j-left.w-null-comparison.g-customer-id.h-count-greater-than-one.o-collated.l-five.x-two"
+    },
+    "columns" : [
+      "employeeID",
+      "customerID"
+    ],
+    "ddl" : "CREATE INDEX \"ix_advisor_orders_employeeid_customerid\" ON \"Orders\" (\"employeeID\", \"customerID\")",
+    "improvement_reason" : "after-plan shape was full_table_scan, expected index_search or covering_index_scan",
+    "is_improvement" : false,
+    "statement_id" : "c191.v1.select.p-nullable-region.s-table-alias.j-left.w-null-comparison.g-customer-id.h-count-greater-than-one.o-collated.l-five.x-two",
+    "table" : "Orders"
+  },
+  {
+    "after_plan" : {
+      "roots" : [
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "t0"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SCAN t0",
+          "shape" : "full_table_scan"
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-left.o-ascending"
+    },
+    "before_plan" : {
+      "roots" : [
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "t0"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SCAN t0",
+          "shape" : "full_table_scan"
+        }
+      ],
+      "statement_id" : "c191.v1.select.j-left.o-ascending"
+    },
+    "columns" : [
+      "employeeID",
+      "orderID"
+    ],
+    "ddl" : "CREATE INDEX \"ix_advisor_orders_employeeid_orderid\" ON \"Orders\" (\"employeeID\", \"orderID\")",
+    "improvement_reason" : "after-plan shape was full_table_scan, expected index_search or covering_index_scan",
+    "is_improvement" : false,
+    "statement_id" : "c191.v1.select.j-left.o-ascending",
+    "table" : "Orders"
+  },
+  {
+    "after_plan" : {
+      "roots" : [
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "t0"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SCAN t0",
+          "shape" : "full_table_scan"
+        },
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false
+          },
+          "children" : [
+
+          ],
+          "detail" : "USE TEMP B-TREE FOR GROUP BY",
+          "shape" : "temp_b_tree_for_group_by"
+        },
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false
+          },
+          "children" : [
+
+          ],
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "shape" : "temp_b_tree_for_order_by"
+        }
+      ],
+      "statement_id" : "c191.v1.select.g-customer-id.h-count-greater-than-one.o-ascending"
+    },
+    "before_plan" : {
+      "roots" : [
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false,
+            "table" : "t0"
+          },
+          "children" : [
+
+          ],
+          "detail" : "SCAN t0",
+          "shape" : "full_table_scan"
+        },
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false
+          },
+          "children" : [
+
+          ],
+          "detail" : "USE TEMP B-TREE FOR GROUP BY",
+          "shape" : "temp_b_tree_for_group_by"
+        },
+        {
+          "attributes" : {
+            "constrained_columns" : [
+
+            ],
+            "is_automatic" : false,
+            "is_covering" : false
+          },
+          "children" : [
+
+          ],
+          "detail" : "USE TEMP B-TREE FOR ORDER BY",
+          "shape" : "temp_b_tree_for_order_by"
+        }
+      ],
+      "statement_id" : "c191.v1.select.g-customer-id.h-count-greater-than-one.o-ascending"
+    },
+    "columns" : [
+      "orderID"
+    ],
+    "ddl" : "CREATE INDEX \"ix_advisor_orders_orderid\" ON \"Orders\" (\"orderID\")",
+    "improvement_reason" : "after-plan shape was full_table_scan, expected index_search or covering_index_scan",
+    "is_improvement" : false,
+    "statement_id" : "c191.v1.select.g-customer-id.h-count-greater-than-one.o-ascending",
+    "table" : "Orders"
+  }
+]

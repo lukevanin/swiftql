@@ -1,0 +1,92 @@
+[
+  {
+    "columns" : [
+      "ReportsTo",
+      "EmployeeID"
+    ],
+    "representative_alias" : "e",
+    "representative_statement_id" : "c390.northwind.join.left-null-manager",
+    "source_statement_ids" : [
+      "c390.northwind.join.left-null-manager"
+    ],
+    "table" : "Employees"
+  },
+  {
+    "columns" : [
+      "customerID",
+      "employeeID"
+    ],
+    "representative_alias" : "t0",
+    "representative_statement_id" : "c191.v1.select.j-left.w-injection-binding",
+    "source_statement_ids" : [
+      "c191.v1.select.j-left.w-injection-binding"
+    ],
+    "table" : "Orders"
+  },
+  {
+    "columns" : [
+      "customerID",
+      "orderID"
+    ],
+    "representative_alias" : "t0",
+    "representative_statement_id" : "c191.v1.select.j-inner.o-ascending",
+    "source_statement_ids" : [
+      "c191.v1.select.j-inner.o-ascending",
+      "c191.v1.select.w-injection-binding.o-ascending",
+      "c191.v1.select.w-injection-binding.o-descending"
+    ],
+    "table" : "Orders"
+  },
+  {
+    "columns" : [
+      "employeeID",
+      "customerID"
+    ],
+    "representative_alias" : "orders_case",
+    "representative_statement_id" : "c191.v1.select.p-nullable-region.s-table-alias.j-left.w-null-comparison.g-customer-id.h-count-greater-than-one.o-collated.l-five.x-two",
+    "source_statement_ids" : [
+      "c191.v1.select.p-nullable-region.s-table-alias.j-left.w-null-comparison.g-customer-id.h-count-greater-than-one.o-collated.l-five.x-two",
+      "c191.v1.select.w-repeated-binding.o-collated"
+    ],
+    "table" : "Orders"
+  },
+  {
+    "columns" : [
+      "employeeID",
+      "orderID"
+    ],
+    "representative_alias" : "t0",
+    "representative_statement_id" : "c191.v1.select.j-left.o-ascending",
+    "source_statement_ids" : [
+      "c191.v1.select.j-left.o-ascending",
+      "c191.v1.select.j-left.o-descending",
+      "c191.v1.select.w-repeated-binding.o-ascending"
+    ],
+    "table" : "Orders"
+  },
+  {
+    "columns" : [
+      "orderID"
+    ],
+    "representative_alias" : "t0",
+    "representative_statement_id" : "c191.v1.select.g-customer-id.h-count-greater-than-one.o-ascending",
+    "source_statement_ids" : [
+      "c191.v1.select.g-customer-id.h-count-greater-than-one.o-ascending",
+      "c191.v1.select.j-cross.o-ascending",
+      "c191.v1.select.j-cross.o-descending",
+      "c191.v1.select.p-aggregate-count.o-ascending",
+      "c191.v1.select.p-nullable-region.o-ascending",
+      "c191.v1.select.p-nullable-region.o-descending",
+      "c191.v1.select.s-table-alias.o-ascending",
+      "c191.v1.select.s-table-alias.o-descending",
+      "c191.v1.select.w-empty-in.o-ascending",
+      "c191.v1.select.w-empty-in.o-descending",
+      "c191.v1.select.w-null-comparison.o-ascending",
+      "c191.v1.select.w-null-comparison.o-descending",
+      "c191.v1.select.w-precedence.o-ascending",
+      "c191.v1.select.w-precedence.o-descending",
+      "c288.v1.subquery.in-query-functional-nonempty"
+    ],
+    "table" : "Orders"
+  }
+]
