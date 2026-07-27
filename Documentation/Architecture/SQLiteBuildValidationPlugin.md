@@ -60,7 +60,11 @@ bundle resources for the target's own product.
    ![swift build succeeding, showing the plugin's validation step for each opted-in target](Assets/sqlite-build-validation-plugin-build-pass.png)
 
    A report per target lands under
-   `.build/plugins/outputs/<package>/<target>/SwiftQLSQLiteBuildValidationPlugin/swiftql-build-validation-report.json`.
+   `.build/plugins/outputs/<package>/<target>/destination/SwiftQLSQLiteBuildValidationPlugin/<target>/swiftql-build-validation-report.json`
+   — the `<target>` component appears twice: once from SwiftPM's own
+   per-target plugin-output directory, and once more because the plugin
+   itself appends `target.name` to `context.pluginWorkDirectory` (see
+   [What the plugin declares](#what-the-plugin-declares)).
 
 4. If a query stops matching the snapshot, the build fails at that step and
    forwards the validator's diagnostic directly to `swift build`'s output —
