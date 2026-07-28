@@ -33,11 +33,11 @@ final class UUIDValueCodecGRDBTests: XCTestCase {
         // `(UUID, sqlite)` pair, so a shared default would be ambiguous (see
         // `UUIDValueCodecContractTests.testRegisteringBothPresetsAsDefaultsIsRejectedAsAmbiguous`).
         // Each property below selects its preset explicitly via
-        // `staticResultField(..., selection: .explicit(...))` instead. Issue
-        // #66's `@SQLCodec` attribute (now available) is an alternative,
-        // declaration-site way to make the same per-property choice; this
-        // test exercises the explicit-selection path directly rather than
-        // through that macro.
+        // `configuration.staticResultField(..., selection: .explicit(...))`
+        // instead. Issue #66's `@SQLCodec` attribute (now available) is an
+        // alternative, declaration-site way to make the same per-property
+        // choice; this test exercises the explicit-selection path directly
+        // rather than through that macro.
         let configuration = try XLValueCodingConfiguration(registry: registry)
         let database = try GRDBDatabase(
             databasePool: fixture.pool,

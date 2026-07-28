@@ -39,7 +39,16 @@ public enum XLUUIDValueCodec {
     ///   whitespace, missing hyphens, or a `urn:uuid:` prefix.
     /// - Equality: byte-for-byte string equality after lowercasing. Two
     ///   `UUID` values that are Swift-equal always encode to the same text
-    ///   and are therefore also SQL `=`-equal.
+    ///   and are therefore also SQL `=`-equal, **as long as every stored
+    ///   value went through this codec's lowercase encoding.** SQLite's
+    ///   default `BINARY` collation compares `TEXT` case-sensitively, so a
+    ///   row written some other way (a hand-authored migration, another
+    ///   tool, or an uppercase legacy import) with an uppercase or
+    ///   mixed-case UUID string decodes correctly -- `UUID(uuidString:)` is
+    ///   case-insensitive -- but will not `=`-match a query bound through
+    ///   this codec, which always encodes lowercase. Normalize any
+    ///   non-canonical stored text to lowercase before relying on SQL
+    ///   equality against it.
     /// - Ordering: SQLite's default `BINARY` collation over the hyphenated
     ///   lowercase string, i.e. lexicographic UTF-8 byte order. This is
     ///   **not** the same ordering as ``blob``'s raw 16-byte order, and
