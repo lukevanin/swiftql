@@ -424,7 +424,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             for: driver,
             sql: "INSERT INTO corrupt (moment) VALUES ('not-a-date')"
         )
-        let insertWrongStorage = logicalStatement(
+        let selectWrongStorage = logicalStatement(
             for: driver,
             sql: "SELECT 1700000000"
         )
@@ -460,7 +460,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
         // A storage-class mismatch (INTEGER where the codec declared TEXT) is
         // rejected before the codec's own decode closure ever runs.
         let integerRow = try driver.withReadConnection { connection in
-            try XCTUnwrap(connection.fetchOne(connection.prepare(insertWrongStorage)))
+            try XCTUnwrap(connection.fetchOne(connection.prepare(selectWrongStorage)))
         }
         XCTAssertThrowsError(
             try configuration.decode(

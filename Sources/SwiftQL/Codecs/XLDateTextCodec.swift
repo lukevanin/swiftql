@@ -6,11 +6,12 @@ import SwiftQLCore
 ///
 /// Every codec built here stores a fixed-width, zero-padded
 /// `YYYY-MM-DDTHH:MM:SS[.fff...][Z|±HH:MM]` string derived from a proleptic
-/// Gregorian calendar pinned to UTC internally, with only the *rendered*
-/// offset controlled by ``XLDateTextFormat``. No formatter, calendar, or time
-/// zone is read from process-global or user-default state: every value that
-/// affects the encoded bytes is either a fixed constant below or an explicit
-/// field on `XLDateTextFormat`.
+/// Gregorian calendar. ``XLDateTextFormat``'s fixed offset controls both the
+/// wall-clock year/month/day/hour/minute/second fields (the calendar is
+/// evaluated in that offset, not pinned to UTC) and the rendered `Z`/`±HH:MM`
+/// suffix. No formatter, calendar, or time zone is read from process-global
+/// or user-default state: every value that affects the encoded bytes is
+/// either a fixed constant below or an explicit field on `XLDateTextFormat`.
 ///
 /// ## Storage and indexing
 ///

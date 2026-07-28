@@ -66,7 +66,7 @@ final class DateTextCodecContractTests: XCTestCase {
             using: dialect,
             context: resultContext
         )
-        // Truncated to millisecond precision by the standard preset.
+        // Rounded to millisecond precision by the standard preset.
         XCTAssertEqual(decoded.timeIntervalSince1970, 1_700_000_000.5, accuracy: 0.001)
     }
 
