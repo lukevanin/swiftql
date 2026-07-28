@@ -845,9 +845,9 @@ final class XLDocumentationTests: XCTestCase {
         ])
     }
 
-    // #row's 2+-column shapes require Swift 6.0+; see SQLRowMacro.swift and
+    // #row's 2+-column shapes require Swift 6.1+; see SQLRowMacro.swift and
     // COMPATIBILITY.md for why (#408).
-    #if compiler(>=6.0)
+    #if compiler(>=6.1)
     func testExample_RowMacro() throws {
         let statement = sql { schema in
             let person = schema.table(Person.self)
@@ -2751,7 +2751,7 @@ extension XLDocumentationTests {
 
     func testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs() throws {
         try testExample_LeftJoin_Statement_NullRows()
-        #if compiler(>=6.0)
+        #if compiler(>=6.1)
         try testExample_RowMacro()
         try testExample_RowMacro_ReferencedInWhereClause()
         #endif

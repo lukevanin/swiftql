@@ -31,12 +31,15 @@
   #20; originally shipped in #383, then reverted after a Swift 5.9.2 IRGen
   compiler crash). The single-column shape (`SQLScalarResult`) is available
   on every compatibility cell; the two-to-six column shapes (`SQLRow2`
-  through `SQLRow6`) are gated to Swift 6.0+ — SwiftQL's first source-level
+  through `SQLRow6`) are gated to Swift 6.1+ — SwiftQL's first source-level
   API divergence across compiler cells, documented in COMPATIBILITY.md's new
-  "Swift 5.9 API surface gaps" section. Docker-verified against the pinned
-  Swift 5.9.2 toolchain that the underlying IRGen crash isn't confined to
-  one crossing point: `fetchAll()`, `publish()`, and `publishOne()` each hit
-  it independently for a 2+-generic-parameter row type.
+  "Swift 5.9 and Swift 6.0 API surface gaps" section. The underlying IRGen
+  crash reproduces on both the pinned Swift 5.9.2 toolchain (Docker-verified)
+  and the pinned Swift 6.0 cell (Xcode 16.2, observed directly in this
+  release's CI), and isn't confined to one crossing point: `fetchAll()`,
+  `publish()`, and `publishOne()` each hit it independently for a
+  2+-generic-parameter row type. Swift 6.1 (Xcode 16.4) is the first cell
+  confirmed free of the crash.
 - Added `XLQueryObserver` and `XLQueryRowObserver` (issue #28):
   `ObservableObject` wrappers around `publish()`/`publishOne()` that expose
   `@Published rows`/`row` and `@Published error`, so a SwiftUI view model
@@ -47,10 +50,11 @@
 ### Changed
 
 - `GRDBRequest.decodeRows(packet:)` accumulates into an outer array and
-  returns `Void` from its `withReadConnection` closure, instead of returning
-  `[Row]` directly. This protects every multi-generic-parameter `Row` type
-  from the Swift 5.9.2 IRGen crash described above at zero cost on other
-  `Row` types — motivated by, but not exclusive to, `#row`'s new shapes.
+  returns `Void` from its `withReadConnection`/`withTransaction` closures,
+  instead of returning `[Row]` directly. This protects every
+  multi-generic-parameter `Row` type from the IRGen crash described above at
+  zero cost on other `Row` types — motivated by, but not exclusive to,
+  `#row`'s new shapes.
 
 ### Deprecated
 

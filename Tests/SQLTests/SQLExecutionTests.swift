@@ -2291,7 +2291,7 @@ final class XLExecutionTests: XCTestCase {
 
     /// `#row`'s one-column shape (`SQLScalarResult`, a single generic
     /// parameter) is available on every compatibility cell, unlike the
-    /// two-to-six column shapes gated to Swift 6.0+ in SQLRowMacro.swift.
+    /// two-to-six column shapes gated to Swift 6.1+ in SQLRowMacro.swift.
     /// Deliberately not gated, so this actually runs on the Swift 5.9 cells
     /// too.
     func testRowMacroOneColumnDecodesThroughFetchAll() throws {

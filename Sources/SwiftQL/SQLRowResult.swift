@@ -4,13 +4,13 @@
 //
 //  Ad hoc row projections used by the `#row` macro (see SQLRowMacro.swift).
 //
-//  Gated to Swift 6.0+: on the pinned Swift 5.9.2 compatibility cell,
-//  decoding a 2+ generic-parameter result type (SQLRow2...6) through
-//  fetchAll()/publish() crashes swift-frontend in IRGen
-//  (NativeConventionSchema::mapIntoNative). See #408 and COMPATIBILITY.md.
+//  Gated to Swift 6.1+: on both the pinned Swift 5.9.2 and Swift 6.0
+//  compatibility cells, decoding a 2+ generic-parameter result type
+//  (SQLRow2...6) through fetchAll()/publish() crashes swift-frontend in
+//  IRGen. See #408 and COMPATIBILITY.md.
 //
 
-#if compiler(>=6.0)
+#if compiler(>=6.1)
 import Foundation
 
 ///

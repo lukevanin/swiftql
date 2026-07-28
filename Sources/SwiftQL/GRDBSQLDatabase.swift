@@ -295,7 +295,7 @@ struct GRDBRequest<Row>: XLRequest {
         // the bug class: the publish()/publishOne() paths below independently
         // hit the same crash through their own generic publisher/witness-
         // method return types, which is why #row's 2+-column shapes stay
-        // gated to Swift 6.0+ (SQLRowMacro.swift) rather than being unlocked
+        // gated to Swift 6.1+ (SQLRowMacro.swift) rather than being unlocked
         // by this change.
         var items: [Row] = []
         if requiresWriteConnection {

@@ -209,11 +209,12 @@ let query = sql { schema in
 > query.
 
 > Important: `#row`'s two-to-six column shapes (`SQLRow2`...`SQLRow6`) require
-> Swift 6.0 or later. On the pinned Swift 5.9.2 compatibility cell, decoding
-> a result type with 2 or more generic parameters through `fetchAll()` or
-> `publish()` crashes the compiler's IR generation — a confirmed
-> `swift-frontend` bug, not a SwiftQL limitation. `#row` with exactly one
-> column (`SQLScalarResult`) is unaffected and available everywhere. See
+> Swift 6.1 or later. On the pinned Swift 5.9.2 and Swift 6.0 compatibility
+> cells, decoding a result type with 2 or more generic parameters through
+> `fetchAll()` or `publish()` crashes the compiler's IR generation — a
+> confirmed `swift-frontend` bug, not a SwiftQL limitation. `#row` with
+> exactly one column (`SQLScalarResult`) is unaffected and available
+> everywhere. See
 > [Compatibility](https://github.com/lukevanin/swiftql/blob/main/COMPATIBILITY.md)
 > for the supported-compiler matrix.
 

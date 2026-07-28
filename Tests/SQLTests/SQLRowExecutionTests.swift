@@ -3,12 +3,12 @@
 //
 //
 //  Real-SQLite coverage for the `#row` ad hoc row projection macro (#408,
-//  follow-up to #20). Gated to Swift 6.0+ — see SQLRowMacro.swift and
+//  follow-up to #20). Gated to Swift 6.1+ — see SQLRowMacro.swift and
 //  COMPATIBILITY.md for why `#row`'s 2+-column shapes are unavailable on the
-//  pinned Swift 5.9.2 compatibility cell.
+//  pinned Swift 5.9.2 and Swift 6.0 compatibility cells.
 //
 
-#if compiler(>=6.0)
+#if compiler(>=6.1)
 import Foundation
 import XCTest
 import GRDB
