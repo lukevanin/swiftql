@@ -10,7 +10,11 @@ import Foundation
 /// caller, so this type only needs to describe what went wrong locally.
 public enum XLDateTextCodecError: Error, Equatable, Sendable, LocalizedError {
 
-    /// The stored text does not match the fixed grammar this codec parses.
+    /// Decoding rejected this stored text: it does not match the fixed
+    /// grammar this codec parses, it names a calendar date that does not
+    /// exist (for example November 31), or its fractional-digit count or
+    /// offset does not match this codec's own configured
+    /// ``XLDateTextFormat``.
     case invalidText(String)
 
     /// The dialect value was not the storage class this codec expects.
@@ -33,7 +37,9 @@ public enum XLDateTextCodecError: Error, Equatable, Sendable, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .invalidText(let text):
-            return "\"\(text)\" does not match the configured Date TEXT grammar."
+            return "\"\(text)\" is not valid for the configured Date TEXT codec: it does not match the "
+                + "grammar, names a calendar date that does not exist (for example November 31), or its "
+                + "fractional-digit count or offset does not match this codec's configured format."
         case .unexpectedStorage(let storage):
             return "Expected SQLite TEXT storage, received \(storage)."
         case .unsupportedDate(let date):
@@ -41,7 +47,8 @@ public enum XLDateTextCodecError: Error, Equatable, Sendable, LocalizedError {
         case .unsupportedPrecision(let digits):
             return "Fractional-second precision \(digits) is not in 0...9."
         case .unsupportedOffsetSeconds(let seconds):
-            return "UTC offset \(seconds) seconds is not a valid fixed offset."
+            return "UTC offset \(seconds) seconds is not a valid fixed offset: it must be a whole "
+                + "number of minutes strictly between -24h and +24h."
         }
     }
 }
