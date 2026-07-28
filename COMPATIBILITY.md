@@ -142,13 +142,23 @@ and the `x86_64-unknown-linux-gnu` target. macOS additionally verifies the exact
 Xcode version, build, and SDK. Toolchain or image drift therefore fails instead
 of silently redefining support.
 
-GRDB 6.29.3's Swift 5.9 Linux condition assumes the linked SQLite exports its
-optional snapshot symbols. The pinned amalgamation intentionally leaves that
-optional API disabled, so the Linux cells consistently define GRDB's documented
-`GRDBCUSTOMSQLITE` build path through SwiftPM's compiler override. This removes
-only the unavailable snapshot API branch. The override delegates SwiftPM's
-module-wrapping phase directly to the matching `swift-frontend` and remains next
-to the selected compiler so SwiftPM loads that toolchain's index-store runtime.
+The Linux cells compile the pinned amalgamation with `SQLITE_ENABLE_SNAPSHOT`
+and fail unless `nm -D` reports `sqlite3_snapshot_get` as an exported symbol of
+the resulting library, so the optional snapshot API is enabled rather than
+disabled. Because the cells link that private build instead of the
+distribution's `libsqlite3-dev` package that GRDB's SwiftPM system-library
+target otherwise expects, they follow GRDB's documented custom-SQLite recipe
+through SwiftPM's compiler override: the override defines `GRDBCUSTOMSQLITE`
+and points compilation and linking at the pinned headers and library. GRDB
+6.29.3 admits its `WALSnapshot` support when either `SQLITE_ENABLE_SNAPSHOT` is
+defined or no custom-SQLite flag is set, so `GRDBCUSTOMSQLITE` alone would
+compile that support out. The override therefore defines
+`SQLITE_ENABLE_SNAPSHOT` alongside it, which keeps the snapshot path in the
+build; `DatabasePool` observations use it to avoid an unconditional second
+startup fetch when the database has not changed. The override delegates
+SwiftPM's module-wrapping phase directly to the matching `swift-frontend` and
+remains next to the selected compiler so SwiftPM loads that toolchain's
+index-store runtime.
 The exact-version runtime probe, capability report, and full tests remain
 authoritative for the pinned SQLite surface.
 
