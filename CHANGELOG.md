@@ -807,14 +807,13 @@ strict-concurrency checking may require captured mutable state to gain explicit
 isolation.
 
 Scalar subqueries already add an optional layer because they may return no row.
-Until the nullable-subquery flattening API tracked by #162 is available, selecting
-an `OrNull` aggregate inside `subquery` or `subqueryExpression` requires an
-explicit type-affinity wrapper so Swift models SQLite's single NULL state:
+Selecting an `OrNull` aggregate — or any other already-optional expression —
+inside `subquery` or `subqueryExpression` composes directly into a single
+`Int?`, not `Int??`, so Swift models SQLite's single NULL state without an
+explicit type-affinity wrapper:
 
 ```swift
-let total: any XLExpression<Int?> = XLTypeAffinityExpression<Int?>(
-    expression: subquery {
-        select(invoice.amount.sumOrNull()).from(invoice)
-    }
-)
+let total = subquery {
+    select(invoice.amount.sumOrNull()).from(invoice)
+}
 ```

@@ -122,11 +122,27 @@ extension XLExpression {
 }
 
 
+@available(*, deprecated, message: "Use format.printf(...) instead. printf(format:_:) will be removed in SwiftQL 2.")
 public func printf(format: String, _ parameters: any XLExpression ...) -> some XLExpression<String> {
     XLFunction(name: "printf", parameters: [format] + parameters)
 }
 
 
+@available(*, deprecated, message: "Use format.printf(_:) instead. printf(format:_:) will be removed in SwiftQL 2.")
 public func printf(format: String, _ parameters: [any XLExpression]) -> some XLExpression<String> {
     XLFunction(name: "printf", parameters: [format] + parameters)
+}
+
+
+extension XLExpression where T == String {
+
+    /// Renders SQLite's `printf(format, ...)`, substituting `parameters` into `self`.
+    public func printf(_ parameters: any XLExpression...) -> some XLExpression<String> {
+        XLFunction(name: "printf", parameters: [self] + parameters)
+    }
+
+    /// Renders SQLite's `printf(format, ...)`, substituting `parameters` into `self`.
+    public func printf(_ parameters: [any XLExpression]) -> some XLExpression<String> {
+        XLFunction(name: "printf", parameters: [self] + parameters)
+    }
 }

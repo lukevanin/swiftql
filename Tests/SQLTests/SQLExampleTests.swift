@@ -845,6 +845,41 @@ final class XLDocumentationTests: XCTestCase {
         ])
     }
 
+    // #row's 2+-column shapes require Swift 6.0+; see SQLRowMacro.swift and
+    // COMPATIBILITY.md for why (#408).
+    #if compiler(>=6.0)
+    func testExample_RowMacro() throws {
+        let statement = sql { schema in
+            let person = schema.table(Person.self)
+            let occupation = schema.nullableTable(Occupation.self)
+            Select(#row(person.name, occupation.name))
+            From(person)
+            Join.Left(occupation, on: occupation.id == person.occupationId)
+        }
+        let sql = encoder.makeSQL(statement).sql
+        XCTAssertEqual(sql, "SELECT t0.name AS _0, t1.name AS _1 FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId)")
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows.map { $0._0 }, ["John Doe", "Jane Doe", "Yogi Bear"])
+        XCTAssertEqual(rows.map { $0._1 }, ["Engineer", "Scientist", nil])
+    }
+
+    func testExample_RowMacro_ReferencedInWhereClause() throws {
+        let statement = sql { schema in
+            let person = schema.table(Person.self)
+            let occupation = schema.nullableTable(Occupation.self)
+            let row = #row(person.name, occupation.name)
+            Select(row)
+            From(person)
+            Join.Left(occupation, on: occupation.id == person.occupationId)
+            Where(row._0 != "Fred")
+        }
+        let sql = encoder.makeSQL(statement).sql
+        XCTAssertEqual(sql, "SELECT t0.name AS _0, t1.name AS _1 FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId) WHERE (_0 != 'Fred')")
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows.map { $0._0 }, ["John Doe", "Jane Doe", "Yogi Bear"])
+    }
+    #endif
+
     func testExample_LeftJoin_Functional_NullRows() throws {
         let statement = sqlQuery { schema in
             let person = schema.table(Person.self)
@@ -871,7 +906,7 @@ final class XLDocumentationTests: XCTestCase {
             let occupation = schema.nullableTable(Occupation.self)
             let result = PersonOccupation.columns(
                 person: person.name,
-                occupation: iif(occupation.name.isNull(), then: "Unemployed", else: "Employed")
+                occupation: occupation.name.isNull().iif(then: "Unemployed", else: "Employed")
             )
             return select(result).from(person).leftJoin(occupation, on: occupation.id == person.occupationId)
         }
@@ -1322,7 +1357,7 @@ extension XLDocumentationTests {
         let updateFredStatement = sql { schema in
             let person = schema.into(Person.self)
             Update(person)
-            Setting<Person> { row in
+            Setting(person) { row in
                 row.age = 42
             }
             Where(person.id == "fred")
@@ -1334,7 +1369,7 @@ extension XLDocumentationTests {
         let updateAgeStatement = sql { schema in
             let person = schema.into(Person.self)
             Update(person)
-            Setting<Person> { row in
+            Setting(person) { row in
                 row.age = ageParameter
             }
             Where(person.id == personIDParameter)
@@ -1392,6 +1427,14 @@ extension XLDocumentationTests {
     func testDocumentationExpressions() throws {
         try testExample_Coalesce()
         try testExample_IfCaseWhenThenElse()
+
+        let preferredName = XLNamedBindingReference<String?>(name: "preferredName")
+        let nickname = XLNamedBindingReference<String?>(name: "nickname")
+        let expression = preferredName ?? nickname ?? "Anonymous"
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "COALESCE(:preferredName, COALESCE(:nickname, 'Anonymous'))"
+        )
 
         let literalBounds = sql { schema in
             let person = schema.table(Person.self)
@@ -2690,10 +2733,28 @@ extension XLDocumentationTests {
             XLCustomCollationTests.testCustomCollationOrdersByRegisteredSequence
         let _: (XLCustomCollationTests) -> () throws -> Void =
             XLCustomCollationTests.testUnregisteredCollationFailsAtPreparation
+
+        let x = XLNamedBindingReference<Int>(name: "x")
+        let smallest = x.min(0, 10)
+        let largest = x.max(0, 10)
+        XCTAssertEqual(encoder.makeSQL(smallest).sql, "MIN(:x, 0, 10)")
+        XCTAssertEqual(encoder.makeSQL(largest).sql, "MAX(:x, 0, 10)")
+
+        let name = XLNamedBindingReference<String>(name: "name")
+        let age = XLNamedBindingReference<Int>(name: "age")
+        let formatted = "%s is %d years old".printf(name, age)
+        XCTAssertEqual(
+            encoder.makeSQL(formatted).sql,
+            "printf('%s is %d years old', :name, :age)"
+        )
     }
 
     func testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs() throws {
         try testExample_LeftJoin_Statement_NullRows()
+        #if compiler(>=6.0)
+        try testExample_RowMacro()
+        try testExample_RowMacro_ReferencedInWhereClause()
+        #endif
         try testExample_Subquery()
 
         let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testGroupConcatVariants
@@ -2767,6 +2828,10 @@ extension XLDocumentationTests {
         let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testPublishExistingEntities
         let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testPublishOneObservesDirectWrites
         let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testCancellationStopsObservationFetchesAndValues
+        let _: (XLPublisherTests) -> () throws -> Void =
+            XLPublisherTests.testQueryObserverRepublishesRowsAndObservesDirectWrites
+        let _: (XLPublisherTests) -> () throws -> Void =
+            XLPublisherTests.testQueryRowObserverRepublishesRowAndObservesDirectWrites
         let _: (XLGRDBLiveQueryRetryTests) -> () throws -> Void =
             XLGRDBLiveQueryRetryTests
                 .testRealGRDBObservationRecoversFromInjectedBusyAndKeepsObserving

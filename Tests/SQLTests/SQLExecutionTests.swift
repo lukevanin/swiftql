@@ -31,6 +31,21 @@ struct ColumnsResultShadowingProjection: Equatable {
 }
 
 
+/// Issue #162: `sumOfMatches`/`firstValue` must decode as a single-layer
+/// `Int?`, never `Int??`, regardless of whether NULL originates from an
+/// aggregate over an empty group or from a non-aggregate subquery matching
+/// zero rows. `detailRowExists` makes the "no row" vs. "a row containing
+/// NULL" distinction observable in the query result itself — `firstValue`
+/// alone decodes to `nil` in both cases.
+@SQLResult
+struct C162SubqueryFlattenRow: Equatable {
+    let id: String
+    let sumOfMatches: Int?
+    let firstValue: Int?
+    let detailRowExists: Bool?
+}
+
+
 @SQLTable(name: "BetweenInput")
 struct BetweenInput: Equatable, Identifiable {
     let id: String
@@ -2174,10 +2189,139 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(finalResult[0]["id"], "69420")
         XCTAssertEqual(finalResult[0]["date"], "2030-01-01T00:00:00.001")
     }
-    
-    
+
+
+    // MARK: - Optional scalar subquery flattening (#162)
+
+    /// Exercises both origins of a NULL scalar-subquery result against real
+    /// SQLite: an aggregate over an empty group, and a non-aggregate
+    /// subquery that matches zero rows. Both must decode as a single-layer
+    /// `Int?` alongside the ordinary non-NULL case, with no
+    /// `XLTypeAffinityExpression` wrapper.
+    func testScalarSubqueryFlattensOptionalResultAcrossNullOrigins() throws {
+        // Temp drives the outer iteration; TestTable is a correlated
+        // aggregate source (non-nullable, so an empty group surfaces NULL
+        // only via SUM's SQL semantics); TestNullablesTable is a correlated
+        // non-aggregate source whose stored value can itself be NULL.
+        try database.makeRequest(with: sqlCreate(Temp.self)).execute()
+        try createTestTable()
+        try database.makeRequest(with: sqlCreate(TestNullablesTable.self)).execute()
+
+        for id in ["hasValue", "allNullDetail", "noDetailRows"] {
+            try database.makeRequest(
+                with: sqlInsert(Temp(id: id, value: ""))
+            ).execute()
+        }
+        // No TestTable row for "allNullDetail" or "noDetailRows": their
+        // correlated SUM aggregates a zero-row group ("a row containing
+        // NULL", produced by SQL aggregate semantics rather than a stored
+        // NULL).
+        try insertTest(TestTable(id: "hasValue", value: 42))
+
+        try database.makeRequest(
+            with: sqlInsert(TestNullablesTable(id: "hasValue", value: 42))
+        ).execute()
+        // A stored NULL ("a row containing NULL", from data this time).
+        try database.makeRequest(
+            with: sqlInsert(TestNullablesTable(id: "allNullDetail", value: nil))
+        ).execute()
+        // No TestNullablesTable row at all for "noDetailRows" ("no row").
+
+        let statement = sql { schema in
+            let driver = schema.table(Temp.self)
+            // Correlated subqueries must capture the outer `schema`
+            // directly (continuing its alias numbering) rather than take a
+            // fresh `(schema: XLSchema) in` parameter, which opens a new
+            // namespace restarting at `t0` and would shadow `driver`'s own
+            // alias instead of correlating against it.
+            let sumExpression: any XLExpression<Int?> = subqueryExpression {
+                let t = schema.table(TestTable.self)
+                Select(t.value.sumOrNull())
+                From(t)
+                Where(t.id == driver.id)
+            }
+            let firstValueExpression: any XLExpression<Int?> = subqueryExpression {
+                let d = schema.table(TestNullablesTable.self)
+                Select(d.value)
+                From(d)
+                Where(d.id == driver.id)
+            }
+            // COUNT is an aggregate, so it always returns exactly one row —
+            // this observably distinguishes "a row containing NULL" (count
+            // 1) from "no row" (count 0) even though firstValue decodes to
+            // nil in both cases.
+            let detailRowExistsExpression: any XLExpression<Bool?> = subqueryExpression {
+                let d = schema.table(TestNullablesTable.self)
+                Select(d.id.count() > 0)
+                From(d)
+                Where(d.id == driver.id)
+            }
+            Select(C162SubqueryFlattenRow.columns(
+                id: driver.id,
+                sumOfMatches: sumExpression,
+                firstValue: firstValueExpression,
+                detailRowExists: detailRowExistsExpression
+            ))
+            From(driver)
+            OrderBy(driver.id.ascending())
+        }
+        let results = try database.makeRequest(with: statement).fetchAll()
+
+        XCTAssertEqual(
+            results,
+            [
+                // firstValue is NULL because the matching TestNullablesTable
+                // row's stored value is NULL — detailRowExists (true) is what
+                // makes "a row containing NULL" observable here.
+                C162SubqueryFlattenRow(id: "allNullDetail", sumOfMatches: nil, firstValue: nil, detailRowExists: true),
+                // All fields resolve to a real value.
+                C162SubqueryFlattenRow(id: "hasValue", sumOfMatches: 42, firstValue: 42, detailRowExists: true),
+                // firstValue is NULL because there is no matching
+                // TestNullablesTable row at all — detailRowExists (false)
+                // distinguishes this "no row" case from allNullDetail above,
+                // even though firstValue alone decodes identically (nil) in
+                // both.
+                C162SubqueryFlattenRow(id: "noDetailRows", sumOfMatches: nil, firstValue: nil, detailRowExists: false),
+            ]
+        )
+    }
+
+
+    // MARK: - #row (#408)
+
+    /// `#row`'s one-column shape (`SQLScalarResult`, a single generic
+    /// parameter) is available on every compatibility cell, unlike the
+    /// two-to-six column shapes gated to Swift 6.0+ in SQLRowMacro.swift.
+    /// Deliberately not gated, so this actually runs on the Swift 5.9 cells
+    /// too.
+    func testRowMacroOneColumnDecodesThroughFetchAll() throws {
+        try createTestTable()
+        try insertTest(TestTable(id: "bar", value: 42))
+
+        let statement = sql { schema in
+            let table = schema.table(TestTable.self)
+            Select(#row(table.value))
+            From(table)
+        }
+        // XCTAssertTrue, not XCTAssertEqual: confirmed in a Docker repro
+        // against the pinned Swift 5.9.2 toolchain that XCTAssertEqual's
+        // generic <T: Equatable> signature triggers an IRGen reabstraction
+        // crash here (a property of this test's specific code shape, not of
+        // #row or the production decode path — testStringToDataRoundTrip
+        // below uses XCTAssertEqual against a fetchAll()-decoded
+        // SQLScalarResult<Data> array without incident). XCTAssertTrue's
+        // fixed Bool signature needs no such reabstraction.
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        guard let onlyRow = rows.first, rows.count == 1 else {
+            XCTFail("Expected exactly one row, got \(rows.count)")
+            return
+        }
+        XCTAssertTrue(onlyRow.scalarValue == 42)
+    }
+
+
     // MARK: - Helpers
-    
+
     private func createTestTable() throws {
         let createStatement = sqlCreate(TestTable.self)
         try database.makeRequest(with: createStatement).execute()
