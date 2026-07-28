@@ -201,6 +201,37 @@ final class DateTextCodecContractTests: XCTestCase {
         XCTAssertTrue(text.hasSuffix("Z"))
     }
 
+    func testNanosecondPrecisionEncodesDatesAtTheYearBoundaryWithoutOverflow() throws {
+        // Regression test: encoding used to scale the *entire* epoch
+        // interval by 10^fractionalSecondDigits before rounding, which
+        // overflowed Int64 for a date only a few centuries from 1970 at
+        // nanosecond precision — long before the codec's own year-range
+        // check would reject it. `minimumSupportedDate`/`maximumSupportedDate`
+        // are themselves close to the epoch-scaled overflow threshold the
+        // old implementation had, so they are exactly the dates that used
+        // to fail here even though they are otherwise in range.
+        let format = try XLDateTextFormat(fractionalSecondDigits: 9)
+        let codec = XLDateTextCodec.custom(
+            key: XLValueCodecKey(id: "test.date-text.nanoseconds-boundary", version: 1),
+            format: format
+        )
+        let configuration = try XLValueCodingConfiguration(
+            registry: try XLValueCodecRegistry().registering(codec),
+            defaultCodecKeys: [codec.identity.key]
+        )
+
+        for date in [
+            XLDateTextCodec.minimumSupportedDate,
+            XLDateTextCodec.maximumSupportedDate,
+            Date(timeIntervalSince1970: 0),
+        ] {
+            XCTAssertNoThrow(
+                try configuration.encode(date, using: dialect, context: parameterContext),
+                "\(date)"
+            )
+        }
+    }
+
     func testUnsupportedFractionalSecondDigitsIsRejectedAtFormatConstruction() {
         XCTAssertThrowsError(try XLDateTextFormat(fractionalSecondDigits: 10)) { error in
             XCTAssertEqual(

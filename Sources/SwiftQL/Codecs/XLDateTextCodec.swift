@@ -160,37 +160,44 @@ public enum XLDateTextCodec {
             throw XLDateTextCodecError.unsupportedDate(date)
         }
 
-        // Round to the configured precision, in exact integer "ticks" since
-        // the epoch, before extracting calendar fields — instead of
-        // truncating a `Double` nanosecond component, or flooring to a whole
-        // second when there is no fractional component to display. `Date`
-        // stores time as a `Double` count of seconds; at magnitudes far from
-        // the epoch the nearest representable `Double` to an "obvious"
-        // fractional value (for example `1_700_000_000.123`) already lands a
-        // few hundred nanoseconds below it. Rounding to the nearest tick, at
-        // whatever precision this format keeps, recovers the intended tick
-        // because that residual is far smaller than half a tick. Integer
-        // (not floating-point) tick arithmetic keeps the whole-second/
-        // fractional-tick split exact and consistently rounded — including
-        // carrying a tick that rounds up into the next second, and rounding
-        // (not flooring) to the nearest whole second when
-        // `fractionalSecondDigits == 0`. See ``XLDateTextFormat`` for the
-        // precision/date-range tradeoff this implies.
+        // Split into an exact whole-second `Double` and a `[0, 1)`
+        // fractional remainder, then round only that small remainder to the
+        // configured precision — instead of truncating a nanosecond
+        // component, flooring to a whole second when there is no fractional
+        // component to display, or scaling the *entire* interval by
+        // `10^fractionalSecondDigits` before rounding. `Date` stores time as
+        // a `Double` count of seconds; at magnitudes far from the epoch the
+        // nearest representable `Double` to an "obvious" fractional value
+        // (for example `1_700_000_000.123`) already lands a few hundred
+        // nanoseconds below it. Rounding recovers the intended tick because
+        // that residual is far smaller than half a tick at any precision
+        // this format supports. Scaling only the remainder — never more
+        // than `scale` in magnitude, at most `1e9` for nine fractional
+        // digits — also keeps this arithmetic overflow-free regardless of
+        // how far `date` is from the epoch; scaling the whole interval
+        // first would overflow `Int64` for a high-precision format on a
+        // date only a few centuries from 1970, long before the year-range
+        // check below would reject it. See ``XLDateTextFormat`` for the
+        // precision/date-range tradeoff this still implies for decoding.
+        let wholeSecondsFloor = rawInterval.rounded(.down)
+        let fraction = rawInterval - wholeSecondsFloor
         let scale = xlPowerOfTen(format.fractionalSecondDigits)
-        let scaledInterval = rawInterval * Double(scale)
-        guard scaledInterval.isFinite, abs(scaledInterval) < 9e18 else {
-            throw XLDateTextCodecError.unsupportedDate(date)
+        let scaledFraction = (fraction * Double(scale)).rounded(.toNearestOrAwayFromZero)
+
+        var wholeSeconds = wholeSecondsFloor
+        var fractionTicks = Int(scaledFraction)
+        if fractionTicks >= scale {
+            // The fractional remainder rounded up to a full next second
+            // rather than a representable fractional tick.
+            wholeSeconds += 1
+            fractionTicks = 0
         }
-        let totalTicks = Int64(scaledInterval.rounded(.toNearestOrAwayFromZero))
-        let scale64 = Int64(scale)
-        let (wholeSecondsTicks, fractionTicks64) = xlFloorDivMod(totalTicks, scale64)
-        let fractionTicks = Int(fractionTicks64)
 
         var calendar = xlDateTextCalendar
         calendar.timeZone = xlFixedTimeZone(offsetSeconds: format.utcOffsetSeconds)
         let components = calendar.dateComponents(
             [.era, .year, .month, .day, .hour, .minute, .second],
-            from: Date(timeIntervalSince1970: Double(wholeSecondsTicks))
+            from: Date(timeIntervalSince1970: wholeSeconds)
         )
         guard
             let era = components.era, era == xlCommonEra,
@@ -446,19 +453,4 @@ private func xlPowerOfTen(_ exponent: Int) -> Int {
         result *= 10
     }
     return result
-}
-
-
-/// Floor division and its matching (always nonnegative, less than
-/// `divisor`) remainder, for a positive `divisor`. Swift's built-in `/` and
-/// `%` truncate toward zero, which would give a negative pre-epoch tick a
-/// negative or wraparound-invalid remainder instead of a valid "ticks into
-/// this second" value.
-private func xlFloorDivMod(_ value: Int64, _ divisor: Int64) -> (Int64, Int64) {
-    let quotient = value / divisor
-    let remainder = value % divisor
-    guard remainder != 0, (remainder < 0) != (divisor < 0) else {
-        return (quotient, remainder)
-    }
-    return (quotient - 1, remainder + divisor)
 }

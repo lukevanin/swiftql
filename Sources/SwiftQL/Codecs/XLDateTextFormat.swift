@@ -16,7 +16,9 @@ public enum XLDateTextCodecError: Error, Equatable, Sendable, LocalizedError {
     /// The dialect value was not the storage class this codec expects.
     case unexpectedStorage(XLValueStorageIdentifier)
 
-    /// The date's proleptic-Gregorian year falls outside the codec's fixed
+    /// Encoding could not produce text for this `Date`: either
+    /// `date.timeIntervalSince1970` is not finite, or its proleptic-Gregorian
+    /// year (in the codec's fixed offset) falls outside the codec's fixed
     /// four-digit year range (`0001`...`9999`).
     case unsupportedDate(Date)
 
@@ -35,7 +37,7 @@ public enum XLDateTextCodecError: Error, Equatable, Sendable, LocalizedError {
         case .unexpectedStorage(let storage):
             return "Expected SQLite TEXT storage, received \(storage)."
         case .unsupportedDate(let date):
-            return "\(date) falls outside the supported year range 0001...9999."
+            return "\(date) is not finite, or falls outside the supported year range 0001...9999."
         case .unsupportedPrecision(let digits):
             return "Fractional-second precision \(digits) is not in 0...9."
         case .unsupportedOffsetSeconds(let seconds):
