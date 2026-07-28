@@ -110,6 +110,52 @@ If you know SQLite, you already know the shape of SwiftQL: `Select`, `From`,
 `Join`, `Where`, `GroupBy`, `Having`, and `With` appear in SQL order and retain
 their SQL meaning.
 
+## Get started
+
+### Install
+
+Add the following line to the `dependencies` section in your `Package.swift`
+file:
+
+```text
+.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.5.2")
+```
+
+`1.5.2` is the latest published package. The examples above use APIs retained
+by v1.3; the static-query surface remains available from version 1.2.0. Pin a
+source revision only when intentionally testing later changes from `main`.
+
+In Xcode, follow Apple's [Adding package dependencies to your app](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app#Add-a-package-dependency),
+and specify the package URL `https://github.com/lukevanin/swiftql.git`.
+
+### Read the guide
+
+**[Getting started](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/)**
+walks through defining a table, creating it, inserting, selecting, binding
+values, updating, deleting, and grouping work in a transaction. It is the
+fastest path from an empty file to a working query, and it doubles as a quick
+reference afterwards.
+
+From there:
+
+- [Select queries](https://lukevanin.github.io/swiftql/documentation/swiftql/queries/)
+  for joins, grouping, subqueries, and CTEs.
+- [Declared queries](https://lukevanin.github.io/swiftql/documentation/swiftql/declaredqueries/)
+  to write queries as ordinary Swift functions with `@SQLQuery`.
+- [Advanced usage](https://lukevanin.github.io/swiftql/documentation/swiftql/advancedusage/)
+  for connections, statement preparation, row lifetime, and the full
+  transaction contract.
+- The
+  [full documentation](https://lukevanin.github.io/swiftql/documentation/swiftql/),
+  whose examples are connected to executable test scenarios, so the API shown
+  in the guides stays aligned with the library.
+
+## What's new
+
+[WHATSNEW.md](WHATSNEW.md) describes each release in plain language — what you
+can do that you could not before, and whether it affects code you already
+wrote. [CHANGELOG.md](CHANGELOG.md) remains the exact record.
+
 ## What becomes first-class
 
 - **[Tables](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/)
@@ -152,34 +198,7 @@ SQLite remains the authority for the live schema, runtime constraints,
 coercion rules, and dialect-specific behavior. SwiftQL deliberately grows its
 SQLite coverage without blurring that line.
 
-## Installation
-
-### Swift Package Manager
-
-Add the following line to the `dependencies` section in your `Package.swift`
-file:
-
-```text
-.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.5.2")
-```
-
-`1.5.2` is the latest published package. The examples above use APIs retained
-by v1.3; the static-query surface remains available from version 1.2.0. Pin a
-source revision only when intentionally testing later changes from `main`.
-
-### Xcode
-
-Refer to Apple's documentation [Adding package dependencies to your app](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app#Add-a-package-dependency),
-and specify the package URL `https://github.com/lukevanin/swiftql.git`. 
-
-## Explore SwiftQL
-
-Start with the
-[documentation](https://lukevanin.github.io/swiftql/documentation/swiftql/).
-Its examples are connected to executable test scenarios, so the API shown in
-the guides stays aligned with the library.
-
-For project guarantees and direction:
+## Project guarantees and direction
 
 - [Compiler compatibility](COMPATIBILITY.md) records the supported Swift
   toolchains and reproducible CI matrix.

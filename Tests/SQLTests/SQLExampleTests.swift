@@ -1355,6 +1355,49 @@ extension XLDocumentationTests {
         )
     }
 
+    func testDocumentationAdvancedUsage() throws {
+        let minimumAgeParameter = XLNamedBindingReference<Int>(name: "minimumAge")
+        let namedAdultsQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.age >= minimumAgeParameter)
+        }
+        let preparedInvocation = database.prepareInvocation(with: namedAdultsQuery)
+
+        let minimumAgeSlot = try XCTUnwrap(
+            preparedInvocation.parameterLayout.slot(for: .named("minimumAge"))
+        )
+        let invocationBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: preparedInvocation.parameterLayout,
+            bindings: [
+                try XLInvocationBinding(slot: minimumAgeSlot, value: .integer(21))
+            ]
+        ).validatingComplete()
+
+        let rows: [[XLSQLiteValue]] = try preparedInvocation.fetchAllValues(
+            bindings: invocationBindings
+        )
+        XCTAssertEqual(rows.count, 3)
+
+        var rejection: XLTransactionScopeError?
+        do {
+            try database.withTransaction { scope in
+                let candidate = Person(id: "nested", occupationId: nil, name: "Ida", age: 33)
+                try scope.makeRequest(with: sqlInsert(candidate)).execute()
+                try scope.withTransaction { _ in }
+            }
+        } catch let error as XLTransactionScopeError {
+            rejection = error
+        }
+        XCTAssertEqual(rejection, .nestedTransactionUnsupported)
+        XCTAssertEqual(
+            try preparedInvocation.fetchAllValues(bindings: invocationBindings).count,
+            3,
+            "The outer body's insert must roll back with the rejected transaction."
+        )
+    }
+
     func testDocumentationExpressions() throws {
         try testExample_Coalesce()
         try testExample_IfCaseWhenThenElse()

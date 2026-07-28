@@ -33,6 +33,12 @@ to the style and conventions of the Swift language.
 SwiftQL targets SQLite's SQL dialect. If you already know SQLite syntax, the
 corresponding SwiftQL statements should feel familiar.
 
+New here? Start with <doc:GettingStarted>. Upgrading? The repository's
+[what's new](https://github.com/lukevanin/swiftql/blob/main/WHATSNEW.md)
+summarizes each release in plain language, and the
+[changelog](https://github.com/lukevanin/swiftql/blob/main/CHANGELOG.md)
+records the exact detail.
+
 ## Why SQLite?
 
 SQLite is a commonly used database in many iOS and macOS applications. It has
@@ -69,7 +75,7 @@ application-facing compatibility facade: it adds the macros, typed SQL DSL,
 contextual codecs, and the current GRDB-backed SQLite implementation. Dialects
 own SQL spelling and value storage rules; drivers own connections, physical
 preparation, binding transport, execution, and row transport. See
-<doc:GettingStarted> for connection, transaction, and prepared-statement
+<doc:AdvancedUsage> for connection, transaction, and prepared-statement
 ownership.
 
 Existing v1 requests, named bindings, `XLCustomType` wrappers, and explicit
@@ -138,6 +144,7 @@ replacing SQLite's runtime type rules.
 - <doc:FunctionalSyntax>
 
 ### Advanced topics
+- <doc:AdvancedUsage>
 - <doc:Enums>
 - <doc:CustomFunctions>
 - <doc:CustomTypes>

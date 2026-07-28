@@ -82,6 +82,11 @@ matrix, and built the exact commit's validated DocC artifact.
    release-preparation change to `main` and tag the tip. When it is not, put
    the dated heading on the preparation branch instead and follow "Releasing a
    commit that is not at `main`'s tip" below.
+
+   Add the version's plain-language section to [`WHATSNEW.md`](WHATSNEW.md) in
+   that same preparation change. No gate enforces it — it is a reader-facing
+   summary, not release evidence — but it is written from the dated changelog
+   section and goes stale immediately if it is skipped.
 5. In repository settings, enable immutable releases. Verify it out of band
    with an administrator token immediately before tagging; HTTP success alone
    is insufficient because the endpoint also returns 200 while disabled:
