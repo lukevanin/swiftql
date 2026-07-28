@@ -19,7 +19,7 @@ public macro SQLResult() = #externalMacro(module: "SQLMacros", type: "SQLResultM
 /// named contextual value codec for that property alone, without wrapping or changing the
 /// property's Swift value type, its mutability, or the type's memberwise initializer. `key` is
 /// any expression whose static type is `XLValueCodecKey` -- typically a codec preset's own key
-/// (e.g. `SQLite.Date.iso8601.identity.key`) or `XLValueCodecKey(id:version:)` directly. The
+/// (e.g. `XLDateTextCodec.standardKey`) or `XLValueCodecKey(id:version:)` directly. The
 /// macro carries this key as metadata only: it never performs conversion itself, and the
 /// selected codec must still be registered with the database's `XLValueCodingConfiguration` for
 /// resolution to succeed. Two properties of the same Swift type may each select a different

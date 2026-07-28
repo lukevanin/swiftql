@@ -16,15 +16,14 @@ defined in `XLSQLiteNumericDateCodec`:
 - ``XLSQLiteNumericDateCodec/JulianDay``: `REAL` Julian day number, using the
   same linear relationship SQLite's own `julianday()` function uses.
 
-None of the three is installed as an implicit default. Property-level codec
-selection (choosing a codec per table column without repeating a selector at
-every call site) is tracked separately and is not available yet; select a
-preset at the database level (`defaultCodecKeys`) or explicitly per parameter
-and result site with `XLValueCodecSelection`.
+None of the three is installed as an implicit default. Select a preset at the
+database level (`defaultCodecKeys`), explicitly per parameter and result site
+with `XLValueCodecSelection`, or per stored property with `@SQLCodec`.
 
-A companion preset for storing `Date` as SQLite `TEXT` (ISO-8601) is tracked
-separately. See <doc:CustomTypes> for the general contextual-codec API this
-article builds on.
+A companion preset for storing `Date` as SQLite `TEXT` (ISO-8601) ships as
+`XLDateTextCodec`. See <doc:CustomTypes> for the general contextual-codec API
+this article builds on, including `@SQLCodec` and the full selection
+precedence.
 
 ## Choose a preset
 
@@ -209,7 +208,7 @@ SELECT datetime(loggedAtMilliseconds / 1000.0, 'unixepoch') FROM event;
 
 ## Comparison with the text preset
 
-A companion ISO-8601 `TEXT` preset (tracked separately) stores `Date` as a
+A companion ISO-8601 `TEXT` preset, `XLDateTextCodec`, stores `Date` as a
 formatted string. The numeric presets in this article trade that format's
 human readability for properties a `TEXT` column does not get for free:
 

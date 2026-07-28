@@ -3,7 +3,7 @@ import Foundation
 
 /// Structured failures from SwiftQL's numeric SQLite `Date` codec presets.
 ///
-/// These are distinct from ``XLValueCodecError``: they describe why one of
+/// These are distinct from `XLValueCodecError`: they describe why one of
 /// this file's encode or decode closures could not produce a value, before
 /// that closure's throw is wrapped as `XLValueCodecError.encodingFailed` or
 /// `.decodingFailed` with the active codec key and coding context.
@@ -42,22 +42,23 @@ public enum XLSQLiteNumericDateCodecError: Error, Equatable, Sendable, Localized
 
 /// Named, versioned SQLite `NUMERIC` storage presets for Foundation `Date`.
 ///
-/// Each preset is a self-contained ``XLValueCodec`` targeting ``XLSQLiteDialect``.
+/// Each preset is a self-contained `XLValueCodec` targeting `XLSQLiteDialect`.
 /// None is installed as an implicit default: register the presets an
-/// application actually uses with ``XLValueCodecRegistry/registering(_:)``,
+/// application actually uses with `XLValueCodecRegistry.registering(_:)`,
 /// then select one explicitly, either as a database/query default via
 /// `XLValueCodingConfiguration.defaultCodecKeys` or per parameter/result site
-/// via `XLValueCodecSelection`/`XLQueryCodecSelection`. There is no
-/// property-level codec selection yet (tracked separately); this file only
-/// supports database- and query-level selection.
+/// via `XLValueCodecSelection`/`XLQueryCodecSelection`. A stored property can
+/// also select a preset directly with `@SQLCodec`; this file only defines
+/// the presets themselves, not that selection mechanism.
 ///
 /// Unix seconds, Unix milliseconds, and Julian day are three different
 /// numbers for the same instant. Treat a change from one preset to another,
 /// on a column that already has rows, as a data migration: rewrite the
 /// existing values, don't just swap the codec.
 ///
-/// Companion issue #61 defines a text (`ISO-8601`) SQLite `Date` preset. See
-/// <doc:NumericDateCodecs> for a side-by-side comparison and migration notes.
+/// `XLDateTextCodec` (issue #61) defines a companion text (`ISO-8601`) SQLite
+/// `Date` preset. See <doc:NumericDateCodecs> for a side-by-side comparison
+/// and migration notes.
 public enum XLSQLiteNumericDateCodec {
 
     /// The stable Swift-value identity shared by every preset in this file.

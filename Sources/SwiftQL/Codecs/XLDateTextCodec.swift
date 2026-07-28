@@ -28,7 +28,7 @@ import SwiftQLCore
 ///
 /// Changing `fractionalSecondDigits`, `utcOffsetSeconds`, or
 /// `usesZuluDesignatorForUTC` changes the bytes this codec produces. Give the
-/// new format's codec a new ``XLValueCodecKey`` (or bump the version of an
+/// new format's codec a new `XLValueCodecKey` (or bump the version of an
 /// existing one) and migrate stored rows explicitly; SwiftQL never reformats
 /// existing text on your behalf.
 ///
@@ -76,7 +76,7 @@ public enum XLDateTextCodec {
     /// `0001-01-01T00:00:00.000Z`.
     ///
     /// A custom format's own earliest representable instant differs by its
-    /// fixed offset: the year-range check in ``encode(_:format:context:)``
+    /// fixed offset: the year-range check in `encode(_:format:context:)`
     /// applies to the year *in that offset*, not in UTC, so a positive
     /// offset's earliest instant is earlier than this value in UTC terms
     /// (and a negative offset's is later). This value is exact only for

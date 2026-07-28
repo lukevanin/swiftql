@@ -161,7 +161,7 @@ private let _xlUUIDValueTypeIdentifier = XLValueTypeIdentifier(
 /// Structured decoding failures specific to the built-in UUID presets.
 ///
 /// `XLValueCodec` wraps whatever a decode closure throws into
-/// ``XLValueCodecError/decodingFailed(codec:context:message:)`` using
+/// `XLValueCodecError.decodingFailed(codec:context:message:)` using
 /// `String(describing:)`, not `localizedDescription`, and already carries the
 /// failing codec's key and coding context. This type supplies the
 /// UUID-specific detail -- the invalid text, or the wrong byte count -- that
