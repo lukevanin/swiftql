@@ -150,17 +150,20 @@ of the distribution's `libsqlite3-dev` package that GRDB's SwiftPM
 system-library target otherwise expects, they follow GRDB's documented
 custom-SQLite recipe through SwiftPM's compiler override: the override passes
 `-DGRDBCUSTOMSQLITE` to `swiftc` and points compilation and linking at the
-pinned headers and library. GRDB 6.29.3 admits its `WALSnapshot` support when
-either the Swift-side `SQLITE_ENABLE_SNAPSHOT` condition is defined or no
-custom-SQLite flag is set, so `-DGRDBCUSTOMSQLITE` alone would compile that
+pinned headers and library. GRDB 6.29.3 compiles its `WALSnapshot` support
+whenever the Swift-side `SQLITE_ENABLE_SNAPSHOT` condition is defined, and
+otherwise only through a fallback that additionally requires both custom-SQLite
+flags to be absent and a compiler-version and platform condition to hold.
+`-DGRDBCUSTOMSQLITE` closes that fallback, so on its own it would compile the
 support out. The override therefore passes `-DSQLITE_ENABLE_SNAPSHOT` to
-`swiftc` alongside it, which keeps the snapshot path in the build;
-`DatabasePool` observations use it to avoid an unconditional second startup
-fetch when the database has not changed. The override delegates
-SwiftPM's module-wrapping phase directly to the matching `swift-frontend` and
-remains next to the selected compiler so SwiftPM loads that toolchain's
-index-store runtime. The exact-version runtime probe, capability report, and
-full tests remain authoritative for the pinned SQLite surface.
+`swiftc` alongside it, which satisfies the first condition directly and keeps
+the snapshot path in the build; `DatabasePool` observations use it to avoid an
+unconditional second startup fetch when the database has not changed. The
+override delegates SwiftPM's module-wrapping phase directly to the matching
+`swift-frontend` and remains next to the selected compiler so SwiftPM loads
+that toolchain's index-store runtime. The exact-version runtime probe,
+capability report, and full tests remain authoritative for the pinned SQLite
+surface.
 
 ## Swift 6 series coverage
 
