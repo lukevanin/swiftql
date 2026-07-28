@@ -247,9 +247,10 @@ a required slot fails with parameter, codec, and coding-path context before the
 driver binds anything.
 
 Foundation `UUID` and application-owned values use the same API without
-retroactive literal conformances. Suppose `applicationCodecDatabase` was opened
-with registered defaults whose storage identifiers match `BLOB` and `INTEGER`,
-respectively:
+retroactive literal conformances. `InvoiceToken` below is one application's own
+domain type; `UUID` is SwiftQL's built-in ``XLUUIDValueCodec``, described next.
+Suppose `applicationCodecDatabase` was opened with a registered default whose
+storage identifier matches `INTEGER`:
 
 <!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
 ```swift
@@ -257,11 +258,6 @@ struct InvoiceToken {
     let rawValue: Int64
 }
 
-let uuidParameter = try applicationCodecDatabase.contextualBinding(
-    UUID.self,
-    expressedAs: Data.self,
-    named: "invoiceID"
-)
 let tokenParameter = try applicationCodecDatabase.contextualBinding(
     InvoiceToken.self,
     expressedAs: Int.self,
@@ -592,6 +588,108 @@ future PostgreSQL dialect (`JSONB`, tracked separately as issue #137) can
 reuse the same transcoding behind a dialect-native lowering without changing
 this SQLite mapping. SwiftQL does not claim that mapping exists yet, and does
 not offer a cross-database JSON abstraction today.
+
+### Built-in UUID codec presets
+
+`UUID` never needs an application-owned wrapper or a registered codec of its
+own: ``XLUUIDValueCodec`` ships two named, versioned SQLite presets --
+``XLUUIDValueCodec/text``, the canonical lowercase hyphenated string, and
+``XLUUIDValueCodec/blob``, the canonical 16-byte RFC 4122 binary layout. Both
+target the same Swift `UUID` value; only their SQLite storage differs, so a
+schema can use each for a different property of the same type without a
+wrapper struct -- either directly as shown here, or per-property via
+`@SQLCodec` as shown above. Because both presets share one `(UUID, sqlite)`
+target, a single shared database default would be ambiguous -- register both,
+then select each explicitly:
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+let uuidRegistry = try XLValueCodecRegistry()
+    .registering(XLUUIDValueCodec.text)
+    .registering(XLUUIDValueCodec.blob)
+let uuidCoding = try XLValueCodingConfiguration(registry: uuidRegistry)
+
+let uuidDatabaseURL = FileManager.default.temporaryDirectory
+    .appendingPathComponent("uuid-fixture.sqlite")
+let uuidCodecDatabase = try GRDBDatabase(
+    url: uuidDatabaseURL,
+    codingConfiguration: uuidCoding,
+    logger: nil
+)
+let publicID = try uuidCodecDatabase.contextualBinding(
+    UUID.self,
+    expressedAs: String.self,
+    named: "publicID",
+    selection: XLValueCodecSelection(
+        explicitCodecKey: XLUUIDValueCodec.text.identity.key
+    )
+)
+let legacyBadgeID = try uuidCodecDatabase.contextualBinding(
+    UUID.self,
+    expressedAs: Data.self,
+    named: "legacyBadgeID",
+    selection: XLValueCodecSelection(
+        explicitCodecKey: XLUUIDValueCodec.blob.identity.key
+    )
+)
+```
+
+`publicID` stores its value as SQLite `TEXT` (`"e02f7c60-8c7f-..."`);
+`legacyBadgeID` stores the same Swift type as a 16-byte `BLOB`. The two
+representations always agree on equality -- the same `UUID` value round-trips
+through either -- but not on ordering: `TEXT` sorts by lexicographic byte order
+over the hyphenated string, `BLOB` sorts by byte order over the raw RFC 4122
+bytes, and neither matches the other or, in general, UUID creation order.
+Switching a column between the two, or introducing a database-default
+``XLUUIDValueCodec/text`` or ``XLUUIDValueCodec/blob`` after rows already
+exist in the other representation, is a data migration: encode and rewrite the
+existing rows explicitly rather than relying on either preset to convert them.
+
+A different dialect with a native `UUID` column type -- PostgreSQL, for
+example -- is expected to supply its own dialect-specific codec rather than
+reuse either SQLite preset; nothing about the `UUID` domain type above changes
+when a different dialect module supplies a different mapping. A PostgreSQL or
+other native-adapter contract test can register that dialect's own `UUID`
+codec and exercise the same Swift `UUID` domain type end to end without
+touching this SQLite-specific preset pair.
+
+Neither preset is the only option. An application that needs a different
+`UUID` representation -- a `urn:uuid:` prefix for interoperability with
+another system, for example -- defines its own codec the same way the `Date`
+codecs at the top of this article were defined, without an application-owned
+wrapper struct:
+
+<!-- test: XLDocumentationTests.testDocumentationCustomTypeRoundTrips -->
+```swift
+enum InvoiceUUIDCodecError: Error {
+    case invalidText(String)
+}
+
+let invoiceUUIDCodec = XLValueCodec<UUID, XLSQLiteDialect>(
+    key: XLValueCodecKey(id: "com.example.invoice-uuid.urn", version: 1),
+    valueTypeIdentifier: XLValueTypeIdentifier(rawValue: "foundation.UUID"),
+    dialectIdentifier: XLSQLiteDialect.identity,
+    storageIdentifier: XLValueStorageIdentifier(
+        rawValue: XLSQLiteStorageClass.text.rawValue
+    ),
+    encode: { value, _, _ in
+        .text("urn:uuid:\(value.uuidString.lowercased())")
+    },
+    decode: { value, _, _ in
+        guard case .text(let text) = value,
+              text.hasPrefix("urn:uuid:"),
+              let uuid = UUID(uuidString: String(text.dropFirst("urn:uuid:".count))) else {
+            throw InvoiceUUIDCodecError.invalidText("\(value)")
+        }
+        return uuid
+    }
+)
+```
+
+This application-owned codec, ``XLUUIDValueCodec/text``, and
+``XLUUIDValueCodec/blob`` are all ordinary `XLValueCodec<UUID, XLSQLiteDialect>`
+values with different keys and storage bytes; a schema can register any
+combination of them and select each explicitly per property.
 
 ## Legacy `XLCustomType` wrappers
 
