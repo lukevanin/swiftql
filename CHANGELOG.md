@@ -1,5 +1,83 @@
 # Changelog
 
+## [1.5.4] - 2026-07-28
+
+### Added
+
+- Added method-style scalar expression functions matching the existing
+  majority style (issue #3): `all().count()`, `a.min(b, ...)`/`a.max(b, ...)`
+  (at least one further expression, both because SQLite's scalar `MIN`/`MAX`
+  is meaningless with fewer and to stay unambiguous against the deprecated
+  zero-argument aggregate `min(distinct:)`/`max(distinct:)` methods of the
+  same name), `condition.iif(then:else:)`, and `"...".printf(...)`. The
+  previous free functions (`count(_:)`, `min(_:)`/`max(_:)`, `iif(_:then:else:)`,
+  `printf(format:_:)`) are deprecated in favor of the new methods, matching
+  the existing `sum()`/`average()` → `sumOrNull()`/`averageOrNull()`
+  deprecation precedent.
+- Overloaded `sql` with the same six subquery shapes `subqueryExpression`
+  already exposed — table subquery, nullable-table subquery, and scalar
+  subquery, each with and without a schema-parameter closure (issue #69).
+  Swift infers from the surrounding context (`From(...)`, a column
+  assignment, a scalar comparison) whether `sql { ... }` builds a top-level
+  statement or an embedded subquery, so a single name now covers both; the
+  new overloads are `@_disfavoredOverload` so they never affect resolution
+  at an existing top-level `sql { ... }` call site.
+- Added a `Setting(_:_:)` initializer that infers `Setting`'s row type from
+  the same table reference already passed to the preceding `Update(_:)`,
+  instead of requiring an explicit generic parameter (issue #96):
+  `Update(person); Setting(person) { row in row.age = 42 }`. The existing
+  `Setting { ... }` and `Setting(metaInstance)` initializers are unchanged.
+- Restored the `#row` ad hoc row projection macro (issue #408, follow-up to
+  #20; originally shipped in #383, then reverted after a Swift 5.9.2 IRGen
+  compiler crash). The single-column shape (`SQLScalarResult`) is available
+  on every compatibility cell; the two-to-six column shapes (`SQLRow2`
+  through `SQLRow6`) are gated to Swift 6.0+ — SwiftQL's first source-level
+  API divergence across compiler cells, documented in COMPATIBILITY.md's new
+  "Swift 5.9 API surface gaps" section. Docker-verified against the pinned
+  Swift 5.9.2 toolchain that the underlying IRGen crash isn't confined to
+  one crossing point: `fetchAll()`, `publish()`, and `publishOne()` each hit
+  it independently for a 2+-generic-parameter row type.
+- Added `XLQueryObserver` and `XLQueryRowObserver` (issue #28):
+  `ObservableObject` wrappers around `publish()`/`publishOne()` that expose
+  `@Published rows`/`row` and `@Published error`, so a SwiftUI view model
+  can adopt a live query directly without hand-writing a Combine sink. No
+  new package dependency — the package conforms to `Combine.ObservableObject`
+  (or `OpenCombine`'s equivalent on Linux) without importing SwiftUI itself.
+
+### Changed
+
+- `GRDBRequest.decodeRows(packet:)` accumulates into an outer array and
+  returns `Void` from its `withReadConnection` closure, instead of returning
+  `[Row]` directly. This protects every multi-generic-parameter `Row` type
+  from the Swift 5.9.2 IRGen crash described above at zero cost on other
+  `Row` types — motivated by, but not exclusive to, `#row`'s new shapes.
+
+### Deprecated
+
+- Deprecated the free functions `count(_:)`, `min(_:)`/`max(_:)`,
+  `iif(_:then:else:)`, and `printf(format:_:)` in favor of their method-style
+  equivalents (issue #3). Each keeps a source-compatible signature, including
+  a deprecated single-argument `min(_:)`/`max(_:)` overload that preserves
+  the prior variadic form's single-argument behavior (SQLite parses
+  `MIN(expr)`/`MAX(expr)` as its aggregate function, not a scalar comparison)
+  rather than changing it.
+
+### Migration
+
+No migration is required for v1.5.4. Every change is additive or a
+source-compatible deprecation; `#row`'s two-to-six column shapes are the
+package's first API surface unavailable on Swift 5.9 rather than a removal.
+
+Confirmed and closed out two investigations opened as issues, with no
+production code changes: chaining multiple optional fallbacks through
+`coalesce`/`??` already composed correctly into SQLite's variadic
+`COALESCE` (issue #7 — a footgun where `??` applied to a plain Swift
+`Optional` silently falls back to the standard library's operator instead
+of rendering `COALESCE` is now called out as a `> Warning` in
+`Expressions.md`), and an already-optional scalar-subquery result already
+flattened to a single-layer `T?` rather than `T??` (issue #162 — the three
+observable NULL states now have direct real-SQLite test coverage).
+
 ## [1.5.3] - 2026-07-28
 
 ### Added
