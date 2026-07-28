@@ -34,8 +34,8 @@ final class DateTextCodecContractTests: XCTestCase {
 
     func testStandardPresetRoundsSubMillisecondPrecisionToTheNearestMillisecond() throws {
         let configuration = try makeConfiguration(defaultKey: XLDateTextCodec.standardKey)
-        // Rounds down within the same second: 999.4 microseconds past the
-        // millisecond boundary is closer to .999 than to .1000.
+        // Rounds down within the same second: 999.4 milliseconds past the
+        // second boundary is closer to .999 than to .1000.
         let withoutCarry = Date(timeIntervalSince1970: 1_700_000_000.9994)
         XCTAssertEqual(
             try configuration.encode(withoutCarry, using: dialect, context: parameterContext),

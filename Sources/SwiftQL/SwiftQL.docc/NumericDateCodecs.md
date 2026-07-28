@@ -102,7 +102,7 @@ let julianDayValue = try numericDateCoding.encode(
         explicitCodecKey: XLSQLiteNumericDateCodec.JulianDay.key
     )
 )
-// .real(19675231.483622685...)
+// .real(2460263.4259288195...)
 ```
 
 or once for an entire database, by listing exactly one preset's key in
