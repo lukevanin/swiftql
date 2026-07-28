@@ -152,10 +152,10 @@ custom-SQLite recipe through SwiftPM's compiler override: the override passes
 `-DGRDBCUSTOMSQLITE` to `swiftc` and points compilation and linking at the
 pinned headers and library. GRDB 6.29.3 compiles its `WALSnapshot` support
 whenever the Swift-side `SQLITE_ENABLE_SNAPSHOT` condition is defined, and
-otherwise only through a fallback that additionally requires both custom-SQLite
-flags to be absent and a compiler-version and platform condition to hold.
-`-DGRDBCUSTOMSQLITE` closes that fallback, so on its own it would compile the
-support out. The override therefore passes `-DSQLITE_ENABLE_SNAPSHOT` to
+otherwise only through a fallback that additionally requires both
+`GRDBCUSTOMSQLITE` and `GRDBCIPHER` to be undefined and a compiler-version and
+platform condition to hold. `-DGRDBCUSTOMSQLITE` closes that fallback, so on
+its own it would compile the support out. The override therefore passes `-DSQLITE_ENABLE_SNAPSHOT` to
 `swiftc` alongside it, which satisfies the first condition directly and keeps
 the snapshot path in the build; `DatabasePool` observations use it to avoid an
 unconditional second startup fetch when the database has not changed. The
