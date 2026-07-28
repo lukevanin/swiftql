@@ -155,11 +155,12 @@ whenever the Swift-side `SQLITE_ENABLE_SNAPSHOT` condition is defined, and
 otherwise only through a fallback that additionally requires both
 `GRDBCUSTOMSQLITE` and `GRDBCIPHER` to be undefined and a compiler-version and
 platform condition to hold. `-DGRDBCUSTOMSQLITE` closes that fallback, so on
-its own it would compile the support out. The override therefore passes `-DSQLITE_ENABLE_SNAPSHOT` to
-`swiftc` alongside it, which satisfies the first condition directly and keeps
-the snapshot path in the build; `DatabasePool` observations use it to avoid an
-unconditional second startup fetch when the database has not changed. The
-override delegates SwiftPM's module-wrapping phase directly to the matching
+its own it would compile the support out. The override therefore passes
+`-DSQLITE_ENABLE_SNAPSHOT` to `swiftc` alongside it, which satisfies the first
+condition directly and keeps the snapshot path in the build; `DatabasePool`
+observations use it to avoid an unconditional second startup fetch when the
+database has not changed. The override delegates SwiftPM's module-wrapping
+phase directly to the matching
 `swift-frontend` and remains next to the selected compiler so SwiftPM loads
 that toolchain's index-store runtime. The exact-version runtime probe,
 capability report, and full tests remain authoritative for the pinned SQLite
