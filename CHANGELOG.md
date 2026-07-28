@@ -1,5 +1,88 @@
 # Changelog
 
+## [1.5.3] - 2026-07-28
+
+### Added
+
+- Added `@SQLCodec(key)` (issue #66), a zero-storage property attribute
+  macro that selects a named contextual value codec (from the v1.2 #188
+  registry) on an individual `@SQLTable`/`@SQLResult` stored property,
+  without wrapping the property, changing its Swift type, or altering the
+  type's memberwise initializer, mutability, `Equatable`, or `Codable`
+  behavior. Two properties of the same Swift type can now use two different
+  storage conventions on one table. The macro emits the codec key as stable
+  metadata (a `_swiftQLPropertyCodecKeys` dictionary keyed by column name)
+  and generates a `staticResultField(...)` convenience per annotated
+  property that already supplies `selection: .explicit(key)`, so callers
+  never repeat the key by hand. Selection still resolves through the
+  existing explicit-property/query-override/database-default precedence
+  from #188; the attribute only supplies the "explicit" input.
+- Added `XLJSONValueCodec` (issue #65), a codec factory that stores any
+  application `Codable` value as SQLite `TEXT` or `BLOB`, with an immutable,
+  `Sendable` snapshot of the relevant `JSONEncoder`/`JSONDecoder` strategies
+  (key/date/data strategy, key sorting) captured at codec construction — no
+  live shared encoder/decoder instance and no process-global JSON
+  configuration. `TEXT` and `BLOB` are distinct, non-interchangeable storage
+  identities. Malformed or incompatible data fails with a structured,
+  catchable `XLValueCodecError` that wraps the underlying `EncodingError`/
+  `DecodingError`, never a default value.
+- Added three named SQLite numeric `Date` codec presets (issue #62):
+  `UnixMilliseconds` (`INTEGER`, rounded to the nearest millisecond,
+  rejecting `Int64` overflow), `UnixSeconds` (`REAL`,
+  `Date.timeIntervalSince1970` stored as-is), and `JulianDay` (`REAL`,
+  matching SQLite's own `julianday()` linear relationship). None is an
+  implicit default — encoding without an explicit selector or a registered
+  database default throws `.ambiguousCodec`. Every preset rejects a
+  non-finite `Date` at encode time and a non-finite stored `REAL` at decode
+  time with a structured error.
+- Added `XLDateTextCodec` (issue #61): a versioned, SQLite-compatible
+  standard `Date`-as-`TEXT` preset (fixed proleptic-Gregorian calendar, UTC
+  offset, millisecond fractional precision, `Z`-suffixed
+  `YYYY-MM-DDTHH:MM:SS.SSSZ` text, directly usable by SQLite's `date`/
+  `time`/`datetime`/`julianday`/`strftime` and comparison operators without
+  a dialect conversion expression), plus `XLDateTextCodec.custom(key:format:)`
+  for applications that need a different fixed UTC offset or fractional
+  precision via an explicit, immutable `XLDateTextFormat` — no process-global
+  or shared mutable `DateFormatter`. The standard preset's supported
+  proleptic-Gregorian year range is `0001...9999`; dates outside it fail to
+  encode with a structured error rather than being silently clamped.
+- Added `XLUUIDValueCodec.text` and `.blob` (issue #192): named, versioned
+  presets that persist Foundation `UUID` as canonical lowercase hyphenated
+  `TEXT` or the canonical 16-byte RFC 4122 `BLOB`, using only the existing
+  #188 registry — no retroactive `UUID` conformance and no wrapper struct.
+  Both target the same `(UUID, sqlite)` value/dialect pair, so they always
+  agree on equality (case-insensitive text decode, canonicalized lowercase
+  encode) but can never both be installed as the database default at once.
+  Malformed input (invalid text, wrong `BLOB` length) surfaces as a
+  structured `XLUUIDValueCodecError` carrying codec and property context.
+
+### Migration
+
+No migration is required for v1.5.3. Every codec preset and `@SQLCodec` are
+new, additive surfaces built entirely on the existing v1.2 contextual
+value-codec registry (#188) and v1.2 static query descriptors (#129); no
+existing public API, persisted representation, or codec precedence rule
+changed. Applying a new preset or `@SQLCodec` to an existing property is a
+schema/data migration for that property alone, exactly like changing any
+codec's key or version — the same rule the v1.2 registry already documents.
+
+### Known limitations
+
+- `@SQLCodec` selects among codecs already registered with the
+  configuration passed to `staticResultField`; it does not register one
+  itself. An unregistered key, or a key registered for a different Swift
+  value type or dialect, fails the same way an explicit
+  `XLValueCodecSelection` fails elsewhere — with the same `XLValueCodecError`
+  cases, at the same "explicit" precedence tier, before any row is touched.
+- The numeric and text `Date` codecs stay in SwiftQL's value-coding layer;
+  none of them adds a SQL-level `julianday`/`strftime` expression-builder
+  helper — value coding stays separate from SQLite's date/time operators
+  and functions, which remain other issues' scope.
+- PostgreSQL's native `UUID`/`JSONB`/timestamp mappings (tracked separately
+  as issue #137) are untouched by this release; these presets are SQLite-
+  specific, and a future PostgreSQL dialect module supplies its own mapping
+  for the same Swift domain types without changing any codec added here.
+
 ## [1.5.2] - 2026-07-27
 
 ### Added
