@@ -71,8 +71,16 @@ public enum XLDateTextCodec {
         )
     }()
 
-    /// The earliest `Date` the standard preset (and any format using its
-    /// four-digit year field) can represent: `0001-01-01T00:00:00.000Z`.
+    /// The earliest `Date` the standard (UTC) preset can represent:
+    /// `0001-01-01T00:00:00.000Z`.
+    ///
+    /// A custom format's own earliest representable instant differs by its
+    /// fixed offset: the year-range check in ``encode(_:format:context:)``
+    /// applies to the year *in that offset*, not in UTC, so a positive
+    /// offset's earliest instant is earlier than this value in UTC terms
+    /// (and a negative offset's is later). This value is exact only for
+    /// ``standardFormat`` and any other format that also uses a `0`-second
+    /// offset.
     public static let minimumSupportedDate: Date = {
         try! decode(
             "0001-01-01T00:00:00.000Z",
@@ -81,9 +89,12 @@ public enum XLDateTextCodec {
         )
     }()
 
-    /// The latest `Date` the standard preset (and any format using its
-    /// four-digit year field) can represent, truncated to millisecond
-    /// precision: `9999-12-31T23:59:59.999Z`.
+    /// The latest `Date` the standard (UTC) preset can represent, truncated
+    /// to millisecond precision: `9999-12-31T23:59:59.999Z`.
+    ///
+    /// The same offset caveat as ``minimumSupportedDate`` applies: this
+    /// value is exact only for ``standardFormat`` and any other format that
+    /// also uses a `0`-second offset.
     public static let maximumSupportedDate: Date = {
         try! decode(
             "9999-12-31T23:59:59.999Z",
@@ -169,12 +180,18 @@ public enum XLDateTextCodec {
         // a `Double` count of seconds; at magnitudes far from the epoch the
         // nearest representable `Double` to an "obvious" fractional value
         // (for example `1_700_000_000.123`) already lands a few hundred
-        // nanoseconds below it. Rounding recovers the intended tick because
-        // that residual is far smaller than half a tick at any precision
-        // this format supports. Scaling only the remainder — never more
-        // than `scale` in magnitude, at most `1e9` for nine fractional
-        // digits — also keeps this arithmetic overflow-free regardless of
-        // how far `date` is from the epoch; scaling the whole interval
+        // nanoseconds below it. Rounding recovers the intended tick at
+        // millisecond precision and coarser, where that few-hundred-
+        // nanosecond residual is comfortably smaller than half a tick. At
+        // nine fractional digits (one-nanosecond ticks) the residual is the
+        // same order of magnitude as the tick itself, so nanosecond-exact
+        // round-tripping of a hand-written literal far from the epoch is
+        // not guaranteed at that precision — an inherent `Double` limit,
+        // not a flaw this rounding strategy could fix. Scaling only the
+        // remainder — never more than `scale` in magnitude, at most `1e9`
+        // for nine fractional digits — also keeps this arithmetic
+        // overflow-free regardless of how far `date` is from the epoch;
+        // scaling the whole interval
         // first would overflow `Int64` for a high-precision format on a
         // date only a few centuries from 1970, long before the year-range
         // check below would reject it. See ``XLDateTextFormat`` for the
