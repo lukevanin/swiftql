@@ -12,14 +12,17 @@ public enum XLResultSetError: Error, Equatable, Sendable, LocalizedError {
     /// This result set can no longer step or decode a row.
     ///
     /// A fresh call to `next()` after the query legitimately runs out of
-    /// matching rows is **not** this error -- that keeps returning `nil`
-    /// forever, exactly like any other exhausted iteration. This error only
-    /// fires once the result set can no longer safely touch its underlying
-    /// cursor or connection at all: after an explicit ``XLResultSet/close()``,
-    /// after a prior SQLite step or row-decode error already terminated
-    /// iteration, or after the ``XLRequest/withResultSet(_:)`` /
-    /// ``XLRequest/withResultSet(bindings:_:)`` scope that owned this result
-    /// set has already returned.
+    /// matching rows is **not** this error -- that keeps returning `nil`,
+    /// exactly like any other exhausted iteration, for as long as the result
+    /// set remains open. This error only fires once the result set can no
+    /// longer safely touch its underlying cursor or connection at all: after
+    /// an explicit ``XLResultSet/close()``, after a prior SQLite step or
+    /// row-decode error already terminated iteration, or after the
+    /// ``XLRequest/withResultSet(_:)`` / ``XLRequest/withResultSet(bindings:_:)``
+    /// scope that owned this result set has already returned -- including
+    /// when the result set had already reached natural exhaustion before the
+    /// scope exited: a reference retained past that point throws `.closed`
+    /// rather than continuing to return `nil`.
     case closed
 
     public var errorDescription: String? {
@@ -190,6 +193,10 @@ public final class XLResultSet<Row> {
             return row
         }
         catch {
+            // Deliver the original error exactly once, from this call; it is
+            // not retained for later inspection. Every subsequent `next()`
+            // throws `.closed` instead of this error, since `stepper` is now
+            // nil -- see the type-level "Partial progress" documentation.
             self.stepper = nil
             throw error
         }
