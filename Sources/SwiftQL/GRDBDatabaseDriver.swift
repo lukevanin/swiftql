@@ -340,6 +340,36 @@ struct GRDBInvocationExecutor: Sendable {
         )
     }
 
+    ///
+    /// Prepares and binds one statement for `packet`, then lends a
+    /// value-level row stepper scoped to the connection access that owns it.
+    ///
+    /// `operation` runs synchronously inside the same read (or, when
+    /// `requiresWriteConnection` is `true`, write/transaction) connection
+    /// access that creates the stepper, so the GRDB cursor the stepper
+    /// closes over never escapes its owning database access -- the stepper
+    /// closure is only valid for the duration of `operation`. `XLResultSet`
+    /// is built directly on top of this seam.
+    ///
+    func withValuesStepper<Result>(
+        packet: XLInvocationBindings<XLSQLiteValue>,
+        requiresWriteConnection: Bool,
+        _ operation: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
+    ) throws -> Result {
+        var driver = driver
+        let accessor: (inout GRDBDatabaseDriverConnection) throws -> Result = { connection in
+            let statement = try self.boundStatement(packet: packet, in: &connection)
+            let stepper = try connection.makeValuesStepper(statement)
+            return try operation(stepper)
+        }
+        if requiresWriteConnection {
+            return try driver.withTransaction(accessor)
+        }
+        else {
+            return try driver.withReadConnection(accessor)
+        }
+    }
+
     func fetchOne(
         bindings: any XLInvocationBindingPacket
     ) throws -> [XLSQLiteValue]? {
@@ -655,6 +685,49 @@ struct GRDBDatabaseDriverConnection:
             if try body(values) == .stop {
                 return
             }
+        }
+    }
+
+    ///
+    /// Implements ``XLStreamingDatabaseDriverConnection/makeValuesStepper(_:)``
+    /// for GRDB: prepares one physical statement and returns a value-level
+    /// stepper that performs at most one additional SQLite step and
+    /// value-normalization per call, returning `nil` once the underlying
+    /// cursor is exhausted.
+    ///
+    /// This is the pull-based counterpart to `forEachRow(_:_:)`'s push-based
+    /// callback: `XLResultSet.next()` needs to step exactly one row per call
+    /// from outside code that already ran and returned, which a callback
+    /// invoked once per row cannot express. The returned closure remains
+    /// valid only for the lifetime of this connection's database access: it
+    /// captures a GRDB row cursor bound to `database`, which must not survive
+    /// the access that produced this connection. The caller must stop
+    /// invoking the closure -- and release every reference to it -- no later
+    /// than when that access returns.
+    ///
+    mutating func makeValuesStepper(
+        _ statement: GRDBPhysicalStatement
+    ) throws -> () throws -> [XLSQLiteValue]? {
+        try validateOwnership(of: statement)
+        let cursor = try Row.fetchCursor(
+            statement.statement,
+            arguments: statementArguments(statement)
+        )
+        // Same reusable normalization buffer as forEachRow(_:_:) above, for
+        // the same reason: the streaming contract requires the caller to
+        // consume (decode or copy) each row's values before requesting the
+        // next one.
+        var values: [XLSQLiteValue] = []
+        return {
+            guard let row = try cursor.next() else {
+                return nil
+            }
+            values.removeAll(keepingCapacity: true)
+            values.reserveCapacity(row.count)
+            for databaseValue in row.databaseValues {
+                values.append(databaseValue.sqliteDialectValue)
+            }
+            return values
         }
     }
 

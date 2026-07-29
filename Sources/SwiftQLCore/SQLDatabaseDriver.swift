@@ -119,6 +119,25 @@ package protocol XLStreamingDatabaseDriverConnection:
         _ statement: PhysicalStatement,
         _ body: ([Dialect.Value]) throws -> XLRowStreamControl
     ) throws
+
+    ///
+    /// Prepares one physical statement and returns a value-level stepper that
+    /// performs at most one additional SQLite step and value-normalization
+    /// per call, returning `nil` once the underlying cursor is exhausted.
+    ///
+    /// This is the pull-based counterpart to `forEachRow(_:_:)`: a caller
+    /// outside the connection access (``XLResultSet/next()``) needs to step
+    /// exactly one row per call from code that already ran and returned,
+    /// which a callback invoked once per row cannot express. The returned
+    /// closure remains valid only for the lifetime of the connection access
+    /// that produced it; implementations must not let the physical cursor it
+    /// closes over survive that access, and callers must stop invoking the
+    /// closure (and release every reference to it) no later than when that
+    /// access returns.
+    ///
+    mutating func makeValuesStepper(
+        _ statement: PhysicalStatement
+    ) throws -> () throws -> [Dialect.Value]?
 }
 
 

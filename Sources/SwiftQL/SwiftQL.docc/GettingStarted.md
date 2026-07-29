@@ -185,6 +185,48 @@ let firstPersonNamedFred = try database.makeRequest(with: peopleNamedFredQuery).
 guarantee which matching row is returned. Select syntax is discussed in more
 detail in the <doc:Queries> guide.
 
+### Lazy result sets
+
+`fetchAll()` decodes every matching row up front into a complete array;
+`fetchOne()` decodes at most one row. When a query may match many rows and the
+caller does not need all of them retained at once -- or wants to stop as soon
+as it finds what it is looking for -- use `withResultSet(_:)` instead:
+
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
+```swift
+try database.makeRequest(with: peopleNamedFredQuery).withResultSet { results in
+    while let person = try results.next() {
+        print(person.name)
+    }
+}
+```
+
+`withResultSet(_:)` hands `operation` an `XLResultSet<Row>`: a reference type
+whose `next()` performs at most one additional row step and typed decode, and
+returns `nil` once the query is exhausted. No row is fetched or decoded before
+`operation` calls `next()` for it, and stopping early means later rows are
+never stepped or decoded. Unlike `fetchAll()`, a decode or SQLite error only
+ends iteration from that point forward -- rows already returned by earlier
+`next()` calls remain valid, independent values; `fetchAll()` instead fails
+atomically and returns nothing.
+
+`XLResultSet` is not a `Sequence` or `Collection`: it has no replayable value
+semantics, cannot be iterated with `for row in results`, and is not
+`Sendable`. It is valid only for the duration of the `withResultSet(_:)`
+callback, which owns the underlying database read connection or snapshot for
+that entire callback -- avoid slow, unrelated work between `next()` calls, and
+never let the result set escape the callback. A reference retained past the
+callback's return throws `XLResultSetError.closed` from `next()`; closing
+explicitly, or letting the query exhaust naturally, is otherwise idempotent
+and does not throw.
+
+Prefer `fetchAll()` when every row is needed as a complete, retained array, or
+when the array-processing conveniences (`map`, `filter`, `count`, sorting, ...)
+matter more than incremental decoding. Prefer `withResultSet(_:)` when the
+result may be large, the caller may stop before consuming every row, or the
+cost of decoding rows nobody uses should scale with rows actually requested
+rather than total query cardinality.
+
 ### Schema parameter
 
 The previous query uses the `schema` parameter to construct a table reference.

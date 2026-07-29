@@ -87,6 +87,77 @@ final class SQLDriverContractTests: XCTestCase {
         XCTAssertEqual(recorder.streamedRows, rows)
     }
 
+    /// The pull-based counterpart to `forEachRow(_:_:)`:
+    /// `makeValuesStepper(_:)` backs ``XLResultSet``'s `next()`. Each call to
+    /// the returned closure must step and record exactly one row, stopping
+    /// permanently once the caller stops calling it, and a thrown error must
+    /// not step further rows.
+    func testDriverNeutralValuesStepperStepsOneRowPerCallAndStopsOnDemand() throws {
+        let recorder = DriverRecorder()
+        let databaseIdentifier = databaseID(11)
+        let rows: [[XLSQLiteValue]] = [
+            [.integer(1), .text("first")],
+            [.integer(2), .text("second")],
+            [.integer(3), .text("third")],
+        ]
+        var connection = FakeConnection(
+            connectionID: 9,
+            databaseIdentifier: databaseIdentifier,
+            recorder: recorder,
+            resultRows: rows
+        )
+        let statement = try connection.prepareValidated(
+            logicalStatement(databaseIdentifier: databaseIdentifier)
+        )
+
+        let stepper = try connection.makeValuesStepper(statement)
+        XCTAssertTrue(recorder.streamedRows.isEmpty, "No row may be stepped before the stepper is invoked.")
+
+        XCTAssertEqual(try stepper(), rows[0])
+        XCTAssertEqual(recorder.streamedRows, [rows[0]])
+        XCTAssertEqual(try stepper(), rows[1])
+        XCTAssertEqual(recorder.streamedRows, Array(rows.prefix(2)))
+
+        // Stopping here (never calling the stepper again) must not step row 3.
+        XCTAssertEqual(recorder.streamedRows, Array(rows.prefix(2)))
+
+        recorder.streamedRows.removeAll()
+        var failingConnection = FakeConnection(
+            connectionID: 9,
+            databaseIdentifier: databaseIdentifier,
+            recorder: recorder,
+            failure: .execute,
+            resultRows: rows
+        )
+        XCTAssertThrowsError(try failingConnection.makeValuesStepper(statement)) { error in
+            XCTAssertEqual(error as? FakeFailure, .execute)
+        }
+        XCTAssertTrue(recorder.streamedRows.isEmpty)
+    }
+
+    /// Exhaustion of the pull-based stepper is stable: once it returns `nil`,
+    /// further calls keep returning `nil` rather than stepping again.
+    func testDriverNeutralValuesStepperExhaustionIsStable() throws {
+        let recorder = DriverRecorder()
+        let databaseIdentifier = databaseID(12)
+        let rows: [[XLSQLiteValue]] = [[.integer(1), .text("only")]]
+        var connection = FakeConnection(
+            connectionID: 10,
+            databaseIdentifier: databaseIdentifier,
+            recorder: recorder,
+            resultRows: rows
+        )
+        let statement = try connection.prepareValidated(
+            logicalStatement(databaseIdentifier: databaseIdentifier)
+        )
+
+        let stepper = try connection.makeValuesStepper(statement)
+        XCTAssertEqual(try stepper(), rows[0])
+        XCTAssertNil(try stepper())
+        XCTAssertNil(try stepper(), "Exhaustion must remain stable across repeated calls.")
+        XCTAssertEqual(recorder.streamedRows, rows)
+    }
+
     func testLogicalStatementCreatesConnectionOwnedPhysicalStatements() throws {
         let recorder = DriverRecorder()
         let databaseIdentifier = databaseID(2)
@@ -702,6 +773,29 @@ private struct FakeConnection:
             if try body(row) == .stop {
                 return
             }
+        }
+    }
+
+    mutating func makeValuesStepper(
+        _ statement: FakePhysicalStatement
+    ) throws -> () throws -> [XLSQLiteValue]? {
+        guard statement.connectionID == connectionID else {
+            throw FakeFailure.execute
+        }
+        if failure == .execute {
+            throw FakeFailure.execute
+        }
+        let rows = resultRows ?? [orderedValues(in: statement)]
+        let recorder = recorder
+        var index = 0
+        return {
+            guard index < rows.count else {
+                return nil
+            }
+            let row = rows[index]
+            index += 1
+            recorder.streamedRows.append(row)
+            return row
         }
     }
 
