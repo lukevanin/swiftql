@@ -87,11 +87,17 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
             return
         }
         isFinished = true
-        // Termination wins over any value already buffered (or about to be
-        // buffered by a `yield` that lost the lock race to this call): a
-        // buffered-but-undelivered snapshot must not surface after the
-        // stream has ended.
-        pendingValue = nil
+        // Deliberately does NOT clear `pendingValue`: a value legitimately
+        // yielded before `finish()` is called (e.g. a source that emits one
+        // final value and completes immediately afterward) must still be
+        // delivered by the next `next()` call before iteration ends -- values
+        // then completion, in that order. Confirmed by #308's production use
+        // of this same policy: a `Just`-backed compatibility publisher's
+        // yield-then-finish happens synchronously within one callback chain,
+        // and discarding the buffered value here silently dropped it.
+        // `yield(_:)`'s own `isFinished` guard already prevents a value that
+        // arrives *after* `finish()`/`cancel()` from ever being buffered,
+        // which is the actual race this type must reject.
         if let waiter {
             self.waiter = nil
             lock.unlock()
