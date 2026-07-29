@@ -126,6 +126,10 @@ package protocol XLStreamingDatabaseDriverConnection:
     /// and value-normalization per call, returning `nil` once the underlying
     /// cursor is exhausted.
     ///
+    /// Both exhaustion and a thrown step error are terminal: once the
+    /// returned closure has returned `nil` or thrown once, every later call
+    /// must keep returning `nil` rather than stepping the cursor again.
+    ///
     /// This is the pull-based counterpart to `forEachRow(_:_:)`: a caller
     /// outside the connection access (``XLResultSet/next()``) needs to step
     /// exactly one row per call from code that already ran and returned,
