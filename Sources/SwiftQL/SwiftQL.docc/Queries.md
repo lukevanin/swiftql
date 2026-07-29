@@ -456,13 +456,6 @@ let query = sql { schema in
 }
 ```
 
-`sql` works the same way in both positions above — it infers whether it is
-building a top-level statement, a table subquery, or a scalar subquery from
-its surrounding context, so `sql { ... }` and `subqueryExpression { ... }` are
-interchangeable here. Use whichever name reads better at the call site;
-`subqueryExpression` (or the functional `subquery`) makes the intent explicit,
-while reusing `sql` everywhere means one name to remember.
-
 See the <doc:Expressions/In-operator> documentation for an example of using a
 subquery with the `in` operator.
 

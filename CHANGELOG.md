@@ -14,14 +14,6 @@
   `printf(format:_:)`) are deprecated in favor of the new methods, matching
   the existing `sum()`/`average()` → `sumOrNull()`/`averageOrNull()`
   deprecation precedent.
-- Overloaded `sql` with the same six subquery shapes `subqueryExpression`
-  already exposed — table subquery, nullable-table subquery, and scalar
-  subquery, each with and without a schema-parameter closure (issue #69).
-  Swift infers from the surrounding context (`From(...)`, a column
-  assignment, a scalar comparison) whether `sql { ... }` builds a top-level
-  statement or an embedded subquery, so a single name now covers both; the
-  new overloads are `@_disfavoredOverload` so they never affect resolution
-  at an existing top-level `sql { ... }` call site.
 - Added a `Setting(_:_:)` initializer that infers `Setting`'s row type from
   the same table reference already passed to the preceding `Update(_:)`,
   instead of requiring an explicit generic parameter (issue #96):

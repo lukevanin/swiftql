@@ -347,9 +347,16 @@ struct GRDBRequest<Row>: XLRequest {
         limit: Int
     ) throws -> [Row] {
         var driver = executor.driver
-        return try driver.withReadConnection { connection in
-            try decodeRows(packet: packet, limit: limit, in: &connection)
+        // Same accumulator/Void-return shape as the two decodeRows(packet:)
+        // overloads above, and for the same reason: this is
+        // fetchAtMost(_:bindings:)'s decode boundary (used by @SQLQuery's
+        // `.exactlyOne` cardinality) — an unpatched crossing point of the
+        // same IRGen crash class.
+        var items: [Row] = []
+        try driver.withReadConnection { connection in
+            items = try decodeRows(packet: packet, limit: limit, in: &connection)
         }
+        return items
     }
 
     private func decodeRows(
