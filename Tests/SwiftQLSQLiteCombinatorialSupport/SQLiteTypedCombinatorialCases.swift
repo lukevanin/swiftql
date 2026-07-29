@@ -1566,13 +1566,13 @@ public enum SQLiteTypedCombinatorialCases {
             expressionCase(
                 id: "comparable-min",
                 featureID: "syntax.expression.numeric-comparable-functions",
-                statement: select(min(namedInteger, 191)),
+                statement: select(namedInteger.min(191)),
                 bindings: [.init(key: .named("integer_value"), value: .integer(254))]
             ),
             expressionCase(
                 id: "string-printf",
                 featureID: "syntax.expression.string-functions",
-                statement: select(printf(format: "%s-%d", namedText, namedInteger)),
+                statement: select("%s-%d".printf(namedText, namedInteger)),
                 bindings: [
                     .init(key: .named("text_value"), value: .text("case")),
                     .init(key: .named("integer_value"), value: .integer(191)),
@@ -1676,17 +1676,14 @@ public enum SQLiteTypedCombinatorialCases {
             issue286ExpressionCase(
                 id: "comparable-max",
                 featureID: "syntax.expression.numeric-comparable-functions",
-                statement: select(max(namedInteger, 191)),
+                statement: select(namedInteger.max(191)),
                 bindings: [.init(key: .named("integer_value"), value: .integer(254))]
             ),
             issue286ExpressionCase(
                 id: "string-printf-array",
                 featureID: "syntax.expression.string-functions",
                 statement: select(
-                    printf(
-                        format: "%s-%d",
-                        [namedText, namedInteger]
-                    )
+                    "%s-%d".printf([namedText, namedInteger])
                 ),
                 bindings: [
                     .init(key: .named("text_value"), value: .text("case")),

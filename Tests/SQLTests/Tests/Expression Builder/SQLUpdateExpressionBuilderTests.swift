@@ -51,6 +51,20 @@ final class XLUpdateExpressionBuilderTests: XCTestCase {
         XCTAssertEqual(encoder.makeSQL(expression).sql, "UPDATE Test AS t0 SET value = (t0.value + 10)")
     }
     
+    /// Issue #96: `Row` is inferred from the table reference already passed
+    /// to `Update(_:)`, so the closure needs no explicit `Setting<Row>`
+    /// generic argument.
+    func testUpdateSettingInfersRowFromTableReference() {
+        let expression = sql { ns in
+            let t = ns.into(TestTable.self)
+            Update(t)
+            Setting(t) { row in
+                row.value = t.value + 10
+            }
+        }
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "UPDATE Test AS t0 SET value = (t0.value + 10)")
+    }
+
     func testUpdateSettingDescreteValuesWithWhere() {
         let expression = sql { ns in
             let t = ns.into(TestTable.self)

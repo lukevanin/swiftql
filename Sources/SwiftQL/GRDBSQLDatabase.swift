@@ -277,14 +277,38 @@ struct GRDBRequest<Row>: XLRequest {
         packet: XLInvocationBindings<XLSQLiteValue>
     ) throws -> [Row] {
         var driver = executor.driver
+        // Both branches accumulate into an outer array and return Void from
+        // the closure, instead of returning [Row] directly from
+        // withTransaction<Result>/withReadConnection<Result>. On the pinned
+        // Swift 5.9.2 compatibility cell, instantiating that specific generic
+        // reabstraction boundary with a 2+ generic-parameter Row type (e.g.
+        // #row's SQLRow2...6) crashes swift-frontend in IRGen
+        // (NativeConventionSchema::mapIntoNative) — and, because this is a
+        // compiler memory-safety bug rather than a clean type error, a single
+        // unpatched crossing point elsewhere in the same module can corrupt
+        // shared frontend state and surface as an unrelated-looking crash
+        // (e.g. ConformanceLookupTable::updateLookupTable,
+        // llvm::FoldingSetBase::FindNodeOrInsertPos) at a completely
+        // different file later in the same compilation. This shape has no
+        // cost on any other Row type, and it protects both of this file's
+        // fetchAll() boundaries from that crash — it is not a blanket fix for
+        // the bug class: the publish()/publishOne() paths below independently
+        // hit the same crash through their own generic publisher/witness-
+        // method return types, which is why #row's 2+-column shapes stay
+        // gated to Swift 6.1+ (SQLRowMacro.swift) rather than being unlocked
+        // by this change.
+        var items: [Row] = []
         if requiresWriteConnection {
-            return try driver.withTransaction { connection in
-                try decodeRows(packet: packet, in: &connection)
+            try driver.withTransaction { connection in
+                items = try decodeRows(packet: packet, in: &connection)
             }
         }
-        return try driver.withReadConnection { connection in
-            try decodeRows(packet: packet, in: &connection)
+        else {
+            try driver.withReadConnection { connection in
+                items = try decodeRows(packet: packet, in: &connection)
+            }
         }
+        return items
     }
 
     private func decodeRows(
@@ -323,9 +347,16 @@ struct GRDBRequest<Row>: XLRequest {
         limit: Int
     ) throws -> [Row] {
         var driver = executor.driver
-        return try driver.withReadConnection { connection in
-            try decodeRows(packet: packet, limit: limit, in: &connection)
+        // Same accumulator/Void-return shape as the two decodeRows(packet:)
+        // overloads above, and for the same reason: this is
+        // fetchAtMost(_:bindings:)'s decode boundary (used by @SQLQuery's
+        // `.exactlyOne` cardinality) — an unpatched crossing point of the
+        // same IRGen crash class.
+        var items: [Row] = []
+        try driver.withReadConnection { connection in
+            items = try decodeRows(packet: packet, limit: limit, in: &connection)
         }
+        return items
     }
 
     private func decodeRows(

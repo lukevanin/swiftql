@@ -203,5 +203,6 @@ extension SQLResultMacro: ExtensionMacro {
         SQLQueriesMacro.self,
         SQLFunctionMacro.self,
         SQLCodecMacro.self,
+        SQLRowMacro.self,
     ]
 }

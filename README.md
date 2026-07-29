@@ -135,7 +135,8 @@ their SQL meaning.
   driver.
 - **[Live data](https://lukevanin.github.io/swiftql/documentation/swiftql/livequeries/).**
   Observe typed query results through GRDB-backed Combine publishers that track
-  the database region a query reads.
+  the database region a query reads, or adopt `XLQueryObserver`/
+  `XLQueryRowObserver` directly with SwiftUI's `@StateObject`/`@ObservedObject`.
 - **Your domain.** Extend SQLite with Swift enums, custom value types, and
   type-safe custom SQL functions.
 

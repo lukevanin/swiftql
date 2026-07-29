@@ -166,6 +166,32 @@ that toolchain's index-store runtime. The exact-version runtime probe,
 capability report, and full tests remain authoritative for the pinned SQLite
 surface.
 
+### Swift 5.9 and Swift 6.0 API surface gaps
+
+The `#row(...)` freestanding macro's two-to-six column shapes (`SQLRow2`
+through `SQLRow6`) require `#if compiler(>=6.1)` and are unavailable on the
+Swift 5.9 support point or the pinned Swift 6.0 cell. Decoding a result type
+with 2 or more generic parameters through `fetchAll()` or `publish()` crashes
+`swift-frontend` during IR generation (`NativeConventionSchema::mapIntoNative`
+and other, seemingly unrelated internal symbols — this is a compiler
+memory-safety bug, not a clean type error, so its crash site is not stable)
+on both the pinned Swift 5.9.2 toolchain and the pinned Swift 6.0 cell (Xcode
+16.2) — reproduced for 5.9.2 with a minimal case in Docker (`swift:5.9.2-jammy`
+plus the pinned SQLite 3.53.3 amalgamation and the
+`GRDBCUSTOMSQLITE`/`SQLITE_ENABLE_SNAPSHOT` compiler override above), and
+observed directly on the pinned Swift 6.0 cell in this release's CI run,
+independent of restructuring the decode boundary to avoid returning the
+multi-generic-parameter type directly from `pool.read`, `withTransaction`,
+`ValueObservation`, or a Combine operator closure — every one of those
+crossings independently triggers the same crash for such a type. The bug is
+fixed by Swift 6.1 (Xcode 16.4): the compatibility matrix's `Swift 6.1 / Apple
+clean resolution` cell compiles and runs `#row`'s multi-column shapes without
+incident. `#row`'s one-column shape (`SQLScalarResult`, a single generic
+parameter) is unaffected and remains available on every pinned cell,
+including 5.9 and 6.0. This is the package's first source-level API
+divergence across compiler cells; see `Sources/SwiftQL/SQLRowMacro.swift` and
+`Sources/SwiftQL/SQLRowResult.swift` for the gated declarations.
+
 ## Swift 6 series coverage
 
 | Swift series | GitHub runner | Xcode | Swift | macOS SDK |

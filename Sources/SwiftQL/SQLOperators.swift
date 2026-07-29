@@ -404,7 +404,7 @@ public struct XLNullCoalesceExpression<T>: XLExpression {
 ///
 /// *Swift:*
 /// ```swift
-/// iif(foo.bar.isNull(), then: "baz", else: "buzz")
+/// foo.bar.isNull().iif(then: "baz", else: "buzz")
 /// ```
 ///
 /// *SQL:*
