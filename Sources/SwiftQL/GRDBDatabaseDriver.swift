@@ -718,8 +718,25 @@ struct GRDBDatabaseDriverConnection:
         // consume (decode or copy) each row's values before requesting the
         // next one.
         var values: [XLSQLiteValue] = []
+        // Exhaustion and a thrown step error are both terminal: GRDB does not
+        // document `Cursor.next()` as safe to call again after it throws, so
+        // once this closure has returned `nil` or thrown once, every later
+        // call keeps returning `nil` instead of stepping the cursor again.
+        var isTerminal = false
         return {
-            guard let row = try cursor.next() else {
+            guard !isTerminal else {
+                return nil
+            }
+            let row: Row?
+            do {
+                row = try cursor.next()
+            }
+            catch {
+                isTerminal = true
+                throw error
+            }
+            guard let row else {
+                isTerminal = true
                 return nil
             }
             values.removeAll(keepingCapacity: true)
