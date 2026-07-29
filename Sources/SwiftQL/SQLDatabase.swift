@@ -176,15 +176,19 @@ public protocol XLRequest<Row> {
     func fetchOne(bindings: any XLInvocationBindingPacket) throws -> Row?
 
     ///
-    /// Executes `operation` with a lazy, single-pass ``XLResultSet`` built
-    /// from zero bindings, decoding at most one additional row per `next()`
-    /// call instead of every matching row up front.
+    /// Executes `operation` with a single-pass ``XLResultSet`` built from
+    /// zero bindings, exposing at most one additional row per `next()` call
+    /// instead of every matching row up front.
     ///
-    /// Unlike ``fetchAll()``, no row is fetched or decoded before `operation`
-    /// calls `next()` for it, and stopping early means later rows are never
-    /// stepped or decoded. See ``XLResultSet`` for its single-pass reference
-    /// semantics, throwing iteration, non-`Sendable` isolation, scope
-    /// lifetime, connection occupancy, and partial-progress behavior.
+    /// This protocol requirement does not itself guarantee lazy stepping --
+    /// see ``XLResultSet`` for which implementations are truly streaming
+    /// (decoding at most one row per `next()`, with no row fetched or decoded
+    /// before `operation` calls `next()` for it) versus eager (this
+    /// protocol's own compatibility default, which calls ``fetchAll()``
+    /// under the hood, and `GRDBRequest`'s `RETURNING` exception) -- both
+    /// still honor `XLResultSet`'s single-pass reference semantics, throwing
+    /// iteration, non-`Sendable` isolation, scope lifetime, and
+    /// partial-progress behavior, just not the streaming cost profile.
     ///
     /// - Throws: The original query-execution error, or whatever `operation` throws.
     ///

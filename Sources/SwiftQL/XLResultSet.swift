@@ -38,12 +38,20 @@ public enum XLResultSetError: Error, Equatable, Sendable, LocalizedError {
 /// A single-pass, connection-scoped, lazily-decoded query result.
 ///
 /// `next()` performs at most one additional SQLite step and typed decode per
-/// call. No row is fetched or decoded before the first call to `next()`, and
-/// stopping early -- an early `return`, `break`, or thrown error from the
-/// ``XLRequest/withResultSet(_:)`` callback -- means every later row is never
-/// stepped or decoded. There is no read-ahead and no buffering: the cost of
-/// producing rows scales with rows actually requested, not with the query's
-/// total cardinality.
+/// call. For a true streaming implementation (`GRDBRequest`'s override, used
+/// for ordinary non-`RETURNING` statements), no row is fetched or decoded
+/// before the first call to `next()`, and stopping early -- an early
+/// `return`, `break`, or thrown error from the ``XLRequest/withResultSet(_:)``
+/// callback -- means every later row is never stepped or decoded, with no
+/// read-ahead or buffering: the cost of producing rows scales with rows
+/// actually requested, not with the query's total cardinality. Two
+/// implementations decode eagerly instead, while still exposing the same
+/// single-pass `next()` surface: the protocol-extension compatibility
+/// default for `XLRequest` conformers that predate this API (which calls
+/// `fetchAll()` under the hood), and `GRDBRequest`'s own `RETURNING`
+/// exception (see "Scope lifetime and connection occupancy" below) --
+/// callers of `withResultSet(_:)` should not assume lazy stepping unless they
+/// know which implementation backs a given request.
 ///
 /// ### Reference semantics, not a collection
 ///
@@ -67,14 +75,20 @@ public enum XLResultSetError: Error, Equatable, Sendable, LocalizedError {
 ///
 /// An `XLResultSet` is valid only for the dynamic extent of the
 /// ``XLRequest/withResultSet(_:)`` (or ``XLRequest/withResultSet(bindings:_:)``)
-/// callback that receives it. That callback owns the underlying database read
-/// access -- a pooled connection, or the pinned connection of an enclosing
-/// transaction -- for its *entire* duration, not just while a `next()` call is
-/// in flight. Avoid slow, unrelated work between `next()` calls, since it
-/// keeps that connection or snapshot occupied the whole time. The owning
-/// scope closes the result set with `defer` before returning or throwing, so
-/// this happens whether the callback returns normally, returns early, or
-/// throws.
+/// callback that receives it. For a true streaming implementation, that
+/// callback owns the underlying database read access -- a pooled connection,
+/// or the pinned connection of an enclosing transaction -- for its *entire*
+/// duration, not just while a `next()` call is in flight; avoid slow,
+/// unrelated work between `next()` calls, since it keeps that connection or
+/// snapshot occupied the whole time. `GRDBRequest`'s one exception is a
+/// `RETURNING` statement: because the statement's write must complete
+/// atomically regardless of how many rows the caller ends up consuming, the
+/// write transaction runs and fully decodes its rows *before* `operation`
+/// is ever called, so the callback in that case does not hold the write
+/// connection open across `next()` calls -- only the already-decoded rows.
+/// The owning scope closes the result set with `defer` before returning or
+/// throwing, so this happens whether the callback returns normally, returns
+/// early, or throws.
 ///
 /// A reference retained past that callback's return no longer has a live
 /// cursor to step: every later `next()` throws ``XLResultSetError/closed``

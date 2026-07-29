@@ -203,19 +203,24 @@ try database.makeRequest(with: peopleNamedFredQuery).withResultSet { results in
 
 `withResultSet(_:)` hands `operation` an `XLResultSet<Row>`: a reference type
 whose `next()` performs at most one additional row step and typed decode, and
-returns `nil` once the query is exhausted. No row is fetched or decoded before
-`operation` calls `next()` for it, and stopping early means later rows are
-never stepped or decoded. Unlike `fetchAll()`, a decode or SQLite error only
-ends iteration from that point forward -- rows already returned by earlier
-`next()` calls remain valid, independent values; `fetchAll()` instead fails
-atomically and returns nothing.
+returns `nil` once the query is exhausted. For a true streaming
+implementation (the ordinary, non-`RETURNING` case), no row is fetched or
+decoded before `operation` calls `next()` for it, and stopping early means
+later rows are never stepped or decoded. Unlike `fetchAll()`, a decode or
+SQLite error only ends iteration from that point forward -- rows already
+returned by earlier `next()` calls remain valid, independent values;
+`fetchAll()` instead fails atomically and returns nothing.
 
 `XLResultSet` is not a `Sequence` or `Collection`: it has no replayable value
 semantics, cannot be iterated with `for row in results`, and is not
 `Sendable`. It is valid only for the duration of the `withResultSet(_:)`
-callback, which owns the underlying database read connection or snapshot for
-that entire callback -- avoid slow, unrelated work between `next()` calls, and
-never let the result set escape the callback. A reference retained past the
+callback. For a true streaming implementation, that callback owns the
+underlying database read connection or snapshot for its entire duration --
+avoid slow, unrelated work between `next()` calls. (A `RETURNING` statement
+is the one exception: its write must complete atomically regardless of how
+many rows the caller consumes, so it decodes eagerly before `operation` runs
+and does not hold the write connection open across `next()` calls.) Never let
+the result set escape the callback. A reference retained past the
 callback's return throws `XLResultSetError.closed` from every later `next()`
 call -- and so does a reference explicitly closed with `close()`, whether
 `close()` is called before or after the callback returns. That is different
