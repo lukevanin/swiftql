@@ -1,9 +1,6 @@
 //
 //  XLSingleSlotAsyncBuffer.swift
 //
-//
-//  Created by Claude on 2026/07/29.
-//
 
 import Foundation
 
@@ -69,6 +66,16 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
             return
         }
         isFinished = true
+        // Deliberately does NOT clear `pendingValue`: a value legitimately
+        // yielded before `finish()` is called (e.g. a one-shot compatibility
+        // publisher that emits once and completes immediately, delivered
+        // synchronously within the same `sink` callback chain) must still be
+        // delivered by the next `next()` call before iteration ends -- values
+        // then completion, in that order, exactly like the Combine pipeline
+        // being bridged. `yield(_:)`'s own `isFinished` guard already
+        // prevents a value that arrives *after* `finish()`/`cancel()` from
+        // ever being buffered in the first place, which is the actual race
+        // this type must reject.
         if let waiter {
             self.waiter = nil
             lock.unlock()
@@ -115,7 +122,10 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
             return .value(value)
         }
         if isFinished {
-            if let pendingError { return .error(pendingError) }
+            if let pendingError {
+                self.pendingError = nil
+                return .error(pendingError)
+            }
             return .finished
         }
         return .pending
@@ -139,6 +149,7 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
         }
         if isFinished {
             let error = pendingError
+            pendingError = nil
             lock.unlock()
             if let error {
                 continuation.resume(throwing: error)
@@ -148,6 +159,12 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
             }
             return
         }
+        precondition(
+            waiter == nil,
+            "XLSingleSlotAsyncBuffer.next() called concurrently: a second "
+                + "caller would silently overwrite and leak/hang the first "
+                + "waiter. Each canonical stream is single-consumer."
+        )
         waiter = continuation
         lock.unlock()
     }
