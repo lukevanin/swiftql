@@ -62,6 +62,14 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
 
     func yield(_ value: Value) {
         lock.lock()
+        // Termination wins over any value that arrives at or after it: once
+        // finished, a mailbox never buffers or delivers a further value, so a
+        // GRDB refresh racing with cancellation/completion cannot resurrect
+        // delivery after the stream has ended.
+        guard !isFinished else {
+            lock.unlock()
+            return
+        }
         totalYieldCount += 1
         if let waiter {
             self.waiter = nil
@@ -80,6 +88,11 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
             return
         }
         isFinished = true
+        // Termination wins over any value already buffered (or about to be
+        // buffered by a `yield` that lost the lock race to this call): a
+        // buffered-but-undelivered snapshot must not surface after the
+        // stream has ended.
+        pendingValue = nil
         if let waiter {
             self.waiter = nil
             lock.unlock()
@@ -257,9 +270,13 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
 
     /// Cancels the underlying GRDB observation and ends the mailbox. Safe to
     /// call more than once, and safe to call whether or not `next()` was
-    /// ever invoked.
+    /// ever invoked. Claims the start slot itself when observation never
+    /// began, so a `next()` call arriving after `cancel()` finds the mailbox
+    /// already finished instead of starting a fresh GRDB observation that
+    /// nothing will ever consume.
     func cancel() {
         lock.lock()
+        didStart = true
         let existing = cancellable
         lock.unlock()
         existing?.cancel()
@@ -788,7 +805,7 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
                 poll.fulfill()
             }
-            wait(for: [poll], timeout: 1)
+            wait(for: [poll], timeout: 0.2)
         }
         XCTFail("Expected counter to exceed \(floor); read \(counter.read()).")
     }
@@ -802,7 +819,7 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
                 poll.fulfill()
             }
-            wait(for: [poll], timeout: 1)
+            wait(for: [poll], timeout: 0.2)
         }
         XCTFail("Expected at least \(minimumCount) delivered values; received \(array.read().count).")
     }
