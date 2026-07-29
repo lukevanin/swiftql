@@ -12,6 +12,8 @@
       "allowed_uninstrumented_sources": [
         "Sources/SwiftQL/GRDBOpenCombineValuePublisher.swift",
         "Sources/SwiftQL/SQL.swift",
+        "Sources/SwiftQL/SQLRowMacro.swift",
+        "Sources/SwiftQL/SQLRowResult.swift",
         "Sources/SwiftQL/SQLScalarResult.swift",
         "Sources/SwiftQL/SwiftQLCore.swift"
       ]
