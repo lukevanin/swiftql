@@ -415,6 +415,8 @@ final class XLRequestPublisherAsyncBridge<Value>: @unchecked Sendable {
 
     private var didStart = false
 
+    private var isCancelled = false
+
     private var cancellable: AnyCancellable?
 
     private let buffer = XLSingleSlotAsyncBuffer<Value>()
@@ -433,10 +435,22 @@ final class XLRequestPublisherAsyncBridge<Value>: @unchecked Sendable {
         return true
     }
 
-    private func storeCancellable(_ newCancellable: AnyCancellable?) {
+    /// Stores `newCancellable`, then reports whether `cancel()` had already
+    /// run by that point. `cancel()` can run concurrently between `sink(...)`
+    /// creating the subscription and this call storing it -- in that window
+    /// `cancel()` finds nothing stored yet to cancel, so without this
+    /// check-after-store re-verification the subscription it just missed
+    /// would keep running forever, leaking whatever resources the wrapped
+    /// publisher holds. Mirrors the identical pattern
+    /// `GRDBLiveQueryAsyncBridge.beginAttempt()` uses for the same race.
+    private func storeCancellableReportingIfAlreadyCancelled(
+        _ newCancellable: AnyCancellable
+    ) -> Bool {
         lock.lock()
+        defer { lock.unlock() }
+        guard !isCancelled else { return true }
         cancellable = newCancellable
-        lock.unlock()
+        return false
     }
 
     func next() async throws -> Value? {
@@ -463,7 +477,12 @@ final class XLRequestPublisherAsyncBridge<Value>: @unchecked Sendable {
                             buffer.yield(value)
                         }
                     )
-                    storeCancellable(subscription)
+                    if storeCancellableReportingIfAlreadyCancelled(subscription) {
+                        // `cancel()` ran between subscribing above and
+                        // storing here, missing this subscription entirely.
+                        // Cancel it ourselves so it doesn't keep running.
+                        subscription.cancel()
+                    }
                 }
                 return try await buffer.next()
             },
@@ -479,6 +498,7 @@ final class XLRequestPublisherAsyncBridge<Value>: @unchecked Sendable {
     func cancel() {
         lock.lock()
         didStart = true
+        isCancelled = true
         let existing = cancellable
         cancellable = nil
         lock.unlock()
