@@ -137,8 +137,10 @@ public enum XLResultSetError: Error, Equatable, Sendable, LocalizedError {
 public final class XLResultSet<Row> {
 
     /// One remaining row step, or `nil` once this result set can no longer
-    /// step or decode a row (explicitly closed, terminated by a SQLite step
-    /// or decode error, or invalidated because its owning scope returned).
+    /// step or decode a row: naturally exhausted, explicitly closed,
+    /// terminated by a SQLite step or decode error, or invalidated because
+    /// its owning scope returned. `stepper == nil` alone does not distinguish
+    /// which of these applies -- that is exactly what ``isExhausted`` is for.
     ///
     /// Distinct from ``isExhausted``: exhaustion is a stable, non-throwing
     /// terminal state reached by the underlying cursor legitimately running
