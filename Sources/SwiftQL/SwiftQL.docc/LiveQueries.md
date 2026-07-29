@@ -367,7 +367,9 @@ intentional behavior change from the current publisher contract — see Migratio
 `Tests/SQLTests/LiveQueryBufferingSemanticsTests.swift` contains a throwaway, test-scoped prototype
 (`LazyBufferedGRDBBridge`, `SingleSlotMailbox`, `DemandDrivenPuller` — none of this is production API)
 built directly on GRDB's own `ValueObservation.start(in:scheduling:onError:onChange:)`, the same
-primitive `GRDBLiveQueryRetryPolicy.swift` already uses for the Combine path. It exists only to produce
+primitive `GRDBSQLDatabase.swift`'s `publisher(fetch:)` already calls for the OpenCombine path -- with
+retry supplied by `GRDBLiveQueryRetryPolicy.swift`'s `makeGRDBLiveQueryRetryPublisher` wrapping that
+source, not by calling `.start` itself. It exists only to produce
 deterministic, real-GRDB evidence that this policy is implementable on the pinned Swift 5.9 / GRDB 6.29.3
 toolchain, using bounded polling (not sleeps) for synchronization, matching the existing test suite's
 style. Two properties of `AsyncThrowingStream<Element, Error>(unfolding:)` were verified empirically

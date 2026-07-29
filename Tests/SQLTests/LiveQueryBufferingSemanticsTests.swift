@@ -1,9 +1,6 @@
 //
 //  LiveQueryBufferingSemanticsTests.swift
 //
-//
-//  Created by Claude on 2026/07/29.
-//
 
 import Foundation
 import GRDB
@@ -22,8 +19,10 @@ private struct AwaitNextTimeoutError: Error {}
 // pinned Swift 5.9 / GRDB 6.29.3 toolchain, ahead of #308 building the real
 // canonical `AsyncThrowingStream` source. It intentionally reuses GRDB's own
 // low-level `ValueObservation.start(in:scheduling:onError:onChange:)`, the
-// same primitive `GRDBLiveQueryRetryPolicy.swift` already builds retry on top
-// of for the Combine path.
+// same primitive `GRDBSQLDatabase.swift`'s `publisher(fetch:)` already calls
+// for the OpenCombine path -- with retry supplied by
+// `GRDBLiveQueryRetryPolicy.swift`'s `makeGRDBLiveQueryRetryPublisher`
+// wrapping that source, not by calling `.start` itself.
 //
 // Design, empirically verified against the pinned Swift toolchain before
 // writing these tests (see the session's throwaway `probe.swift` /
@@ -176,6 +175,11 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
             }
             return
         }
+        precondition(
+            waiter == nil,
+            "SingleSlotMailbox.next() called concurrently: a second caller "
+                + "would silently overwrite and leak/hang the first waiter."
+        )
         waiter = continuation
         lock.unlock()
     }
@@ -311,6 +315,13 @@ private final class DemandDrivenPuller<Value>: @unchecked Sendable {
 
     private var isFinished = false
 
+    /// Set by an explicit `cancel()`, distinct from `isFinished` alone: lets
+    /// an in-flight `pumpNext()` tell "the bridge legitimately completed or
+    /// failed" apart from "this puller was cancelled," so cancellation never
+    /// surfaces through `onFinish` -- mirroring how cancelling a Combine
+    /// subscription never delivers a `.finished`/`.failure` completion.
+    private var wasCancelled = false
+
     private let onValue: (Value) -> Void
 
     private let onFinish: (Error?) -> Void
@@ -352,6 +363,7 @@ private final class DemandDrivenPuller<Value>: @unchecked Sendable {
     func cancel() {
         lock.lock()
         isFinished = true
+        wasCancelled = true
         lock.unlock()
         bridge.cancel()
     }
@@ -360,8 +372,9 @@ private final class DemandDrivenPuller<Value>: @unchecked Sendable {
         Task {
             do {
                 guard let value = try await bridge.next() else {
-                    markFinished()
-                    onFinish(nil)
+                    if markFinished() {
+                        onFinish(nil)
+                    }
                     return
                 }
                 onValue(value)
@@ -370,8 +383,9 @@ private final class DemandDrivenPuller<Value>: @unchecked Sendable {
                 }
             }
             catch {
-                markFinished()
-                onFinish(error)
+                if markFinished() {
+                    onFinish(error)
+                }
             }
         }
     }
@@ -381,11 +395,18 @@ private final class DemandDrivenPuller<Value>: @unchecked Sendable {
     /// unavailable directly inside asynchronous contexts (an error under the
     /// Swift 6 language mode), so every mutation happens in a plain,
     /// non-`async` helper instead.
-    private func markFinished() {
+    ///
+    /// - Returns: `true` if `onFinish` should be delivered for this
+    ///   termination, `false` if an explicit `cancel()` already fired (or
+    ///   raced this call) and the completion must be suppressed.
+    @discardableResult
+    private func markFinished() -> Bool {
         lock.lock()
+        defer { lock.unlock() }
+        let shouldDeliver = !wasCancelled
         isFinished = true
         isPulling = false
-        lock.unlock()
+        return shouldDeliver
     }
 
     private func decrementDemandAndCheckWhetherToContinue() -> Bool {
