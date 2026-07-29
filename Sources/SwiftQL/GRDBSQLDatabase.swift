@@ -478,6 +478,93 @@ struct GRDBRequest<Row>: XLRequest {
         }
     }
     
+    func stream() -> AsyncThrowingStream<[Row], Error> {
+        do {
+            return try stream(bindings: compatibilityPacket())
+        }
+        catch {
+            return xlFailingAsyncThrowingStream(error)
+        }
+    }
+
+    func stream(
+        bindings: any XLInvocationBindingPacket
+    ) -> AsyncThrowingStream<[Row], Error> {
+        if requiresWriteConnection {
+            return xlFailingAsyncThrowingStream(XLReturningRequestError.observationUnsupported)
+        }
+        do {
+            let packet = try executor.sqlitePacket(bindings)
+            guard let bridge = liveQueryStreamBridge(fetch: { database -> [Row] in
+                logger?.debug(
+                    "stream: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+                var connection = executor.driver.makeConnection(database)
+                return try decodeRows(packet: packet, in: &connection)
+            }) else {
+                return xlFailingAsyncThrowingStream(XLTransactionScopeError.liveQueriesUnsupportedInTransaction)
+            }
+            return bridge.stream()
+        }
+        catch {
+            return xlFailingAsyncThrowingStream(error)
+        }
+    }
+
+    func streamOne() -> AsyncThrowingStream<Row?, Error> {
+        do {
+            return try streamOne(bindings: compatibilityPacket())
+        }
+        catch {
+            return xlFailingAsyncThrowingStream(error)
+        }
+    }
+
+    func streamOne(
+        bindings: any XLInvocationBindingPacket
+    ) -> AsyncThrowingStream<Row?, Error> {
+        if requiresWriteConnection {
+            return xlFailingAsyncThrowingStream(XLReturningRequestError.observationUnsupported)
+        }
+        do {
+            let packet = try executor.sqlitePacket(bindings)
+            guard let bridge = liveQueryStreamBridge(fetch: { database -> Row? in
+                logger?.debug(
+                    "streamOne: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+                var connection = executor.driver.makeConnection(database)
+                guard let values = try executor.fetchOne(packet: packet, in: &connection) else {
+                    return nil
+                }
+                return try GRDBRowDecoder(reader: reader).decode(values: values)
+            }) else {
+                return xlFailingAsyncThrowingStream(XLTransactionScopeError.liveQueriesUnsupportedInTransaction)
+            }
+            return bridge.stream()
+        }
+        catch {
+            return xlFailingAsyncThrowingStream(error)
+        }
+    }
+
+    /// Builds the async-native GRDB observation bridge shared by `stream()`/`streamOne()`. Returns `nil`
+    /// for a transaction-scoped driver (issue #284), which has no pool to track — the same guard
+    /// `publisher(fetch:)` below applies for the Combine path.
+    private func liveQueryStreamBridge<Value>(
+        fetch: @escaping (Database) throws -> Value
+    ) -> GRDBLiveQueryAsyncBridge<Value>? {
+        guard let databasePool = executor.driver.databasePool else {
+            return nil
+        }
+        return GRDBLiveQueryAsyncBridge(
+            policy: liveQueryRetryPolicy,
+            scheduler: liveQueryRetryScheduler,
+            makeSource: { onError, onChange in
+                ValueObservation
+                    .tracking(fetch)
+                    .start(in: databasePool, onError: onError, onChange: onChange)
+            }
+        )
+    }
+
     private func publisher<T>(fetch: @escaping (Database) throws -> T) -> AnyPublisher<T, Error> {
         // A transaction-scoped driver (issue #284) has no pool to track: its
         // connection is invalidated the instant the `withTransaction(_:)`

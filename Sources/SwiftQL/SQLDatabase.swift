@@ -206,6 +206,53 @@ public protocol XLRequest<Row> {
 
     /// Observes the first row using one immutable packet for every retry and refresh.
     func publishOne(bindings: any XLInvocationBindingPacket) -> AnyPublisher<Row?, Error>
+
+    ///
+    /// Returns SwiftQL's canonical async live-query source (issue #308): a complete snapshot of every
+    /// row returned by the query, delivered through Swift structured concurrency instead of Combine.
+    ///
+    /// Observation begins with iteration, not merely by constructing the returned stream: only the
+    /// first `next()` call (directly, or via `for try await`) starts the underlying observation. Each
+    /// call to `stream()` creates one independent, single-consumer observation — exactly like each
+    /// `publish()` call today creates one independent Combine subscription. Two consumers that both
+    /// want live updates must call `stream()` twice; concurrently iterating one returned stream value
+    /// from two places is not a supported fan-out.
+    ///
+    /// The stream buffers at most one undelivered snapshot: a newly produced snapshot always replaces,
+    /// never queues behind, a snapshot the consumer has not yet asked for. Resuming iteration delivers
+    /// whatever has already been produced — it does not itself force a fresh fetch. See
+    /// `Sources/SwiftQL/SwiftQL.docc/LiveQueries.md`, "Buffering and Resumed-Demand Semantics (#291)",
+    /// for the full contract this implements.
+    ///
+    /// Fetching is all-or-nothing, exactly like `fetchAll()`/`publish()`: if the query cannot execute
+    /// or any row cannot be decoded, iteration throws the original error and does not yield a truncated
+    /// result. Cancelling the consuming `Task` ends iteration — `next()` resolves to `nil`, never a
+    /// thrown `CancellationError` — and tears down the underlying observation; it never surfaces as a
+    /// completion failure.
+    ///
+    /// This is a complete live-query snapshot, distinct from ``XLRequest``'s `RETURNING`-based readback
+    /// and from a lazy, single-pass, row-by-row result cursor (issue #249): every delivery here is the
+    /// full matching row set as of one committed transaction, and the same query can deliver many
+    /// snapshots over the stream's lifetime.
+    ///
+    func stream() -> AsyncThrowingStream<[Row], Error>
+
+    /// Observes all rows using one immutable packet for every initial fetch, refresh, and retry — the
+    /// async analog of ``publish(bindings:)``. The packet is captured and validated once; it is never
+    /// re-read from mutable request state.
+    func stream(bindings: any XLInvocationBindingPacket) -> AsyncThrowingStream<[Row], Error>
+
+    ///
+    /// Returns SwiftQL's canonical async live-query source (issue #308) for just the first row: the
+    /// async analog of ``publishOne()``. See ``stream()`` for the full observation, buffering, and
+    /// cancellation contract; `streamOne()` differs only in delivering `Row?` snapshots instead of
+    /// `[Row]` snapshots.
+    ///
+    func streamOne() -> AsyncThrowingStream<Row?, Error>
+
+    /// Observes the first row using one immutable packet for every initial fetch, refresh, and retry —
+    /// the async analog of ``publishOne(bindings:)``.
+    func streamOne(bindings: any XLInvocationBindingPacket) -> AsyncThrowingStream<Row?, Error>
 }
 
 extension XLRequest {
@@ -288,26 +335,157 @@ extension XLRequest {
             )
         }
     }
-    
+
+    ///
+    /// Compatibility default for request adapters that predate #308's async live-query source.
+    ///
+    /// Bridges this conformer's existing `publish()` Combine pipeline into the literal
+    /// `AsyncThrowingStream<[Row], Error>` surface, lazily: the Combine subscription — and any
+    /// database work it triggers — starts only on the returned stream's first `next()` call, so
+    /// "observation begins with iteration" still holds for adapters that only ever implemented the
+    /// Combine surface.
+    ///
+    /// `GRDBRequest` overrides this default with a true async-native GRDB observation source
+    /// (``GRDBLiveQueryAsyncBridge``) that never routes through Combine. This default must never be
+    /// changed to call `stream()` (directly or indirectly) itself — that would recurse indefinitely for
+    /// any conformer that does not override `stream()`; it must always bridge from `publish()` instead.
+    ///
+    public func stream() -> AsyncThrowingStream<[Row], Error> {
+        XLRequestPublisherAsyncBridge(makePublisher: { self.publish() }).stream()
+    }
+
+    /// Compatibility default mirroring ``stream()``, bridging ``publish(bindings:)`` instead. See
+    /// ``stream()`` for why this must never call `stream(bindings:)` itself.
+    public func stream(
+        bindings: any XLInvocationBindingPacket
+    ) -> AsyncThrowingStream<[Row], Error> {
+        XLRequestPublisherAsyncBridge(makePublisher: { self.publish(bindings: bindings) }).stream()
+    }
+
+    /// Compatibility default mirroring ``stream()``, bridging ``publishOne()`` instead. See
+    /// ``stream()`` for why this must never call `streamOne()` itself.
+    public func streamOne() -> AsyncThrowingStream<Row?, Error> {
+        XLRequestPublisherAsyncBridge(makePublisher: { self.publishOne() }).stream()
+    }
+
+    /// Compatibility default mirroring ``stream()``, bridging ``publishOne(bindings:)`` instead. See
+    /// ``stream()`` for why this must never call `streamOne(bindings:)` itself.
+    public func streamOne(
+        bindings: any XLInvocationBindingPacket
+    ) -> AsyncThrowingStream<Row?, Error> {
+        XLRequestPublisherAsyncBridge(makePublisher: { self.publishOne(bindings: bindings) }).stream()
+    }
+
     ///
     /// Convenience method used to set an optional named parameter on the request.
     ///
     public mutating func set<T>(_ parameter: XLNamedBindingReference<Optional<T>>, _ value: T?) where T: XLBindable  {
         set(parameter: parameter, value: value)
     }
-    
+
     ///
     /// Convenience method used to set a named parameter on the request.
     ///
     public mutating func set<T>(_ parameter: XLNamedBindingReference<T>, _ value: T) where T: XLBindable {
         set(parameter: parameter, value: value)
     }
-    
+
     ///
     /// Convenience method used to set the value of a parameter by its literal string name.
     ///
     public mutating func set<T>(_ name: XLName, _ value: T) where T: XLBindable & XLLiteral {
         set(parameter: XLNamedBindingReference(name: name), value: value)
+    }
+}
+
+
+/// Lazily bridges an `XLRequest` compatibility default's `publish()`/`publishOne()` Combine pipeline
+/// into a single-consumer `AsyncThrowingStream`, reusing ``XLSingleSlotAsyncBuffer`` for #291's
+/// bound-1 "newest wins" policy. This is the non-GRDB-aware half of #308: it knows nothing about GRDB
+/// or retry policy, only Combine, because it exists purely so third-party `XLRequest` conformers that
+/// predate `stream()`/`streamOne()` keep compiling with a reasonable, still lazily-started default.
+///
+/// `GRDBRequest` does not use this type: its own `stream()`/`streamOne()` overrides build directly on
+/// ``GRDBLiveQueryAsyncBridge`` instead, per the hard constraint that the canonical GRDB-backed source
+/// must not be implemented in terms of `publish()`/`publishOne()`/`AnyPublisher.values`/any Combine
+/// pipeline.
+final class XLRequestPublisherAsyncBridge<Value>: @unchecked Sendable {
+
+    private let lock = NSLock()
+
+    private var didStart = false
+
+    private var cancellable: AnyCancellable?
+
+    private let buffer = XLSingleSlotAsyncBuffer<Value>()
+
+    private let makePublisher: () -> AnyPublisher<Value, Error>
+
+    init(makePublisher: @escaping () -> AnyPublisher<Value, Error>) {
+        self.makePublisher = makePublisher
+    }
+
+    private func claimStart() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !didStart else { return false }
+        didStart = true
+        return true
+    }
+
+    private func storeCancellable(_ newCancellable: AnyCancellable?) {
+        lock.lock()
+        cancellable = newCancellable
+        lock.unlock()
+    }
+
+    func next() async throws -> Value? {
+        if claimStart() {
+            let buffer = self.buffer
+            let subscription = makePublisher().sink(
+                receiveCompletion: { completion in
+                    switch completion {
+                    case .finished:
+                        buffer.finish(throwing: nil)
+                    case .failure(let error):
+                        buffer.finish(throwing: error)
+                    }
+                },
+                receiveValue: { value in
+                    buffer.yield(value)
+                }
+            )
+            storeCancellable(subscription)
+        }
+
+        return try await withTaskCancellationHandler(
+            operation: { try await buffer.next() },
+            onCancel: { [weak self] in self?.cancel() }
+        )
+    }
+
+    func cancel() {
+        lock.lock()
+        let existing = cancellable
+        cancellable = nil
+        lock.unlock()
+        existing?.cancel()
+        buffer.cancel()
+    }
+
+    /// The `unfolding` closure captures `self` strongly, not weakly: this
+    /// bridge is constructed and handed straight to `stream()` with no other
+    /// owner (see the `stream()`/`streamOne()` compatibility defaults
+    /// above), so a weak capture would let it deallocate immediately after
+    /// this call returns, before any consumer ever iterates — silently
+    /// turning every stream into one that resolves to `nil` on its very
+    /// first `next()`. The returned `AsyncThrowingStream` becomes this
+    /// bridge's only owner from here on, and the bridge does not hold a
+    /// reference back to the stream, so this creates no retain cycle.
+    func stream() -> AsyncThrowingStream<Value, Error> {
+        AsyncThrowingStream(unfolding: {
+            try await self.next()
+        })
     }
 }
 

@@ -124,6 +124,86 @@ final class SQLRequestCompatibilityTests: XCTestCase {
         }
     }
 
+    // MARK: - #308 stream()/streamOne() compatibility defaults
+    //
+    // `LegacyReadRequest` only implements `publish()`/`publishOne()`, exactly like a
+    // third-party `XLRequest` conformer written before #308. These tests exercise the
+    // protocol-extension default that bridges those Combine pipelines into
+    // `AsyncThrowingStream`, proving it stays lazy (the underlying `publish()` is not
+    // invoked merely by calling `stream()`) and does not recurse.
+
+    func testLegacyReadConformerStreamBridgesFromPublishLazily() async throws {
+        let request = LegacyReadRequest(rows: [82])
+
+        // Constructing the stream performs no work: LegacyReadRequest.publish() is
+        // invoked only once the stream is iterated below.
+        let stream = request.stream()
+        var iterator = stream.makeAsyncIterator()
+
+        let first = try await iterator.next()
+        XCTAssertEqual(first, [82])
+
+        // `Just`-backed publishers deliver exactly one value then finish: the
+        // compatibility bridge must end iteration afterward, not hang or repeat.
+        let second = try await iterator.next()
+        XCTAssertNil(second)
+    }
+
+    func testLegacyReadConformerStreamOneBridgesFromPublishOneLazily() async throws {
+        let request = LegacyReadRequest(rows: [82])
+        let stream = request.streamOne()
+        var iterator = stream.makeAsyncIterator()
+
+        let first = try await iterator.next()
+        XCTAssertEqual(first, 82)
+    }
+
+    func testLegacyReadConformerStreamBindingsBridgesFromPublishBindingsLazily() async throws {
+        let request = LegacyReadRequest(rows: [82])
+        let packet = XLInvocationBindings<XLSQLiteValue>(layout: .empty)
+
+        let stream = request.stream(bindings: packet)
+        var iterator = stream.makeAsyncIterator()
+        let first = try await iterator.next()
+        XCTAssertEqual(first, [82])
+    }
+
+    func testLegacyReadConformerStreamBindingsRejectsUnsupportedPacketLazily() async throws {
+        let request = LegacyReadRequest(rows: [82])
+        let slot = XLParameterSlot(
+            index: XLLogicalParameterIndex(0),
+            key: .named("value"),
+            valueTypeIdentifier: XLValueTypeIdentifier(rawValue: "swift.int"),
+            valueTypeName: String(reflecting: Int.self),
+            nullability: .required,
+            codecIdentity: nil,
+            codingContext: XLValueCodingContext(
+                site: .parameter,
+                path: XLValueCodingPath("value")
+            )
+        )
+        let layout = try XLParameterLayout(slots: [slot])
+        let nonemptyPacket = try XLInvocationBindings<XLSQLiteValue>(
+            layout: layout,
+            bindings: [try XLInvocationBinding(slot: slot, value: .integer(1))]
+        )
+
+        let stream = request.stream(bindings: nonemptyPacket)
+        var iterator = stream.makeAsyncIterator()
+
+        do {
+            _ = try await iterator.next()
+            XCTFail("Expected unsupportedInvocationBindings.")
+        }
+        catch let error as XLRequestBindingError {
+            guard case .unsupportedInvocationBindings(let requestType, let rejectedLayout) = error else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+            XCTAssertTrue(requestType.contains("LegacyReadRequest"))
+            XCTAssertEqual(rejectedLayout, layout)
+        }
+    }
+
     func testLegacyWriteConformerUsesDefaultPacketRequirement() throws {
         var request = LegacyWriteRequest()
         let parameter = XLNamedBindingReference<Int>(name: "value")
