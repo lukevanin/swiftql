@@ -107,7 +107,9 @@ final class XLResultSetTests: XCTestCase {
         databasePool = nil
         database = nil
         probe = nil
-        try? FileManager.default.removeItem(at: databaseDirectoryURL)
+        if let databaseDirectoryURL {
+            try? FileManager.default.removeItem(at: databaseDirectoryURL)
+        }
         databaseDirectoryURL = nil
     }
 

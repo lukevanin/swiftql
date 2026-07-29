@@ -690,9 +690,9 @@ struct GRDBDatabaseDriverConnection:
 
     ///
     /// Implements ``XLStreamingDatabaseDriverConnection/makeValuesStepper(_:)``
-    /// for GRDB: prepares one physical statement and returns a value-level
-    /// stepper that performs at most one additional SQLite step and
-    /// value-normalization per call, returning `nil` once the underlying
+    /// for GRDB: takes one already-prepared physical statement and returns a
+    /// value-level stepper that performs at most one additional SQLite step
+    /// and value-normalization per call, returning `nil` once the underlying
     /// cursor is exhausted.
     ///
     /// This is the pull-based counterpart to `forEachRow(_:_:)`'s push-based

@@ -121,9 +121,10 @@ package protocol XLStreamingDatabaseDriverConnection:
     ) throws
 
     ///
-    /// Prepares one physical statement and returns a value-level stepper that
-    /// performs at most one additional SQLite step and value-normalization
-    /// per call, returning `nil` once the underlying cursor is exhausted.
+    /// Takes one already-prepared physical statement and returns a
+    /// value-level stepper that performs at most one additional SQLite step
+    /// and value-normalization per call, returning `nil` once the underlying
+    /// cursor is exhausted.
     ///
     /// This is the pull-based counterpart to `forEachRow(_:_:)`: a caller
     /// outside the connection access (``XLResultSet/next()``) needs to step
