@@ -80,6 +80,22 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
         lock.unlock()
     }
 
+    /// Ends the mailbox with the upstream source's own normal completion or
+    /// terminal error -- NOT with consumer-initiated cancellation; use
+    /// ``cancel()`` for that instead, which has different, stricter delivery
+    /// semantics (see its documentation).
+    ///
+    /// Deliberately does NOT clear `pendingValue`: a value legitimately
+    /// yielded before `finish()` is called (e.g. a source that emits one
+    /// final value and completes immediately afterward) must still be
+    /// delivered by the next `next()` call before iteration ends -- values
+    /// then completion, in that order. Confirmed by #308's production use of
+    /// this same policy: a `Just`-backed compatibility publisher's
+    /// yield-then-finish happens synchronously within one callback chain, and
+    /// discarding the buffered value here silently dropped it. `yield(_:)`'s
+    /// own `isFinished` guard already prevents a value that arrives *after*
+    /// `finish()`/`cancel()` from ever being buffered, which is the actual
+    /// race this type must reject.
     func finish(throwing error: Error?) {
         lock.lock()
         guard !isFinished else {
@@ -87,17 +103,6 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
             return
         }
         isFinished = true
-        // Deliberately does NOT clear `pendingValue`: a value legitimately
-        // yielded before `finish()` is called (e.g. a source that emits one
-        // final value and completes immediately afterward) must still be
-        // delivered by the next `next()` call before iteration ends -- values
-        // then completion, in that order. Confirmed by #308's production use
-        // of this same policy: a `Just`-backed compatibility publisher's
-        // yield-then-finish happens synchronously within one callback chain,
-        // and discarding the buffered value here silently dropped it.
-        // `yield(_:)`'s own `isFinished` guard already prevents a value that
-        // arrives *after* `finish()`/`cancel()` from ever being buffered,
-        // which is the actual race this type must reject.
         if let waiter {
             self.waiter = nil
             lock.unlock()
@@ -113,14 +118,37 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
         lock.unlock()
     }
 
-    /// Ends the mailbox without an error: a cancelled bridge resolves any
-    /// outstanding or future `next()` call to `nil`, exactly like a normal,
-    /// non-erroring end of iteration. Cancellation is never surfaced to the
-    /// consumer as a thrown `CancellationError` or as a completion failure,
-    /// mirroring how cancelling a Combine subscription today never delivers
-    /// a `.failure` completion.
+    /// Ends the mailbox because the *consumer* cancelled, not because the
+    /// upstream source completed: every outstanding or future `next()` call
+    /// resolves to `nil`, exactly like a normal, non-erroring end of
+    /// iteration, and cancellation is never surfaced as a thrown
+    /// `CancellationError` or a completion failure -- mirroring how
+    /// cancelling a Combine subscription today never delivers a `.failure`
+    /// completion.
+    ///
+    /// Unlike ``finish(throwing:)``, this also discards any value already
+    /// buffered but not yet delivered: once the consumer has said it no
+    /// longer wants delivery, a stale snapshot slipping through afterward
+    /// would be a real cancellation-contract violation, not a legitimate
+    /// "last value before normal completion." This is the distinction that
+    /// makes ``finish(throwing:)`` and `cancel()` different operations rather
+    /// than one delegating to the other.
     func cancel() {
-        finish(throwing: nil)
+        lock.lock()
+        guard !isFinished else {
+            lock.unlock()
+            return
+        }
+        isFinished = true
+        pendingValue = nil
+        pendingError = nil
+        if let waiter {
+            self.waiter = nil
+            lock.unlock()
+            waiter.resume(returning: nil)
+            return
+        }
+        lock.unlock()
     }
 
     private enum FastPathOutcome {
@@ -383,6 +411,13 @@ private final class DemandDrivenPuller<Value>: @unchecked Sendable {
                     }
                     return
                 }
+                // `bridge.next()` can resolve with an already-in-flight value
+                // at almost the same instant `cancel()` runs; re-check right
+                // before delivery so that narrow race cannot hand a value to
+                // a consumer that has already unsubscribed.
+                guard isStillAcceptingDelivery() else {
+                    return
+                }
                 onValue(value)
                 if decrementDemandAndCheckWhetherToContinue() {
                     pumpNext()
@@ -413,6 +448,16 @@ private final class DemandDrivenPuller<Value>: @unchecked Sendable {
         isFinished = true
         isPulling = false
         return shouldDeliver
+    }
+
+    /// Narrows, but cannot fully close, the window between `bridge.next()`
+    /// resolving with a value and `onValue` being called: if `cancel()` won
+    /// that race, this returns `false` so the value is dropped instead of
+    /// reaching a consumer that already unsubscribed.
+    private func isStillAcceptingDelivery() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return !wasCancelled
     }
 
     private func decrementDemandAndCheckWhetherToContinue() -> Bool {
