@@ -126,7 +126,10 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
             return .value(value)
         }
         if isFinished {
-            if let pendingError { return .error(pendingError) }
+            if let pendingError {
+                self.pendingError = nil
+                return .error(pendingError)
+            }
             return .finished
         }
         return .pending
@@ -150,6 +153,7 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
         }
         if isFinished {
             let error = pendingError
+            pendingError = nil
             lock.unlock()
             if let error {
                 continuation.resume(throwing: error)
