@@ -91,14 +91,36 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
         lock.unlock()
     }
 
-    /// Ends the buffer without an error: a cancelled bridge resolves any
-    /// outstanding or future `next()` call to `nil`, exactly like a normal,
-    /// non-erroring end of iteration. Cancellation is never surfaced to the
-    /// consumer as a thrown `CancellationError` or as a completion failure,
-    /// mirroring how cancelling a Combine subscription today never delivers
-    /// a `.failure` completion.
+    /// Ends the buffer because the *consumer* cancelled, not because the
+    /// upstream source completed: every outstanding or future `next()` call
+    /// resolves to `nil`, exactly like a normal, non-erroring end of
+    /// iteration, and cancellation is never surfaced as a thrown
+    /// `CancellationError` or a completion failure -- mirroring how
+    /// cancelling a Combine subscription today never delivers a `.failure`
+    /// completion.
+    ///
+    /// Unlike ``finish(throwing:)``, this also discards any value already
+    /// buffered but not yet delivered: once the consumer no longer wants
+    /// delivery, a stale snapshot slipping through afterward would violate
+    /// the cancellation contract, not represent a legitimate "last value
+    /// before normal completion." This is why `cancel()` does not simply
+    /// delegate to `finish(throwing: nil)`.
     func cancel() {
-        finish(throwing: nil)
+        lock.lock()
+        guard !isFinished else {
+            lock.unlock()
+            return
+        }
+        isFinished = true
+        pendingValue = nil
+        pendingError = nil
+        if let waiter {
+            self.waiter = nil
+            lock.unlock()
+            waiter.resume(returning: nil)
+            return
+        }
+        lock.unlock()
     }
 
     private enum FastPathOutcome {
