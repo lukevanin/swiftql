@@ -616,8 +616,13 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
     func testBoundedBufferingUnderRapidCommits() async throws {
         try createRecordTable()
         let writeCount = 20
+        // Ordered by `value` descending, not `id` ascending: the top row only
+        // becomes the *last*-inserted row once every write has committed, so
+        // observing it actually requires reaching the final database state --
+        // unlike ordering by `id`, where "row-0" sorts first as soon as it
+        // exists, regardless of how many later writes have happened.
         let iterator = AsyncStreamIteratorBox(
-            database.makeRequest(with: orderedStatement()).streamOne()
+            database.makeRequest(with: orderedByValueDescendingStatement()).streamOne()
         )
         _ = try await iterator.next() // consumes the initial (nil) snapshot
 
@@ -627,6 +632,7 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
             try insertDirect(AsyncStreamRecord(id: "row-\(index)", value: index))
         }
 
+        let finalValue = writeCount - 1
         var attempts = 0
         while attempts < writeCount {
             attempts += 1
@@ -634,7 +640,7 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
                 XCTFail("Stream terminated unexpectedly while draining to the final snapshot.")
                 break
             }
-            if row?.id == "row-0" {
+            if row?.value == finalValue {
                 // GRDB's own change coalescing decides how many commits collapse into
                 // one re-fetch; the bounded buffer only guarantees resuming does not
                 // need one `next()` per write to reach the final state.
@@ -972,6 +978,19 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
             Select(table)
             From(table)
             OrderBy(table.id.ascending())
+        }
+    }
+
+    /// Orders by the numeric `value` column, descending, so the top row only
+    /// becomes the row with the highest `value` inserted so far -- unlike
+    /// `orderedStatement()`'s lexicographic `id` ordering, where `"row-0"`
+    /// sorts first regardless of how many later rows have committed.
+    private func orderedByValueDescendingStatement() -> any XLQueryStatement<AsyncStreamRecord> {
+        sql { schema in
+            let table = schema.table(AsyncStreamRecord.self)
+            Select(table)
+            From(table)
+            OrderBy(table.value.descending())
         }
     }
 

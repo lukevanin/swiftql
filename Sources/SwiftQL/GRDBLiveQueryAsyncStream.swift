@@ -93,12 +93,20 @@ final class GRDBLiveQueryAsyncBridge<Value>: @unchecked Sendable {
     }
 
     func next() async throws -> Value? {
-        if claimStart() {
-            beginAttempt()
-        }
-
+        // The start decision lives *inside* `operation`, not before this
+        // call: if the consuming `Task` is already cancelled at this point,
+        // Swift guarantees `onCancel` runs before `operation` starts
+        // executing, so `cancel()` (and therefore `retryState.cancel()`)
+        // completes first. `beginAttempt()` then correctly sees an already-
+        // cancelled `retryState` and starts no observation at all, instead
+        // of starting one and cancelling it a moment later.
         return try await withTaskCancellationHandler(
-            operation: { try await buffer.next() },
+            operation: {
+                if claimStart() {
+                    beginAttempt()
+                }
+                return try await buffer.next()
+            },
             onCancel: { [weak self] in self?.cancel() }
         )
     }

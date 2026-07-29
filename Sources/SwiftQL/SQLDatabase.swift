@@ -440,32 +440,45 @@ final class XLRequestPublisherAsyncBridge<Value>: @unchecked Sendable {
     }
 
     func next() async throws -> Value? {
-        if claimStart() {
-            let buffer = self.buffer
-            let subscription = makePublisher().sink(
-                receiveCompletion: { completion in
-                    switch completion {
-                    case .finished:
-                        buffer.finish(throwing: nil)
-                    case .failure(let error):
-                        buffer.finish(throwing: error)
-                    }
-                },
-                receiveValue: { value in
-                    buffer.yield(value)
-                }
-            )
-            storeCancellable(subscription)
-        }
-
+        // The start decision lives *inside* `operation`, not before this
+        // call: if the consuming `Task` is already cancelled at this point,
+        // Swift guarantees `onCancel` runs before `operation` starts
+        // executing, so `cancel()` completes -- and claims the start slot,
+        // see below -- before `claimStart()` ever runs, so an
+        // already-cancelled task subscribes to nothing.
         return try await withTaskCancellationHandler(
-            operation: { try await buffer.next() },
+            operation: {
+                if claimStart() {
+                    let buffer = self.buffer
+                    let subscription = makePublisher().sink(
+                        receiveCompletion: { completion in
+                            switch completion {
+                            case .finished:
+                                buffer.finish(throwing: nil)
+                            case .failure(let error):
+                                buffer.finish(throwing: error)
+                            }
+                        },
+                        receiveValue: { value in
+                            buffer.yield(value)
+                        }
+                    )
+                    storeCancellable(subscription)
+                }
+                return try await buffer.next()
+            },
             onCancel: { [weak self] in self?.cancel() }
         )
     }
 
+    /// Safe to call more than once, and safe to call whether or not `next()`
+    /// was ever invoked: claims the start slot itself so a `next()` call
+    /// arriving after `cancel()` (before a subscription ever began) finds the
+    /// buffer already finished instead of subscribing to a publisher nothing
+    /// will ever consume.
     func cancel() {
         lock.lock()
+        didStart = true
         let existing = cancellable
         cancellable = nil
         lock.unlock()
