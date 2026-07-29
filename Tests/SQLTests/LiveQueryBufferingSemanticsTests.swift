@@ -329,6 +329,9 @@ private final class DemandDrivenPuller<Value>: @unchecked Sendable {
     /// stops the instant remaining demand reaches zero rather than reading
     /// ahead into a side buffer.
     func requestDemand(_ amount: Int) {
+        guard amount > 0 else {
+            return
+        }
         lock.lock()
         guard !isFinished else {
             lock.unlock()
@@ -465,7 +468,9 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
 
     override func tearDown() {
         databasePool = nil
-        try? FileManager.default.removeItem(at: databaseDirectoryURL)
+        if let databaseDirectoryURL {
+            try? FileManager.default.removeItem(at: databaseDirectoryURL)
+        }
         databaseDirectoryURL = nil
     }
 
@@ -794,20 +799,6 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
             barrier.fulfill()
         }
         wait(for: [barrier], timeout: 2)
-    }
-
-    private func waitForCounter(_ counter: LockedCounter, toExceed floor: Int) {
-        for attempt in 1 ... 200 {
-            if counter.read() > floor {
-                return
-            }
-            let poll = expectation(description: "counter poll \(attempt)")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-                poll.fulfill()
-            }
-            wait(for: [poll], timeout: 0.2)
-        }
-        XCTFail("Expected counter to exceed \(floor); read \(counter.read()).")
     }
 
     private func waitForCount<Element>(_ array: LockedArray<Element>, atLeast minimumCount: Int) {
