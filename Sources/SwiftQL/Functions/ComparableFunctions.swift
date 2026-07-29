@@ -15,7 +15,7 @@ import Foundation
 /// (SQLite parses `MIN(expr)` as its aggregate function, not a scalar
 /// comparison) rather than fixing it, since fixing it would itself be a
 /// source-breaking change; use `a.min(b, ...)` for the scalar comparison.
-@available(*, deprecated, message: "Use a.min(b, ...) instead. min(_:) will be removed in SwiftQL 2.")
+@available(*, deprecated, message: "This single-argument call is the aggregate MIN(expr); use minOrNull() instead. min(_:) will be removed in SwiftQL 2.")
 public func min<T>(_ first: any XLExpression<T>) -> some XLExpression<T> where T: XLComparable & XLLiteral {
     XLFunction(name: "MIN", parameters: [first])
 }
@@ -33,7 +33,7 @@ public func min<T>(_ first: any XLExpression<T>, _ second: any XLExpression<T>, 
 /// (SQLite parses `MAX(expr)` as its aggregate function, not a scalar
 /// comparison) rather than fixing it, since fixing it would itself be a
 /// source-breaking change; use `a.max(b, ...)` for the scalar comparison.
-@available(*, deprecated, message: "Use a.max(b, ...) instead. max(_:) will be removed in SwiftQL 2.")
+@available(*, deprecated, message: "This single-argument call is the aggregate MAX(expr); use maxOrNull() instead. max(_:) will be removed in SwiftQL 2.")
 public func max<T>(_ first: any XLExpression<T>) -> some XLExpression<T> where T: XLComparable & XLLiteral {
     XLFunction(name: "MAX", parameters: [first])
 }
