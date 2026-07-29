@@ -278,6 +278,7 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
         lock.lock()
         didStart = true
         let existing = cancellable
+        cancellable = nil
         lock.unlock()
         existing?.cancel()
         mailbox.cancel()
