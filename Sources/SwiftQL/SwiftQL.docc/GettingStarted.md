@@ -216,9 +216,14 @@ semantics, cannot be iterated with `for row in results`, and is not
 callback, which owns the underlying database read connection or snapshot for
 that entire callback -- avoid slow, unrelated work between `next()` calls, and
 never let the result set escape the callback. A reference retained past the
-callback's return throws `XLResultSetError.closed` from `next()`; closing
-explicitly, or letting the query exhaust naturally, is otherwise idempotent
-and does not throw.
+callback's return throws `XLResultSetError.closed` from every later `next()`
+call -- and so does a reference explicitly closed with `close()`, whether
+`close()` is called before or after the callback returns. That is different
+from natural exhaustion: once a query legitimately runs out of rows, `next()`
+keeps returning `nil` rather than throwing. `close()` itself is idempotent and
+never throws, whether called once, more than once, or after natural
+exhaustion -- but calling it does mean every later `next()` throws `.closed`
+from that point on, rather than continuing to return `nil`.
 
 Prefer `fetchAll()` when every row is needed as a complete, retained array, or
 when the array-processing conveniences (`map`, `filter`, `count`, sorting, ...)
