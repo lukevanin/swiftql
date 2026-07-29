@@ -156,6 +156,11 @@ final class SQLRequestCompatibilityTests: XCTestCase {
 
         let first = try await iterator.next()
         XCTAssertEqual(first, 82)
+
+        // `Just`-backed publishers deliver exactly one value then finish: the
+        // compatibility bridge must end iteration afterward, not hang or repeat.
+        let second = try await iterator.next()
+        XCTAssertNil(second)
     }
 
     func testLegacyReadConformerStreamBindingsBridgesFromPublishBindingsLazily() async throws {
@@ -166,6 +171,11 @@ final class SQLRequestCompatibilityTests: XCTestCase {
         var iterator = stream.makeAsyncIterator()
         let first = try await iterator.next()
         XCTAssertEqual(first, [82])
+
+        // `Just`-backed publishers deliver exactly one value then finish: the
+        // compatibility bridge must end iteration afterward, not hang or repeat.
+        let second = try await iterator.next()
+        XCTAssertNil(second)
     }
 
     func testLegacyReadConformerStreamBindingsRejectsUnsupportedPacketLazily() async throws {

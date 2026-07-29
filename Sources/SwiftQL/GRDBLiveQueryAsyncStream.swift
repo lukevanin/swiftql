@@ -231,15 +231,21 @@ final class GRDBLiveQueryAsyncBridge<Value>: @unchecked Sendable {
 
 
 /// Returns an `AsyncThrowingStream` that performs no work until its first
-/// `next()` call, at which point it immediately throws `error` and finishes.
-/// Used when a stream cannot be constructed at all (an invalid invocation
-/// packet, a `RETURNING` request, or a transaction-scoped driver with no
-/// pool to observe) — the error must still be reported lazily, on first
-/// iteration, to preserve "observation begins with iteration, not merely by
-/// constructing an unused stream" for every code path, not only the
-/// successful one.
+/// `next()` call, at which point it immediately throws `error` and finishes
+/// -- unless the consuming `Task` is already cancelled, in which case it
+/// resolves to `nil` instead, per the same cancellation contract every other
+/// canonical stream honors: cancellation ends iteration with `nil`, never a
+/// thrown error, `CancellationError` included. Used when a stream cannot be
+/// constructed at all (an invalid invocation packet, a `RETURNING` request,
+/// or a transaction-scoped driver with no pool to observe) — the
+/// construction error must still be reported lazily, on first iteration, to
+/// preserve "observation begins with iteration, not merely by constructing
+/// an unused stream" for every code path, not only the successful one.
 func xlFailingAsyncThrowingStream<Value>(_ error: Error) -> AsyncThrowingStream<Value, Error> {
     AsyncThrowingStream(unfolding: {
+        guard !Task.isCancelled else {
+            return nil
+        }
         throw error
     })
 }
