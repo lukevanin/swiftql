@@ -17,7 +17,8 @@
 /// ```
 ///
 /// A single column expands to ``SQLScalarResult``; two to six columns expand to the matching
-/// ``SQLRow2``...``SQLRow6`` type, whose fields are named positionally (`_0`, `_1`, ...).
+/// `SQLRow2`...`SQLRow6` type, whose fields are named positionally (`_0`, `_1`, ...) — not
+/// linked here since those shapes are unavailable at the Swift 6.0 doc-build pin below.
 ///
 /// The two-to-six column shapes are available on Swift 6.1 and later only. Decoding a
 /// 2+ generic-parameter result type (`SQLRow2`...`SQLRow6`) through `fetchAll()`/`publish()`
