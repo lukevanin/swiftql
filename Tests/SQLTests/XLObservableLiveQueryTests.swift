@@ -161,9 +161,11 @@ final class XLObservableLiveQueryTests: XCTestCase {
         )
         try await waitUntil { !(model?.isLoading ?? true) }
 
-        // `weak let` is Swift 6.1+ syntax; the pinned Swift 5.9/6.0 cells reject it ("'weak' must be
-        // a mutable variable"), while 6.1+ warns that an unmutated `weak var` should be a `let` --
-        // both are warnings-as-errors gated, so the binding's own mutability must switch per compiler.
+        // `weak let` needs Swift 6.2+: the pinned Swift 5.9/6.0 cells reject it ("'weak' must be
+        // a mutable variable"), and Swift 6.1 (Xcode 16.4) does too, despite `#if compiler(>=6.1)`
+        // gating exactly this pattern successfully elsewhere for other syntax -- 6.2+ instead warns
+        // that an unmutated `weak var` should be a `let`, so the binding's own mutability must switch
+        // per compiler, both being warnings-as-errors gated.
         #if compiler(>=6.2)
         weak let weakModel = model
         #else
