@@ -170,8 +170,12 @@ final class SQLRequestCompatibilityTests: XCTestCase {
 
         // `Just`-backed publishers deliver exactly one value then finish: the
         // compatibility bridge must end iteration afterward, not hang or repeat.
+        // `second` is `Int??` here (the stream's own `Row?` element, wrapped again by
+        // `AsyncIteratorProtocol.next()`'s end-of-stream optional) -- XCTAssertEqual against
+        // `nil` compares it directly as `Equatable`, unlike `XCTAssertNil`, which would
+        // implicitly (and, per the compiler, ambiguously) coerce it to `Any?` first.
         let second = try await iterator.next()
-        XCTAssertNil(second)
+        XCTAssertEqual(second, nil)
         XCTAssertEqual(
             request.publishCallCounter.publishOneCount,
             1,
