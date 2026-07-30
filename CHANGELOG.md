@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.5.5] - 2026-07-30
+
+### Added
+
+- Added canonical async live-query streams, `stream()`/`stream(bindings:)` and
+  `streamOne()`/`streamOne(bindings:)`, to `XLRequest` (issue #308): a
+  `for try await` loop is now the single source of truth for SwiftQL
+  live-query observation — immutable-packet capture, retry, decoding, and
+  buffering all live in one GRDB-native `AsyncThrowingStream` source
+  (`GRDBLiveQueryAsyncBridge`, built directly on `ValueObservation.start`),
+  rather than being duplicated per adapter.
+- Defined the buffering, snapshot-lifecycle, and cancellation contract that
+  the async streams and their adapters follow (issue #291): at most one
+  undelivered snapshot is ever held per stream ("bound-1 newest wins"), and
+  resuming or replenishing demand never forces a fresh fetch — it only
+  surfaces whatever GRDB already produced. Recorded in
+  <doc:LiveQueries>, "Buffering and Resumed-Demand Semantics", alongside the
+  rejected alternatives.
+- Added `XLObservableQuery`/`XLObservableQueryRow` (issue #97): `@Observable`
+  (`iOS 17`/`macOS 14`+) wrappers over `stream()`/`streamOne()` exposing
+  `rows`/`row`, `isLoading`, and `error` as `@MainActor` state, for SwiftUI
+  clients on platforms that ship the `Observation` framework. Package's
+  existing iOS 16/macOS 13 floor is unchanged.
+- Added `XLResultSet` (issue #249): a connection-scoped, lazy, single-pass
+  typed result set whose `next() throws -> Row?` steps and decodes exactly
+  one row at a time, via new `withResultSet(_:)`/`withResultSet(bindings:_:)`
+  methods on `XLRequest` and a driver-neutral pull-based streaming seam
+  (`makeValuesStepper(_:)`) in `SwiftQLCore`.
+
+### Changed
+
+- Rebuilt `publish()`/`publish(bindings:)`/`publishOne()`/`publishOne(bindings:)`
+  as Combine adapters over `stream()`/`streamOne()` (issue #309): Combine is
+  now a leaf adapter mapping `Subscribers.Demand` onto a pull loop over a
+  fresh async stream per subscriber, rather than an independent
+  `ValueObservation`-backed observation engine. Public signatures are
+  unchanged; a real demand-accounting over-delivery bug found during the
+  rebuild is fixed as part of this change.
+
 ## [1.5.4] - 2026-07-28
 
 ### Added
