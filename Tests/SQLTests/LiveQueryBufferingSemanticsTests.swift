@@ -627,8 +627,15 @@ private final class LockedArray<Element>: @unchecked Sendable {
         state.withLock { $0.append(value) }
     }
 
+    // `@unchecked Sendable` box, matching `Delivery`/`FastPathOutcome`/`RegistrationOutcome` above:
+    // returning a bare `[Element]` directly from this `@Sendable` closure is itself flagged, the same
+    // way those types were.
+    private struct ElementsBox: @unchecked Sendable {
+        let elements: [Element]
+    }
+
     func read() -> [Element] {
-        state.withLock { $0 }
+        state.withLock { ElementsBox(elements: $0) }.elements
     }
 }
 
@@ -1025,7 +1032,12 @@ private final class LockedValueBox<Value>: @unchecked Sendable {
         state.withLock { $0 = newValue }
     }
 
+    // See the `ElementsBox` note on `LockedArray.read()` above -- identical reasoning.
+    private struct ValueBox: @unchecked Sendable {
+        let value: Value
+    }
+
     func get() -> Value {
-        state.withLock { $0 }
+        state.withLock { ValueBox(value: $0) }.value
     }
 }

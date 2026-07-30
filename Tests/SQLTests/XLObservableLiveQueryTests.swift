@@ -432,6 +432,10 @@ final class XLObservableLiveQueryTests: XCTestCase {
     // file's `@MainActor` test methods -- it needs to pump the run loop to let the `DispatchQueue.main
     // .async` block run, but that block competes with the same main-actor executor already suspended
     // resuming the calling test method's own async context, so it never gets a turn within the timeout.
+    // `@MainActor`, matching every caller and `waitUntil` above: calling a nonisolated async function
+    // from `@MainActor` code needs to send `self` (this non-Sendable XCTestCase instance) across that
+    // boundary, which this annotation avoids the same way it does for `waitUntil`.
+    @MainActor
     private func drainMainQueue() async {
         await withCheckedContinuation { continuation in
             DispatchQueue.main.async {
