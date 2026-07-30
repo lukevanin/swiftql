@@ -168,13 +168,28 @@ final class GRDBLiveQueryAsyncBridge<Value>: @unchecked Sendable {
     /// starts no new fetch."
     private func scheduleRetry(after delay: TimeInterval, generation: Int) {
         var delayCancellable: AnyCancellable?
-        delayCancellable = scheduler.publisher(after: delay).sink(
-            receiveCompletion: { [weak self] _ in
-                self?.storePendingDelay(nil)
-                self?.beginAttempt()
-            },
-            receiveValue: { _ in }
-        )
+        // Triggers on the first emitted *value*, not on completion:
+        // `GRDBLiveQueryRetryScheduler.publisher(after:)` is a type-erased
+        // seam with no documented guarantee that it completes after
+        // emitting -- the deterministic manual scheduler used by this
+        // bridge's own retry tests emits from a `PassthroughSubject` that
+        // never sends a completion at all. The Combine retry path already
+        // treats this seam the same way, via `flatMap` reacting to each
+        // emitted value rather than waiting for completion. `.prefix(1)`
+        // guarantees this fires at most once even if the scheduler emits
+        // more than one value.
+        delayCancellable = scheduler.publisher(after: delay)
+            .prefix(1)
+            .sink(
+                receiveCompletion: { _ in },
+                receiveValue: { [weak self] _ in
+                    self?.storePendingDelay(nil)
+                    guard let self, self.retryState.shouldDeliver(generation: generation) else {
+                        return
+                    }
+                    self.beginAttempt()
+                }
+            )
         storePendingDelay(delayCancellable)
 
         // Same check-after-store race as `beginAttempt()`: `cancel()` may
