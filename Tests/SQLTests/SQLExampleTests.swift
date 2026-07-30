@@ -1296,6 +1296,14 @@ extension XLDocumentationTests {
             fredPerson
         )
 
+        var lazilyFetchedNames: [String] = []
+        try database.makeRequest(with: peopleNamedFredQuery).withResultSet { results in
+            while let person = try results.next() {
+                lazilyFetchedNames.append(person.name)
+            }
+        }
+        XCTAssertEqual(lazilyFetchedNames, [fredPerson.name])
+
         let peopleNamedFredShorthandQuery = sql {
             let person = $0.table(Person.self)
             Select(person)

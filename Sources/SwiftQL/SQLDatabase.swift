@@ -174,7 +174,37 @@ public protocol XLRequest<Row> {
 
     /// Fetches the first row with one immutable per-invocation binding packet.
     func fetchOne(bindings: any XLInvocationBindingPacket) throws -> Row?
-    
+
+    ///
+    /// Executes `operation` with a single-pass ``XLResultSet`` built from
+    /// zero bindings, exposing at most one additional row per `next()` call
+    /// instead of every matching row up front.
+    ///
+    /// This protocol requirement does not itself guarantee lazy stepping --
+    /// see ``XLResultSet`` for which implementations are truly streaming
+    /// (decoding at most one row per `next()`, with no row fetched or decoded
+    /// before `operation` calls `next()` for it) versus eager (this
+    /// protocol's own compatibility default, which calls ``fetchAll()``
+    /// under the hood, and `GRDBRequest`'s `RETURNING` exception) -- both
+    /// still honor `XLResultSet`'s single-pass reference semantics, throwing
+    /// iteration, non-`Sendable` isolation, scope lifetime, and
+    /// partial-progress behavior, just not the streaming cost profile.
+    ///
+    /// - Throws: The original query-execution error, or whatever `operation` throws.
+    ///
+    func withResultSet<Result>(
+        _ operation: (XLResultSet<Row>) throws -> Result
+    ) throws -> Result
+
+    ///
+    /// Executes `operation` with a lazy, single-pass ``XLResultSet`` for one
+    /// immutable per-invocation binding packet. See ``withResultSet(_:)``.
+    ///
+    func withResultSet<Result>(
+        bindings: any XLInvocationBindingPacket,
+        _ operation: (XLResultSet<Row>) throws -> Result
+    ) throws -> Result
+
     ///
     /// Creates a Combine Publisher that observes and emits all rows from the query.
     ///
@@ -232,6 +262,36 @@ extension XLRequest {
     ) throws -> Row? {
         try validateCompatibilityBindings(bindings)
         return try fetchOne()
+    }
+
+    /// Compatibility default for adapters that predate ``XLResultSet``: eagerly fetches every row
+    /// with ``fetchAll()``, then serves the already-decoded rows one at a time through the same
+    /// `next()` surface a true streaming adapter exposes. External conformers written before this
+    /// requirement existed keep compiling and behaving correctly; only the memory and latency
+    /// benefit of true row-at-a-time streaming requires an adapter override (see
+    /// `GRDBRequest.withResultSet(bindings:_:)` for the true-streaming GRDB implementation).
+    public func withResultSet<Result>(
+        _ operation: (XLResultSet<Row>) throws -> Result
+    ) throws -> Result {
+        try withEagerResultSet(fetchAll(), operation)
+    }
+
+    /// Compatibility default for adapters that predate ``XLResultSet``. See ``withResultSet(_:)``.
+    public func withResultSet<Result>(
+        bindings: any XLInvocationBindingPacket,
+        _ operation: (XLResultSet<Row>) throws -> Result
+    ) throws -> Result {
+        try withEagerResultSet(fetchAll(bindings: bindings), operation)
+    }
+
+    private func withEagerResultSet<Result>(
+        _ rows: [Row],
+        _ operation: (XLResultSet<Row>) throws -> Result
+    ) throws -> Result {
+        var iterator = rows.makeIterator()
+        let resultSet = XLResultSet<Row>(stepper: { iterator.next() })
+        defer { resultSet.close() }
+        return try operation(resultSet)
     }
 
     /// Compatibility default for adapters that do not implement early-stopping decode: fetches every
