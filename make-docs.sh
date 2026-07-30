@@ -20,8 +20,10 @@ main() {
         return 64
     fi
 
+    # Restricted to the characters GitHub allows in a repository name, so the
+    # value can be substituted into the landing page without quoting concerns.
     case "$hosting_base_path" in
-        ""|.|..|*/*)
+        ""|.|..|*[!A-Za-z0-9._-]*)
             printf 'error: invalid DocC hosting base path: %s\n' \
                 "$hosting_base_path" >&2
             return 64
@@ -91,6 +93,31 @@ main() {
 
     touch "$output/.nojekyll"
     "$source_root/scripts/ci/check-docc-output.sh" "$output"
+
+    install_landing_page "$source_root" "$output" "$hosting_base_path"
+    "$source_root/scripts/ci/check-landing-page.sh" "$output" "$hosting_base_path"
+}
+
+# Replaces DocC's generated root shell with the hand-written landing page from
+# Website/. DocC's own pages live under documentation/ and keep their own
+# index.html files, so only the site root changes.
+install_landing_page() {
+    landing_source_root="$1"
+    landing_output="$2"
+    landing_base_path="$3"
+    landing_website="$landing_source_root/Website"
+
+    for landing_asset in index.html swiftql-logo.png; do
+        if [ ! -s "$landing_website/$landing_asset" ]; then
+            printf 'error: missing landing page source: %s\n' \
+                "$landing_website/$landing_asset" >&2
+            return 1
+        fi
+    done
+
+    cp "$landing_website/swiftql-logo.png" "$landing_output/swiftql-logo.png"
+    sed -e "s|__BASE_PATH__|$landing_base_path|g" \
+        "$landing_website/index.html" > "$landing_output/index.html"
 }
 
 main "$@"
