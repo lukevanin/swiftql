@@ -310,6 +310,15 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
         /// iterated, and at most 1 for the lifetime of one bridge (one
         /// `stream()` call is one independent, single-consumer observation).
         var startCount = 0
+
+        /// Set by `cancel()`, checked by `storeCancellable(_:)`: closes the
+        /// race where `cancel()` runs after `startObservation(...)` returns a
+        /// fresh `AnyDatabaseCancellable` but before `storeCancellable(_:)`
+        /// stores it. Without this, `cancel()` would read `cancellable ==
+        /// nil` and cancel nothing, while `storeCancellable(_:)` would then
+        /// store the new observation anyway -- leaking a live GRDB
+        /// observation nothing would ever cancel.
+        var didCancel = false
     }
 
     private let state = OSAllocatedUnfairLock(uncheckedState: State())
@@ -346,8 +355,20 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
         }
     }
 
+    /// Stores `newCancellable`, unless `cancel()` already ran and missed it
+    /// (see `State.didCancel`), in which case this cancels `newCancellable`
+    /// itself instead of storing it -- mirroring the identical check-after-
+    /// store pattern the production `GRDBLiveQueryAsyncBridge` (#308) and
+    /// `XLRequestPublisherAsyncBridge` (#309) use for the same race.
     private func storeCancellable(_ newCancellable: AnyDatabaseCancellable) {
-        state.withLock { $0.cancellable = newCancellable }
+        let alreadyCancelled: Bool = state.withLock { state in
+            guard !state.didCancel else { return true }
+            state.cancellable = newCancellable
+            return false
+        }
+        if alreadyCancelled {
+            newCancellable.cancel()
+        }
     }
 
     func next() async throws -> Value? {
@@ -375,6 +396,7 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
     func cancel() {
         let existing: AnyDatabaseCancellable? = state.withLock { state in
             state.didStart = true
+            state.didCancel = true
             let existing = state.cancellable
             state.cancellable = nil
             return existing
