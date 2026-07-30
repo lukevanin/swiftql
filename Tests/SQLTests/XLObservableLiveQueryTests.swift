@@ -1,9 +1,6 @@
 //
 //  XLObservableLiveQueryTests.swift
 //
-//
-//  Created by Claude on 2026/07/30.
-//
 
 #if canImport(Observation)
 import Foundation
@@ -18,31 +15,6 @@ import XCTest
 private struct ObservableLiveQueryRecord: Equatable, Identifiable {
     let id: String
     let value: Int
-}
-
-
-// MARK: - Locked helpers
-
-/// Thread-safe counter used to prove that no further work happens once a model has been released or
-/// stopped -- released Swift objects cannot be inspected directly, so this is captured independently
-/// of the model under test.
-private final class ObservableLiveQueryProbe: @unchecked Sendable {
-
-    private let lock = NSLock()
-
-    private var count = 0
-
-    func increment() {
-        lock.lock()
-        count += 1
-        lock.unlock()
-    }
-
-    func read() -> Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return count
-    }
 }
 
 
@@ -154,7 +126,12 @@ final class XLObservableLiveQueryTests: XCTestCase {
     func testCancellationBeforeInitialValuePreventsAnyFetch() async throws {
         try createRecordTable()
         let model = XLObservableQuery(database.makeRequest(with: orderedStatement()))
-        model.stop() // Cancelled synchronously, before the consumer Task could plausibly start a fetch.
+        // `stop()` here does not depend on beating the consumer Task's own scheduling: even if that
+        // Task had already started running by this point, `stream()`'s own cancellation contract
+        // (`GRDBLiveQueryAsyncBridge.next()`, issue #308) checks `Task.isCancelled` *before* starting
+        // any GRDB observation, inside `withTaskCancellationHandler`'s `operation` closure -- so no
+        // fetch can occur once `stop()` has been called, regardless of the exact interleaving.
+        model.stop()
 
         drainMainQueue()
         XCTAssertEqual(
@@ -172,12 +149,10 @@ final class XLObservableLiveQueryTests: XCTestCase {
         try createRecordTable()
         try insertDirect(ObservableLiveQueryRecord(id: "a", value: 1))
 
-        let probe = ObservableLiveQueryProbe()
         var model: XLObservableQuery<ObservableLiveQueryRecord>? = XLObservableQuery(
             database.makeRequest(with: orderedStatement())
         )
         try await waitUntil { await !(model?.isLoading ?? true) }
-        probe.increment()
 
         weak let weakModel = model
         model = nil // Drop the only strong reference; deinit must cancel the owned Task deterministically.
@@ -192,7 +167,6 @@ final class XLObservableLiveQueryTests: XCTestCase {
             fetchCountAfterRelease,
             "A released model's owned Task must stop observing -- no fetch may happen for it afterward."
         )
-        XCTAssertEqual(probe.read(), 1, "No further application of state may happen after release.")
     }
 
     func testExplicitStopPreventsFurtherWorkWithoutWaitingForDeallocation() async throws {

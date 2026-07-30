@@ -1,9 +1,6 @@
 //
 //  XLObservableLiveQuery.swift
 //
-//
-//  Created by Claude on 2026/07/30.
-//
 
 #if canImport(Observation)
 import Observation
