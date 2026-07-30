@@ -1296,6 +1296,14 @@ extension XLDocumentationTests {
             fredPerson
         )
 
+        var lazilyFetchedNames: [String] = []
+        try database.makeRequest(with: peopleNamedFredQuery).withResultSet { results in
+            while let person = try results.next() {
+                lazilyFetchedNames.append(person.name)
+            }
+        }
+        XCTAssertEqual(lazilyFetchedNames, [fredPerson.name])
+
         let peopleNamedFredShorthandQuery = sql {
             let person = $0.table(Person.self)
             Select(person)
@@ -2835,6 +2843,68 @@ extension XLDocumentationTests {
         let _: (XLGRDBLiveQueryRetryTests) -> () throws -> Void =
             XLGRDBLiveQueryRetryTests
                 .testRealGRDBObservationRecoversFromInjectedBusyAndKeepsObserving
+
+        // #308: `stream()`/`streamOne()`/`stream(bindings:)` async live-query examples above are
+        // exercised by real-GRDB-database tests, mirroring how the publish()/publishOne() examples
+        // above are exercised by XLPublisherTests rather than inline here.
+        let _: (GRDBLiveQueryAsyncStreamTests) -> () async throws -> Void =
+            GRDBLiveQueryAsyncStreamTests.testStreamEmitsFreshInitialSnapshotAndRelevantWriteRefresh
+        let _: (GRDBLiveQueryAsyncStreamTests) -> () async throws -> Void =
+            GRDBLiveQueryAsyncStreamTests.testStreamOneEmitsFreshInitialSnapshotAndRelevantWriteRefresh
+        let _: (GRDBLiveQueryAsyncStreamTests) -> () async throws -> Void =
+            GRDBLiveQueryAsyncStreamTests.testStreamBindingsCapturesPacketOnceAcrossInitialFetchAndRefresh
+        let _: (GRDBLiveQueryAsyncStreamTests) -> () async throws -> Void =
+            GRDBLiveQueryAsyncStreamTests.testCancellingConsumingTaskTearsDownObservationAndStopsFurtherFetches
+        let _: (SQLRequestCompatibilityTests) -> () async throws -> Void =
+            SQLRequestCompatibilityTests.testLegacyReadConformerStreamBridgesFromPublishLazily
+
+        // #309: `publish()`/`publishOne()` are now Combine convenience adapters over `stream()`/
+        // `streamOne()`. The real-GRDB demand/cancellation/retry/main-queue contract above is
+        // exercised by `XLPublisherTests`/`XLGRDBLiveQueryRetryTests` (already referenced above);
+        // `XLAsyncStreamPublisherTests` separately proves the adapter's demand-mapping and
+        // cancellation-vs-completion contract deterministically, against hand-controlled streams
+        // rather than a real database.
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testOneAtATimeDemandDeliversExactlyRequestedCountWithoutEagerDraining
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testAdditionalDemandGrantedFromReceiveResumesAStalledPull
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testSelfInflictedCancellationDoesNotDeliverASpuriousCompletion
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testValueDeliveredConcurrentlyWithCancellationIsNeverForwarded
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testNormalCompletionNotCausedByCancellationIsForwarded
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testXlLiveQueryPublisherDeliversOnTheMainQueueByDefault
+
+        // #97: `XLObservableQuery`/`XLObservableQueryRow` are a third, `@Observable`-based convenience
+        // adapter over `stream()`/`streamOne()`, availability-gated to platforms shipping the
+        // `Observation` framework. `XLObservableLiveQueryTests` exercises them against real, temporary
+        // GRDB databases -- this reference (guarded exactly like the gated production types
+        // themselves) keeps the example above compile-time-checked without lowering this file's own
+        // availability floor.
+        #if canImport(Observation)
+        if #available(iOS 17, macOS 14, *) {
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testInitialSnapshotClearsLoadingAndPopulatesRows
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testRelevantWriteRefreshesRows
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testTerminalErrorSetsErrorAndClearsLoadingWithoutMutatingRows
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testCancellationBeforeInitialValuePreventsAnyFetch
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testReleasedModelPerformsNoFurtherWorkAfterRelease
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testPacketBackedModelCapturesBindingsAcrossRefresh
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testNewModelWithADifferentBindingPacketObservesIndependently
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testTwoModelsObservingIndependentDatabasesDoNotCrossTrigger
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testObservableQueryRowDeliversInitialAndRefreshedFirstRow
+        }
+        #endif
     }
 
     func testDocumentationDeclaredQueries() throws {
