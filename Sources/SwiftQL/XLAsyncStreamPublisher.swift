@@ -100,7 +100,15 @@ func xlLiveQueryPublisher<Value>(
 private final class XLAsyncStreamSubscription<Downstream>: Subscription, @unchecked Sendable
 where Downstream: Subscriber, Downstream.Failure == Error {
 
-    private let lock = NSLock()
+    // Recursive, not plain `NSLock`: `deliver(_:)` and `finish(error:)` hold this
+    // lock across the downstream `receive(_:)`/`receive(completion:)` call itself
+    // (see their doc comments), and Combine subscribers are allowed to call
+    // `cancel()` synchronously and reentrantly from inside that very callback --
+    // exactly what `XLAsyncStreamPublisherTests` exercises. A plain `NSLock`
+    // would deadlock that reentrant call; `NSRecursiveLock` lets the same thread
+    // re-enter while still serializing genuinely concurrent (different-thread)
+    // cancellation against delivery.
+    private let lock = NSRecursiveLock()
 
     private var downstream: Downstream?
 
@@ -275,40 +283,43 @@ where Downstream: Subscriber, Downstream.Failure == Error {
 
     /// Forwards one value downstream, honoring Combine's "nothing after `cancel()`" contract even if
     /// the value raced ahead of a concurrent cancellation and the stream still handed it to `runLoop()`.
+    ///
+    /// Holds `lock` across `downstream.receive(_:)` itself, not just the state check before it: a plain
+    /// check-then-unlock-then-call would leave a window where a `cancel()` racing in from another thread
+    /// -- or even called synchronously and reentrantly from inside this very `receive(_:)` callback, as
+    /// this type's own tests do -- could flip `isCancelled` in the gap and still let this value reach
+    /// downstream. Serializing the whole call against `cancel()` (via the recursive lock) means either
+    /// this delivery completes in full before `cancel()`'s state change takes effect, or `cancel()` has
+    /// already taken effect before this delivery starts -- never a torn state in between.
     private func deliver(_ value: Downstream.Input) {
         lock.lock()
+        defer { lock.unlock() }
         guard !isCancelled, let downstream else {
-            lock.unlock()
             return
         }
-        lock.unlock()
-
         let additionalDemand = downstream.receive(value)
-        guard additionalDemand > .none else { return }
-
-        lock.lock()
-        guard !isCancelled else {
-            lock.unlock()
+        guard !isCancelled, additionalDemand > .none else {
             return
         }
         remainingDemand += additionalDemand
-        lock.unlock()
     }
 
     /// Forwards the stream's terminal outcome exactly once -- unless this subscription's own
     /// `cancel()` is what caused the stream to end, in which case the completion is suppressed
     /// entirely. See this type's doc comment for why that is the one deliberate exception to
     /// "forward the stream's values, error, and completion exactly once."
+    ///
+    /// Holds `lock` across `downstream.receive(completion:)` for the same reason ``deliver(_:)`` holds
+    /// it across `downstream.receive(_:)`: serializing delivery against a concurrent `cancel()` closes
+    /// the same race for the terminal event.
     private func finish(error: Error?) {
         lock.lock()
+        defer { lock.unlock() }
         guard !isCancelled, !didFinish, let downstream else {
-            lock.unlock()
             return
         }
         didFinish = true
         self.downstream = nil
-        lock.unlock()
-
         if let error {
             downstream.receive(completion: .failure(error))
         }
