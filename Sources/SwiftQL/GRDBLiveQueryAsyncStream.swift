@@ -207,7 +207,19 @@ final class GRDBLiveQueryAsyncBridge<Value>: @unchecked Sendable {
     /// Cancels the underlying GRDB observation, any pending retry backoff,
     /// and the buffer. Safe to call more than once, and safe to call whether
     /// or not `next()` was ever invoked.
+    ///
+    /// `retryState.cancel()` runs *first*, before touching `cancellable`/
+    /// `pendingDelayCancellable`: it bumps `retryState`'s generation, which
+    /// is what actually invalidates a `beginAttempt()`/`scheduleRetry()` call
+    /// racing this one. Clearing this class's own stored references before
+    /// that point would leave a window where such a race could obtain a
+    /// still-valid generation, store a fresh observation or delay
+    /// cancellable, and pass its own check-after-store `shouldDeliver` guard
+    /// before `retryState.cancel()` had a chance to invalidate it -- leaking
+    /// an observation or timer with no remaining owner to cancel it.
     func cancel() {
+        retryState.cancel()
+
         lock.lock()
         let existingObservation = cancellable
         let existingDelay = pendingDelayCancellable
@@ -215,7 +227,6 @@ final class GRDBLiveQueryAsyncBridge<Value>: @unchecked Sendable {
         pendingDelayCancellable = nil
         lock.unlock()
 
-        retryState.cancel()
         existingDelay?.cancel()
         existingObservation?.cancel()
         buffer.cancel()
