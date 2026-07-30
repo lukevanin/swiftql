@@ -1,0 +1,654 @@
+<!doctype html>
+<!--
+  SwiftQL landing page.
+
+  This file is the source for the root page of https://lukevanin.github.io/swiftql/.
+  It is copied over DocC's generated root index.html by make-docs.sh, which also
+  substitutes __BASE_PATH__ with the Pages hosting base path. DocC's own pages
+  live under /documentation/ and are untouched.
+
+  Keep it dependency-free: no external scripts, stylesheets, fonts, or images.
+  scripts/ci/check-landing-page.sh enforces the marker and the substitution.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SwiftQL - SQL, as a first-class language in Swift</title>
+<meta name="description" content="SwiftQL brings SQLite into Swift's type system. Tables are structs, columns are typed properties, and statements are written in SQL's own clause order.">
+<link rel="icon" href="/__BASE_PATH__/favicon.ico">
+<link rel="mask-icon" href="/__BASE_PATH__/favicon.svg" color="#F05138">
+<meta property="og:title" content="SwiftQL">
+<meta property="og:description" content="SQL, as a first-class language in Swift.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lukevanin.github.io/swiftql/">
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-alt: #f6f7f9;
+  --bg-code: #f4f5f7;
+  --fg: #1d1d1f;
+  --fg-muted: #5c5f66;
+  --fg-faint: #85888f;
+  --line: #e2e4e8;
+  --accent: #d8412a;
+  --accent-fg: #ffffff;
+  --code-key: #ad3da4;
+  --code-type: #0b4f79;
+  --code-str: #c41a16;
+  --code-com: #6e7781;
+  --radius: 10px;
+  --measure: 1080px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --bg-alt: #161920;
+    --bg-code: #14171d;
+    --fg: #e8eaed;
+    --fg-muted: #a2a7b0;
+    --fg-faint: #7c828c;
+    --line: #262b34;
+    --accent: #ff6a4d;
+    --accent-fg: #1a0d09;
+    --code-key: #ff7ab2;
+    --code-type: #9ed0ff;
+    --code-str: #ff8170;
+    --code-com: #7c828c;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.wrap {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ---------- nav ---------- */
+
+.nav {
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  z-index: 10;
+}
+
+.nav .wrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  height: 56px;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; }
+.nav-brand img { width: 24px; height: 24px; border-radius: 5px; }
+
+.nav-links {
+  margin-left: auto;
+  display: flex;
+  gap: 22px;
+  font-size: 15px;
+}
+.nav-links a { color: var(--fg-muted); }
+.nav-links a:hover { color: var(--fg); text-decoration: none; }
+
+@media (max-width: 640px) {
+  .nav-links { gap: 16px; font-size: 14px; }
+  .nav-links .nav-optional { display: none; }
+}
+
+/* ---------- hero ---------- */
+
+.hero {
+  padding: 72px 0 56px;
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+}
+
+.hero img.logo {
+  width: 104px;
+  height: 104px;
+  border-radius: 22px;
+  margin-bottom: 26px;
+}
+
+.hero h1 {
+  font-size: clamp(34px, 6vw, 52px);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  margin: 0 0 18px;
+  font-weight: 700;
+}
+
+.hero .lede {
+  font-size: clamp(17px, 2.4vw, 20px);
+  color: var(--fg-muted);
+  max-width: 46ch;
+  margin: 0 auto 34px;
+}
+
+.cta {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 30px;
+}
+
+.btn {
+  display: inline-block;
+  padding: 11px 22px;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 550;
+  border: 1px solid var(--line);
+  color: var(--fg);
+}
+.btn:hover { text-decoration: none; border-color: var(--fg-faint); }
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+.btn-primary:hover { border-color: var(--accent); opacity: 0.9; }
+
+.install {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, monospace;
+  font-size: 13.5px;
+  color: var(--fg-muted);
+  background: var(--bg-code);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 14px;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+  text-align: left;
+}
+
+/* ---------- sections ---------- */
+
+section { padding: 64px 0; border-bottom: 1px solid var(--line); scroll-margin-top: 56px; }
+section:last-of-type { border-bottom: 0; }
+
+h2 {
+  font-size: clamp(24px, 3.4vw, 31px);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin: 0 0 14px;
+  font-weight: 650;
+}
+
+.section-lede {
+  color: var(--fg-muted);
+  max-width: 62ch;
+  margin: 0 0 34px;
+}
+
+p { margin: 0 0 18px; }
+p:last-child { margin-bottom: 0; }
+
+.alt { background: var(--bg-alt); }
+
+/* ---------- code ---------- */
+
+pre {
+  margin: 0;
+  background: var(--bg-code);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  overflow-x: auto;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, monospace;
+}
+
+p code, li code, td code {
+  background: var(--bg-code);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-size: 0.88em;
+}
+
+.k { color: var(--code-key); }
+.t { color: var(--code-type); }
+.s { color: var(--code-str); }
+.c { color: var(--code-com); font-style: italic; }
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+/* Grid items default to min-width:auto, which lets a wide <pre> push the track
+   past the container. Scroll inside the code block instead. */
+.split > *, .grid > * { min-width: 0; }
+
+@media (max-width: 820px) {
+  .split { grid-template-columns: 1fr; }
+}
+
+.pane-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fg-faint);
+  font-weight: 600;
+  margin-bottom: 9px;
+}
+
+.split-note {
+  margin-top: 24px;
+  color: var(--fg-muted);
+  max-width: 68ch;
+}
+
+/* ---------- feature grid ---------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  background: var(--bg);
+}
+
+.card h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.card p {
+  margin: 0;
+  font-size: 15px;
+  color: var(--fg-muted);
+  line-height: 1.55;
+}
+
+/* ---------- table ---------- */
+
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 15px;
+  min-width: 720px;
+}
+
+th, td {
+  text-align: left;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+th {
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-faint);
+  white-space: nowrap;
+}
+
+tbody tr:last-child > * { border-bottom: 0; }
+
+tbody th {
+  text-transform: none;
+  font-size: 15px;
+  letter-spacing: 0;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+tr.highlight { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+
+/* ---------- lists ---------- */
+
+ul.plain {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+ul.plain li {
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--fg-muted);
+}
+ul.plain li:last-child { border-bottom: 0; }
+ul.plain strong { color: var(--fg); font-weight: 600; }
+
+/* ---------- footer ---------- */
+
+footer {
+  padding: 44px 0 56px;
+  border-top: 1px solid var(--line);
+  color: var(--fg-faint);
+  font-size: 14.5px;
+}
+
+.foot-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  margin-bottom: 22px;
+}
+.foot-links a { color: var(--fg-muted); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a class="nav-brand" href="/__BASE_PATH__/">
+      <img src="/__BASE_PATH__/swiftql-logo.png" alt="">
+      SwiftQL
+    </a>
+    <div class="nav-links">
+      <a href="/__BASE_PATH__/documentation/swiftql/">Documentation</a>
+      <a class="nav-optional" href="https://github.com/lukevanin/swiftql/blob/main/Documentation/PortingFromSQL.md">Porting guide</a>
+      <a class="nav-optional" href="https://github.com/lukevanin/swiftql/blob/main/Documentation/DESIGN.md">Design</a>
+      <a href="https://github.com/lukevanin/swiftql">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <img class="logo" src="/__BASE_PATH__/swiftql-logo.png" alt="SwiftQL logo">
+    <h1>SQL, as a first-class<br>language in Swift</h1>
+    <p class="lede">
+      Real SQLite, written in typed, composable, refactorable Swift.
+      No query strings. No stringly typed columns. No ORM hiding the SQL.
+    </p>
+    <div class="cta">
+      <a class="btn btn-primary" href="/__BASE_PATH__/documentation/swiftql/gettingstarted/">Get started</a>
+      <a class="btn" href="https://github.com/lukevanin/swiftql/blob/main/Documentation/PortingFromSQL.md">Port a query</a>
+      <a class="btn" href="https://github.com/lukevanin/swiftql">GitHub</a>
+    </div>
+    <div class="install"><code>.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.5.4")</code></div>
+  </div>
+</header>
+
+<section id="shape">
+  <div class="wrap">
+    <h2>The source is the statement</h2>
+    <p class="section-lede">
+      Every clause appears once, under its SQL name, in SQL's grammatical order.
+      Read a SwiftQL query and you are reading the statement it produces.
+    </p>
+
+    <div class="split">
+      <div>
+        <div class="pane-label">SQLite</div>
+<pre><code><span class="k">SELECT</span> * <span class="k">FROM</span> Person
+<span class="k">WHERE</span> name = <span class="s">'Fred'</span>
+<span class="k">ORDER BY</span> age <span class="k">ASC</span>
+<span class="k">LIMIT</span> 5</code></pre>
+      </div>
+      <div>
+        <div class="pane-label">SwiftQL</div>
+<pre><code><span class="k">let</span> query = <span class="t">sql</span> { schema <span class="k">in</span>
+    <span class="k">let</span> person = schema.<span class="t">table</span>(<span class="t">Person</span>.<span class="k">self</span>)
+    <span class="t">Select</span>(person)
+    <span class="t">From</span>(person)
+    <span class="t">Where</span>(person.name == <span class="s">"Fred"</span>)
+    <span class="t">OrderBy</span>(person.age.<span class="t">ascending</span>())
+    <span class="t">Limit</span>(<span class="s">5</span>)
+}</code></pre>
+      </div>
+    </div>
+
+    <p class="split-note">
+      That correspondence is the whole design. Other typed query libraries reach
+      SQL through a method chain: you start from a table type and attach clauses
+      to it, in an order the library accepts rather than the order SQL defines.
+      SwiftQL keeps SQL's own order, which is why porting a query is a mechanical
+      exercise rather than an interpretive one - clause by clause, in both
+      directions. The
+      <a href="https://github.com/lukevanin/swiftql/blob/main/Documentation/PortingFromSQL.md">porting guide</a>
+      maps every clause and works through ports up to recursive common table
+      expressions.
+    </p>
+  </div>
+</section>
+
+<section id="types" class="alt">
+  <div class="wrap">
+    <h2>Rename a column, and the compiler finds every query</h2>
+    <p class="section-lede">
+      A string-based query survives the rename, ships, and fails on a device you
+      cannot reach. SwiftQL moves that failure to the build.
+    </p>
+
+    <div class="split">
+      <div>
+        <div class="pane-label">Tables are Swift types</div>
+<pre><code><span class="k">@SQLTable</span>
+<span class="k">struct</span> <span class="t">Person</span> {
+    <span class="k">var</span> id: <span class="t">String</span>
+    <span class="k">var</span> occupationId: <span class="t">String</span>?
+    <span class="k">var</span> name: <span class="t">String</span>
+    <span class="k">var</span> age: <span class="t">Int</span>
+}</code></pre>
+      </div>
+      <div>
+        <div class="pane-label">Results decode into them</div>
+<pre><code><span class="k">let</span> request = database.<span class="t">makeRequest</span>(with: query)
+
+<span class="k">let</span> people: [<span class="t">Person</span>] = <span class="k">try</span> request.<span class="t">fetchAll</span>()
+<span class="k">let</span> first: <span class="t">Person</span>? = <span class="k">try</span> request.<span class="t">fetchOne</span>()</code></pre>
+      </div>
+    </div>
+
+    <p class="split-note">
+      <code>Select(person)</code> fixes the row type when the query is
+      constructed, so both execution methods expose their result type directly.
+      There are no untyped row dictionaries and no manual casts. Xcode completes
+      and navigates the table model, and the compiler catches missing fields,
+      incompatible expression types, and invalid clause ordering.
+    </p>
+  </div>
+</section>
+
+<section id="coverage">
+  <div class="wrap">
+    <h2>Coverage is the point</h2>
+    <p class="section-lede">
+      A first-class construct that only handles simple statements is a demo.
+      SwiftQL's aim is to express what SQLite expresses, with the remaining
+      surface tracked as conformance work rather than left undefined.
+    </p>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Queries</h3>
+        <p>Inner, left, and cross joins; grouping and <code>HAVING</code>; ordering and pagination; scalar and table subqueries; compound queries.</p>
+      </div>
+      <div class="card">
+        <h3>Common table expressions</h3>
+        <p>Ordinary and recursive CTEs, with the self-reference passed to the closure as a typed table like any other.</p>
+      </div>
+      <div class="card">
+        <h3>Expressions</h3>
+        <p>Boolean, numeric, text, optional, conditional, and aggregate expressions composed with Swift operators and generic constraints.</p>
+      </div>
+      <div class="card">
+        <h3>Writes</h3>
+        <p>Typed inserts, updates, and deletes with the same SQL-shaped API, plus basic table creation.</p>
+      </div>
+      <div class="card">
+        <h3>Live data</h3>
+        <p>Observe typed results through GRDB-backed Combine publishers, or adopt <code>XLQueryObserver</code> directly from SwiftUI.</p>
+      </div>
+      <div class="card">
+        <h3>Your domain</h3>
+        <p>Extend SQLite with Swift enums, custom value types, and type-safe custom SQL functions.</p>
+      </div>
+    </div>
+
+    <p class="split-note">
+      What is supported is not a claim, it is an inventory. Every feature is
+      recorded with evidence from a real SQLite engine, versioned with the
+      library, and published as a
+      <a href="https://github.com/lukevanin/swiftql/blob/main/Conformance/SQLite/REPORT.md">conformance report</a>.
+      The gaps are recorded there too.
+    </p>
+  </div>
+</section>
+
+<section id="compare" class="alt">
+  <div class="wrap">
+    <h2>How SwiftQL compares</h2>
+    <p class="section-lede">
+      Swift has good persistence libraries. They differ mainly in how much of the
+      relational model they ask you to give up.
+    </p>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Shape</th>
+            <th>Where the SQL lives</th>
+            <th>Type safety comes from</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="highlight">
+            <th>SwiftQL</th>
+            <td>Result builder, one clause per statement in SQL order</td>
+            <td>Visible, in SQL order, in Swift</td>
+            <td>Macros + generics, checked at compile time</td>
+          </tr>
+          <tr>
+            <th>StructuredQueries</th>
+            <td>Chained methods with typed closures and key paths</td>
+            <td>Emitted in SQL order; <code>#sql</code> escape hatch for typed SQL strings</td>
+            <td><code>@Table</code> macro + key paths</td>
+          </tr>
+          <tr>
+            <th>GRDB</th>
+            <td>Records + query interface, with raw SQL always available</td>
+            <td>Visible when you write it; strings when you drop down</td>
+            <td>Codable records and column definitions</td>
+          </tr>
+          <tr>
+            <th>SQLite.swift</th>
+            <td>Expression DSL</td>
+            <td>Behind the DSL</td>
+            <td>Generic <code>Expression</code> types</td>
+          </tr>
+          <tr>
+            <th>SwiftData</th>
+            <td>Object graph</td>
+            <td>Hidden - no SQL surface</td>
+            <td><code>@Model</code> macro over an opaque store</td>
+          </tr>
+          <tr>
+            <th>Fluent</th>
+            <td>Server-side ORM</td>
+            <td>Hidden behind the model layer</td>
+            <td>Model definitions and property wrappers</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="split-note">
+      <strong>SwiftQL is not a GRDB alternative, it is a typed query layer above
+      it.</strong> Execution, connection management, transactions, and
+      observation are GRDB's, and deliberately so: that part is mature, well
+      understood, and not worth reimplementing. SwiftQL replaces the part where
+      queries become strings.
+    </p>
+  </div>
+</section>
+
+<section id="alternatives">
+  <div class="wrap">
+    <h2>Choose something else when</h2>
+    <ul class="plain">
+      <li><strong>You need schema migrations.</strong> SwiftQL does not provide them. <code>sqlCreate</code> creates a table but does not migrate an existing schema. Use GRDB's <code>DatabaseMigrator</code> alongside SwiftQL - they compose, because SwiftQL sits on GRDB rather than replacing it.</li>
+      <li><strong>You prefer a chained query builder.</strong> Several Swift libraries express typed queries as method chains. If <code>.select { }.where { }</code> reads better to you than <code>Select</code> / <code>From</code> / <code>Where</code>, that preference is the whole argument.</li>
+      <li><strong>You want the database to disappear.</strong> SwiftData is a better fit if you would rather model an object graph than think about tables, and you can require recent Apple platforms.</li>
+      <li><strong>You are writing a server with a non-SQLite backend.</strong> Fluent covers PostgreSQL and MySQL today. SwiftQL is SQLite-only; other dialects are roadmap work, not shipped work.</li>
+      <li><strong>Your queries are already written and working.</strong> The cost of SwiftQL is learning its expression surface. The benefit arrives when the schema changes, so a stable schema you rarely touch may not repay it.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-links">
+      <a href="/__BASE_PATH__/documentation/swiftql/">Documentation</a>
+      <a href="/__BASE_PATH__/documentation/swiftql/gettingstarted/">Getting started</a>
+      <a href="https://github.com/lukevanin/swiftql/blob/main/Documentation/PortingFromSQL.md">Porting guide</a>
+      <a href="https://github.com/lukevanin/swiftql/blob/main/Documentation/DESIGN.md">Design rationale</a>
+      <a href="https://github.com/lukevanin/swiftql/blob/main/COMPATIBILITY.md">Compatibility</a>
+      <a href="https://github.com/lukevanin/swiftql/blob/main/ROADMAP.md">Roadmap</a>
+      <a href="https://github.com/lukevanin/swiftql/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/lukevanin/swiftql">GitHub</a>
+    </div>
+    <p>
+      SwiftQL is available under the MIT license.
+      Requires Swift 5.9 or later, on iOS 16+, macOS 13+, or Linux.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
