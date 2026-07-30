@@ -108,8 +108,17 @@ public final class XLObservableQuery<Row>: @unchecked Sendable {
     // iteration of this fix) does not actually avoid crossing an isolation boundary: the stream's own
     // `next()` is a nonisolated async function regardless of the Task's isolation, so pulling `[Row]`
     // (non-Sendable, since `Row` is unconstrained) out of it and into the `@MainActor` Task body is
-    // itself flagged. Keeping the Task nonisolated (matching #451's original shape) and shadowing just
-    // the one value that needs to cross into `apply(rows:)` is the narrower, and only working, fix.
+    // itself flagged. Keeping the Task nonisolated (matching #451's original shape) is the narrower fix
+    // that actually addresses the real crossing -- `apply(rows:)`'s own `sending` parameter (below)
+    // covers sending `rows` across it, matching `XLObservableQuery`'s `@unchecked Sendable` conformance
+    // for sending `self` the same way. A `nonisolated(unsafe)` shadow declared *inside* this `for` loop
+    // (tried first) does silence the diagnostic, but only compiles on some Swift 6.0+ toolchains: on the
+    // pinned Swift 5.9 cell, `#if compiler(>=6.0)` correctly excludes it from being type-checked, but
+    // the *parser* still chokes on it nested this deeply ("consecutive statements... must be separated
+    // by ';'") even though the identical text at a function body's top level (see e.g.
+    // GRDBLiveQueryAsyncStream.handleValue(_:generation:)) parses and skips cleanly. Keeping `sending`
+    // on a top-level method declaration instead avoids nesting a version-gated construct inside control
+    // flow at all.
     private func start(stream: AsyncThrowingStream<[Row], Error>) {
         task = Task { [weak self] in
             do {
@@ -120,13 +129,6 @@ public final class XLObservableQuery<Row>: @unchecked Sendable {
                     // but this instance's own `Task.isCancelled` is the most direct, local signal that
                     // no further state update should ever reach `rows`/`isLoading`/`error`.
                     if Task.isCancelled { return }
-                    // `nonisolated(unsafe)` (Swift 6.0+ only): `apply(rows:)` is `@MainActor`, so calling
-                    // it from this nonisolated Task sends `rows` across that boundary; `Row` is
-                    // unconstrained, so `[Row]` isn't Sendable. `XLObservableQuery`'s own `@unchecked
-                    // Sendable` conformance covers sending `self` the same way.
-                    #if compiler(>=6.0)
-                    nonisolated(unsafe) let rows = rows
-                    #endif
                     await self?.apply(rows: rows)
                 }
             }
@@ -138,11 +140,21 @@ public final class XLObservableQuery<Row>: @unchecked Sendable {
         }
     }
 
+    // See the note on start(stream:) above for why `sending` lives here, on a top-level method
+    // declaration, rather than as a nested shadow inside the `for` loop that calls this.
+    #if compiler(>=6.0)
+    @MainActor
+    private func apply(rows: sending [Row]) {
+        self.rows = rows
+        self.isLoading = false
+    }
+    #else
     @MainActor
     private func apply(rows: [Row]) {
         self.rows = rows
         self.isLoading = false
     }
+    #endif
 
     @MainActor
     private func apply(error: Error) {
@@ -217,9 +229,6 @@ public final class XLObservableQueryRow<Row>: @unchecked Sendable {
             do {
                 for try await row in stream {
                     if Task.isCancelled { return }
-                    #if compiler(>=6.0)
-                    nonisolated(unsafe) let row = row
-                    #endif
                     await self?.apply(row: row)
                 }
             }
@@ -231,11 +240,19 @@ public final class XLObservableQueryRow<Row>: @unchecked Sendable {
         }
     }
 
+    #if compiler(>=6.0)
+    @MainActor
+    private func apply(row: sending Row?) {
+        self.row = row
+        self.isLoading = false
+    }
+    #else
     @MainActor
     private func apply(row: Row?) {
         self.row = row
         self.isLoading = false
     }
+    #endif
 
     @MainActor
     private func apply(error: Error) {
