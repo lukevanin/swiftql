@@ -2883,7 +2883,7 @@ extension XLDocumentationTests {
         // GRDB databases -- this reference (guarded exactly like the gated production types
         // themselves) keeps the example above compile-time-checked without lowering this file's own
         // availability floor.
-        #if canImport(Observation)
+        #if canImport(Observation) && canImport(Darwin)
         if #available(iOS 17, macOS 14, *) {
             let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
                 XLObservableLiveQueryTests.testInitialSnapshotClearsLoadingAndPopulatesRows

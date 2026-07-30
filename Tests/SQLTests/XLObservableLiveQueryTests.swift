@@ -2,7 +2,9 @@
 //  XLObservableLiveQueryTests.swift
 //
 
-#if canImport(Observation)
+// See the matching guard in XLObservableLiveQuery.swift: `canImport(Darwin)` excludes Linux, where
+// the production type itself is no longer compiled.
+#if canImport(Observation) && canImport(Darwin)
 import Foundation
 import GRDB
 import XCTest
@@ -154,7 +156,7 @@ final class XLObservableLiveQueryTests: XCTestCase {
         )
         try await waitUntil { await !(model?.isLoading ?? true) }
 
-        weak let weakModel = model
+        weak var weakModel = model
         model = nil // Drop the only strong reference; deinit must cancel the owned Task deterministically.
 
         try await waitUntil { weakModel == nil }
@@ -240,7 +242,7 @@ final class XLObservableLiveQueryTests: XCTestCase {
         // Releasing the first model and constructing a second with a different packet is how binding
         // replacement happens for this Observation-native surface: each model owns one immutable
         // packet for its whole lifetime, exactly like `stream(bindings:)`/`publish(bindings:)`.
-        weak let weakModelA = modelA
+        weak var weakModelA = modelA
         modelA = nil
         try await waitUntil { weakModelA == nil }
 
@@ -327,7 +329,7 @@ final class XLObservableLiveQueryTests: XCTestCase {
         )
         try await waitUntil { await !(model?.isLoading ?? true) }
 
-        weak let weakModel = model
+        weak var weakModel = model
         model = nil
         try await waitUntil { weakModel == nil }
 

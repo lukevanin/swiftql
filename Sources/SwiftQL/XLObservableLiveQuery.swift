@@ -2,7 +2,13 @@
 //  XLObservableLiveQuery.swift
 //
 
-#if canImport(Observation)
+// `canImport(Darwin)` excludes Linux even though `canImport(Observation)` alone is true there:
+// swift-corelibs' `Observation` backport on the pinned Swift 5.9.2 Ubuntu cell fails at link time
+// (`undefined reference to 'swift::threading::fatal'` in `libswiftObservation.so`), and `@Observable`
+// is an Apple-platform SwiftUI convenience in any case -- this feature's `iOS 17, macOS 14`
+// availability floor is meaningless on Linux, where the `*` in that availability list would otherwise
+// make it unconditionally compiled and linked.
+#if canImport(Observation) && canImport(Darwin)
 import Observation
 import Foundation
 
@@ -90,7 +96,7 @@ public final class XLObservableQuery<Row> {
 
     ///
     /// Cancels the underlying observation deterministically, without waiting for deallocation. Safe to
-    /// call more than once, and idempotent with the cancellation ``deinit`` performs automatically;
+    /// call more than once, and idempotent with the cancellation `deinit` performs automatically;
     /// useful when a view model needs to stop observing before it happens to be released.
     ///
     public func stop() {
@@ -178,7 +184,7 @@ public final class XLObservableQueryRow<Row> {
         start(stream: request.streamOne(bindings: bindings))
     }
 
-    /// See ``XLObservableQuery/deinit`` -- identical cancellation-ownership contract, applied to
+    /// See ``XLObservableQuery``'s `deinit` -- identical cancellation-ownership contract, applied to
     /// `streamOne()` instead of `stream()`.
     deinit {
         task?.cancel()
