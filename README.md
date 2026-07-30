@@ -175,6 +175,10 @@ and specify the package URL `https://github.com/lukevanin/swiftql.git`.
 
 ## Explore SwiftQL
 
+[swiftql on GitHub Pages](https://lukevanin.github.io/swiftql/) is the project
+site: the pitch, a worked comparison against raw SQL, and the API reference in
+one place.
+
 Start with the
 [documentation](https://lukevanin.github.io/swiftql/documentation/swiftql/).
 Its examples are connected to executable test scenarios, so the API shown in
