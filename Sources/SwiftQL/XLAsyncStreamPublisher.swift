@@ -2,6 +2,7 @@
 //  XLAsyncStreamPublisher.swift
 //
 
+import Dispatch
 import Foundation
 #if canImport(Combine)
 import Combine

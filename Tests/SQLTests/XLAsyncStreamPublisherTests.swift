@@ -374,8 +374,9 @@ final class XLAsyncStreamPublisherTests: XCTestCase {
             initialDemand: .max(2),
             additionalDemand: { value in
                 // Cancel from *inside* delivery of the first value, with a second value already
-                // sitting in the stream's own buffer (yielded below before subscribing). This
-                // exercises the same end-to-end guarantee as
+                // sitting in the stream's own buffer (both values are yielded below, after
+                // subscribing, before this callback ever cancels). This exercises the same
+                // end-to-end guarantee as
                 // `SQLPublisherTests.testCancellationDuringInFlightSQLiteWorkSuppressesDelivery`'s
                 // real-GRDB scenario (a value produced concurrently with cancel() must never reach
                 // the subscriber) without needing a real database: whether the second value is
