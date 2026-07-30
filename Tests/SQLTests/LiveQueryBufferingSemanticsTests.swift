@@ -5,10 +5,44 @@
 import Foundation
 import GRDB
 import XCTest
+#if canImport(os)
 import os
+#endif
 
 
 private struct AwaitNextTimeoutError: Error {}
+
+
+#if !canImport(os)
+/// Minimal `OSAllocatedUnfairLock`-compatible shim for platforms without
+/// Darwin's `os` module (e.g. this package's Linux CI cells), matching only
+/// the three initializers and the single `withLock` method this file uses.
+/// Exposes *only* `withLock`, never a bare `lock()`/`unlock()` pair, so
+/// nothing on this fallback path can reach for the discouraged manual-unlock
+/// pattern even though it is, unavoidably, backed by `NSLock` internally —
+/// there is no Darwin-style unfair lock to wrap on this platform.
+private final class OSAllocatedUnfairLock<State>: @unchecked Sendable {
+
+    private let lock = NSLock()
+
+    private var state: State
+
+    init(uncheckedState initialState: State) {
+        state = initialState
+    }
+
+    init(initialState: State) where State: Sendable {
+        state = initialState
+    }
+
+    @discardableResult
+    func withLock<Result>(_ body: (inout State) throws -> Result) rethrows -> Result {
+        lock.lock()
+        defer { lock.unlock() }
+        return try body(&state)
+    }
+}
+#endif
 
 
 // MARK: - Evidence-only prototype (see Sources/SwiftQL/SwiftQL.docc/LiveQueries.md,
@@ -411,12 +445,6 @@ private final class DemandDrivenPuller<Value>: @unchecked Sendable {
                 return false
             }
             state.remainingDemand += amount
-            // Handing off to a stalled waiter consumes exactly one unit of
-            // the demand just granted -- mirroring
-            // `resolveDemandOrRegister(_:)`'s own immediate-availability
-            // branch in the production `XLAsyncStreamPublisher` -- so the
-            // waiter resumes having *already* accounted for the pull it is
-            // about to make.
             let shouldStart = !state.isPulling && state.remainingDemand > 0
             if shouldStart {
                 state.isPulling = true
