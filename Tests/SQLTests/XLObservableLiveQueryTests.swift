@@ -161,10 +161,12 @@ final class XLObservableLiveQueryTests: XCTestCase {
         )
         try await waitUntil { !(model?.isLoading ?? true) }
 
-        // `weak let` is Swift 6.1+ syntax; the pinned Swift 5.9/6.0 cells reject it ("'weak' must be
-        // a mutable variable"), while 6.1+ warns that an unmutated `weak var` should be a `let` --
-        // both are warnings-as-errors gated, so the binding's own mutability must switch per compiler.
-        #if compiler(>=6.1)
+        // `weak let` needs Swift 6.2+: the pinned Swift 5.9/6.0 cells reject it ("'weak' must be
+        // a mutable variable"), and Swift 6.1 (Xcode 16.4) does too, despite `#if compiler(>=6.1)`
+        // gating exactly this pattern successfully elsewhere for other syntax -- 6.2+ instead warns
+        // that an unmutated `weak var` should be a `let`, so the binding's own mutability must switch
+        // per compiler, both being warnings-as-errors gated.
+        #if compiler(>=6.2)
         weak let weakModel = model
         #else
         weak var weakModel = model
@@ -258,8 +260,8 @@ final class XLObservableLiveQueryTests: XCTestCase {
         // Releasing the first model and constructing a second with a different packet is how binding
         // replacement happens for this Observation-native surface: each model owns one immutable
         // packet for its whole lifetime, exactly like `stream(bindings:)`/`publish(bindings:)`.
-        // See the matching compiler(>=6.1) note above for why this binding's mutability is conditional.
-        #if compiler(>=6.1)
+        // See the matching compiler(>=6.2) note above for why this binding's mutability is conditional.
+        #if compiler(>=6.2)
         weak let weakModelA = modelA
         #else
         weak var weakModelA = modelA
@@ -353,8 +355,8 @@ final class XLObservableLiveQueryTests: XCTestCase {
         )
         try await waitUntil { !(model?.isLoading ?? true) }
 
-        // See the compiler(>=6.1) note in testReleasedModelPerformsNoFurtherWorkAfterRelease above.
-        #if compiler(>=6.1)
+        // See the compiler(>=6.2) note in testReleasedModelPerformsNoFurtherWorkAfterRelease above.
+        #if compiler(>=6.2)
         weak let weakModel = model
         #else
         weak var weakModel = model
