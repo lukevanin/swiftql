@@ -412,6 +412,25 @@ struct GRDBRequest<Row>: XLRequest {
         return try GRDBRowDecoder(reader: reader).decode(values: values)
     }
 
+    // `publish()`/`publish(bindings:)`/`publishOne()`/`publishOne(bindings:)` are Combine convenience
+    // adapters over `stream()`/`streamOne()` (issue #309): they never call `ValueObservation
+    // .publisher(in:)` or own a Combine-side retry pipeline. Observation, immutable-packet capture,
+    // retry, decoding, and buffering all come from the async stream; `xlLiveQueryPublisher(makeStream:)`
+    // only adapts Combine subscription/demand/cancellation and applies the documented main-queue
+    // delivery default.
+    //
+    // Two guard checks below stay eager (a synchronous `Fail`) instead of folding into the lazy stream
+    // adapter: `requiresWriteConnection` (a `RETURNING` statement is never observable) and a `nil`
+    // `databasePool` (a transaction-scoped driver, issue #284, has no pool to track). Both are pure,
+    // already-computed structural checks -- not observation, retry, or decoding logic -- and keeping
+    // them synchronous preserves a real regression contract: `SQLTransactionScopeTests
+    // .testPublishInsideATransactionFailsPredictablyInsteadOfObservingAnInvalidatedConnection` calls
+    // `.publish()` and synchronously waits on the *same* thread `withTransaction(_:)`'s body is running
+    // on. `databasePool.write(_:)` blocks the calling thread for that body's duration, so if this fast-
+    // fail error were instead delivered lazily through a `Task` plus `.receive(on: DispatchQueue.main)`
+    // (as `stream()`/`streamOne()` do), it could never be delivered while that same thread is the one
+    // blocked waiting for it -- a deadlock. `Fail` needs no dispatch queue and delivers synchronously,
+    // exactly like the pre-#309 implementation did for these two cases.
     func publish() -> AnyPublisher<[Row], Error> {
         if requiresWriteConnection {
             return Fail(error: XLReturningRequestError.observationUnsupported)
@@ -428,18 +447,15 @@ struct GRDBRequest<Row>: XLRequest {
     func publish(
         bindings: any XLInvocationBindingPacket
     ) -> AnyPublisher<[Row], Error> {
-        do {
-            let packet = try executor.sqlitePacket(bindings)
-            return publisher { database in
-                logger?.debug(
-                    "fetchAll: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-                var connection = executor.driver.makeConnection(database)
-                return try decodeRows(packet: packet, in: &connection)
-            }
+        if requiresWriteConnection {
+            return Fail(error: XLReturningRequestError.observationUnsupported)
+                .eraseToAnyPublisher()
         }
-        catch {
-            return Fail(error: error).eraseToAnyPublisher()
+        guard executor.driver.databasePool != nil else {
+            return Fail(error: XLTransactionScopeError.liveQueriesUnsupportedInTransaction)
+                .eraseToAnyPublisher()
         }
+        return xlLiveQueryPublisher(makeStream: { self.stream(bindings: bindings) })
     }
 
     func publishOne() -> AnyPublisher<Row?, Error> {
@@ -458,24 +474,15 @@ struct GRDBRequest<Row>: XLRequest {
     func publishOne(
         bindings: any XLInvocationBindingPacket
     ) -> AnyPublisher<Row?, Error> {
-        do {
-            let packet = try executor.sqlitePacket(bindings)
-            return publisher { database in
-                logger?.debug(
-                    "fetchOne: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-                var connection = executor.driver.makeConnection(database)
-                guard let values = try executor.fetchOne(
-                    packet: packet,
-                    in: &connection
-                ) else {
-                    return nil
-                }
-                return try GRDBRowDecoder(reader: reader).decode(values: values)
-            }
+        if requiresWriteConnection {
+            return Fail(error: XLReturningRequestError.observationUnsupported)
+                .eraseToAnyPublisher()
         }
-        catch {
-            return Fail(error: error).eraseToAnyPublisher()
+        guard executor.driver.databasePool != nil else {
+            return Fail(error: XLTransactionScopeError.liveQueriesUnsupportedInTransaction)
+                .eraseToAnyPublisher()
         }
+        return xlLiveQueryPublisher(makeStream: { self.streamOne(bindings: bindings) })
     }
     
     func stream() -> AsyncThrowingStream<[Row], Error> {
@@ -547,7 +554,7 @@ struct GRDBRequest<Row>: XLRequest {
 
     /// Builds the async-native GRDB observation bridge shared by `stream()`/`streamOne()`. Returns `nil`
     /// for a transaction-scoped driver (issue #284), which has no pool to track — the same guard
-    /// `publisher(fetch:)` below applies for the Combine path.
+    /// `publish(bindings:)`/`publishOne(bindings:)` check eagerly for the Combine path (issue #309).
     private func liveQueryStreamBridge<Value>(
         fetch: @escaping (Database) throws -> Value
     ) -> GRDBLiveQueryAsyncBridge<Value>? {
@@ -563,47 +570,6 @@ struct GRDBRequest<Row>: XLRequest {
                     .start(in: databasePool, onError: onError, onChange: onChange)
             }
         )
-    }
-
-    private func publisher<T>(fetch: @escaping (Database) throws -> T) -> AnyPublisher<T, Error> {
-        // A transaction-scoped driver (issue #284) has no pool to track: its
-        // connection is invalidated the instant the `withTransaction(_:)`
-        // body returns, so there is nothing a `ValueObservation` could keep
-        // observing. Fail predictably instead of crashing on a `nil` pool.
-        guard let databasePool = executor.driver.databasePool else {
-            return Fail(error: XLTransactionScopeError.liveQueriesUnsupportedInTransaction)
-                .eraseToAnyPublisher()
-        }
-        let makeSource = {
-#if canImport(Combine)
-            ValueObservation
-                .tracking(fetch)
-                .publisher(in: databasePool)
-                .eraseToAnyPublisher()
-#else
-            GRDBOpenCombineValuePublisher { onError, onChange in
-                ValueObservation
-                    .tracking(fetch)
-                    .start(
-                        in: databasePool,
-                        onError: onError,
-                        onChange: onChange
-                    )
-            }
-            .eraseToAnyPublisher()
-#endif
-        }
-
-        switch liveQueryRetryPolicy {
-        case .terminal:
-            return makeSource()
-        case .retryBusy:
-            return makeGRDBLiveQueryRetryPublisher(
-                policy: liveQueryRetryPolicy,
-                scheduler: liveQueryRetryScheduler,
-                makeSource: makeSource
-            )
-        }
     }
 
     private func compatibilityPacket() throws -> XLInvocationBindings<XLSQLiteValue> {

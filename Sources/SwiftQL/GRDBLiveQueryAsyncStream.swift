@@ -134,8 +134,9 @@ final class GRDBLiveQueryAsyncBridge<Value>: @unchecked Sendable {
         // never learning about this one. Re-checking the generation after
         // storing closes that race: if this attempt is already stale, cancel
         // what was just started and stored ourselves, mirroring the same
-        // check-after-start pattern `GRDBOpenCombineValuePublisher.swift`
-        // uses for the identical race on `request(_:)`.
+        // check-after-start pattern the removed `GRDBOpenCombineValuePublisher`
+        // (superseded by issue #309's Combine adapter) used for the identical
+        // race on `request(_:)`.
         guard retryState.shouldDeliver(generation: generation) else {
             storeCancellable(nil)
             newCancellable.cancel()

@@ -1,112 +1,32 @@
 # Live Queries
 
-Use Combine-compatible publishers to observe query results as a database changes.
+Observe query results as a database changes, through Swift structured concurrency or Combine.
 
 ## Overview
 
-SwiftQL requests expose `publish()`/`publishOne()` for Combine and `stream()`/`streamOne()` (issue
-#308) for Swift structured concurrency, alongside their synchronous fetch methods. With the GRDB
-adapter, each subscriber's first positive demand — or each stream's first `next()` call — starts a
-GRDB value observation and begins a fresh database fetch. The observation then tracks the database
-region that the query actually reads.
+`stream()`/`streamOne()` (issue #308) are SwiftQL's canonical live-query API: a `for try await` loop
+over the async stream they return is the single source of truth for observation, immutable-packet
+capture, retry, decoding, and buffering. `publish()`/`publishOne()` (issue #309) are Combine
+convenience adapters over that same canonical source — they exist to keep existing Combine clients
+working, not as a second, independently-implemented observation engine. Both, along with their
+synchronous fetch-method siblings, are exposed alongside each other on every `XLRequest`.
+
+With the GRDB adapter, each subscriber's first positive demand — or each stream's first `next()`
+call — starts a GRDB value observation and begins a fresh database fetch. The observation then
+tracks the database region that the query actually reads.
 
 Apple platforms use Combine. Linux uses OpenCombine 0.14.0 and preserves the
 same demand-driven GRDB observation, error, and cancellation contracts. Import
 `Combine` or `OpenCombine` for the platform where the client is built.
 
-### Combine-compatible publishers
+### Async live-query streams
 
-Use `publish()` to observe all rows returned by a request:
-
-<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
-```swift
-let cancellable = request.publish().sink(
-    receiveCompletion: { completion in
-        if case .failure(let error) = completion {
-            print("Query failed: \(error)")
-        }
-    },
-    receiveValue: { results in
-        print("Fetched results: \(results)")
-    }
-)
-```
-
-Use `publishOne()` to observe just the first result:
-
-<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
-```swift
-let cancellable = request.publishOne().sink(
-    receiveCompletion: { completion in
-        if case .failure(let error) = completion {
-            print("Query failed: \(error)")
-        }
-    },
-    receiveValue: { result in
-        print("Fetched result: \(String(describing: result))")
-    }
-)
-```
-
-Fetching is all-or-nothing. If the query cannot execute or any row cannot be decoded, the publisher
-finishes with the original error and does not emit a truncated result.
-
-### Packet-backed observations
-
-A parameterized request exposes a static `parameterLayout`; its values belong
-to an immutable packet supplied to `publish(bindings:)` or
-`publishOne(bindings:)`. This observation selects one `Person` by its text ID:
-
-<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
-```swift
-let idParameter = XLNamedBindingReference<String>(name: "id")
-let personByID = sql { schema in
-    let person = schema.table(Person.self)
-    Select(person)
-    From(person)
-    Where(person.id == idParameter)
-}
-let request = database.makeRequest(with: personByID)
-let layout = request.parameterLayout
-let idBindings = try XLInvocationBindings<XLSQLiteValue>(
-    layout: layout,
-    bindings: [
-        try XLInvocationBinding(
-            slot: layout.slot(for: .named("id"))!,
-            value: .text("per-1")
-        )
-    ]
-).validatingComplete()
-
-let cancellable = request.publish(bindings: idBindings).sink(
-    receiveCompletion: { completion in
-        if case .failure(let error) = completion {
-            print("Query failed: \(error)")
-        }
-    },
-    receiveValue: { results in
-        print("Fetched results: \(results)")
-    }
-)
-```
-
-SwiftQL validates and captures the packet when it constructs the GRDB
-observation. Every initial fetch, database refresh, and BUSY retry for that
-publisher uses the same values; the request is never mutated. A separately
-constructed packet-backed publisher captures its own values without
-cross-triggering or leaking values. A missing binding fails the publisher,
-whereas `.null` is a present value and is accepted only for a nullable slot.
-This packet isolation does not make the current request facade `Sendable` or
-promise that one request can be shared directly across tasks.
-
-### Async live-query streams (#308)
-
-`stream()` and `streamOne()` are the canonical async analogs of `publish()`/`publishOne()`: Swift
-structured concurrency is the single source of truth for SwiftQL live-query snapshots, so a `for try
-await` loop observes the same GRDB lifecycle, retry policy, and immutable-packet-capture contract as
-the Combine publishers above, without routing through Combine. Framework adapters — Combine's own
-demand-mapped adapter (#309) and `@Observable` (#97) — build on this canonical source rather than
-maintaining a parallel observation engine.
+`stream()` and `streamOne()` are the canonical live-query API: Swift structured concurrency is the
+single source of truth for SwiftQL live-query snapshots, so a `for try await` loop observes the same
+GRDB lifecycle, retry policy, and immutable-packet-capture contract that `publish()`/`publishOne()`
+adapt below, without routing through Combine. Framework adapters — Combine's own demand-mapped
+adapter (issue #309, below) and `@Observable` (issue #97) — build on this canonical source rather
+than maintaining a parallel observation engine.
 
 Use `stream()` to observe all rows returned by a request:
 
@@ -145,14 +65,8 @@ task.cancel()
 
 `stream(bindings:)` and `streamOne(bindings:)` accept the same immutable `XLInvocationBindingPacket`
 as `publish(bindings:)`/`publishOne(bindings:)`: the packet is captured and validated once, and every
-initial fetch, refresh, and retry reuses it:
-
-<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
-```swift
-for try await results in request.stream(bindings: idBindings) {
-    print("Fetched results: \(results)")
-}
-```
+initial fetch, refresh, and retry reuses it. See "Packet-backed observations" below for a full
+worked example.
 
 Fetching remains all-or-nothing: if the query cannot execute or any row cannot be decoded, iteration
 throws the original error and does not yield a truncated result — exactly like `publish()`/
@@ -166,7 +80,7 @@ twice.
 Cancellation is owned by `Task` cancellation reaching a suspended `next()` call: cancelling the
 consuming `Task` ends iteration — `next()` resolves to `nil`, never a thrown `CancellationError` —
 and tears down the underlying GRDB observation and any pending retry backoff. This mirrors how
-cancelling a Combine subscription today never delivers a `.failure` completion. Breaking out of a
+cancelling a Combine subscription never delivers a `.failure` completion. Breaking out of a
 `for await` loop while another strong reference to the stream survives does not, by itself, cancel
 anything.
 
@@ -190,6 +104,114 @@ true async-native GRDB observation source that never routes through Combine.
 first row) as of one committed transaction — and are distinct from `XLResultSet`'s row-by-row lazy
 cursor (issue #249): a result set decodes one already-fetched, static result page lazily and once,
 while a live-query stream re-observes the database and can yield many snapshots over its lifetime.
+
+### Packet-backed observations
+
+A parameterized request exposes a static `parameterLayout`; its values belong
+to an immutable packet supplied to `stream(bindings:)`/`streamOne(bindings:)` or their Combine
+analogs, `publish(bindings:)`/`publishOne(bindings:)`. This observation selects one `Person` by its
+text ID:
+
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
+```swift
+let idParameter = XLNamedBindingReference<String>(name: "id")
+let personByID = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    Where(person.id == idParameter)
+}
+let request = database.makeRequest(with: personByID)
+let layout = request.parameterLayout
+let idBindings = try XLInvocationBindings<XLSQLiteValue>(
+    layout: layout,
+    bindings: [
+        try XLInvocationBinding(
+            slot: layout.slot(for: .named("id"))!,
+            value: .text("per-1")
+        )
+    ]
+).validatingComplete()
+```
+
+The async call site:
+
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
+```swift
+for try await results in request.stream(bindings: idBindings) {
+    print("Fetched results: \(results)")
+}
+```
+
+The Combine call site:
+
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
+```swift
+let cancellable = request.publish(bindings: idBindings).sink(
+    receiveCompletion: { completion in
+        if case .failure(let error) = completion {
+            print("Query failed: \(error)")
+        }
+    },
+    receiveValue: { results in
+        print("Fetched results: \(results)")
+    }
+)
+```
+
+SwiftQL validates and captures the packet when it constructs the GRDB
+observation. Every initial fetch, database refresh, and BUSY retry for that
+stream or publisher uses the same values; the request is never mutated. A separately
+constructed packet-backed stream or publisher captures its own values without
+cross-triggering or leaking values. A missing binding fails the observation,
+whereas `.null` is a present value and is accepted only for a nullable slot.
+This packet isolation does not make the current request facade `Sendable` or
+promise that one request can be shared directly across tasks.
+
+### Combine-compatible publishers (a convenience adapter over streams, issue #309)
+
+`publish()`/`publishOne()` are Combine convenience adapters over `stream()`/`streamOne()`: Combine
+owns only subscription, demand accounting, delivery, completion, and cancellation adaptation.
+Database observation, immutable-packet capture, retry, decoding, and buffering all come from the
+canonical async stream above — a fresh stream is constructed and iterated by an internal
+demand-gated pull loop for every subscriber, so two subscriptions never share one stream, iterator,
+retry budget, or buffered snapshot. Values are delivered on the main dispatch queue by default (see
+"Observation Semantics" below), matching the pre-#309 behavior exactly.
+
+Use `publish()` to observe all rows returned by a request:
+
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
+```swift
+let cancellable = request.publish().sink(
+    receiveCompletion: { completion in
+        if case .failure(let error) = completion {
+            print("Query failed: \(error)")
+        }
+    },
+    receiveValue: { results in
+        print("Fetched results: \(results)")
+    }
+)
+```
+
+Use `publishOne()` to observe just the first result:
+
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
+```swift
+let cancellable = request.publishOne().sink(
+    receiveCompletion: { completion in
+        if case .failure(let error) = completion {
+            print("Query failed: \(error)")
+        }
+    },
+    receiveValue: { result in
+        print("Fetched result: \(String(describing: result))")
+    }
+)
+```
+
+Fetching is all-or-nothing. If the query cannot execute or any row cannot be decoded, the publisher
+finishes with the original error and does not emit a truncated result.
 
 ### SwiftUI
 
@@ -429,48 +451,58 @@ them). Concretely, for #308's implementation:
   future `next()` resolves to `nil`) and cancel the underlying GRDB `AnyDatabaseCancellable`, so no further
   fetch, retry backoff, or delivery occurs after cancellation.
 
-### Async-to-Combine demand mapping (for #309)
+### Async-to-Combine demand mapping (issue #309)
 
-Combine demand maps onto stream iteration through a small pull loop, not a second buffer:
+`publish()`/`publishOne()` map Combine demand onto stream iteration through a small pull loop, not a
+second buffer. This is implemented by `XLAsyncStreamPublisher`/`XLAsyncStreamSubscription`
+(`Sources/SwiftQL/XLAsyncStreamPublisher.swift`), which `xlLiveQueryPublisher(makeStream:)` wraps with
+the main-queue delivery default:
 
-- **Zero demand**: the adapter's internal consumer task must not call `next()` at all. It must not even
-  start the underlying observation until the first unit of demand arrives — this preserves "subscribing
-  with zero demand does not start SQLite work."
+- **Zero demand**: the adapter's internal consumer `Task` is not started at all. It does not start
+  until the first unit of demand arrives — this preserves "subscribing with zero demand does not start
+  SQLite work."
 - **Incremental demand** (`request(.max(n))`): the consumer task calls `next()` exactly `n` times,
   delivering each result downstream and decrementing remaining demand by one per delivery, exactly like
-  GRDB's own `ValueSubscription.request(_:)` accounting today. It never calls `next()` ahead of
-  outstanding demand.
+  GRDB's own `ValueSubscription.request(_:)` accounting. It never calls `next()` ahead of outstanding
+  demand.
 - **Unlimited demand**: the consumer task loops calling `next()` as fast as values become available,
-  which in practice means it is rate-limited by the bounded buffer and GRDB's own write-driven fetch
-  cadence — not by an unbounded read-ahead queue.
+  which in practice means it is rate-limited by the stream's own bounded buffer and GRDB's write-driven
+  fetch cadence — not by an unbounded read-ahead queue on top.
 - **Demand added from `receive(_:)`**: additional demand returned from the downstream subscriber's
   `receive(_:)` simply increases the remaining-demand counter, which may resume a stalled pull loop; it
-  does not need its own separate mechanism.
-- **Cancellation**: cancelling the Combine subscription cancels the adapter's consumer `Task`, which — via
-  the cancellation-ownership rule above — tears down the GRDB observation. The subscription must never
-  emit after cancellation and must never turn cancellation into a `.failure` completion.
+  has no separate mechanism.
+- **Cancellation**: cancelling the Combine subscription cancels the adapter's consumer `Task`, which —
+  via the cancellation-ownership rule above — tears down the underlying observation. The subscription
+  never emits after cancellation and never turns cancellation into a `.failure` completion: it tracks
+  whether its own `cancel()` caused the stream to end and suppresses exactly that self-inflicted
+  completion, without suppressing or delaying delivery of a value the stream legitimately produced and
+  buffered before cancellation happened (that value is still simply never forwarded once `cancel()` has
+  been called, per Combine's own "nothing after cancel()" contract — a different, simpler rule than the
+  stream's own buffering guarantee above).
 
 This reproduces the existing Combine demand contract's shape (a value that arrives with no demand
 outstanding is effectively not delivered) while changing *what "not delivered" means*: today it means
 "permanently dropped, gone"; under the new policy it means "held as the one buffered snapshot, and
 delivered without needing to wait for one more relevant write, once demand resumes." That is the one
-intentional behavior change from the current publisher contract — see Migration, below.
+intentional behavior change from the pre-#309 publisher contract — see Migration, below.
 
 ### Evidence
 
 `Tests/SQLTests/LiveQueryBufferingSemanticsTests.swift` contains a throwaway, test-scoped prototype
 (`LazyBufferedGRDBBridge`, `SingleSlotMailbox`, `DemandDrivenPuller` — none of this is production API)
-built directly on GRDB's own `ValueObservation.start(in:scheduling:onError:onChange:)`, the same
-primitive `GRDBSQLDatabase.swift`'s `publisher(fetch:)` already calls for the OpenCombine path -- with
-retry supplied by `GRDBLiveQueryRetryPolicy.swift`'s `makeGRDBLiveQueryRetryPublisher` wrapping that
-source, not by calling `.start` itself. It exists only to produce
-deterministic, real-GRDB evidence that this policy is implementable on the pinned Swift 5.9 / GRDB 6.29.3
-toolchain, using bounded polling (not sleeps) for synchronization, matching the existing test suite's
-style. Two properties of `AsyncThrowingStream<Element, Error>(unfolding:)` were verified empirically
-against the pinned Swift toolchain (not assumed) before this design was finalized: constructing it
-performs no work until the first `next()` call, and its `produce` closure is invoked exactly once per
-consumer pull with no internal read-ahead — both required for the literal `AsyncThrowingStream` return
-type to satisfy "observation begins with iteration."
+built directly on GRDB's own `ValueObservation.start(in:scheduling:onError:onChange:)` -- at the time
+this prototype was written, the same primitive `GRDBSQLDatabase.swift`'s pre-#309 `publisher(fetch:)`
+helper called for the OpenCombine path, with retry supplied by `GRDBLiveQueryRetryPolicy.swift`'s
+`makeGRDBLiveQueryRetryPublisher` wrapping that source. Both were removed once #309 rebuilt
+`publish()`/`publishOne()` as adapters over `stream()`/`streamOne()`, which reuse the same
+`ValueObservation.start` primitive through `GRDBLiveQueryAsyncBridge` instead. The prototype exists
+only to produce deterministic, real-GRDB evidence that this policy is implementable on the pinned
+Swift 5.9 / GRDB 6.29.3 toolchain, using bounded polling (not sleeps) for synchronization, matching the
+existing test suite's style. Two properties of `AsyncThrowingStream<Element, Error>(unfolding:)` were
+verified empirically against the pinned Swift toolchain (not assumed) before this design was
+finalized: constructing it performs no work until the first `next()` call, and its `produce` closure is
+invoked exactly once per consumer pull with no internal read-ahead — both required for the literal
+`AsyncThrowingStream` return type to satisfy "observation begins with iteration."
 
 | Edge case | Test oracle |
 | --- | --- |
@@ -489,7 +521,8 @@ type to satisfy "observation begins with iteration."
 
 Nothing about `publish()`/`publishOne()`'s public signatures, subscription-time behavior, fresh-initial-
 value guarantee, main-queue delivery default, retry policy, transaction coalescing, or cross-database
-isolation changes. The one intentional behavior change, once #309 lands:
+isolation changed when #309 rebuilt them as adapters over `stream()`/`streamOne()`. The one intentional
+behavior change:
 
 - **Before**: a value computed while a Combine subscriber had zero outstanding demand was dropped
   permanently. The subscriber would not see that state until another *relevant write* happened after
@@ -509,7 +542,12 @@ isolation changes. The one intentional behavior change, once #309 lands:
   is that follow-up suite: it drives the real `stream()`/`streamOne()` methods against temporary GRDB
   databases, using the same bounded-polling style, and covers every edge case in the table above plus
   the immutable-packet-capture and cross-database-isolation contracts specific to the production
-  request pipeline.
+  request pipeline. `Tests/SQLTests/XLAsyncStreamPublisherTests.swift` is the equivalent follow-up
+  suite for #309's Combine adapter: it drives `XLAsyncStreamPublisher` against hand-controlled,
+  GRDB-independent streams to prove the demand-mapping and cancellation-vs-completion contract
+  deterministically, while `Tests/SQLTests/SQLPublisherTests.swift` and
+  `Tests/SQLTests/GRDBLiveQueryRetryTests.swift` prove the same `publish()`/`publishOne()` contract
+  end-to-end against a real GRDB database.
 - GRDB's own change-notification coalescing granularity (how many rapid writes collapse into one
   `ValueObservation` re-fetch) is not something SwiftQL controls or has committed to a specific number
   for; `testPausedConsumerWithRapidCommitsSeesOnlyTheNewestBoundedSnapshot` deliberately asserts only that
