@@ -124,6 +124,112 @@ final class SQLRequestCompatibilityTests: XCTestCase {
         }
     }
 
+    // MARK: - #308 stream()/streamOne() compatibility defaults
+    //
+    // `LegacyReadRequest` only implements `publish()`/`publishOne()`, exactly like a
+    // third-party `XLRequest` conformer written before #308. These tests exercise the
+    // protocol-extension default that bridges those Combine pipelines into
+    // `AsyncThrowingStream`, proving it stays lazy (the underlying `publish()` is not
+    // invoked merely by calling `stream()`) and does not recurse.
+
+    func testLegacyReadConformerStreamBridgesFromPublishLazily() async throws {
+        let request = LegacyReadRequest(rows: [82])
+
+        // Constructing the stream performs no work: LegacyReadRequest.publish() is
+        // invoked only once the stream is iterated below.
+        let stream = request.stream()
+        XCTAssertEqual(request.publishCallCounter.publishCount, 0)
+        var iterator = stream.makeAsyncIterator()
+        XCTAssertEqual(request.publishCallCounter.publishCount, 0)
+
+        let first = try await iterator.next()
+        XCTAssertEqual(first, [82])
+        XCTAssertEqual(request.publishCallCounter.publishCount, 1)
+
+        // `Just`-backed publishers deliver exactly one value then finish: the
+        // compatibility bridge must end iteration afterward, not hang or repeat.
+        let second = try await iterator.next()
+        XCTAssertNil(second)
+        XCTAssertEqual(
+            request.publishCallCounter.publishCount,
+            1,
+            "Resuming iteration after natural completion must not re-subscribe."
+        )
+    }
+
+    func testLegacyReadConformerStreamOneBridgesFromPublishOneLazily() async throws {
+        let request = LegacyReadRequest(rows: [82])
+        let stream = request.streamOne()
+        XCTAssertEqual(request.publishCallCounter.publishOneCount, 0)
+        var iterator = stream.makeAsyncIterator()
+        XCTAssertEqual(request.publishCallCounter.publishOneCount, 0)
+
+        let first = try await iterator.next()
+        XCTAssertEqual(first, 82)
+        XCTAssertEqual(request.publishCallCounter.publishOneCount, 1)
+
+        // `Just`-backed publishers deliver exactly one value then finish: the
+        // compatibility bridge must end iteration afterward, not hang or repeat.
+        let second = try await iterator.next()
+        XCTAssertNil(second)
+        XCTAssertEqual(
+            request.publishCallCounter.publishOneCount,
+            1,
+            "Resuming iteration after natural completion must not re-subscribe."
+        )
+    }
+
+    func testLegacyReadConformerStreamBindingsBridgesFromPublishBindingsLazily() async throws {
+        let request = LegacyReadRequest(rows: [82])
+        let packet = XLInvocationBindings<XLSQLiteValue>(layout: .empty)
+
+        let stream = request.stream(bindings: packet)
+        var iterator = stream.makeAsyncIterator()
+        let first = try await iterator.next()
+        XCTAssertEqual(first, [82])
+
+        // `Just`-backed publishers deliver exactly one value then finish: the
+        // compatibility bridge must end iteration afterward, not hang or repeat.
+        let second = try await iterator.next()
+        XCTAssertNil(second)
+    }
+
+    func testLegacyReadConformerStreamBindingsRejectsUnsupportedPacketLazily() async throws {
+        let request = LegacyReadRequest(rows: [82])
+        let slot = XLParameterSlot(
+            index: XLLogicalParameterIndex(0),
+            key: .named("value"),
+            valueTypeIdentifier: XLValueTypeIdentifier(rawValue: "swift.int"),
+            valueTypeName: String(reflecting: Int.self),
+            nullability: .required,
+            codecIdentity: nil,
+            codingContext: XLValueCodingContext(
+                site: .parameter,
+                path: XLValueCodingPath("value")
+            )
+        )
+        let layout = try XLParameterLayout(slots: [slot])
+        let nonemptyPacket = try XLInvocationBindings<XLSQLiteValue>(
+            layout: layout,
+            bindings: [try XLInvocationBinding(slot: slot, value: .integer(1))]
+        )
+
+        let stream = request.stream(bindings: nonemptyPacket)
+        var iterator = stream.makeAsyncIterator()
+
+        do {
+            _ = try await iterator.next()
+            XCTFail("Expected unsupportedInvocationBindings.")
+        }
+        catch let error as XLRequestBindingError {
+            guard case .unsupportedInvocationBindings(let requestType, let rejectedLayout) = error else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+            XCTAssertTrue(requestType.contains("LegacyReadRequest"))
+            XCTAssertEqual(rejectedLayout, layout)
+        }
+    }
+
     func testLegacyWriteConformerUsesDefaultPacketRequirement() throws {
         var request = LegacyWriteRequest()
         let parameter = XLNamedBindingReference<Int>(name: "value")
@@ -259,9 +365,21 @@ private struct LegacyDirectNamedBindingExpression: XLExpression {
 }
 
 
+/// Records how many times `LegacyReadRequest.publish()`/`publishOne()` were
+/// actually invoked, so tests can prove the `stream()`/`streamOne()`
+/// compatibility bridge is lazy rather than merely asserting it delivers the
+/// right value (which would also pass under eager subscription).
+private final class LegacyPublishCallCounter {
+    var publishCount = 0
+    var publishOneCount = 0
+}
+
+
 private struct LegacyReadRequest: XLRequest {
 
     let rows: [Int]
+
+    let publishCallCounter = LegacyPublishCallCounter()
 
     private(set) var assignedValue: Int? = nil
 
@@ -288,13 +406,15 @@ private struct LegacyReadRequest: XLRequest {
     }
 
     func publish() -> AnyPublisher<[Int], Error> {
-        Just(rows)
+        publishCallCounter.publishCount += 1
+        return Just(rows)
             .setFailureType(to: Error.self)
             .eraseToAnyPublisher()
     }
 
     func publishOne() -> AnyPublisher<Int?, Error> {
-        Just(rows.first)
+        publishCallCounter.publishOneCount += 1
+        return Just(rows.first)
             .setFailureType(to: Error.self)
             .eraseToAnyPublisher()
     }

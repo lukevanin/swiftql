@@ -69,7 +69,13 @@ struct GRDBLiveQueryRetryScheduler: @unchecked Sendable {
 
 
 /// Subscriber-local state for a retrying observation.
-private final class GRDBLiveQueryRetryState: @unchecked Sendable {
+///
+/// Shared by both the Combine retry attempt runner below and
+/// ``GRDBLiveQueryAsyncBridge``'s async-native retry integration (#308), so
+/// the generation-counter cancellation-ownership design is defined exactly
+/// once rather than forked per adapter. `internal` (not `private`) access
+/// deliberately lets `GRDBLiveQueryAsyncStream.swift` reuse this exact type.
+final class GRDBLiveQueryRetryState: @unchecked Sendable {
 
     private let lock = NSLock()
 
@@ -85,6 +91,9 @@ private final class GRDBLiveQueryRetryState: @unchecked Sendable {
         self.policy = policy
     }
 
+    /// Begins a fresh attempt, returning its generation, or `nil` if the
+    /// state has already been cancelled (in which case the caller must start
+    /// no new observation).
     func beginAttempt() -> Int? {
         lock.lock()
         defer { lock.unlock() }

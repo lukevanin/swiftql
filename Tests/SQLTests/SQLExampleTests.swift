@@ -2843,6 +2843,20 @@ extension XLDocumentationTests {
         let _: (XLGRDBLiveQueryRetryTests) -> () throws -> Void =
             XLGRDBLiveQueryRetryTests
                 .testRealGRDBObservationRecoversFromInjectedBusyAndKeepsObserving
+
+        // #308: `stream()`/`streamOne()`/`stream(bindings:)` async live-query examples above are
+        // exercised by real-GRDB-database tests, mirroring how the publish()/publishOne() examples
+        // above are exercised by XLPublisherTests rather than inline here.
+        let _: (GRDBLiveQueryAsyncStreamTests) -> () async throws -> Void =
+            GRDBLiveQueryAsyncStreamTests.testStreamEmitsFreshInitialSnapshotAndRelevantWriteRefresh
+        let _: (GRDBLiveQueryAsyncStreamTests) -> () async throws -> Void =
+            GRDBLiveQueryAsyncStreamTests.testStreamOneEmitsFreshInitialSnapshotAndRelevantWriteRefresh
+        let _: (GRDBLiveQueryAsyncStreamTests) -> () async throws -> Void =
+            GRDBLiveQueryAsyncStreamTests.testStreamBindingsCapturesPacketOnceAcrossInitialFetchAndRefresh
+        let _: (GRDBLiveQueryAsyncStreamTests) -> () async throws -> Void =
+            GRDBLiveQueryAsyncStreamTests.testCancellingConsumingTaskTearsDownObservationAndStopsFurtherFetches
+        let _: (SQLRequestCompatibilityTests) -> () async throws -> Void =
+            SQLRequestCompatibilityTests.testLegacyReadConformerStreamBridgesFromPublishLazily
     }
 
     func testDocumentationDeclaredQueries() throws {

@@ -4,10 +4,11 @@ Use Combine-compatible publishers to observe query results as a database changes
 
 ## Overview
 
-SwiftQL requests expose `publish()` and `publishOne()` alongside their synchronous fetch methods.
-With the GRDB adapter, each subscriber's first positive demand starts a GRDB value observation and
-begins a fresh database fetch. The observation then tracks the database region that the query
-actually reads.
+SwiftQL requests expose `publish()`/`publishOne()` for Combine and `stream()`/`streamOne()` (issue
+#308) for Swift structured concurrency, alongside their synchronous fetch methods. With the GRDB
+adapter, each subscriber's first positive demand — or each stream's first `next()` call — starts a
+GRDB value observation and begins a fresh database fetch. The observation then tracks the database
+region that the query actually reads.
 
 Apple platforms use Combine. Linux uses OpenCombine 0.14.0 and preserves the
 same demand-driven GRDB observation, error, and cancellation contracts. Import
@@ -97,6 +98,98 @@ cross-triggering or leaking values. A missing binding fails the publisher,
 whereas `.null` is a present value and is accepted only for a nullable slot.
 This packet isolation does not make the current request facade `Sendable` or
 promise that one request can be shared directly across tasks.
+
+### Async live-query streams (#308)
+
+`stream()` and `streamOne()` are the canonical async analogs of `publish()`/`publishOne()`: Swift
+structured concurrency is the single source of truth for SwiftQL live-query snapshots, so a `for try
+await` loop observes the same GRDB lifecycle, retry policy, and immutable-packet-capture contract as
+the Combine publishers above, without routing through Combine. Framework adapters — Combine's own
+demand-mapped adapter (#309) and `@Observable` (#97) — build on this canonical source rather than
+maintaining a parallel observation engine.
+
+Use `stream()` to observe all rows returned by a request:
+
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
+```swift
+let task = Task {
+    do {
+        for try await results in request.stream() {
+            print("Fetched results: \(results)")
+        }
+    }
+    catch {
+        print("Query failed: \(error)")
+    }
+}
+// Later, when results are no longer needed:
+task.cancel()
+```
+
+Use `streamOne()` to observe just the first result:
+
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
+```swift
+let task = Task {
+    do {
+        for try await result in request.streamOne() {
+            print("Fetched result: \(String(describing: result))")
+        }
+    }
+    catch {
+        print("Query failed: \(error)")
+    }
+}
+task.cancel()
+```
+
+`stream(bindings:)` and `streamOne(bindings:)` accept the same immutable `XLInvocationBindingPacket`
+as `publish(bindings:)`/`publishOne(bindings:)`: the packet is captured and validated once, and every
+initial fetch, refresh, and retry reuses it:
+
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
+```swift
+for try await results in request.stream(bindings: idBindings) {
+    print("Fetched results: \(results)")
+}
+```
+
+Fetching remains all-or-nothing: if the query cannot execute or any row cannot be decoded, iteration
+throws the original error and does not yield a truncated result — exactly like `publish()`/
+`publishOne()` finishing with the original error instead of a partial result. Constructing a stream
+performs no database work; only its first `next()` call (directly, or the first loop iteration of a
+`for try await`) starts the underlying GRDB observation. Each `stream()`/`streamOne()` call creates
+one independent, single-consumer observation, exactly like each `publish()` call creates one
+independent Combine subscription — two consumers that both want live updates must call `stream()`
+twice.
+
+Cancellation is owned by `Task` cancellation reaching a suspended `next()` call: cancelling the
+consuming `Task` ends iteration — `next()` resolves to `nil`, never a thrown `CancellationError` —
+and tears down the underlying GRDB observation and any pending retry backoff. This mirrors how
+cancelling a Combine subscription today never delivers a `.failure` completion. Breaking out of a
+`for await` loop while another strong reference to the stream survives does not, by itself, cancel
+anything.
+
+The stream buffers at most one undelivered snapshot: a newly produced snapshot always replaces,
+never queues behind, a snapshot the consumer has not yet asked for, and resuming iteration delivers
+whatever has already been produced rather than forcing a fresh fetch. See "Buffering and
+Resumed-Demand Semantics (#291)" below for the full contract `stream()`/`streamOne()` implement.
+
+Async consumers resume per ordinary Swift concurrency scheduling — there is no async analog of
+Combine's main-queue delivery default. A framework adapter that needs a specific delivery guarantee
+(e.g. main-thread delivery for SwiftUI) implements that guarantee itself on top of this canonical
+source; it is not a property of `stream()`/`streamOne()`.
+
+``XLRequest`` is a public protocol with external conformers. `stream()`/`streamOne()` (and their
+bindings variants) have a source-compatible default implemented in terms of `publish()`/
+`publishOne()`, so an existing third-party conformer that only implements the Combine surface keeps
+compiling and still starts its underlying work lazily. `GRDBRequest` overrides this default with a
+true async-native GRDB observation source that never routes through Combine.
+
+`stream()`/`streamOne()` observe complete live-query snapshots — the entire matching row set (or its
+first row) as of one committed transaction — and are distinct from `XLResultSet`'s row-by-row lazy
+cursor (issue #249): a result set decodes one already-fetched, static result page lazily and once,
+while a live-query stream re-observes the database and can yield many snapshots over its lifetime.
 
 ### SwiftUI
 
@@ -199,8 +292,9 @@ no longer needs updates.
 This section records the decision required by
 [issue #291](https://github.com/lukevanin/swiftql/issues/291): the buffering, cancellation, and
 snapshot-ownership contract that #308's canonical `AsyncThrowingStream` live-query source and #309's
-demand-aware Combine adapter must both implement. It is a design record, not new public API — #308 and
-#309 implement it.
+demand-aware Combine adapter must both implement. It originated as a design record, not new public
+API; #308's `stream()`/`streamOne()` above have since implemented it, and #309 will adapt Combine to
+the same policy.
 
 ### Why this needed a decision
 
@@ -411,10 +505,11 @@ isolation changes. The one intentional behavior change, once #309 lands:
 ### Remaining limitations
 
 - The evidence above validates the bridge design against a raw GRDB `ValueObservation`, not against
-  #308's actual production request/retry/binding-capture pipeline; #308 must still write its own
-  integration tests once the real `stream()` methods exist, following the same bounded-polling style.
-  This document's edge-case coverage should be treated as a checklist for that follow-up test suite, not
-  a replacement for it.
+  #308's actual production request/retry/binding-capture pipeline. `Tests/SQLTests/GRDBLiveQueryAsyncStreamTests.swift`
+  is that follow-up suite: it drives the real `stream()`/`streamOne()` methods against temporary GRDB
+  databases, using the same bounded-polling style, and covers every edge case in the table above plus
+  the immutable-packet-capture and cross-database-isolation contracts specific to the production
+  request pipeline.
 - GRDB's own change-notification coalescing granularity (how many rapid writes collapse into one
   `ValueObservation` re-fetch) is not something SwiftQL controls or has committed to a specific number
   for; `testPausedConsumerWithRapidCommitsSeesOnlyTheNewestBoundedSnapshot` deliberately asserts only that
