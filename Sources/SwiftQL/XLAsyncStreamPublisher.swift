@@ -193,7 +193,23 @@ where Downstream: Subscriber, Downstream.Failure == Error {
         lock.unlock()
     }
 
+    private func isCancelledNow() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return isCancelled
+    }
+
     private func runLoop() async {
+        // `startConsumerTaskIfNeeded()` already checked `!isCancelled` before creating this
+        // task, but creating a `Task` and that task's first statement actually running are
+        // not atomic: `cancel()` can still land in between. Re-checking here, before calling
+        // `makeStream()`, avoids doing real work -- for the production `makeStream` (backed
+        // by `GRDBRequest.stream()`/`streamOne()`), that includes packet validation and
+        // bridge construction -- for a subscription already known to be cancelled, rather
+        // than only catching it one step later inside `waitForDemandUnit()`.
+        guard !isCancelledNow() else {
+            return
+        }
         let stream = makeStream()
         var iterator = stream.makeAsyncIterator()
         while await waitForDemandUnit() {
