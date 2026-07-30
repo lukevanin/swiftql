@@ -104,12 +104,14 @@ public final class XLObservableQuery<Row>: @unchecked Sendable {
         task = nil
     }
 
-    // The whole closure runs on the main actor -- not just the `apply(rows:)`/`apply(error:)` calls --
-    // so nothing here ever needs to send a non-Sendable `self` or a non-Sendable `Row` across an
-    // isolation boundary; `rows`/`error` are consumed on the same actor that produced them into this
-    // Task in the first place.
+    // A `Task { @MainActor in ... for try await rows in stream ... }` shape (tried in an earlier
+    // iteration of this fix) does not actually avoid crossing an isolation boundary: the stream's own
+    // `next()` is a nonisolated async function regardless of the Task's isolation, so pulling `[Row]`
+    // (non-Sendable, since `Row` is unconstrained) out of it and into the `@MainActor` Task body is
+    // itself flagged. Keeping the Task nonisolated (matching #451's original shape) and shadowing just
+    // the one value that needs to cross into `apply(rows:)` is the narrower, and only working, fix.
     private func start(stream: AsyncThrowingStream<[Row], Error>) {
-        task = Task { @MainActor [weak self] in
+        task = Task { [weak self] in
             do {
                 for try await rows in stream {
                     // Guards against applying a value that raced ahead of a concurrent `stop()` call
@@ -118,12 +120,19 @@ public final class XLObservableQuery<Row>: @unchecked Sendable {
                     // but this instance's own `Task.isCancelled` is the most direct, local signal that
                     // no further state update should ever reach `rows`/`isLoading`/`error`.
                     if Task.isCancelled { return }
-                    self?.apply(rows: rows)
+                    // `nonisolated(unsafe)` (Swift 6.0+ only): `apply(rows:)` is `@MainActor`, so calling
+                    // it from this nonisolated Task sends `rows` across that boundary; `Row` is
+                    // unconstrained, so `[Row]` isn't Sendable. `XLObservableQuery`'s own `@unchecked
+                    // Sendable` conformance covers sending `self` the same way.
+                    #if compiler(>=6.0)
+                    nonisolated(unsafe) let rows = rows
+                    #endif
+                    await self?.apply(rows: rows)
                 }
             }
             catch {
                 if !Task.isCancelled {
-                    self?.apply(error: error)
+                    await self?.apply(error: error)
                 }
             }
         }
@@ -204,16 +213,19 @@ public final class XLObservableQueryRow<Row>: @unchecked Sendable {
 
     // See the matching note on XLObservableQuery.start(stream:) above.
     private func start(stream: AsyncThrowingStream<Row?, Error>) {
-        task = Task { @MainActor [weak self] in
+        task = Task { [weak self] in
             do {
                 for try await row in stream {
                     if Task.isCancelled { return }
-                    self?.apply(row: row)
+                    #if compiler(>=6.0)
+                    nonisolated(unsafe) let row = row
+                    #endif
+                    await self?.apply(row: row)
                 }
             }
             catch {
                 if !Task.isCancelled {
-                    self?.apply(error: error)
+                    await self?.apply(error: error)
                 }
             }
         }

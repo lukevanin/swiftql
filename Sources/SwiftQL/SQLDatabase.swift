@@ -534,6 +534,12 @@ final class XLRequestPublisherAsyncBridge<Value>: @unchecked Sendable {
                             }
                         },
                         receiveValue: { value in
+                            // See the matching note on GRDBLiveQueryAsyncStream.handleValue(_:generation:):
+                            // `buffer.yield(_:)`'s parameter is `sending` (Swift 6.0+), and this `value` is
+                            // a plain, non-sending Combine callback parameter.
+                            #if compiler(>=6.0)
+                            nonisolated(unsafe) let value = value
+                            #endif
                             buffer.yield(value)
                         }
                     )

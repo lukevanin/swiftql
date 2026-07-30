@@ -147,6 +147,13 @@ final class GRDBLiveQueryAsyncBridge<Value>: @unchecked Sendable {
     private func handleValue(_ value: Value, generation: Int) {
         guard retryState.shouldDeliver(generation: generation) else { return }
         retryState.didDeliver(generation: generation)
+        // `XLSingleSlotAsyncBuffer.yield(_:)`'s parameter is `sending` (Swift 6.0+); this `value` is a
+        // plain, non-sending closure parameter (from the `Start` typealias's callback, matching GRDB's
+        // own callback shape), so it needs the same `nonisolated(unsafe)` shadow used at every other
+        // call site of a `sending`-parameter API from a plain, non-sending source in this codebase.
+        #if compiler(>=6.0)
+        nonisolated(unsafe) let value = value
+        #endif
         buffer.yield(value)
     }
 
