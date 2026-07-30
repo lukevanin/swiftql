@@ -143,17 +143,17 @@ Read [contextual codecs](https://lukevanin.github.io/swiftql/documentation/swift
 for the exact selection order, structured errors, row lifetime, and driver
 contracts; the everyday API is [getting started](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/).
 
-## Report v1.3 support from canonical evidence
+## Report v1.4 support from canonical evidence
 
 - Treat the versioned [inventory](Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json) as
   the source of truth and its [report](Conformance/SQLite/REPORT.md) as a generated
   view; use the [compatibility guide](COMPATIBILITY.md#sqlite-conformance-inventory)
-  to interpret it. It records 111 feature records: 104 supported, 0 partial,
-  2 capability-gated, 1 intentionally unsupported, and 4 unimplemented.
+  to interpret it. It records 114 feature records: 110 supported, 0 partial,
+  2 capability-gated, 1 intentionally unsupported, and 1 unimplemented.
 - Keep those five statuses distinct. Bind every claim to the feature's recorded
   SQLite version, source ID, compile options, capabilities, evidence, and
   rationale before claiming support.
-- Of the 164 evidence records, 101 exercise real SQLite against one captured
+- Of the 179 evidence records, 110 exercise real SQLite against one captured
   environment, SQLite 3.51.0. Evidence is reusable, so evidence and feature
   counts do not map one to one; never turn this into an exhaustive-SQL claim.
 - The generated corpus holds 208 positives plus one broken-renderer control:

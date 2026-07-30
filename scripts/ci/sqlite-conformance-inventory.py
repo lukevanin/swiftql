@@ -17,7 +17,7 @@ from urllib.parse import quote, urlparse
 
 
 SCHEMA_VERSION = 1
-INVENTORY_VERSION = "1.3.0"
+INVENTORY_VERSION = "1.4.0"
 COORDINATION_ISSUE = 190
 REQUIRED_FAMILIES = {
     "select",
