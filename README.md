@@ -38,6 +38,10 @@ Tables are Swift structs. Columns are typed properties. Statements are values
 written in SQL order. Selected rows decode back into the Swift type you asked
 for.
 
+Concretely: **rename a column and the compiler finds every query that used it,
+instead of your users finding them at runtime.** A string-based query survives
+the rename, ships, and fails on a device you cannot reach.
+
 <!-- test: XLDocumentationTests.testDocumentationREADME -->
 ```swift
 import Foundation
@@ -110,6 +114,58 @@ If you know SQLite, you already know the shape of SwiftQL: `Select`, `From`,
 `Join`, `Where`, `GroupBy`, `Having`, and `With` appear in SQL order and retain
 their SQL meaning.
 
+## How SwiftQL compares
+
+Swift has good persistence libraries. They differ mainly in how much of the
+relational model they ask you to give up.
+
+| | Shape | Where the SQL lives | Type safety comes from |
+|---|---|---|---|
+| **SwiftQL** | Result builder, one clause per statement in SQL order | Visible, in SQL order, in Swift | Macros + generics, checked at compile time |
+| **StructuredQueries** | Chained methods with typed closures and key paths | Emitted in SQL order; `#sql` escape hatch for typed SQL strings | `@Table` macro + key paths |
+| **GRDB** | Records + query interface, with raw SQL always available | Visible when you write it; strings when you drop down | Codable records and column definitions |
+| **SQLite.swift** | Expression DSL | Behind the DSL | Generic `Expression` types |
+| **SwiftData** | Object graph | Hidden - no SQL surface | `@Model` macro over an opaque store |
+| **Fluent** | Server-side ORM | Hidden behind the model layer | Model definitions and property wrappers |
+
+**SwiftQL is not a GRDB alternative - it is a typed query layer above it.**
+Execution, connection management, transactions, and observation are GRDB's,
+and deliberately so: that part is mature, well understood, and not worth
+reimplementing. SwiftQL replaces the part where queries become strings.
+
+**What sets SwiftQL apart is positional correspondence with SQL.** Every other
+typed query library in this table reaches SQL through a method chain: you start
+from a table type and attach clauses to it, in an order the library accepts
+rather than the order SQL defines. SwiftQL writes each clause once, under its
+SQL name, in SQL's grammatical order. The Swift source and the statement it
+produces have the same shape.
+
+That is what makes porting mechanical rather than interpretive. A query moves
+between SQL and SwiftQL a clause at a time, in both directions, without first
+being redesigned into somebody's builder vocabulary. The
+[porting guide](Documentation/PortingFromSQL.md) is the proof: a clause-by-clause
+mapping table, worked ports up to recursive common table expressions, and an
+explicit list of the places the correspondence is not exact.
+
+### Choose something else when
+
+- **You need schema migrations.** SwiftQL does not provide them. `sqlCreate`
+  creates a table but does not migrate an existing schema. Use GRDB's
+  `DatabaseMigrator` alongside SwiftQL - they compose, because SwiftQL sits on
+  GRDB rather than replacing it.
+- **You prefer a chained query builder.** Several Swift libraries express typed
+  queries as method chains. If `.select { }.where { }` reads better to you than
+  `Select` / `From` / `Where`, that preference is the whole argument.
+- **You want the database to disappear.** SwiftData is a better fit if you
+  would rather model an object graph than think about tables, and you can
+  require recent Apple platforms.
+- **You are writing a server with a non-SQLite backend.** Fluent covers
+  PostgreSQL and MySQL today. SwiftQL is SQLite-only; other dialects are
+  [roadmap](ROADMAP.md) work, not shipped work.
+- **Your queries are already written and working.** The cost of SwiftQL is
+  learning its expression surface. The benefit arrives when the schema
+  changes, so a stable schema you rarely touch may not repay it.
+
 ## What becomes first-class
 
 - **[Tables](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/)
@@ -161,10 +217,10 @@ Add the following line to the `dependencies` section in your `Package.swift`
 file:
 
 ```text
-.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.5.3")
+.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.5.4")
 ```
 
-`1.5.3` is the latest published package. The examples above use APIs retained
+`1.5.4` is the latest published package. The examples above use APIs retained
 by v1.3; the static-query surface remains available from version 1.2.0. Pin a
 source revision only when intentionally testing later changes from `main`.
 
@@ -184,8 +240,15 @@ Start with the
 Its examples are connected to executable test scenarios, so the API shown in
 the guides stays aligned with the library.
 
+Already know SQL? The [porting guide](Documentation/PortingFromSQL.md) maps
+every clause to its SwiftQL form and works through ports up to recursive common
+table expressions.
+
 For project guarantees and direction:
 
+- [Design rationale](Documentation/DESIGN.md) explains why SwiftQL is
+  SQL-shaped, why queries are result builders in SQL order, why column values
+  are Swift types rather than SQLite types, and what those choices cost.
 - [Compiler compatibility](COMPATIBILITY.md) records the supported Swift
   toolchains and reproducible CI matrix.
 - [SQLite conformance](COMPATIBILITY.md#sqlite-conformance-inventory) records
