@@ -2885,24 +2885,40 @@ extension XLDocumentationTests {
         // availability floor.
         #if canImport(Observation) && canImport(Darwin)
         if #available(iOS 17, macOS 14, *) {
-            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
-                XLObservableLiveQueryTests.testInitialSnapshotClearsLoadingAndPopulatesRows
-            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
-                XLObservableLiveQueryTests.testRelevantWriteRefreshesRows
-            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
-                XLObservableLiveQueryTests.testTerminalErrorSetsErrorAndClearsLoadingWithoutMutatingRows
-            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
-                XLObservableLiveQueryTests.testCancellationBeforeInitialValuePreventsAnyFetch
-            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
-                XLObservableLiveQueryTests.testReleasedModelPerformsNoFurtherWorkAfterRelease
-            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
-                XLObservableLiveQueryTests.testPacketBackedModelCapturesBindingsAcrossRefresh
-            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
-                XLObservableLiveQueryTests.testNewModelWithADifferentBindingPacketObservesIndependently
-            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
-                XLObservableLiveQueryTests.testTwoModelsObservingIndependentDatabasesDoNotCrossTrigger
-            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
-                XLObservableLiveQueryTests.testObservableQueryRowDeliversInitialAndRefreshedFirstRow
+            // `XLObservableLiveQueryTests` is `@MainActor`-isolated, so an *unapplied* curried
+            // reference to one of its methods (`XLObservableLiveQueryTests.testFoo`) warns under
+            // complete strict-concurrency checking: forming that curried value captures a
+            // not-yet-actor-isolated `self` inside a main-actor-isolated inner closure, which the
+            // compiler flags regardless of this being a discarded, never-invoked compile-time check.
+            // A single `@MainActor` closure taking `instance` as a plain parameter (rather than an
+            // outer nonisolated function returning an isolated one) has no such boundary to cross.
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testInitialSnapshotClearsLoadingAndPopulatesRows()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testRelevantWriteRefreshesRows()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testTerminalErrorSetsErrorAndClearsLoadingWithoutMutatingRows()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testCancellationBeforeInitialValuePreventsAnyFetch()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testReleasedModelPerformsNoFurtherWorkAfterRelease()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testPacketBackedModelCapturesBindingsAcrossRefresh()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testNewModelWithADifferentBindingPacketObservesIndependently()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testTwoModelsObservingIndependentDatabasesDoNotCrossTrigger()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testObservableQueryRowDeliversInitialAndRefreshedFirstRow()
+            }
         }
         #endif
     }

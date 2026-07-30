@@ -40,6 +40,32 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
     /// Buffers `value`, replacing whatever was previously buffered, or
     /// resumes an already-suspended `next()` call directly if one is
     /// waiting. Has no effect after ``finish(throwing:)``/``cancel()``.
+    ///
+    /// `sending` (Swift 6.0+ only -- the `#else` branch keeps this compiling under the pinned Swift
+    /// 5.9 cell, which predates the `sending` parameter modifier) tells the compiler this call is
+    /// `value`'s last use in the caller: it either resumes `waiter` with it directly or moves it into
+    /// `pendingValue`, never both, so ownership fully transfers here rather than staying aliased with
+    /// the caller's copy.
+    // The whole declaration is duplicated per branch: splitting only the signature across #if/#else
+    // and sharing one body does not parse -- each active branch's opening brace must be matched by a
+    // closing brace within that same branch.
+    #if compiler(>=6.0)
+    func yield(_ value: sending Value) {
+        lock.lock()
+        guard !isFinished else {
+            lock.unlock()
+            return
+        }
+        if let waiter {
+            self.waiter = nil
+            lock.unlock()
+            waiter.resume(returning: value)
+            return
+        }
+        pendingValue = value
+        lock.unlock()
+    }
+    #else
     func yield(_ value: Value) {
         lock.lock()
         guard !isFinished else {
@@ -55,6 +81,7 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
         pendingValue = value
         lock.unlock()
     }
+    #endif
 
     /// Ends the buffer, delivering `error` (if any) to the currently
     /// suspended or next `next()` call exactly once. Safe to call more than

@@ -68,12 +68,28 @@ private final class ControllableStreamSource<Value>: @unchecked Sendable {
 
     /// Yields `value` on the stream constructed by the `streamIndex`-th `makeStream()` call
     /// (defaulting to the first/only one a test cares about).
+    ///
+    /// See the matching note on `XLSingleSlotAsyncBuffer.yield(_:)`: `sending` (Swift 6.0+ only) marks
+    /// this call as `value`'s last use, matching `AsyncThrowingStream.Continuation.yield(_:)`'s own
+    /// `sending` parameter.
+    // The whole declaration is duplicated per branch: splitting only the signature across #if/#else
+    // and sharing one body does not parse -- each active branch's opening brace must be matched by a
+    // closing brace within that same branch.
+    #if compiler(>=6.0)
+    func yield(_ value: sending Value, toStream streamIndex: Int = 0) {
+        lock.lock()
+        let continuation = continuations[streamIndex]
+        lock.unlock()
+        continuation?.yield(value)
+    }
+    #else
     func yield(_ value: Value, toStream streamIndex: Int = 0) {
         lock.lock()
         let continuation = continuations[streamIndex]
         lock.unlock()
         continuation?.yield(value)
     }
+    #endif
 
     func finish(throwing error: Error? = nil, stream streamIndex: Int = 0) {
         lock.lock()

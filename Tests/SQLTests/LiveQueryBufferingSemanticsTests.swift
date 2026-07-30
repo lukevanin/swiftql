@@ -3,7 +3,11 @@
 //
 
 import Foundation
-import GRDB
+// GRDB predates Sendable auditing; `@preconcurrency` downgrades its types' missing Sendable
+// conformances (e.g. `AnyDatabaseCancellable`, stored and returned across this file's locked state)
+// from blocking errors to warnings under complete strict-concurrency checking, matching the
+// compiler's own suggested fix rather than working around it with an unrelated annotation.
+@preconcurrency import GRDB
 import XCTest
 #if canImport(os)
 import os
@@ -109,8 +113,32 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
         state.withLock { $0.totalYieldCount }
     }
 
+    // `@unchecked Sendable`, matching `FastPathOutcome`/`RegistrationOutcome` below: a bare
+    // `(waiter: ..., value: Value)` tuple return type from `yield(_:)`'s `@Sendable` closure is itself
+    // flagged as non-Sendable (since `Value` is), the same way those enums are.
+    private struct Delivery: @unchecked Sendable {
+        let waiter: CheckedContinuation<Value?, Error>
+        let value: Value
+    }
+
     func yield(_ value: Value) {
-        let waiterToResume: CheckedContinuation<Value?, Error>? = state.withLock { state in
+        // `OSAllocatedUnfairLock<State>: Sendable` holds its `withLock` closure parameter to
+        // `@Sendable`, and `SingleSlotMailbox` itself opts into `@unchecked Sendable`, so capturing a
+        // non-Sendable generic `Value` inside that closure is flagged under complete strict-concurrency
+        // checking. A `nonisolated(unsafe)` shadow clears that specific capture. Empirically, though,
+        // referencing the *original* `value` parameter a second time afterward, to feed
+        // `resume(returning:)`'s own `sending` parameter, keeps warning regardless of `sending`,
+        // `nonisolated(unsafe)`, or `consume` at that second call site -- something about a value
+        // having already appeared inside this `@Sendable` closure keeps it "task-isolated" for any
+        // later, separate use, even of a freshly shadowed copy of the same binding. The fix that does
+        // work: never reference `value` a second time at all. Have the closure return the exact value
+        // to resume with alongside the waiter -- extracted from the closure's return, exactly like
+        // `waiter` itself already was as this file's very first prototype (before OSAllocatedUnfairLock)
+        // -- rather than recombining it with the outer parameter after the fact.
+        #if compiler(>=6.0)
+        nonisolated(unsafe) let value = value
+        #endif
+        let delivery: Delivery? = state.withLock { state in
             // Termination wins over any value that arrives at or after it:
             // once finished, a mailbox never buffers or delivers a further
             // value, so a GRDB refresh racing with cancellation/completion
@@ -121,7 +149,7 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
             state.totalYieldCount += 1
             if let waiter = state.waiter {
                 state.waiter = nil
-                return waiter
+                return Delivery(waiter: waiter, value: value)
             }
             state.pendingValue = value
             return nil
@@ -130,7 +158,9 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
         // `NSLock`-based version: a continuation resumption can itself run
         // arbitrary downstream code, which must never happen while this
         // mailbox's own lock is held.
-        waiterToResume?.resume(returning: value)
+        if let delivery {
+            delivery.waiter.resume(returning: delivery.value)
+        }
     }
 
     /// Ends the mailbox with the upstream source's own normal completion or
@@ -203,7 +233,10 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
         waiterToResume?.resume(returning: nil)
     }
 
-    private enum FastPathOutcome {
+    // `@unchecked Sendable`: this enum only ever shuttles `Value` briefly out of `state`'s locked
+    // closure (see `SingleSlotMailbox`'s own note on `@unchecked Sendable`) -- it never escapes
+    // beyond `checkFastPath()`'s immediate caller.
+    private enum FastPathOutcome: @unchecked Sendable {
         case value(Value)
         case error(Error)
         case finished
@@ -232,7 +265,8 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
         }
     }
 
-    private enum RegistrationOutcome {
+    // See `FastPathOutcome`'s note above -- identical reasoning.
+    private enum RegistrationOutcome: @unchecked Sendable {
         case value(Value)
         case error(Error)
         case finished
@@ -364,7 +398,13 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
     /// itself instead of storing it -- mirroring the identical check-after-
     /// store pattern the production `GRDBLiveQueryAsyncBridge` (#308) and
     /// `XLRequestPublisherAsyncBridge` (#309) use for the same race.
+    // See the `nonisolated(unsafe)` shadow note on `SingleSlotMailbox.yield(_:)` above -- identical
+    // reasoning, applied to a GRDB `AnyDatabaseCancellable` captured by this file's `@Sendable`
+    // locked-state closure.
     private func storeCancellable(_ newCancellable: AnyDatabaseCancellable) {
+        #if compiler(>=6.0)
+        nonisolated(unsafe) let newCancellable = newCancellable
+        #endif
         let alreadyCancelled: Bool = state.withLock { state in
             guard !state.didCancel else { return true }
             state.cancellable = newCancellable
@@ -578,7 +618,12 @@ private final class LockedArray<Element>: @unchecked Sendable {
 
     private let state = OSAllocatedUnfairLock(uncheckedState: [Element]())
 
+    // See the `nonisolated(unsafe)` shadow note on `SingleSlotMailbox.yield(_:)` above -- identical
+    // reasoning.
     func append(_ value: Element) {
+        #if compiler(>=6.0)
+        nonisolated(unsafe) let value = value
+        #endif
         state.withLock { $0.append(value) }
     }
 
@@ -971,7 +1016,12 @@ private final class LockedValueBox<Value>: @unchecked Sendable {
         state = OSAllocatedUnfairLock(uncheckedState: value)
     }
 
+    // See the `nonisolated(unsafe)` shadow note on `SingleSlotMailbox.yield(_:)` above -- identical
+    // reasoning.
     func set(_ newValue: Value) {
+        #if compiler(>=6.0)
+        nonisolated(unsafe) let newValue = newValue
+        #endif
         state.withLock { $0 = newValue }
     }
 

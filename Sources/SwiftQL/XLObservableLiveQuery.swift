@@ -52,7 +52,7 @@ import Foundation
 ///
 @available(iOS 17, macOS 14, *)
 @Observable
-public final class XLObservableQuery<Row> {
+public final class XLObservableQuery<Row>: @unchecked Sendable {
 
     /// The most recently observed complete row set. Empty until the first snapshot (or a terminal
     /// error) has been applied.
@@ -104,8 +104,12 @@ public final class XLObservableQuery<Row> {
         task = nil
     }
 
+    // The whole closure runs on the main actor -- not just the `apply(rows:)`/`apply(error:)` calls --
+    // so nothing here ever needs to send a non-Sendable `self` or a non-Sendable `Row` across an
+    // isolation boundary; `rows`/`error` are consumed on the same actor that produced them into this
+    // Task in the first place.
     private func start(stream: AsyncThrowingStream<[Row], Error>) {
-        task = Task { [weak self] in
+        task = Task { @MainActor [weak self] in
             do {
                 for try await rows in stream {
                     // Guards against applying a value that raced ahead of a concurrent `stop()` call
@@ -114,12 +118,12 @@ public final class XLObservableQuery<Row> {
                     // but this instance's own `Task.isCancelled` is the most direct, local signal that
                     // no further state update should ever reach `rows`/`isLoading`/`error`.
                     if Task.isCancelled { return }
-                    await self?.apply(rows: rows)
+                    self?.apply(rows: rows)
                 }
             }
             catch {
                 if !Task.isCancelled {
-                    await self?.apply(error: error)
+                    self?.apply(error: error)
                 }
             }
         }
@@ -149,7 +153,7 @@ public final class XLObservableQuery<Row> {
 ///
 @available(iOS 17, macOS 14, *)
 @Observable
-public final class XLObservableQueryRow<Row> {
+public final class XLObservableQueryRow<Row>: @unchecked Sendable {
 
     /// The most recently observed first row, or `nil` if the query currently matches no row. A
     /// present `nil` is a real delivered snapshot, distinct from "nothing observed yet" -- use
@@ -198,17 +202,18 @@ public final class XLObservableQueryRow<Row> {
         task = nil
     }
 
+    // See the matching note on XLObservableQuery.start(stream:) above.
     private func start(stream: AsyncThrowingStream<Row?, Error>) {
-        task = Task { [weak self] in
+        task = Task { @MainActor [weak self] in
             do {
                 for try await row in stream {
                     if Task.isCancelled { return }
-                    await self?.apply(row: row)
+                    self?.apply(row: row)
                 }
             }
             catch {
                 if !Task.isCancelled {
-                    await self?.apply(error: error)
+                    self?.apply(error: error)
                 }
             }
         }
