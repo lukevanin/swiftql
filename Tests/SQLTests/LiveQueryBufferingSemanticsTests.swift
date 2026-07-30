@@ -16,7 +16,7 @@ private struct AwaitNextTimeoutError: Error {}
 #if !canImport(os)
 /// Minimal `OSAllocatedUnfairLock`-compatible shim for platforms without
 /// Darwin's `os` module (e.g. this package's Linux CI cells), matching only
-/// the three initializers and the single `withLock` method this file uses.
+/// the two initializers and the single `withLock` method this file uses.
 /// Exposes *only* `withLock`, never a bare `lock()`/`unlock()` pair, so
 /// nothing on this fallback path can reach for the discouraged manual-unlock
 /// pattern even though it is, unavoidably, backed by `NSLock` internally —
