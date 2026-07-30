@@ -87,6 +87,132 @@ final class SQLDriverContractTests: XCTestCase {
         XCTAssertEqual(recorder.streamedRows, rows)
     }
 
+    /// The pull-based counterpart to `forEachRow(_:_:)`:
+    /// `makeValuesStepper(_:)` backs ``XLResultSet``'s `next()`. Each call to
+    /// the returned closure must step and record exactly one row, stopping
+    /// permanently once the caller stops calling it, and a thrown error must
+    /// not step further rows.
+    func testDriverNeutralValuesStepperStepsOneRowPerCallAndStopsOnDemand() throws {
+        let recorder = DriverRecorder()
+        let databaseIdentifier = databaseID(11)
+        let rows: [[XLSQLiteValue]] = [
+            [.integer(1), .text("first")],
+            [.integer(2), .text("second")],
+            [.integer(3), .text("third")],
+        ]
+        var connection = FakeConnection(
+            connectionID: 9,
+            databaseIdentifier: databaseIdentifier,
+            recorder: recorder,
+            resultRows: rows
+        )
+        let statement = try connection.prepareValidated(
+            logicalStatement(databaseIdentifier: databaseIdentifier)
+        )
+
+        let stepper = try connection.makeValuesStepper(statement)
+        XCTAssertTrue(recorder.streamedRows.isEmpty, "No row may be stepped before the stepper is invoked.")
+
+        XCTAssertEqual(try stepper(), rows[0])
+        XCTAssertEqual(recorder.streamedRows, [rows[0]])
+        XCTAssertEqual(try stepper(), rows[1])
+        XCTAssertEqual(recorder.streamedRows, Array(rows.prefix(2)))
+
+        // Stopping here (never calling the stepper again) must not step row 3.
+        XCTAssertEqual(recorder.streamedRows, Array(rows.prefix(2)))
+
+        recorder.streamedRows.removeAll()
+        var failingConnection = FakeConnection(
+            connectionID: 9,
+            databaseIdentifier: databaseIdentifier,
+            recorder: recorder,
+            failure: .execute,
+            resultRows: rows
+        )
+        XCTAssertThrowsError(try failingConnection.makeValuesStepper(statement)) { error in
+            XCTAssertEqual(error as? FakeFailure, .execute)
+        }
+        XCTAssertTrue(recorder.streamedRows.isEmpty)
+    }
+
+    /// Exhaustion of the pull-based stepper is stable: once it returns `nil`,
+    /// further calls keep returning `nil` rather than stepping again.
+    func testDriverNeutralValuesStepperExhaustionIsStable() throws {
+        let recorder = DriverRecorder()
+        let databaseIdentifier = databaseID(12)
+        let rows: [[XLSQLiteValue]] = [[.integer(1), .text("only")]]
+        var connection = FakeConnection(
+            connectionID: 10,
+            databaseIdentifier: databaseIdentifier,
+            recorder: recorder,
+            resultRows: rows
+        )
+        let statement = try connection.prepareValidated(
+            logicalStatement(databaseIdentifier: databaseIdentifier)
+        )
+
+        let stepper = try connection.makeValuesStepper(statement)
+        XCTAssertEqual(try stepper(), rows[0])
+        XCTAssertNil(try stepper())
+        XCTAssertNil(try stepper(), "Exhaustion must remain stable across repeated calls.")
+        XCTAssertEqual(recorder.streamedRows, rows)
+    }
+
+    /// The pull-based stepper's most important failure mode is not a failure
+    /// at creation time (`.execute`, covered above) but a failure *from the
+    /// returned closure itself* after some rows already stepped
+    /// successfully -- what a mid-stream SQLite step error actually looks
+    /// like. Rows already stepped must remain recorded, and no row at or
+    /// after the failing index may ever be stepped.
+    func testDriverNeutralValuesStepperFailsFromTheReturnedClosureNotAtCreation() throws {
+        let recorder = DriverRecorder()
+        let databaseIdentifier = databaseID(13)
+        let rows: [[XLSQLiteValue]] = [
+            [.integer(1), .text("first")],
+            [.integer(2), .text("second")],
+            [.integer(3), .text("third")],
+        ]
+        var connection = FakeConnection(
+            connectionID: 11,
+            databaseIdentifier: databaseIdentifier,
+            recorder: recorder,
+            failure: .step,
+            resultRows: rows,
+            stepFailureAtIndex: 1
+        )
+        let statement = try connection.prepareValidated(
+            logicalStatement(databaseIdentifier: databaseIdentifier)
+        )
+
+        // Creating the stepper must not itself throw or step anything: the
+        // failure belongs to the returned closure, not to
+        // `makeValuesStepper(_:)`.
+        let stepper = try connection.makeValuesStepper(statement)
+        XCTAssertTrue(recorder.streamedRows.isEmpty)
+
+        XCTAssertEqual(try stepper(), rows[0])
+        XCTAssertEqual(recorder.streamedRows, [rows[0]])
+
+        XCTAssertThrowsError(try stepper()) { error in
+            XCTAssertEqual(error as? FakeFailure, .step)
+        }
+        XCTAssertEqual(
+            recorder.streamedRows,
+            [rows[0]],
+            "The failing step must not record a row."
+        )
+
+        XCTAssertNil(
+            try stepper(),
+            "Exhaustion past the failure index, not a repeat of the same error or a later row."
+        )
+        XCTAssertEqual(
+            recorder.streamedRows,
+            [rows[0]],
+            "No row at or after the failing index may ever be stepped."
+        )
+    }
+
     func testLogicalStatementCreatesConnectionOwnedPhysicalStatements() throws {
         let recorder = DriverRecorder()
         let databaseIdentifier = databaseID(2)
@@ -579,6 +705,14 @@ private enum FakeFailure: Error, Equatable, CustomStringConvertible {
     case execute
     case transaction
     case unsupportedValue
+    /// Distinct from `.execute`: `.execute` fails the whole push-based
+    /// `forEachRow(_:_:)` call, or `makeValuesStepper(_:)` itself, before any
+    /// stepping happens. `.step` instead lets `makeValuesStepper(_:)` return
+    /// a working stepper that fails from *inside* the returned closure after
+    /// some rows have already stepped successfully -- the pull-based
+    /// counterpart's most important failure mode, and the one a mid-stream
+    /// SQLite step error actually looks like.
+    case step
 
     var description: String {
         switch self {
@@ -592,6 +726,8 @@ private enum FakeFailure: Error, Equatable, CustomStringConvertible {
             return "transaction"
         case .unsupportedValue:
             return "unsupported value"
+        case .step:
+            return "step"
         }
     }
 }
@@ -609,6 +745,10 @@ private struct FakeConnection:
     let recorder: DriverRecorder
     var failure: FakeFailure?
     let resultRows: [[XLSQLiteValue]]?
+    /// With `failure == .step`, the 0-based row index the stepper closure
+    /// fails on: rows before it step and record normally, this index fails
+    /// without recording a row, and no later index is ever reached.
+    let stepFailureAtIndex: Int?
 
     let driverIdentifier = FakeConnection.driverID
     let dialect = XLSQLiteDialect(
@@ -621,13 +761,15 @@ private struct FakeConnection:
         databaseIdentifier: XLDatabaseIdentifier,
         recorder: DriverRecorder,
         failure: FakeFailure? = nil,
-        resultRows: [[XLSQLiteValue]]? = nil
+        resultRows: [[XLSQLiteValue]]? = nil,
+        stepFailureAtIndex: Int? = nil
     ) {
         self.connectionID = connectionID
         self.databaseIdentifier = databaseIdentifier
         self.recorder = recorder
         self.failure = failure
         self.resultRows = resultRows
+        self.stepFailureAtIndex = stepFailureAtIndex
     }
 
     mutating func preparePhysical(
@@ -702,6 +844,35 @@ private struct FakeConnection:
             if try body(row) == .stop {
                 return
             }
+        }
+    }
+
+    mutating func makeValuesStepper(
+        _ statement: FakePhysicalStatement
+    ) throws -> () throws -> [XLSQLiteValue]? {
+        guard statement.connectionID == connectionID else {
+            throw FakeFailure.execute
+        }
+        if failure == .execute {
+            throw FakeFailure.execute
+        }
+        let rows = resultRows ?? [orderedValues(in: statement)]
+        let recorder = recorder
+        let stepFailureAtIndex = stepFailureAtIndex
+        var index = 0
+        var hasFailed = false
+        return {
+            guard !hasFailed, index < rows.count else {
+                return nil
+            }
+            if index == stepFailureAtIndex {
+                hasFailed = true
+                throw FakeFailure.step
+            }
+            let row = rows[index]
+            index += 1
+            recorder.streamedRows.append(row)
+            return row
         }
     }
 

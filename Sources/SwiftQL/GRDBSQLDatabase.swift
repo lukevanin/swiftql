@@ -412,6 +412,76 @@ struct GRDBRequest<Row>: XLRequest {
         return try GRDBRowDecoder(reader: reader).decode(values: values)
     }
 
+    func withResultSet<Result>(
+        _ operation: (XLResultSet<Row>) throws -> Result
+    ) throws -> Result {
+        try withResultSet(bindings: try compatibilityPacket(), operation)
+    }
+
+    ///
+    /// True-streaming override of the ``XLRequest`` default: lends an
+    /// `XLResultSet` backed directly by `GRDBInvocationExecutor`'s
+    /// value-level cursor stepper, so `next()` performs one real SQLite step
+    /// and one real typed decode -- nothing is prefetched, and nothing is
+    /// buffered beyond the one row currently being decoded.
+    ///
+    /// A `RETURNING` request (`requiresWriteConnection`) is the one
+    /// exception: `RETURNING` rows are produced as SQLite steps through the
+    /// data-changing statement itself, so stepping only part of the cursor
+    /// would commit a write that only partially ran. Decoding lazily could
+    /// silently apply an incomplete `UPDATE`/`DELETE`/`INSERT` if the caller
+    /// stopped calling `next()` early. To keep that impossible, a
+    /// `RETURNING` request decodes every row eagerly inside its transaction
+    /// -- exactly like `fetchAll(bindings:)` -- before handing the
+    /// already-decoded rows to the caller through the same lazy `next()`
+    /// surface. Non-`RETURNING` requests are unaffected and stream lazily.
+    ///
+    func withResultSet<Result>(
+        bindings: any XLInvocationBindingPacket,
+        _ operation: (XLResultSet<Row>) throws -> Result
+    ) throws -> Result {
+        let packet = try executor.sqlitePacket(bindings)
+        logger?.debug(
+            "withResultSet: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+
+        if requiresWriteConnection {
+            var driver = executor.driver
+            var items: [Row] = []
+            try driver.withTransaction { connection in
+                items = try decodeRows(packet: packet, in: &connection)
+            }
+            return try withEagerResultSet(items, operation)
+        }
+
+        let rowDecoder = GRDBRowDecoder(reader: reader)
+        return try executor.withValuesStepper(
+            packet: packet,
+            requiresWriteConnection: false
+        ) { valuesStepper in
+            let resultSet = XLResultSet<Row>(stepper: {
+                guard let values = try valuesStepper() else {
+                    return nil
+                }
+                return try rowDecoder.decode(values: values)
+            })
+            defer { resultSet.close() }
+            return try operation(resultSet)
+        }
+    }
+
+    /// Mirrors `XLRequest`'s eager compatibility fallback (see
+    /// `SQLDatabase.swift`), used only for the `RETURNING` path above where
+    /// rows must already be fully decoded before `operation` runs.
+    private func withEagerResultSet<Result>(
+        _ rows: [Row],
+        _ operation: (XLResultSet<Row>) throws -> Result
+    ) throws -> Result {
+        var iterator = rows.makeIterator()
+        let resultSet = XLResultSet<Row>(stepper: { iterator.next() })
+        defer { resultSet.close() }
+        return try operation(resultSet)
+    }
+
     // `publish()`/`publish(bindings:)`/`publishOne()`/`publishOne(bindings:)` are Combine convenience
     // adapters over `stream()`/`streamOne()` (issue #309): they never call `ValueObservation
     // .publisher(in:)` or own a Combine-side retry pipeline. Observation, immutable-packet capture,
