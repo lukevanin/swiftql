@@ -170,12 +170,15 @@ final class GRDBLiveQueryAsyncBridge<Value>: @unchecked Sendable {
         var delayCancellable: AnyCancellable?
         // Triggers on the first emitted *value*, not on completion:
         // `GRDBLiveQueryRetryScheduler.publisher(after:)` is a type-erased
-        // seam with no documented guarantee that it completes after
-        // emitting -- the deterministic manual scheduler used by this
-        // bridge's own retry tests emits from a `PassthroughSubject` that
-        // never sends a completion at all. The Combine retry path already
-        // treats this seam the same way, via `flatMap` reacting to each
-        // emitted value rather than waiting for completion. `.prefix(1)`
+        // seam whose completion behavior is unspecified by contract, even
+        // though every scheduler this package currently ships (including the
+        // deterministic manual schedulers used by this bridge's own retry
+        // tests) happens to complete right after emitting. The Combine retry
+        // path already treats this seam as value-driven, via `flatMap`
+        // reacting to each emitted value rather than waiting for completion
+        // -- matching that here, instead of relying on today's incidental
+        // completion behavior, is what keeps a future scheduler that only
+        // emits (without completing) from deadlocking retries. `.prefix(1)`
         // guarantees this fires at most once even if the scheduler emits
         // more than one value.
         delayCancellable = scheduler.publisher(after: delay)
