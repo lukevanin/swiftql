@@ -5,9 +5,44 @@
 import Foundation
 import GRDB
 import XCTest
+#if canImport(os)
+import os
+#endif
 
 
 private struct AwaitNextTimeoutError: Error {}
+
+
+#if !canImport(os)
+/// Minimal `OSAllocatedUnfairLock`-compatible shim for platforms without
+/// Darwin's `os` module (e.g. this package's Linux CI cells), matching only
+/// the two initializers and the single `withLock` method this file uses.
+/// Exposes *only* `withLock`, never a bare `lock()`/`unlock()` pair, so
+/// nothing on this fallback path can reach for the discouraged manual-unlock
+/// pattern even though it is, unavoidably, backed by `NSLock` internally —
+/// there is no Darwin-style unfair lock to wrap on this platform.
+private final class OSAllocatedUnfairLock<State>: @unchecked Sendable {
+
+    private let lock = NSLock()
+
+    private var state: State
+
+    init(uncheckedState initialState: State) {
+        state = initialState
+    }
+
+    init(initialState: State) where State: Sendable {
+        state = initialState
+    }
+
+    @discardableResult
+    func withLock<Result>(_ body: (inout State) throws -> Result) rethrows -> Result {
+        lock.lock()
+        defer { lock.unlock() }
+        return try body(&state)
+    }
+}
+#endif
 
 
 // MARK: - Evidence-only prototype (see Sources/SwiftQL/SwiftQL.docc/LiveQueries.md,
@@ -44,44 +79,58 @@ private struct AwaitNextTimeoutError: Error {}
 //   `withTaskCancellationHandler(operation:onCancel:)`.
 private final class SingleSlotMailbox<Value>: @unchecked Sendable {
 
-    private let lock = NSLock()
+    /// All mutable state guarded by one `OSAllocatedUnfairLock`, per this
+    /// codebase's locking standard: the state lives *inside* the lock, so
+    /// there is no path to it unguarded (unlike a separately-declared `var`
+    /// next to a bare `NSLock`).
+    private struct State {
 
-    /// The buffering bound selected by #291: at most one snapshot is ever
-    /// held. A newly yielded value replaces (not queues behind) any
-    /// previously buffered, undelivered value.
-    private var pendingValue: Value?
+        /// The buffering bound selected by #291: at most one snapshot is ever
+        /// held. A newly yielded value replaces (not queues behind) any
+        /// previously buffered, undelivered value.
+        var pendingValue: Value?
 
-    private var pendingError: Error?
+        var pendingError: Error?
 
-    private var isFinished = false
+        var isFinished = false
 
-    private var waiter: CheckedContinuation<Value?, Error>?
+        var waiter: CheckedContinuation<Value?, Error>?
 
-    /// Number of values ever placed into the mailbox (delivered immediately
-    /// to a waiter, or buffered and possibly later replaced). Used by tests
-    /// to observe how many times GRDB actually produced a fresh value,
-    /// independent of consumer pacing.
-    private(set) var totalYieldCount = 0
+        /// Number of values ever placed into the mailbox (delivered
+        /// immediately to a waiter, or buffered and possibly later
+        /// replaced). Used by tests to observe how many times GRDB actually
+        /// produced a fresh value, independent of consumer pacing.
+        var totalYieldCount = 0
+    }
+
+    private let state = OSAllocatedUnfairLock(uncheckedState: State())
+
+    var totalYieldCount: Int {
+        state.withLock { $0.totalYieldCount }
+    }
 
     func yield(_ value: Value) {
-        lock.lock()
-        // Termination wins over any value that arrives at or after it: once
-        // finished, a mailbox never buffers or delivers a further value, so a
-        // GRDB refresh racing with cancellation/completion cannot resurrect
-        // delivery after the stream has ended.
-        guard !isFinished else {
-            lock.unlock()
-            return
+        let waiterToResume: CheckedContinuation<Value?, Error>? = state.withLock { state in
+            // Termination wins over any value that arrives at or after it:
+            // once finished, a mailbox never buffers or delivers a further
+            // value, so a GRDB refresh racing with cancellation/completion
+            // cannot resurrect delivery after the stream has ended.
+            guard !state.isFinished else {
+                return nil
+            }
+            state.totalYieldCount += 1
+            if let waiter = state.waiter {
+                state.waiter = nil
+                return waiter
+            }
+            state.pendingValue = value
+            return nil
         }
-        totalYieldCount += 1
-        if let waiter {
-            self.waiter = nil
-            lock.unlock()
-            waiter.resume(returning: value)
-            return
-        }
-        pendingValue = value
-        lock.unlock()
+        // Resuming happens outside the lock, exactly like the previous
+        // `NSLock`-based version: a continuation resumption can itself run
+        // arbitrary downstream code, which must never happen while this
+        // mailbox's own lock is held.
+        waiterToResume?.resume(returning: value)
     }
 
     /// Ends the mailbox with the upstream source's own normal completion or
@@ -101,25 +150,27 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
     /// `finish()`/`cancel()` from ever being buffered, which is the actual
     /// race this type must reject.
     func finish(throwing error: Error?) {
-        lock.lock()
-        guard !isFinished else {
-            lock.unlock()
+        let waiterResumption: (CheckedContinuation<Value?, Error>, Error?)? = state.withLock { state in
+            guard !state.isFinished else {
+                return nil
+            }
+            state.isFinished = true
+            guard let waiter = state.waiter else {
+                state.pendingError = error
+                return nil
+            }
+            state.waiter = nil
+            return (waiter, error)
+        }
+        guard let (waiter, error) = waiterResumption else {
             return
         }
-        isFinished = true
-        if let waiter {
-            self.waiter = nil
-            lock.unlock()
-            if let error {
-                waiter.resume(throwing: error)
-            }
-            else {
-                waiter.resume(returning: nil)
-            }
-            return
+        if let error {
+            waiter.resume(throwing: error)
         }
-        pendingError = error
-        lock.unlock()
+        else {
+            waiter.resume(returning: nil)
+        }
     }
 
     /// Ends the mailbox because the *consumer* cancelled, not because the
@@ -138,21 +189,18 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
     /// makes ``finish(throwing:)`` and `cancel()` different operations rather
     /// than one delegating to the other.
     func cancel() {
-        lock.lock()
-        guard !isFinished else {
-            lock.unlock()
-            return
+        let waiterToResume: CheckedContinuation<Value?, Error>? = state.withLock { state in
+            guard !state.isFinished else {
+                return nil
+            }
+            state.isFinished = true
+            state.pendingValue = nil
+            state.pendingError = nil
+            let waiter = state.waiter
+            state.waiter = nil
+            return waiter
         }
-        isFinished = true
-        pendingValue = nil
-        pendingError = nil
-        if let waiter {
-            self.waiter = nil
-            lock.unlock()
-            waiter.resume(returning: nil)
-            return
-        }
-        lock.unlock()
+        waiterToResume?.resume(returning: nil)
     }
 
     private enum FastPathOutcome {
@@ -163,26 +211,32 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
     }
 
     /// All plain synchronous locked mutation is kept out of `next()`'s
-    /// `async` body: recent Foundation marks `NSLock.lock()`/`unlock()` as
-    /// unavailable directly inside asynchronous contexts (an error under the
-    /// Swift 6 language mode), so both the initial fast-path check and the
-    /// re-check performed once a continuation is available live in plain,
-    /// non-`async` helper methods instead.
+    /// `async` body, matching the equivalent split already used elsewhere in
+    /// this file: both the initial fast-path check and the re-check
+    /// performed once a continuation is available live in plain, non-`async`
+    /// helper methods instead.
     private func checkFastPath() -> FastPathOutcome {
-        lock.lock()
-        defer { lock.unlock() }
-        if let value = pendingValue {
-            pendingValue = nil
-            return .value(value)
-        }
-        if isFinished {
-            if let pendingError {
-                self.pendingError = nil
-                return .error(pendingError)
+        state.withLock { state in
+            if let value = state.pendingValue {
+                state.pendingValue = nil
+                return .value(value)
             }
-            return .finished
+            if state.isFinished {
+                if let pendingError = state.pendingError {
+                    state.pendingError = nil
+                    return .error(pendingError)
+                }
+                return .finished
+            }
+            return .pending
         }
-        return .pending
+    }
+
+    private enum RegistrationOutcome {
+        case value(Value)
+        case error(Error)
+        case finished
+        case registered
     }
 
     /// Re-checks and, if still pending, registers the continuation as the
@@ -194,32 +248,37 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
     /// before registration would sit in `pendingValue`/`isFinished` and
     /// never wake this continuation).
     private func resolveImmediatelyOrRegister(_ continuation: CheckedContinuation<Value?, Error>) {
-        lock.lock()
-        if let value = pendingValue {
-            pendingValue = nil
-            lock.unlock()
+        let outcome: RegistrationOutcome = state.withLock { state in
+            if let value = state.pendingValue {
+                state.pendingValue = nil
+                return .value(value)
+            }
+            if state.isFinished {
+                let error = state.pendingError
+                state.pendingError = nil
+                if let error {
+                    return .error(error)
+                }
+                return .finished
+            }
+            precondition(
+                state.waiter == nil,
+                "SingleSlotMailbox.next() called concurrently: a second caller "
+                    + "would silently overwrite and leak/hang the first waiter."
+            )
+            state.waiter = continuation
+            return .registered
+        }
+        switch outcome {
+        case .value(let value):
             continuation.resume(returning: value)
-            return
+        case .error(let error):
+            continuation.resume(throwing: error)
+        case .finished:
+            continuation.resume(returning: nil)
+        case .registered:
+            break
         }
-        if isFinished {
-            let error = pendingError
-            pendingError = nil
-            lock.unlock()
-            if let error {
-                continuation.resume(throwing: error)
-            }
-            else {
-                continuation.resume(returning: nil)
-            }
-            return
-        }
-        precondition(
-            waiter == nil,
-            "SingleSlotMailbox.next() called concurrently: a second caller "
-                + "would silently overwrite and leak/hang the first waiter."
-        )
-        waiter = continuation
-        lock.unlock()
     }
 
     func next() async throws -> Value? {
@@ -246,11 +305,27 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
 /// underlying GRDB `AnyDatabaseCancellable` promptly.
 private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
 
-    private let lock = NSLock()
+    private struct State {
+        var didStart = false
+        var cancellable: AnyDatabaseCancellable?
 
-    private var didStart = false
+        /// Number of times this bridge has actually started the underlying
+        /// GRDB observation. Must be 0 for a bridge whose stream is never
+        /// iterated, and at most 1 for the lifetime of one bridge (one
+        /// `stream()` call is one independent, single-consumer observation).
+        var startCount = 0
 
-    private var cancellable: AnyDatabaseCancellable?
+        /// Set by `cancel()`, checked by `storeCancellable(_:)`: closes the
+        /// race where `cancel()` runs after `startObservation(...)` returns a
+        /// fresh `AnyDatabaseCancellable` but before `storeCancellable(_:)`
+        /// stores it. Without this, `cancel()` would read `cancellable ==
+        /// nil` and cancel nothing, while `storeCancellable(_:)` would then
+        /// store the new observation anyway -- leaking a live GRDB
+        /// observation nothing would ever cancel.
+        var didCancel = false
+    }
+
+    private let state = OSAllocatedUnfairLock(uncheckedState: State())
 
     private let mailbox = SingleSlotMailbox<Value>()
 
@@ -258,12 +333,6 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
         @escaping (Error) -> Void,
         @escaping (Value) -> Void
     ) -> AnyDatabaseCancellable
-
-    /// Number of times this bridge has actually started the underlying GRDB
-    /// observation. Must be 0 for a bridge whose stream is never iterated,
-    /// and at most 1 for the lifetime of one bridge (one `stream()` call is
-    /// one independent, single-consumer observation).
-    private(set) var startCount = 0
 
     init(
         start: @escaping (
@@ -276,22 +345,34 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
 
     var totalYieldCount: Int { mailbox.totalYieldCount }
 
+    var startCount: Int { state.withLock { $0.startCount } }
+
     /// Synchronous locked mutation kept out of `next()`'s `async` body (see
     /// the equivalent note on `SingleSlotMailbox`). Returns `true` exactly
     /// once, for the call that must actually start the GRDB observation.
     private func claimStart() -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        guard !didStart else { return false }
-        didStart = true
-        startCount += 1
-        return true
+        state.withLock { state in
+            guard !state.didStart else { return false }
+            state.didStart = true
+            state.startCount += 1
+            return true
+        }
     }
 
+    /// Stores `newCancellable`, unless `cancel()` already ran and missed it
+    /// (see `State.didCancel`), in which case this cancels `newCancellable`
+    /// itself instead of storing it -- mirroring the identical check-after-
+    /// store pattern the production `GRDBLiveQueryAsyncBridge` (#308) and
+    /// `XLRequestPublisherAsyncBridge` (#309) use for the same race.
     private func storeCancellable(_ newCancellable: AnyDatabaseCancellable) {
-        lock.lock()
-        cancellable = newCancellable
-        lock.unlock()
+        let alreadyCancelled: Bool = state.withLock { state in
+            guard !state.didCancel else { return true }
+            state.cancellable = newCancellable
+            return false
+        }
+        if alreadyCancelled {
+            newCancellable.cancel()
+        }
     }
 
     func next() async throws -> Value? {
@@ -317,11 +398,13 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
     /// already finished instead of starting a fresh GRDB observation that
     /// nothing will ever consume.
     func cancel() {
-        lock.lock()
-        didStart = true
-        let existing = cancellable
-        cancellable = nil
-        lock.unlock()
+        let existing: AnyDatabaseCancellable? = state.withLock { state in
+            state.didStart = true
+            state.didCancel = true
+            let existing = state.cancellable
+            state.cancellable = nil
+            return existing
+        }
         existing?.cancel()
         mailbox.cancel()
     }
@@ -345,20 +428,21 @@ private final class DemandDrivenPuller<Value>: @unchecked Sendable {
 
     private let bridge: LazyBufferedGRDBBridge<Value>
 
-    private let lock = NSLock()
+    private struct State {
+        var remainingDemand = 0
+        var isPulling = false
+        var isFinished = false
 
-    private var remainingDemand = 0
+        /// Set by an explicit `cancel()`, distinct from `isFinished` alone:
+        /// lets an in-flight `pumpNext()` tell "the bridge legitimately
+        /// completed or failed" apart from "this puller was cancelled," so
+        /// cancellation never surfaces through `onFinish` -- mirroring how
+        /// cancelling a Combine subscription never delivers a
+        /// `.finished`/`.failure` completion.
+        var wasCancelled = false
+    }
 
-    private var isPulling = false
-
-    private var isFinished = false
-
-    /// Set by an explicit `cancel()`, distinct from `isFinished` alone: lets
-    /// an in-flight `pumpNext()` tell "the bridge legitimately completed or
-    /// failed" apart from "this puller was cancelled," so cancellation never
-    /// surfaces through `onFinish` -- mirroring how cancelling a Combine
-    /// subscription never delivers a `.finished`/`.failure` completion.
-    private var wasCancelled = false
+    private let state = OSAllocatedUnfairLock(uncheckedState: State())
 
     private let onValue: (Value) -> Void
 
@@ -382,27 +466,27 @@ private final class DemandDrivenPuller<Value>: @unchecked Sendable {
         guard amount > 0 else {
             return
         }
-        lock.lock()
-        guard !isFinished else {
-            lock.unlock()
-            return
+        let shouldStartPulling: Bool = state.withLock { state in
+            guard !state.isFinished else {
+                return false
+            }
+            state.remainingDemand += amount
+            let shouldStart = !state.isPulling && state.remainingDemand > 0
+            if shouldStart {
+                state.isPulling = true
+            }
+            return shouldStart
         }
-        remainingDemand += amount
-        let shouldStartPulling = !isPulling && remainingDemand > 0
-        if shouldStartPulling {
-            isPulling = true
-        }
-        lock.unlock()
         if shouldStartPulling {
             pumpNext()
         }
     }
 
     func cancel() {
-        lock.lock()
-        isFinished = true
-        wasCancelled = true
-        lock.unlock()
+        state.withLock { state in
+            state.isFinished = true
+            state.wasCancelled = true
+        }
         bridge.cancel()
     }
 
@@ -436,22 +520,19 @@ private final class DemandDrivenPuller<Value>: @unchecked Sendable {
     }
 
     /// Synchronous locked mutation extracted out of the `async` `pumpNext`
-    /// body: recent Foundation marks `NSLock.lock()`/`unlock()` as
-    /// unavailable directly inside asynchronous contexts (an error under the
-    /// Swift 6 language mode), so every mutation happens in a plain,
-    /// non-`async` helper instead.
+    /// body, matching the equivalent split used elsewhere in this file.
     ///
     /// - Returns: `true` if `onFinish` should be delivered for this
     ///   termination, `false` if an explicit `cancel()` already fired (or
     ///   raced this call) and the completion must be suppressed.
     @discardableResult
     private func markFinished() -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        let shouldDeliver = !wasCancelled
-        isFinished = true
-        isPulling = false
-        return shouldDeliver
+        state.withLock { state in
+            let shouldDeliver = !state.wasCancelled
+            state.isFinished = true
+            state.isPulling = false
+            return shouldDeliver
+        }
     }
 
     /// Narrows, but cannot fully close, the window between `bridge.next()`
@@ -459,62 +540,50 @@ private final class DemandDrivenPuller<Value>: @unchecked Sendable {
     /// that race, this returns `false` so the value is dropped instead of
     /// reaching a consumer that already unsubscribed.
     private func isStillAcceptingDelivery() -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return !wasCancelled
+        state.withLock { !$0.wasCancelled }
     }
 
     private func decrementDemandAndCheckWhetherToContinue() -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        remainingDemand -= 1
-        let shouldContinue = remainingDemand > 0 && !isFinished
-        if !shouldContinue {
-            isPulling = false
+        state.withLock { state in
+            state.remainingDemand -= 1
+            let shouldContinue = state.remainingDemand > 0 && !state.isFinished
+            if !shouldContinue {
+                state.isPulling = false
+            }
+            return shouldContinue
         }
-        return shouldContinue
     }
 }
 
 
 private final class LockedCounter: @unchecked Sendable {
 
-    private let lock = NSLock()
-
-    private var value = 0
+    private let state = OSAllocatedUnfairLock(initialState: 0)
 
     @discardableResult
     func increment() -> Int {
-        lock.lock()
-        defer { lock.unlock() }
-        value += 1
-        return value
+        state.withLock { value in
+            value += 1
+            return value
+        }
     }
 
     func read() -> Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return value
+        state.withLock { $0 }
     }
 }
 
 
 private final class LockedArray<Element>: @unchecked Sendable {
 
-    private let lock = NSLock()
-
-    private var values: [Element] = []
+    private let state = OSAllocatedUnfairLock(uncheckedState: [Element]())
 
     func append(_ value: Element) {
-        lock.lock()
-        defer { lock.unlock() }
-        values.append(value)
+        state.withLock { $0.append(value) }
     }
 
     func read() -> [Element] {
-        lock.lock()
-        defer { lock.unlock() }
-        return values
+        state.withLock { $0 }
     }
 }
 
@@ -896,23 +965,17 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
 
 private final class LockedValueBox<Value>: @unchecked Sendable {
 
-    private let lock = NSLock()
-
-    private var value: Value
+    private let state: OSAllocatedUnfairLock<Value>
 
     init(_ value: Value) {
-        self.value = value
+        state = OSAllocatedUnfairLock(uncheckedState: value)
     }
 
     func set(_ newValue: Value) {
-        lock.lock()
-        defer { lock.unlock() }
-        value = newValue
+        state.withLock { $0 = newValue }
     }
 
     func get() -> Value {
-        lock.lock()
-        defer { lock.unlock() }
-        return value
+        state.withLock { $0 }
     }
 }
