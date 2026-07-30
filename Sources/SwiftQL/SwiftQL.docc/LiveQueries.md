@@ -213,7 +213,7 @@ let cancellable = request.publishOne().sink(
 Fetching is all-or-nothing. If the query cannot execute or any row cannot be decoded, the publisher
 finishes with the original error and does not emit a truncated result.
 
-### SwiftUI
+### SwiftUI (`ObservableObject`, Combine-backed)
 
 ``XLQueryObserver`` and ``XLQueryRowObserver`` wrap `publish()`/`publishOne()`
 as `ObservableObject`s, so a view model can adopt a live query directly with
@@ -236,6 +236,58 @@ starts immediately on initialization and stops when the observer is
 deallocated — the same demand, transaction, and cancellation semantics
 described below apply, since both types subscribe through the same
 `publish()`/`publishOne()` publishers.
+
+### SwiftUI (`@Observable`, issue #97)
+
+``XLObservableQuery`` and ``XLObservableQueryRow`` are a third, independent live-query consumption
+surface, for platforms that ship Swift's `Observation` framework. They are availability-gated with
+`@available(iOS 17, macOS 14, *)` — verified empirically against this package's pinned toolchains,
+not guessed — while every other SwiftQL API, including ``XLQueryObserver``/``XLQueryRowObserver``
+above, keeps compiling and working unchanged down to the package's iOS 16 / macOS 13 floor.
+
+Like ``XLQueryObserver``/``XLQueryRowObserver``, these types own only model/task lifecycle and
+main-actor state updates — they are a thin adapter, not a third observation engine. Unlike those
+Combine-backed wrappers, they consume `stream()`/`streamOne()` (issue #308) directly through one
+owned `for try await` `Task` per instance; they never call `publish()`/`publishOne()` and never
+observe GRDB, `DatabasePool`, or `NotificationCenter` directly:
+
+<!-- test: XLDocumentationTests.testDocumentationLiveQueryPublishers -->
+```swift
+@available(iOS 17, macOS 14, *)
+@Observable
+final class PeopleListModel {
+    let people: XLObservableQuery<Person>
+
+    init(database: some XLDatabase, query: some XLQueryStatement<Person>) {
+        people = XLObservableQuery(database.makeRequest(with: query))
+    }
+}
+```
+
+A SwiftUI view reads `people.rows`, `people.isLoading`, and `people.error` directly in its `body`; the
+`@Observable` macro tracks each property access, so the view re-renders whenever any of them changes —
+no `@Published`/`@ObservedObject`/`@StateObject` annotations are needed. Observation starts immediately
+on initialization, exactly like ``XLQueryObserver``, and stops deterministically when the instance is
+released (`deinit` cancels the owned `Task`, tearing down the underlying observation) or when
+``XLObservableQuery/stop()``/``XLObservableQueryRow/stop()`` is called explicitly, whichever happens
+first. Every snapshot and terminal error is applied to `rows`/`row`/`isLoading`/`error` on the main
+actor, so view code needs no additional synchronization to read them. `rows`/`row` reflect the latest
+known state, not a commit log: a terminal error leaves the last successfully observed value in place
+and sets `error`, mirroring `stream()`/`streamOne()`'s own "fetching is all-or-nothing" contract — no
+partial or truncated snapshot is ever applied. Binding replacement (a new immutable
+`XLInvocationBindingPacket`) is a new model instance, exactly as a new `stream(bindings:)` call is a new
+independent observation: neither type mutates its packet after construction.
+
+Choosing among the three live-query consumption surfaces — structured concurrency, `@Observable`, and
+Combine — is a matter of what already structures the call site, not different database semantics: all
+three are adapters over the same `stream()`/`streamOne()` source and share identical buffering (#291),
+retry, binding-capture, and cancellation contracts.
+
+| Surface | Use when |
+| --- | --- |
+| `for try await` over `stream()`/`streamOne()` | Already inside `async` code (a `Task`, an `actor`, a background pipeline) with no UI framework to satisfy. |
+| ``XLQueryObserver``/``XLQueryRowObserver`` (`ObservableObject`) | SwiftUI (or UIKit/AppKit via Combine) targeting iOS 16 / macOS 13, or a codebase already standardized on Combine. |
+| ``XLObservableQuery``/``XLObservableQueryRow`` (`@Observable`) | SwiftUI targeting iOS 17 / macOS 14 or later, wanting Observation-native property tracking instead of `@Published`. |
 
 ### Retry Policy
 
@@ -555,3 +607,12 @@ behavior change:
   that ratio can vary with scheduling and is not part of this contract.
 - This decision does not address `XLResultSet` row-by-row cursors (#249) or the query-plan/index-advice
   work (#396) — it is scoped exclusively to whole-snapshot live-query streams.
+- `Tests/SQLTests/XLObservableLiveQueryTests.swift` is #97's follow-up suite: it drives
+  ``XLObservableQuery``/``XLObservableQueryRow`` against real, temporary GRDB databases to prove
+  initial delivery, refresh, a terminal error leaving `rows`/`row` untouched, main-actor state
+  application, cancellation before the first value, a released instance's owned `Task` performing no
+  further work (via a probe independent of the deallocated instance), binding replacement by
+  constructing a new instance, and two instances observing independent databases without
+  cross-triggering. The `@available(iOS 17, macOS 14, *)` gate was verified empirically — compiling
+  `@Observable` against a pre-macOS-14 deployment target fails with "'Observable()' is only available
+  in macOS 14.0 or newer" — rather than assumed from documentation alone.

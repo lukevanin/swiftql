@@ -2876,6 +2876,35 @@ extension XLDocumentationTests {
             XLAsyncStreamPublisherTests.testNormalCompletionNotCausedByCancellationIsForwarded
         let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
             XLAsyncStreamPublisherTests.testXlLiveQueryPublisherDeliversOnTheMainQueueByDefault
+
+        // #97: `XLObservableQuery`/`XLObservableQueryRow` are a third, `@Observable`-based convenience
+        // adapter over `stream()`/`streamOne()`, availability-gated to platforms shipping the
+        // `Observation` framework. `XLObservableLiveQueryTests` exercises them against real, temporary
+        // GRDB databases -- this reference (guarded exactly like the gated production types
+        // themselves) keeps the example above compile-time-checked without lowering this file's own
+        // availability floor.
+        #if canImport(Observation)
+        if #available(iOS 17, macOS 14, *) {
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testInitialSnapshotClearsLoadingAndPopulatesRows
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testRelevantWriteRefreshesRows
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testTerminalErrorSetsErrorAndClearsLoadingWithoutMutatingRows
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testCancellationBeforeInitialValuePreventsAnyFetch
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testReleasedModelPerformsNoFurtherWorkAfterRelease
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testPacketBackedModelCapturesBindingsAcrossRefresh
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testNewModelWithADifferentBindingPacketObservesIndependently
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testTwoModelsObservingIndependentDatabasesDoNotCrossTrigger
+            let _: (XLObservableLiveQueryTests) -> () async throws -> Void =
+                XLObservableLiveQueryTests.testObservableQueryRowDeliversInitialAndRefreshedFirstRow
+        }
+        #endif
     }
 
     func testDocumentationDeclaredQueries() throws {
