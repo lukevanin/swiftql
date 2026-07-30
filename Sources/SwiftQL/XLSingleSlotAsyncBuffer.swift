@@ -35,6 +35,13 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
 
     private var isFinished = false
 
+    /// Tracks whether `cancel()` itself has already run, distinct from `isFinished`: `finish(throwing:)`
+    /// also sets `isFinished`, but does not clear a buffered value/error (by design, see its own doc
+    /// comment). Guarding `cancel()` on `isFinished` alone would make a `cancel()` that arrives after an
+    /// upstream `finish(throwing:)` a no-op, silently breaking `cancel()`'s own documented contract of
+    /// always discarding a buffered-but-undelivered value.
+    private var isCancelled = false
+
     private var waiter: CheckedContinuation<Value?, Error>?
 
     /// Buffers `value`, replacing whatever was previously buffered, or
@@ -134,10 +141,13 @@ final class XLSingleSlotAsyncBuffer<Value>: @unchecked Sendable {
     /// delegate to `finish(throwing: nil)`.
     func cancel() {
         lock.lock()
-        guard !isFinished else {
+        // Guards against `cancel()` itself, not against a prior `finish(throwing:)` -- see `isCancelled`'s
+        // own doc comment for why those must stay distinct.
+        guard !isCancelled else {
             lock.unlock()
             return
         }
+        isCancelled = true
         isFinished = true
         pendingValue = nil
         pendingError = nil
