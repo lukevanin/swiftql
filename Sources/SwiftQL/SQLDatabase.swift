@@ -221,8 +221,8 @@ public protocol XLRequest<Row> {
     /// The stream buffers at most one undelivered snapshot: a newly produced snapshot always replaces,
     /// never queues behind, a snapshot the consumer has not yet asked for. Resuming iteration delivers
     /// whatever has already been produced — it does not itself force a fresh fetch. See
-    /// `Sources/SwiftQL/SwiftQL.docc/LiveQueries.md`, "Buffering and Resumed-Demand Semantics (#291)",
-    /// for the full contract this implements.
+    /// <doc:LiveQueries>, "Buffering and Resumed-Demand Semantics (#291)", for the full contract
+    /// this implements.
     ///
     /// Fetching is all-or-nothing, exactly like `fetchAll()`/`publish()`: if the query cannot execute
     /// or any row cannot be decoded, iteration throws the original error and does not yield a truncated

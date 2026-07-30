@@ -10,8 +10,7 @@ import GRDB
 /// Bridges a raw GRDB `ValueObservation` into SwiftQL's canonical,
 /// lazily-started, single-slot ("newest wins") buffered async live-query
 /// source (issue #308), implementing the buffering, cancellation, and
-/// snapshot-ownership contract recorded at
-/// `Sources/SwiftQL/SwiftQL.docc/LiveQueries.md`, "Buffering and
+/// snapshot-ownership contract recorded at <doc:LiveQueries>, "Buffering and
 /// Resumed-Demand Semantics (#291)".
 ///
 /// This is the type `GRDBRequest.stream()`/`streamOne()` (and their bindings
