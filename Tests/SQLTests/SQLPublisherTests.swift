@@ -631,11 +631,13 @@ final class XLPublisherTests: XCTestCase {
 
         database.makeRequest(with: orderedStatement()).publish().subscribe(subscriber)
         wait(for: [subscriptionExpectation], timeout: 2)
-        XCTAssertEqual(logger.count(containing: "fetchAll:"), 0)
+        // #309: `publish()` is now a Combine adapter over `stream()`, which logs its fetches tagged
+        // "stream:" (not the pre-#309 "fetchAll:") -- see GRDBRequest.stream(bindings:).
+        XCTAssertEqual(logger.count(containing: "stream:"), 0)
         try insertDirect(TestTable(id: "before-demand", value: 1))
         drainMainQueue(description: "zero-demand write barrier")
         XCTAssertTrue(values.read().isEmpty)
-        XCTAssertEqual(logger.count(containing: "fetchAll:"), 0)
+        XCTAssertEqual(logger.count(containing: "stream:"), 0)
 
         subscriber.request(.max(1))
         wait(for: [currentValueExpectation], timeout: 2)
@@ -705,11 +707,13 @@ final class XLPublisherTests: XCTestCase {
         wait(for: [subscriptionExpectation], timeout: 2)
         subscriber.request(.max(1))
         wait(for: [initialExpectation], timeout: 2)
-        let initialFetchCount = logger.count(containing: "fetchAll:")
+        // #309: see the parallel comment in testZeroDemandStartsNoFetchAndFirstDemandReadsCurrentState
+        // for why this checks "stream:" rather than the pre-#309 "fetchAll:" tag.
+        let initialFetchCount = logger.count(containing: "stream:")
         XCTAssertGreaterThan(initialFetchCount, 0)
 
         try insertDirect(TestTable(id: "undemanded", value: 2))
-        waitForFetchCount(atLeast: initialFetchCount + 1, containing: "fetchAll:")
+        waitForFetchCount(atLeast: initialFetchCount + 1, containing: "stream:")
         drainMainQueue(description: "finite-demand delivery barrier")
         XCTAssertEqual(values.read(), [initialRows])
 

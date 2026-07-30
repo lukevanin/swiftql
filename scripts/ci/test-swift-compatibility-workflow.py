@@ -126,9 +126,14 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn("scripts/ci/check-between-type-safety.sh", compatibility)
 
     def test_linux_surface_uses_opencombine_without_conditional_exclusion(self) -> None:
+        # Issue #309 replaced the platform-split bridge (a `GRDBOpenCombineValuePublisher`
+        # reachable only under `#if !canImport(Combine)`, hence its own coverage carve-out
+        # below) with one universal adapter whose only platform-conditional lines are its
+        # two `import` statements -- the demand/cancellation logic itself is identical and
+        # exercised on every platform, so it needs no coverage exclusion of its own.
         manifest = (ROOT / "Package.swift").read_text(encoding="utf-8")
         bridge = (
-            ROOT / "Sources/SwiftQL/GRDBOpenCombineValuePublisher.swift"
+            ROOT / "Sources/SwiftQL/XLAsyncStreamPublisher.swift"
         ).read_text(encoding="utf-8")
         coverage_config = (
             ROOT / "scripts/ci/source-coverage-config.json"
@@ -143,11 +148,12 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
             'exact: "0.14.0")',
             manifest,
         )
-        self.assertIn("case waiting", bridge)
+        self.assertIn("import OpenCombine", bridge)
         self.assertIn("remainingDemand", bridge)
+        self.assertIn("demandWaiter", bridge)
         self.assertNotIn("XCTSkip", bridge)
-        self.assertIn(
-            '"Sources/SwiftQL/GRDBOpenCombineValuePublisher.swift"',
+        self.assertNotIn(
+            "GRDBOpenCombineValuePublisher.swift",
             coverage_config,
         )
         self.assertEqual(downstream_lockfile, root_lockfile)

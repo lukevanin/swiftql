@@ -342,7 +342,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
 
         let requiredPhrasesByPath = [
             "README.md": [
-                "`1.5.4` is the latest published package",
+                "`1.5.5` is the latest published package",
             ],
             "COMPATIBILITY.md": [
                 "## v1.3 public products and runtime boundaries",
@@ -383,10 +383,10 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "not a claim of complete SQLite",
                 "v1.3 does not ship a public",
                 "validator, build plugin, query macro, schema system",
-                "Version 1.5.4 is the latest published package",
+                "Version 1.5.5 is the latest published package",
             ],
             "Sources/SwiftQL/SwiftQL.docc/GettingStarted.md": [
-                "Version 1.5.4 is the published package",
+                "Version 1.5.5 is the published package",
                 "This guide's basic request path remains",
                 "from version 1.2.0 or later",
                 "research-only schema-snapshot preparation prototype",
@@ -456,7 +456,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         let firstReleaseHeading = changelog
             .components(separatedBy: .newlines)
             .first(where: { $0.hasPrefix("## [") })
-        XCTAssertEqual(firstReleaseHeading, "## [1.5.4] - 2026-07-28")
+        XCTAssertEqual(firstReleaseHeading, "## [1.5.5] - 2026-07-30")
     }
 
     func testREADMERepositoryLinksResolveWithExactCase() throws {
