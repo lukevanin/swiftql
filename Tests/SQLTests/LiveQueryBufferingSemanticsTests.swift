@@ -18,11 +18,15 @@ private struct AwaitNextTimeoutError: Error {}
 // and lazy-start policy selected by issue #291 is implementable on the
 // pinned Swift 5.9 / GRDB 6.29.3 toolchain, ahead of #308 building the real
 // canonical `AsyncThrowingStream` source. It intentionally reuses GRDB's own
-// low-level `ValueObservation.start(in:scheduling:onError:onChange:)`, the
-// same primitive `GRDBSQLDatabase.swift`'s `publisher(fetch:)` already calls
-// for the OpenCombine path -- with retry supplied by
-// `GRDBLiveQueryRetryPolicy.swift`'s `makeGRDBLiveQueryRetryPublisher`
-// wrapping that source, not by calling `.start` itself.
+// low-level `ValueObservation.start(in:scheduling:onError:onChange:)` --
+// at the time this prototype was written, the same primitive
+// `GRDBSQLDatabase.swift`'s pre-#309 `publisher(fetch:)` helper called for
+// the OpenCombine path, with retry supplied by `GRDBLiveQueryRetryPolicy
+// .swift`'s `makeGRDBLiveQueryRetryPublisher` wrapping that source. Both of
+// those were removed once #309 rebuilt `publish()`/`publishOne()` as
+// adapters over `stream()`/`streamOne()`, which reuse the same
+// `ValueObservation.start` primitive through `GRDBLiveQueryAsyncBridge`
+// instead (see `Sources/SwiftQL/GRDBLiveQueryAsyncStream.swift`).
 //
 // Design, empirically verified against the pinned Swift toolchain before
 // writing these tests (see the session's throwaway `probe.swift` /

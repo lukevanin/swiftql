@@ -70,11 +70,11 @@ struct GRDBLiveQueryRetryScheduler: @unchecked Sendable {
 
 /// Subscriber-local state for a retrying observation.
 ///
-/// Shared by both the Combine retry attempt runner below and
-/// ``GRDBLiveQueryAsyncBridge``'s async-native retry integration (#308), so
-/// the generation-counter cancellation-ownership design is defined exactly
-/// once rather than forked per adapter. `internal` (not `private`) access
-/// deliberately lets `GRDBLiveQueryAsyncStream.swift` reuse this exact type.
+/// This is the one retry engine SwiftQL owns: ``GRDBLiveQueryAsyncBridge``'s async-native retry
+/// integration (#308) is its only caller, and issue #309's Combine adapter (`publish()`/`publishOne()`)
+/// inherits the same generation-counter cancellation-ownership design for free by going through
+/// `stream()`/`streamOne()` rather than driving its own Combine-side retry pipeline. `internal` (not
+/// `private`) access deliberately lets `GRDBLiveQueryAsyncStream.swift` reuse this exact type.
 final class GRDBLiveQueryRetryState: @unchecked Sendable {
 
     private let lock = NSLock()
@@ -136,63 +136,4 @@ final class GRDBLiveQueryRetryState: @unchecked Sendable {
         currentGeneration += 1
         lock.unlock()
     }
-}
-
-
-/// Creates one independent retry coordinator for every downstream subscriber.
-func makeGRDBLiveQueryRetryPublisher<Output>(
-    policy: GRDBLiveQueryRetryPolicy,
-    scheduler: GRDBLiveQueryRetryScheduler,
-    makeSource: @escaping () -> AnyPublisher<Output, Error>
-) -> AnyPublisher<Output, Error> {
-    Deferred {
-        let state = GRDBLiveQueryRetryState(policy: policy)
-        return makeGRDBLiveQueryRetryAttempt(
-            state: state,
-            scheduler: scheduler,
-            makeSource: makeSource
-        )
-        .handleEvents(receiveCancel: state.cancel)
-        .eraseToAnyPublisher()
-    }
-    .eraseToAnyPublisher()
-}
-
-
-private func makeGRDBLiveQueryRetryAttempt<Output>(
-    state: GRDBLiveQueryRetryState,
-    scheduler: GRDBLiveQueryRetryScheduler,
-    makeSource: @escaping () -> AnyPublisher<Output, Error>
-) -> AnyPublisher<Output, Error> {
-    guard let generation = state.beginAttempt() else {
-        return Empty(completeImmediately: true).eraseToAnyPublisher()
-    }
-
-    return makeSource()
-        .filter { _ in
-            state.shouldDeliver(generation: generation)
-        }
-        .handleEvents(receiveOutput: { _ in
-            state.didDeliver(generation: generation)
-        })
-        .catch { error -> AnyPublisher<Output, Error> in
-            guard let delay = state.retryDelay(
-                after: error,
-                generation: generation
-            ) else {
-                return Fail(error: error).eraseToAnyPublisher()
-            }
-
-            return scheduler.publisher(after: delay)
-                .setFailureType(to: Error.self)
-                .flatMap(maxPublishers: .max(1)) {
-                    makeGRDBLiveQueryRetryAttempt(
-                        state: state,
-                        scheduler: scheduler,
-                        makeSource: makeSource
-                    )
-                }
-                .eraseToAnyPublisher()
-        }
-        .eraseToAnyPublisher()
 }

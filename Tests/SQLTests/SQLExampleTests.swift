@@ -2857,6 +2857,25 @@ extension XLDocumentationTests {
             GRDBLiveQueryAsyncStreamTests.testCancellingConsumingTaskTearsDownObservationAndStopsFurtherFetches
         let _: (SQLRequestCompatibilityTests) -> () async throws -> Void =
             SQLRequestCompatibilityTests.testLegacyReadConformerStreamBridgesFromPublishLazily
+
+        // #309: `publish()`/`publishOne()` are now Combine convenience adapters over `stream()`/
+        // `streamOne()`. The real-GRDB demand/cancellation/retry/main-queue contract above is
+        // exercised by `XLPublisherTests`/`XLGRDBLiveQueryRetryTests` (already referenced above);
+        // `XLAsyncStreamPublisherTests` separately proves the adapter's demand-mapping and
+        // cancellation-vs-completion contract deterministically, against hand-controlled streams
+        // rather than a real database.
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testOneAtATimeDemandDeliversExactlyRequestedCountWithoutEagerDraining
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testAdditionalDemandGrantedFromReceiveResumesAStalledPull
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testSelfInflictedCancellationDoesNotDeliverASpuriousCompletion
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testValueDeliveredConcurrentlyWithCancellationIsNeverForwarded
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testNormalCompletionNotCausedByCancellationIsForwarded
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testXlLiveQueryPublisherDeliversOnTheMainQueueByDefault
     }
 
     func testDocumentationDeclaredQueries() throws {
