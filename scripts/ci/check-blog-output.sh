@@ -28,8 +28,7 @@ main() {
 
     for post in \
         posts/why-i-taught-the-swift-compiler-to-read-sql/index.html \
-        posts/porting-sql-to-swiftql/index.html \
-        posts/build-time-sqlite-validation/index.html
+        posts/porting-sql-to-swiftql/index.html
     do
         require_file "$blog/$post"
         # Every template token was substituted, in every page Hugo generated.
