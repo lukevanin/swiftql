@@ -370,6 +370,15 @@ and all twelve source articles. Pass an existing external destination when a
 separate output is useful, for example `./make-docs.sh /tmp/swiftql-docs`.
 The command never stages or commits files.
 
+The site also carries the blog under `Website/blog`, generated with
+[Hugo](https://gohugo.io). `make-docs.sh` requires Hugo 0.164.x on `PATH` and
+stops with an explicit error when it is absent or a different version, so
+install it first:
+
+```sh
+brew install hugo
+```
+
 Every Swift fence carries a marker for a named `XLDocumentationTests` scenario.
 `SQLDocumentationCatalogTests` verifies the complete source file set, marker
 registry, fence languages, and current API spellings. Generated documentation

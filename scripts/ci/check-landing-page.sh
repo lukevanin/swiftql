@@ -39,6 +39,7 @@ main() {
     require_content "$landing" \
         "\"/$hosting_base_path/documentation/swiftql/\""
     require_content "$landing" "\"/$hosting_base_path/swiftql-logo.png\""
+    require_content "$landing" "\"/$hosting_base_path/blog/\""
 
     # No external scripts, stylesheets, fonts, or images: the page must render
     # with the site alone.

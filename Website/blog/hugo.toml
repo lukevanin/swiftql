@@ -1,0 +1,41 @@
+baseURL = "/"
+locale = "en-us"
+title = "SwiftQL Blog"
+
+# Root-relative absolute paths throughout (matching ../index.html's own
+# style), not dot-relative ones: make-docs.sh passes the real --baseURL at
+# build time, and relURL/.RelPermalink render correctly against it. Do not
+# turn on relativeURLs: it rewrites every hardcoded "/..." href relative to
+# this site's own root, which silently breaks the cross-links to DocC's
+# output under basePath below.
+# No taxonomies (not used) and no separate /posts/ section index: the home
+# page already lists every post, so a second list page would be redundant.
+disableKinds = ["taxonomy", "term", "section"]
+
+# No third-party theme: layouts/ under this directory is a small,
+# hand-written set of templates that reuses the visual language of
+# ../index.html (the landing page). See layouts/partials/head.html for the
+# stylesheet this shares.
+theme = []
+
+[params]
+  description = "Design notes and technical writing on SwiftQL: SQL as a first-class language in Swift."
+  # Substituted by make-docs.sh's install_blog(), the same way it substitutes
+  # __BASE_PATH__ in ../index.html. Left as the literal token here so a local
+  # `hugo build` without that substitution fails loudly (a bare "swiftql" path
+  # segment in the output) rather than silently baking in the wrong host path.
+  basePath = "__BASE_PATH__"
+
+[markup.goldmark.renderer]
+  unsafe = false
+
+# Chroma's default themes hardcode light-on-dark colors via inline styles,
+# which fight the page's prefers-color-scheme theming and don't match the
+# landing page's own syntax colors. "bw" emits no color at all, so code
+# blocks just inherit article pre/code's normal light/dark styling.
+[markup.highlight]
+  style = "bw"
+  noClasses = true
+
+[services.rss]
+  limit = 20

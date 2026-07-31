@@ -870,6 +870,15 @@ jobs:
             "$RESOLUTION_MODE" \
             "$RUNNER_TEMP/swift5-client.log"
 
+      # make-docs.sh builds Website/blog with Hugo as part of the site, so this
+      # job needs it for the same reason documentation-build.yml does.
+      - name: Install Hugo
+        if: ${{ matrix.swift_series == '6.0' && matrix.resolution == 'committed' }}
+        run: |
+          set -euo pipefail
+          brew install hugo
+          hugo version
+
       - name: Build and inspect DocC static site
         if: ${{ matrix.swift_series == '6.0' && matrix.resolution == 'committed' }}
         run: |

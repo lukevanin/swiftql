@@ -96,6 +96,16 @@ jobs:
             --retry 12 --retry-all-errors --retry-delay 5 \
             "${site_url}documentation/swiftql/" \
             --output /dev/null
+          blog="$RUNNER_TEMP/swiftql-blog.html"
+          curl --fail --silent --show-error \
+            --retry 12 --retry-all-errors --retry-delay 5 \
+            "${site_url}blog/" \
+            --output "$blog"
+          grep -qF '<title>SwiftQL Blog</title>' "$blog"
+          curl --fail --silent --show-error \
+            --retry 12 --retry-all-errors --retry-delay 5 \
+            "${site_url}blog/posts/why-i-taught-the-swift-compiler-to-read-sql/" \
+            --output /dev/null
           curl --fail --silent --show-error \
             --retry 12 --retry-all-errors --retry-delay 5 \
             "${site_url}documentation/swiftql/gettingstarted/" \
