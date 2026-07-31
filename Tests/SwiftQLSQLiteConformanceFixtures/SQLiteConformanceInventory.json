@@ -425,6 +425,34 @@
       ]
     },
     {
+      "id": "evidence.syntax.compound.render-scalar",
+      "source_path": "Tests/SQLTests/ScalarCommonTableTests.swift",
+      "test_case": "ScalarCommonTableTests.testScalarCommonTableRendersExplicitColumnList",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.compound.sqlite-scalar",
+      "source_path": "Tests/SQLTests/ScalarCommonTableTests.swift",
+      "test_case": "ScalarCommonTableTests.testScalarCompoundQueryExecutesWithoutWrapper",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
       "id": "evidence.syntax.cte.sqlite-recursive",
       "source_path": "Tests/SQLTests/RecursiveCommonTableConstructionTests.swift",
       "test_case": "RecursiveCommonTableConstructionTests.testCompositeReferenceRendersAndExecutesRecursiveCTE",
@@ -433,6 +461,34 @@
         "execution",
         "prepare",
         "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.cte.render-materialization",
+      "source_path": "Tests/SQLTests/MaterializedCommonTableTests.swift",
+      "test_case": "MaterializedCommonTableTests.testMaterializedCommonTableRendersKeyword",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.cte.sqlite-materialization",
+      "source_path": "Tests/SQLTests/MaterializedCommonTableTests.swift",
+      "test_case": "MaterializedCommonTableTests.testMaterializedCommonTableExecutes",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
         "semantic-oracle",
         "swift-typecheck"
       ],
@@ -1538,6 +1594,50 @@
         "execution",
         "prepare",
         "rendering",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.join.render-natural-using",
+      "source_path": "Tests/SQLTests/NaturalUsingJoinTests.swift",
+      "test_case": "NaturalUsingJoinTests.testNaturalJoinRendersWithoutConstraint",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.join.sqlite-natural",
+      "source_path": "Tests/SQLTests/NaturalUsingJoinTests.swift",
+      "test_case": "NaturalUsingJoinTests.testNaturalJoinExecutesMatchingSharedColumn",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "semantic-oracle",
+        "swift-typecheck"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.syntax.join.sqlite-using",
+      "source_path": "Tests/SQLTests/NaturalUsingJoinTests.swift",
+      "test_case": "NaturalUsingJoinTests.testUsingJoinExecutesMatchingSharedColumn",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
         "semantic-oracle",
         "swift-typecheck"
       ],
@@ -5971,8 +6071,8 @@
       "kind": "syntax",
       "family": "compound",
       "title": "Direct scalar compound rows without SQLScalarResult wrappers",
-      "status": "unimplemented",
-      "adoption_status": "syntax-gated",
+      "status": "supported",
+      "adoption_status": "already-covered",
       "public_api": [
         {
           "symbol": "XLQueryStatement.union/unionAll/intersect/except",
@@ -5999,18 +6099,13 @@
       "schema_requirements": [
         "A stable one-column scalar row layout and alias are required across every branch."
       ],
-      "evidence_ids": [],
-      "deviations": [
-        "Current compound APIs rebuild row metadata through XLResult and require a wrapper for scalar rows."
+      "evidence_ids": [
+        "evidence.syntax.compound.render-scalar",
+        "evidence.syntax.compound.sqlite-scalar"
       ],
-      "follow_up_issues": [
-        43
-      ],
-      "deferral": {
-        "blocking_issue": 43,
-        "target_milestone": "v1.4",
-        "reason": "Issue #43 owns direct scalar compound and CTE row support."
-      },
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
       "provenance": []
     },
     {
@@ -6059,8 +6154,8 @@
       "kind": "syntax",
       "family": "cte",
       "title": "MATERIALIZED and NOT MATERIALIZED CTE hints",
-      "status": "unimplemented",
-      "adoption_status": "syntax-gated",
+      "status": "supported",
+      "adoption_status": "already-covered",
       "public_api": [
         {
           "symbol": "XLWithStatement",
@@ -6084,18 +6179,13 @@
       "schema_requirements": [
         "A typed CTE definition with an explicit materialization policy is required."
       ],
-      "evidence_ids": [],
-      "deviations": [
-        "SwiftQL does not currently expose SQLite materialization hints."
+      "evidence_ids": [
+        "evidence.syntax.cte.render-materialization",
+        "evidence.syntax.cte.sqlite-materialization"
       ],
-      "follow_up_issues": [
-        10
-      ],
-      "deferral": {
-        "blocking_issue": 10,
-        "target_milestone": "v1.4",
-        "reason": "Issue #10 owns materialized and non-materialized common tables."
-      },
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
       "provenance": []
     },
     {
@@ -7859,8 +7949,8 @@
       "kind": "syntax",
       "family": "join",
       "title": "NATURAL JOIN and JOIN USING",
-      "status": "unimplemented",
-      "adoption_status": "syntax-gated",
+      "status": "supported",
+      "adoption_status": "already-covered",
       "public_api": [
         {
           "symbol": "Join",
@@ -7883,18 +7973,14 @@
       "schema_requirements": [
         "USING needs typed shared-column identity; NATURAL JOIN needs an explicit overlap policy."
       ],
-      "evidence_ids": [],
-      "deviations": [
-        "Join constraints currently use ON expressions or no constraint for CROSS JOIN."
+      "evidence_ids": [
+        "evidence.syntax.join.render-natural-using",
+        "evidence.syntax.join.sqlite-natural",
+        "evidence.syntax.join.sqlite-using"
       ],
-      "follow_up_issues": [
-        45
-      ],
-      "deferral": {
-        "blocking_issue": 45,
-        "target_milestone": "v1.4",
-        "reason": "Issue #45 owns NATURAL JOIN and USING."
-      },
+      "deviations": [],
+      "follow_up_issues": [],
+      "deferral": null,
       "provenance": []
     },
     {
