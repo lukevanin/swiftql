@@ -241,11 +241,20 @@ new, additive surfaces with no changes to any existing public API.
 
 - The validator proves schema/parameter/capability agreement with the real
   SQLite parser, not result values, row counts, or application behavior.
-- A target's manifest and snapshot are hand-authored or externally generated;
-  no macro or tool in this release produces a #292 manifest from source
-  (tracked as a future #26 boundary).
-- The plugin runs `swift build`; it is not integrated into Xcode's own build
-  system UI beyond what SwiftPM plugins already provide there.
+- Manifest entries can be generated in-process:
+  `SQLiteBuildValidationQueryEntry(id:descriptor:declaredAliases:)` projects an
+  existing `XLStaticQueryDescriptor` into sidecar form, deriving the SQL,
+  parameter layout, and result columns, and recovering each parameter's
+  physical placeholder index by scanning the rendered SQL. What no macro or
+  tool in this release does is emit a manifest from a `@SQLQuery` declaration:
+  the v1.5.1 declaration macro builds on the transitional `sql { }` statement
+  path and does not lower to a descriptor, so that route stays a future #26
+  boundary gated on the v2 catalog work (#212, #214). A target's snapshot is
+  still supplied by you.
+- The plugin is verified under `swift build`. Building a plugin-adopting
+  package in Xcode 26.5 fails before validation runs, reporting `Build input
+  file cannot be found` for the validator executable, on a valid manifest as
+  well as an invalid one (#492).
 
 ## [1.5.1] - 2026-07-26
 
