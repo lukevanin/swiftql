@@ -96,6 +96,9 @@ main() {
 
     install_landing_page "$source_root" "$output" "$hosting_base_path"
     "$source_root/scripts/ci/check-landing-page.sh" "$output" "$hosting_base_path"
+
+    install_blog "$source_root" "$output" "$hosting_base_path"
+    "$source_root/scripts/ci/check-blog-output.sh" "$output" "$hosting_base_path"
 }
 
 # Replaces DocC's generated root shell with the hand-written landing page from
@@ -118,6 +121,53 @@ install_landing_page() {
     cp "$landing_website/swiftql-logo.png" "$landing_output/swiftql-logo.png"
     sed -e "s|__BASE_PATH__|$landing_base_path|g" \
         "$landing_website/index.html" > "$landing_output/index.html"
+}
+
+# Builds the Hugo site at Website/blog/ into $output/blog. Hugo's own hosted
+# templates read basePath from hugo.toml (substituted the same way
+# install_landing_page substitutes __BASE_PATH__ above) to link back to the
+# DocC pages and the landing page, both siblings of blog/ rather than
+# something Hugo generates itself.
+install_blog() {
+    blog_source_root="$1"
+    blog_output="$2"
+    blog_base_path="$3"
+    blog_website="$blog_source_root/Website/blog"
+    blog_expected_hugo_version="hugo v0.164.0"
+
+    if ! command -v hugo >/dev/null 2>&1; then
+        printf 'error: hugo is required to build Website/blog and was not found\n' >&2
+        return 1
+    fi
+    case "$(hugo version)" in
+        "$blog_expected_hugo_version"*) ;;
+        *)
+            printf 'error: expected %s, found: %s\n' \
+                "$blog_expected_hugo_version" "$(hugo version)" >&2
+            return 1
+            ;;
+    esac
+
+    if [ ! -f "$blog_website/hugo.toml" ]; then
+        printf 'error: missing blog source: %s\n' "$blog_website/hugo.toml" >&2
+        return 1
+    fi
+
+    blog_build_dir="$(mktemp -d)"
+    trap 'rm -rf "$blog_build_dir"' EXIT
+    cp -R "$blog_website/." "$blog_build_dir/"
+    sed -e "s|__BASE_PATH__|$blog_base_path|g" \
+        "$blog_website/hugo.toml" > "$blog_build_dir/hugo.toml"
+
+    # Deliberately not --minify: minification drops attribute quotes when it
+    # safely can, which breaks scripts/ci/check-blog-output.sh's literal
+    # href="..." checks and makes the output harder to read in CI failures.
+    ( cd "$blog_build_dir" && hugo \
+        --baseURL "/$blog_base_path/blog/" \
+        --destination "$blog_output/blog" )
+
+    rm -rf "$blog_build_dir"
+    trap - EXIT
 }
 
 main "$@"

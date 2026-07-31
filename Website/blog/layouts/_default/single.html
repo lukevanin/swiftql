@@ -1,0 +1,12 @@
+{{ define "main" }}
+<div class="wrap">
+  <header class="article-header">
+    <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time>
+    <h1>{{ .Title }}</h1>
+  </header>
+  <article>
+    {{ .Content }}
+    <a class="back-link" href="/{{ .Site.Params.basePath }}/blog/">Back to the blog</a>
+  </article>
+</div>
+{{ end }}
