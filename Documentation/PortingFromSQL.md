@@ -281,17 +281,12 @@ checking:
    `schema.nullableTable`, rather than only being nullable in the result.
 
 Beyond those, the current gaps are recorded rather than hidden. As of the v1.3
-conformance inventory, of 111 tracked features, 104 are supported with evidence
+conformance inventory, of 111 tracked features, 107 are supported with evidence
 from a real SQLite engine, and the exceptions are:
 
-- `NATURAL` and `USING` join forms are not implemented. Use an explicit `ON`
-  condition.
-- CTE materialization hints (`MATERIALIZED`, `NOT MATERIALIZED`) are not
-  implemented.
 - A typed DDL model is not implemented. `sqlCreate` creates a basic table and
   **does not migrate an existing schema**. Use GRDB's `DatabaseMigrator`
   alongside SwiftQL for migrations.
-- One compound-query direct-scalar form is not implemented.
 - Nested transactions and single-connection visibility are capability-gated,
   meaning they depend on the driver in use.
 
