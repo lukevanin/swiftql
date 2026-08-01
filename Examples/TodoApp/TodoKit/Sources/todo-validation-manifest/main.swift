@@ -7,7 +7,10 @@ import SwiftQLSQLiteBuildValidationValidator
 import TodoKit
 
 // Regenerates the two files SwiftQL's build-time validation plugin reads out
-// of the TodoKit target directory:
+// of the target it is attached to. That is TodoKitBuildValidation today, and
+// the destination is an argument rather than a constant so that folding the
+// validation target back into TodoKit (see BuildValidation.swift) needs no
+// change here:
 //
 //   swiftql-build-validation-snapshot.sqlite — the demo's schema, as a
 //       checked-in SQLite file the validator prepares statements against.
