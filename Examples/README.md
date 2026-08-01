@@ -13,7 +13,31 @@ plus the compiled module it imports.
    then build (⌘B).
 4. Open `GettingStarted.playground` and run a page.
 
-Step 3 matters. A playground imports modules that the workspace's active
+## The pages
+
+`GettingStarted.playground` walks the same arc as the
+[Getting started guide](../Sources/SwiftQL/SwiftQL.docc/GettingStarted.md),
+with the explanation and the runnable code interleaved. Each page opens its own
+database and runs on its own, so you can start anywhere, but they read in
+order and are linked with `@previous` and `@next`.
+
+| Page | Covers |
+| --- | --- |
+| 1 Defining tables | `@SQLTable`, the Swift-to-SQLite type mapping, `GRDBDatabase`, `sqlCreate` |
+| 2 Inserting data | `sqlInsert`, `execute()`, nullable columns |
+| 3 Running select queries | `sql { }`, `fetchAll()`, `fetchOne()`, the `$0` shorthand, reusing a request |
+| 4 Update statements | `schema.into`, `Update`, `Setting`, updating a range |
+| 5 Delete statements | `Delete`, matching nothing, deleting a range |
+| 6 Named bindings | `XLNamedBindingReference`, parameter layouts, invocation packets, `@SQLQuery` |
+| 7 Lazy result sets | `withResultSet(_:)`, stopping early, the `XLResultSet` lifetime rules |
+| 8 Transactions | `withTransaction(_:)`, reads seeing earlier writes, rollback |
+| 9 Live queries | `stream()`, `streamOne()`, async iteration, cancellation |
+
+Every page prints its results and states the expected output next to the code
+that produces it, so a page whose output has drifted is visible without having
+to know what it should have said.
+
+Step 3 above matters. A playground imports modules that the workspace's active
 scheme has already built for the playground's platform, so selecting a scheme
 that does not build `SwiftQLExamples` for macOS gives you "no such module
 'SwiftQLExamples'" on the import line. The playground sets
@@ -69,8 +93,24 @@ carries the access level without the redundancy.
 | Destination | My Mac (arm64), macOS 26 |
 
 The package itself supports a much wider matrix (see
-[COMPATIBILITY.md](../COMPATIBILITY.md)); the row above records what the
+[COMPATIBILITY.md](../COMPATIBILITY.md)); the rows above record what the
 workspace and playground were opened and run against.
+
+## Two things a page has to work around
+
+Live queries deliver on the main queue. The GRDB adapter starts its
+observation with GRDB's default scheduling, so a page that blocks the main
+thread waiting for a snapshot deadlocks against the delivery it is waiting for.
+The live-queries page drives the main run loop instead, with
+`runMainLoop(until:)`. An application never needs this, because an observation
+there lives in a `Task` owned by a view model and nothing waits on the main
+thread.
+
+Nullable columns cannot currently be assigned in a `Setting` closure. The
+generated setter's type is `Optional<any XLExpression<T?>>`, where the outer
+`Optional` means "leave this column out of the `SET` clause", and that collides
+with the value's own optionality. The update page therefore only sets
+non-optional columns.
 
 ## Keeping it working
 
