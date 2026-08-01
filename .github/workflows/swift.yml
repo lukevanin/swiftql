@@ -795,6 +795,21 @@ jobs:
           retention-days: 30
           compression-level: 9
 
+      # The Getting Started playground is not compiled by `swift build` or
+      # exercised by `swift test`, so an API change can break it silently.
+      # One macOS cell is enough: the pages are platform-agnostic Swift and
+      # the check costs a build of every page.
+      - name: Check the Getting Started playground
+        id: playground-pages
+        if: ${{ matrix.platform == 'macos' && matrix.resolution == 'committed' }}
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/check-playground-pages.sh \
+            "$RUNNER_TEMP/swiftql-playground"
+          cat "$RUNNER_TEMP/swiftql-playground/summary.md" \
+            >> "$GITHUB_STEP_SUMMARY"
+
       - name: Run bounded live-query stress loop
         id: live-query-stress
         if: ${{ matrix.swift_series == '6.0' && matrix.resolution == 'committed' }}
