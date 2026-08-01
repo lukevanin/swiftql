@@ -18,5 +18,9 @@
 // Keeping the plugin on a target the app does not link means `swift build`
 // and `swift test` still run validation on every build, while the Xcode app
 // target — which never pulls this target into its graph — builds cleanly.
-// Reported on issue #469.
+//
+// The underlying bug is issue #492, fixed by PR #501, which renames the
+// executable target to match its product. Once that lands, fold this target
+// back into TodoKit: move the two artifacts beside TodoDatabase.swift, attach
+// the plugin to TodoKit, and delete this file.
 enum TodoKitBuildValidation {}

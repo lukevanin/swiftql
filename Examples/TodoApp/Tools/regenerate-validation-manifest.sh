@@ -9,8 +9,9 @@
 # generator refuses to write artifacts the validator would reject, so a
 # successful run means the plugin will pass.
 #
-# CI runs this and then checks the working tree is clean, so a stale manifest
-# fails the build rather than drifting quietly.
+# Nothing runs this automatically yet. #475 adds the CI job for the demo, and
+# the intent there is to run this and then check the working tree is clean, so
+# a stale manifest fails the build rather than drifting quietly.
 
 set -euo pipefail
 
