@@ -1,0 +1,261 @@
+@Tutorial(time: 15) {
+    @Intro(title: "Query a SQLite database end to end") {
+        Build one complete SwiftQL program. It describes two tables in Swift,
+        opens a scratch SQLite database, writes a few rows inside a
+        transaction, joins the tables behind a named binding, and decodes the
+        matching rows into a Swift array.
+
+        The finished program is about seventy lines and uses only APIs that
+        ship in SwiftQL 1.5. Each step adds to the same file, so the code panel
+        highlights exactly what changed.
+    }
+
+    @Section(title: "Describe the tables") {
+        @ContentAndMedia {
+            A SwiftQL table is a Swift `struct` annotated with `@SQLTable`.
+            The property names become column names and the property types
+            decide how values are bound and decoded, so the schema and the
+            Swift model stay the same declaration.
+
+            A query that reads columns from more than one table needs a
+            projection type as well. That is a `struct` annotated with
+            `@SQLResult`, and it carries only the columns you asked for.
+        }
+
+        @Steps {
+            @Step {
+                Create a Swift file and import SwiftQL. `Foundation` comes
+                along for `URL`.
+
+                @Code(name: "AlbumCredits.swift", file: EndToEndQuery-01-01.swift)
+            }
+
+            @Step {
+                Add a `Studio` table. Each property is non-optional, so
+                SwiftQL emits every column with a `NOT NULL` constraint.
+
+                @Code(name: "AlbumCredits.swift", file: EndToEndQuery-01-02.swift)
+            }
+
+            @Step {
+                Add an `Album` table whose `studioId` refers to a studio's
+                `id`. SwiftQL does not generate foreign keys, so the
+                relationship lives in the join you write later.
+
+                @Code(name: "AlbumCredits.swift", file: EndToEndQuery-01-03.swift)
+            }
+
+            @Step {
+                Declare `AlbumCredit` with `@SQLResult`. It holds the three
+                columns the query returns rather than either whole table.
+                `@SQLResult` generates a `columns(...)` factory that you use
+                to build the projection inside a query.
+
+                @Code(name: "AlbumCredits.swift", file: EndToEndQuery-01-04.swift)
+            }
+        }
+    }
+
+    @Section(title: "Open a database and create the tables") {
+        @ContentAndMedia {
+            `GRDBDatabase` is the SQLite adapter that ships with SwiftQL. It
+            opens a database file and hands out requests, which are rendered
+            SQL statements you can execute more than once.
+
+            Passing a temporary file URL gives you a database you can delete
+            afterwards, which is what the test suite does when it runs this
+            program.
+        }
+
+        @Steps {
+            @Step {
+                Write a function that takes the country to search for and the
+                database file to use, then open the database. Passing `nil`
+                for `logger` turns off statement logging.
+
+                @Code(name: "AlbumCredits.swift", file: EndToEndQuery-02-01.swift)
+            }
+
+            @Step {
+                Create both tables. `sqlCreate` renders
+                `CREATE TABLE IF NOT EXISTS`, so running it against a database
+                that already has the tables does nothing.
+
+                @Code(name: "AlbumCredits.swift", file: EndToEndQuery-02-02.swift)
+            }
+        }
+    }
+
+    @Section(title: "Insert the records") {
+        @ContentAndMedia {
+            Rows are ordinary Swift values. `sqlInsert` turns one value into an
+            insert statement with the value's properties already bound, which
+            means you never write the column list by hand.
+
+            Wrapping the inserts in `withTransaction(_:)` commits them
+            together. If the closure throws, every write inside it rolls back.
+        }
+
+        @Steps {
+            @Step {
+                Build the studios and albums you want in the database. Two of
+                the three albums were recorded at the British studio, which is
+                what the query will select later.
+
+                @Code(name: "AlbumCredits.swift", file: EndToEndQuery-03-01.swift)
+            }
+
+            @Step {
+                Insert them inside a transaction. The `scope` the closure
+                receives works like the database itself, so you call
+                `makeRequest(with:)` on it the same way.
+
+                @Code(name: "AlbumCredits.swift", file: EndToEndQuery-03-02.swift)
+            }
+        }
+    }
+
+    @Section(title: "Build the query") {
+        @ContentAndMedia {
+            The `sql` builder describes a statement without running it. Inside
+            the closure you ask the schema for the tables you need, build the
+            projection, and write the clauses in the order SQLite expects.
+
+            An `XLNamedBindingReference` stands in for a value you supply at
+            call time. The rendered SQL contains `:country` rather than a
+            literal, so one request serves every country you ask about.
+        }
+
+        @Steps {
+            @Step {
+                Declare the named binding for the country. The generic
+                parameter is the Swift type the placeholder accepts, and the
+                name is written without a leading colon.
+
+                @Code(name: "AlbumCredits.swift", file: EndToEndQuery-04-01.swift)
+            }
+
+            @Step {
+                Write the query. `AlbumCredit.columns(...)` maps each result
+                property to a column expression, `Join.Inner` matches albums to
+                their studio, and `Where` compares the studio's country against
+                the binding.
+
+                @Code(name: "AlbumCredits.swift", file: EndToEndQuery-04-02.swift)
+            }
+
+            @Step {
+                Turn the query into a request and build the values for this
+                call. `parameterLayout` describes the placeholders the request
+                rendered, and `validatingComplete()` rejects a packet that
+                misses one or carries a value the layout does not know about.
+
+                @Code(name: "AlbumCredits.swift", file: EndToEndQuery-04-03.swift)
+            }
+        }
+    }
+
+    @Section(title: "Fetch and check the results") {
+        @ContentAndMedia {
+            `fetchAll(bindings:)` runs the request with the packet you built
+            and decodes every matching row into `AlbumCredit`. The rows arrive
+            in the order the `OrderBy` clause asked for.
+
+            Once this runs, <doc:GettingStarted> covers updates, deletes and
+            the rest of the everyday API, <doc:Queries> covers grouping,
+            subqueries and common table expressions, <doc:Expressions> covers
+            operators and typed conditions, and <doc:DeclaredQueries> shows how
+            to declare a query as a function with the `@SQLQuery` macro instead
+            of building it inline.
+        }
+
+        @Steps {
+            @Step {
+                Fetch the rows and return them.
+
+                @Code(name: "AlbumCredits.swift", file: EndToEndQuery-05-01.swift)
+            }
+
+            @Step {
+                Print each credit so you can see the decoded values. Calling
+                `albumCredits(recordedIn: "GB", databaseURL: url)` writes
+                `1966  Revolver (Abbey Road)` and
+                `1969  Abbey Road (Abbey Road)`, and leaves out the album
+                recorded in the US.
+
+                @Code(name: "AlbumCredits.swift", file: EndToEndQuery-05-02.swift)
+            }
+        }
+    }
+
+    @Assessments {
+        @MultipleChoice {
+            Where does the value `"GB"` end up in the SQL that SwiftQL renders
+            for `creditsQuery`?
+
+            @Choice(isCorrect: false) {
+                Inlined as a string literal in the `WHERE` clause.
+
+                @Justification(reaction: "Try again") {
+                    A literal would force a new statement for every country.
+                    The query refers to a named binding instead.
+                }
+            }
+
+            @Choice(isCorrect: true) {
+                Nowhere. The SQL contains `:country`, and the value travels in
+                the bindings packet.
+
+                @Justification(reaction: "That's right") {
+                    The request holds rendered SQL and a description of its
+                    parameters. Values for one call live in a separate
+                    `XLInvocationBindings` packet.
+                }
+            }
+
+            @Choice(isCorrect: false) {
+                In the `Studio` table's `country` column.
+
+                @Justification(reaction: "Try again") {
+                    The column already holds each studio's country. `"GB"` is
+                    the value the query compares against.
+                }
+            }
+        }
+
+        @MultipleChoice {
+            Why does the query need `AlbumCredit` rather than selecting
+            `Album` or `Studio`?
+
+            @Choice(isCorrect: true) {
+                The result mixes columns from both tables, so it needs a type
+                that describes that combination.
+
+                @Justification(reaction: "That's right") {
+                    `@SQLResult` declares an arbitrary set of columns and
+                    generates the `columns(...)` factory the query uses to
+                    build it.
+                }
+            }
+
+            @Choice(isCorrect: false) {
+                `@SQLTable` types cannot be used in a join.
+
+                @Justification(reaction: "Try again") {
+                    Joining `@SQLTable` types is exactly what `Join.Inner`
+                    does here. The projection type only decides which columns
+                    come back.
+                }
+            }
+
+            @Choice(isCorrect: false) {
+                `fetchAll(bindings:)` only decodes `@SQLResult` types.
+
+                @Justification(reaction: "Try again") {
+                    `fetchAll()` decodes whatever row type the query selects,
+                    including a whole `@SQLTable` value.
+                }
+            }
+        }
+    }
+}

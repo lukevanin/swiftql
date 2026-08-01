@@ -119,6 +119,10 @@ private let documentationTests = [
         "XLDocumentationTests.testDocumentationNumericDateCodecs",
         XLDocumentationTests.testDocumentationNumericDateCodecs
     ),
+    DocumentationTestReference(
+        "XLDocumentationTests.testDocumentationTutorialEndToEndQuery",
+        XLDocumentationTests.testDocumentationTutorialEndToEndQuery
+    ),
 ]
 
 
@@ -143,6 +147,27 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         "SwiftQL.md": "XLDocumentationTests.testDocumentationQuickStart",
     ]
 
+    /// Tutorial pages carry no Markdown fences, so instead of a `<!-- test:
+    /// -->` marker each one names the compiled walkthrough its `@Code(file:)`
+    /// snapshots are cut from, and the scenario that runs the last snapshot.
+    private let expectedTutorialWalkthroughByFile = [
+        "EndToEndQuery.tutorial": TutorialWalkthrough(
+            source: "Tests/SQLTests/SQLTutorialWalkthrough.swift",
+            marker: "swiftql-tutorial-walkthrough",
+            expectedTest: "XLDocumentationTests.testDocumentationTutorialEndToEndQuery"
+        ),
+    ]
+
+    /// A tutorial page with no code of its own. It only lists the tutorials
+    /// that do have code, so there is nothing to check against a walkthrough.
+    private let tableOfContentsTutorialFiles: Set<String> = ["SwiftQL.tutorial"]
+
+    struct TutorialWalkthrough {
+        let source: String
+        let marker: String
+        let expectedTest: String
+    }
+
     func testEverySwiftExampleMapsToACompiledDocumentationScenario() throws {
         let catalog = documentationCatalogURL()
         let articleURLs = try FileManager.default.contentsOfDirectory(
@@ -157,9 +182,11 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         )
         XCTAssertEqual(
             Set(documentationTests.map(\.name)),
-            Set(expectedMarkerByFile.values).union([
-                "XLDocumentationTests.testDocumentationREADME",
-            ]),
+            Set(expectedMarkerByFile.values)
+                .union(expectedTutorialWalkthroughByFile.values.map(\.expectedTest))
+                .union([
+                    "XLDocumentationTests.testDocumentationREADME",
+                ]),
             "Every marker must target a compile-time-checked documentation scenario."
         )
 
@@ -178,6 +205,137 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             file: readme.lastPathComponent,
             expectedTest: "XLDocumentationTests.testDocumentationREADME"
         )
+    }
+
+    /// The Markdown coverage check above cannot see tutorials, because a
+    /// `.tutorial` page shows code through `@Code(file:)` resources instead of
+    /// fenced examples. This is the same contract for those resources: every
+    /// snapshot a reader sees is cut from source the package compiles, the
+    /// snapshots only ever grow, and the last one is the compiled walkthrough
+    /// in full.
+    func testEveryTutorialCodeSnapshotIsCutFromCompiledSource() throws {
+        let catalog = documentationCatalogURL()
+        let tutorialURLs = try tutorialFileURLs(in: catalog)
+        XCTAssertEqual(
+            Set(tutorialURLs.map(\.lastPathComponent)),
+            Set(expectedTutorialWalkthroughByFile.keys)
+                .union(tableOfContentsTutorialFiles),
+            "Update the tutorial registry when the source catalog changes."
+        )
+
+        var referencedResources: Set<String> = []
+        for tutorialURL in tutorialURLs {
+            let file = tutorialURL.lastPathComponent
+            let contents = try String(contentsOf: tutorialURL, encoding: .utf8)
+
+            for image in imageDirectives(in: contents) {
+                referencedResources.insert(image.source)
+                XCTAssertFalse(
+                    image.alt.trimmingCharacters(in: .whitespaces).isEmpty,
+                    "\(file) references \(image.source) without alternative text."
+                )
+                XCTAssertGreaterThan(
+                    image.alt.split(separator: " ").count,
+                    5,
+                    "\(file) gives \(image.source) alternative text too short to describe it."
+                )
+            }
+
+            let codeSnapshots = codeDirectives(in: contents)
+            guard let walkthrough = expectedTutorialWalkthroughByFile[file] else {
+                XCTAssertTrue(
+                    codeSnapshots.isEmpty,
+                    "\(file) shows code but is registered as a table of contents."
+                )
+                continue
+            }
+
+            XCTAssertFalse(
+                codeSnapshots.isEmpty,
+                "\(file) must show at least one code snapshot."
+            )
+            XCTAssertEqual(
+                Set(codeSnapshots.map(\.file)).count,
+                codeSnapshots.count,
+                "\(file) shows the same snapshot more than once."
+            )
+            XCTAssertEqual(
+                codeSnapshots.map(\.file),
+                codeSnapshots.map(\.file).sorted(),
+                "\(file) shows its snapshots out of order."
+            )
+            referencedResources.formUnion(codeSnapshots.map(\.file))
+
+            let walkthroughSource = try String(
+                contentsOf: repositoryRootURL()
+                    .appendingPathComponent(walkthrough.source),
+                encoding: .utf8
+            )
+            XCTAssertTrue(
+                walkthroughSource.contains(file),
+                "\(walkthrough.source) must name the tutorial it feeds."
+            )
+            XCTAssertTrue(
+                walkthroughSource.contains(walkthrough.expectedTest),
+                "\(walkthrough.source) must name \(walkthrough.expectedTest)."
+            )
+
+            let compiled = try markedRegion(
+                named: walkthrough.marker,
+                in: walkthroughSource,
+                source: walkthrough.source
+            )
+            var previous: [String] = []
+            var previousName = ""
+            for snapshot in codeSnapshots {
+                let resourceURL = try resourceURL(named: snapshot.file, in: catalog)
+                let lines = try String(contentsOf: resourceURL, encoding: .utf8)
+                    .components(separatedBy: "\n")
+                    .dropLast()
+                XCTAssertFalse(lines.isEmpty, "\(snapshot.file) is empty.")
+                XCTAssertTrue(
+                    isOrderedSubsequence(Array(lines), of: compiled),
+                    "\(snapshot.file) contains lines that are not in \(walkthrough.source)."
+                )
+                XCTAssertTrue(
+                    isOrderedSubsequence(previous, of: Array(lines)),
+                    "\(snapshot.file) drops lines that \(previousName) already showed."
+                )
+                if !previousName.isEmpty {
+                    XCTAssertGreaterThan(
+                        lines.count,
+                        previous.count,
+                        "\(snapshot.file) adds nothing to \(previousName)."
+                    )
+                }
+                previous = Array(lines)
+                previousName = snapshot.file
+            }
+            XCTAssertEqual(
+                previous,
+                compiled,
+                "\(previousName) must be the whole \(walkthrough.marker) region of \(walkthrough.source)."
+            )
+        }
+
+        let resources = try FileManager.default.contentsOfDirectory(
+            at: catalog.appendingPathComponent("Tutorials/Resources", isDirectory: true),
+            includingPropertiesForKeys: nil
+        ).map(\.lastPathComponent)
+        XCTAssertEqual(
+            Set(resources),
+            referencedResources,
+            "Every tutorial resource must be referenced by exactly the tutorials that ship it."
+        )
+        for resource in resources {
+            XCTAssertTrue(
+                try pathExistsWithExactCase(
+                    "Sources/SwiftQL/SwiftQL.docc/Tutorials/Resources/\(resource)",
+                    below: repositoryRootURL()
+                ),
+                "Tutorial resource does not resolve with exact case: \(resource)"
+            )
+        }
     }
 
     /// The execution-model contract moved out of `GettingStarted.md` so the
@@ -693,6 +851,94 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "SQLNamedBindingReference",
         ] {
             XCTAssertFalse(contents.contains(staleName), "\(file) uses stale API name \(staleName).")
+        }
+    }
+
+    private func tutorialFileURLs(in catalog: URL) throws -> [URL] {
+        guard let enumerator = FileManager.default.enumerator(
+            at: catalog,
+            includingPropertiesForKeys: nil
+        ) else {
+            throw CocoaError(.fileReadUnknown)
+        }
+        return enumerator
+            .compactMap { $0 as? URL }
+            .filter { $0.pathExtension == "tutorial" }
+            .sorted { $0.path < $1.path }
+    }
+
+    private func resourceURL(named name: String, in catalog: URL) throws -> URL {
+        guard let enumerator = FileManager.default.enumerator(
+            at: catalog,
+            includingPropertiesForKeys: nil
+        ) else {
+            throw CocoaError(.fileReadUnknown)
+        }
+        let matches = enumerator
+            .compactMap { $0 as? URL }
+            .filter { $0.lastPathComponent == name }
+        // DocC resolves `@Code(file:)` and `@Image(source:)` by file name
+        // alone, so a name that matches twice is ambiguous in the built site
+        // even though both files exist.
+        XCTAssertEqual(matches.count, 1, "\(name) does not resolve to one catalog resource.")
+        return try XCTUnwrap(matches.first)
+    }
+
+    private func markedRegion(
+        named marker: String,
+        in contents: String,
+        source: String
+    ) throws -> [String] {
+        let lines = contents.components(separatedBy: "\n")
+        let begin = lines.firstIndex(of: "// \(marker)-begin")
+        let end = lines.firstIndex(of: "// \(marker)-end")
+        let start = try XCTUnwrap(begin, "\(source) is missing // \(marker)-begin.")
+        let finish = try XCTUnwrap(end, "\(source) is missing // \(marker)-end.")
+        XCTAssertLessThan(start, finish, "\(source) closes \(marker) before it opens it.")
+        return Array(lines[(start + 1) ..< finish])
+    }
+
+    private func isOrderedSubsequence(_ candidate: [String], of whole: [String]) -> Bool {
+        var index = whole.startIndex
+        for line in candidate {
+            guard let match = whole[index...].firstIndex(of: line) else {
+                return false
+            }
+            index = whole.index(after: match)
+        }
+        return true
+    }
+
+    private func codeDirectives(in contents: String) -> [(name: String, file: String)] {
+        let expression = try? NSRegularExpression(
+            pattern: #"@Code\(name: "([^"]+)", file: ([^)\s]+)\)"#
+        )
+        return matches(of: expression, in: contents).map {
+            (name: $0[0], file: $0[1])
+        }
+    }
+
+    private func imageDirectives(in contents: String) -> [(source: String, alt: String)] {
+        let expression = try? NSRegularExpression(
+            pattern: #"@Image\(source: ([^,\s]+), alt: "([^"]*)"\)"#
+        )
+        return matches(of: expression, in: contents).map {
+            (source: $0[0], alt: $0[1])
+        }
+    }
+
+    private func matches(
+        of expression: NSRegularExpression?,
+        in contents: String
+    ) -> [[String]] {
+        guard let expression else {
+            return []
+        }
+        let range = NSRange(contents.startIndex ..< contents.endIndex, in: contents)
+        return expression.matches(in: contents, range: range).map { match in
+            (1 ..< match.numberOfRanges).compactMap { group in
+                Range(match.range(at: group), in: contents).map { String(contents[$0]) }
+            }
         }
     }
 

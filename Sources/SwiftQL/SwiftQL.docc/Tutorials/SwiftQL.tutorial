@@ -1,0 +1,20 @@
+@Tutorials(name: "SwiftQL") {
+    @Intro(title: "Build a query with SwiftQL") {
+        Work through one SwiftQL query from an empty file to decoded Swift
+        values. You define two tables, open a database, insert rows, join the
+        tables behind a named binding, and read the results back.
+
+        Every code snapshot in these tutorials is a snapshot of source that the
+        package compiles, and the finished program runs against a real SQLite
+        database in the test suite on every commit.
+    }
+
+    @Chapter(name: "Your first query") {
+        Define tables with `@SQLTable`, project a join with `@SQLResult`, and
+        bind a value at call time.
+
+        @Image(source: swiftql-tutorial-chapter.svg, alt: "Three panels connected by arrows. The first lists the Swift declarations Studio, Album and AlbumCredit. The second shows the SQL SwiftQL renders from them, a SELECT over Album joined to Studio and filtered on a named country binding. The third shows the two rows the query decodes, Revolver from 1966 and Abbey Road from 1969.")
+
+        @TutorialReference(tutorial: "doc:EndToEndQuery")
+    }
+}

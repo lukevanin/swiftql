@@ -33,7 +33,9 @@ to the style and conventions of the Swift language.
 SwiftQL targets SQLite's SQL dialect. If you already know SQLite syntax, the
 corresponding SwiftQL statements should feel familiar.
 
-New here? Start with <doc:GettingStarted>. Upgrading? The repository's
+New here? Follow <doc:/tutorials/SwiftQL> to build one query from an empty
+file, then read <doc:GettingStarted> for the rest of the everyday API.
+Upgrading? The repository's
 [what's new](https://github.com/lukevanin/swiftql/blob/main/WHATSNEW.md)
 summarizes each release in plain language, and the
 [changelog](https://github.com/lukevanin/swiftql/blob/main/CHANGELOG.md)
@@ -130,6 +132,10 @@ This type information reduces construction and result-decoding mistakes without
 replacing SQLite's runtime type rules.
 
 ## Topics
+
+### Tutorials
+
+- <doc:/tutorials/SwiftQL>
 
 ### Essentials
 

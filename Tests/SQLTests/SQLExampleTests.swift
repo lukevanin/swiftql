@@ -3176,4 +3176,55 @@ extension XLDocumentationTests {
         ]
         XCTAssertEqual(interoperabilityDates, Array(repeating: "2023-11-14 22:13:20", count: 3))
     }
+
+    /// Runs the finished program from the DocC tutorial at
+    /// `Sources/SwiftQL/SwiftQL.docc/Tutorials/EndToEndQuery.tutorial` against
+    /// a temporary SQLite file, so the last code snapshot the tutorial shows is
+    /// executed rather than only compiled. `SQLDocumentationCatalogTests` ties
+    /// the earlier snapshots back to the same compiled source.
+    func testDocumentationTutorialEndToEndQuery() throws {
+        let tutorialDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: tutorialDirectory,
+            withIntermediateDirectories: false
+        )
+        defer { try? FileManager.default.removeItem(at: tutorialDirectory) }
+
+        // Each call builds its own database, because the walkthrough creates
+        // the tables and inserts the rows itself.
+        XCTAssertEqual(
+            try albumCredits(
+                recordedIn: "GB",
+                databaseURL: tutorialDirectory
+                    .appendingPathComponent("british-credits.sqlite")
+            ),
+            [
+                AlbumCredit(title: "Revolver", year: 1966, studioName: "Abbey Road"),
+                AlbumCredit(title: "Abbey Road", year: 1969, studioName: "Abbey Road"),
+            ]
+        )
+        XCTAssertEqual(
+            try albumCredits(
+                recordedIn: "US",
+                databaseURL: tutorialDirectory
+                    .appendingPathComponent("american-credits.sqlite")
+            ),
+            [
+                AlbumCredit(
+                    title: "The Sun Sessions",
+                    year: 1976,
+                    studioName: "Sun"
+                ),
+            ]
+        )
+        XCTAssertEqual(
+            try albumCredits(
+                recordedIn: "ZA",
+                databaseURL: tutorialDirectory
+                    .appendingPathComponent("unmatched-credits.sqlite")
+            ),
+            []
+        )
+    }
 }
