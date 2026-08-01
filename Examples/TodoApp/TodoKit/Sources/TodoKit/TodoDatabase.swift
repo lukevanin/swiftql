@@ -78,11 +78,25 @@ public enum TodoLaunchCheck: Sendable {
     /// Opens a throwaway database, writes one row, and reads it back through
     /// the declared query.
     ///
-    /// SwiftQL's request methods are synchronous. This entry point is not
-    /// actor-isolated, so awaiting it from the main actor runs the SQLite
-    /// work elsewhere while staying inside the caller's task tree — the view
-    /// disappearing cancels it, which a detached task would not honour.
+    /// SwiftQL's request methods are synchronous, so the work runs on an
+    /// actor of its own rather than wherever the caller happens to be. A
+    /// plain `nonisolated async` function would do the same thing today
+    /// under SE-0338, but that is exactly what Swift 6.2's
+    /// `NonisolatedNonsendingByDefault` reverses, and a demo should not
+    /// depend on which side of that flag it is compiled on.
+    ///
+    /// Awaiting it stays inside the caller's task tree, so a view that
+    /// disappears cancels the check — which a detached task would not.
     public static func run() async throws -> Int {
+        try await Worker().run()
+    }
+}
+
+/// Holds the launch check's database work off the caller's executor.
+private actor Worker {
+
+    func run() throws -> Int {
+        try Task.checkCancellation()
         let database = try TodoDatabase.temporary()
         try database.insertProbe()
         return try database.launchProbeCount()
