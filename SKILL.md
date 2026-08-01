@@ -339,10 +339,10 @@ opened, or a raw-value handle that can cross tasks.
   against a checked-in schema snapshot during `swift build`. They prove the SQL
   parses and that schema, parameter, and capability metadata agree, and prove
   nothing about result values, row counts, or behavior. No macro emits a
-  manifest from a `@SQLQuery` declaration yet. On the published 1.5.2 through
-  1.5.5 packages a plugin-adopting target also fails to build under Xcode 26.5
-  before validation runs (#492), so drive it with `swift build` there; the
-  unreleased v1.5.6 fixes that and builds under both.
+  manifest from a `@SQLQuery` declaration yet. On the published v1.5.2 through
+  v1.5.5 packages a plugin-adopting target also fails to build under Xcode 26.5
+  before validation runs, which is issue #492; drive it with `swift build`
+  there. The unreleased v1.5.6 fixes that and builds under both.
 
 Read the [static-query guide](https://lukevanin.github.io/swiftql/documentation/swiftql/staticqueries/)
 for descriptor construction, captures, cardinality, preparation, and typed
