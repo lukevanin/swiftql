@@ -1,0 +1,50 @@
+{
+  "combinatorial_manifest_version" : "c191-v2",
+  "conformance_inventory_version" : "190.1.0",
+  "format_version" : 1,
+  "queries" : [
+    {
+      "cardinality" : 3,
+      "conformance_case_ids" : [
+
+      ],
+      "conformance_feature_ids" : [
+
+      ],
+      "definition_identity" : "todo-demo/todo-demo.launch-probes@1",
+      "descriptor_identity" : "swiftql-query-v1-todo-demo",
+      "dialect_capabilities_raw_value" : 0,
+      "dialect_identifier" : "sqlite",
+      "id" : "todo-demo.launch-probes",
+      "northwind_anchor_case_ids" : [
+
+      ],
+      "parameters" : [
+
+      ],
+      "required_capabilities" : [
+
+      ],
+      "results" : [
+        {
+          "declared_alias" : "id",
+          "identity" : "result/id",
+          "index" : 0,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "sql" : "SELECT \"t0\".\"id\" AS \"id\" FROM \"LaunchProbe\" AS \"t0\""
+    }
+  ],
+  "schema_snapshot" : {
+    "database_byte_count" : 8192,
+    "database_sha256" : "2ea3758cebe44aded5469b5555c9a2fc0bde805977455597a2c6a05445c2b7dd",
+    "identifier" : "todo-demo.schema",
+    "kind" : "checked-in-snapshot",
+    "schema_fingerprint" : "9abbb1393d992d0a",
+    "schema_row_count" : 1
+  }
+}
