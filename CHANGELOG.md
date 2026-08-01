@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.5.6] - Unreleased
+
+### Fixed
+
+- Fixed `SwiftQLSQLiteBuildValidationPlugin` failing every Xcode build of a
+  plugin-adopting target (issue #492). `context.tool(named:)` resolves a
+  build-tool plugin's tool to `$BUILD_DIR/$CONFIGURATION/<target name>`, while
+  Xcode's build system names a package executable after its *product*. The
+  validator's target (`SwiftQLSQLiteBuildValidationValidatorCLI`) and product
+  (`swiftql-build-validate`) had different names, so Xcode built the
+  validator's library dependencies, left the executable out of the adopting
+  target's dependency graph, and failed with `Build input file cannot be found`
+  before validation ran — on a valid manifest as much as an invalid one.
+  `swift build` resolved the same graph correctly, which is why only Xcode was
+  affected. The executable target is now named `swiftql-build-validate`,
+  matching its product; its source directory is unchanged. Both build systems
+  now agree: a valid manifest builds, and an invalid one fails with the
+  validator's own diagnostic.
+  `IntegrationTests/BuildValidationPluginFixture/verify-xcode.sh` drives that
+  agreement through `xcodebuild` so the two names cannot drift apart again. No
+  public API changed, and the `swiftql-build-validate` product and its CLI
+  contract are unchanged.
+
 ## [1.5.5] - 2026-07-30
 
 ### Added
@@ -254,7 +277,8 @@ new, additive surfaces with no changes to any existing public API.
 - The plugin is verified under `swift build`. Building a plugin-adopting
   package in Xcode 26.5 fails before validation runs, reporting `Build input
   file cannot be found` for the validator executable, on a valid manifest as
-  well as an invalid one (#492).
+  well as an invalid one (#492). Fixed in v1.5.6; on v1.5.2 through v1.5.5 the
+  plugin is usable from `swift build` and CI only.
 
 ## [1.5.1] - 2026-07-26
 

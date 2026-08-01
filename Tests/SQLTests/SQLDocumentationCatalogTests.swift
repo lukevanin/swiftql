@@ -511,7 +511,10 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         let firstReleaseHeading = changelog
             .components(separatedBy: .newlines)
             .first(where: { $0.hasPrefix("## [") })
-        XCTAssertEqual(firstReleaseHeading, "## [1.5.5] - 2026-07-30")
+        // RELEASING.md step 4 dates this heading during release preparation,
+        // replacing `Unreleased` with the release date; update this pin in the
+        // same change.
+        XCTAssertEqual(firstReleaseHeading, "## [1.5.6] - Unreleased")
     }
 
     func testREADMERepositoryLinksResolveWithExactCase() throws {

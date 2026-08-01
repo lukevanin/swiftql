@@ -35,7 +35,7 @@ let package = Package(
         ),
         .executable(
             name: "swiftql-build-validate",
-            targets: ["SwiftQLSQLiteBuildValidationValidatorCLI"]
+            targets: ["swiftql-build-validate"]
         ),
         .plugin(
             name: "SwiftQLSQLiteBuildValidationPlugin",
@@ -164,9 +164,20 @@ let package = Package(
             ]
         ),
 
+        // The target name has to match the `swiftql-build-validate` product
+        // name above, because this executable is a build-tool plugin's tool
+        // (#492). `context.tool(named:)` resolves to
+        // `$BUILD_DIR/$CONFIGURATION/<target name>`, while Xcode's build
+        // system names a package executable after its *product*. When the two
+        // names differ, Xcode drops the executable from the plugin-adopting
+        // target's dependency graph entirely and the build fails with "Build
+        // input file cannot be found" before validation ever runs. `swift
+        // build` tolerates the mismatch; Xcode does not. The source directory
+        // keeps its descriptive name via `path:`.
         .executableTarget(
-            name: "SwiftQLSQLiteBuildValidationValidatorCLI",
-            dependencies: ["SwiftQLSQLiteBuildValidationValidator"]
+            name: "swiftql-build-validate",
+            dependencies: ["SwiftQLSQLiteBuildValidationValidator"],
+            path: "Sources/SwiftQLSQLiteBuildValidationValidatorCLI"
         ),
 
         // Thin SwiftPM build-tool plugin wrapper around the standalone
@@ -176,7 +187,7 @@ let package = Package(
         .plugin(
             name: "SwiftQLSQLiteBuildValidationPlugin",
             capability: .buildTool(),
-            dependencies: ["SwiftQLSQLiteBuildValidationValidatorCLI"]
+            dependencies: ["swiftql-build-validate"]
         ),
 
         // Package-private research engine for issue #132. This deliberately
