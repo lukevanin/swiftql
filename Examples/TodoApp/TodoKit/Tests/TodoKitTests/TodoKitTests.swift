@@ -5,13 +5,13 @@ import TodoKit
 final class TodoKitTests: XCTestCase {
 
     func testANewDatabaseStartsEmpty() throws {
-        let database = try TodoDatabase.ephemeral()
+        let database = try TodoDatabase.temporary()
 
         XCTAssertEqual(try database.launchProbeCount(), 0)
     }
 
     func testAnInsertedRowIsReadBackThroughTheDeclaredQuery() throws {
-        let database = try TodoDatabase.ephemeral()
+        let database = try TodoDatabase.temporary()
 
         try database.insertProbe()
         try database.insertProbe()
@@ -20,8 +20,8 @@ final class TodoKitTests: XCTestCase {
     }
 
     func testTwoDatabasesDoNotShareRows() throws {
-        let first = try TodoDatabase.ephemeral()
-        let second = try TodoDatabase.ephemeral()
+        let first = try TodoDatabase.temporary()
+        let second = try TodoDatabase.temporary()
 
         try first.insertProbe()
 

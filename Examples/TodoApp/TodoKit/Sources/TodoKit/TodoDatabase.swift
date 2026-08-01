@@ -41,11 +41,18 @@ public final class TodoDatabase {
         try database.makeRequest(with: sqlCreate(LaunchProbe.self)).execute()
     }
 
-    /// Opens a throwaway database under the system temporary directory.
+    /// Opens a throwaway database in a fresh temporary directory.
     ///
-    /// The scaffold uses this so the app launches with no setup on either
-    /// platform. A durable file in Application Support replaces it.
-    public static func ephemeral() throws -> TodoDatabase {
+    /// Not an in-memory database, deliberately: `GRDBDatabase` is backed by
+    /// GRDB's `DatabasePool`, which runs in WAL mode and therefore needs a
+    /// real file — GRDB offers in-memory databases only through
+    /// `DatabaseQueue`, which `GRDBDatabase` has no initializer for. A file
+    /// under the temporary directory is the closest equivalent: it needs no
+    /// setup, and the system reclaims it.
+    ///
+    /// The scaffold uses this so the app launches with nothing to configure
+    /// on either platform. A durable file in Application Support replaces it.
+    public static func temporary() throws -> TodoDatabase {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("TodoApp-\(UUID().uuidString)")
             .appendingPathExtension("sqlite")
@@ -62,5 +69,22 @@ public final class TodoDatabase {
         try database
             .makeRequest(with: sqlInsert(LaunchProbe(id: UUID().uuidString)))
             .execute()
+    }
+}
+
+/// What the placeholder view shows.
+public enum TodoLaunchCheck: Sendable {
+
+    /// Opens a throwaway database, writes one row, and reads it back through
+    /// the declared query.
+    ///
+    /// SwiftQL's request methods are synchronous. This entry point is not
+    /// actor-isolated, so awaiting it from the main actor runs the SQLite
+    /// work elsewhere while staying inside the caller's task tree — the view
+    /// disappearing cancels it, which a detached task would not honour.
+    public static func run() async throws -> Int {
+        let database = try TodoDatabase.temporary()
+        try database.insertProbe()
+        return try database.launchProbeCount()
     }
 }

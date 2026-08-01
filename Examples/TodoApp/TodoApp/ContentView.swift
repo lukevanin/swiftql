@@ -22,24 +22,14 @@ struct ContentView: View {
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task { status = await Self.open() }
-    }
-
-    /// SwiftQL's request methods are synchronous, so the database work runs
-    /// off the main actor and only the resulting status crosses back. Live
-    /// queries replace this hand-rolled hop.
-    private static func open() async -> Status {
-        await Task.detached {
+        .task {
             do {
-                let database = try TodoDatabase.ephemeral()
-                try database.insertProbe()
-                return .connected(rows: try database.launchProbeCount())
+                status = .connected(rows: try await TodoLaunchCheck.run())
             }
             catch {
-                return .failed(String(describing: error))
+                status = .failed(String(describing: error))
             }
         }
-        .value
     }
 }
 
