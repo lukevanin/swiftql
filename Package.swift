@@ -17,6 +17,13 @@ let package = Package(
             name: "SwiftQL",
             targets: ["SwiftQL"]
         ),
+        // Pre-expanded example schema and queries for the Getting Started
+        // playground. A classic Xcode playground cannot expand SwiftQL's
+        // macros itself, so it imports this compiled module instead.
+        .library(
+            name: "SwiftQLExamples",
+            targets: ["SwiftQLExamples"]
+        ),
         .library(
             name: "SwiftQLSQLiteBuildValidationManifest",
             targets: ["SwiftQLSQLiteBuildValidationManifest"]
@@ -111,6 +118,18 @@ let package = Package(
                 .product(name: "OpenCombineDispatch", package: "OpenCombine"),
                 .product(name: "OpenCombineFoundation", package: "OpenCombine"),
             ]
+        ),
+
+        // Example schema and declared queries for the Getting Started
+        // playground (#480). SwiftQL's macros are expanded here, during the
+        // ordinary package build, because a classic Xcode playground has no
+        // Package.swift of its own and cannot reliably load a Swift macro
+        // compiler plugin. The playground imports this module and calls
+        // already-expanded API.
+        .target(
+            name: "SwiftQLExamples",
+            dependencies: ["SwiftQL"],
+            path: "Examples/Sources/SwiftQLExamples"
         ),
 
         // Reusable benchmark implementation. Keeping this separate from the executable makes
