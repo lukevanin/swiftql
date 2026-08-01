@@ -1,6 +1,6 @@
 ---
 name: swiftql
-description: Use when Codex works in a Swift package or Apple application that uses SwiftQL to define typed tables or results, build or modify SQLite queries, pass immutable bindings, add contextual codecs, prepare reusable static queries, integrate a database adapter, or diagnose SwiftQL execution boundaries. Use the checked-out public v1 contract; 1.5.2 is the latest published package, retaining v1.5.1's declared-query macros (@SQLQuery/@SQLQueries) and typed transaction scopes on the v1 surface. Do not use this skill to teach SQL generally or claim unshipped features.
+description: Use when Codex works in a Swift package or Apple application that uses SwiftQL to define typed tables or results, build or modify SQLite queries, pass immutable bindings, add contextual codecs, prepare reusable static queries, integrate a database adapter, or diagnose SwiftQL execution boundaries. Use the checked-out public v1 contract; 1.5.3 is the latest published package, adding `@SQLCodec` property-level codec selection plus built-in Date TEXT/numeric, JSON `Codable`, and UUID codec presets on top of v1.5.1's declared-query macros (@SQLQuery/@SQLQueries) and typed transaction scopes on the v1 surface. Do not use this skill to teach SQL generally or claim unshipped features.
 ---
 
 # SwiftQL
@@ -22,7 +22,7 @@ checked-out package version before editing consumer code.
   or later. Supported Swift 6 compilers still use Swift 5 mode; Swift 6 mode,
   non-Apple platforms, non-SQLite dialects, and non-GRDB drivers are unsupported.
 - Read [the changelog](CHANGELOG.md) before choosing a package requirement.
-  `1.5.2` is the latest published package. Pin a source revision only when
+  `1.5.3` is the latest published package. Pin a source revision only when
   intentionally testing later changes from `main`.
 
 ## Prefer the high-level application workflow
@@ -148,12 +148,12 @@ contracts; the everyday API is [getting started](https://lukevanin.github.io/swi
 - Treat the versioned [inventory](Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json) as
   the source of truth and its [report](Conformance/SQLite/REPORT.md) as a generated
   view; use the [compatibility guide](COMPATIBILITY.md#sqlite-conformance-inventory)
-  to interpret it. It records 111 feature records: 104 supported, 0 partial,
-  2 capability-gated, 1 intentionally unsupported, and 4 unimplemented.
+  to interpret it. It records 111 feature records: 107 supported, 0 partial,
+  2 capability-gated, 1 intentionally unsupported, and 1 unimplemented.
 - Keep those five statuses distinct. Bind every claim to the feature's recorded
   SQLite version, source ID, compile options, capabilities, evidence, and
   rationale before claiming support.
-- Of the 164 evidence records, 101 exercise real SQLite against one captured
+- Of the 171 evidence records, 105 exercise real SQLite against one captured
   environment, SQLite 3.51.0. Evidence is reusable, so evidence and feature
   counts do not map one to one; never turn this into an exhaustive-SQL claim.
 - The generated corpus holds 208 positives plus one broken-renderer control:

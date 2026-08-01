@@ -115,6 +115,10 @@ private let documentationTests = [
         "XLDocumentationTests.testDocumentationDeclaredQueries",
         XLDocumentationTests.testDocumentationDeclaredQueries
     ),
+    DocumentationTestReference(
+        "XLDocumentationTests.testDocumentationNumericDateCodecs",
+        XLDocumentationTests.testDocumentationNumericDateCodecs
+    ),
 ]
 
 
@@ -132,6 +136,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         "GenericTableParameters.md": "XLDocumentationTests.testDocumentationGenericTableParameters",
         "GettingStarted.md": "XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings",
         "LiveQueries.md": "XLDocumentationTests.testDocumentationLiveQueryPublishers",
+        "NumericDateCodecs.md": "XLDocumentationTests.testDocumentationNumericDateCodecs",
         "Queries.md": "XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs",
         "RealValues.md": "XLDocumentationTests.testDocumentationRealValues",
         "StaticQueries.md": "XLDocumentationTests.testDocumentationStaticQueries",
@@ -313,6 +318,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "### Selection and errors",
             "### SQL NULL and optional values",
             "### Contextual parameters and invocation packets",
+            "### Property-level codec selection",
             "## Legacy `XLCustomType` wrappers",
             "## Migrating v1 literals",
         ] {
@@ -333,6 +339,11 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "compatibility invocation packet",
             "`XLV1LiteralCodec` exposes an existing `Sendable` `XLLiteral` implementation",
             "This is a compatibility bridge",
+            "`@SQLCodec` declares that choice on the property itself",
+            "It is metadata only",
+            "it never wraps the property",
+            "a generated `staticResultField(_:...)` convenience per annotated",
+            "`@SQLCodec` selects among registered codecs, it does not",
         ] {
             XCTAssertTrue(
                 contents.contains(semanticPhrase),
@@ -384,7 +395,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
 
         let requiredPhrasesByPath = [
             "README.md": [
-                "`1.5.2` is the latest published package",
+                "`1.5.5` is the latest published package",
             ],
             "COMPATIBILITY.md": [
                 "## v1.3 public products and runtime boundaries",
@@ -425,10 +436,10 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "not a claim of complete SQLite",
                 "v1.3 does not ship a public",
                 "validator, build plugin, query macro, schema system",
-                "Version 1.5.2 is the latest published package",
+                "Version 1.5.5 is the latest published package",
             ],
             "Sources/SwiftQL/SwiftQL.docc/GettingStarted.md": [
-                "Version 1.5.2 is the published package",
+                "Version 1.5.5 is the published package",
                 "This guide's basic request path remains",
                 "from version 1.2.0 or later",
             ],
@@ -500,7 +511,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         let firstReleaseHeading = changelog
             .components(separatedBy: .newlines)
             .first(where: { $0.hasPrefix("## [") })
-        XCTAssertEqual(firstReleaseHeading, "## [1.5.2] - 2026-07-27")
+        XCTAssertEqual(firstReleaseHeading, "## [1.5.5] - 2026-07-30")
     }
 
     func testREADMERepositoryLinksResolveWithExactCase() throws {
@@ -532,6 +543,8 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "COMPATIBILITY.md",
                 "COMPATIBILITY.md#sqlite-conformance-inventory",
                 "Coverage/README.md",
+                "Documentation/DESIGN.md",
+                "Documentation/PortingFromSQL.md",
                 "LICENSE.md",
                 "RELEASING.md",
                 "ROADMAP.md",

@@ -569,8 +569,29 @@ final class XLSyntaxTests: XCTestCase {
         let expression = x ?? 7
         XCTAssertEqual(encoder.makeSQL(expression).sql, "COALESCE(:x, 7)")
     }
-    
-    
+
+
+    /// Issue #7: chaining two optional fallbacks composes by nesting one
+    /// `coalesce`/`??` inside another, rather than needing a dedicated
+    /// optional-rhs overload — `x.coalesce(y.coalesce(7))` and its `??`
+    /// equivalent both render as SQLite's own variadic `COALESCE`.
+    func test_TwoOptionalIntegerBindings_Coalesce_Integer() {
+        let x = XLNamedBindingReference<Optional<Int>>(name: "x")
+        let y = XLNamedBindingReference<Optional<Int>>(name: "y")
+        let expression = x.coalesce(y.coalesce(7))
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "COALESCE(:x, COALESCE(:y, 7))")
+    }
+
+
+    func test_TwoOptionalIntegerBindings_CoalescingOperator_Integer() {
+        let x = XLNamedBindingReference<Optional<Int>>(name: "x")
+        let y = XLNamedBindingReference<Optional<Int>>(name: "y")
+        // `??` is right-associative, so this parses as `x ?? (y ?? 7)`.
+        let expression = x ?? y ?? 7
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "COALESCE(:x, COALESCE(:y, 7))")
+    }
+
+
     // MARK: - Text concatenation
     
     func test_TextBinding_Plus_String() {
@@ -958,19 +979,19 @@ final class XLSyntaxTests: XCTestCase {
     
     func testMinFunction() {
         let x = XLNamedBindingReference<Int>(name: "x")
-        let expression = min(x, 12)
+        let expression = x.min(12)
         XCTAssertEqual(encoder.makeSQL(expression).sql, "MIN(:x, 12)")
     }
-    
+
     func testMaxFunction() {
         let x = XLNamedBindingReference<Int>(name: "x")
-        let expression = max(x, 12)
+        let expression = x.max(12)
         XCTAssertEqual(encoder.makeSQL(expression).sql, "MAX(:x, 12)")
     }
-    
+
     func testMinMaxFunction() {
         let x = XLNamedBindingReference<Int>(name: "x")
-        let expression = min(max(x, 0), 1)
+        let expression = x.max(0).min(1)
         XCTAssertEqual(encoder.makeSQL(expression).sql, "MIN(MAX(:x, 0), 1)")
     }
     
@@ -1573,7 +1594,25 @@ final class XLSyntaxTests: XCTestCase {
         let expression = select(r).from(t)
         XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, (SELECT SUM(t1.value) FROM Test AS t1) AS value FROM Test AS t0")
     }
-    
+
+    /// The schema-parameter closure shape of the same flattening overload
+    /// exercised by `testSelectSubqueryAggregate` (issue #162): a scalar
+    /// subquery over an already-optional expression yields `Int?`, not
+    /// `Int??`, with no `XLTypeAffinityExpression` wrapper required.
+    func testSelectSubqueryAggregateWithSchemaParameter() {
+        let s = XLSchema()
+        let t = s.table(TestTable.self)
+        let r = TestColumns.columns(
+            id: t.id,
+            value: subquery { schema in
+                let t = schema.table(TestTable.self)
+                return select(t.value.sumOrNull()).from(t)
+            }
+        )
+        let expression = select(r).from(t)
+        XCTAssertEqual(encoder.makeSQL(expression).sql, "SELECT t0.id AS id, (SELECT SUM(t0.value) FROM Test AS t0) AS value FROM Test AS t0")
+    }
+
     func testScalarSelectWhereIn() {
         let schema = XLSchema()
         let t = schema.table(TestTable.self)
