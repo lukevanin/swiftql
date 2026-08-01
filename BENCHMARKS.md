@@ -127,3 +127,15 @@ controls, one implementation per fresh process, raw per-iteration samples,
 and an exact 16,143-row fixture. The comparison is a before/after reference
 for execution-path work, not a general database-library ranking or an absolute
 CI performance gate.
+
+## Consumer compile-time scalability
+
+Runtime cost is only half of what a consumer pays. The harness in
+[Benchmarks/CompileTime](Benchmarks/CompileTime/README.md) measures the other
+half: how long a downstream package takes to build as its table and query
+declaration counts grow, compared against hand-written raw SQLite, GRDB,
+SQLite.swift, and Lighter consumers in isolated dependency-locked packages. It
+records dependency-warm clean builds, no-op rebuilds, and one-query-edit
+rebuilds, plus generated-source, object, module, and archive sizes, and it
+reports whole-consumer build cost without attributing any part of it to macro
+expansion alone.

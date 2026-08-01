@@ -206,6 +206,6 @@ control, not a theoretical hardware or SQLite lower bound.
 
 Do not extrapolate this one schema and access pattern to a general library
 ranking. Broader runtime workload design belongs to issue #259. Consumer
-compile time, generated-source size, binary size, and a dedicated RSS matrix
-belong to issue #257. No absolute timing or memory value in this directory is
-a CI gate.
+compile time, generated-source size, binary size, and build-process RSS are
+measured separately in [../CompileTime](../CompileTime/README.md). No absolute
+timing or memory value in this directory is a CI gate.
