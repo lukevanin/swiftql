@@ -29,12 +29,14 @@ advancedusage|Advanced usage
 builtinfunctions|Built-in Functions
 customfunctions|Custom Functions
 customtypes|Custom Types
+declaredqueries|Declared queries
 enums|Enum Values
 expressions|Expressions
 functionalsyntax|Functional Syntax
 generictableparameters|Generic Table Parameters
 gettingstarted|Getting started
 livequeries|Live Queries
+numericdatecodecs|Numeric Date Codecs
 queries|Select Queries
 realvalues|Real Values
 staticqueries|Static queries
