@@ -52,55 +52,65 @@ ARTICLES
 # exact case, because a case-only rename survives a macOS build and 404s once
 # the site is served from GitHub Pages.
 check_tutorials() {
-    output="$1"
-    catalog="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)/Sources/SwiftQL/SwiftQL.docc"
-    overview="$output/data/tutorials/swiftql.json"
-    tutorial="$output/data/tutorials/swiftql/endtoendquery.json"
+    tutorial_output="$1"
+    tutorial_catalog="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)"
+    tutorial_catalog="$tutorial_catalog/Sources/SwiftQL/SwiftQL.docc"
+    tutorial_overview_page="$tutorial_output/data/tutorials/swiftql.json"
+    tutorial_page="$tutorial_output/data/tutorials/swiftql/endtoendquery.json"
 
-    require_exact_file "$output" "tutorials/swiftql/index.html"
-    require_exact_file "$output" "data/tutorials/swiftql.json"
-    require_page "$overview" "Build a query with SwiftQL"
-    require_exact_file "$output" "tutorials/swiftql/endtoendquery/index.html"
-    require_exact_file "$output" "data/tutorials/swiftql/endtoendquery.json"
-    require_page "$tutorial" "Query a SQLite database end to end"
+    require_exact_file "$tutorial_output" "tutorials/swiftql/index.html"
+    require_exact_file "$tutorial_output" "data/tutorials/swiftql.json"
+    require_page "$tutorial_overview_page" "Build a query with SwiftQL"
+    require_exact_file "$tutorial_output" "tutorials/swiftql/endtoendquery/index.html"
+    require_exact_file "$tutorial_output" "data/tutorials/swiftql/endtoendquery.json"
+    require_page "$tutorial_page" "Query a SQLite database end to end"
 
     if ! grep -Fq '"doc://SwiftQL/tutorials/SwiftQL"' \
-        "$output/data/documentation/swiftql.json"; then
+        "$tutorial_output/data/documentation/swiftql.json"; then
         printf 'error: the SwiftQL landing page no longer links the tutorial\n' >&2
         return 1
     fi
 
-    code_resources=0
-    for resource in $(list_directive_values '@Code' "$catalog"); do
-        code_resources=$((code_resources + 1))
-        if ! grep -Fq "\"$resource\"" "$tutorial"; then
+    tutorial_code_resources=0
+    while IFS= read -r tutorial_resource; do
+        [ -n "$tutorial_resource" ] || continue
+        tutorial_code_resources=$((tutorial_code_resources + 1))
+        if ! grep -Fq "\"$tutorial_resource\"" "$tutorial_page"; then
             printf 'error: built tutorial does not reference code snapshot: %s\n' \
-                "$resource" >&2
+                "$tutorial_resource" >&2
             return 1
         fi
-    done
-    if [ "$code_resources" -eq 0 ]; then
-        printf 'error: no @Code resources found in %s\n' "$catalog" >&2
+    done <<EOF
+$(list_directive_values '@Code' "$tutorial_catalog")
+EOF
+    if [ "$tutorial_code_resources" -eq 0 ]; then
+        printf 'error: no @Code resources found in %s\n' "$tutorial_catalog" >&2
         return 1
     fi
 
-    for resource in $(list_directive_values '@Image' "$catalog"); do
-        require_exact_file "$output" "images/SwiftQL/$resource"
-    done
+    while IFS= read -r tutorial_resource; do
+        [ -n "$tutorial_resource" ] || continue
+        require_exact_file "$tutorial_output" "images/SwiftQL/$tutorial_resource"
+    done <<EOF
+$(list_directive_values '@Image' "$tutorial_catalog")
+EOF
 }
 
 # Prints the resource file name from every `@Code(name:file:)` or
-# `@Image(source:alt:)` directive in the catalog's tutorial sources.
+# `@Image(source:alt:)` directive in the catalog's tutorial sources. `find
+# -exec ... +` rather than `xargs`, because GNU xargs runs its command once
+# with no arguments when the input is empty, and `cat` with no arguments would
+# then block on this script's stdin instead of reporting no tutorials.
 list_directive_values() {
-    directive="$1"
-    catalog="$2"
-    case "$directive" in
+    directive_name="$1"
+    directive_catalog="$2"
+    case "$directive_name" in
         '@Code')
-            find "$catalog" -name '*.tutorial' -print0 | xargs -0 cat | sed -n \
+            find "$directive_catalog" -name '*.tutorial' -exec cat {} + | sed -n \
                 's/.*@Code(name: "[^"]*", file: \([^)]*\)).*/\1/p'
             ;;
         '@Image')
-            find "$catalog" -name '*.tutorial' -print0 | xargs -0 cat | sed -n \
+            find "$directive_catalog" -name '*.tutorial' -exec cat {} + | sed -n \
                 's/.*@Image(source: \([^,]*\),.*/\1/p'
             ;;
     esac
@@ -116,23 +126,24 @@ require_file() {
 # `[ -f ... ]` matches case-insensitively on the macOS runners that build the
 # site, so each path component is matched against the real directory listing.
 require_exact_file() {
-    root="$1"
-    remaining="$2"
-    current="$root"
-    while [ -n "$remaining" ]; do
-        component="${remaining%%/*}"
-        case "$remaining" in
-            */*) remaining="${remaining#*/}" ;;
-            *) remaining="" ;;
+    exact_root="$1"
+    exact_remaining="$2"
+    exact_current="$exact_root"
+    while [ -n "$exact_remaining" ]; do
+        exact_component="${exact_remaining%%/*}"
+        case "$exact_remaining" in
+            */*) exact_remaining="${exact_remaining#*/}" ;;
+            *) exact_remaining="" ;;
         esac
-        if ! ls -1 -- "$current" 2>/dev/null | grep -Fxq -- "$component"; then
+        if ! ls -1 -- "$exact_current" 2>/dev/null \
+            | grep -Fxq -- "$exact_component"; then
             printf 'error: DocC output is missing %s (exact case) in %s\n' \
-                "$component" "$current" >&2
+                "$exact_component" "$exact_current" >&2
             return 1
         fi
-        current="$current/$component"
+        exact_current="$exact_current/$exact_component"
     done
-    require_file "$current"
+    require_file "$exact_current"
 }
 
 require_page() {
