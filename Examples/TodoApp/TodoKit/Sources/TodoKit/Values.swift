@@ -84,12 +84,36 @@ public struct TodoDate: XLCustomType, XLComparable, Hashable, Sendable {
 
     public typealias T = Self
 
-    private static let formatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        return formatter
-    }()
+    /// One formatter behind a lock.
+    ///
+    /// `GRDBDatabase` is backed by a connection pool, so two reads can decode
+    /// a date at the same time on different threads, and Foundation does not
+    /// promise that `ISO8601DateFormatter` is safe to use that way.
+    private final class Formatter: @unchecked Sendable {
+
+        private let lock = NSLock()
+
+        private let formatter: ISO8601DateFormatter = {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            formatter.timeZone = TimeZone(identifier: "UTC")
+            return formatter
+        }()
+
+        func string(from date: Date) -> String {
+            lock.lock()
+            defer { lock.unlock() }
+            return formatter.string(from: date)
+        }
+
+        func date(from text: String) -> Date? {
+            lock.lock()
+            defer { lock.unlock() }
+            return formatter.date(from: text)
+        }
+    }
+
+    private static let formatter = Formatter()
 
     public let wrappedValue: Date
 

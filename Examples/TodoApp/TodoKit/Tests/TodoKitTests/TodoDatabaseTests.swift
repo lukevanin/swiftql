@@ -47,7 +47,7 @@ final class TodoDatabaseTests: XCTestCase {
     func testASecondOpenReusesTheFileWithoutReseeding() throws {
         let url = databaseURL()
         let first = try TodoDatabase(url: url, referenceDate: referenceDate)
-        try deleteFirstTodo(in: first)
+        try deleteFinishNovel(in: first)
         XCTAssertEqual(try todos(in: first).count, 5)
 
         let second = try TodoDatabase(url: url, referenceDate: referenceDate)
@@ -129,7 +129,7 @@ final class TodoDatabaseTests: XCTestCase {
     #if DEBUG
     func testResetRestoresTheSeededState() throws {
         let database = try TodoDatabase(url: databaseURL(), referenceDate: referenceDate)
-        try deleteFirstTodo(in: database)
+        try deleteFinishNovel(in: database)
         XCTAssertEqual(try todos(in: database).count, 5)
 
         try database.reset(referenceDate: referenceDate)
@@ -163,7 +163,7 @@ final class TodoDatabaseTests: XCTestCase {
         try XCTUnwrap(try todos(in: database).first { $0.id == id })
     }
 
-    private func deleteFirstTodo(in database: TodoDatabase) throws {
+    private func deleteFinishNovel(in database: TodoDatabase) throws {
         let schema = XLSchema()
         let table = schema.into(Todo.self)
         try database.database
