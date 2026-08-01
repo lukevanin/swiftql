@@ -259,33 +259,102 @@ python3 -m unittest discover -s Benchmarks/Comparison/Issue259 -p 'test_*.py'
 
 ## Recorded prototype results
 
-<!-- RESULTS -->
+[`2026-08-02-mac16-8.json`](2026-08-02-mac16-8.json) was recorded at
+`2026-08-01T22:46:33Z` from clean SwiftQL revision
+`106ad457bd3f0531e402157028364bee09380005`, after the release build and a
+60-second cooldown. It links 27 raw sample TSVs and 27 `/usr/bin/time -l`
+resource logs under [`Runs/`](Runs/), preserving all 2,700 timed samples and
+their verified SHA-256 values. The graph pins GRDB 6.29.3, SQLite.swift 0.16.0,
+SwiftSyntax 509.1.1, and OpenCombine 0.14.0.
+
+The run used a Mac16,8 with Apple M4 Pro, 14 cores, 24 GiB memory, arm64
+macOS 26.5.1 (25F80), Xcode 26.5, Swift 6.3.2, and system SQLite 3.51.0.
+
+### `point_lookup`
+
+| Implementation | API tier | Median | p95 | Lookups/s | Process spread | Peak RSS |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| GRDB | typed record request | 51.92 us | 58.04 us | 19,262 | 3.0% | 9.9 MiB |
+| SQLite.swift | typed query builder | 35.29 us | 39.83 us | 28,335 | 3.7% | 9.0 MiB |
+| SwiftQL | typed declared query | 44.33 us | 53.58 us | 22,557 | 6.3% | 10.8 MiB |
+
+### `join_aggregate`
+
+| Implementation | API tier | Median | p95 | Queries/s | Process spread | Peak RSS |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| GRDB | raw SQL row mapping | 9.86 ms | 10.12 ms | 101 | 2.0% | 16.9 MiB |
+| SQLite.swift | typed query builder | 9.71 ms | 9.94 ms | 103 | 1.1% | 16.0 MiB |
+| SwiftQL | typed query builder | 10.23 ms | 10.49 ms | 98 | 0.4% | 18.5 MiB |
+
+### `transactional_write`
+
+| Implementation | API tier | Median | p95 | Rows/s | Process spread | Peak RSS |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| GRDB | typed persistable record | 620.35 us | 730.46 us | 161,198 | 2.0% | 9.3 MiB |
+| SQLite.swift | typed query builder | 1.04 ms | 1.16 ms | 96,119 | 5.2% | 8.5 MiB |
+| SwiftQL | typed transaction scope | 1.50 ms | 1.67 ms | 66,880 | 1.2% | 10.3 MiB |
+
+### What these three prototypes showed
+
+The point lookup separates the three libraries by 20-45%, against process
+spreads of 3-6%, so the ordering is outside noise on this host. That is the
+result which most justifies building the family, because the full-fetch baseline
+amortises every per-call cost over 16,143 rows and cannot see it at all. The
+point lookup also exercises binding, which the baseline never does.
+
+The join/aggregate separates them by 5% against spreads of 0.4-2%. The work is
+dominated by SQLite scanning 16,143 rows and grouping them, so which API the
+caller used barely registers. That is itself worth recording: a workload whose
+cost is dominated by the engine discriminates poorly between libraries, and this
+family is worth implementing for its semantic coverage (joins, grouping, NULL
+groups, aggregate representation) rather than as a speed comparison.
+
+The transactional write separates SwiftQL from GRDB by 2.4x, far outside the
+1-5% spreads. SwiftQL's `sqlInsert(_:)` builds a fresh insert statement per row
+inside the transaction scope, where GRDB's `PersistableRecord.insert` reuses a
+cached statement. That is a reproducible cost on the write path and exactly the
+kind of thing the full-fetch baseline was never going to surface. It is
+reported here as a workload-design finding rather than a regression, since no
+earlier measurement of this path exists to regress against.
+
+Peak RSS is the whole process, including the executable, its dependency graph,
+the connection, and retained results, so it is not an allocation attributable to
+any one API. The three libraries stay within a few MiB of each other on every
+workload.
 
 ## Recommendation
 
-Implement the three prototyped families first, in this order, each as its own
-shippable harness rather than as one bundle:
+Build the shared harness first, then the three prototyped families, each as its
+own shippable piece rather than as one bundle. Every item below has its own
+issue under the
+[Cross-library workload benchmark suite](https://github.com/lukevanin/swiftql/milestone/31)
+milestone, with the ordering recorded as GitHub dependencies.
 
-1. **`point_lookup`**, because it is the cheapest to make fair, it exercises
-   binding (which the full-fetch baseline does not exercise at all), and it is
-   the workload most sensitive to per-call overhead, which is where a typed DSL
-   is most likely to cost something.
-2. **`transactional_write`**, because the existing baseline has no write path
-   whatsoever, and because transaction boundaries are the part of a database API
-   most likely to differ semantically rather than only in speed.
-3. **`join_aggregate`**, because it is where SwiftQL's typed builder does the
-   most construction work per call, and because it is the only prototyped
-   workload where a library had to drop a tier.
-
-Then, once those three share a runner:
-
-4. **`decoding` as a representation matrix**, which is nearly free once
-   `point_lookup` exists: it reuses the same contract with different column
-   sets.
-5. **`cold_startup`**, which needs its own one-sample-per-process runner.
-6. **`concurrency`**, as a reader-scaling curve over a pinned topology.
-7. **`observation`**, last, because it has the highest design cost and covers
-   the fewest libraries.
+1. **[#508](https://github.com/lukevanin/swiftql/issues/508) shared workload
+   harness.** The prototype had to add a per-iteration bound parameter, an
+   independent value oracle per parameter, per-process writable database copies,
+   and an API-tier record. Every family below needs those, so they belong in one
+   place.
+2. **[#509](https://github.com/lukevanin/swiftql/issues/509) `point_lookup`.**
+   Cheapest to make fair, the only family that exercises binding, and the one
+   with the clearest separation between libraries.
+3. **[#510](https://github.com/lukevanin/swiftql/issues/510)
+   `transactional_write`.** The existing baseline has no write path at all, and
+   transaction boundaries are the part of a database API most likely to differ
+   semantically rather than only in speed.
+4. **[#511](https://github.com/lukevanin/swiftql/issues/511)
+   `join_aggregate`.** Worth building for semantic coverage of joins, grouping,
+   and NULL groups, and it is the family where GRDB needs a second tier.
+5. **[#512](https://github.com/lukevanin/swiftql/issues/512) `decoding` as a
+   representation matrix.** Nearly free once `point_lookup` exists, since it
+   reuses that contract with different column sets.
+6. **[#513](https://github.com/lukevanin/swiftql/issues/513) `cold_startup`.**
+   Needs its own one-sample-per-process runner with explicit cache-state
+   control.
+7. **[#514](https://github.com/lukevanin/swiftql/issues/514) `concurrency`.** A
+   reader-scaling curve over a pinned topology, not a single number.
+8. **[#515](https://github.com/lukevanin/swiftql/issues/515) `observation`.**
+   Last: the highest design cost and the fewest covered libraries.
 
 Do not build a single aggregate score across these families. Each one answers a
 different question, and a library that wins the point lookup can lose the write
