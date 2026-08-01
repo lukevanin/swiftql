@@ -36,7 +36,6 @@ private final class ControllableStreamSource<Value>: @unchecked Sendable {
 
     func makeStream() -> AsyncThrowingStream<Value, Error> {
         lock.lock()
-        makeStreamCallCount += 1
         let index = continuations.count
         continuations.append(nil)
         lock.unlock()
@@ -44,6 +43,12 @@ private final class ControllableStreamSource<Value>: @unchecked Sendable {
         return AsyncThrowingStream { continuation in
             self.lock.lock()
             self.continuations[index] = continuation
+            // Only becomes visible to `callCount` once the continuation this index needs is
+            // actually stored -- issue #464's "publish race": incrementing before the continuation
+            // was stored let a concurrent `waitUntil { callCount == 1 }` observer race ahead of
+            // this closure and call `yield`/`finish` against a still-`nil` slot, which silently
+            // dropped the value instead of failing.
+            self.makeStreamCallCount += 1
             self.lock.unlock()
             continuation.onTermination = { [weak self] termination in
                 guard let self, case .cancelled = termination else { return }
@@ -76,31 +81,83 @@ private final class ControllableStreamSource<Value>: @unchecked Sendable {
     // and sharing one body does not parse -- each active branch's opening brace must be matched by a
     // closing brace within that same branch.
     #if compiler(>=6.0)
-    func yield(_ value: sending Value, toStream streamIndex: Int = 0) {
-        lock.lock()
-        let continuation = continuations[streamIndex]
-        lock.unlock()
-        continuation?.yield(value)
+    func yield(
+        _ value: sending Value,
+        toStream streamIndex: Int = 0,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        guard let continuation = continuation(at: streamIndex, calledFrom: "yield", file: file, line: line) else {
+            return
+        }
+        continuation.yield(value)
     }
     #else
-    func yield(_ value: Value, toStream streamIndex: Int = 0) {
-        lock.lock()
-        let continuation = continuations[streamIndex]
-        lock.unlock()
-        continuation?.yield(value)
+    func yield(
+        _ value: Value,
+        toStream streamIndex: Int = 0,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        guard let continuation = continuation(at: streamIndex, calledFrom: "yield", file: file, line: line) else {
+            return
+        }
+        continuation.yield(value)
     }
     #endif
 
-    func finish(throwing error: Error? = nil, stream streamIndex: Int = 0) {
-        lock.lock()
-        let continuation = continuations[streamIndex]
-        lock.unlock()
+    func finish(
+        throwing error: Error? = nil,
+        stream streamIndex: Int = 0,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        guard let continuation = continuation(at: streamIndex, calledFrom: "finish", file: file, line: line) else {
+            return
+        }
         if let error {
-            continuation?.finish(throwing: error)
+            continuation.finish(throwing: error)
         }
         else {
-            continuation?.finish()
+            continuation.finish()
         }
+    }
+
+    /// Looks up the continuation for `streamIndex`, failing the current test loudly (naming the
+    /// stream index) rather than silently dropping the caller's value/completion when it is not yet
+    /// stored, or trapping on an out-of-range subscript. With the `makeStreamCallCount` ordering
+    /// above, a missing continuation here means a caller drove this source ahead of `callCount`
+    /// actually reaching `streamIndex + 1` -- a harness bug, not a timing fluke to paper over.
+    /// `XCTFail` (rather than `preconditionFailure`) keeps this recoverable, so a negative-control
+    /// test can drive this path with `XCTExpectFailure` and observe it fire.
+    private func continuation(
+        at streamIndex: Int,
+        calledFrom caller: StaticString,
+        file: StaticString,
+        line: UInt
+    ) -> AsyncThrowingStream<Value, Error>.Continuation? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard streamIndex >= 0, streamIndex < continuations.count else {
+            XCTFail(
+                "ControllableStreamSource.\(caller)(toStream: \(streamIndex)) called with an "
+                    + "out-of-range stream index (only \(continuations.count) stream(s) created so far).",
+                file: file,
+                line: line
+            )
+            return nil
+        }
+        guard let continuation = continuations[streamIndex] else {
+            XCTFail(
+                "ControllableStreamSource.\(caller)(toStream: \(streamIndex)) called before that "
+                    + "stream's continuation was stored. Wait for callCount to reach "
+                    + "\(streamIndex + 1) first.",
+                file: file,
+                line: line
+            )
+            return nil
+        }
+        return continuation
     }
 }
 
@@ -516,6 +573,36 @@ final class XLAsyncStreamPublisherTests: XCTestCase {
 
             XCTAssertTrue(subscriber.recordedCompletions.isEmpty)
         }
+    }
+
+    // MARK: - Harness self-test (negative controls for #464)
+
+    /// Proves `ControllableStreamSource` fails the test explicitly, rather than silently dropping
+    /// the value and letting a caller time out somewhere unrelated, when driven ahead of a stream
+    /// that does not exist yet.
+    func testYieldBeforeAnyStreamExistsFailsExplicitlyInsteadOfDroppingSilently() {
+        let source = ControllableStreamSource<Int>()
+
+        XCTExpectFailure("Yielding to a stream index that was never created must fail loudly.") {
+            source.yield(1)
+        }
+
+        XCTAssertEqual(
+            source.callCount,
+            0,
+            "The failed yield must not fabricate a stream that was never created."
+        )
+    }
+
+    /// Same failure path, for `finish(throwing:stream:)`.
+    func testFinishBeforeAnyStreamExistsFailsExplicitlyInsteadOfDroppingSilently() {
+        let source = ControllableStreamSource<Int>()
+
+        XCTExpectFailure("Finishing a stream index that was never created must fail loudly.") {
+            source.finish()
+        }
+
+        XCTAssertEqual(source.callCount, 0)
     }
 
     // MARK: - Helpers
