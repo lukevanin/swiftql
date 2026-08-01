@@ -797,8 +797,10 @@ jobs:
 
       # The Getting Started playground is not compiled by `swift build` or
       # exercised by `swift test`, so an API change can break it silently.
-      # One macOS cell is enough: the pages are platform-agnostic Swift and
-      # the check costs a build of every page.
+      # The gate below selects exactly one cell, Swift 6.0 / macOS /
+      # committed resolution. The pages are platform-agnostic Swift, and the
+      # check costs a build and a run of each one, so repeating it across the
+      # matrix would buy nothing.
       - name: Check the Getting Started playground
         id: playground-pages
         if: ${{ matrix.platform == 'macos' && matrix.resolution == 'committed' }}
@@ -809,6 +811,30 @@ jobs:
             "$RUNNER_TEMP/swiftql-playground"
           cat "$RUNNER_TEMP/swiftql-playground/summary.md" \
             >> "$GITHUB_STEP_SUMMARY"
+
+      # The per-page transcript is the evidence for what each page actually
+      # printed, which matters most on the runs where the check failed and the
+      # step log is the only other copy.
+      - name: Prepare retained playground evidence
+        if: ${{ always() && !cancelled() && matrix.platform == 'macos' && matrix.resolution == 'committed' }}
+        env:
+          PLAYGROUND_OUTCOME: ${{ steps.playground-pages.outcome }}
+        run: |
+          set -euo pipefail
+          output_directory="$RUNNER_TEMP/swiftql-playground"
+          mkdir -p "$output_directory"
+          printf 'workflow_step=%s\n' "$PLAYGROUND_OUTCOME" \
+            > "$output_directory/workflow-step-outcome.txt"
+
+      - name: Upload retained playground evidence
+        if: ${{ always() && !cancelled() && matrix.platform == 'macos' && matrix.resolution == 'committed' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: swiftql-playground-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/swiftql-playground
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 9
 
       - name: Run bounded live-query stress loop
         id: live-query-stress

@@ -127,7 +127,8 @@ scripts/ci/check-playground-pages.sh
 
 That builds the companion module, checks `contents.xcplayground` against the
 `Pages` directory, and compiles and runs every page against the checkout. CI
-runs it on the macOS cells of `swift.yml`'s compatibility job.
+runs it on one cell of `swift.yml`'s compatibility job, the macOS one with
+committed resolution, and keeps the per-page output as an artifact.
 
 [MAINTAINING.md](MAINTAINING.md) covers what to update when the Getting
 Started guide, the example schema, or SwiftQL's API changes, and what the

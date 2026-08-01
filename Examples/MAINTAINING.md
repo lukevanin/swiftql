@@ -24,10 +24,13 @@ It does three things:
 
 A page's top-level code is exactly what an executable target's `main.swift`
 holds, so pages run unmodified. Passing an output directory writes
-`page-output.txt` and `summary.md` for CI to retain.
+`page-output.txt` and `summary.md`.
 
-CI runs this in `swift.yml`'s `compatibility` job, on the macOS cells with
-committed resolution. What it does not cover is Xcode's own playground runner
+CI runs this in `swift.yml`'s `compatibility` job, on the one cell gated to
+macOS with committed resolution: Swift 6.0 on macos-15. The clean-resolution
+macOS cell does not run it, and neither do the Linux cells. That run passes an
+output directory and uploads it as an artifact, so the per-page transcript
+survives a failure. What it does not cover is Xcode's own playground runner
 and its results sidebar, which are not scriptable. Opening the workspace and
 stepping through the pages is still worth doing before a release.
 
