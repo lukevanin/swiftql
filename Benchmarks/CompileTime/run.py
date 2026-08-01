@@ -626,6 +626,19 @@ def resolved_dependencies(path: Path) -> dict[str, dict[str, str]]:
 # --------------------------------------------------------------------------
 
 
+def pinned_dependencies(spec: ConsumerSpec) -> dict[str, dict[str, str]]:
+    """The consumer's checked-in pins, or an empty map when it has none.
+
+    `control_raw_sqlite` has no external dependencies, so SwiftPM writes no
+    `Package.resolved` for it and there is nothing to pin or to drift.
+    """
+
+    resolved = CONSUMER_TEMPLATE_DIRECTORY / spec.template_name / "Package.resolved"
+    if not resolved.is_file():
+        return {}
+    return resolved_dependencies(resolved)
+
+
 def prepare_consumer(
     workspace: Path,
     spec: ConsumerSpec,
@@ -1287,11 +1300,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
 
         for spec, table_count, query_count in plan:
             consumer_root = prepared[spec.identifier]
-            expected = resolved_dependencies(
-                CONSUMER_TEMPLATE_DIRECTORY / spec.template_name / "Package.resolved"
-            ) if (
-                CONSUMER_TEMPLATE_DIRECTORY / spec.template_name / "Package.resolved"
-            ).is_file() else {}
+            expected = pinned_dependencies(spec)
 
             # Warm-up and correctness: generate the point, build it untimed,
             # and collect every build artifact before any timing starts.
@@ -1392,18 +1401,11 @@ def main(arguments: Sequence[str] | None = None) -> int:
 
         consumer_documents = []
         for spec in selected:
-            template_resolved = (
-                CONSUMER_TEMPLATE_DIRECTORY / spec.template_name / "Package.resolved"
-            )
             consumer_documents.append(
                 {
                     "identifier": spec.identifier,
                     "template": spec.template_name,
-                    "dependencies": (
-                        resolved_dependencies(template_resolved)
-                        if template_resolved.is_file()
-                        else {}
-                    ),
+                    "dependencies": pinned_dependencies(spec),
                     "buildModes": list(spec.build_modes),
                     "applicability": {
                         "tableAxis": "applicable",
