@@ -96,7 +96,7 @@ public struct TodoDate: XLCustomType, XLComparable, Hashable, Sendable {
         private let formatter: ISO8601DateFormatter = {
             let formatter = ISO8601DateFormatter()
             formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            formatter.timeZone = TimeZone(identifier: "UTC")
+            formatter.timeZone = .gmt
             return formatter
         }()
 
