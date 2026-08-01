@@ -11,7 +11,7 @@
       "conformance_feature_ids" : [
 
       ],
-      "definition_identity" : "todo-demo/todo-demo.launch-probes@1",
+      "definition_identity" : "todo-demo/launch-probes@1",
       "descriptor_identity" : "swiftql-query-v1-todo-demo",
       "dialect_capabilities_raw_value" : 0,
       "dialect_identifier" : "sqlite",

@@ -39,9 +39,15 @@ let manifestURL = targetDirectory
 
 let encoder = XLiteEncoder(dialect: XLSQLiteDialect())
 
+/// Namespaces every entry this generator writes.
+let namespace = "todo-demo"
+
 /// A declared query, paired with the metadata the manifest needs about it.
 struct ManifestedQuery {
-    let id: String
+    /// The query's local name. The manifest namespaces it: the entry id
+    /// becomes `todo-demo.<name>` and the definition identity
+    /// `todo-demo/<name>@1`, matching how SwiftQL's own manifests are keyed.
+    let name: String
     let statement: any XLEncodable
     let cardinality: XLQueryCardinality
     let results: [SQLiteBuildValidationResultEntry]
@@ -78,7 +84,7 @@ let schemaStatements: [any XLEncodable] = [
 // Mirrors `Query.launchProbes()` in TodoDatabase.swift.
 let queries: [ManifestedQuery] = [
     ManifestedQuery(
-        id: "todo-demo.launch-probes",
+        name: "launch-probes",
         statement: sql { schema in
             let probe = schema.table(LaunchProbe.self)
             Select(probe)
@@ -123,8 +129,8 @@ let snapshotData = try Data(contentsOf: snapshotURL)
 
 let queryEntries = try queries.map { query in
     SQLiteBuildValidationQueryEntry(
-        id: query.id,
-        definitionIdentity: "todo-demo/\(query.id)@1",
+        id: "\(namespace).\(query.name)",
+        definitionIdentity: "\(namespace)/\(query.name)@1",
         descriptorIdentity: "swiftql-query-v1-todo-demo",
         sql: try encoder.makeValidatedSQL(query.statement).sql,
         dialectIdentifier: XLSQLiteDialect.identity.rawValue,
