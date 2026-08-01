@@ -30,12 +30,16 @@ let database = try ExampleDatabase.makeSeeded()
  A query written in the playground itself. `sql { }` is an ordinary function
  taking a result builder, so writing one here is fine. Only the `@SQLTable`
  declaration of `Person` had to happen in the compiled module.
+
+ The `OrderBy` clause is what makes the printed output below reproducible.
+ Without it SQLite may return matching rows in any order.
  */
 let engineersQuery = sql { schema in
     let person = schema.table(Person.self)
     Select(person)
     From(person)
     Where(person.occupationId == "eng")
+    OrderBy(person.id.ascending())
 }
 let engineers = try database.makeRequest(with: engineersQuery).fetchAll()
 print("engineers:", engineers.map(\.exampleSummary))
