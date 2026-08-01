@@ -46,6 +46,28 @@ surface. The core protocols are extension seams, not claims that another
 dialect, driver, nested transaction/savepoint API, asynchronous cursor, or
 Swift 6 language mode is supported.
 
+## Build-validation plugin build systems
+
+`SwiftQLSQLiteBuildValidationPlugin` is supported under both SwiftPM's build
+system (`swift build`) and Xcode's, from v1.5.6 onwards. Both are verified
+against `IntegrationTests/BuildValidationPluginFixture`: `verify.sh` drives
+`swift build` and `verify-xcode.sh` drives `xcodebuild -destination
+'platform=macOS'`, and both assert the same outcomes — a valid manifest builds,
+and an invalid one fails with the validator's own diagnostic.
+
+On v1.5.2 through v1.5.5 the plugin is `swift build`-only. Adopting it in a
+target that Xcode builds fails that build with `Build input file cannot be
+found` naming the validator executable, before validation runs, on a valid
+manifest as much as an invalid one. The cause was a name mismatch between the
+validator's executable target and its product, which Xcode's build system does
+not tolerate (#492); v1.5.6 renames the target to match. On those versions, run
+the validator from CI or a `swift build` step rather than from an Xcode target.
+
+Verified on Xcode 26.5 (17F42), macOS 26.5 arm64. Xcode is not part of the
+pinned compatibility matrix below, so this is a verified support point rather
+than a per-commit CI gate. `verify-xcode.sh` is the check to run whenever the
+plugin's declaration or its tool resolution changes.
+
 ## SQLite conformance inventory
 
 The [SQLite conformance report](Conformance/SQLite/REPORT.md) summarizes the
