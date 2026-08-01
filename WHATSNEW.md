@@ -13,6 +13,90 @@ Almost every 1.x release has been purely additive. The one exception so far is
 `TimeInterval`. Each entry below ends with whether it affects code you already
 wrote.
 
+## 1.5.5 — async live queries, by default
+
+*Released 30 July 2026.*
+
+A `for try await` loop is now the one canonical way to observe a live query:
+
+- `stream()`/`stream(bindings:)` and `streamOne()`/`streamOne(bindings:)` on
+  `XLRequest` hand you an `AsyncThrowingStream` built directly on GRDB's own
+  observation — no separate Combine-side observation engine underneath
+  anymore.
+- `publish()`/`publishOne()` (and their `bindings:` variants) still work with
+  the same public signatures, but are now a thin Combine adapter layered over
+  the async streams, rather than an independent implementation. A real
+  demand-accounting over-delivery bug found while unifying the two is fixed
+  as part of the rebuild.
+- `XLObservableQuery`/`XLObservableQueryRow` wrap the async streams as
+  `@Observable` (iOS 17/macOS 14+) SwiftUI state — `rows`/`row`, `isLoading`,
+  `error` — for apps that can take the newer floor. The package's own iOS
+  16/macOS 13 minimum is unchanged.
+- `withResultSet(_:)`/`withResultSet(bindings:_:)` give you a connection-
+  scoped, lazy, single-pass result set (`next() throws -> Row?`) that decodes
+  one row at a time, for callers who want pull-based streaming without an
+  async stream.
+
+**Affects existing code?** No. `publish()`/`publishOne()` keep their existing
+signatures and behavior; everything else here is additive.
+
+## 1.5.4 — method-style functions and a smoother `Setting`
+
+*Released 28 July 2026.*
+
+- Scalar functions gained method-style spellings matching the majority style
+  already in use — `a.min(b, ...)`, `condition.iif(then:else:)`,
+  `"...".printf(...)`, `all().count()`. The older free functions
+  (`min(_:)`/`max(_:)`, `iif(_:then:else:)`, `printf(format:_:)`, `count(_:)`)
+  are deprecated, not removed.
+- `Setting(_:_:)` now infers its row type from the `Update(_:)` right before
+  it, so `Update(person); Setting(person) { $0.age = 42 }` no longer needs an
+  explicit generic parameter.
+- The `#row` ad hoc row-projection macro is back after being reverted for a
+  Swift 5.9.2 compiler crash. The single-column shape works everywhere; the
+  two-to-six column shapes need Swift 6.1+ — the first place SwiftQL's public
+  surface differs by compiler version (see COMPATIBILITY.md).
+- `XLQueryObserver`/`XLQueryRowObserver` wrap `publish()`/`publishOne()` as
+  `ObservableObject`s, for a SwiftUI view model that wants `@Published rows`
+  without hand-writing a Combine sink.
+
+Also closed out two investigations with no code changes needed: chained
+`coalesce`/`??` fallbacks already compose correctly into SQL's `COALESCE`,
+and an already-optional scalar subquery result was already flattening to a
+single `T?` rather than `T??`.
+
+**Affects existing code?** No. Every change is additive or a
+source-compatible deprecation; `#row`'s two-to-six column shapes are the
+first surface unavailable on Swift 5.9, not a removal from it.
+
+## 1.5.3 — value codecs for dates, JSON, and UUIDs
+
+*Released 28 July 2026.*
+
+Named, versioned codec presets for the value types almost every app needs to
+persist, all built on the v1.2 contextual codec registry:
+
+- `XLDateTextCodec` stores `Date` as a fixed-format, SQLite-comparable `TEXT`
+  string usable directly by `date`/`time`/`datetime`/`julianday`/`strftime`.
+- Three numeric `Date` presets — `UnixMilliseconds`, `UnixSeconds`,
+  `JulianDay` — for apps that prefer `INTEGER`/`REAL` storage.
+- `XLJSONValueCodec` stores any `Codable` value as `TEXT` or `BLOB` JSON, with
+  an immutable, captured encoder/decoder configuration rather than a shared
+  global one.
+- `XLUUIDValueCodec.text`/`.blob` store `UUID` as canonical lowercase text or
+  16-byte binary, without a wrapper type.
+- `@SQLCodec(key)` selects one of these (or your own) per property on an
+  `@SQLTable`/`@SQLResult`, so two properties of the same Swift type can use
+  two different storage conventions.
+
+None of these is an implicit default — encoding without an explicit selector
+or a registered database default still throws a catchable error, exactly like
+the v1.2 registry it builds on.
+
+**Affects existing code?** No. Every preset and `@SQLCodec` are new, additive
+surfaces; applying one to an existing property is a migration for that
+property alone, the same as changing any codec's key or version already was.
+
 ## 1.5.2 — build-time query validation
 
 *Released 27 July 2026.*
