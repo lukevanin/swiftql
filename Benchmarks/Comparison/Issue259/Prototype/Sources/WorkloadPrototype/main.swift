@@ -70,8 +70,7 @@ func runPrototype() throws {
                 }
                 let expectedKey = keys[iteration % keys.count]
                 guard row.orderID == expectedKey else {
-                    throw PrototypeError.unexpectedRowCount(
-                        workload: configuration.workload.rawValue,
+                    throw PrototypeError.unexpectedLookupKey(
                         expected: expectedKey,
                         actual: row.orderID
                     )

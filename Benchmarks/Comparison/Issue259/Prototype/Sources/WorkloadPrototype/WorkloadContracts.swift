@@ -81,7 +81,8 @@ enum PrototypeError: Error, CustomStringConvertible {
     case unexpectedRowCount(workload: String, expected: Int, actual: Int)
     case unexpectedChangeCount(expected: Int, actual: Int)
     case zeroDuration(sample: Int)
-    case checksumMismatch(first: UInt64, final: UInt64)
+    case checksumMismatch(expected: UInt64, observed: UInt64)
+    case unexpectedLookupKey(expected: Int, actual: Int)
     case zeroChecksum
     case sqlite(String)
 
@@ -107,8 +108,13 @@ enum PrototypeError: Error, CustomStringConvertible {
             return "transaction inserted \(actual) rows; expected \(expected)"
         case let .zeroDuration(sample):
             return "timed sample \(sample) did not produce a positive duration"
-        case let .checksumMismatch(first, final):
-            return "first and final checksums differed: \(first) != \(final)"
+        case let .checksumMismatch(expected, observed):
+            return """
+                decoded result checksum \(observed) does not match the \
+                independently computed expectation \(expected)
+                """
+        case let .unexpectedLookupKey(expected, actual):
+            return "point lookup returned OrderID \(actual); expected \(expected)"
         case .zeroChecksum:
             return "result checksum was zero"
         case let .sqlite(message):
@@ -312,8 +318,8 @@ enum PrototypeDriver {
                 guard observed != 0 else { throw PrototypeError.zeroChecksum }
                 guard observed == expected else {
                     throw PrototypeError.checksumMismatch(
-                        first: expected,
-                        final: observed
+                        expected: expected,
+                        observed: observed
                     )
                 }
                 checkedIterations += 1

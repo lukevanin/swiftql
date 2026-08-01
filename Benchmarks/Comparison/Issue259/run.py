@@ -32,13 +32,16 @@ from typing import Sequence
 
 SCRIPT_DIRECTORY = Path(__file__).resolve().parent
 COMPARISON_DIRECTORY = SCRIPT_DIRECTORY.parent
+REPOSITORY_ROOT = SCRIPT_DIRECTORY.parents[2]
 PROTOTYPE_TEMPLATE = SCRIPT_DIRECTORY / "Prototype"
 
+_BASELINE_RUNNER = COMPARISON_DIRECTORY / "run.py"
 _SPEC = importlib.util.spec_from_file_location(
     "issue259_comparison_run",
-    COMPARISON_DIRECTORY / "run.py",
+    _BASELINE_RUNNER,
 )
-assert _SPEC is not None and _SPEC.loader is not None
+if _SPEC is None or _SPEC.loader is None:
+    raise ImportError(f"could not load the #250 runner from {_BASELINE_RUNNER}")
 comparison_run = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = comparison_run
 _SPEC.loader.exec_module(comparison_run)
@@ -593,10 +596,13 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 "lookupKeyCount": LOOKUP_KEY_COUNT,
             },
             "fixture": {
-                "artifact": os.path.relpath(
-                    comparison_run.FIXTURE_ARCHIVE,
-                    output_directory,
+                # Relative to the repository root rather than to the report, so
+                # the value stays meaningful wherever the report is written and
+                # never records a machine-specific absolute path.
+                "artifact": str(
+                    comparison_run.FIXTURE_ARCHIVE.relative_to(REPOSITORY_ROOT)
                 ),
+                "artifactPathIsRelativeTo": "repository_root",
                 "artifactSHA256": comparison_run.FIXTURE_ARCHIVE_SHA256,
                 "databaseSHA256": comparison_run.FIXTURE_DATABASE_SHA256,
                 "rowCount": comparison_run.ROW_COUNT,

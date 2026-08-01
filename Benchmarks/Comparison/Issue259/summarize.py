@@ -101,6 +101,22 @@ def validate_structure(document: dict[str, object]) -> None:
         "the report must state its relationship to the #250 baseline",
     )
 
+    fixture = document["fixture"]
+    assert isinstance(fixture, dict)
+    artifact = fixture.get("artifact")
+    require(
+        isinstance(artifact, str) and artifact,
+        "the report must record the fixture archive path",
+    )
+    require(
+        fixture.get("artifactPathIsRelativeTo") == "repository_root",
+        "the fixture archive path must be declared relative to the repository root",
+    )
+    require(
+        not Path(str(artifact)).is_absolute() and ".." not in Path(str(artifact)).parts,
+        f"the fixture archive path must stay inside the repository: {artifact!r}",
+    )
+
 
 def validate_workloads(document: dict[str, object]) -> set[str]:
     workloads = document["workloads"]
@@ -364,7 +380,8 @@ def render(
     assert isinstance(environment, dict) and isinstance(sources, dict)
     assert isinstance(measurement, dict)
 
-    lines = ["Issue #259 cross-library workload prototypes", "=" * 43, ""]
+    title = "Issue #259 cross-library workload prototypes"
+    lines = [title, "=" * len(title), ""]
     lines.append(f"Report generated: {document['generatedAt']}")
     lines.append(
         f"SwiftQL revision: {sources['swiftqlRevision']}"
