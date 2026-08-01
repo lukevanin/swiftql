@@ -91,9 +91,19 @@ if [ "$REPORT_COUNT" -ne 2 ]; then
     printf '%s\n' "$REPORTS"
     exit 1
 fi
+# Split on newlines only. These paths sit under $DERIVED_DATA, hence under
+# $TMPDIR, so the default IFS would break every check below the moment someone
+# runs this with a temporary directory whose path contains a space. A
+# `find ... | while read` pipeline would not do: its body runs in a subshell,
+# where assert_passed_report's `exit 1` would end the subshell and let the
+# script carry on reporting success.
+OLD_IFS=$IFS
+IFS='
+'
 for REPORT in $REPORTS; do
     assert_passed_report "$REPORT"
 done
+IFS=$OLD_IFS
 echo "OK"
 
 echo "== 2. Validator executable lands where the plugin's tool resolution expects =="
