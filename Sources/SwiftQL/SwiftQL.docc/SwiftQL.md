@@ -136,6 +136,7 @@ replacing SQLite's runtime type rules.
 ### Tutorials
 
 - <doc:/tutorials/SwiftQL>
+- <doc:TodoDemo>
 
 ### Essentials
 
