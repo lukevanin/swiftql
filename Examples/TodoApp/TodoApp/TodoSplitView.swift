@@ -73,15 +73,18 @@ private struct SidebarView: View {
 
     var body: some View {
         List(model.lists.rows, id: \.id, selection: $selection) { list in
+            // Looked up once per row: counts(for:) scans the aggregate's
+            // rows, and asking twice would make the sidebar quadratic.
+            let counts = model.counts(for: list.id)
             HStack {
                 Text(list.name)
                 Spacer()
                 // These numbers come from the counts observation, not from
                 // counting the rows the other pane happens to be showing.
-                Text("\(model.counts(for: list.id).openCount)")
+                Text("\(counts.openCount)")
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
-                Text("/ \(model.counts(for: list.id).totalCount)")
+                Text("/ \(counts.totalCount)")
                     .monospacedDigit()
                     .foregroundStyle(.tertiary)
             }

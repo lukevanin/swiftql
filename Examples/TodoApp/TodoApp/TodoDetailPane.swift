@@ -51,6 +51,10 @@ struct TodoDetailPane: View {
             // one would leave the pane permanently frozen.
             model?.stop()
             model = nil
+            // Clear the failure too, so a later appearance tries again
+            // rather than rendering a stale error before start() runs.
+            failure = nil
+            isEditing = false
         }
     }
 
