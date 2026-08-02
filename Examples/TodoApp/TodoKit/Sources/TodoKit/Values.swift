@@ -66,9 +66,9 @@ public struct TodoUUID: XLCustomType, XLComparable, Hashable, Sendable {
 /// A `Date` column.
 ///
 /// Stored as the ISO 8601 spelling SwiftQL's own ``XLDateTextCodec/standard``
-/// codec uses: `YYYY-MM-DDTHH:MM:SS.SSSZ`, always UTC. That format sorts
-/// correctly as text, which is what lets a due date drive `OrderBy` and an
-/// overdue comparison without a conversion in Swift.
+/// codec uses, always UTC -- for example `2024-03-15T09:30:00.000Z`. That
+/// format sorts correctly as text, which is what lets a due date drive
+/// `OrderBy` and an overdue comparison without a conversion in Swift.
 public struct TodoDate: XLCustomType, XLComparable, Hashable, Sendable {
 
     public enum ReadError: Error, LocalizedError {

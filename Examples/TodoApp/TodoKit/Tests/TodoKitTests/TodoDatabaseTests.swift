@@ -101,7 +101,7 @@ final class TodoDatabaseTests: XCTestCase {
         )
     }
 
-    func testAToDoWithoutADueDateReadsBackAsNil() throws {
+    func testATodoWithoutADueDateReadsBackAsNil() throws {
         let database = try TodoDatabase(url: databaseURL(), referenceDate: referenceDate)
 
         let knives = try todo(TodoSeed.sharpenKnivesID, in: database)
