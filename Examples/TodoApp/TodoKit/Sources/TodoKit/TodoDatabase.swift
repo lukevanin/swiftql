@@ -52,7 +52,7 @@ public final class TodoDatabase {
     private static func isUnseeded(_ scope: GRDBDatabase) throws -> Bool {
         let anyList = sql { schema in
             let list = schema.table(TodoList.self)
-            Select(list)
+            Select(list.id)
             From(list)
             Limit(1)
         }

@@ -32,6 +32,7 @@ struct ContentView: View {
         .task { await open() }
     }
 
+    @MainActor
     private func open() async {
         do {
             status = .opened(try await TodoLaunchCheck.run())
@@ -42,6 +43,7 @@ struct ContentView: View {
     }
 
     #if DEBUG
+    @MainActor
     private func reset() async {
         do {
             status = .opened(try await TodoLaunchCheck.resetAndRun())
