@@ -340,6 +340,7 @@ def validate_matrix_coverage(document: dict[str, object]) -> None:
             isinstance(applicability, dict)
             and applicability.get("tableAxis") in ("applicable", "not_applicable")
             and applicability.get("queryAxis") in ("applicable", "not_applicable")
+            and applicability.get("oneQueryEdit") in ("applicable", "not_applicable")
             and isinstance(applicability.get("note"), str)
             and applicability["note"],
             f"{identifier} must declare a complete applicability entry",
@@ -348,6 +349,10 @@ def validate_matrix_coverage(document: dict[str, object]) -> None:
         require(
             scales_queries == ("one_query_edit" in modes),
             f"{identifier} query-axis applicability disagrees with its build modes",
+        )
+        require(
+            (applicability["oneQueryEdit"] == "applicable") == ("one_query_edit" in modes),
+            f"{identifier} one-query-edit applicability disagrees with its build modes",
         )
 
         consumer_points = [
@@ -439,9 +444,14 @@ def validate_artifacts(document: dict[str, object]) -> None:
 def validate_raw_logs(document: dict[str, object], report_path: Path) -> None:
     measurements = document["measurements"]
     assert isinstance(measurements, list)
-    directory = report_path.parent
+    directory = report_path.parent.resolve()
     for measurement in measurements:
-        log_path = directory / str(measurement["rawLog"])
+        raw_log = str(measurement["rawLog"])
+        log_path = (directory / raw_log).resolve()
+        require(
+            log_path == directory or directory in log_path.parents,
+            f"rawLog escapes the report directory: {raw_log!r}",
+        )
         require(log_path.is_file(), f"missing raw build log: {log_path}")
         digest = sha256_file(log_path)
         require(
