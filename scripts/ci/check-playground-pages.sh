@@ -135,14 +135,21 @@ while IFS= read -r page; do
     cp "$page_source" "$harness/Sources/PlaygroundPage/main.swift"
 
     build_log="$temporary_root/build-$failures.log"
+    # The `|| true` on both excerpt pipelines is load-bearing under
+    # `set -euo pipefail`. A build can fail without any line matching
+    # `error:` (a linker or toolchain failure), which makes grep exit 1 and
+    # pipefail abort the whole script before the failure is counted. `head`
+    # closing the pipe early does the same thing by way of SIGPIPE. Either
+    # way the script would exit mid-loop and report nothing.
     if ! (cd "$harness" && swift build --product PlaygroundPage) > "$build_log" 2>&1; then
-        grep -E 'error:' "$build_log" | head -20 >&2
+        grep -E 'error:' "$build_log" | head -20 >&2 || true
+        tail -5 "$build_log" >&2
         printf 'error: page does not compile: %s\n' "$page" >&2
         failures=$((failures + 1))
         continue
     fi
     if grep -q 'warning:' "$build_log"; then
-        grep -E 'warning:' "$build_log" | head -20 >&2
+        grep -E 'warning:' "$build_log" | head -20 >&2 || true
         printf 'error: page compiles with warnings: %s\n' "$page" >&2
         failures=$((failures + 1))
         continue
