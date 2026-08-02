@@ -331,7 +331,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ always() && !cancelled() }}
         with:
-          name: swiftql-todo-demo-${{ github.sha }}-${{ github.run_attempt }}
+          name: swiftql-todo-demo-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/swiftql-todo-demo-*.log
             ${{ runner.temp }}/simulator-runtimes.txt
