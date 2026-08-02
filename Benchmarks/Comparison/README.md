@@ -210,6 +210,6 @@ ranking. Broader runtime workload design is researched separately in
 and transactional-write contracts, prototypes them against this same fixture in
 its own graph, and records which further workload families are comparable across
 libraries at all. That directory does not modify this baseline. Consumer
-compile time, generated-source size, binary size, and a dedicated RSS matrix
-belong to issue #257. No absolute timing or memory value in this directory is
-a CI gate.
+compile time, generated-source size, binary size, and build-process RSS are
+measured separately in [../CompileTime](../CompileTime/README.md). No absolute
+timing or memory value in this directory is a CI gate.
