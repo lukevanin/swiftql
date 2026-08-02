@@ -277,8 +277,14 @@ def validate_measurements(document: dict[str, object]) -> None:
         require(raw_log not in seen_logs, f"duplicate rawLog: {raw_log!r}")
         seen_logs.add(raw_log)
 
+        started_at = measurement["startedAt"]
+        finished_at = measurement["finishedAt"]
         require(
-            measurement["startedAt"] < measurement["finishedAt"],
+            isinstance(started_at, str) and isinstance(finished_at, str),
+            f"measurement {identity!r} has a non-string startedAt/finishedAt",
+        )
+        require(
+            started_at < finished_at,
             f"measurement {identity!r} did not finish after it started",
         )
 
@@ -410,11 +416,17 @@ def validate_artifacts(document: dict[str, object]) -> None:
                 value is None or (isinstance(value, int) and value > 0),
                 f"{optional_key} must be a positive integer or null for {key!r}",
             )
+        reason = artifact.get("macroExpansionUnavailableReason")
         if artifact.get("macroExpansionBytes") is None:
-            reason = artifact.get("macroExpansionUnavailableReason")
             require(
                 isinstance(reason, str) and reason,
                 f"{key!r} must record why macro-expansion size is unavailable",
+            )
+        else:
+            require(
+                reason is None,
+                f"{key!r} has both a macroExpansionBytes measurement and an "
+                "unavailability reason -- contradictory",
             )
 
     require(
@@ -725,7 +737,18 @@ def compare(
     candidate_summaries: dict[str, dict[str, object]],
 ) -> str:
     for section, keys in (
-        ("workload", ("identifier", "configuration", "repetitionCount", "attribution")),
+        (
+            "workload",
+            (
+                "identifier",
+                "configuration",
+                "repetitionCount",
+                "attribution",
+                "recordedTableScales",
+                "recordedQueryScales",
+                "buildModes",
+            ),
+        ),
         ("environment", ("model", "processor", "architecture", "swift")),
     ):
         left = baseline[section]
@@ -738,22 +761,30 @@ def compare(
                 f"{left.get(key)!r} != {right.get(key)!r}",
             )
 
+    def consumer_compatibility_key(consumer: dict[str, object]) -> dict[str, object]:
+        return {
+            "dependencies": consumer["dependencies"],
+            "buildModes": consumer["buildModes"],
+            "applicability": consumer["applicability"],
+        }
+
     baseline_consumers = {
-        str(consumer["identifier"]): consumer["dependencies"]
+        str(consumer["identifier"]): consumer_compatibility_key(consumer)  # type: ignore[arg-type]
         for consumer in baseline["consumers"]  # type: ignore[union-attr]
     }
     candidate_consumers = {
-        str(consumer["identifier"]): consumer["dependencies"]
+        str(consumer["identifier"]): consumer_compatibility_key(consumer)  # type: ignore[arg-type]
         for consumer in candidate["consumers"]  # type: ignore[union-attr]
     }
     require(
         set(baseline_consumers) == set(candidate_consumers),
         "the two reports cover different consumers",
     )
-    for identifier, dependencies in baseline_consumers.items():
+    for identifier, compatibility in baseline_consumers.items():
         require(
-            dependencies == candidate_consumers[identifier],
-            f"{identifier} dependency pins drifted between the reports",
+            compatibility == candidate_consumers[identifier],
+            f"{identifier} dependency pins, build modes, or applicability "
+            "drifted between the reports",
         )
 
     shared = sorted(set(baseline_summaries) & set(candidate_summaries))

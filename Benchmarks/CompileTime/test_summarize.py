@@ -453,7 +453,7 @@ class ComparisonTests(unittest.TestCase):
                 candidate,
                 candidate_summaries,
             )
-        self.assertIn("dependency pins drifted", str(context.exception))
+        self.assertIn("dependency pins, build modes, or applicability drifted", str(context.exception))
 
     def test_rejects_an_incompatible_environment(self) -> None:
         document = json.loads(self.candidate_path.read_text(encoding="utf-8"))
