@@ -109,8 +109,22 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
 
     private let state = OSAllocatedUnfairLock(uncheckedState: State())
 
+    /// The most recent value this mailbox has been handed, whether it was delivered straight to a
+    /// waiter or buffered. Separate from `State` and awaitable, so a test can wait for the
+    /// *observation* to have produced a particular snapshot -- rather than assuming, from a main-queue
+    /// barrier, that GRDB has already fetched it (#533).
+    private let newestYield = XLAwaitableState<Value?>(nil)
+
     var totalYieldCount: Int {
         state.withLock { $0.totalYieldCount }
+    }
+
+    /// Suspends until a value satisfying `isExpected` has been yielded into this mailbox.
+    func waitForYield(satisfying isExpected: @escaping (Value) -> Bool) async {
+        await newestYield.wait(until: { value in
+            guard let value else { return false }
+            return isExpected(value)
+        })
     }
 
     // `@unchecked Sendable`, matching `FastPathOutcome`/`RegistrationOutcome` below: a bare
@@ -159,7 +173,11 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
         // arbitrary downstream code, which must never happen while this
         // mailbox's own lock is held.
         if let delivery {
+            newestYield.set(delivery.value)
             delivery.waiter.resume(returning: delivery.value)
+        }
+        else {
+            newestYield.set(value)
         }
     }
 
@@ -378,6 +396,12 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
     }
 
     var totalYieldCount: Int { mailbox.totalYieldCount }
+
+    /// Suspends until the underlying observation has produced a value satisfying `isExpected`,
+    /// whether or not a consumer has pulled it yet.
+    func waitForYield(satisfying isExpected: @escaping (Value) -> Bool) async {
+        await mailbox.waitForYield(satisfying: isExpected)
+    }
 
     var startCount: Int { state.withLock { $0.startCount } }
 
@@ -614,28 +638,29 @@ private final class LockedCounter: @unchecked Sendable {
 }
 
 
+/// Backed by ``XLAwaitableState`` (`XLLiveQueryWaitSupport.swift`), so a test awaits the appends it
+/// needs and is resumed by the append itself.
+///
+/// The previous version was polled by a `waitForCount` helper that created one `XCTestExpectation`
+/// per attempt and waited on it with a 0.2s timeout, up to 200 times per call. Under load those
+/// waits time out while the value is merely late, and the `asyncAfter` block that fulfils an
+/// already-timed-out expectation is an XCTest API violation -- one of the two candidate mechanisms
+/// for the `Index out of range` crash recorded on #533.
 private final class LockedArray<Element>: @unchecked Sendable {
 
-    private let state = OSAllocatedUnfairLock(uncheckedState: [Element]())
+    private let state = XLAwaitableState<[Element]>([])
 
-    // See the `nonisolated(unsafe)` shadow note on `SingleSlotMailbox.yield(_:)` above -- identical
-    // reasoning.
     func append(_ value: Element) {
-        #if compiler(>=6.0)
-        nonisolated(unsafe) let value = value
-        #endif
-        state.withLock { $0.append(value) }
-    }
-
-    // `@unchecked Sendable` box, matching `Delivery`/`FastPathOutcome`/`RegistrationOutcome` above:
-    // returning a bare `[Element]` directly from this `@Sendable` closure is itself flagged, the same
-    // way those types were.
-    private struct ElementsBox: @unchecked Sendable {
-        let elements: [Element]
+        state.withValue { $0.append(value) }
     }
 
     func read() -> [Element] {
-        state.withLock { ElementsBox(elements: $0) }.elements
+        state.read()
+    }
+
+    /// Suspends until at least `count` elements have been appended.
+    func wait(untilCountIsAtLeast count: Int) async {
+        await state.wait(untilCountIsAtLeast: count)
     }
 }
 
@@ -787,7 +812,7 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         )
     }
 
-    func testCancellingTheConsumingTaskCancelsTheUnderlyingObservation() throws {
+    func testCancellingTheConsumingTaskCancelsTheUnderlyingObservation() async throws {
         let fetchCounter = LockedCounter()
         let bridge = makeBridge(fetchProbe: { fetchCounter.increment() })
         let stream = bridge.stream()
@@ -806,14 +831,14 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
             loopExpectation.fulfill()
         }
 
-        waitForCount(seen, atLeast: 1)
+        await seen.wait(untilCountIsAtLeast: 1)
         task.cancel()
-        wait(for: [loopExpectation], timeout: 2)
+        await fulfillment(of: [loopExpectation], timeout: 2)
         XCTAssertEqual(seen.read(), [0])
 
         let fetchCountAtCancel = fetchCounter.read()
         try insert("after-task-cancel", 99)
-        drainMainQueue()
+        await xlDrainMainQueue()
         XCTAssertEqual(
             fetchCounter.read(),
             fetchCountAtCancel,
@@ -870,7 +895,7 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
     // MARK: - Demand mapping (edge cases: zero demand, incremental demand,
     // unlimited demand, demand added from receive)
 
-    func testDemandDrivenPullerConsumesExactlyDemandedCountWithoutEagerDraining() throws {
+    func testDemandDrivenPullerConsumesExactlyDemandedCountWithoutEagerDraining() async throws {
         let bridge = makeBridge()
         let delivered = LockedArray<Int>()
         let puller = DemandDrivenPuller(
@@ -880,13 +905,13 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         )
 
         // Zero demand: the puller must not touch the bridge at all.
-        drainMainQueue()
+        await xlDrainMainQueue()
         XCTAssertEqual(bridge.startCount, 0, "Zero demand must not start the observation.")
         XCTAssertEqual(delivered.read(), [])
 
         // Grant demand for exactly one value.
         puller.requestDemand(1)
-        waitForCount(delivered, atLeast: 1)
+        await delivered.wait(untilCountIsAtLeast: 1)
         XCTAssertEqual(delivered.read(), [0])
 
         // Multiple rapid writes while demand is exhausted (zero outstanding):
@@ -896,7 +921,16 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         // the observed count).
         try insert("a", 1)
         try insert("b", 2)
-        drainMainQueue()
+        // Wait for the observation to have actually produced the state after
+        // *both* commits. GRDB fetches on a reader queue and only then
+        // dispatches to main, so a main-queue barrier says nothing about
+        // whether the second commit has been fetched yet: under load it often
+        // has not, the mailbox still holds the snapshot for the first insert,
+        // and resuming demand correctly delivered `1` rather than `2` (#533).
+        // How many fetches those two commits coalesce into is GRDB's business
+        // and deliberately not asserted -- only that the newest value the
+        // mailbox holds is the final one before demand resumes.
+        await bridge.waitForYield(satisfying: { $0 == 2 })
         XCTAssertEqual(
             delivered.read(),
             [0],
@@ -907,13 +941,13 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         // single buffered "newest" snapshot, not a backlog of every write
         // that occurred while paused.
         puller.requestDemand(1)
-        waitForCount(delivered, atLeast: 2)
+        await delivered.wait(untilCountIsAtLeast: 2)
         XCTAssertEqual(delivered.read(), [0, 2])
 
         puller.cancel()
     }
 
-    func testUnlimitedDemandDeliversAsValuesBecomeAvailableWithoutSpinningOrDoubleDelivery() throws {
+    func testUnlimitedDemandDeliversAsValuesBecomeAvailableWithoutSpinningOrDoubleDelivery() async throws {
         let bridge = makeBridge()
         let delivered = LockedArray<Int>()
         let finished = LockedValueBox<Error??>(nil)
@@ -925,19 +959,19 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
 
         // A very large demand simulates Combine's `.unlimited`.
         puller.requestDemand(1_000_000)
-        waitForCount(delivered, atLeast: 1)
+        await delivered.wait(untilCountIsAtLeast: 1)
         XCTAssertEqual(delivered.read(), [0])
 
         // The bridge observes `COUNT(*)`, so one insert into this fresh
         // table moves the row count from 0 to 1 (the inserted row's own
         // `value` column, 42, is unrelated to the observed count).
         try insert("x", 42)
-        waitForCount(delivered, atLeast: 2)
+        await delivered.wait(untilCountIsAtLeast: 2)
         XCTAssertEqual(delivered.read(), [0, 1])
 
         // No further writes: the puller must not spin, error, or duplicate
         // delivery while waiting for the next relevant commit.
-        drainMainQueue()
+        await xlDrainMainQueue()
         XCTAssertEqual(delivered.read(), [0, 1])
         XCTAssertNil(finished.get() ?? nil)
 
@@ -999,19 +1033,6 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         wait(for: [barrier], timeout: 2)
     }
 
-    private func waitForCount<Element>(_ array: LockedArray<Element>, atLeast minimumCount: Int) {
-        for attempt in 1 ... 200 {
-            if array.read().count >= minimumCount {
-                return
-            }
-            let poll = expectation(description: "array poll \(attempt)")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-                poll.fulfill()
-            }
-            wait(for: [poll], timeout: 0.2)
-        }
-        XCTFail("Expected at least \(minimumCount) delivered values; received \(array.read().count).")
-    }
 }
 
 
