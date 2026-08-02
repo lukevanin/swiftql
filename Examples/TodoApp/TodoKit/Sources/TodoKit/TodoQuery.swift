@@ -70,11 +70,23 @@ public struct TodoQuery: Equatable, Sendable {
         self.referenceDate = referenceDate
     }
 
+    /// The character that turns a `LIKE` wildcard back into a literal.
+    ///
+    /// SQLite has no default: without an explicit `ESCAPE`, a backslash in a
+    /// pattern is just a backslash and `%` still matches anything. The query
+    /// passes this to `like(_:escape:)`, which is what makes the escaping in
+    /// ``searchPattern`` mean something.
+    static let searchEscape = "\\"
+
     /// The `LIKE` pattern for ``searchText``.
     ///
     /// Empty search becomes `%`, which every row matches, so the search
     /// clause never has to be added or removed — it is always present and
     /// sometimes vacuous. That is what keeps this one query rather than two.
+    ///
+    /// A user typing `%`, `_`, or `\` means those characters literally, so
+    /// each is escaped. Searching for `50%` finds the row that says `50%`,
+    /// not every row.
     var searchPattern: String {
         guard !searchText.isEmpty else {
             return "%"

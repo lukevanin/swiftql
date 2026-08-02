@@ -53,8 +53,8 @@ public enum TodoFilteredRead {
                 && (overdueOnly == false
                     || (todo.dueAt < referenceDate
                         && todo.isCompleted == false))
-                && (todo.title.like(searchPattern)
-                    || todo.notes.like(searchPattern))
+                && (todo.title.like(searchPattern, escape: TodoQuery.searchEscape)
+                    || todo.notes.like(searchPattern, escape: TodoQuery.searchEscape))
             )
             OrderBy(
                 (sortOrder == TodoSort.dueDate.rawValue).iif(

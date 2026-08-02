@@ -133,10 +133,45 @@ final class TodoStoreTests: XCTestCase {
     }
 
     func testSearchTreatsWildcardsAsText() throws {
-        // A user typing % must not match every row.
+        try database.createTodo(
+            listID: TodoSeed.todayListID,
+            title: "Claim the 50% refund",
+            now: TodoDate(referenceDate)
+        )
+        try database.createTodo(
+            listID: TodoSeed.todayListID,
+            title: "Rename draft_final",
+            now: TodoDate(referenceDate)
+        )
+
+        // Each of these is a LIKE wildcard. Escaped, they match the one row
+        // that literally contains the character, not every row.
         XCTAssertEqual(
             try titles(query(TodoSeed.todayListID, search: "%")),
-            []
+            ["Claim the 50% refund"]
+        )
+        XCTAssertEqual(
+            try titles(query(TodoSeed.todayListID, search: "_")),
+            ["Rename draft_final"]
+        )
+        XCTAssertEqual(
+            try titles(query(TodoSeed.todayListID, search: "50%")),
+            ["Claim the 50% refund"]
+        )
+    }
+
+    func testSearchStillMatchesAcrossAnEscapedCharacter() throws {
+        try database.createTodo(
+            listID: TodoSeed.todayListID,
+            title: "Claim the 50% refund",
+            now: TodoDate(referenceDate)
+        )
+
+        // The escape is applied to the user's text, not to the surrounding
+        // wildcards, so a substring search still works.
+        XCTAssertEqual(
+            try titles(query(TodoSeed.todayListID, search: "the 50% ref")),
+            ["Claim the 50% refund"]
         )
     }
 

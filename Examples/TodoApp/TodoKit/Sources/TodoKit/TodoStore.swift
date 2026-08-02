@@ -8,6 +8,7 @@ public enum TodoStoreError: Error, Equatable, LocalizedError {
 
     case todoNotFound(TodoUUID)
     case listNotFound(TodoUUID)
+    case unknownParameter(statement: String, name: String)
 
     public var errorDescription: String? {
         switch self {
@@ -15,6 +16,8 @@ public enum TodoStoreError: Error, Equatable, LocalizedError {
             return "No to-do with identifier \(id.wrappedValue)."
         case .listNotFound(let id):
             return "No list with identifier \(id.wrappedValue)."
+        case .unknownParameter(let statement, let name):
+            return "The \(statement) statement has no parameter named \(name)."
         }
     }
 }
@@ -209,7 +212,10 @@ extension TodoDatabase {
         _ value: XLSQLiteValue
     ) throws -> XLInvocationBinding<XLSQLiteValue> {
         guard let slot = layout.slot(for: .named(name)) else {
-            throw TodoFilteredReadError.unknownParameter(name)
+            throw TodoStoreError.unknownParameter(
+                statement: "update to-do",
+                name: name
+            )
         }
         return try XLInvocationBinding(slot: slot, value: value)
     }
@@ -277,12 +283,16 @@ extension TodoDatabase {
     // MARK: - Transaction
 
     /// Moves a to-do to another list, closing the gap it leaves behind and
-    /// putting it at the end of its new one.
+    /// appending it to its new one.
     ///
-    /// Three writes that only make sense together: renumber the old list,
-    /// place the to-do, renumber the new one. `withTransaction` commits when
-    /// the closure returns and rolls back everything if it throws, so a
-    /// failure part-way leaves both lists exactly as they were.
+    /// Two writes that only make sense together: renumber every to-do that
+    /// sat after this one in the old list, then move the row and give it the
+    /// next free position in the new list. The destination needs no
+    /// renumbering because the to-do goes on the end.
+    ///
+    /// `withTransaction` commits when the closure returns and rolls back
+    /// everything if it throws, so a failure part-way leaves both lists
+    /// exactly as they were.
     @discardableResult
     public func move(
         todoID: TodoUUID,
