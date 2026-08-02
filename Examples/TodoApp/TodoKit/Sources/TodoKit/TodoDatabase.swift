@@ -1,104 +1,136 @@
 import Foundation
+
 import SwiftQL
 
-/// The scaffold's stand-in schema.
-///
-/// It exists so the app has something real to create and read at launch, and
-/// so the build-time validation plugin has a schema to validate a query
-/// against. The to-do schema replaces it.
-@SQLTable
-public struct LaunchProbe {
-
-    public var id: String
-}
-
-/// Every read the demo performs is a declared query.
-///
-/// SwiftQL allows one `@SQLQueries` extension per database type, so this is
-/// the single place the demo's queries live.
-@SQLQueries
-extension GRDBDatabase {
-
-    private struct Query {
-
-        func launchProbes() -> [LaunchProbe] {
-            sqlResult { schema in
-                let probe = schema.table(LaunchProbe.self)
-                Select(probe)
-                From(probe)
-            }
-        }
-    }
-}
-
-/// Owns the demo's SQLite connection and its schema.
+/// Owns the demo's SQLite file, its schema, and its seed data.
 public final class TodoDatabase {
+
+    /// The file name the app opens in Application Support. Stable, so a
+    /// relaunch finds the database it wrote last time.
+    public static let fileName = "SwiftQLTodoDemo.sqlite"
+
+    public let url: URL
 
     public let database: GRDBDatabase
 
-    public init(url: URL) throws {
+    /// `true` when this instance created the file and seeded it.
+    public let didSeed: Bool
+
+    /// Opens the database, creating and seeding it the first time only.
+    ///
+    /// Both steps run in one transaction, and both ask the database rather
+    /// than the file system what state it is in. Opening a connection is what
+    /// creates the file, so "does the file exist" answers `true` even for a
+    /// database whose schema never got written — after a crash between the
+    /// two, say. `sqlCreate` is `CREATE TABLE IF NOT EXISTS`, so running it
+    /// every time costs nothing and repairs that case; seeding then keys off
+    /// whether there are any lists, which only an unseeded database answers
+    /// `no` to.
+    public init(url: URL, referenceDate: Date = Date()) throws {
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+
+        self.url = url
         database = try GRDBDatabase(url: url, logger: nil)
-        try database.makeRequest(with: sqlCreate(LaunchProbe.self)).execute()
+        didSeed = try database.withTransaction { scope in
+            try Self.createSchema(in: scope)
+            guard try Self.isUnseeded(scope) else {
+                return false
+            }
+            try Self.insert(TodoSeed(referenceDate: referenceDate), in: scope)
+            return true
+        }
     }
 
-    /// Opens a throwaway database in a fresh temporary directory.
+    /// Whether the database holds no lists yet.
     ///
-    /// Not an in-memory database, deliberately: `GRDBDatabase` is backed by
-    /// GRDB's `DatabasePool`, which runs in WAL mode and therefore needs a
-    /// real file — GRDB offers in-memory databases only through
-    /// `DatabaseQueue`, which `GRDBDatabase` has no initializer for. A file
-    /// under the temporary directory is the closest equivalent: it needs no
-    /// setup, and the system reclaims it.
-    ///
-    /// The scaffold uses this so the app launches with nothing to configure
-    /// on either platform. A durable file in Application Support replaces it.
-    public static func temporary() throws -> TodoDatabase {
+    /// A plain request rather than the declared `todoLists()` read: a
+    /// generated executor opens a transaction of its own, and SwiftQL rejects
+    /// a nested one with `XLTransactionScopeError.nestedTransactionUnsupported`.
+    private static func isUnseeded(_ scope: GRDBDatabase) throws -> Bool {
+        let anyList = sql { schema in
+            let list = schema.table(TodoList.self)
+            Select(list.id)
+            From(list)
+            Limit(1)
+        }
+        return try scope.makeRequest(with: anyList).fetchOne() == nil
+    }
+
+    /// Opens the demo's durable database in Application Support.
+    public static func applicationDatabase(referenceDate: Date = Date()) throws -> TodoDatabase {
+        try TodoDatabase(url: applicationSupportURL(), referenceDate: referenceDate)
+    }
+
+    /// Opens a throwaway database under the temporary directory. Used by the
+    /// tests, and by anyone who wants to poke at the demo without keeping
+    /// what they did.
+    public static func temporary(referenceDate: Date = Date()) throws -> TodoDatabase {
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("TodoApp-\(UUID().uuidString)")
-            .appendingPathExtension("sqlite")
-        return try TodoDatabase(url: url)
+            .appendingPathComponent("SwiftQLTodoDemo-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent(fileName)
+        return try TodoDatabase(url: url, referenceDate: referenceDate)
     }
 
-    /// Reads back every probe row, proving the connection, the schema, and
-    /// the declared-query path all work.
-    public func launchProbeCount() throws -> Int {
-        try database.launchProbes().count
-    }
-
-    public func insertProbe() throws {
-        try database
-            .makeRequest(with: sqlInsert(LaunchProbe(id: UUID().uuidString)))
-            .execute()
-    }
-}
-
-/// What the placeholder view shows.
-public enum TodoLaunchCheck: Sendable {
-
-    /// Opens a throwaway database, writes one row, and reads it back through
-    /// the declared query.
+    /// The demo's file in the user's Application Support directory.
     ///
-    /// SwiftQL's request methods are synchronous, so the work runs on an
-    /// actor of its own rather than wherever the caller happens to be. A
-    /// plain `nonisolated async` function would do the same thing today
-    /// under SE-0338, but that is exactly what Swift 6.2's
-    /// `NonisolatedNonsendingByDefault` reverses, and a demo should not
-    /// depend on which side of that flag it is compiled on.
-    ///
-    /// Awaiting it stays inside the caller's task tree, so a view that
-    /// disappears cancels the check — which a detached task would not.
-    public static func run() async throws -> Int {
-        try await Worker().run()
+    /// The directory itself may not exist yet on a fresh install; ``init``
+    /// creates it.
+    public static func applicationSupportURL() throws -> URL {
+        try FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        .appendingPathComponent("SwiftQLTodoDemo", isDirectory: true)
+        .appendingPathComponent(fileName)
     }
-}
 
-/// Holds the launch check's database work off the caller's executor.
-private actor Worker {
+    #if DEBUG
+    /// Puts the database back to its seeded state.
+    ///
+    /// Debug builds only. Everything happens in one transaction, so a reset
+    /// either lands completely or not at all.
+    public func reset(referenceDate: Date = Date()) throws {
+        try database.withTransaction { scope in
+            try Self.deleteEverything(in: scope)
+            try Self.insert(TodoSeed(referenceDate: referenceDate), in: scope)
+        }
+    }
+    #endif
 
-    func run() throws -> Int {
-        try Task.checkCancellation()
-        let database = try TodoDatabase.temporary()
-        try database.insertProbe()
-        return try database.launchProbeCount()
+    // MARK: - Schema and seeding
+
+    private static func createSchema(in scope: GRDBDatabase) throws {
+        try scope.makeRequest(with: sqlCreate(TodoList.self)).execute()
+        try scope.makeRequest(with: sqlCreate(Todo.self)).execute()
+        try scope.makeRequest(with: sqlCreate(Tag.self)).execute()
+        try scope.makeRequest(with: sqlCreate(TodoTag.self)).execute()
+    }
+
+    private static func insert(_ seed: TodoSeed, in scope: GRDBDatabase) throws {
+        for list in seed.lists {
+            try scope.makeRequest(with: sqlInsert(list)).execute()
+        }
+        for tag in seed.tags {
+            try scope.makeRequest(with: sqlInsert(tag)).execute()
+        }
+        for todo in seed.todos {
+            try scope.makeRequest(with: sqlInsert(todo)).execute()
+        }
+        for todoTag in seed.todoTags {
+            try scope.makeRequest(with: sqlInsert(todoTag)).execute()
+        }
+    }
+
+    private static func deleteEverything(in scope: GRDBDatabase) throws {
+        let schema = XLSchema()
+        try scope.makeRequest(with: delete(schema.into(TodoTag.self))).execute()
+        try scope.makeRequest(with: delete(schema.into(Todo.self))).execute()
+        try scope.makeRequest(with: delete(schema.into(Tag.self))).execute()
+        try scope.makeRequest(with: delete(schema.into(TodoList.self))).execute()
     }
 }

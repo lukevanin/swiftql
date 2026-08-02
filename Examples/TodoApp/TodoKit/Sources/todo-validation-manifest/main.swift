@@ -76,29 +76,120 @@ func result(
 // MARK: - Schema
 
 let schemaStatements: [any XLEncodable] = [
-    sqlCreate(LaunchProbe.self),
+    sqlCreate(TodoList.self),
+    sqlCreate(Todo.self),
+    sqlCreate(Tag.self),
+    sqlCreate(TodoTag.self),
 ]
 
 // MARK: - Declared queries
 
-// Mirrors `Query.launchProbes()` in TodoDatabase.swift.
+// One entry per declared query in TodoReads.swift, declared here in the same
+// order. SQLiteBuildValidationManifest.canonicalJSONData() sorts the query
+// list when encoding, so the emitted manifest JSON does not preserve this
+// order -- only the generator's own declarations mirror TodoReads.swift.
+let uuidResult = { (index: Int, alias: String) in
+    result(
+        index: index,
+        alias: alias,
+        valueTypeIdentifier: "swift.string",
+        valueTypeName: "Swift.String",
+        storageIdentifier: "text"
+    )
+}
+let textResult = uuidResult
+let intResult = { (index: Int, alias: String) in
+    result(
+        index: index,
+        alias: alias,
+        valueTypeIdentifier: "swift.int",
+        valueTypeName: "Swift.Int",
+        storageIdentifier: "integer"
+    )
+}
+let boolResult = { (index: Int, alias: String) in
+    result(
+        index: index,
+        alias: alias,
+        valueTypeIdentifier: "swift.bool",
+        valueTypeName: "Swift.Bool",
+        storageIdentifier: "integer"
+    )
+}
+let nullableTextResult = { (index: Int, alias: String) in
+    result(
+        index: index,
+        alias: alias,
+        valueTypeIdentifier: "swift.string",
+        valueTypeName: "Swift.String",
+        storageIdentifier: "text",
+        nullability: "nullable"
+    )
+}
+
 let queries: [ManifestedQuery] = [
     ManifestedQuery(
-        name: "launch-probes",
+        name: "todo-lists",
         statement: sql { schema in
-            let probe = schema.table(LaunchProbe.self)
-            Select(probe)
-            From(probe)
+            let list = schema.table(TodoList.self)
+            Select(list)
+            From(list)
+            OrderBy(list.position.ascending(), list.name.ascending())
         },
         cardinality: .many,
         results: [
-            result(
-                index: 0,
-                alias: "id",
-                valueTypeIdentifier: "swift.string",
-                valueTypeName: "Swift.String",
-                storageIdentifier: "text"
-            ),
+            uuidResult(0, "id"),
+            textResult(1, "name"),
+            intResult(2, "position"),
+            textResult(3, "createdAt"),
+        ]
+    ),
+    ManifestedQuery(
+        name: "todos",
+        statement: sql { schema in
+            let todo = schema.table(Todo.self)
+            Select(todo)
+            From(todo)
+            OrderBy(todo.createdAt.ascending(), todo.position.ascending())
+        },
+        cardinality: .many,
+        results: [
+            uuidResult(0, "id"),
+            uuidResult(1, "listID"),
+            textResult(2, "title"),
+            textResult(3, "notes"),
+            nullableTextResult(4, "dueAt"),
+            intResult(5, "priority"),
+            boolResult(6, "isCompleted"),
+            intResult(7, "position"),
+            textResult(8, "createdAt"),
+        ]
+    ),
+    ManifestedQuery(
+        name: "tags",
+        statement: sql { schema in
+            let tag = schema.table(Tag.self)
+            Select(tag)
+            From(tag)
+            OrderBy(tag.name.ascending())
+        },
+        cardinality: .many,
+        results: [
+            uuidResult(0, "id"),
+            textResult(1, "name"),
+        ]
+    ),
+    ManifestedQuery(
+        name: "todo-tags",
+        statement: sql { schema in
+            let link = schema.table(TodoTag.self)
+            Select(link)
+            From(link)
+        },
+        cardinality: .many,
+        results: [
+            uuidResult(0, "todoID"),
+            uuidResult(1, "tagID"),
         ]
     ),
 ]

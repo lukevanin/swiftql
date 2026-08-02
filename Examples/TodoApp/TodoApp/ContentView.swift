@@ -2,8 +2,8 @@ import SwiftUI
 
 import TodoKit
 
-/// The scaffold's placeholder. It opens a database, writes a row, reads it
-/// back through a declared query, and reports what happened.
+/// The placeholder. It opens the durable database, seeding it on first
+/// launch, and reports what the schema holds. The real interface replaces it.
 struct ContentView: View {
 
     @State private var status = Status.opening
@@ -19,32 +19,61 @@ struct ContentView: View {
                 .font(.callout)
                 .foregroundStyle(status.isFailure ? .red : .secondary)
                 .multilineTextAlignment(.center)
+
+            #if DEBUG
+            Button("Reset to seeded state") {
+                Task { await reset() }
+            }
+            .padding(.top, 8)
+            #endif
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task {
-            do {
-                status = .connected(rows: try await TodoLaunchCheck.run())
-            }
-            catch {
-                status = .failed(String(describing: error))
-            }
+        .task { await open() }
+    }
+
+    @MainActor
+    private func open() async {
+        do {
+            status = .opened(try await TodoLaunchCheck.run())
+        }
+        catch {
+            status = .failed(String(describing: error))
         }
     }
+
+    #if DEBUG
+    @MainActor
+    private func reset() async {
+        do {
+            status = .opened(try await TodoLaunchCheck.resetAndRun())
+        }
+        catch {
+            status = .failed(String(describing: error))
+        }
+    }
+    #endif
 }
 
 private enum Status: Sendable {
 
     case opening
-    case connected(rows: Int)
+    case opened(TodoLaunchSummary)
     case failed(String)
 
     var message: String {
         switch self {
         case .opening:
             return "Opening the database…"
-        case .connected(let rows):
-            return "Connected. A declared query read back \(rows) row(s)."
+        case .opened(let summary):
+            let opening = summary.didSeed
+                ? "Created and seeded the database."
+                : "Opened the existing database."
+            return """
+                \(opening)
+                \(summary.listCount) lists, \(summary.todoCount) to-dos, \
+                \(summary.tagCount) tags.
+                """
         case .failed(let description):
             return "Could not open the database.\n\(description)"
         }
