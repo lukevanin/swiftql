@@ -879,6 +879,62 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         withExtendedLifetime(stream) {}
     }
 
+    /// Negative control for the test above: it must be able to fail.
+    ///
+    /// The teardown that test relies on is deallocation-driven -- the stream releases the unfolding
+    /// closure when the consuming task is cancelled, the bridge is then unreferenced, and its
+    /// `AnyDatabaseCancellable` cancels on deinit. So the way to reach the broken world is to break
+    /// the ownership rule rather than to break the code: this control keeps its own strong
+    /// reference to the bridge, which production has no way to do (`GRDBRequest.stream()` hands its
+    /// bridge straight to the stream and keeps nothing), and the observation then survives the
+    /// cancellation and fetches again.
+    ///
+    /// Reverting `stream()`'s capture to `[weak self]` is *not* a usable control here: with the
+    /// production ownership shape nothing would retain the bridge past `stream()` at all, so the
+    /// stream would vend nothing and the test would hang instead of failing -- the other failure
+    /// mode that capture's comment warns about.
+    ///
+    /// Constants are decoupled from the paired test's: a different row id and a different value.
+    func testNegativeControlARetainedBridgeKeepsObservingAfterCancellation() async throws {
+        let fetchCounter = LockedCounter()
+        let bridge = makeBridge(fetchProbe: { fetchCounter.increment() })
+        let stream = bridge.stream()
+        let firstValue = XLAwaitableValue<Bool>()
+        let resumeLoopBody = XLAwaitableValue<Bool>()
+        let loopEnded = XLAwaitableValue<Bool>()
+
+        let task = Task {
+            do {
+                for try await _ in stream {
+                    firstValue.fulfill(true)
+                    _ = await resumeLoopBody.wait()
+                }
+            }
+            catch {
+                XCTFail("Unexpected stream error: \(error)")
+            }
+            loopEnded.fulfill(true)
+        }
+
+        _ = await firstValue.wait()
+        task.cancel()
+        resumeLoopBody.fulfill(true)
+        _ = await loopEnded.wait()
+
+        let fetchCountAtCancel = fetchCounter.read()
+        try insert("retained-bridge-after-cancel", 77)
+        await xlDrainMainQueue()
+
+        XCTAssertNotEqual(
+            fetchCounter.read(),
+            fetchCountAtCancel,
+            "Negative control: with an extra strong reference keeping the bridge alive, the "
+                + "observation must still be fetching -- otherwise the paired test's assertion "
+                + "cannot fail and proves nothing."
+        )
+        withExtendedLifetime((bridge, stream)) {}
+    }
+
     func testCancellingTheConsumingTaskCancelsTheUnderlyingObservation() async throws {
         let fetchCounter = LockedCounter()
         // As in production, the stream owns the bridge (see `stream()`'s note): holding a separate
