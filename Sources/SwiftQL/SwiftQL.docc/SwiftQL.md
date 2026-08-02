@@ -33,7 +33,9 @@ to the style and conventions of the Swift language.
 SwiftQL targets SQLite's SQL dialect. If you already know SQLite syntax, the
 corresponding SwiftQL statements should feel familiar.
 
-New here? Start with <doc:GettingStarted>. Upgrading? The repository's
+New here? Follow <doc:/tutorials/SwiftQL> to build one query from an empty
+file, then read <doc:GettingStarted> for the rest of the everyday API.
+Upgrading? The repository's
 [what's new](https://github.com/lukevanin/swiftql/blob/main/WHATSNEW.md)
 summarizes each release in plain language, and the
 [changelog](https://github.com/lukevanin/swiftql/blob/main/CHANGELOG.md)
@@ -104,7 +106,7 @@ Its internal prototype prepares static SQL against a pinned, read-only schema
 snapshot and emits deterministic diagnostics, but v1.3 does not ship a public
 validator, build plugin, query macro, schema system, or new query-declaration
 API. It neither persists prepared statements nor removes runtime preparation
-on each physical connection. Version 1.5.2 is the latest published package.
+on each physical connection. Version 1.5.5 is the latest published package.
 
 ## When to use SwiftQL
 
@@ -131,6 +133,10 @@ replacing SQLite's runtime type rules.
 
 ## Topics
 
+### Tutorials
+
+- <doc:/tutorials/SwiftQL>
+
 ### Essentials
 
 - <doc:GettingStarted>
@@ -148,4 +154,5 @@ replacing SQLite's runtime type rules.
 - <doc:Enums>
 - <doc:CustomFunctions>
 - <doc:CustomTypes>
+- <doc:NumericDateCodecs>
 - <doc:GenericTableParameters>

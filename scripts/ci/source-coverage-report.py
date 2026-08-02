@@ -195,6 +195,15 @@ def aggregate(file_reports: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
     return result
 
 
+def in_documentation_catalog(relative_path: str) -> bool:
+    """A `.docc` catalog is a resource bundle, so SwiftPM copies the Swift
+    files inside it instead of compiling them. DocC tutorials use those files
+    as the code snapshots `@Code(file:)` displays. LLVM never reports a region
+    for one, so counting them would fail the report for a file the compiler was
+    never asked to build."""
+    return any(part.endswith(".docc") for part in relative_path.split("/")[:-1])
+
+
 def expected_sources(repository_root: Path, source_root: str) -> List[str]:
     directory = repository_root / source_root
     if not directory.is_dir():
@@ -223,7 +232,11 @@ def expected_sources(repository_root: Path, source_root: str) -> List[str]:
         tracked_paths = result.stdout.decode("utf-8").split("\0")
     except UnicodeDecodeError as error:
         raise CoverageError("tracked source paths are not valid UTF-8") from error
-    sources = sorted(path for path in tracked_paths if path.endswith(".swift"))
+    sources = sorted(
+        path
+        for path in tracked_paths
+        if path.endswith(".swift") and not in_documentation_catalog(path)
+    )
     if not sources:
         raise CoverageError(
             f"configured source root has no tracked Swift files: {source_root}"
@@ -252,6 +265,8 @@ def excluded_category(relative_path: Optional[str]) -> str:
         return "benchmarks"
     if ".derived/" in relative_path or "/DerivedSources/" in relative_path:
         return "generated"
+    if in_documentation_catalog(relative_path):
+        return "documentation_catalog"
     return "other_repository_sources"
 
 
@@ -325,7 +340,11 @@ def build_report(
                 raise CoverageError(f"duplicate first-party coverage entry: {relative}")
             selected[relative] = raw_file
             continue
-        if relative is not None and relative.startswith("Sources/"):
+        if (
+            relative is not None
+            and relative.startswith("Sources/")
+            and not in_documentation_catalog(relative)
+        ):
             unexpected_target_paths.append(relative)
         excluded[excluded_category(relative)] += 1
     if unexpected_target_paths:
@@ -403,7 +422,7 @@ def build_report(
             "file_entries": len(raw_files),
         },
         "filtering": {
-            "rule": "Only tracked .swift files under configured first-party target roots are included.",
+            "rule": "Only tracked .swift files under configured first-party target roots, outside any .docc documentation catalog, are included.",
             "included_source_files": len(included_manifest),
             "included_sources_sha256": sha256_text(included_manifest),
             "allowed_uninstrumented_source_files": len(uninstrumented_manifest),
@@ -433,8 +452,8 @@ def summary_markdown(report: Mapping[str, Any]) -> str:
         f"- LLVM coverage: `{report['toolchain']['llvm_cov'].replace(chr(10), ' / ')}`",
         f"- Source tree: `{report['source_tree_state']}`",
         f"- Filtering: only tracked `.swift` files under {source_roots}; "
-        "dependencies, tests, benchmarks, build products, and generated "
-        "expansion files are excluded.",
+        "dependencies, tests, benchmarks, build products, generated "
+        "expansion files, and `.docc` catalog resources are excluded.",
         "- This report is evidence only; it does not enforce a percentage threshold.",
         "",
         "| Target | Instrumented sources | Allowed uninstrumented | Lines | Functions |",

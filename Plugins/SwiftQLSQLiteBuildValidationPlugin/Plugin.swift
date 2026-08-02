@@ -25,12 +25,25 @@ import PackagePlugin
 ///
 /// If a target lists the plugin but is missing either file, the build fails
 /// with a clear plugin error rather than silently skipping validation.
+///
+/// ## Build systems
+///
+/// Both `swift build` and Xcode's build system run the plugin, and they
+/// agree on the outcome: a valid manifest builds, and an invalid one fails
+/// with the validator's own diagnostic. Xcode names a package executable
+/// after its product while `context.tool(named:)` resolves the tool by
+/// target name, so the validator's target and product names are deliberately
+/// both `swiftql-build-validate`. Splitting them breaks Xcode builds of every
+/// adopting target with "Build input file cannot be found" (#492).
 @main
 struct SwiftQLSQLiteBuildValidationPlugin: BuildToolPlugin {
     static let manifestFileName = "swiftql-build-validation-manifest.json"
     static let snapshotFileName = "swiftql-build-validation-snapshot.sqlite"
     static let reportFileName = "swiftql-build-validation-report.json"
-    static let validatorToolName = "SwiftQLSQLiteBuildValidationValidatorCLI"
+    // Both the validator executable's target name and its product name; the
+    // two must stay identical. See the "Build systems" note above, #492, and
+    // the comment on the target in Package.swift.
+    static let validatorToolName = "swiftql-build-validate"
 
     func createBuildCommands(
         context: PluginContext,

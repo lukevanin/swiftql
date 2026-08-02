@@ -1,0 +1,291 @@
+/*
+  Shared stylesheet for the SwiftQL blog. Reuses the design tokens and nav/
+  footer styling from ../../index.html (the landing page) so the two feel
+  like one site. If you change a color or spacing value here, check whether
+  the landing page needs the same change, and vice versa.
+*/
+
+:root {
+  --bg: #ffffff;
+  --bg-alt: #f6f7f9;
+  --bg-code: #f4f5f7;
+  --fg: #1d1d1f;
+  --fg-muted: #5c5f66;
+  --fg-faint: #85888f;
+  --line: #e2e4e8;
+  --accent: #d8412a;
+  --accent-fg: #ffffff;
+  --code-key: #ad3da4;
+  --code-type: #0b4f79;
+  --code-str: #c41a16;
+  --code-com: #6e7781;
+  --radius: 10px;
+  --measure: 720px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --bg-alt: #161920;
+    --bg-code: #14171d;
+    --fg: #e8eaed;
+    --fg-muted: #a2a7b0;
+    --fg-faint: #7c828c;
+    --line: #262b34;
+    --accent: #ff6a4d;
+    --accent-fg: #1a0d09;
+    --code-key: #ff7ab2;
+    --code-type: #9ed0ff;
+    --code-str: #ff8170;
+    --code-com: #7c828c;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.wrap {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ---------- nav ---------- */
+
+.nav {
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  z-index: 10;
+}
+
+.nav .wrap {
+  max-width: 1080px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  height: 56px;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; }
+.nav-brand img { width: 24px; height: 24px; border-radius: 5px; }
+
+.nav-links {
+  margin-left: auto;
+  display: flex;
+  gap: 22px;
+  font-size: 15px;
+}
+.nav-links a { color: var(--fg-muted); }
+.nav-links a:hover { color: var(--fg); text-decoration: none; }
+
+@media (max-width: 640px) {
+  .nav-links { gap: 16px; font-size: 14px; }
+  .nav-optional { display: none; }
+}
+
+/* ---------- blog index ---------- */
+
+.blog-header {
+  padding: 48px 0 40px;
+  border-bottom: 1px solid var(--line);
+}
+
+.blog-header h1 {
+  font-size: clamp(28px, 5vw, 40px);
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+  font-weight: 700;
+}
+
+.blog-header p {
+  color: var(--fg-muted);
+  max-width: 60ch;
+  margin: 0;
+}
+
+.post-list {
+  list-style: none;
+  margin: 0;
+  padding: 40px 0;
+}
+
+.post-list li {
+  padding: 22px 0;
+  border-bottom: 1px solid var(--line);
+}
+.post-list li:first-child { padding-top: 0; }
+.post-list li:last-child { border-bottom: 0; }
+
+.post-list h2 {
+  font-size: 21px;
+  margin: 0 0 6px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.post-list time {
+  display: block;
+  font-size: 13px;
+  color: var(--fg-faint);
+  margin-bottom: 8px;
+}
+
+.post-list p {
+  color: var(--fg-muted);
+  margin: 0;
+}
+
+/* ---------- article ---------- */
+
+.article-header {
+  padding: 48px 0 8px;
+}
+
+.article-header time {
+  display: block;
+  font-size: 13px;
+  color: var(--fg-faint);
+  margin-bottom: 10px;
+}
+
+.article-header h1 {
+  font-size: clamp(28px, 5vw, 38px);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0;
+  font-weight: 700;
+}
+
+article {
+  padding: 24px 0 64px;
+}
+
+article h2 {
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  margin: 40px 0 14px;
+  font-weight: 650;
+}
+
+article h3 {
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  margin: 28px 0 10px;
+  font-weight: 650;
+}
+
+article p { margin: 0 0 18px; }
+article p:last-child { margin-bottom: 0; }
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 18px;
+  font-size: 15px;
+}
+article th, article td {
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+article th {
+  font-weight: 600;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-faint);
+  white-space: nowrap;
+}
+article ul, article ol { margin: 0 0 18px; padding-left: 22px; }
+article li { margin-bottom: 8px; }
+article li:last-child { margin-bottom: 0; }
+
+article pre,
+article .highlight pre {
+  margin: 0 0 18px;
+  background: var(--bg-code) !important;
+  color: var(--fg) !important;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  overflow-x: auto;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+/* Chroma (Hugo's syntax highlighter) is configured with style "bw" and emits
+   only bold/italic inline spans, no color, so code stays theme-adaptive
+   instead of fighting prefers-color-scheme with a hardcoded palette. The
+   !important above overrides the inline background-color Chroma still sets
+   on the <pre> itself. */
+article .highlight {
+  margin: 0 0 18px;
+}
+article .highlight pre {
+  margin: 0;
+}
+
+article code {
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, monospace;
+}
+
+article p code, article li code {
+  background: var(--bg-code);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-size: 0.88em;
+}
+
+article a { text-decoration: underline; text-underline-offset: 2px; }
+
+.back-link {
+  display: inline-block;
+  margin: 32px 0 0;
+  font-size: 15px;
+}
+
+/* ---------- footer ---------- */
+
+footer {
+  padding: 44px 0 56px;
+  border-top: 1px solid var(--line);
+  color: var(--fg-faint);
+  font-size: 14.5px;
+}
+
+.foot-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  margin-bottom: 22px;
+}
+.foot-links a { color: var(--fg-muted); }

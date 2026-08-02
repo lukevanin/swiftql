@@ -1,0 +1,19 @@
+{{ define "main" }}
+<header class="blog-header">
+  <div class="wrap">
+    <h1>SwiftQL Blog</h1>
+    <p>{{ .Site.Params.description }}</p>
+  </div>
+</header>
+<div class="wrap">
+  <ul class="post-list">
+    {{ range .Site.RegularPages }}
+    <li>
+      <a href="{{ .RelPermalink }}"><h2>{{ .Title }}</h2></a>
+      <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time>
+      <p>{{ .Description }}</p>
+    </li>
+    {{ end }}
+  </ul>
+</div>
+{{ end }}

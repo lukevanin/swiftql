@@ -29,9 +29,8 @@ let statement = sql { schema in
     let occupation = schema.nullableTable(Occupation.self)
     let result = EmploymentStatus.columns(
         person: person.name,
-        occupation: iif(
-            occupation.name.isNull(), 
-            then: "Unemployed", 
+        occupation: occupation.name.isNull().iif(
+            then: "Unemployed",
             else: "Employed"
         )
     )
@@ -151,6 +150,20 @@ Returns a `Double` expression rounded to the provided number of decimal places.
 Returns a `Double` expression rounded to the largest integral value less than or
 equal to it.
 
+### min(), max()
+
+Returns the smallest or largest value among two or more expressions, rendered
+as SQLite's scalar `MIN`/`MAX`. This is distinct from the `minOrNull()`/
+`maxOrNull()` aggregate functions, which operate over rows in a group rather
+than a fixed list of expressions.
+
+<!-- test: XLDocumentationTests.testDocumentationConditionalAndScalarFunctions -->
+```swift
+let x = XLNamedBindingReference<Int>(name: "x")
+let smallest = x.min(0, 10)
+let largest = x.max(0, 10)
+```
+
 ## String functions
 
 ### collate()
@@ -210,8 +223,15 @@ sequence`, rather than silently comparing as `BINARY`.
 
 ### printf()
 
-Returns a formatted string. In SwiftQL `printf()` is similar to the same 
-function provided by the standard C library. 
+Returns a formatted string, called on the format expression. In SwiftQL
+`printf()` is similar to the same function provided by the standard C library.
+
+<!-- test: XLDocumentationTests.testDocumentationConditionalAndScalarFunctions -->
+```swift
+let name = XLNamedBindingReference<String>(name: "name")
+let age = XLNamedBindingReference<Int>(name: "age")
+let formatted = "%s is %d years old".printf(name, age)
+```
 
 Refer to the [SQLite printf](https://sqlite.org/printf.html) documentation for
 more information.

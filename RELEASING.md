@@ -172,6 +172,153 @@ release_sha="$(git rev-parse origin/main)"
 git merge-base --is-ancestor "$release_sha" origin/main
 ```
 
+Complete "Documentation currency" and "Release notes" below before recording the
+release commit. Both produce changes that must be present on the tagged commit,
+and neither can be applied to a published release afterwards.
+
+## Documentation currency
+
+A published release is immutable, and the documentation that ships with it is
+whatever the tagged commit contains. A README describing the previous release's
+capabilities cannot be corrected in place; it can only be superseded by another
+release. Documentation currency is therefore a pre-tag gate, completed before
+step 7 records the release commit.
+
+### Reader-facing documents
+
+Required for every minor and major release, and for any patch that changes
+documented behavior.
+
+Re-read [README.md](README.md) and
+[Documentation/PortingFromSQL.md](Documentation/PortingFromSQL.md) against what
+the milestone actually shipped, and correct:
+
+- **Capability claims.** The README's "What becomes first-class" list, and any
+  statement about what SwiftQL supports.
+- **The comparison table.** SwiftQL's own row when its shape or coverage
+  changed, and any other row whose facts have changed. A comparison against
+  another library is a factual claim about that library, so re-verify it against
+  that project's current documentation rather than against memory.
+- **"Choose something else when".** A caveat the milestone has resolved must be
+  removed. This section ages faster than the rest of the README because it is a
+  list of current limitations.
+- **The clause mapping in PortingFromSQL.** New clauses, statements, functions,
+  or syntax forms get rows. A mapping table that omits shipped syntax is worse
+  than no table, because readers treat it as exhaustive.
+- **"Where the correspondence is not exact" in PortingFromSQL.** This restates
+  the conformance inventory's gaps and must agree with it exactly. Update it
+  from the inventory, not from recollection.
+- **Version numbers** in the installation instructions.
+
+The landing page at [Website/index.html](Website/index.html) restates the
+tagline, the comparison table, the "Choose something else when" list, and the
+Swift Package Manager version. It is the first page a visitor sees, so it is
+part of this gate rather than an afterthought: whatever changed in the README
+above almost certainly changed here too. It carries no generated content, so
+nothing warns you when it drifts.
+
+Review [Documentation/DESIGN.md](Documentation/DESIGN.md) as well when the
+release changes a decision it records, such as retiring the chaining syntax or
+replacing the `sql { }` and `sqlResult { }` builders with a function macro. Its
+"What is still wrong" section is a list of open problems and should shrink as
+they are fixed.
+
+Record in the release issue which documents were reviewed and what changed, or
+state explicitly that no change was required. Silence is not evidence of review.
+
+### Conformance inventory
+
+The
+[inventory](Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json)
+is the source of truth for what SwiftQL supports. The
+[report](Conformance/SQLite/REPORT.md) is its generated view, and
+[COMPATIBILITY.md](COMPATIBILITY.md#sqlite-conformance-inventory), the README,
+and PortingFromSQL restate its totals. All of them must agree on the tagged
+commit.
+
+For any release that adds or changes SQLite surface:
+
+1. Add or adjust feature records and their evidence for what shipped, and move
+   features out of `unimplemented` as they land. A feature counts as supported
+   only when it links to successful preparation by a real SQLite engine whose
+   version and source ID are recorded. Unit tests alone do not promote a
+   feature.
+2. Bump `INVENTORY_VERSION` in
+   [`scripts/ci/sqlite-conformance-inventory.py`](scripts/ci/sqlite-conformance-inventory.py)
+   when the inventory's contents change with the release line. The constant is
+   in the script, not in the JSON, and is easy to leave behind.
+3. Regenerate and verify:
+
+   ```sh
+   python3 scripts/ci/sqlite-conformance-inventory.py write
+   python3 scripts/ci/sqlite-conformance-inventory.py check
+   ```
+
+4. Update the totals restated in COMPATIBILITY.md, the README, and
+   PortingFromSQL to match the regenerated report.
+
+**Check for drift before starting.** When the inventory version trails the
+release line, features shipped in between are missing from it. Confirm that every
+closed issue in the milestone that changed SQL surface has a corresponding
+inventory record, and treat an unexplained gap as unfinished release work rather
+than as a documentation nicety. An inventory that understates the library is
+still wrong, and it is the number readers quote.
+
+## Release notes
+
+The published release body is the project's most widely read artifact. Swift
+Package Index surfaces it, watchers receive it by email, and every
+announcement links to it. It is read by people deciding whether SwiftQL is
+worth their attention, not only by maintainers upgrading a pinned version.
+
+An auto-generated pull-request list does not serve that reader. Every minor and
+major release therefore carries a hand-written summary at the top of the body,
+authored in `Documentation/ReleaseNotes/vX.Y.Z.md`.
+
+### Authoring the summary
+
+Write the summary on the release-preparation commit - the same commit that
+carries the dated changelog heading. `publish-release.sh` reads the file from
+the checked-out tag, so the summary is covered by the same exact-commit and
+immutability guarantees as every other release artifact. A summary added after
+publication cannot be applied: published releases are immutable by design.
+
+The file is required for `vX.Y.0` and any major release, and optional for a
+patch. When it is absent the body falls back to the provenance block and
+generated notes alone, which is the correct shape for a patch that carries no
+narrative.
+
+Keep it to four elements, in this order:
+
+1. **One sentence naming the theme.** Not "this release contains 14 pull
+   requests" - what changed, in the reader's terms. A release is worth
+   announcing precisely when this sentence is easy to write.
+2. **Two or three sentences of detail**, each tied to something a reader might
+   want. Name the capability, not the issue number.
+3. **A short code example** when the release changes what user code looks
+   like. This is the single highest-value element for a reader who has never
+   used SwiftQL, and the part most likely to be quoted elsewhere.
+4. **Upgrade impact** - deprecations, behavior changes, and platform or
+   compiler requirements. State plainly when there are none.
+
+Link to the changelog for the exhaustive list rather than reproducing it. The
+changelog is the complete record for someone upgrading; the summary is the
+argument for someone deciding.
+
+`Documentation/ReleaseNotes/v1.5.4.md` is the worked example.
+
+### What the published body contains
+
+The publisher composes the body in this order:
+
+1. the hand-written summary, when the file exists;
+2. the provenance block - verified commit, validation run, and the exact
+   commit marker; and
+3. GitHub's generated notes, appended by the release API.
+
+The marker and generated-notes checks in `validate_release_record` are
+unchanged, so the existing verification gates still apply to the composed body.
+
 ## Releasing a commit that is not at `main`'s tip
 
 The changelog gate requires the *tagged commit* to carry a dated
@@ -308,6 +455,51 @@ published. Before tagging, create or identify one dedicated release issue for
 attestation, and ruleset evidence there; close it only after every check above
 passes. Re-fetch the issue to confirm closure. Do not reopen the audit issue or
 the closed milestone merely to store post-tag evidence.
+
+## Announcing a release
+
+Publication makes a release *available*. Announcement makes it *known*. A
+release that nobody is told about reaches only the people already watching the
+repository, which is the audience that needs it least.
+
+Announce after the verification checks above pass, never before - an
+announcement that links to a release still under audit cannot be retracted.
+
+### What gets announced
+
+**Minor and major versions are announced. Patches ship silently.** SwiftQL
+frequently publishes several patches in a week; announcing at that cadence
+exhausts every channel that matters and trains readers to ignore the project.
+Batching to minor versions also forces each announcement to carry a theme,
+which is the same discipline the summary above requires.
+
+A patch that fixes a security issue or a data-correctness bug is the exception
+and is announced immediately, regardless of cadence.
+
+### Where
+
+Repeatable channels, used for every announced release:
+
+- **The GitHub release itself.** Already done by the time you reach this
+  section, provided the summary file existed at tag time.
+- **Social - Mastodon and Bluesky.** Lead with the problem the release solves
+  and a code screenshot. The release link belongs in a reply, not the opening
+  post.
+- **The [Swift Forums showcase thread](https://forums.swift.org/t/swiftql/82441).**
+  Reply for releases that carry a substantial theme, not for every minor.
+  Roughly every second or third is the right frequency.
+
+Channels reserved for a major version, and deliberately not spent on a minor:
+a new Swift Forums thread, Hacker News, iOS Dev Weekly, and Reddit. Each is
+effectively one-shot; using one on a point release forfeits it for the release
+that needed it.
+
+### Recording it
+
+Add the announcement links to the release issue before closing it, in the same
+way the tag-run and asset evidence is recorded. An unannounced minor release is
+a process failure, not merely a missed opportunity, and the release issue is
+where that is visible.
 
 ## Recovery
 

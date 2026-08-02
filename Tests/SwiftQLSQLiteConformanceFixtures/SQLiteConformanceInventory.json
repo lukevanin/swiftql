@@ -1642,6 +1642,18 @@
       "environment_ids": []
     },
     {
+      "id": "evidence.syntax.join.render-natural-no-constraint",
+      "source_path": "Tests/SQLTests/NaturalUsingJoinTests.swift",
+      "test_case": "NaturalUsingJoinTests.testNaturalJoinRendersWithoutConstraint",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
       "id": "evidence.syntax.join.render-natural-using",
       "source_path": "Tests/SQLTests/NaturalUsingJoinTests.swift",
       "test_case": "NaturalUsingJoinTests.testFluentNaturalAndUsingJoinsRender",
@@ -8169,6 +8181,7 @@
         "USING needs typed shared-column identity; NATURAL JOIN needs an explicit overlap policy."
       ],
       "evidence_ids": [
+        "evidence.syntax.join.render-natural-no-constraint",
         "evidence.syntax.join.render-natural-using",
         "evidence.syntax.join.sqlite-natural",
         "evidence.syntax.join.sqlite-using"
