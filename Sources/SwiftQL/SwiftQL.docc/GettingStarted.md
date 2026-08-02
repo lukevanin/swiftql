@@ -402,14 +402,8 @@ try updateAgeRequest.execute(bindings: updateBindings)
 
 ### Setting a nullable column
 
-`Person.occupationId` is `String?`, so the generated setter's type is
-`Optional<any XLExpression<String?>>`. The outer `Optional` means "leave this
-column out of the `SET` clause" — a different thing from the column's own
-`String?` optionality, so assigning a plain `String` or `String?` value does
-not compile. Use `toNullable()` to lift a non-optional value expression into
-that slot, and an explicit `any XLExpression<String?>` cast to assign an
-already-optional value, including `nil` to clear the column back to SQL
-`NULL`:
+Assign a nullable column the way you would an ordinary Swift optional. A value
+sets the column, and `nil` sets it to SQL `NULL`:
 
 <!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
@@ -417,7 +411,7 @@ let setOccupationStatement = sql { schema in
     let person = schema.into(Person.self)
     Update(person)
     Setting(person) { row in
-        row.occupationId = "occ-1".toNullable()
+        row.occupationId = "occ-1"
     }
     Where(person.id == "fred")
 }
@@ -427,13 +421,40 @@ let clearOccupationStatement = sql { schema in
     let person = schema.into(Person.self)
     Update(person)
     Setting(person) { row in
-        let clearedOccupationId: String? = nil
-        row.occupationId = clearedOccupationId as any XLExpression<String?>
+        row.occupationId = nil
     }
     Where(person.id == "fred")
 }
 try database.makeRequest(with: clearOccupationStatement).execute()
 ```
+
+Setting a column to `NULL` is a different thing from leaving it out of the
+statement. A column the closure never assigns takes no part in the `SET`
+clause and keeps whatever value the row already held, which is why an update
+that sets only `age` leaves `occupationId` alone.
+
+The value you assign is an expression of the column's *wrapped* type, so
+literals, column references, and `XLNamedBindingReference<String>` all assign
+directly. To assign an expression that is itself optional-typed — a binding
+whose bound value may be `NULL` at runtime, or another nullable column —
+assign to the projected value with `$` instead:
+
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
+```swift
+let occupationParameter = XLNamedBindingReference<String?>(name: "occupationId")
+
+let bindOccupationStatement = sql { schema in
+    let person = schema.into(Person.self)
+    Update(person)
+    Setting(person) { row in
+        row.$occupationId = occupationParameter
+    }
+    Where(person.id == "fred")
+}
+```
+
+That parameter's slot is nullable, so one prepared statement can bind either a
+value or `NULL` for each call.
 
 ## Delete statements
 

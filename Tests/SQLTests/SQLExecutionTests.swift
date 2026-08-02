@@ -2174,7 +2174,10 @@ final class XLExecutionTests: XCTestCase {
             let table = $0.into(OptionalDateTest.self)
             Update(table)
             Setting<OptionalDateTest> { row in
-                row.date = dateParameter
+                // `dateParameter` is a `XLNamedBindingReference<Date?>`, an
+                // expression that is itself optional-typed, so it is assigned
+                // through the projected value rather than the wrapped one.
+                row.$date = dateParameter
             }
             Where(
                 table.id == entityId
