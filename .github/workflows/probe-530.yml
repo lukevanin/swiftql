@@ -1,0 +1,63 @@
+# TEMPORARY. Diagnostic for #530, deleted before that issue's branch merges.
+name: Probe 530
+
+on:
+  push:
+    branches: ['claude/530-todo-demo-swift6-crash']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  destinations:
+    name: What iOS destinations does the pinned cell have
+    runs-on: macos-15
+    timeout-minutes: 25
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Platforms shipped inside Xcode 16.2
+        run: |
+          ls /Applications/Xcode_16.2.app/Contents/Developer/Platforms/
+          echo "--- iPhoneOS SDKs ---"
+          ls /Applications/Xcode_16.2.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/ || true
+          echo "--- iPhoneSimulator SDKs ---"
+          ls /Applications/Xcode_16.2.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/ || true
+          echo "--- xcodebuild -showsdks ---"
+          xcodebuild -showsdks || true
+          echo "--- installed runtimes ---"
+          xcrun simctl list runtimes || true
+
+      - name: Destinations the scheme offers
+        run: |
+          xcodebuild -showdestinations \
+            -project Examples/TodoApp/TodoApp.xcodeproj \
+            -scheme TodoApp 2>&1 | tail -40 || true
+
+      - name: Try a generic iOS device build
+        run: |
+          set +e
+          xcodebuild build \
+            -project Examples/TodoApp/TodoApp.xcodeproj \
+            -scheme TodoApp \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/dd-device" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tail -25
+          echo "device build exit: ${PIPESTATUS[0]}"
+
+      - name: Try the newest installed simulator runtime
+        run: |
+          set +e
+          xcodebuild build \
+            -project Examples/TodoApp/TodoApp.xcodeproj \
+            -scheme TodoApp \
+            -destination 'platform=iOS Simulator,OS=18.5,name=iPhone 16' \
+            -derivedDataPath "$RUNNER_TEMP/dd-sim185" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tail -25
+          echo "sim 18.5 build exit: ${PIPESTATUS[0]}"
