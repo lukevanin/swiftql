@@ -100,14 +100,19 @@ let package = Package(
     name: "PlaygroundPageHarness",
     platforms: [.iOS(.v16), .macOS(.v13)],
     dependencies: [
-        .package(path: "$repository_root")
+        // Named explicitly rather than letting SwiftPM derive identity from
+        // the checkout directory, which is what IntegrationTests/Swift5Client,
+        // IntegrationTests/BuildValidationPluginFixture, and
+        // Examples/TodoApp/TodoKit all do. A CI checkout directory does not
+        // have to be called "swiftql", and a worktree never is.
+        .package(name: "SwiftQL", path: "$repository_root")
     ],
     targets: [
         .executableTarget(
             name: "PlaygroundPage",
             dependencies: [
-                .product(name: "SwiftQL", package: "$(basename "$repository_root")"),
-                .product(name: "SwiftQLExamples", package: "$(basename "$repository_root")"),
+                .product(name: "SwiftQL", package: "SwiftQL"),
+                .product(name: "SwiftQLExamples", package: "SwiftQL"),
             ]
         )
     ]
