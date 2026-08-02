@@ -1057,66 +1057,94 @@ internal struct MetaBuilder {
             }
         }
             
-        context.block("public struct MetaUpdate: XLMetaUpdate") { context in
-            
+        // Column assignments route through key-path member lookup rather than
+        // stored properties, because a nullable column needs three assignment
+        // shapes on one name -- a wrapped-type expression, `nil` for SQL
+        // NULL, and an optional-typed expression -- and a stored property has
+        // exactly one setter type. Subscript overloads are the one place
+        // Swift resolves an assignment against more than one type, and
+        // @dynamicMemberLookup lets them keep the `row.column = value`
+        // spelling. Participation in the SET clause is tracked by the typed
+        // slots, separately from the value's own optionality.
+        context.block("@dynamicMemberLookup public struct MetaUpdate: XLMetaUpdate") { context in
+
             context.line("public typealias Row = \(structName)")
-            
-            // A nullable column needs two independent pieces of state: whether
-            // it takes part in the SET clause, and whether the value it is set
-            // to is NULL. `Optional` alone cannot carry both -- reusing it for
-            // participation is what made `row.column = nil` and
-            // `row.column = value` unspellable -- so nullable columns go
-            // through a wrapper that tracks participation separately. The
-            // wrapped value is an expression of the column's *wrapped* type,
-            // which is what lets a literal or a non-optional expression assign
-            // directly.
-            for property in properties {
-                if property.optional {
-                    context.line("@SwiftQL.XLNullableColumnUpdate public var \(property.name): Optional<any SwiftQL.XLExpression<\(property.type)>>")
+
+            context.block("public struct Columns") { context in
+                for property in properties {
+                    if property.optional {
+                        context.line("public var \(property.name) = SwiftQL.XLNullableColumnUpdate<\(property.type)>()")
+                    }
+                    else {
+                        context.line("public var \(property.name) = SwiftQL.XLColumnUpdate<\(property.qualifiedType)>()")
+                    }
                 }
-                else {
-                    context.line("public var \(property.name): Optional<any SwiftQL.XLExpression<\(property.qualifiedType)>>")
+                context.block("public init()") { _ in
+                }
+            }
+
+            context.line("public var _xlColumns: Columns")
+
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLExpression<Wrapped>>") { context in
+                context.block("get") { context in
+                    context.line("_xlColumns[keyPath: keyPath].expression")
+                }
+                context.block("set") { context in
+                    context.line("_xlColumns[keyPath: keyPath].expression = newValue")
+                }
+            }
+
+            // For a nullable column, `nil` assigned through this overload
+            // means SQL NULL. Leaving the column out of the statement is what
+            // never assigning it does.
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLExpression<Wrapped>>") { context in
+                context.block("get") { context in
+                    context.line("_xlColumns[keyPath: keyPath].expression")
+                }
+                context.block("set") { context in
+                    context.line("_xlColumns[keyPath: keyPath].expression = newValue")
+                }
+            }
+
+            // Disfavored so a plain `Wrapped?` value, which both overloads
+            // accept with identical rendered SQL, resolves to the wrapped
+            // overload instead of being ambiguous. An expression whose type
+            // is `Wrapped?` only matches this overload, so it still applies.
+            context.line("@_disfavoredOverload")
+            context.block("public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> any SwiftQL.XLExpression<Optional<Wrapped>>") { context in
+                context.block("get") { context in
+                    context.line("_xlColumns[keyPath: keyPath].optionalExpression ?? SwiftQL.XLNullExpression<Wrapped>()")
+                }
+                context.block("set") { context in
+                    context.line("_xlColumns[keyPath: keyPath].optionalExpression = newValue")
                 }
             }
 
             context.block("public init()") { context in
-                for property in properties {
-                    if property.optional {
-                        context.line("_\(property.name) = SwiftQL.XLNullableColumnUpdate()")
-                    }
-                    else {
-                        context.line("\(property.name) = nil")
-                    }
-                }
+                context.line("_xlColumns = Columns()")
             }
 
             if !properties.isEmpty {
                 var parameters: [String] = []
                 for property in properties {
-                    parameters.append("\(property.name): Optional<any XLExpression<\(property.type)>> = nil")
+                    parameters.append("\(property.name): Optional<any XLExpression<\(property.qualifiedType)>> = nil")
                 }
                 // A `nil` argument here means "leave this column out of the
                 // statement", matching every other column and this
-                // initializer's previous behaviour. That is deliberately not
-                // what `nil` means when assigned inside a `Setting` closure,
-                // where the column is already part of the statement and `nil`
-                // is the value it takes.
+                // initializer's v1 behaviour. That is deliberately not what
+                // `nil` means when assigned inside a `Setting` closure, where
+                // the column is already part of the statement and `nil` is
+                // the value it takes.
                 context.block("public init(\(parameters.joined(separator: ", ")))") { context in
-                    // Every stored property has to be initialized before any
-                    // of them can be assigned through an accessor, so the
-                    // wrapped columns are initialized first and only then
-                    // assigned.
+                    context.line("_xlColumns = Columns()")
                     for property in properties {
                         if property.optional {
-                            context.line("_\(property.name) = SwiftQL.XLNullableColumnUpdate()")
+                            context.block("if let \(property.name)") { context in
+                                context.line("_xlColumns.\(property.name).optionalExpression = \(property.name)")
+                            }
                         }
                         else {
-                            context.line("self.\(property.name) = \(property.name)")
-                        }
-                    }
-                    for property in properties where property.optional {
-                        context.block("if let \(property.name)") { context in
-                            context.line("self.\(property.name) = \(property.name)")
+                            context.line("_xlColumns.\(property.name).expression = \(property.name)")
                         }
                     }
                 }
@@ -1127,8 +1155,8 @@ internal struct MetaBuilder {
                     context.block("$0.list(separator: \",\")") { context in
                         for property in properties {
                             let assigned = property.optional
-                                ? "let \(property.name) = _\(property.name)._xlAssignedExpression"
-                                : "let \(property.name)"
+                                ? "let \(property.name) = _xlColumns.\(property.name)._xlAssignedExpression"
+                                : "let \(property.name) = _xlColumns.\(property.name).expression"
                             context.block("if \(assigned)") { context in
                                 context.block("$0.listItem") { context in
                                     context.block("$0.binaryOperator(\"=\", left: XLName(\"\(property.alias)\").makeSQL)") { context in
@@ -1189,9 +1217,10 @@ internal struct MetaBuilder {
                 }
                 else {
                     context.line("var output = MetaUpdate()")
-                    // A nullable column's setter now takes an expression of the
-                    // wrapped type, so the value no longer has to be lifted
-                    // with `toNullable()` before it is assigned.
+                    // The value here is always the column's wrapped type, so
+                    // it routes through MetaUpdate's wrapped-type assignment
+                    // for nullable and non-nullable columns alike -- no
+                    // `toNullable()` lift is needed.
                     for property in mutableProperties {
                         context.block("if let value = \(property.name)") { context in
                             context.line("output.\(property.name) = SwiftQL._xlLegacyValueExpression(value)")

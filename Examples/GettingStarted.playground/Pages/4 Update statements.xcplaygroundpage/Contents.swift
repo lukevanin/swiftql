@@ -97,11 +97,10 @@ print("fred's occupation:", try database.fetchPersonByID(id: "fred")?.occupation
  the value the row already held — which is why the `row.age = 42` update at the
  top of this page left Fred's occupation untouched.
 
- The value assigned is an expression of the column's *wrapped* type, so
- literals and non-optional expressions assign directly. An expression that is
- itself optional-typed — a binding whose value may be `NULL` at runtime — is
- assigned through the projected value with `$`. The named bindings page covers
- how the value reaches that placeholder.
+ Any expression of the column's wrapped type (`String`) or of its optional
+ type (`String?`) assigns the same way, so a named binding whose runtime value
+ may be `NULL` needs no special spelling. The named bindings page covers how
+ the value reaches that placeholder.
  */
 let occupationParameter = XLNamedBindingReference<String?>(name: "occupationId")
 
@@ -109,7 +108,7 @@ let setOccupationFromBinding = sql { schema in
     let person = schema.into(Person.self)
     Update(person)
     Setting(person) { row in
-        row.$occupationId = occupationParameter
+        row.occupationId = occupationParameter
     }
     Where(person.id == "fred")
 }

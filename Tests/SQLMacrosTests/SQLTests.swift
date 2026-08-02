@@ -1171,10 +1171,11 @@ final class MetaBuilderTests: XCTestCase {
             """
         )
         let source = builder.makeMetaTableExtension()
-        // MetaInsert, MetaUpdate and UpdateRequest each declare exactly one parameterless
-        // initializer. Before the fix, MetaUpdate declared a duplicate `init()`.
+        // MetaInsert, MetaUpdate, MetaUpdate.Columns and UpdateRequest each declare exactly
+        // one parameterless initializer. Before the fix, MetaUpdate declared a duplicate
+        // `init()`.
         let count = source.components(separatedBy: "public init()").count - 1
-        XCTAssertEqual(count, 3)
+        XCTAssertEqual(count, 4)
     }
 
     func test_columnsBuildsResultWithoutDeprecatedHelper() throws {
@@ -1530,12 +1531,16 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("output.id = SwiftQL._xlLegacyValueExpression(value)"))
     }
 
-    // A nullable column's update setter is keyed on the column's *wrapped*
-    // type and wrapped in `@XLNullableColumnUpdate`, which is what lets
-    // `row.nickname = "Ada"` and `row.nickname = nil` both compile and mean
-    // different things. A non-optional column keeps the plain optional
-    // existential, where `nil` still means "leave this column out".
-    func test_metaUpdateWrapsNullableColumnsOnly() throws {
+    // MetaUpdate routes column assignment through key-path member lookup over
+    // typed slots. A nullable column gets an `XLNullableColumnUpdate` slot and
+    // two subscript overloads -- one keyed on the column's *wrapped* type
+    // (which is what lets `row.nickname = "Ada"` and `row.nickname = nil`
+    // both compile and mean different things) and a disfavored one keyed on
+    // the optional type (which is what lets an optional-typed expression such
+    // as a `XLNamedBindingReference<String?>` assign with the same spelling).
+    // A non-optional column gets a plain `XLColumnUpdate` slot, where `nil`
+    // still means "leave this column out".
+    func test_metaUpdateRoutesColumnsThroughTypedSlots() throws {
         let builder = try makeBuilder(
             """
             @SQLTable
@@ -1548,25 +1553,55 @@ final class MetaBuilderTests: XCTestCase {
         let source = builder.makeMetaTableExtension()
 
         XCTAssertTrue(
+            source.contains("@dynamicMemberLookup public struct MetaUpdate: XLMetaUpdate")
+        )
+        XCTAssertTrue(
+            source.contains("public var nickname = SwiftQL.XLNullableColumnUpdate<String>()")
+        )
+        XCTAssertTrue(
+            source.contains("public var id = SwiftQL.XLColumnUpdate<Int>()")
+        )
+
+        // The three subscript overloads: wrapped-type for both slot kinds,
+        // and the disfavored optional-typed overload for nullable slots.
+        XCTAssertTrue(
             source.contains(
-                "@SwiftQL.XLNullableColumnUpdate public var nickname: Optional<any SwiftQL.XLExpression<String>>"
+                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLExpression<Wrapped>>"
             )
         )
         XCTAssertTrue(
-            source.contains("public var id: Optional<any SwiftQL.XLExpression<Int>>")
+            source.contains(
+                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLExpression<Wrapped>>"
+            )
         )
-        XCTAssertFalse(source.contains("XLNullableColumnUpdate public var id"))
-
-        // The wrapper's backing storage is what carries "was this column
-        // assigned at all", so the SET clause reads it rather than the
-        // property.
+        XCTAssertTrue(source.contains("@_disfavoredOverload"))
         XCTAssertTrue(
-            source.contains("if let nickname = _nickname._xlAssignedExpression")
+            source.contains(
+                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> any SwiftQL.XLExpression<Optional<Wrapped>>"
+            )
         )
-        XCTAssertTrue(source.contains("if let id"))
 
-        // A nullable column no longer needs `toNullable()` to bridge a value
-        // into the setter.
+        // The slots carry "was this column assigned at all", so the SET
+        // clause reads them rather than a stored property.
+        XCTAssertTrue(
+            source.contains("if let nickname = _xlColumns.nickname._xlAssignedExpression")
+        )
+        XCTAssertTrue(
+            source.contains("if let id = _xlColumns.id.expression")
+        )
+
+        // The memberwise initializer keeps its v1 shape: parameters are keyed
+        // on the column's declared (qualified) type, and `nil` means "omit
+        // this column from the statement".
+        XCTAssertTrue(
+            source.contains("nickname: Optional<any XLExpression<String?>> = nil")
+        )
+        XCTAssertTrue(
+            source.contains("id: Optional<any XLExpression<Int>> = nil")
+        )
+
+        // The generated expansion never needs `toNullable()` to bridge a
+        // value into a nullable column.
         XCTAssertFalse(source.contains(".toNullable()"))
     }
 

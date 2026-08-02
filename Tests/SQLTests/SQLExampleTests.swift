@@ -1437,7 +1437,7 @@ extension XLDocumentationTests {
             let person = schema.into(Person.self)
             Update(person)
             Setting(person) { row in
-                row.$occupationId = occupationParameter
+                row.occupationId = occupationParameter
             }
             Where(person.id == "fred")
         }
@@ -1571,6 +1571,27 @@ extension XLDocumentationTests {
             try database.makeRequest(with: personByIDQuery).fetchOne(),
             Person(id: "per-3", occupationId: nil, name: "Yogi Bear", age: 68)
         )
+
+        // A plain optional value also assigns directly: a wrapped value
+        // renders the value, `nil` renders NULL.
+        let maybeOccupation: String? = "occ-4"
+        let setFromOptionalValueStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = maybeOccupation
+            }
+            Where(person.id == "per-3")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(setFromOptionalValueStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = 'occ-4' WHERE (t0.id == 'per-3')"
+        )
+        try database.makeRequest(with: setFromOptionalValueStatement).execute()
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-3", occupationId: "occ-4", name: "Yogi Bear", age: 68)
+        )
     }
 
     /// A column that is never assigned stays out of the `SET` clause, so an
@@ -1610,8 +1631,7 @@ extension XLDocumentationTests {
 
     /// An expression whose own type is already optional -- a binding reference
     /// whose bound value may be `NULL` at runtime, or another nullable column
-    /// -- is assigned through the projected value, which the wrapped value
-    /// cannot accept.
+    /// -- assigns with the same spelling as a wrapped-type expression.
     func testExample_Setting_NullableColumnFromOptionalExpression() throws {
         try database.makeRequest(with: sqlCreate(Person.self)).execute()
 
@@ -1623,7 +1643,7 @@ extension XLDocumentationTests {
             let person = schema.into(Person.self)
             Update(person)
             Setting(person) { row in
-                row.$occupationId = occupationParameter
+                row.occupationId = occupationParameter
             }
             Where(person.id == "per-1")
         }
