@@ -2,6 +2,31 @@
 
 ## [1.5.6] - Unreleased
 
+### Added
+
+- Added a `SwiftQLExamples` library product (issue #480), holding the
+  pre-expanded schema and declared queries the Getting Started playground
+  imports. A classic Xcode playground has no `Package.swift` of its own and
+  cannot reliably load a Swift macro compiler plugin, so the example schema is
+  built during the ordinary package build and the playground calls
+  already-expanded API. It is example code rather than a supported API, and
+  nothing in `SwiftQL` or `SwiftQLCore` depends on it.
+
+### Changed
+
+- `SQLiteBuildValidator` now reports the schema checks it could not run, and
+  stops preparing queries once the snapshot's schema identity is already known
+  not to match the manifest (issue #440). When
+  `SQLiteBuildValidationRuntime.capture` fails, the row-count and fingerprint
+  checks used to vanish from the report; they now appear as `.unsupported`
+  `schema.row-count` and `schema.fingerprint` diagnostics, so a reader can tell
+  a check that could not run apart from one that was never in the report. When
+  a schema identity mismatch is already recorded, every manifest entry gets one
+  deterministic `schema.mismatch-skipped` outcome instead of a preparation
+  whose result is already meaningless. `overallVerdict` resolution, the
+  manifest format, the CLI surface, and every existing pass/fail outcome are
+  unchanged, and canonical reports remain byte-identical across repeated runs.
+
 ### Fixed
 
 - Fixed `SwiftQLSQLiteBuildValidationPlugin` failing every Xcode build of a

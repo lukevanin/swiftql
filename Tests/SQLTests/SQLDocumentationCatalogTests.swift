@@ -813,6 +813,162 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         XCTAssertEqual(firstReleaseHeading, "## [1.5.6] - Unreleased")
     }
 
+    /// `check-docc-output.sh` proves one built page per catalog article. An
+    /// article missing from its list is published without ever being checked,
+    /// so a broken route or a renamed page 404s on the site with nothing
+    /// failing first. That is how `TodoDemo.md` shipped unvalidated, found by
+    /// issue #230. Deriving the expected list from the catalog itself, titles
+    /// included, means the next article cannot repeat it.
+    func testEveryCatalogArticleIsCheckedInTheBuiltDocCOutput() throws {
+        let catalog = documentationCatalogURL()
+        var expectedPages: [String: String] = [:]
+        for articleURL in try FileManager.default.contentsOfDirectory(
+            at: catalog,
+            includingPropertiesForKeys: nil
+        ) where articleURL.pathExtension == "md" {
+            let name = articleURL.deletingPathExtension().lastPathComponent
+            // The landing page is checked by its own `documentation/swiftql`
+            // route above the article list, not as an article.
+            guard name != "SwiftQL" else {
+                continue
+            }
+            let heading = try String(contentsOf: articleURL, encoding: .utf8)
+                .components(separatedBy: .newlines)
+                .first { $0.hasPrefix("# ") }
+            expectedPages[name.lowercased()] = try XCTUnwrap(
+                heading,
+                "\(articleURL.lastPathComponent) has no level-one heading to publish as its title."
+            ).dropFirst(2).trimmingCharacters(in: .whitespaces)
+        }
+
+        let script = try String(
+            contentsOf: repositoryRootURL().appendingPathComponent(
+                "scripts/ci/check-docc-output.sh"
+            ),
+            encoding: .utf8
+        )
+        let lines = script.components(separatedBy: .newlines)
+        let start = try XCTUnwrap(
+            lines.firstIndex(where: { $0.hasSuffix("<<'ARTICLES'") }),
+            "check-docc-output.sh no longer opens an ARTICLES heredoc."
+        )
+        let end = try XCTUnwrap(
+            lines[start...].dropFirst().firstIndex(of: "ARTICLES"),
+            "check-docc-output.sh no longer terminates its ARTICLES heredoc."
+        )
+        var checkedPages: [String: String] = [:]
+        for line in lines[(start + 1) ..< end] {
+            let fields = line.split(separator: "|", maxSplits: 1)
+            XCTAssertEqual(
+                fields.count,
+                2,
+                "ARTICLES entries are `slug|title`, but found: \(line)"
+            )
+            guard fields.count == 2 else {
+                continue
+            }
+            checkedPages[String(fields[0])] = String(fields[1])
+        }
+
+        XCTAssertEqual(
+            checkedPages,
+            expectedPages,
+            """
+            Every DocC article must have a `slug|title` line in \
+            check-docc-output.sh, with the slug lowercased from its file name \
+            and the title matching its level-one heading exactly.
+            """
+        )
+    }
+
+    /// The v1.3 contract above pins statements the v1.3 milestone made. Some
+    /// of them are boundary claims the v1.5 line then crossed, and a reader of
+    /// the current site has no way to tell a historical scope note from a
+    /// present-tense limitation. These pins hold the correction next to each
+    /// one, and hold the published-version claim consistent across every
+    /// document that restates it (issue #230).
+    func testPublicDocumentsAgreeOnTheShippedV15Surface() throws {
+        let repositoryRoot = repositoryRootURL()
+        let requiredPhrasesByPath = [
+            "README.md": [
+                "Write a query as an ordinary Swift function with `@SQLQuery`",
+                "Observe typed query results with `for try await` over `stream()`",
+            ],
+            // Nothing generated restates the landing page, so its Swift
+            // Package Manager version drifts silently; it was still on 1.5.4
+            // two releases later when #230 found it.
+            "Website/index.html": [
+                #".package(url: "https://github.com/lukevanin/swiftql.git", from: "1.5.5")"#,
+            ],
+            "COMPATIBILITY.md": [
+                "`SwiftQLSQLiteBuildValidationManifest` and",
+                "`SwiftQLExamples` holds the pre-expanded schema",
+            ],
+            "CHANGELOG.md": [
+                "Added a `SwiftQLExamples` library product",
+                "`SQLiteBuildValidator` now reports the schema checks it could not run",
+            ],
+            "RELEASING.md": [
+                "The claim about which",
+                "version is published lives in six places",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/SwiftQL.md": [
+                "v1.5.2 added the `swiftql-build-validate` executable",
+                "SwiftQL still",
+                "ships no schema system",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/StaticQueries.md": [
+                "The standalone validator and SwiftPM plugin that research led to shipped in",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/AdvancedUsage.md": [
+                "The build-time validator v1.5.2 shipped from that research",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/BuiltinFunctions.md": [
+                "The free function `iif(_:then:else:)` still compiles with a",
+                "The free functions `min(_:)` and `max(_:)` still compile with a",
+                "free function `printf(format:_:)` still compiles with a",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/Queries.md": [
+                "`count(_:)`: `count(all())` becomes `all().count()`",
+            ],
+        ]
+        // Claims the v1.5 line falsified. Each one read as a present-tense
+        // statement about SwiftQL on the published site.
+        let forbiddenPhrasesByPath = [
+            "Sources/SwiftQL/SwiftQL.docc/StaticQueries.md": [
+                "remain separate v1.5 follow-up work",
+            ],
+            "README.md": [
+                "the unreleased v1.3",
+            ],
+        ]
+
+        for (path, requiredPhrases) in requiredPhrasesByPath {
+            let contents = try String(
+                contentsOf: repositoryRoot.appendingPathComponent(path),
+                encoding: .utf8
+            )
+            for phrase in requiredPhrases {
+                XCTAssertTrue(
+                    contents.contains(phrase),
+                    "\(path) is missing the v1.5 currency phrase '\(phrase)'."
+                )
+            }
+        }
+        for (path, forbiddenPhrases) in forbiddenPhrasesByPath {
+            let contents = try String(
+                contentsOf: repositoryRoot.appendingPathComponent(path),
+                encoding: .utf8
+            )
+            for phrase in forbiddenPhrases {
+                XCTAssertFalse(
+                    contents.contains(phrase),
+                    "\(path) still makes the superseded claim '\(phrase)'."
+                )
+            }
+        }
+    }
+
     func testREADMERepositoryLinksResolveWithExactCase() throws {
         let repositoryRoot = repositoryRootURL()
         let readme = try String(
