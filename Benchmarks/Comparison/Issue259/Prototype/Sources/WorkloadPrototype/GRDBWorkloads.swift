@@ -38,6 +38,10 @@ private struct GRDBPrototypeWriteRow: Codable, PersistableRecord {
 /// in README.md records that difference; it is not hidden here.
 final class GRDBPrototypeAdapter {
     private let queue: DatabaseQueue
+    /// Captured once at initialisation, before the first warmup, so no timed
+    /// operation pays for reading them.
+    private let lookupKeys = PrototypeConstants.lookupKeys
+    private let writeBatch = PrototypeConstants.writeBatch
 
     init(databaseURL: URL, writable: Bool) throws {
         var configuration = GRDB.Configuration()
@@ -46,8 +50,7 @@ final class GRDBPrototypeAdapter {
     }
 
     func pointLookup(iteration: Int) throws -> PrototypeOrder? {
-        let keys = PrototypeConstants.lookupKeys
-        let key = keys[iteration % keys.count]
+        let key = lookupKeys[iteration % lookupKeys.count]
         return try queue.read { database in
             guard let record = try GRDBPrototypeOrder
                 .filter(Column("OrderID") == key)
@@ -99,7 +102,7 @@ final class GRDBPrototypeAdapter {
     }
 
     func transactionalWrite() throws -> Int {
-        let batch = PrototypeConstants.writeBatch
+        let batch = writeBatch
         try queue.inTransaction { database in
             for row in batch {
                 try GRDBPrototypeWriteRow(

@@ -43,14 +43,17 @@ private enum ScratchTable {
 /// SQLite.swift adapter. All three workloads use its typed query builder.
 final class SQLiteSwiftPrototypeAdapter {
     private let connection: Connection
+    /// Captured once at initialisation, before the first warmup, so no timed
+    /// operation pays for reading them.
+    private let lookupKeys = PrototypeConstants.lookupKeys
+    private let writeBatch = PrototypeConstants.writeBatch
 
     init(databaseURL: URL, writable: Bool) throws {
         connection = try Connection(databaseURL.path, readonly: !writable)
     }
 
     func pointLookup(iteration: Int) throws -> PrototypeOrder? {
-        let keys = PrototypeConstants.lookupKeys
-        let key = keys[iteration % keys.count]
+        let key = lookupKeys[iteration % lookupKeys.count]
         let query = OrdersTable.table
             .select(
                 OrdersTable.orderID,
@@ -113,7 +116,7 @@ final class SQLiteSwiftPrototypeAdapter {
     }
 
     func transactionalWrite() throws -> Int {
-        let batch = PrototypeConstants.writeBatch
+        let batch = writeBatch
         try connection.transaction {
             for row in batch {
                 try connection.run(

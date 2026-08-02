@@ -45,23 +45,26 @@ enum PrototypeConstants {
 
     static let selectedOrderColumnCount = 14
 
-    static var lookupKeys: [Int] {
-        (0..<lookupKeyCount).map { index in
-            firstOrderID + index * lookupKeyStride
-        }
+    /// Stored, not computed. Every adapter reads this from inside the timed
+    /// operation, so rebuilding the array per call would charge each sample for
+    /// 256 allocations that belong to no library.
+    static let lookupKeys: [Int] = (0..<lookupKeyCount).map { index in
+        firstOrderID + index * lookupKeyStride
     }
 
     /// Every timed transaction writes this exact batch and the reset clears it,
     /// so committed state is identical before and after every iteration. That
     /// is what lets the value oracle compare a fixed expectation instead of
     /// comparing one iteration against another.
-    static var writeBatch: [(id: Int, name: String, amount: Double)] {
+    ///
+    /// Stored for the same reason as `lookupKeys`: rebuilding it per call would
+    /// put 100 string interpolations inside every timed transaction.
+    static let writeBatch: [(id: Int, name: String, amount: Double)] =
         (0..<writeBatchSize).map { offset in
             (id: offset, name: "row-\(offset)", amount: Double(offset) / 4.0)
         }
-    }
 
-    static var expectedScratchChecksum: UInt64 {
+    static let expectedScratchChecksum: UInt64 = {
         var checksum = PrototypeChecksum()
         for row in writeBatch {
             checksum.combine(row.id)
@@ -69,7 +72,7 @@ enum PrototypeConstants {
             checksum.combine(row.amount)
         }
         return checksum.value
-    }
+    }()
 }
 
 enum PrototypeError: Error, CustomStringConvertible {

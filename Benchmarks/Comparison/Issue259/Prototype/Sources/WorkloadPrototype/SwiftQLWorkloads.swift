@@ -75,6 +75,10 @@ extension GRDBDatabase {
 /// write.
 final class SwiftQLPrototypeAdapter {
     private let database: GRDBDatabase
+    /// Captured once at initialisation, before the first warmup, so no timed
+    /// operation pays for reading them.
+    private let lookupKeys = PrototypeConstants.lookupKeys
+    private let writeBatch = PrototypeConstants.writeBatch
 
     init(databaseURL: URL, writable: Bool) throws {
         var configuration = GRDB.Configuration()
@@ -87,8 +91,7 @@ final class SwiftQLPrototypeAdapter {
     }
 
     func pointLookup(iteration: Int) throws -> PrototypeOrder? {
-        let keys = PrototypeConstants.lookupKeys
-        let key = keys[iteration % keys.count]
+        let key = lookupKeys[iteration % lookupKeys.count]
         guard let row = try database.fetchPrototypeOrder(orderID: key) else {
             return nil
         }
@@ -121,9 +124,8 @@ final class SwiftQLPrototypeAdapter {
     }
 
     func transactionalWrite() throws -> Int {
-        let batch = PrototypeConstants.writeBatch
         try database.withTransaction { scope in
-            for row in batch {
+            for row in writeBatch {
                 let record = SwiftQLPrototypeWriteRow(
                     id: row.id,
                     name: row.name,
@@ -132,6 +134,6 @@ final class SwiftQLPrototypeAdapter {
                 try scope.makeRequest(with: sqlInsert(record)).execute()
             }
         }
-        return batch.count
+        return writeBatch.count
     }
 }

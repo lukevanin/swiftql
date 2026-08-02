@@ -102,13 +102,25 @@ final class PrototypeStateOracle {
             throw PrototypeError.sqlite("could not prepare the order oracle")
         }
         defer { sqlite3_finalize(statement) }
-        sqlite3_bind_int64(statement, 1, Int64(orderID))
-        guard sqlite3_step(statement) == SQLITE_ROW else {
+        let bound = sqlite3_bind_int64(statement, 1, Int64(orderID))
+        guard bound == SQLITE_OK else {
+            throw PrototypeError.sqlite(
+                "could not bind OrderID \(orderID) to the order oracle (\(bound))"
+            )
+        }
+        // SQLITE_DONE means the key genuinely matched nothing. Any other
+        // non-row status is a SQLite failure and must not be reported as an
+        // empty result.
+        let step = sqlite3_step(statement)
+        if step == SQLITE_DONE {
             throw PrototypeError.unexpectedRowCount(
                 workload: PrototypeWorkload.pointLookup.rawValue,
                 expected: 1,
                 actual: 0
             )
+        }
+        guard step == SQLITE_ROW else {
+            throw PrototypeError.sqlite("order oracle failed (\(step))")
         }
 
         func text(_ column: Int32) -> String? {
@@ -218,8 +230,9 @@ final class PrototypeStateOracle {
             throw PrototypeError.sqlite("could not prepare the oracle count")
         }
         defer { sqlite3_finalize(statement) }
-        guard sqlite3_step(statement) == SQLITE_ROW else {
-            throw PrototypeError.sqlite("oracle count returned no row")
+        let step = sqlite3_step(statement)
+        guard step == SQLITE_ROW else {
+            throw PrototypeError.sqlite("oracle count returned no row (\(step))")
         }
         return Int(sqlite3_column_int64(statement, 0))
     }
