@@ -10,7 +10,8 @@ set -euo pipefail
 #
 #   1. The companion example module builds.
 #   2. Every page listed in contents.xcplayground exists on disk, and every
-#      page on disk is listed, in the same order.
+#      page on disk is listed. Both lists are compared as sets; this does not
+#      check that the navigator's page order matches the on-disk listing.
 #   3. Every page's Contents.swift compiles and runs against this checkout,
 #      with no warnings and no hang.
 #
