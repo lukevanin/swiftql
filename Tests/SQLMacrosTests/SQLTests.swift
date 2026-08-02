@@ -79,6 +79,11 @@ private func makeColumnsMemberTestMacros() -> [String: Macro.Type] {
 
 // MARK: - Sendable conformance (issue #531)
 
+// Gated to match the macro (see `makeSendableExtension`): Swift 5.9 treats a macro-expanded
+// extension as a separate source file for the rule that a `Sendable` conformance must be declared
+// alongside its type, so the conformance is generated on Swift 6.0 and later only.
+#if compiler(>=6.0)
+
 
 ///
 /// Reduces each generated extension to its signature -- extended type, conformances, and generic
@@ -216,6 +221,8 @@ private func makeAlreadySendableTestMacros() -> [String: Macro.Type] {
         "SQLResult": SQLResultSatisfyingSendableMacro.self,
     ]
 }
+
+#endif
 
 
 final class SQLMacroDiagnosticTests: XCTestCase {
@@ -1635,6 +1642,7 @@ final class MetaBuilderTests: XCTestCase {
 }
 
 
+#if compiler(>=6.0)
 // Issue #531: the model macros declare the model's `Sendable` conformance, so a value type built
 // from column values does not need it written out by hand at every public declaration.
 //
@@ -1863,3 +1871,4 @@ final class SQLMacroSendableConformanceTests: XCTestCase {
     }
 
 }
+#endif

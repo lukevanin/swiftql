@@ -24,6 +24,10 @@
 /// extension macros`. Declare it yourself if you want it, `extension MyRow: Sendable where
 /// T: Sendable {}`, and the macro defers to that like any other stated conformance.
 ///
+/// Requires Swift 6.0 or later. Swift 5.9 treats a macro-expanded extension as a separate source
+/// file for the rule that a `Sendable` conformance must be declared alongside its type, and warns
+/// on every model, so nothing is generated on that support point. See COMPATIBILITY.md.
+///
 @attached(member, names: arbitrary)
 @attached(extension, conformances: XLResult, XLTable, Sendable, names: arbitrary)
 public macro SQLTable(name: String? = nil) = #externalMacro(module: "SQLMacros", type: "SQLTableMacro")

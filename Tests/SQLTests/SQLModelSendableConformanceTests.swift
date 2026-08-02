@@ -17,6 +17,11 @@ import Foundation
 import SwiftQL
 import XCTest
 
+// Gated to match the macro: Swift 5.9 treats a macro-expanded extension as a separate source file
+// for the rule that a `Sendable` conformance must be declared alongside its type, so the
+// conformance is generated on Swift 6.0 and later only. See COMPATIBILITY.md.
+#if compiler(>=6.0)
+
 
 /// A public table model of plain column types, the shape `SwiftQLExamples.Person` has.
 @SQLTable(name: "SendableConformancePerson")
@@ -105,3 +110,5 @@ final class SQLModelSendableConformanceTests: XCTestCase {
         XCTAssertEqual(Self.seedPeople.count, 2)
     }
 }
+
+#endif

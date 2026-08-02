@@ -227,6 +227,24 @@ including 5.9 and 6.0. This is the package's first source-level API
 divergence across compiler cells; see `Sources/SwiftQL/SQLRowMacro.swift` and
 `Sources/SwiftQL/SQLRowResult.swift` for the gated declarations.
 
+The `Sendable` conformance `@SQLTable` and `@SQLResult` declare for a `public`
+or `package` model (issue #531) requires Swift 6.0 or later. Swift 5.9 treats a
+macro-expanded extension as a separate source file for the rule that a
+`Sendable` conformance must be declared alongside its type, so every model there
+draws `conformance to 'Sendable' must occur in the same source file as struct
+'X'; use '@unchecked Sendable' for retroactive conformance`, which the
+first-party warnings-as-errors gate turns into a build failure. The spelling the
+compiler suggests is the one the conformance exists to avoid, so the 5.9 support
+point keeps the behaviour it had: nothing is generated, and a model that should
+be `Sendable` states it on the declaration. Swift 6.0 accepts the generated
+conformance without a diagnostic, verified on the pinned 6.0 cell. The gate is
+`#if compiler(>=6.0)` in `makeSendableExtension` in
+`Sources/SQLMacros/SQLMacro.swift`; because SwiftPM builds a macro plugin with
+the same toolchain that compiles the client, it resolves per compilation rather
+than per plugin build. The macro-expansion tests in
+`Tests/SQLMacrosTests/SQLTests.swift` and the conformance tests in
+`Tests/SQLTests/SQLModelSendableConformanceTests.swift` carry the same gate.
+
 ## Swift 6 series coverage
 
 | Swift series | GitHub runner | Xcode | Swift | macOS SDK |

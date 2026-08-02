@@ -94,11 +94,20 @@ private let sendableInferenceWithheldModifiers: Set<String> = ["public", "open",
 ///   this is not hypothetical. They are left as they were: a generic model that should be
 ///   `Sendable` says so itself, `extension MyRow: Sendable where T: Sendable {}`, and the macro
 ///   then defers to it like any other stated conformance.
+/// - **Swift 6.0 and later only.** Swift 5.9 treats a macro-expanded extension as a separate
+///   source file for the rule that a `Sendable` conformance must be declared alongside its type,
+///   and warns `conformance to 'Sendable' must occur in the same source file as struct 'X'; use
+///   '@unchecked Sendable' for retroactive conformance` on every model. The suggested spelling is
+///   the one thing this change exists to avoid, so the 5.9 support point keeps the behaviour it
+///   had and models there state the conformance themselves if they want it. The plugin is built
+///   by the same toolchain that compiles the client, so `#if compiler(>=6.0)` below decides this
+///   per compilation rather than per plugin build. See COMPATIBILITY.md.
 ///
 private func makeSendableExtension(
     builder: MetaBuilder,
     conformingTo protocols: [TypeSyntax]
 ) throws -> ExtensionDeclSyntax? {
+#if compiler(>=6.0)
     let requested = protocols.contains { type in
         // Matched by spelling because the syntax the compiler hands back carries no resolved
         // type. Both the bare and module-qualified spellings are accepted, and nothing else is,
@@ -119,6 +128,9 @@ private func makeSendableExtension(
         return nil
     }
     return try makeExtensionDecl("extension \(builder.structName): Sendable {\n}")
+#else
+    return nil
+#endif
 }
 
 

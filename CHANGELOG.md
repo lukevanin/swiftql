@@ -25,7 +25,11 @@
   conformance they need cannot be written by an extension macro without the
   compiler reporting `circular reference expanding extension macros`;
   `SQLScalarResult` and `SQLRow2`...`SQLRow6`, the shapes behind `#row`, are
-  the affected types and they were not `Sendable` before this either.
+  the affected types and they were not `Sendable` before this either. The
+  conformance requires Swift 6.0 or later, since Swift 5.9 treats a
+  macro-expanded extension as a separate source file for the rule that a
+  `Sendable` conformance must be declared alongside its type and warns on every
+  model; the 5.9 support point keeps the behaviour it had. See COMPATIBILITY.md.
 - Added a `SwiftQLExamples` library product (issue #480), holding the
   pre-expanded schema and declared queries the Getting Started playground
   imports. A classic Xcode playground has no `Package.swift` of its own and
