@@ -41,6 +41,7 @@ main() {
     log_directory="${1:-${TMPDIR:-/tmp}}"
     ios_destination="${SWIFTQL_DEMO_IOS_DESTINATION:-generic/platform=iOS Simulator}"
 
+    mkdir -p "$log_directory"
     test -d "$demo_root"
     test -f "$demo_root/TodoApp.xcodeproj/project.pbxproj"
     test -f "$package_root/Package.swift"

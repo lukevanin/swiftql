@@ -307,8 +307,14 @@ jobs:
       - name: Check out exact source commit
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # github.sha, matching release-tooling: on a pull request that is
+          # the merge commit, so the demo is built against the base branch it
+          # would actually land on rather than against its own head.
+          ref: ${{ github.sha }}
           persist-credentials: false
+
+      - name: Verify exact source commit
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
       - name: Validate and report compiler environment
         env:
@@ -331,7 +337,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ always() && !cancelled() }}
         with:
-          name: swiftql-todo-demo-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+          name: swiftql-todo-demo-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/swiftql-todo-demo-*.log
             ${{ runner.temp }}/simulator-runtimes.txt
