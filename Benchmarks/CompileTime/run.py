@@ -828,6 +828,10 @@ def collect_artifacts(consumer_root: Path, spec: ConsumerSpec) -> dict[str, obje
         ),
         "pluginGeneratedSwiftBytes": plugin_generated,
         "macroExpansionBytes": None,
+        # Recorded identically for every consumer. Only the SwiftQL consumer
+        # expands macros at all, and even for that one the pinned toolchain
+        # offers no way to observe the expansion size, so no consumer gets a
+        # number and none gets a guess.
         "macroExpansionUnavailableReason": (
             "the pinned toolchain exposes no supported flag that writes macro "
             "expansion buffers to a stable machine-readable location during a "

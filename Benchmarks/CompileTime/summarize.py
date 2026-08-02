@@ -592,8 +592,9 @@ def render(document: dict[str, object], summaries: dict[str, dict[str, object]])
     assert isinstance(sources, dict) and isinstance(consumers, list)
 
     lines: list[str] = []
-    lines.append("SwiftQL consumer compile-time scalability")
-    lines.append("=" * 41)
+    title = "SwiftQL consumer compile-time scalability"
+    lines.append(title)
+    lines.append("=" * len(title))
     lines.append("")
     lines.append(f"Report generated: {document['generatedAt']}")
     lines.append(
@@ -622,8 +623,9 @@ def render(document: dict[str, object], summaries: dict[str, dict[str, object]])
     )
     lines.append("")
 
-    lines.append("Applicability")
-    lines.append("-" * 13)
+    applicability_heading = "Applicability"
+    lines.append(applicability_heading)
+    lines.append("-" * len(applicability_heading))
     for consumer in consumers:
         assert isinstance(consumer, dict)
         applicability = consumer["applicability"]
@@ -656,8 +658,9 @@ def render(document: dict[str, object], summaries: dict[str, dict[str, object]])
         ]
         if not relevant:
             continue
-        lines.append(f"Median wall time - {mode}")
-        lines.append("-" * (18 + len(mode)))
+        heading = f"Median wall time - {mode}"
+        lines.append(heading)
+        lines.append("-" * len(heading))
         header = f"  {'scale':<24}" + "".join(
             f"{identifier:>22}" for identifier in relevant
         )
@@ -677,8 +680,9 @@ def render(document: dict[str, object], summaries: dict[str, dict[str, object]])
             lines.append(f"  {point_label(tables, queries):<24}" + "".join(cells))
         lines.append("")
 
-    lines.append("Build outputs and generated source")
-    lines.append("-" * 34)
+    outputs_heading = "Build outputs and generated source"
+    lines.append(outputs_heading)
+    lines.append("-" * len(outputs_heading))
     lines.append(
         f"  {'consumer':<20}{'scale':<24}{'source':>12}{'objects':>12}"
         f"{'swiftmodule':>14}{'static lib':>14}{'plugin swift':>14}"
@@ -755,7 +759,8 @@ def compare(
     shared = sorted(set(baseline_summaries) & set(candidate_summaries))
     require(shared, "the two reports share no comparable cells")
 
-    lines = ["Compile-time comparison", "=" * 23, ""]
+    title = "Compile-time comparison"
+    lines = [title, "=" * len(title), ""]
     lines.append(
         f"  {'cell':<52}{'baseline':>14}{'candidate':>14}{'ratio':>10}"
     )

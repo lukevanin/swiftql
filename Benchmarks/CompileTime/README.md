@@ -88,11 +88,13 @@ where a plugin exists. The static archive contains linked dependency objects, so
 it is dominated by the dependency rather than by the declarations; the object
 bytes are the scale-sensitive figure.
 
-Macro expansion size is recorded as unavailable with a reason. The pinned
-toolchain exposes no flag that writes macro expansion buffers to a stable,
-machine-readable location during a SwiftPM build, and guessing a number from
-whole-build timing would be exactly the fabrication this harness is meant to
-avoid.
+Macro expansion size is recorded as unavailable, with the same reason for every
+consumer. The pinned toolchain exposes no flag that writes macro expansion
+buffers to a stable, machine-readable location during a SwiftPM build, and
+guessing a number from whole-build timing would be exactly the fabrication this
+harness is meant to avoid. Only the SwiftQL consumer expands macros at all, so
+for the other four the field is recording the absence of something they never
+had.
 
 If `/usr/bin/time -l` is unavailable, the harness refuses to record a partial
 measurement rather than emitting one with holes in it.
