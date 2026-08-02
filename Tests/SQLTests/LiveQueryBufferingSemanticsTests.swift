@@ -873,6 +873,10 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
             "A write after cancellation must not fetch, even when the cancellation landed between "
                 + "two next() calls."
         )
+        // Holds the stream -- and so the bridge -- past the assertion. Without this, ARC is free to
+        // release it once the consuming task has ended, and the test would pass because the bridge
+        // deallocated rather than because cancellation tore the observation down.
+        withExtendedLifetime(stream) {}
     }
 
     func testCancellingTheConsumingTaskCancelsTheUnderlyingObservation() async throws {
@@ -909,6 +913,9 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
             fetchCountAtCancel,
             "Cancelling the consuming task must cancel the underlying GRDB observation."
         )
+        // See the note in testCancellationBetweenNextCallsStillCancelsTheObservation: the stream
+        // must outlive the assertion, or a pass proves deallocation rather than cancellation.
+        withExtendedLifetime(stream) {}
     }
 
     // MARK: - Terminal error (edge case: terminal error)
