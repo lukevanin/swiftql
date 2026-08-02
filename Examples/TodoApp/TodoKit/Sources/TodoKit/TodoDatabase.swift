@@ -16,9 +16,12 @@ public final class TodoDatabase {
     /// `true` when this instance created the file and seeded it.
     public let didSeed: Bool
 
-    /// The list view's read, rendered once and reused. Values arrive per
-    /// call in a binding packet, not in the request.
+    /// The reads a live query observes, each rendered once and reused.
+    /// Values arrive per call in a binding packet, not in the request.
     let filteredTodosRequest: any XLRequest<Todo>
+    let listsRequest: any XLRequest<TodoList>
+    let listCountsRequest: any XLRequest<TodoListCounts>
+    let todoByIDRequest: any XLRequest<Todo>
 
     /// Opens the database, creating and seeding it the first time only.
     ///
@@ -41,6 +44,9 @@ public final class TodoDatabase {
         filteredTodosRequest = database.makeRequest(
             with: TodoFilteredRead.statement
         )
+        listsRequest = database.makeRequest(with: TodoLiveReads.lists)
+        listCountsRequest = database.makeRequest(with: TodoLiveReads.listCounts)
+        todoByIDRequest = database.makeRequest(with: TodoLiveReads.todoByID)
         didSeed = try database.withTransaction { scope in
             try Self.createSchema(in: scope)
             guard try Self.isUnseeded(scope) else {
