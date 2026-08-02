@@ -125,12 +125,19 @@ private final class ControllableStreamSource<Value>: @unchecked Sendable {
                 continuation.resume(returning: termination)
                 return
             }
-            guard streamIndex >= 0, streamIndex < continuations.count else {
-                let createdCount = continuations.count
+            // Both "no such stream" and "that slot exists but its continuation is not stored yet"
+            // are the same harness mistake -- driving this source ahead of `callCount` -- and both
+            // would otherwise park the caller on a stream that has no `onTermination` to fire.
+            guard
+                streamIndex >= 0,
+                streamIndex < continuations.count,
+                continuations[streamIndex] != nil
+            else {
+                let readyCount = continuations.count
                 lock.unlock()
                 XCTFail(
                     "ControllableStreamSource.waitForTermination(ofStream: \(streamIndex)) called "
-                        + "with an out-of-range stream index (only \(createdCount) stream(s) created "
+                        + "before that stream was ready (only \(readyCount) stream slot(s) created "
                         + "so far). Wait for callCount to reach \(streamIndex + 1) first.",
                     file: file,
                     line: line
