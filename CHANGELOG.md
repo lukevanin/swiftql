@@ -556,9 +556,9 @@ render unchanged.
   conformance inventory.
 - Recorded the new conflict-resolution, replace, upsert, update-with-CTE,
   RETURNING (insert, delete, update), and INSERT/UPDATE SELECT surfaces in the
-  #190 canonical SQLite conformance inventory. It records 111 public-surface feature records: 107
+  #190 canonical SQLite conformance inventory. It records 114 public-surface feature records: 110
   supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-  1 unimplemented. Of the 171 evidence records, 105 exercise real SQLite and
+  1 unimplemented. Of the 180 evidence records, 110 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
 ### Migration
