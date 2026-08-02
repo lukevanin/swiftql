@@ -1407,6 +1407,37 @@ extension XLDocumentationTests {
             Person(id: "fred", occupationId: nil, name: "Fred", age: 42)
         )
 
+        let setOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = "occ-1".toNullable()
+            }
+            Where(person.id == "fred")
+        }
+        try database.makeRequest(with: setOccupationStatement).execute()
+
+        XCTAssertEqual(
+            try peopleByNameRequest.fetchOne(bindings: fredBindings),
+            Person(id: "fred", occupationId: "occ-1", name: "Fred", age: 42)
+        )
+
+        let clearOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                let clearedOccupationId: String? = nil
+                row.occupationId = clearedOccupationId as any XLExpression<String?>
+            }
+            Where(person.id == "fred")
+        }
+        try database.makeRequest(with: clearOccupationStatement).execute()
+
+        XCTAssertEqual(
+            try peopleByNameRequest.fetchOne(bindings: fredBindings),
+            Person(id: "fred", occupationId: nil, name: "Fred", age: 42)
+        )
+
         let deleteIDParameter = XLNamedBindingReference<String>(name: "id")
         let deletePersonStatement = sql { schema in
             let person = schema.into(Person.self)
@@ -1472,6 +1503,61 @@ extension XLDocumentationTests {
             try preparedInvocation.fetchAllValues(bindings: invocationBindings).count,
             3,
             "The outer body's insert must roll back with the rejected transaction."
+        )
+    }
+
+    /// Regression test for the `Setting` closure not having an obvious
+    /// spelling for assigning a value to a nullable column. The generated
+    /// setter's type is `Optional<any XLExpression<T?>>`: the outer
+    /// `Optional` means "leave this column out of the `SET` clause", which
+    /// collides with the column's own optionality. `toNullable()` is the
+    /// supported way to bridge a non-optional value expression into that
+    /// slot; an explicit `any XLExpression<T?>` cast bridges a
+    /// already-optional value (including `nil`, to clear the column).
+    func testExample_Setting_NullableColumn() throws {
+        try database.makeRequest(with: sqlCreate(Person.self)).execute()
+
+        let yogiBear = Person(id: "per-3", occupationId: nil, name: "Yogi Bear", age: 68)
+        try database.makeRequest(with: sqlInsert(yogiBear)).execute()
+
+        let setOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = "occ-1".toNullable()
+            }
+            Where(person.id == "per-3")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(setOccupationStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = 'occ-1' WHERE (t0.id == 'per-3')"
+        )
+        try database.makeRequest(with: setOccupationStatement).execute()
+
+        let personByIDQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.id == "per-3")
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-3", occupationId: "occ-1", name: "Yogi Bear", age: 68)
+        )
+
+        let clearOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                let clearedOccupationId: String? = nil
+                row.occupationId = clearedOccupationId as any XLExpression<String?>
+            }
+            Where(person.id == "per-3")
+        }
+        try database.makeRequest(with: clearOccupationStatement).execute()
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-3", occupationId: nil, name: "Yogi Bear", age: 68)
         )
     }
 

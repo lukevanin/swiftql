@@ -226,7 +226,7 @@ migrator.registerMigration("v2") { db in
 try migrator.migrate(dbQueue)
 ```
 
-Of 111 tracked SQLite features, 107 are supported today with evidence from a real SQLite engine.
+Of 114 tracked SQLite features, 110 are supported today with evidence from a real SQLite engine.
 
 ### Supported today
 
@@ -236,10 +236,10 @@ Of 111 tracked SQLite features, 107 are supported today with evidence from a rea
 | Inserts, updates, and deletes | 26 | `INSERT`/`UPDATE`/`DELETE`, upsert (`ON CONFLICT`), `RETURNING`, conflict-resolution clauses, `WITH`-scoped updates, transaction and rollback behavior |
 | Reads | 10 | `SELECT`, `FROM`, `WHERE`, `GROUP BY`, `HAVING`, `ORDER BY`, `LIMIT`, `OFFSET` over real data |
 | Live queries | 12 | `stream()`/`streamOne()`, cancellation, retry, backpressure, and isolation across a connection pool |
-| Joins | 4 | `INNER`, `LEFT`, `RIGHT`, `FULL OUTER`, `CROSS`, `NATURAL`, and `USING` |
+| Joins | 6 | `INNER`, `LEFT`, `RIGHT`, `FULL OUTER`, `CROSS`, `NATURAL`, and `USING` |
 | Compound queries | 4 | `UNION`, `UNION ALL`, `INTERSECT`, `EXCEPT`, including direct scalar rows |
 | Subqueries | 4 | Scalar, correlated, and `IN`-subquery forms |
-| Common table expressions | 3 | Ordinary and recursive CTEs, `MATERIALIZED`/`NOT MATERIALIZED` hints |
+| Common table expressions | 4 | Ordinary and recursive CTEs, `MATERIALIZED`/`NOT MATERIALIZED` hints, and direct scalar rows |
 | Schema | 1 | `CREATE TABLE` and `CREATE TABLE AS SELECT` |
 
 ### Planned

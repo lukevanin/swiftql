@@ -5,7 +5,10 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    # Milestone branches get the same pull-request signal main does. Without
+    # this, work merged into version/x.y.z reaches main having never been
+    # built by CI.
+    branches: [main, 'version/**']
 
 permissions:
   contents: read
@@ -287,6 +290,62 @@ jobs:
         run: |
           set -euo pipefail
           cd "$GITHUB_WORKSPACE"
+          git diff --exit-code
+          test -z "$(git status --porcelain)"
+
+  todo-demo:
+    name: To-do demo app
+    # macOS-only: the demo is a SwiftUI app for iOS and macOS, so it cannot
+    # run on the Linux cells. A separate job rather than a matrix entry, for
+    # the same reason.
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+
+    steps:
+      - name: Check out exact source commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # github.sha, matching release-tooling: on a pull request that is
+          # the merge commit, so the demo is built against the base branch it
+          # would actually land on rather than against its own head.
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact source commit
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Validate and report compiler environment
+        env:
+          EXPECTED_XCODE_VERSION: "16.2"
+          EXPECTED_XCODE_BUILD: 16C5032a
+          EXPECTED_SWIFT_SERIES: "6.0"
+          EXPECTED_SDK_VERSION: "15.2"
+          EXPECTED_DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+        run: scripts/ci/check-compatibility-environment.sh
+
+      - name: Report the pinned iOS simulator runtime
+        run: |
+          set -euo pipefail
+          xcrun simctl list runtimes | tee "$RUNNER_TEMP/simulator-runtimes.txt"
+
+      - name: Build and test the to-do demo
+        run: scripts/ci/check-todo-demo.sh "$RUNNER_TEMP"
+
+      - name: Upload demo build logs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: swiftql-todo-demo-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/swiftql-todo-demo-*.log
+            ${{ runner.temp }}/simulator-runtimes.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Verify checkout remains clean
+        run: |
           git diff --exit-code
           test -z "$(git status --porcelain)"
 
@@ -791,6 +850,54 @@ jobs:
         with:
           name: swiftql-combinatorial-${{ matrix.swift_series }}-${{ matrix.resolution }}-${{ github.sha }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/swiftql-combinatorial
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 9
+
+      # The Getting Started playground is not compiled by `swift build` or
+      # exercised by `swift test`, so an API change can break it silently.
+      # The gate below selects exactly one cell, Swift 6.0 / macOS /
+      # committed resolution. The pages are platform-agnostic Swift, and the
+      # check costs a build and a run of each one, so repeating it across the
+      # matrix would buy nothing.
+      - name: Check the Getting Started playground
+        id: playground-pages
+        if: ${{ matrix.platform == 'macos' && matrix.resolution == 'committed' }}
+        run: |
+          set -uo pipefail
+          cd "$SWIFTQL_SOURCE"
+          status=0
+          scripts/ci/check-playground-pages.sh \
+            "$RUNNER_TEMP/swiftql-playground" || status=$?
+          summary="$RUNNER_TEMP/swiftql-playground/summary.md"
+          if [[ -f "$summary" ]]; then
+            cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf 'check-playground-pages.sh exited %s before writing a summary.\n' \
+              "$status" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"
+
+      # The per-page transcript is the evidence for what each page actually
+      # printed, which matters most on the runs where the check failed and the
+      # step log is the only other copy.
+      - name: Prepare retained playground evidence
+        if: ${{ always() && !cancelled() && matrix.platform == 'macos' && matrix.resolution == 'committed' }}
+        env:
+          PLAYGROUND_OUTCOME: ${{ steps.playground-pages.outcome }}
+        run: |
+          set -euo pipefail
+          output_directory="$RUNNER_TEMP/swiftql-playground"
+          mkdir -p "$output_directory"
+          printf 'workflow_step=%s\n' "$PLAYGROUND_OUTCOME" \
+            > "$output_directory/workflow-step-outcome.txt"
+
+      - name: Upload retained playground evidence
+        if: ${{ always() && !cancelled() && matrix.platform == 'macos' && matrix.resolution == 'committed' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: swiftql-playground-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/swiftql-playground
           if-no-files-found: error
           retention-days: 30
           compression-level: 9

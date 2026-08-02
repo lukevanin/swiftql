@@ -20,7 +20,7 @@ final class SQLiteValueConformanceBoundaryTests: XCTestCase {
         }
         let valueFeatureCount = featuresByID.values.reduce(0) { $0 + $1.count }
         XCTAssertEqual(inventory.schemaVersion, 1)
-        XCTAssertEqual(inventory.inventoryVersion, "1.3.0")
+        XCTAssertEqual(inventory.inventoryVersion, "1.4.0")
         XCTAssertEqual(inventory.coordinationIssue, 190)
         XCTAssertEqual(valueFeatureCount, 24)
         XCTAssertEqual(

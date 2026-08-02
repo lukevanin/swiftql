@@ -13,7 +13,31 @@ plus the compiled module it imports.
    then build (⌘B).
 4. Open `GettingStarted.playground` and run a page.
 
-Step 3 matters. A playground imports modules that the workspace's active
+## The pages
+
+`GettingStarted.playground` walks the same arc as the
+[Getting started guide](../Sources/SwiftQL/SwiftQL.docc/GettingStarted.md),
+with the explanation and the runnable code interleaved. Each page opens its own
+database and runs on its own, so you can start anywhere, but they read in
+order and are linked with `@previous` and `@next`.
+
+| Page | Covers |
+| --- | --- |
+| 1 Defining tables | `@SQLTable`, the Swift-to-SQLite type mapping, `GRDBDatabase`, `sqlCreate` |
+| 2 Inserting data | `sqlInsert`, `execute()`, nullable columns |
+| 3 Running select queries | `sql { }`, `fetchAll()`, `fetchOne()`, the `$0` shorthand, reusing a request |
+| 4 Update statements | `schema.into`, `Update`, `Setting`, updating a range |
+| 5 Delete statements | `Delete`, matching nothing, deleting a range |
+| 6 Named bindings | `XLNamedBindingReference`, parameter layouts, invocation packets, `@SQLQuery` |
+| 7 Lazy result sets | `withResultSet(_:)`, stopping early, the `XLResultSet` lifetime rules |
+| 8 Transactions | `withTransaction(_:)`, reads seeing earlier writes, rollback |
+| 9 Live queries | `stream()`, `streamOne()`, async iteration, cancellation |
+
+Every page prints its results and states the expected output next to the code
+that produces it, so a page whose output has drifted is visible without having
+to know what it should have said.
+
+Step 3 above matters. A playground imports modules that the workspace's active
 scheme has already built for the playground's platform, so selecting a scheme
 that does not build `SwiftQLExamples` for macOS gives you "no such module
 'SwiftQLExamples'" on the import line. The playground sets
@@ -69,13 +93,45 @@ carries the access level without the redundancy.
 | Destination | My Mac (arm64), macOS 26 |
 
 The package itself supports a much wider matrix (see
-[COMPATIBILITY.md](../COMPATIBILITY.md)); the row above records what the
+[COMPATIBILITY.md](../COMPATIBILITY.md)); the rows above record what the
 workspace and playground were opened and run against.
+
+## One thing a page has to work around
+
+Live queries deliver on the main queue. The GRDB adapter starts its
+observation with GRDB's default scheduling, so a page that blocks the main
+thread waiting for a snapshot deadlocks against the delivery it is waiting for.
+The live-queries page drives the main run loop instead, with
+`runMainLoop(until:)`. An application never needs this, because an observation
+there lives in a `Task` owned by a view model and nothing waits on the main
+thread.
+
+Assigning a nullable column in a `Setting` closure has a non-obvious spelling.
+The generated setter's type is `Optional<any XLExpression<T?>>`, where the
+outer `Optional` means "leave this column out of the `SET` clause", and that
+collides with the value's own optionality. `toNullable()` lifts a non-optional
+value expression into that slot, and an explicit `any XLExpression<T?>` cast
+assigns an already-optional value, including `nil` to clear the column back to
+`NULL`. The update page covers both.
 
 ## Keeping it working
 
 `SwiftQLExamples` is a first-party target, so `swift build` and the CI warning
 gate compile it on every run, and an API change that breaks the example schema
-breaks the build. The playground pages themselves are not compiled by
-`swift test`, so opening the workspace and running each page is still a manual
-check.
+breaks the build.
+
+The pages are checked separately, because nothing in `swift build` or
+`swift test` looks at them:
+
+```sh
+scripts/ci/check-playground-pages.sh
+```
+
+That builds the companion module, checks `contents.xcplayground` against the
+`Pages` directory, and compiles and runs every page against the checkout. CI
+runs it on one cell of `swift.yml`'s compatibility job, the macOS one with
+committed resolution, and keeps the per-page output as an artifact.
+
+[MAINTAINING.md](MAINTAINING.md) covers what to update when the Getting
+Started guide, the example schema, or SwiftQL's API changes, and what the
+check does not catch.

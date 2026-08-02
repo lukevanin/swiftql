@@ -154,6 +154,35 @@ From there:
   whose examples are connected to executable test scenarios, so the API shown
   in the guides stays aligned with the library.
 
+### Run it instead
+
+[The Getting Started playground](Examples/README.md) is that same walkthrough
+with the code running beside the explanation: nine pages against a real SQLite
+file, from defining a table through inserting, selecting, updating, deleting,
+named bindings, lazy result sets, and transactions, to observing a live query.
+Open `Examples/SwiftQLExamples.xcworkspace`, build the `SwiftQLExamples` scheme
+for My Mac, and step through it.
+
+Each page prints its results and states the output it expects next to the code
+producing it, so you can change a query and see immediately what moved.
+
+## Explore SwiftQL
+
+### The to-do demo
+
+[Examples/TodoApp](Examples/TodoApp/README.md) is a SwiftUI application for
+iOS 17 and macOS 14 whose entire data layer is SwiftQL. It shows the parts a
+guide covers one at a time working together: a four-table schema with a
+many-to-many join, declared `@SQLQueries` reads including a join and a grouped
+aggregate, one query serving every filter, sort, and search combination,
+writes that return their row through `RETURNING`, an atomic move between
+lists, and an interface fed entirely by live queries — completing a to-do
+updates the list and the sidebar counts with no reload call anywhere. Its
+queries are checked against a schema snapshot at build time, and 62 tests
+cover the query layer.
+
+Open `Examples/TodoApp/TodoApp.xcodeproj` and run the **TodoApp** scheme.
+
 ## What's new
 
 [WHATSNEW.md](WHATSNEW.md) describes each release in plain language — what you

@@ -77,27 +77,27 @@ The report is evidence for SwiftQL's existing public SQLite subset; it is not a
 claim of complete SQLite grammar coverage. The inventory remains the source of
 truth, while the report is its readable generated view.
 
-The v1.3 inventory contains 111 feature records and 171 evidence records. Its
+The v1.4 inventory contains 114 feature records and 180 evidence records. Its
 support-status totals are exact and mutually exclusive:
 
 | Support status | Features |
 | --- | ---: |
-| Supported | 107 |
+| Supported | 110 |
 | Partial | 0 |
 | Capability-gated | 2 |
 | Intentionally unsupported | 1 |
 | Unimplemented | 1 |
 
-Of those 171 evidence records, 105 exercise real SQLite and
+Of those 180 evidence records, 110 exercise real SQLite and
 cite one captured environment, SQLite 3.51.0. An inventory entry is counted in
-the 107 supported features only when it links to successful preparation by a
+the 110 supported features only when it links to successful preparation by a
 real SQLite engine whose version and source ID are recorded. Partial,
 capability-gated, intentionally unsupported, and unimplemented entries remain
 visible with their evidence, requirements, or rationale, but are excluded
 from the supported total. Evidence records are reusable proofs, so their count
 is not intended to match the feature count one for one.
 
-The v1.3 work has distinct ownership and claims:
+The original v1.3 work has distinct ownership and claims:
 
 - [#190](https://github.com/lukevanin/swiftql/issues/190) owns the canonical
   feature taxonomy, status decisions, evidence references, generated report,
@@ -349,6 +349,52 @@ The checker performs a clean fixture build, requires exactly one runtime success
 marker, and keeps build products outside the source tree. The compatibility
 matrix runs both fixture resolution paths only in its pinned Swift 6.0 cells;
 the ordinary package matrix continues to prove Swift 5.9 compiler support.
+
+## To-do demo application
+
+[`Examples/TodoApp`](Examples/TodoApp/README.md) is a SwiftUI application whose
+whole data layer is SwiftQL. It lives in this repository so that a library
+change breaks it immediately rather than silently, which only holds if CI
+builds it.
+
+The `To-do demo app` job runs on `macos-15` at the same pinned support point
+the Swift 6.0 macOS cells use, and it is macOS-only: the demo builds for iOS
+and macOS destinations, neither of which exists on the Linux cells, so it is a
+separate job rather than a matrix entry.
+
+| Pinned | Value |
+| --- | --- |
+| Runner image | `macos-15` |
+| Xcode | 16.2 (build 16C5032a) |
+| Swift series | 6.0 |
+| macOS SDK | 15.2 |
+| `DEVELOPER_DIR` | `/Applications/Xcode_16.2.app/Contents/Developer` |
+| iOS simulator destination | `generic/platform=iOS Simulator` |
+| Demo deployment floor | iOS 17.0, macOS 14.0 |
+
+The demo's floor is above the library's iOS 16 / macOS 13 floor because it uses
+`@Observable`. That does not change the library's floor.
+
+The iOS runtime is whichever the pinned Xcode ships, resolved through a generic
+simulator destination rather than a named device, so the job does not break
+when the runner image's device list changes. The job records
+`xcrun simctl list runtimes` on every run, so the runtime a given result was
+produced against is recoverable from the retained artifact rather than inferred
+from the image version.
+
+Reproduce the job with:
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
+scripts/ci/check-todo-demo.sh
+```
+
+The checker builds the demo package from clean (which is what forces SwiftQL's
+build-time query validator to run over every declared query), runs its tests,
+regenerates the checked-in validation manifest and schema snapshot and fails on
+any diff, asserts that `SWIFT_TREAT_WARNINGS_AS_ERRORS` and
+`GCC_TREAT_WARNINGS_AS_ERRORS` are still `YES` rather than trusting them, and
+then builds the app for macOS and for an iOS simulator.
 
 ## First-party warnings as errors
 
