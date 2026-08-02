@@ -239,8 +239,20 @@ def parse_raw_samples(
     implementation: str,
     process: int,
 ) -> list[int]:
+    """Reparse a raw sample log.
+
+    Every malformed input is a `ValidationError`, so a corrupt log is reported
+    through the validator's own error path instead of escaping as a decoding or
+    conversion traceback.
+    """
+
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as error:
+        raise ValidationError(f"{path} is not valid UTF-8: {error}") from error
+
     samples: list[int] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in text.splitlines():
         if not line:
             continue
         fields = line.split("\t")
@@ -250,9 +262,21 @@ def parse_raw_samples(
         )
         require(fields[1] == workload, f"workload mismatch in {path}")
         require(fields[2] == implementation, f"implementation mismatch in {path}")
-        require(int(fields[3]) == process, f"process mismatch in {path}")
-        require(int(fields[4]) == len(samples) + 1, f"sample index gap in {path}")
-        samples.append(int(fields[5]))
+        try:
+            line_process = int(fields[3])
+            sample_index = int(fields[4])
+            nanoseconds = int(fields[5])
+        except ValueError as error:
+            raise ValidationError(
+                f"non-integer sample field in {path}: {line!r}"
+            ) from error
+        require(line_process == process, f"process mismatch in {path}")
+        require(sample_index == len(samples) + 1, f"sample index gap in {path}")
+        require(
+            nanoseconds > 0,
+            f"nonpositive sample in {path}: {line!r}",
+        )
+        samples.append(nanoseconds)
     return samples
 
 

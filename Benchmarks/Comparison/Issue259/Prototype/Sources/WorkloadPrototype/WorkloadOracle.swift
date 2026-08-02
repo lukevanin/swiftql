@@ -17,7 +17,18 @@ final class PrototypeStateOracle {
             nil
         )
         guard status == SQLITE_OK, let handle else {
-            let detail = String(cString: sqlite3_errstr(status))
+            // sqlite3_open_v2 usually allocates a connection even when it
+            // fails, and that connection carries the specific error message.
+            // Read it, then close the handle rather than leaking it.
+            let detail: String
+            if let failed = handle, let message = sqlite3_errmsg(failed) {
+                detail = String(cString: message)
+            } else {
+                detail = String(cString: sqlite3_errstr(status))
+            }
+            if let failed = handle {
+                sqlite3_close_v2(failed)
+            }
             throw PrototypeError.sqlite(
                 "could not open the oracle connection to \(databaseURL.path): "
                     + "\(detail) (\(status))"

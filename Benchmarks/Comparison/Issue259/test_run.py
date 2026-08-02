@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -168,6 +169,57 @@ class SampleParsingTests(unittest.TestCase):
                 implementation="swiftql",
                 process=1,
             )
+
+
+class RawLogParsingTests(unittest.TestCase):
+    """A corrupt log must fail as a ValidationError, not as a traceback."""
+
+    def write(self, directory: Path, text: str) -> Path:
+        path = directory / "samples.tsv"
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def parse(self, path: Path) -> list[int]:
+        return issue259_summarize.parse_raw_samples(
+            path,
+            workload="point_lookup",
+            implementation="swiftql",
+            process=1,
+        )
+
+    def test_parses_a_well_formed_log(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(
+                Path(directory),
+                "SAMPLE\tpoint_lookup\tswiftql\t1\t1\t120\n"
+                "SAMPLE\tpoint_lookup\tswiftql\t1\t2\t130\n",
+            )
+            self.assertEqual(self.parse(path), [120, 130])
+
+    def test_rejects_a_non_integer_field(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(
+                Path(directory),
+                "SAMPLE\tpoint_lookup\tswiftql\t1\t1\tnope\n",
+            )
+            with self.assertRaises(issue259_summarize.ValidationError):
+                self.parse(path)
+
+    def test_rejects_a_nonpositive_sample(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(
+                Path(directory),
+                "SAMPLE\tpoint_lookup\tswiftql\t1\t1\t0\n",
+            )
+            with self.assertRaises(issue259_summarize.ValidationError):
+                self.parse(path)
+
+    def test_rejects_invalid_utf8(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "samples.tsv"
+            path.write_bytes(b"SAMPLE\tpoint_lookup\tswiftql\t1\t1\t\xff\xfe\n")
+            with self.assertRaises(issue259_summarize.ValidationError):
+                self.parse(path)
 
 
 class StatisticsTests(unittest.TestCase):
