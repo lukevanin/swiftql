@@ -122,7 +122,14 @@ extension XLAwaitableState {
 /// particular queue -- rather than evolving state. Awaiting the callback *itself* and then asserting
 /// on what it carried keeps the wrong outcome a test failure rather than a hang, which is not true
 /// of waiting for a flag that is only set when the outcome is already the expected one.
-final class XLAwaitableValue<Value>: @unchecked Sendable {
+///
+/// `Value` is constrained to `Sendable` because `fulfill` hands it to a continuation that resumes
+/// on whichever task is waiting, and under complete strict-concurrency checking that crossing is
+/// `sending 'newValue' risks causing data races`. `XLAwaitableState` above needs no such
+/// constraint: its waiters resume with `Void` and read the value back through the lock. Every
+/// caller already passes a `Sendable` value (`Bool`, `Void`), so the constraint costs nothing and
+/// states what the type has always needed from them.
+final class XLAwaitableValue<Value: Sendable>: @unchecked Sendable {
 
     private let lock = NSLock()
 

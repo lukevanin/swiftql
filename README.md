@@ -17,6 +17,7 @@
 <p align="center">
   <a href="https://github.com/lukevanin/swiftql/actions/workflows/swift.yml?query=branch%3Amain"><img alt="Build and CI status" src="https://img.shields.io/github/actions/workflow/status/lukevanin/swiftql/swift.yml?branch=main&amp;label=build%20%26%20CI"></a>
   <a href="https://github.com/lukevanin/swiftql/actions/workflows/documentation.yml?query=branch%3Amain"><img alt="Documentation status" src="https://img.shields.io/github/actions/workflow/status/lukevanin/swiftql/documentation.yml?branch=main&amp;label=documentation"></a>
+  <a href="https://codecov.io/gh/lukevanin/swiftql"><img alt="Code coverage" src="https://img.shields.io/codecov/c/github/lukevanin/swiftql?logo=codecov&amp;label=coverage"></a>
   <a href="COMPATIBILITY.md#pinned-compiler-support-points"><img alt="Swift 5.9 CI" src="https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&amp;logoColor=white"></a>
   <a href="COMPATIBILITY.md#swift-6-series-coverage"><img alt="Swift 6.0 CI" src="https://img.shields.io/badge/Swift-6.0-F05138?logo=swift&amp;logoColor=white"></a>
   <a href="COMPATIBILITY.md#swift-6-series-coverage"><img alt="Swift 6.1 CI" src="https://img.shields.io/badge/Swift-6.1-F05138?logo=swift&amp;logoColor=white"></a>

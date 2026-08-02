@@ -133,6 +133,14 @@ jobs:
           cat "$RUNNER_TEMP/swiftql-coverage-run-1/summary.md" \
             >> "$GITHUB_STEP_SUMMARY"
 
+      # Diagnostic evidence upload, not a release gate (Coverage/README.md) -- failure here
+      # must never fail this job, hence fail_ci_if_error: false.
+      - name: Upload coverage evidence to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          files: ${{ runner.temp }}/swiftql-coverage-run-1/llvm-coverage.lcov
+          fail_ci_if_error: false
+
       - name: Prepare retained source coverage evidence
         if: ${{ always() && !cancelled() }}
         env:
