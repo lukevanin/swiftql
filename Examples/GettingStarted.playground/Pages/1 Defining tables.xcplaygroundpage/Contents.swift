@@ -88,12 +88,21 @@ try database.makeRequest(with: createPerson).execute()
  */
 try database.makeRequest(with: sqlCreate(Occupation.self)).execute()
 
-//: The table exists and is empty, which is all this page set out to do.
-let everyone = try database.makeRequest(with: sql { schema in
+/*:
+ The table exists and is empty, which is all this page set out to do.
+
+ The query goes in its own `let` before `makeRequest(with:)` sees it. That is
+ the shape every page in this playground uses, and on Xcode 16.2 it is the
+ only shape that compiles: writing the `sql { }` block inline in the
+ `makeRequest` call and fetching from the result in the same expression
+ crashes Swift 6.0's compiler. `COMPATIBILITY.md` has the details.
+ */
+let everyoneQuery = sql { schema in
     let person = schema.table(Person.self)
     Select(person)
     From(person)
-}).fetchAll()
+}
+let everyone = try database.makeRequest(with: everyoneQuery).fetchAll()
 print("rows in Person:", everyone.count)
 //: Prints `rows in Person: 0`
 

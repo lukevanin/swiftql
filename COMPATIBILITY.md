@@ -227,6 +227,70 @@ including 5.9 and 6.0. This is the package's first source-level API
 divergence across compiler cells; see `Sources/SwiftQL/SQLRowMacro.swift` and
 `Sources/SwiftQL/SQLRowResult.swift` for the gated declarations.
 
+### Swift 6.0 crashes on a statement built inline in a fetched request
+
+On the pinned Swift 6.0 cell (Xcode 16.2, Apple Swift 6.0.3), `swift-frontend`
+segfaults while compiling a single expression that builds a statement inline
+and then fetches from the request that statement produces:
+
+```swift
+// Crashes swift-frontend on Xcode 16.2 with signal 11.
+let everyone = try database.makeRequest(with: sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+}).fetchAll()
+```
+
+Give either half a name and the same query compiles:
+
+```swift
+let everyoneQuery = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+}
+let everyone = try database.makeRequest(with: everyoneQuery).fetchAll()
+```
+
+Both halves have to be in one expression for the crash to happen. What breaks
+is the combination of erasing a concrete statement type to the
+`any XLQueryStatement<Row>` or `any XLReturningStatement<Row>` parameter and
+opening the `any XLRequest<Row>` that comes back, in the same expression. The
+crash is in SILGen rather than IR generation, at
+`Callee::forWitnessMethod` by way of `GenericFunctionType::substGenericArgs`
+and `BoundGenericType::get`, so it is a different bug from the multi-generic
+IRGen crash above and it has a different trigger. Some spellings abort inside
+`SILGenModule::useConformancesFromType` instead of segfaulting, and which of
+the two you get is not stable across runs of the same source.
+
+Reaching for a local is the whole workaround, and it does not matter which
+local:
+
+| Written as | Xcode 16.2 |
+| --- | --- |
+| `makeRequest(with: sql { … }).fetchAll()` | crashes |
+| `makeRequest(with: insert(t).values(…).returning(t)).fetchAll()` | crashes |
+| the same, with `fetchOne()` or `stream()` | crashes |
+| `let s = sql { … }` then `makeRequest(with: s).fetchAll()` | compiles |
+| `let r = makeRequest(with: sql { … })` then `r.fetchAll()` | compiles |
+| `makeRequest(with: aFunctionReturningTheExistential()).fetchAll()` | compiles |
+| `makeRequest(with: sqlInsert(row)).execute()` | compiles |
+
+The last two rows say what the trigger is not. An argument that is already the
+existential the parameter takes is fine however it is spelled, so this is not
+about writing a call rather than a name in the argument. `execute()` is fine
+because `any XLWriteRequest` carries no primary associated type, so nothing
+gets opened.
+
+Swift 6.1 (Xcode 16.4) compiles every one of those spellings, verified by
+running the same set of cases on both toolchains while diagnosing #530. The
+library needs no `#if` for this, because the workaround is source that
+compiles on every supported cell. The to-do demo and the Getting Started
+playground are both written in the two-step form, and CI builds both on the
+pinned Swift 6.0 cell, so a reintroduced one-liner fails there rather than in
+a user's project.
+
 ## Swift 6 series coverage
 
 | Swift series | GitHub runner | Xcode | Swift | macOS SDK |
@@ -387,6 +451,17 @@ separate job rather than a matrix entry.
 
 The demo's floor is above the library's iOS 16 / macOS 13 floor because it uses
 `@Observable`. That does not change the library's floor.
+
+The job stays on the Swift 6.0 cell even though the demo's own floor is higher
+than the library's, because the point of building the demo in CI is to find out
+what a reader on the oldest supported compiler will hit. It earned that in
+#530: the demo was the first thing in the repository to compile
+`makeRequest(with:)` and a fetch in one expression on Xcode 16.2, and it
+segfaulted the compiler. Moving the job to a newer Xcode would have made the
+red square go away and left the crash in front of the next person to write that
+line. The demo is written around the crash instead, and
+"Swift 6.0 crashes on a statement built inline in a fetched request" above says
+what the shape is.
 
 The iOS runtime is whichever the pinned Xcode ships, resolved through a generic
 simulator destination rather than a named device, so the job does not break

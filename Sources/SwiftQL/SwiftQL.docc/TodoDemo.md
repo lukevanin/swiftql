@@ -127,17 +127,21 @@ row the database holds without fetching again:
     public func setCompleted(_ isCompleted: Bool, todoID id: TodoUUID) throws -> Todo {
         let schema = XLSchema()
         let table = schema.into(Todo.self)
+        let statement = update(table)
+            .set { row in row.isCompleted = isCompleted }
+            .where(table.id == id)
+            .returning(schema.table(Todo.self))
         return try written(
-            database.makeRequest(
-                with: update(table)
-                    .set { row in row.isCompleted = isCompleted }
-                    .where(table.id == id)
-                    .returning(schema.table(Todo.self))
-            ).fetchAll(),
+            database.makeRequest(with: statement).fetchAll(),
             or: id
         )
     }
 ```
+
+The statement goes in a `let` rather than inline in the `makeRequest` call.
+That is a Swift 6.0 workaround, not a style preference: on Xcode 16.2, building
+a statement inline and fetching from the resulting request in the same
+expression crashes the compiler. See COMPATIBILITY.md.
 
 Writes are not declarations. Declared queries are `SELECT`-only in v1.5, so the
 demo's writes use the functional statement syntax from <doc:FunctionalSyntax>.
