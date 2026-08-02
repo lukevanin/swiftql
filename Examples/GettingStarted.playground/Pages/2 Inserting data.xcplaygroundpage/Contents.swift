@@ -55,11 +55,12 @@ for colleague in colleagues {
  the transactions page covers.
  */
 
-let everyone = try database.makeRequest(with: sql { schema in
+let everyoneQuery = sql { schema in
     let person = schema.table(Person.self)
     Select(person)
     From(person)
-}).fetchAll()
+}
+let everyone = try database.makeRequest(with: everyoneQuery).fetchAll()
 print("rows in Person:", everyone.count)
 print("names:", everyone.map(\.name).sorted())
 //: Prints `rows in Person: 4` and `names: ["Fred", "Grace", "Harold", "Ida"]`
