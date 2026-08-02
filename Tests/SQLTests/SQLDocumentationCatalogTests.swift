@@ -251,6 +251,24 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                             )
                             let sourceURL = repositoryRoot
                                 .appendingPathComponent(source.path)
+                            // A relative path can still leave the repository
+                            // through a symlink, so check where it actually
+                            // lands rather than only how it is spelled.
+                            let resolvedRoot = repositoryRoot
+                                .resolvingSymlinksInPath().standardizedFileURL.path
+                            let resolvedSource = sourceURL
+                                .resolvingSymlinksInPath().standardizedFileURL.path
+                            XCTAssertTrue(
+                                resolvedSource.hasPrefix(resolvedRoot + "/"),
+                                "\(article):\(source.line) resolves outside the repository: \(source.path)"
+                            )
+                            // An empty fence would satisfy `contains` for any
+                            // file, since every string contains the empty
+                            // one, and count as a checked excerpt.
+                            XCTAssertFalse(
+                                open.body.allSatisfy { $0.trimmingCharacters(in: .whitespaces).isEmpty },
+                                "\(article):\(open.line) is an empty Swift example."
+                            )
                             let sourceText = try String(
                                 contentsOf: sourceURL,
                                 encoding: .utf8
