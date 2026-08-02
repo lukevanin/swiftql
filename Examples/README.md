@@ -116,6 +116,20 @@ non-optional columns.
 
 `SwiftQLExamples` is a first-party target, so `swift build` and the CI warning
 gate compile it on every run, and an API change that breaks the example schema
-breaks the build. The playground pages themselves are not compiled by
-`swift test`, so opening the workspace and running each page is still a manual
-check.
+breaks the build.
+
+The pages are checked separately, because nothing in `swift build` or
+`swift test` looks at them:
+
+```sh
+scripts/ci/check-playground-pages.sh
+```
+
+That builds the companion module, checks `contents.xcplayground` against the
+`Pages` directory, and compiles and runs every page against the checkout. CI
+runs it on one cell of `swift.yml`'s compatibility job, the macOS one with
+committed resolution, and keeps the per-page output as an artifact.
+
+[MAINTAINING.md](MAINTAINING.md) covers what to update when the Getting
+Started guide, the example schema, or SwiftQL's API changes, and what the
+check does not catch.
