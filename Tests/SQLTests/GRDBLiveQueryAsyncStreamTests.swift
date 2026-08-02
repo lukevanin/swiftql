@@ -176,8 +176,13 @@ private final class AsyncStreamInjectedBusyFunctionState: @unchecked Sendable {
 private final class AsyncStreamManualRetryScheduler: @unchecked Sendable {
 
     private struct PendingDelay {
+        let id: UUID
         let delay: TimeInterval
         let subject: PassthroughSubject<Void, Never>
+        /// `true` once the bridge has actually subscribed to `subject`. Firing before that point
+        /// sends into a `PassthroughSubject` with no subscriber, which drops the value -- and the
+        /// retry then never starts. See ``scheduler`` and ``waitForPendingDelays(_:)``.
+        var isSubscribed = false
     }
 
     /// Awaitable, so a test waits for "the backoff for attempt N has been scheduled" and is resumed
@@ -186,16 +191,42 @@ private final class AsyncStreamManualRetryScheduler: @unchecked Sendable {
 
     private let recorded = XLAwaitableState<[TimeInterval]>([])
 
+    /// The scheduling seam handed to the bridge.
+    ///
+    /// `GRDBLiveQueryAsyncBridge.scheduleRetry(after:)` subscribes to this publisher only *after*
+    /// this closure returns, while a test can see the delay in `pending` as soon as it is appended
+    /// -- from inside the closure. Firing in that window sends into a subject with no subscriber,
+    /// the value is dropped, and the retry never starts, which hangs the consumer. Recording the
+    /// subscription here is what lets ``waitForPendingDelays(_:)`` wait for a delay that is
+    /// genuinely safe to fire.
+    ///
+    /// The window was always open; polling for `pendingDelays` merely hid it by waiting out a 10ms
+    /// poll interval before firing. Awaiting the append directly (#467) closed that accidental gap
+    /// and made it reachable -- roughly 1 run in 8 under CPU-saturating load.
     var scheduler: GRDBLiveQueryRetryScheduler {
         GRDBLiveQueryRetryScheduler { [weak self] delay in
             guard let self else {
                 return Empty(completeImmediately: false).eraseToAnyPublisher()
             }
             let subject = PassthroughSubject<Void, Never>()
+            let id = UUID()
             self.recorded.withValue { $0.append(delay) }
             // Appended last, so a test resumed by this write already sees the delay recorded.
-            self.pending.withValue { $0.append(PendingDelay(delay: delay, subject: subject)) }
-            return subject.eraseToAnyPublisher()
+            self.pending.withValue {
+                $0.append(PendingDelay(id: id, delay: delay, subject: subject))
+            }
+            return subject
+                .handleEvents(receiveSubscription: { [weak self] _ in
+                    self?.markSubscribed(id)
+                })
+                .eraseToAnyPublisher()
+        }
+    }
+
+    private func markSubscribed(_ id: UUID) {
+        pending.withValue { pending in
+            guard let index = pending.firstIndex(where: { $0.id == id }) else { return }
+            pending[index].isSubscribed = true
         }
     }
 
@@ -207,10 +238,13 @@ private final class AsyncStreamManualRetryScheduler: @unchecked Sendable {
         recorded.read()
     }
 
-    /// Suspends until exactly `expected` is outstanding -- the deterministic replacement for polling
-    /// `pendingDelays` until it matches.
+    /// Suspends until exactly `expected` is outstanding *and every outstanding delay has been
+    /// subscribed to*, which is the point from which ``runNext()`` is guaranteed to be delivered.
+    /// The deterministic replacement for polling `pendingDelays` until it matches.
     func waitForPendingDelays(_ expected: [TimeInterval]) async {
-        await pending.wait(until: { $0.map(\.delay) == expected })
+        await pending.wait(until: { pending in
+            pending.map(\.delay) == expected && pending.allSatisfy(\.isSubscribed)
+        })
     }
 
     @discardableResult
