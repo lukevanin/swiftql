@@ -706,6 +706,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "Coverage/README.md",
                 "Documentation/DESIGN.md",
                 "Documentation/PortingFromSQL.md",
+                "Examples/README.md",
                 "LICENSE.md",
                 "RELEASING.md",
                 "ROADMAP.md",
