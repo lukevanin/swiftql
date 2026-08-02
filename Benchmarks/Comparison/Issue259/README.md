@@ -260,8 +260,8 @@ python3 -m unittest discover -s Benchmarks/Comparison/Issue259 -p 'test_*.py'
 ## Recorded prototype results
 
 [`2026-08-02-mac16-8.json`](2026-08-02-mac16-8.json) was recorded at
-`2026-08-02T09:15:28Z` from clean SwiftQL revision
-`d996b71227564420eb59575985c64b7e9c50177b`, after the release build and a
+`2026-08-02T09:29:46Z` from clean SwiftQL revision
+`f1202ce922a965cb93dd1de665a9444c9d3fe455`, after the release build and a
 60-second cooldown. It links 27 raw sample TSVs and 27 `/usr/bin/time -l`
 resource logs under [`Runs/`](Runs/), preserving all 2,700 timed samples and
 their verified SHA-256 values. The graph pins GRDB 6.29.3, SQLite.swift 0.16.0,
@@ -269,56 +269,56 @@ SwiftSyntax 509.1.1, and OpenCombine 0.14.0.
 
 The run used a Mac16,8 with Apple M4 Pro, 14 cores, 24 GiB memory, arm64
 macOS 26.5.1 (25F80), Xcode 26.5, Swift 6.3.2, and system SQLite 3.51.0. The
-host was doing other work at the time, which shows up in the point-lookup
-spreads below and is the reason those rows carry no conclusion.
+host was building other things at the time, which shows up in the point-lookup
+spreads below and is why those rows carry no conclusion.
 
 ### `point_lookup`
 
 | Implementation | API tier | Median | p95 | Lookups/s | Process spread | Peak RSS |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| GRDB | typed record request | 35.94 us | 53.83 us | 27,826 | 48.9% | 10.0 MiB |
-| SQLite.swift | typed query builder | 24.81 us | 31.29 us | 40,302 | 24.1% | 9.0 MiB |
-| SwiftQL | typed declared query | 29.33 us | 34.92 us | 34,091 | 99.8% | 10.7 MiB |
+| GRDB | typed record request | 35.71 us | 53.67 us | 28,005 | 36.1% | 9.8 MiB |
+| SQLite.swift | typed query builder | 22.92 us | 27.25 us | 43,636 | 12.3% | 8.9 MiB |
+| SwiftQL | typed declared query | 28.52 us | 33.12 us | 35,062 | 88.4% | 10.7 MiB |
 
 ### `join_aggregate`
 
 | Implementation | API tier | Median | p95 | Queries/s | Process spread | Peak RSS |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| GRDB | raw SQL row mapping | 6.23 ms | 6.47 ms | 161 | 2.2% | 16.3 MiB |
-| SQLite.swift | typed query builder | 6.23 ms | 6.66 ms | 161 | 2.3% | 16.0 MiB |
-| SwiftQL | typed query builder | 6.49 ms | 7.05 ms | 154 | 1.9% | 17.8 MiB |
+| GRDB | raw SQL row mapping | 6.75 ms | 6.98 ms | 148 | 2.5% | 16.8 MiB |
+| SQLite.swift | typed query builder | 6.65 ms | 6.81 ms | 150 | 1.5% | 15.9 MiB |
+| SwiftQL | typed query builder | 7.01 ms | 7.28 ms | 143 | 0.6% | 17.8 MiB |
 
 ### `transactional_write`
 
 | Implementation | API tier | Median | p95 | Rows/s | Process spread | Peak RSS |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| GRDB | typed persistable record | 409.90 us | 482.00 us | 243,964 | 11.2% | 9.3 MiB |
-| SQLite.swift | typed query builder | 653.31 us | 713.50 us | 153,066 | 6.5% | 8.4 MiB |
-| SwiftQL | typed transaction scope | 909.08 us | 984.58 us | 110,001 | 0.8% | 10.3 MiB |
+| GRDB | typed persistable record | 431.54 us | 656.96 us | 231,727 | 8.7% | 9.1 MiB |
+| SQLite.swift | typed query builder | 724.15 us | 1.02 ms | 138,094 | 6.1% | 8.3 MiB |
+| SwiftQL | typed transaction scope | 995.94 us | 1.27 ms | 100,408 | 1.8% | 10.3 MiB |
 
 ### What these three prototypes showed
 
-**`transactional_write` is the one result this run supports.** SwiftQL is 2.2x
-GRDB on the same 100-row batch, against process spreads of 0.8% and 11.2%, so
-the gap is far outside anything the noise could produce. `sqlInsert(_:)` builds
-a fresh insert statement per row inside the transaction scope where GRDB's
+**`transactional_write` is the one result this run supports.** SwiftQL is 2.3x
+GRDB on the same 100-row batch, against process spreads of 1.8% and 8.7%, so the
+gap clears its own noise by a wide margin. `sqlInsert(_:)` builds a fresh insert
+statement per row inside the transaction scope where GRDB's
 `PersistableRecord.insert` reuses a cached statement. This is a workload-design
 finding rather than a regression: no earlier measurement of this path exists to
 regress against, which is precisely the gap the family fills, since the
 full-fetch baseline contains no write at all.
 
 **`point_lookup` carries no ordering conclusion from this run.** The medians
-separate the three libraries by 18-45%, but SwiftQL's process spread is 99.8%
-and GRDB's is 48.9%, so the spreads swallow the differences. What the run does
+separate the three libraries by 20-56%, but SwiftQL's process spread is 88.4%
+and GRDB's is 36.1%, so the spreads swallow the differences. What the run does
 establish is that the contract is implementable and its oracle holds while a
-different key is bound on every iteration, which is the thing that had to be
-proven before the family is worth building. The family is worth building because
-it exercises binding and per-call overhead at all, not because of any ordering
-visible here. Establishing an ordering needs a quiet host and more processes,
-which is #509's job.
+different key is bound on every iteration, which is what had to be proven before
+the family is worth building. The family is worth building because it exercises
+binding and per-call overhead at all, not because of any ordering visible here.
+Establishing an ordering needs a quiet host and more processes, which is #509's
+job.
 
 **`join_aggregate` is engine-dominated, as expected.** The three libraries land
-within 4% of each other against 1.9-2.3% spreads, because SQLite scanning and
+within 5% of each other against 0.6-2.5% spreads, because SQLite scanning and
 grouping 16,143 rows dominates whatever the caller's API did. Recording that is
 useful: this family discriminates poorly between libraries and should be built
 for its semantic coverage (joins, grouping, NULL groups, aggregate
@@ -379,7 +379,7 @@ that their oracles hold; it is not enough to declare a winner. Read the process
 spread column before reading any difference: a gap smaller than the larger of
 the two spreads being compared is noise on this host.
 
-The recorded run makes that concrete. Its point-lookup spreads reach 99.8%,
+The recorded run makes that concrete. Its point-lookup spreads reach 88.4%,
 because the host was building other things at the time, so those medians support
 no ordering at all even though they look neatly separated. Only the
 transactional-write gap survives its own spread by enough to mean something.
