@@ -130,8 +130,16 @@ require_current_validation_manifest() {
 
     fresh="$(mktemp -d "${TMPDIR:-/tmp}/swiftql-todo-manifest.XXXXXX")"
 
-    "$demo_root/Tools/regenerate-validation-manifest.sh" "$fresh" \
-        > "$log_directory/swiftql-todo-demo-manifest.log" 2>&1
+    # Guarded rather than left to `set -e`: an unguarded failure here would
+    # exit before the scratch directory is removed, and its output is
+    # redirected to a log nobody would have been told to look at.
+    if ! "$demo_root/Tools/regenerate-validation-manifest.sh" "$fresh" \
+        > "$log_directory/swiftql-todo-demo-manifest.log" 2>&1; then
+        echo "error: regenerating the validation artifacts failed:" >&2
+        cat "$log_directory/swiftql-todo-demo-manifest.log" >&2
+        rm -rf "$fresh"
+        return 1
+    fi
 
     if ! diff -u \
         <(manifest_without_byte_identity \
