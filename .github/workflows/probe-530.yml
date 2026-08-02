@@ -10,54 +10,44 @@ permissions:
   contents: read
 
 jobs:
-  destinations:
-    name: What iOS destinations does the pinned cell have
-    runs-on: macos-15
-    timeout-minutes: 25
+  ios:
+    name: Can ${{ matrix.label }} build the demo for iOS
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Xcode 16.4
+            runner: macos-15
+            developer_dir: /Applications/Xcode_16.4.app/Contents/Developer
+          - label: Xcode 26.3
+            runner: macos-15
+            developer_dir: /Applications/Xcode_26.3.app/Contents/Developer
+          - label: Xcode 26.5
+            runner: macos-26
+            developer_dir: /Applications/Xcode_26.5.app/Contents/Developer
     env:
-      DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+      DEVELOPER_DIR: ${{ matrix.developer_dir }}
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
 
-      - name: Platforms shipped inside Xcode 16.2
+      - name: SDKs and runtimes
         run: |
-          ls /Applications/Xcode_16.2.app/Contents/Developer/Platforms/
-          echo "--- iPhoneOS SDKs ---"
-          ls /Applications/Xcode_16.2.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/ || true
-          echo "--- iPhoneSimulator SDKs ---"
-          ls /Applications/Xcode_16.2.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/ || true
-          echo "--- xcodebuild -showsdks ---"
-          xcodebuild -showsdks || true
-          echo "--- installed runtimes ---"
-          xcrun simctl list runtimes || true
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i ios || true
+          xcrun simctl list runtimes | grep -i ios || true
 
-      - name: Destinations the scheme offers
-        run: |
-          xcodebuild -showdestinations \
-            -project Examples/TodoApp/TodoApp.xcodeproj \
-            -scheme TodoApp 2>&1 | tail -40 || true
-
-      - name: Try a generic iOS device build
+      - name: Build the app for a generic iOS simulator
         run: |
           set +e
           xcodebuild build \
             -project Examples/TodoApp/TodoApp.xcodeproj \
             -scheme TodoApp \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath "$RUNNER_TEMP/dd-device" \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tail -25
-          echo "device build exit: ${PIPESTATUS[0]}"
-
-      - name: Try the newest installed simulator runtime
-        run: |
-          set +e
-          xcodebuild build \
-            -project Examples/TodoApp/TodoApp.xcodeproj \
-            -scheme TodoApp \
-            -destination 'platform=iOS Simulator,OS=18.5,name=iPhone 16' \
-            -derivedDataPath "$RUNNER_TEMP/dd-sim185" \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tail -25
-          echo "sim 18.5 build exit: ${PIPESTATUS[0]}"
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd-ios" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E '^(\*\*|.*(error|warning):)' | head -30
+          echo "exit: ${PIPESTATUS[0]}"
