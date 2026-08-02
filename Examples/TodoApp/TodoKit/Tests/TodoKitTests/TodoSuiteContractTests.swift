@@ -55,10 +55,15 @@ final class TodoSuiteContractTests: XCTestCase {
     }
 
     func testTemporaryDatabasesCleanUpAfterThemselves() throws {
-        let database = try makeDatabase()
-        let url = database.url
+        var database: TodoDatabase? = try makeDatabase()
+        let url = try XCTUnwrap(database?.url)
         XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
 
+        // Release the connection pool before removing the directory, which
+        // is the order the other suites tear down in. Deleting a file out
+        // from under an open pool is a different, less portable thing to be
+        // testing.
+        database = nil
         try FileManager.default.removeItem(at: url.deletingLastPathComponent())
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
@@ -144,11 +149,12 @@ final class TodoSuiteContractTests: XCTestCase {
     /// executes.
     func testEveryFilterAndSortCombinationExecutes() throws {
         let database = try makeDatabase()
+        let searches = ["", "a", "%", "_", "\\", "'"]
         var executed = 0
 
         for filter in TodoFilter.allCases {
             for sort in TodoSort.allCases {
-                for search in ["", "a", "%", "_", "\\", "'"] {
+                for search in searches {
                     _ = try database.todos(matching: TodoQuery(
                         listID: TodoSeed.todayListID,
                         filter: filter,
@@ -161,6 +167,9 @@ final class TodoSuiteContractTests: XCTestCase {
             }
         }
 
-        XCTAssertEqual(executed, 4 * 3 * 6)
+        XCTAssertEqual(
+            executed,
+            TodoFilter.allCases.count * TodoSort.allCases.count * searches.count
+        )
     }
 }
