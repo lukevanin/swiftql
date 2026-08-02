@@ -48,6 +48,15 @@ final class TodoLiveQueryTests: XCTestCase {
         XCTFail("timed out waiting for \(description)")
     }
 
+    /// Lets every main-actor continuation already scheduled run to
+    /// completion, so an assertion about something *not* happening cannot
+    /// pass merely because the work has not been dispatched yet.
+    private func quiesceMainActor(hops: Int = 50) async {
+        for _ in 0..<hops {
+            await Task.yield()
+        }
+    }
+
     private func query(
         _ listID: TodoUUID = TodoSeed.todayListID,
         filter: TodoFilter = .all,
@@ -225,11 +234,28 @@ final class TodoLiveQueryTests: XCTestCase {
         let model = try TodoListModel(database: database, query: query())
         try await wait(for: "the initial snapshot") { model.todos.rows.count == 2 }
 
+        // A probe on the same database, still observing. Waiting for it to
+        // see the delete is what bounds the window: once a live observation
+        // has delivered this commit, a stopped one has had its chance too.
+        // That is a condition to wait on, not a duration to guess at.
+        let probe = TodoSidebarModel(database: database)
+        try await wait(for: "the probe's initial counts") {
+            probe.counts(for: TodoSeed.todayListID).totalCount == 2
+        }
+
         model.stop()
         try database.deleteTodo(id: TodoSeed.renewPassportID)
 
-        // Give a snapshot every chance to arrive, then assert none did.
-        try await Task.sleep(nanoseconds: 200_000_000)
+        try await wait(for: "the probe to see the delete") {
+            probe.counts(for: TodoSeed.todayListID).totalCount == 1
+        }
+
+        // XLObservableQuery checks Task.isCancelled before awaiting its
+        // main-actor apply, so a snapshot already past that check can still
+        // be waiting to run. Drain the main actor before asserting, or a
+        // pass here would only mean "not yet applied".
+        await quiesceMainActor()
+
         XCTAssertEqual(
             model.todos.rows.count,
             2,
