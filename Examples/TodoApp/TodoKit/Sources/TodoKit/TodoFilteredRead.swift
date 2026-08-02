@@ -23,6 +23,10 @@ import SwiftQL
 /// is always applied with `%` standing in for an empty box, and the sort
 /// selects which ordering keys have any effect. One statement, rendered once,
 /// serves all of it.
+///
+/// Public only so the validation-manifest generator, which is a separate
+/// target, can put this exact statement through the validator rather than a
+/// hand-copied twin of it. Call ``TodoDatabase/todos(matching:)`` instead.
 public enum TodoFilteredRead {
 
     static let listID = XLNamedBindingReference<TodoUUID>(name: "listID")
