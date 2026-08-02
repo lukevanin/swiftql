@@ -405,4 +405,40 @@ final class SQLiteBuildValidatorIntegrationTests: XCTestCase {
             })
         }
     }
+
+    // MARK: - Schema identity mismatch skips every query
+
+    func testSchemaIdentityMismatchSkipsEveryQueryWithNoPreparedShape() throws {
+        let manifest = Support.manifest(
+            schemaSnapshot: Support.schemaSnapshot(schemaRowCount: 999),
+            queries: [
+                Support.query(id: "first", sql: "SELECT 1 AS value"),
+                Support.query(id: "second", sql: "SELECT 2 AS value"),
+                Support.query(id: "third", sql: "SELECT 3 AS value"),
+            ]
+        )
+
+        try Support.withValidatorOwnedNorthwindURL { url in
+            let report = try SQLiteBuildValidator.validate(
+                manifest: manifest,
+                againstDatabaseAt: url
+            )
+            XCTAssertEqual(report.overallVerdict, .failed)
+            XCTAssertEqual(report.outcomes.count, manifest.queries.count)
+            for outcome in report.outcomes {
+                XCTAssertNil(outcome.preparedShape, outcome.queryID)
+                XCTAssertEqual(outcome.diagnostics.count, 1, outcome.queryID)
+                XCTAssertEqual(
+                    outcome.diagnostics.first?.code,
+                    "schema.mismatch-skipped",
+                    outcome.queryID
+                )
+                XCTAssertEqual(
+                    outcome.diagnostics.first?.verdict,
+                    .unsupported,
+                    outcome.queryID
+                )
+            }
+        }
+    }
 }

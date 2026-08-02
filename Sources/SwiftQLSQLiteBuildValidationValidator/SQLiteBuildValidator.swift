@@ -201,8 +201,14 @@ public enum SQLiteBuildValidator {
         // pointless — skip preparation and emit one deterministic
         // `unsupported` outcome per manifest entry instead, so callers can
         // still see which queries were skipped.
+        //
+        // Matched by code, not just `stage == .schema && verdict == .failed`:
+        // a future schema-stage check unrelated to snapshot identity would
+        // otherwise silently trigger this short-circuit too.
         let hasSchemaIdentityMismatch = reportDiagnostics.contains {
-            $0.stage == .schema && $0.verdict == .failed
+            $0.stage == .schema
+                && $0.verdict == .failed
+                && Self.schemaIdentityMismatchCodes.contains($0.code)
         }
         let outcomes: [SQLiteBuildValidationQueryOutcome]
         if hasSchemaIdentityMismatch {
@@ -246,6 +252,19 @@ public enum SQLiteBuildValidator {
 
 
 private extension SQLiteBuildValidator {
+    /// Every diagnostic code that reports the live database snapshot's
+    /// identity not matching the manifest's schema snapshot -- the four
+    /// checks in `validate(manifest:in:...)` above (byte count, SHA-256, row
+    /// count, FNV-1a-64 fingerprint). Used to scope the schema-mismatch
+    /// short-circuit to identity checks specifically, not to every
+    /// `.schema`-stage `.failed` diagnostic a future check might add.
+    static let schemaIdentityMismatchCodes: Set<String> = [
+        "schema.byte-count",
+        "schema.snapshot-sha",
+        "schema.row-count",
+        "schema.fingerprint",
+    ]
+
     static func validate(
         query: SQLiteBuildValidationQueryEntry,
         in database: Database,
