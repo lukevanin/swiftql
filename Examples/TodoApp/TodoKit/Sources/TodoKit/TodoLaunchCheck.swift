@@ -26,17 +26,20 @@ public enum TodoLaunchCheck: Sendable {
     /// Awaiting it stays inside the caller's task tree, so a view that
     /// disappears cancels the check — which a detached task would not.
     public static func run() async throws -> TodoLaunchSummary {
-        try await Worker().run()
+        try await sharedWorker.run()
     }
 
     #if DEBUG
     /// Throws the database back to its seeded state and reports the result.
     /// Debug builds only.
     public static func resetAndRun() async throws -> TodoLaunchSummary {
-        try await Worker().resetAndRun()
+        try await sharedWorker.resetAndRun()
     }
     #endif
 }
+
+/// One instance, so an open and a reset cannot overlap on the same file.
+private let sharedWorker = Worker()
 
 /// Holds the launch check's database work off the caller's executor.
 private actor Worker {

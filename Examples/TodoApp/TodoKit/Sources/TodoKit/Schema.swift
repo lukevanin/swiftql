@@ -58,21 +58,3 @@ public struct TodoTag: Equatable, Sendable {
 
     public var tagID: TodoUUID
 }
-
-/// Every table the demo creates, in dependency order.
-///
-/// `sqlCreate` emits `CREATE TABLE IF NOT EXISTS` with no primary keys,
-/// foreign keys, or indexes — see the SwiftQL "Getting started" guide. The
-/// demo relies on the query layer to keep the relations honest rather than on
-/// database constraints.
-enum TodoSchema {
-
-    static var createStatements: [any XLEncodable] {
-        [
-            sqlCreate(TodoList.self),
-            sqlCreate(Todo.self),
-            sqlCreate(Tag.self),
-            sqlCreate(TodoTag.self),
-        ]
-    }
-}
