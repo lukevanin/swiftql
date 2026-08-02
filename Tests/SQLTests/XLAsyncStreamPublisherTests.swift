@@ -108,12 +108,34 @@ private final class ControllableStreamSource<Value>: @unchecked Sendable {
     /// either been cancelled mid-`next()` or exited and dropped its iterator, so it can never
     /// deliver another value. Suspends via a continuation, so waiting costs no polling and no
     /// wall-clock deadline decides the outcome.
-    func waitForTermination(ofStream streamIndex: Int = 0) async -> StreamTermination {
+    ///
+    /// An index no `makeStream()` call has reached yet fails the test immediately, naming the index,
+    /// rather than parking forever on a stream that may never exist -- the same "a harness misuse
+    /// must fail where it happened" rule `yield`/`finish` follow. The value it returns in that case
+    /// is meaningless; the `XCTFail` is the outcome.
+    func waitForTermination(
+        ofStream streamIndex: Int = 0,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async -> StreamTermination {
         await withCheckedContinuation { continuation in
             lock.lock()
             if let termination = terminations[streamIndex] {
                 lock.unlock()
                 continuation.resume(returning: termination)
+                return
+            }
+            guard streamIndex >= 0, streamIndex < continuations.count else {
+                let createdCount = continuations.count
+                lock.unlock()
+                XCTFail(
+                    "ControllableStreamSource.waitForTermination(ofStream: \(streamIndex)) called "
+                        + "with an out-of-range stream index (only \(createdCount) stream(s) created "
+                        + "so far). Wait for callCount to reach \(streamIndex + 1) first.",
+                    file: file,
+                    line: line
+                )
+                continuation.resume(returning: .finished)
                 return
             }
             terminationWaiters[streamIndex, default: []].append(continuation)
@@ -224,9 +246,10 @@ private final class ControllableStreamSource<Value>: @unchecked Sendable {
 /// There is deliberately no timeout: a bounded wait is a wall-clock deadline wearing a different
 /// hat, and the failure it produces under load is exactly the one this suite is being fixed for.
 ///
-/// Events are consumed one at a time and in order. A `wait(for:)` that finds no match parks on a
-/// continuation until the matching event arrives; events that do not match stay buffered, so a
-/// later wait can still consume them.
+/// Each wait consumes the earliest *matching* buffered event, and parks on a continuation if none
+/// has arrived yet. Non-matching events are not skipped past and discarded: they stay buffered in
+/// arrival order, so a later wait for one of them still finds it. A wait therefore never has to
+/// step over -- or block on -- an event the test does not care about.
 private final class SubscriptionEventRecorder: @unchecked Sendable {
 
     private struct RecordedEvent {
@@ -1222,6 +1245,19 @@ final class XLAsyncStreamPublisherTests: XCTestCase {
         XCTExpectFailure("Finishing a stream index that was never created must fail loudly.") {
             source.finish()
         }
+
+        XCTAssertEqual(source.callCount, 0)
+    }
+
+    /// Same rule for the termination signal this PR adds: a stream index nothing ever created fails
+    /// where the mistake was made, instead of parking the caller forever.
+    func testWaitingForTerminationOfAStreamThatWasNeverCreatedFailsInsteadOfHanging() async {
+        let source = ControllableStreamSource<Int>()
+
+        // The block form of `XCTExpectFailure` takes a synchronous closure, so the whole-test form
+        // is used here: the awaited call is what must record the failure.
+        XCTExpectFailure("Awaiting termination of a stream that was never created must fail loudly.")
+        _ = await source.waitForTermination()
 
         XCTAssertEqual(source.callCount, 0)
     }
