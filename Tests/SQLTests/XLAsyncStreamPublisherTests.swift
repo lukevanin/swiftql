@@ -208,18 +208,23 @@ private final class ControllableStreamSource<Value>: @unchecked Sendable {
         file: StaticString,
         line: UInt
     ) -> AsyncThrowingStream<Value, Error>.Continuation? {
-        lock.lock()
-        defer { lock.unlock() }
-        guard streamIndex >= 0, streamIndex < continuations.count else {
+        // The lookup is resolved to a value under the lock and reported afterwards: `yield`/`finish`
+        // are called from background queues in this suite, and calling into XCTest (which takes its
+        // own locks, and can run arbitrary observer code) while holding this one is how test
+        // harnesses acquire deadlocks.
+        let lookup = lookUpContinuation(at: streamIndex)
+        switch lookup {
+        case .found(let continuation):
+            return continuation
+        case .outOfRange(let createdCount):
             XCTFail(
                 "ControllableStreamSource.\(caller)(toStream: \(streamIndex)) called with an "
-                    + "out-of-range stream index (only \(continuations.count) stream(s) created so far).",
+                    + "out-of-range stream index (only \(createdCount) stream(s) created so far).",
                 file: file,
                 line: line
             )
             return nil
-        }
-        guard let continuation = continuations[streamIndex] else {
+        case .notStoredYet:
             XCTFail(
                 "ControllableStreamSource.\(caller)(toStream: \(streamIndex)) called before that "
                     + "stream's continuation was stored. Wait for callCount to reach "
@@ -229,7 +234,24 @@ private final class ControllableStreamSource<Value>: @unchecked Sendable {
             )
             return nil
         }
-        return continuation
+    }
+
+    private enum ContinuationLookup {
+        case found(AsyncThrowingStream<Value, Error>.Continuation)
+        case outOfRange(createdCount: Int)
+        case notStoredYet
+    }
+
+    private func lookUpContinuation(at streamIndex: Int) -> ContinuationLookup {
+        lock.lock()
+        defer { lock.unlock() }
+        guard streamIndex >= 0, streamIndex < continuations.count else {
+            return .outOfRange(createdCount: continuations.count)
+        }
+        guard let continuation = continuations[streamIndex] else {
+            return .notStoredYet
+        }
+        return .found(continuation)
     }
 }
 
