@@ -4,6 +4,32 @@
 
 ### Added
 
+- `@SQLTable` and `@SQLResult` now declare a `Sendable` conformance for the
+  models they expand, so a value built entirely from column values can be
+  shared across isolation domains without the conformance being written out at
+  every declaration (issue #531). Swift already infers `Sendable` for a struct
+  whose stored properties are all `Sendable`, but withholds that inference from
+  a type other modules can see, which is why a `public` model used to warn
+  under complete strict-concurrency checking and left callers reaching for
+  `nonisolated(unsafe)` to silence it. The macros fill in exactly that gap:
+  a `public` or `package` model gets the conformance, and a model that is
+  `internal` or narrower keeps the compiler's own inferred one and gets nothing
+  generated. This is a public API addition. A model that already states
+  `Sendable`, or `@unchecked Sendable`, keeps its own declaration and gets no
+  second one, so existing declarations such as the `TodoKit` schema still
+  compile unchanged. The generated conformance is checked rather than asserted,
+  so a `public` model holding a non-`Sendable` stored property is now diagnosed
+  on the generated extension where it previously compiled silently; declaring
+  `@unchecked Sendable` on such a model takes responsibility for it and turns
+  the generation off. Generic models are left alone, because the conditional
+  conformance they need cannot be written by an extension macro without the
+  compiler reporting `circular reference expanding extension macros`;
+  `SQLScalarResult` and `SQLRow2`...`SQLRow6`, the shapes behind `#row`, are
+  the affected types and they were not `Sendable` before this either. The
+  conformance requires Swift 6.0 or later, since Swift 5.9 treats a
+  macro-expanded extension as a separate source file for the rule that a
+  `Sendable` conformance must be declared alongside its type and warns on every
+  model; the 5.9 support point keeps the behaviour it had. See COMPATIBILITY.md.
 - Added a `SwiftQLExamples` library product (issue #480), holding the
   pre-expanded schema and declared queries the Getting Started playground
   imports. A classic Xcode playground has no `Package.swift` of its own and

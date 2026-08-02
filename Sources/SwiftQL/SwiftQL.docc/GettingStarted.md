@@ -69,6 +69,17 @@ These mappings provide type safety for Swift expressions, bindings, and decoded
 results. Optional properties can store `NULL`; non-optional properties are
 emitted with a `NOT NULL` constraint.
 
+On Swift 6.0 and later, a table declared `public` or `package` also conforms to
+`Sendable`, so rows can be passed between tasks and held in `static let`
+constants without tripping strict-concurrency checking. A `static var` is
+shared mutable state whatever it holds, and still needs isolating. Swift infers the same conformance
+for a table that is `internal` or narrower, so those are left alone. Should a
+table hold a stored property that is not itself `Sendable`, the compiler says so
+on the generated conformance; declaring the table `@unchecked Sendable` takes
+responsibility for that property and turns the generation off. A generic table
+gets nothing generated either, because the conditional conformance it would need
+cannot be written by a macro, so declare that one yourself if you want it.
+
 ### Creating tables
 
 Use `sqlCreate` to create a basic table:
