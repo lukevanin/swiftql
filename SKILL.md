@@ -416,3 +416,13 @@ consumer fixture and checked by `SQLSkillDocumentationTests`; edit the fixture
 first, never the fence. Run the warnings and strict-concurrency gates with a
 supported Xcode, and use the required GitHub compatibility matrix for exact
 Swift 5.9 and Swift 6.0-6.3 evidence rather than substituting a local compiler.
+
+The live-query async suites -- `XLAsyncStreamPublisherTests`,
+`XLObservableLiveQueryTests`, `GRDBLiveQueryAsyncStreamTests`, and
+`LiveQueryBufferingSemanticsTests` -- were unreliable for a long time, and the
+standing advice was to treat any failure in them as flaky until proven
+otherwise. That advice is retired. No test in them derives a verdict from
+elapsed time any more: every wait is an await on a named event, through
+`Tests/SQLTests/XLLiveQueryWaitSupport.swift`. Load can delay one of these
+tests; it cannot change its outcome. Investigate a failure there as a
+regression rather than re-running it away.
