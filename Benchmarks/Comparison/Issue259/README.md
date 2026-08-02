@@ -272,6 +272,11 @@ macOS 26.5.1 (25F80), Xcode 26.5, Swift 6.3.2, and system SQLite 3.51.0. The
 host was building other things at the time, which shows up in the point-lookup
 spreads below and is why those rows carry no conclusion.
 
+Later commits on the branch that introduced this report changed only the
+oracle's error messages on failure paths the run never took, so the recorded
+samples still describe the timed code as it stands. Anything that changes what
+the clock covers requires a fresh recording.
+
 ### `point_lookup`
 
 | Implementation | API tier | Median | p95 | Lookups/s | Process spread | Peak RSS |

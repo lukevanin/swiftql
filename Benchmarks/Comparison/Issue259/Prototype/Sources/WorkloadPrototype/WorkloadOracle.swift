@@ -17,9 +17,22 @@ final class PrototypeStateOracle {
             nil
         )
         guard status == SQLITE_OK, let handle else {
-            throw PrototypeError.sqlite("could not open oracle connection (\(status))")
+            let detail = String(cString: sqlite3_errstr(status))
+            throw PrototypeError.sqlite(
+                "could not open the oracle connection to \(databaseURL.path): "
+                    + "\(detail) (\(status))"
+            )
         }
         self.handle = handle
+    }
+
+    /// The connection's last error message, so a failure names what SQLite
+    /// actually objected to instead of only a numeric status.
+    private func lastErrorMessage(_ status: Int32) -> String {
+        guard let handle, let message = sqlite3_errmsg(handle) else {
+            return "\(String(cString: sqlite3_errstr(status))) (\(status))"
+        }
+        return "\(String(cString: message)) (\(status))"
     }
 
     deinit {
@@ -54,8 +67,12 @@ final class PrototypeStateOracle {
             FROM \(PrototypeConstants.scratchTableName)
             ORDER BY id
             """
-        guard sqlite3_prepare_v2(handle, sql, -1, &statement, nil) == SQLITE_OK else {
-            throw PrototypeError.sqlite("could not prepare the oracle read-back")
+        let prepared = sqlite3_prepare_v2(handle, sql, -1, &statement, nil)
+        guard prepared == SQLITE_OK else {
+            throw PrototypeError.sqlite(
+                "could not prepare the oracle read-back: "
+                    + lastErrorMessage(prepared)
+            )
         }
         defer { sqlite3_finalize(statement) }
 
@@ -65,7 +82,9 @@ final class PrototypeStateOracle {
             let step = sqlite3_step(statement)
             if step == SQLITE_DONE { break }
             guard step == SQLITE_ROW else {
-                throw PrototypeError.sqlite("oracle read-back failed (\(step))")
+                throw PrototypeError.sqlite(
+                    "oracle read-back failed: " + lastErrorMessage(step)
+                )
             }
             checksum.combine(Int(sqlite3_column_int64(statement, 0)))
             checksum.combine(String(cString: sqlite3_column_text(statement, 1)))
@@ -98,14 +117,18 @@ final class PrototypeStateOracle {
             FROM "Orders"
             WHERE "OrderID" = ?
             """
-        guard sqlite3_prepare_v2(handle, sql, -1, &statement, nil) == SQLITE_OK else {
-            throw PrototypeError.sqlite("could not prepare the order oracle")
+        let prepared = sqlite3_prepare_v2(handle, sql, -1, &statement, nil)
+        guard prepared == SQLITE_OK else {
+            throw PrototypeError.sqlite(
+                "could not prepare the order oracle: " + lastErrorMessage(prepared)
+            )
         }
         defer { sqlite3_finalize(statement) }
         let bound = sqlite3_bind_int64(statement, 1, Int64(orderID))
         guard bound == SQLITE_OK else {
             throw PrototypeError.sqlite(
-                "could not bind OrderID \(orderID) to the order oracle (\(bound))"
+                "could not bind OrderID \(orderID) to the order oracle: "
+                    + lastErrorMessage(bound)
             )
         }
         // SQLITE_DONE means the key genuinely matched nothing. Any other
@@ -120,7 +143,9 @@ final class PrototypeStateOracle {
             )
         }
         guard step == SQLITE_ROW else {
-            throw PrototypeError.sqlite("order oracle failed (\(step))")
+            throw PrototypeError.sqlite(
+                "order oracle failed: " + lastErrorMessage(step)
+            )
         }
 
         func text(_ column: Int32) -> String? {
@@ -182,8 +207,12 @@ final class PrototypeStateOracle {
             GROUP BY "Customers"."Country"
             ORDER BY "Customers"."Country" ASC
             """
-        guard sqlite3_prepare_v2(handle, sql, -1, &statement, nil) == SQLITE_OK else {
-            throw PrototypeError.sqlite("could not prepare the aggregate oracle")
+        let prepared = sqlite3_prepare_v2(handle, sql, -1, &statement, nil)
+        guard prepared == SQLITE_OK else {
+            throw PrototypeError.sqlite(
+                "could not prepare the aggregate oracle: "
+                    + lastErrorMessage(prepared)
+            )
         }
         defer { sqlite3_finalize(statement) }
 
@@ -193,7 +222,9 @@ final class PrototypeStateOracle {
             let step = sqlite3_step(statement)
             if step == SQLITE_DONE { break }
             guard step == SQLITE_ROW else {
-                throw PrototypeError.sqlite("aggregate oracle failed (\(step))")
+                throw PrototypeError.sqlite(
+                    "aggregate oracle failed: " + lastErrorMessage(step)
+                )
             }
             let country: String?
             if sqlite3_column_type(statement, 0) == SQLITE_NULL {
@@ -226,13 +257,18 @@ final class PrototypeStateOracle {
         }
         var statement: OpaquePointer?
         let sql = "SELECT COUNT(*) FROM \(PrototypeConstants.scratchTableName)"
-        guard sqlite3_prepare_v2(handle, sql, -1, &statement, nil) == SQLITE_OK else {
-            throw PrototypeError.sqlite("could not prepare the oracle count")
+        let prepared = sqlite3_prepare_v2(handle, sql, -1, &statement, nil)
+        guard prepared == SQLITE_OK else {
+            throw PrototypeError.sqlite(
+                "could not prepare the oracle count: " + lastErrorMessage(prepared)
+            )
         }
         defer { sqlite3_finalize(statement) }
         let step = sqlite3_step(statement)
         guard step == SQLITE_ROW else {
-            throw PrototypeError.sqlite("oracle count returned no row (\(step))")
+            throw PrototypeError.sqlite(
+                "oracle count returned no row: " + lastErrorMessage(step)
+            )
         }
         return Int(sqlite3_column_int64(statement, 0))
     }
