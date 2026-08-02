@@ -479,10 +479,22 @@ scripts/ci/check-todo-demo.sh
 
 The checker builds the demo package from clean (which is what forces SwiftQL's
 build-time query validator to run over every declared query), runs its tests,
-regenerates the checked-in validation manifest and schema snapshot and fails on
-any diff, asserts that `SWIFT_TREAT_WARNINGS_AS_ERRORS` and
-`GCC_TREAT_WARNINGS_AS_ERRORS` are still `YES` rather than trusting them, and
-then builds the app for macOS and for an iOS simulator.
+regenerates the validation manifest and schema snapshot into a scratch
+directory and fails if they no longer reproduce what is checked in, asserts
+that `SWIFT_TREAT_WARNINGS_AS_ERRORS` and `GCC_TREAT_WARNINGS_AS_ERRORS` are
+still `YES` rather than trusting them, and then builds the app for macOS and
+for an iOS simulator.
+
+That comparison skips the snapshot's raw bytes. SQLite writes its own
+`SQLITE_VERSION_NUMBER` into the header of every database file it touches, so
+the checked-in `.sqlite` and its `database_sha256` depend on which SQLite the
+generator linked, and the pinned Xcode 16.2 cell does not link the same one a
+current Xcode does. The manifest is compared with `database_sha256` excluded
+and the snapshot by the schema SQLite reads back out of it, which is what the
+gate is about: an edited query changes its manifest entry, and an edited
+schema changes both the dumped schema and the manifest's `schema_fingerprint`.
+`database_sha256` still binds the two checked-in files together for the build
+plugin, which reads both from the same checkout, and step 1 runs that plugin.
 
 ## First-party warnings as errors
 

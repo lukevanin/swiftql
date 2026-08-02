@@ -9,9 +9,9 @@
 #      build-time query validator over every query the demo declares.
 #   2. Its tests pass.
 #   3. The demo package built without warnings.
-#   4. Regenerating the validation manifest and schema snapshot produces no
-#      diff, so a query edited without regenerating fails rather than
-#      validating the old shape.
+#   4. Regenerating the validation manifest and schema snapshot reproduces
+#      what is checked in, so a query edited without regenerating fails rather
+#      than validating the old shape.
 #   5. The Xcode project's warnings-as-errors settings are still in force.
 #   6. The app builds for macOS.
 #   7. The app builds for an iOS simulator destination.
@@ -69,14 +69,7 @@ main() {
         "$log_directory/swiftql-todo-demo-test.log"
 
     echo "== 4. The checked-in validation manifest is current =="
-    "$demo_root/Tools/regenerate-validation-manifest.sh" \
-        > "$log_directory/swiftql-todo-demo-manifest.log" 2>&1
-    if ! git -C "$source_root" diff --exit-code -- \
-        "Examples/TodoApp/TodoKit/Sources/TodoKitBuildValidation"; then
-        echo "error: the validation manifest or snapshot is stale." >&2
-        echo "Run Examples/TodoApp/Tools/regenerate-validation-manifest.sh and commit the result." >&2
-        return 1
-    fi
+    require_current_validation_manifest "$demo_root" "$log_directory"
 
     echo "== 5. Warnings are still errors =="
     require_warning_setting "$demo_root" SWIFT_TREAT_WARNINGS_AS_ERRORS
@@ -91,6 +84,67 @@ main() {
         "$log_directory/swiftql-todo-demo-ios.log"
 
     echo "OK: the to-do demo builds and tests cleanly on both platforms"
+}
+
+# Fails if a query or the schema was edited without regenerating the demo's
+# checked-in validation artifacts.
+#
+# Regeneration goes to a scratch directory and the result is compared against
+# what is checked in, rather than regenerating in place and asking git whether
+# anything moved. The snapshot is a SQLite file, and SQLite stamps its own
+# SQLITE_VERSION_NUMBER into the header of every database it writes, so the
+# file's bytes depend on which SQLite the generator linked. Regenerating on
+# the pinned Xcode 16.2 cell and on a current Xcode produces two files with
+# the same schema, the same size, the same schema fingerprint, and different
+# SHA-256s. A byte comparison therefore fails for everyone whose SQLite is not
+# the one that last wrote the file, which says nothing about whether a query
+# is stale.
+#
+# So the manifest is compared with `database_sha256` excluded, and the
+# snapshot is compared by the schema SQLite reads out of it. Between them
+# those cover what this gate exists to catch: a changed query changes the
+# manifest's entry for it, and a changed schema changes both the dumped schema
+# and the manifest's `schema_fingerprint`, neither of which depends on the
+# host's SQLite. `database_sha256` still ties the two checked-in files to each
+# other for the build plugin, which reads them from the same checkout.
+require_current_validation_manifest() {
+    local demo_root="$1"
+    local log_directory="$2"
+    local checked_in="$demo_root/TodoKit/Sources/TodoKitBuildValidation"
+    local fresh
+    local stale=0
+
+    fresh="$(mktemp -d "${TMPDIR:-/tmp}/swiftql-todo-manifest.XXXXXX")"
+
+    "$demo_root/Tools/regenerate-validation-manifest.sh" "$fresh" \
+        > "$log_directory/swiftql-todo-demo-manifest.log" 2>&1
+
+    if ! diff -u \
+        <(manifest_without_byte_identity \
+            "$checked_in/swiftql-build-validation-manifest.json") \
+        <(manifest_without_byte_identity \
+            "$fresh/swiftql-build-validation-manifest.json"); then
+        stale=1
+    fi
+
+    if ! diff -u \
+        <(sqlite3 "$checked_in/swiftql-build-validation-snapshot.sqlite" .schema) \
+        <(sqlite3 "$fresh/swiftql-build-validation-snapshot.sqlite" .schema); then
+        stale=1
+    fi
+
+    rm -rf "$fresh"
+
+    if (( stale != 0 )); then
+        echo "error: the validation manifest or snapshot is stale." >&2
+        echo "Run Examples/TodoApp/Tools/regenerate-validation-manifest.sh and commit the result." >&2
+        return 1
+    fi
+}
+
+# The manifest minus the one field that depends on the host's SQLite.
+manifest_without_byte_identity() {
+    grep -v '"database_sha256"' "$1"
 }
 
 # Rejects any compiler warning originating in the demo's own sources.
