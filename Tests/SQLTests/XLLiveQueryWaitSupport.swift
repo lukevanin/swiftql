@@ -147,12 +147,6 @@ final class XLAwaitableValue<Value>: @unchecked Sendable {
         }
     }
 
-    var isFulfilled: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return value != nil
-    }
-
     func wait() async -> Value {
         await withCheckedContinuation { continuation in
             lock.lock()
@@ -317,26 +311,26 @@ final class XLSubscriptionEventRecorder: @unchecked Sendable {
 /// Suspends until `isSatisfied` holds for main-actor `@Observable` state, resumed by Observation's
 /// own change notification rather than by a poll.
 ///
-/// `withObservationTracking` fires `onChange` *before* the tracked property's new value is visible,
-/// so each round resumes on the notification and then re-reads on the next main-actor turn. That is
-/// an await on a scheduling hop, not on a duration: the loop cannot conclude anything early, and
-/// under load it simply takes more turns.
+/// Each round evaluates `isSatisfied` inside `withObservationTracking`, so the properties it reads
+/// are exactly the ones whose next mutation resumes the wait -- there is no window between checking
+/// and subscribing in which a change could be missed. `onChange` fires just *before* the new value
+/// is visible, so the loop yields the main actor once and re-evaluates afterwards. That is an await
+/// on a scheduling hop, not on a duration: under load the loop simply takes more turns, and it can
+/// never conclude anything early.
 @available(iOS 17, macOS 14, *)
 @MainActor
-func xlWaitForObservedState(
-    _ isSatisfied: @escaping @MainActor () -> Bool,
-    trackedBy track: @escaping @MainActor () -> Void
-) async {
-    while !isSatisfied() {
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            withObservationTracking {
-                track()
-            } onChange: {
-                continuation.resume()
-            }
+func xlWaitForObservedState(_ isSatisfied: @escaping @MainActor () -> Bool) async {
+    while true {
+        let changed = XLAwaitableValue<Void>()
+        let isSatisfiedNow = withObservationTracking {
+            isSatisfied()
+        } onChange: {
+            changed.fulfill(())
         }
-        // `onChange` runs before the mutation lands, so yield the main actor once and re-read the
-        // state as it stands after the writer's turn completes.
+        if isSatisfiedNow {
+            return
+        }
+        await changed.wait()
         await Task.yield()
     }
 }
@@ -352,37 +346,12 @@ func xlWaitForObservedState(
 /// an unobservable condition that never becomes true would otherwise hang forever with no diagnosis
 /// at all. `describing` is mandatory, so the failure says what was being waited for instead of
 /// issue #463's anonymous `Condition not met within 3.0s`.
-func xlWaitUntil(
-    describing description: String,
-    timeout: TimeInterval = 3,
-    pollInterval: UInt64 = 10_000_000,
-    file: StaticString = #filePath,
-    line: UInt = #line,
-    _ condition: () -> Bool
-) async throws {
-    let maximumAttempts = max(Int((timeout * 1_000_000_000) / Double(pollInterval)), 1)
-    for _ in 0 ..< maximumAttempts {
-        if condition() {
-            return
-        }
-        try await Task.sleep(nanoseconds: pollInterval)
-    }
-    XCTFail(
-        "Timed out after \(timeout)s waiting for: \(description)",
-        file: file,
-        line: line
-    )
-}
-
-
-/// `@MainActor` overload of ``xlWaitUntil(describing:timeout:pollInterval:file:line:_:)``.
 ///
-/// Call sites inside `@MainActor` test methods form main-actor-isolated condition closures; a
-/// nonisolated helper would have to *send* the closure (and everything it captures) across an actor
-/// boundary just to receive it, which is the "sending risks causing data races" warning the sibling
-/// suites already document.
+/// `@MainActor`, matching its call sites: a condition closure formed inside a `@MainActor` test
+/// method is itself main-actor-isolated, and a nonisolated helper would have to *send* it (and
+/// everything it captures) across an actor boundary just to receive it as a parameter.
 @MainActor
-func xlWaitUntilOnMainActor(
+func xlWaitUntil(
     describing description: String,
     timeout: TimeInterval = 3,
     pollInterval: UInt64 = 10_000_000,
