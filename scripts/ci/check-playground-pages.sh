@@ -123,6 +123,22 @@ EOF
 transcript="$temporary_root/transcript.txt"
 : > "$transcript"
 
+# Keeps a failing page's whole build log with the run's evidence.
+#
+# The excerpt printed to the console is `grep error:` plus `tail -5`, which is
+# enough for an ordinary type error and useless for a compiler crash: a
+# `swift-frontend` segfault puts the request stack, the crashing declaration,
+# and the backtrace between those two excerpts, so the console shows the last
+# five frames and nothing that says what was being compiled. #530 was
+# diagnosed from the to-do demo's log for exactly that reason -- the demo job
+# tees its build output, this one did not.
+retain_build_log() {
+    if [[ -n "$output_directory" ]]; then
+        mkdir -p "$output_directory/build-logs"
+        cp "$1" "$output_directory/build-logs/"
+    fi
+}
+
 failures=0
 while IFS= read -r page; do
     page_source="$pages_directory/$page.xcplaygroundpage/Contents.swift"
@@ -135,7 +151,9 @@ while IFS= read -r page; do
     printf '==> %s\n' "$page"
     cp "$page_source" "$harness/Sources/PlaygroundPage/main.swift"
 
-    build_log="$temporary_root/build-$failures.log"
+    # One log per page, named after the page rather than after the running
+    # failure count, so a page's log is not overwritten by the next page's.
+    build_log="$temporary_root/build-${page// /-}.log"
     # The `|| true` on both excerpt pipelines is load-bearing under
     # `set -euo pipefail`. A build can fail without any line matching
     # `error:` (a linker or toolchain failure), which makes grep exit 1 and
@@ -145,12 +163,14 @@ while IFS= read -r page; do
     if ! (cd "$harness" && swift build --product PlaygroundPage) > "$build_log" 2>&1; then
         grep -E 'error:' "$build_log" | head -20 >&2 || true
         tail -5 "$build_log" >&2
+        retain_build_log "$build_log"
         printf 'error: page does not compile: %s\n' "$page" >&2
         failures=$((failures + 1))
         continue
     fi
     if grep -q 'warning:' "$build_log"; then
         grep -E 'warning:' "$build_log" | head -20 >&2 || true
+        retain_build_log "$build_log"
         printf 'error: page compiles with warnings: %s\n' "$page" >&2
         failures=$((failures + 1))
         continue

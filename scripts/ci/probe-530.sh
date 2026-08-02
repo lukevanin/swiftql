@@ -226,6 +226,165 @@ add_page_probe P11 "4 Update statements"
 register P12 executable "playground page 5 Delete statements (control)"
 add_page_probe P12 "5 Delete statements"
 
+# ---- Round 2: what makes the difference between P02 (crash) and P05 (pass)?
+
+# Q01 -- statement bound to a let, request still inline.
+register Q01 library "let statement; makeRequest(with: statement).fetchAll()"
+add_library_probe Q01 <<'SWIFT'
+import Foundation
+import SwiftQL
+
+public func probe(_ database: GRDBDatabase) throws -> [Todo] {
+    let statement = sql { schema in
+        let todo = schema.table(Todo.self)
+        Select(todo)
+        From(todo)
+    }
+    return try database.makeRequest(with: statement).fetchAll()
+}
+SWIFT
+
+# Q02 -- request bound to a let, no type annotation.
+register Q02 library "let request = makeRequest(with: inline); request.fetchAll()"
+add_library_probe Q02 <<'SWIFT'
+import Foundation
+import SwiftQL
+
+public func probe(_ database: GRDBDatabase) throws -> [Todo] {
+    let request = database.makeRequest(with: sql { schema in
+        let todo = schema.table(Todo.self)
+        Select(todo)
+        From(todo)
+    })
+    return try request.fetchAll()
+}
+SWIFT
+
+# Q03 -- everything inline, fetchOne() instead of fetchAll().
+register Q03 library "inline makeRequest + fetchOne"
+add_library_probe Q03 <<'SWIFT'
+import Foundation
+import SwiftQL
+
+public func probe(_ database: GRDBDatabase) throws -> Todo? {
+    try database.makeRequest(with: sql { schema in
+        let todo = schema.table(Todo.self)
+        Select(todo)
+        From(todo)
+    }).fetchOne()
+}
+SWIFT
+
+# Q04 -- inline argument that is an ordinary call, not a result builder.
+# Separates "the argument is not a DeclRefExpr" from "the argument contains a
+# closure or a generic builder chain".
+register Q04 library "makeRequest(with: someFunctionCall()).fetchAll()"
+add_library_probe Q04 <<'SWIFT'
+import Foundation
+import SwiftQL
+
+func everyTodo() -> any XLQueryStatement<Todo> {
+    sql { schema in
+        let todo = schema.table(Todo.self)
+        Select(todo)
+        From(todo)
+    }
+}
+
+public func probe(_ database: GRDBDatabase) throws -> [Todo] {
+    try database.makeRequest(with: everyTodo()).fetchAll()
+}
+SWIFT
+
+# Q05 -- everything inline, result annotated. Tests whether the fix is about
+# the result type rather than the receiver.
+register Q05 library "inline makeRequest + fetchAll, annotated result"
+add_library_probe Q05 <<'SWIFT'
+import Foundation
+import SwiftQL
+
+public func probe(_ database: GRDBDatabase) throws -> [Todo] {
+    let rows: [Todo] = try database.makeRequest(with: sql { schema in
+        let todo = schema.table(Todo.self)
+        Select(todo)
+        From(todo)
+    }).fetchAll()
+    return rows
+}
+SWIFT
+
+# Q06 -- both bound to lets, neither annotated. The workaround a reader would
+# reach for first, and the one the demo would adopt.
+register Q06 library "let statement; let request; request.fetchAll()"
+add_library_probe Q06 <<'SWIFT'
+import Foundation
+import SwiftQL
+
+public enum ProbeError: Error { case noRow }
+
+public func probe(_ database: GRDBDatabase, _ todo: Todo) throws -> Todo {
+    let schema = XLSchema()
+    let table = schema.table(Todo.self)
+    let statement = insert(table)
+        .values(Todo.MetaInsert(todo))
+        .returning(table)
+    let request = database.makeRequest(with: statement)
+    let rows = try request.fetchAll()
+    guard let written = rows.first else { throw ProbeError.noRow }
+    return written
+}
+SWIFT
+
+# Q07 -- inline receiver, but the whole call is the function's return
+# expression rather than a pattern binding.
+register Q07 library "return makeRequest(with: inline).fetchAll() directly"
+add_library_probe Q07 <<'SWIFT'
+import Foundation
+import SwiftQL
+
+public func probe(_ database: GRDBDatabase, _ todo: Todo) throws -> [Todo] {
+    let schema = XLSchema()
+    let table = schema.table(Todo.self)
+    return try database.makeRequest(
+        with: insert(table)
+            .values(Todo.MetaInsert(todo))
+            .returning(table)
+    ).fetchAll()
+}
+SWIFT
+
+# Q08 -- inline receiver reached through .stream(), the live-read path.
+register Q08 library "inline makeRequest + stream()"
+add_library_probe Q08 <<'SWIFT'
+import Foundation
+import SwiftQL
+
+public func probe(_ database: GRDBDatabase) -> any AsyncSequence {
+    database.makeRequest(with: sql { schema in
+        let todo = schema.table(Todo.self)
+        Select(todo)
+        From(todo)
+    }).stream()
+}
+SWIFT
+
+# Q09 -- statement bound to a let annotated with the existential the
+# parameter takes, request inline.
+register Q09 library "let statement: any XLQueryStatement<Todo>; inline request"
+add_library_probe Q09 <<'SWIFT'
+import Foundation
+import SwiftQL
+
+public func probe(_ database: GRDBDatabase) throws -> [Todo] {
+    let statement: any XLQueryStatement<Todo> = sql { schema in
+        let todo = schema.table(Todo.self)
+        Select(todo)
+        From(todo)
+    }
+    return try database.makeRequest(with: statement).fetchAll()
+}
+SWIFT
+
 # --- Package manifest ------------------------------------------------------
 
 {
