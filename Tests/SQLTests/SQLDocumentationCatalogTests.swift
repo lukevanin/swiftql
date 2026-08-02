@@ -527,17 +527,33 @@ final class SQLDocumentationCatalogTests: XCTestCase {
 
     func testTrackedSwiftFileHeadersMatchFilenames() throws {
         let repositoryRoot = repositoryRootURL()
+        let skippedDirectoryNames: Set<String> = [".build", ".swiftpm", ".git"]
         for directoryName in ["IntegrationTests", "Sources", "Tests"] {
             let directory = repositoryRoot.appendingPathComponent(directoryName, isDirectory: true)
             guard let enumerator = FileManager.default.enumerator(
                 at: directory,
-                includingPropertiesForKeys: [.isRegularFileKey]
+                includingPropertiesForKeys: [.isRegularFileKey, .isDirectoryKey]
             ) else {
                 XCTFail("Unable to enumerate \(directory.path)")
                 continue
             }
 
-            for case let fileURL as URL in enumerator where fileURL.pathExtension == "swift" {
+            for case let fileURL as URL in enumerator {
+                let resourceValues = try fileURL.resourceValues(
+                    forKeys: [.isRegularFileKey, .isDirectoryKey]
+                )
+                if resourceValues.isDirectory == true {
+                    if skippedDirectoryNames.contains(fileURL.lastPathComponent) {
+                        enumerator.skipDescendants()
+                    }
+                    continue
+                }
+                guard resourceValues.isRegularFile == true,
+                      fileURL.pathExtension == "swift"
+                else {
+                    continue
+                }
+
                 let lines = try String(contentsOf: fileURL, encoding: .utf8)
                     .components(separatedBy: .newlines)
                     .prefix(10)
