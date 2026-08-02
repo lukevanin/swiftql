@@ -256,187 +256,9 @@ private final class ControllableStreamSource<Value>: @unchecked Sendable {
 }
 
 
-// MARK: - Deterministic waits on the subscription's own lifecycle
-
-/// Buffers every `XLAsyncStreamSubscription` lifecycle event the `#if DEBUG` seam from issue #465
-/// emits, and lets a test await a *named* one instead of polling a predicate against a wall-clock
-/// deadline (issue #466).
-///
-/// Waiting this way is what makes runner load unable to change a verdict: every wait here resumes
-/// because the subscription reached a specific point in its own control flow, so load can only make
-/// a test take longer, never make it assert against a state the subscription has not reached yet.
-/// There is deliberately no timeout: a bounded wait is a wall-clock deadline wearing a different
-/// hat, and the failure it produces under load is exactly the one this suite is being fixed for.
-///
-/// Each wait consumes the earliest *matching* buffered event, and parks on a continuation if none
-/// has arrived yet. Non-matching events are not skipped past and discarded: they stay buffered in
-/// arrival order, so a later wait for one of them still finds it. A wait therefore never has to
-/// step over -- or block on -- an event the test does not care about.
-private final class SubscriptionEventRecorder: @unchecked Sendable {
-
-    private struct RecordedEvent {
-        let sequence: Int
-        let event: XLAsyncStreamSubscriptionEvent
-    }
-
-    private struct Waiter {
-        let matches: (XLAsyncStreamSubscriptionEvent) -> Bool
-        let continuation: CheckedContinuation<RecordedEvent, Never>
-    }
-
-    private let lock = NSLock()
-
-    private var buffered: [RecordedEvent] = []
-
-    private var waiter: Waiter?
-
-    private var nextSequence = 0
-
-    private var pump: Task<Void, Never>?
-
-    init() {
-        // `events()` registers its observer synchronously inside `AsyncStream`'s build closure, and
-        // that stream buffers without bound, so no event emitted after this line can be missed --
-        // including events emitted before `pump` gets its first chance to run.
-        let stream = XLAsyncStreamSubscriptionTestHooks.shared.events()
-        pump = Task { [weak self] in
-            for await event in stream {
-                self?.ingest(event)
-            }
-        }
-    }
-
-    func stop() {
-        pump?.cancel()
-        pump = nil
-    }
-
-    private func ingest(_ event: XLAsyncStreamSubscriptionEvent) {
-        lock.lock()
-        let recorded = RecordedEvent(sequence: nextSequence, event: event)
-        nextSequence += 1
-        if let waiter, waiter.matches(event) {
-            self.waiter = nil
-            lock.unlock()
-            // Resumed outside the lock: the resumed test task goes on to call into the subscription
-            // (cancel, request more demand), which takes the subscription's own lock.
-            waiter.continuation.resume(returning: recorded)
-            return
-        }
-        buffered.append(recorded)
-        lock.unlock()
-    }
-
-    private func wait(
-        matching matches: @escaping (XLAsyncStreamSubscriptionEvent) -> Bool
-    ) async -> RecordedEvent {
-        await withCheckedContinuation { continuation in
-            lock.lock()
-            if let index = buffered.firstIndex(where: { matches($0.event) }) {
-                let match = buffered.remove(at: index)
-                lock.unlock()
-                continuation.resume(returning: match)
-                return
-            }
-            precondition(
-                waiter == nil,
-                "SubscriptionEventRecorder serves one wait at a time: a test that awaits two events "
-                    + "concurrently would silently overwrite and hang the first waiter."
-            )
-            waiter = Waiter(matches: matches, continuation: continuation)
-            lock.unlock()
-        }
-    }
-
-    /// Awaits (and consumes) the next occurrence of `event`.
-    func wait(for event: XLAsyncStreamSubscriptionEvent) async {
-        _ = await wait(matching: { $0 == event })
-    }
-
-    /// Awaits `finish(error:)` running and reports whether it forwarded the completion downstream or
-    /// suppressed it as self-inflicted.
-    ///
-    /// Matching *either* outcome is deliberate. A test that waited only for the outcome it expects
-    /// would hang -- rather than fail -- in the world where the subscription made the opposite
-    /// decision, which is the world the test exists to detect.
-    func waitForFinish() async -> Bool {
-        let match = await wait(matching: { event in
-            if case .finished = event {
-                return true
-            }
-            return false
-        })
-        guard case .finished(let forwarded) = match.event else {
-            preconditionFailure("wait(matching:) resumed with a non-`.finished` event.")
-        }
-        return forwarded
-    }
-
-    /// Awaits the next consumer task starting, and forgets everything emitted before it.
-    ///
-    /// The seam is process-global -- `Publisher.receive(subscriber:)` erases the concrete
-    /// `XLAsyncStreamSubscription` behind Combine's `Subscription` existential the moment it is
-    /// vended, so no test ever holds a handle to hook per-instance. That means a previous test's
-    /// (or previous round's) still-unwinding subscription can in principle emit one last event into
-    /// this recorder. `.consumerTaskStarted` can only come from a consumer task starting *now*, so
-    /// fencing on it and dropping everything with a lower sequence number gives each test a clean
-    /// epoch, without polling for quiescence.
-    func fenceOnConsumerTaskStart() async {
-        let match = await wait(matching: { $0 == .consumerTaskStarted })
-        discardEvents(before: match.sequence)
-    }
-
-    /// Locked, non-`async` half of ``fenceOnConsumerTaskStart()``: recent Foundation marks
-    /// `NSLock.lock()`/`unlock()` unavailable directly inside an asynchronous context (an error in
-    /// the Swift 6 language mode), the same split `XLAsyncStreamSubscription` itself uses.
-    private func discardEvents(before sequence: Int) {
-        lock.lock()
-        buffered.removeAll { $0.sequence < sequence }
-        lock.unlock()
-    }
-}
-
-
-/// A one-shot value a test can await, used where the thing being observed is a downstream callback
-/// rather than a subscription lifecycle event (`sink`'s delivery on the main queue).
-private final class AsyncValue<Value>: @unchecked Sendable {
-
-    private let lock = NSLock()
-
-    private var value: Value?
-
-    private var waiters: [CheckedContinuation<Value, Never>] = []
-
-    /// Records the first value only: later calls are ignored, so a test asserting on "the delivery"
-    /// cannot be confused by a second one arriving while it is being read.
-    func fulfill(_ newValue: Value) {
-        lock.lock()
-        guard value == nil else {
-            lock.unlock()
-            return
-        }
-        value = newValue
-        let pending = waiters
-        waiters = []
-        lock.unlock()
-        for waiter in pending {
-            waiter.resume(returning: newValue)
-        }
-    }
-
-    func wait() async -> Value {
-        await withCheckedContinuation { continuation in
-            lock.lock()
-            if let value {
-                lock.unlock()
-                continuation.resume(returning: value)
-                return
-            }
-            waiters.append(continuation)
-            lock.unlock()
-        }
-    }
-}
+// The deterministic waiting primitives this suite runs on -- `XLSubscriptionEventRecorder` (the
+// #465 subscription seam) and `XLAwaitableValue` -- live in `XLLiveQueryWaitSupport.swift`, shared
+// with `XLObservableLiveQueryTests` and `GRDBLiveQueryAsyncStreamTests` (#467).
 
 
 private enum XLAsyncStreamPublisherTestError: Error, Equatable {
@@ -524,12 +346,12 @@ final class XLAsyncStreamPublisherTests: XCTestCase {
 
     /// Observes the subscription seam for the duration of one test. Recreated per test, and the
     /// shared hooks are reset on both sides of the test so no observer leaks into the next one.
-    private var events: SubscriptionEventRecorder!
+    private var events: XLSubscriptionEventRecorder!
 
     override func setUp() {
         super.setUp()
         XLAsyncStreamSubscriptionTestHooks.shared.reset()
-        events = SubscriptionEventRecorder()
+        events = XLSubscriptionEventRecorder()
     }
 
     override func tearDown() {
@@ -868,8 +690,8 @@ final class XLAsyncStreamPublisherTests: XCTestCase {
     func testXlLiveQueryPublisherDeliversOnTheMainQueueByDefault() async throws {
         let source = ControllableStreamSource<Int>()
         let publisher = xlLiveQueryPublisher(makeStream: source.makeStream)
-        let deliveryOnMainQueue = AsyncValue<Bool>()
-        let completionOnMainQueue = AsyncValue<Bool>()
+        let deliveryOnMainQueue = XLAwaitableValue<Bool>()
+        let completionOnMainQueue = XLAwaitableValue<Bool>()
 
         let cancellable = publisher.sink(
             receiveCompletion: { _ in
@@ -1197,7 +1019,7 @@ final class XLAsyncStreamPublisherTests: XCTestCase {
         // The raw publisher, without `xlLiveQueryPublisher`'s `.receive(on: DispatchQueue.main)`:
         // its consumer `Task` runs on the cooperative pool, never the main thread.
         let publisher = XLAsyncStreamPublisher(makeStream: source.makeStream)
-        let deliveryOnMainQueue = AsyncValue<Bool>()
+        let deliveryOnMainQueue = XLAwaitableValue<Bool>()
         let subscriber = RecordingSubscriber<Int>(
             initialDemand: .unlimited,
             additionalDemand: { _ in
