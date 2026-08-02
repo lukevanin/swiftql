@@ -15,7 +15,7 @@ import SwiftQL
 /// `String` maps to SQLite `TEXT`, `Int` to `INTEGER`, and an optional
 /// property is the one column allowed to hold `NULL`.
 @SQLTable
-public struct Person {
+public struct Person: Sendable {
     public var id: String
     public var occupationId: String?
     public var name: String
@@ -27,7 +27,7 @@ public struct Person {
 /// The playground uses this second table for the joins and lookups that need
 /// more than one table in scope.
 @SQLTable
-public struct Occupation {
+public struct Occupation: Sendable {
     public var id: String
     public var title: String
 }
