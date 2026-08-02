@@ -58,6 +58,16 @@ class ContractTests(unittest.TestCase):
         self.assertTrue(issue259_run.comparison_run.FIXTURE_ARCHIVE.is_file())
         self.assertEqual(issue259_run.comparison_run.ROW_COUNT, 16_143)
 
+    def test_the_fixture_artifact_path_is_repository_relative(self) -> None:
+        artifact = issue259_run.repository_relative_fixture_path()
+        self.assertEqual(
+            artifact,
+            "Benchmarks/Comparison/Fixtures/northwind-performance.sqlite.gz",
+        )
+        self.assertFalse(Path(artifact).is_absolute())
+        self.assertNotIn("..", Path(artifact).parts)
+        self.assertTrue((issue259_run.REPOSITORY_ROOT / artifact).is_file())
+
     def test_the_prototype_graph_is_separate_from_the_250_graphs(self) -> None:
         template = issue259_run.PROTOTYPE_TEMPLATE
         self.assertTrue((template / "Package.swift").is_file())

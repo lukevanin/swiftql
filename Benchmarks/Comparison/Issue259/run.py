@@ -152,6 +152,26 @@ def schedule(
     return entries
 
 
+def repository_relative_fixture_path() -> str:
+    """The committed fixture archive, relative to the repository root.
+
+    An absolute path would leak the machine layout into a committed report and
+    would mean nothing anywhere else. `relative_to` raises `ValueError` rather
+    than an `OSError`, which the runner's top-level handler does not catch, so
+    it is converted here and called before any measurement starts.
+    """
+
+    archive = comparison_run.FIXTURE_ARCHIVE
+    try:
+        return str(archive.relative_to(REPOSITORY_ROOT))
+    except ValueError as error:
+        raise HarnessError(
+            f"the fixture archive {archive} is not inside the repository root "
+            f"{REPOSITORY_ROOT}, so the report cannot record a "
+            f"repository-relative path"
+        ) from error
+
+
 def prepare_prototype(workspace: Path, swiftql_checkout: Path) -> Path:
     if not PROTOTYPE_TEMPLATE.is_dir():
         raise HarnessError(f"prototype template is missing: {PROTOTYPE_TEMPLATE}")
@@ -493,6 +513,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
 
         fixture = workspace / "Fixture" / "northwind-performance.sqlite"
         comparison_run.decompress_and_verify_fixture(fixture)
+        # Resolved before any build or timing so a layout the report cannot
+        # describe fails in seconds rather than after every process has run.
+        fixture_artifact = repository_relative_fixture_path()
         print(f"Verified exact {comparison_run.ROW_COUNT}-row fixture: {fixture}")
 
         prototype = prepare_prototype(workspace, swiftql_checkout)
@@ -596,12 +619,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 "lookupKeyCount": LOOKUP_KEY_COUNT,
             },
             "fixture": {
-                # Relative to the repository root rather than to the report, so
-                # the value stays meaningful wherever the report is written and
-                # never records a machine-specific absolute path.
-                "artifact": str(
-                    comparison_run.FIXTURE_ARCHIVE.relative_to(REPOSITORY_ROOT)
-                ),
+                "artifact": fixture_artifact,
                 "artifactPathIsRelativeTo": "repository_root",
                 "artifactSHA256": comparison_run.FIXTURE_ARCHIVE_SHA256,
                 "databaseSHA256": comparison_run.FIXTURE_DATABASE_SHA256,
