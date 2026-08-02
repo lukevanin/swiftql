@@ -18,8 +18,21 @@ have separate responsibilities:
 - `SwiftQL` is the application-facing library. It includes `SwiftQLCore`, the
   macros and typed SQL DSL, contextual value codecs, and the current
   GRDB-backed SQLite driver.
-- `swiftql-benchmark` is a repository performance diagnostic executable, not an
-  application runtime dependency or a database adapter.
+- `SwiftQLSQLiteBuildValidationManifest` and
+  `SwiftQLSQLiteBuildValidationValidator` are the build-time query validator's
+  manifest format and validation engine, added in v1.5.2. The
+  `swiftql-build-validate` executable and the
+  `SwiftQLSQLiteBuildValidationPlugin` build-tool plugin drive them from a
+  build; see "Build-validation plugin build systems" below for the build
+  systems they are verified under. None of them is required to use `SwiftQL`
+  at runtime.
+- `SwiftQLExamples` holds the pre-expanded schema and declared queries the
+  Getting Started playground imports, added in v1.5.6. A classic Xcode
+  playground cannot expand SwiftQL's macros itself, so the module is built as
+  part of the package instead. It is example code, not a supported API.
+- `swiftql-benchmark` and `swiftql-construction-profile` are repository
+  performance diagnostic executables, not application runtime dependencies or
+  database adapters.
 
 The manifest's dependency bounds are SwiftSyntax 509.0.0, GRDB 6.29.3 or later,
 Swift-DocC plugin 1.0.0 or later, and exact OpenCombine 0.14.0. SwiftSyntax also
@@ -433,10 +446,11 @@ single non-mutating command:
 ```
 
 The command treats first-party DocC diagnostics as errors, writes the static
-site to the ignored `docs/` directory, and validates the SwiftQL landing page
-and all twelve source articles. Pass an existing external destination when a
-separate output is useful, for example `./make-docs.sh /tmp/swiftql-docs`.
-The command never stages or commits files.
+site to the ignored `docs/` directory, and validates the SwiftQL landing page,
+all sixteen source articles, and the tutorial routes together with every code
+snapshot and image the tutorial catalog names. Pass an existing external
+destination when a separate output is useful, for example
+`./make-docs.sh /tmp/swiftql-docs`. The command never stages or commits files.
 
 The site also carries the blog under `Website/blog`, generated with
 [Hugo](https://gohugo.io). `make-docs.sh` requires Hugo 0.164.x on `PATH` and

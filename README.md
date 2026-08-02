@@ -264,10 +264,17 @@ explicit list of the places the correspondence is not exact.
   Define database-independent SQL, parameter, result, identity, and cardinality
   metadata before opening a database, then prepare it against a compatible
   driver.
+- **[Declared queries](https://lukevanin.github.io/swiftql/documentation/swiftql/declaredqueries/).**
+  Write a query as an ordinary Swift function with `@SQLQuery`, or a whole
+  container of them with `@SQLQueries`, and call it like any other function.
+  A SwiftPM build-tool plugin can prepare every declared query against a
+  schema snapshot at build time; see
+  [COMPATIBILITY.md](COMPATIBILITY.md) for the build systems it runs under.
 - **[Live data](https://lukevanin.github.io/swiftql/documentation/swiftql/livequeries/).**
-  Observe typed query results through GRDB-backed Combine publishers that track
-  the database region a query reads, or adopt `XLQueryObserver`/
-  `XLQueryRowObserver` directly with SwiftUI's `@StateObject`/`@ObservedObject`.
+  Observe typed query results with `for try await` over `stream()` and
+  `streamOne()`, the canonical live-query API. GRDB-backed Combine publishers
+  track the same database region a query reads, and `XLObservableQuery` or
+  `XLQueryObserver` adopt either one from SwiftUI.
 - **Your domain.** Extend SQLite with Swift enums, custom value types, and
   type-safe custom SQL functions.
 
@@ -293,8 +300,8 @@ SQLite coverage without blurring that line.
   toolchains and reproducible CI matrix.
 - [SQLite conformance](COMPATIBILITY.md#sqlite-conformance-inventory) records
   the evidence boundary for SwiftQL's currently supported public subset.
-- [Changelog](CHANGELOG.md) records released behavior and the unreleased v1.3
-  evidence milestone.
+- [Changelog](CHANGELOG.md) records released behavior, and the unreleased
+  section records what has landed since the latest published version.
 - [Performance benchmarks](BENCHMARKS.md) measure query construction,
   preparation, caching, binding, execution, and decoding.
 - [First-party source coverage](Coverage/README.md) preserves the reproducible
