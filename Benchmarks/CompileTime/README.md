@@ -157,7 +157,99 @@ consumer's declared dependencies change, and commit the result.
 
 ## Recorded baseline
 
-<!-- RESULTS -->
+**This run is noisy and should be replaced before anyone draws a conclusion
+from it.** It was captured on a host running several other unrelated,
+concurrent `swift build`/Xcode processes (parallel delivery work happening at
+the same time), not a quiet machine. The `swiftql tables=10` clean-build cell
+reads 911.65s with a 99% spread across its three repetitions -- roughly 300x
+every other cell in the same row -- and two `control_raw_sqlite` cells show
+422-6780% spread. Both are textbook symptoms of build contention, not of
+anything SwiftQL, GRDB, SQLite.swift, or Lighter did. It is recorded anyway,
+raw samples and all, rather than discarded, because a validated report with
+its noise plainly visible in `wallSpreadPercent` is more useful evidence than
+no report -- and because manufacturing a cleaner-looking number by quietly
+excluding the bad run would be exactly the fabrication this harness exists to
+avoid. Re-run on an otherwise-idle machine before citing any specific figure
+below; the low-spread cells (`grdb`, `sqlite_swift`, most `noop_incremental`
+rows) are more likely to be trustworthy than the high-spread ones, but "more
+likely" is not the same as verified.
+
+This run also covers a reduced matrix -- table and query scales of 1 and 10
+only, not the full canonical 1/10/100/500 -- to keep one recording pass inside
+a practical wall-clock budget. `--require-full-matrix` will reject this report
+if that stricter bar is ever wanted; the command in "Run it" above shows the
+fuller 1/10/100 invocation.
+
+```
+$ python3 Benchmarks/CompileTime/summarize.py Benchmarks/CompileTime/compile-time-results.json
+SwiftQL consumer compile-time scalability
+=========================================
+
+Report generated: 2026-08-02T08:55:07.365366Z
+SwiftQL revision: 8183cb95152df53537204d1d5527034869508a23
+Machine: Mac16,8 / Apple M4 Pro / 14 cores
+Toolchain: Apple Swift version 6.3.2 (swiftlang-6.3.2.1.108 clang-2100.1.1.101)
+Target: arm64-apple-macosx26.0
+Configuration: debug, 3 independent build processes per cell, dependency-warm
+Recorded table scales: [1, 10]; recorded query scales: [1, 10]; canonical matrix: [1, 10, 100, 500]
+
+Cost is whole-consumer build cost. No part of any number is attributed to macro expansion alone.
+
+Applicability
+-------------
+  control_raw_sqlite: table axis applicable, query axis applicable, one-query edit applicable
+      Dependency-free control: hand-written structs, hand-written SQL text, and hand-written sqlite3 C stepping and column mapping.
+  swiftql: table axis applicable, query axis applicable, one-query edit applicable
+      @SQLTable declarations and @SQLQuery specification functions on a GRDBDatabase extension.
+  grdb: table axis applicable, query axis applicable, one-query edit applicable
+      Codable FetchableRecord/TableRecord structs and query-interface request functions.
+  sqlite_swift: table axis applicable, query axis applicable, one-query edit applicable
+      Table/Expression declarations and typed query functions that map each row explicitly.
+  lighter: table axis applicable, query axis not_applicable, one-query edit not_applicable
+      Lighter has no user-written table or query declarations. Its Enlighter build-tool plugin emits record types from a schema file, so the table axis scales schema.sql and the query axis and the one-query-edit mode do not exist.
+
+Median wall time - clean_dependency_warm
+----------------------------------------
+  scale                       control_raw_sqlite               swiftql                  grdb          sqlite_swift               lighter
+  1 tables x 1 queries             1.23 s +/-21%         1.74 s +/-32%         0.85 s +/-11%          0.78 s +/-1%         1.17 s +/-27%
+  1 tables x 10 queries           1.16 s +/-762%          2.11 s +/-4%         0.88 s +/-10%         0.88 s +/-22%                   n/a
+  10 tables x 1 queries            0.86 s +/-43%       911.65 s +/-99%          1.00 s +/-3%          0.79 s +/-1%          3.79 s +/-3%
+
+Median wall time - noop_incremental
+-----------------------------------
+  scale                       control_raw_sqlite               swiftql                  grdb          sqlite_swift               lighter
+  1 tables x 1 queries             0.81 s +/-23%          0.64 s +/-2%          0.57 s +/-0%          0.56 s +/-0%          0.57 s +/-2%
+  1 tables x 10 queries           0.55 s +/-422%          0.65 s +/-2%          0.57 s +/-2%         0.57 s +/-44%                   n/a
+  10 tables x 1 queries            0.56 s +/-52%         0.95 s +/-26%          0.57 s +/-2%          0.56 s +/-2%          0.57 s +/-0%
+
+Median wall time - one_query_edit
+---------------------------------
+  scale                       control_raw_sqlite               swiftql                  grdb          sqlite_swift
+  1 tables x 1 queries             1.25 s +/-14%         1.65 s +/-10%          0.82 s +/-0%          0.77 s +/-0%
+  1 tables x 10 queries         13.28 s +/-6780%          2.10 s +/-1%          0.87 s +/-2%         0.85 s +/-41%
+  10 tables x 1 queries            1.01 s +/-51%         10.04 s +/-5%          0.84 s +/-1%          0.77 s +/-1%
+
+Build outputs and generated source
+----------------------------------
+  consumer            scale                         source     objects   swiftmodule    static lib  plugin swift
+  control_raw_sqlite  1 tables x 1 queries         2.0 KiB    53.8 KiB      30.8 KiB      58.3 KiB   unavailable
+  control_raw_sqlite  1 tables x 10 queries       13.8 KiB    85.7 KiB      32.9 KiB      90.9 KiB   unavailable
+  control_raw_sqlite  10 tables x 1 queries        7.9 KiB   188.3 KiB      98.5 KiB     209.3 KiB   unavailable
+  grdb                1 tables x 1 queries           944 B   100.7 KiB      57.5 KiB      15.6 MiB   unavailable
+  grdb                1 tables x 10 queries        3.1 KiB   116.0 KiB      59.6 KiB      15.6 MiB   unavailable
+  grdb                10 tables x 1 queries        6.6 KiB   653.7 KiB     281.4 KiB      16.2 MiB   unavailable
+  lighter             1 tables x 1 queries           161 B   221.8 KiB     143.7 KiB       3.9 MiB      27.4 KiB
+  lighter             10 tables x 1 queries        1.6 KiB     1.6 MiB     906.9 KiB       5.5 MiB     234.1 KiB
+  sqlite_swift        1 tables x 1 queries         1.6 KiB    56.5 KiB      29.8 KiB       3.5 MiB   unavailable
+  sqlite_swift        1 tables x 10 queries        6.7 KiB    90.2 KiB      31.9 KiB       3.6 MiB   unavailable
+  sqlite_swift        10 tables x 1 queries        9.9 KiB   261.5 KiB     120.4 KiB       3.8 MiB   unavailable
+  swiftql             1 tables x 1 queries           628 B   459.7 KiB     122.5 KiB      35.1 MiB   unavailable
+  swiftql             1 tables x 10 queries        3.3 KiB   575.4 KiB     129.7 KiB      35.2 MiB   unavailable
+  swiftql             10 tables x 1 queries        2.6 KiB     3.6 MiB     939.7 KiB      38.6 MiB   unavailable
+
+Peak RSS is the peak of the whole `swift build` process tree, not an allocation attributed to any one API.
+These are machine-dependent measurements from one host. Nothing here is a CI gate or a regression threshold.
+```
 
 ## Interpretation and limits
 
