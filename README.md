@@ -154,6 +154,18 @@ From there:
   whose examples are connected to executable test scenarios, so the API shown
   in the guides stays aligned with the library.
 
+### Run it instead
+
+[The Getting Started playground](Examples/README.md) is that same walkthrough
+with the code running beside the explanation: nine pages against a real SQLite
+file, from defining a table through inserting, selecting, updating, deleting,
+named bindings, lazy result sets, and transactions, to observing a live query.
+Open `Examples/SwiftQLExamples.xcworkspace`, build the `SwiftQLExamples` scheme
+for My Mac, and step through it.
+
+Each page prints its results and states the output it expects next to the code
+producing it, so you can change a query and see immediately what moved.
+
 ## What's new
 
 [WHATSNEW.md](WHATSNEW.md) describes each release in plain language — what you
