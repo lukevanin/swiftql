@@ -50,10 +50,96 @@ struct ManifestedQuery {
     let name: String
     let statement: any XLEncodable
     let cardinality: XLQueryCardinality
+    /// Parameter name to its Swift type and SQLite storage. Logical and
+    /// physical indices come from scanning the rendered SQL, so they cannot
+    /// drift out of step with the statement.
+    var parameters: [String: ParameterKind] = [:]
     let results: [SQLiteBuildValidationResultEntry]
 }
 
-func result(
+/// The Swift-to-SQLite shapes the demo's parameters take.
+enum ParameterKind {
+    case text
+    case integer
+
+    var valueTypeIdentifier: String {
+        switch self {
+        case .text: return "swift.string"
+        case .integer: return "swift.int"
+        }
+    }
+
+    var valueTypeName: String {
+        switch self {
+        case .text: return "Swift.String"
+        case .integer: return "Swift.Int"
+        }
+    }
+
+    var storageIdentifier: String {
+        switch self {
+        case .text: return "text"
+        case .integer: return "integer"
+        }
+    }
+}
+
+/// The `:name` placeholders in a rendered statement, in first-encounter
+/// order — which is the order SQLite assigns bind positions in.
+///
+/// Quoted text is skipped: an inlined date literal such as
+/// `'2100-01-01T00:00:00.000Z'` contains colons that are not placeholders.
+func placeholderNames(in sql: String) -> [String] {
+    var names: [String] = []
+    var seen: Set<String> = []
+    let characters = Array(sql)
+    var index = 0
+
+    func skipQuoted(_ quote: Character) {
+        index += 1
+        while index < characters.count {
+            if characters[index] == quote {
+                // A doubled quote is an escaped one, not the end.
+                if index + 1 < characters.count, characters[index + 1] == quote {
+                    index += 2
+                    continue
+                }
+                index += 1
+                return
+            }
+            index += 1
+        }
+    }
+
+    while index < characters.count {
+        let character = characters[index]
+        if character == "'" || character == "\"" {
+            skipQuoted(character)
+            continue
+        }
+        guard character == ":" else {
+            index += 1
+            continue
+        }
+        var end = index + 1
+        while end < characters.count,
+              characters[end].isLetter
+                || characters[end].isNumber
+                || characters[end] == "_" {
+            end += 1
+        }
+        let name = String(characters[(index + 1)..<end])
+        if !name.isEmpty, seen.insert(name).inserted {
+            names.append(name)
+        }
+        index = max(end, index + 1)
+    }
+    return names
+}
+
+
+/// One value in a returned row.
+func resultEntry(
     index: Int,
     alias: String,
     valueTypeIdentifier: String,
@@ -73,6 +159,7 @@ func result(
     )
 }
 
+
 // MARK: - Schema
 
 let schemaStatements: [any XLEncodable] = [
@@ -89,7 +176,7 @@ let schemaStatements: [any XLEncodable] = [
 // list when encoding, so the emitted manifest JSON does not preserve this
 // order -- only the generator's own declarations mirror TodoReads.swift.
 let uuidResult = { (index: Int, alias: String) in
-    result(
+    resultEntry(
         index: index,
         alias: alias,
         valueTypeIdentifier: "swift.string",
@@ -99,7 +186,7 @@ let uuidResult = { (index: Int, alias: String) in
 }
 let textResult = uuidResult
 let intResult = { (index: Int, alias: String) in
-    result(
+    resultEntry(
         index: index,
         alias: alias,
         valueTypeIdentifier: "swift.int",
@@ -108,7 +195,7 @@ let intResult = { (index: Int, alias: String) in
     )
 }
 let boolResult = { (index: Int, alias: String) in
-    result(
+    resultEntry(
         index: index,
         alias: alias,
         valueTypeIdentifier: "swift.bool",
@@ -117,7 +204,7 @@ let boolResult = { (index: Int, alias: String) in
     )
 }
 let nullableTextResult = { (index: Int, alias: String) in
-    result(
+    resultEntry(
         index: index,
         alias: alias,
         valueTypeIdentifier: "swift.string",
@@ -163,6 +250,139 @@ let queries: [ManifestedQuery] = [
             boolResult(6, "isCompleted"),
             intResult(7, "position"),
             textResult(8, "createdAt"),
+        ]
+    ),
+    ManifestedQuery(
+        name: "todo-list-by-id",
+        statement: sql { schema in
+            let list = schema.table(TodoList.self)
+            Select(list)
+            From(list)
+            Where(list.id == XLNamedBindingReference<TodoUUID>(name: "id"))
+        },
+        cardinality: .zeroOrOne,
+        parameters: ["id": .text],
+        results: [
+            uuidResult(0, "id"),
+            textResult(1, "name"),
+            intResult(2, "position"),
+            textResult(3, "createdAt"),
+        ]
+    ),
+    ManifestedQuery(
+        name: "todo-by-id",
+        statement: sql { schema in
+            let todo = schema.table(Todo.self)
+            Select(todo)
+            From(todo)
+            Where(todo.id == XLNamedBindingReference<TodoUUID>(name: "id"))
+        },
+        cardinality: .zeroOrOne,
+        parameters: ["id": .text],
+        results: [
+            uuidResult(0, "id"),
+            uuidResult(1, "listID"),
+            textResult(2, "title"),
+            textResult(3, "notes"),
+            nullableTextResult(4, "dueAt"),
+            intResult(5, "priority"),
+            boolResult(6, "isCompleted"),
+            intResult(7, "position"),
+            textResult(8, "createdAt"),
+        ]
+    ),
+    ManifestedQuery(
+        name: "filtered-todos",
+        statement: TodoFilteredRead.statement,
+        cardinality: .many,
+        parameters: [
+            "listID": .text,
+            "includesCompleted": .integer,
+            "includesActive": .integer,
+            "overdueOnly": .integer,
+            "referenceDate": .text,
+            "searchPattern": .text,
+            "sortOrder": .integer,
+        ],
+        results: [
+            uuidResult(0, "id"),
+            uuidResult(1, "listID"),
+            textResult(2, "title"),
+            textResult(3, "notes"),
+            nullableTextResult(4, "dueAt"),
+            intResult(5, "priority"),
+            boolResult(6, "isCompleted"),
+            intResult(7, "position"),
+            textResult(8, "createdAt"),
+        ]
+    ),
+    ManifestedQuery(
+        name: "tags-for-todo",
+        statement: sql { schema in
+            let link = schema.table(TodoTag.self)
+            let tag = schema.table(Tag.self)
+            Select(TodoTagPair.columns(
+                todoID: link.todoID,
+                tagID: tag.id,
+                tagName: tag.name
+            ))
+            From(link)
+            Join.Inner(tag, on: tag.id == link.tagID)
+            Where(link.todoID == XLNamedBindingReference<TodoUUID>(name: "todoID"))
+            OrderBy(tag.name.ascending())
+        },
+        cardinality: .many,
+        parameters: ["todoID": .text],
+        results: [
+            uuidResult(0, "todoID"),
+            uuidResult(1, "tagID"),
+            textResult(2, "tagName"),
+        ]
+    ),
+    ManifestedQuery(
+        name: "tags-for-list",
+        statement: sql { schema in
+            let todo = schema.table(Todo.self)
+            let link = schema.table(TodoTag.self)
+            let tag = schema.table(Tag.self)
+            Select(TodoTagPair.columns(
+                todoID: link.todoID,
+                tagID: tag.id,
+                tagName: tag.name
+            ))
+            From(link)
+            Join.Inner(todo, on: todo.id == link.todoID)
+            Join.Inner(tag, on: tag.id == link.tagID)
+            Where(todo.listID == XLNamedBindingReference<TodoUUID>(name: "listID"))
+            OrderBy(tag.name.ascending())
+        },
+        cardinality: .many,
+        parameters: ["listID": .text],
+        results: [
+            uuidResult(0, "todoID"),
+            uuidResult(1, "tagID"),
+            textResult(2, "tagName"),
+        ]
+    ),
+    ManifestedQuery(
+        name: "list-counts",
+        statement: sql { schema in
+            let todo = schema.table(Todo.self)
+            Select(TodoListCounts.columns(
+                listID: todo.listID,
+                openCount: when(todo.isCompleted == false, then: 1)
+                    .else(0)
+                    .sumOrNull() ?? 0,
+                totalCount: all().count()
+            ))
+            From(todo)
+            GroupBy(todo.listID)
+        },
+        cardinality: .many,
+        results: [
+            uuidResult(0, "listID"),
+            intResult(1, "openCount"),
+            intResult(2, "totalCount"),
         ]
     ),
     ManifestedQuery(
@@ -218,15 +438,44 @@ let snapshotData = try Data(contentsOf: snapshotURL)
 
 // MARK: - Manifest
 
-let queryEntries = try queries.map { query in
-    SQLiteBuildValidationQueryEntry(
+let queryEntries = try queries.map { query -> SQLiteBuildValidationQueryEntry in
+    let sql = try encoder.makeValidatedSQL(query.statement).sql
+    let names = placeholderNames(in: sql)
+    let parameters = names.enumerated().map { index, name -> SQLiteBuildValidationParameterEntry in
+        guard let kind = query.parameters[name] else {
+            FileHandle.standardError.write(Data(
+                "error: \(query.name) renders :\(name) but declares no kind for it\n".utf8
+            ))
+            exit(1)
+        }
+        return SQLiteBuildValidationParameterEntry(
+            logicalIndex: index,
+            physicalIndex: index + 1,
+            identity: "parameter/\(name)",
+            keyKind: .named,
+            keyName: name,
+            keyIndex: nil,
+            valueTypeIdentifier: kind.valueTypeIdentifier,
+            valueTypeName: kind.valueTypeName,
+            nullability: "required",
+            codec: nil,
+            storageIdentifier: kind.storageIdentifier
+        )
+    }
+    if parameters.count != query.parameters.count {
+        FileHandle.standardError.write(Data(
+            "error: \(query.name) declares \(query.parameters.count) parameters but renders \(parameters.count)\n".utf8
+        ))
+        exit(1)
+    }
+    return SQLiteBuildValidationQueryEntry(
         id: "\(namespace).\(query.name)",
         definitionIdentity: "\(namespace)/\(query.name)@1",
         descriptorIdentity: "swiftql-query-v1-todo-demo",
-        sql: try encoder.makeValidatedSQL(query.statement).sql,
+        sql: sql,
         dialectIdentifier: XLSQLiteDialect.identity.rawValue,
         cardinality: query.cardinality.rawValue,
-        parameters: [],
+        parameters: parameters,
         results: query.results
     )
 }

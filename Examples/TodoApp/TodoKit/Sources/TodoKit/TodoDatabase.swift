@@ -16,6 +16,10 @@ public final class TodoDatabase {
     /// `true` when this instance created the file and seeded it.
     public let didSeed: Bool
 
+    /// The list view's read, rendered once and reused. Values arrive per
+    /// call in a binding packet, not in the request.
+    let filteredTodosRequest: any XLRequest<Todo>
+
     /// Opens the database, creating and seeding it the first time only.
     ///
     /// Both steps run in one transaction, and both ask the database rather
@@ -34,6 +38,9 @@ public final class TodoDatabase {
 
         self.url = url
         database = try GRDBDatabase(url: url, logger: nil)
+        filteredTodosRequest = database.makeRequest(
+            with: TodoFilteredRead.statement
+        )
         didSeed = try database.withTransaction { scope in
             try Self.createSchema(in: scope)
             guard try Self.isUnseeded(scope) else {
