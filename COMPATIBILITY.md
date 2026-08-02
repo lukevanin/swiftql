@@ -446,8 +446,24 @@ separate job rather than a matrix entry.
 | Swift series | 6.0 |
 | macOS SDK | 15.2 |
 | `DEVELOPER_DIR` | `/Applications/Xcode_16.2.app/Contents/Developer` |
+| `SWIFTQL_DEMO_IOS_DEVELOPER_DIR` | `/Applications/Xcode_16.4.app/Contents/Developer` |
 | iOS simulator destination | `generic/platform=iOS Simulator` |
 | Demo deployment floor | iOS 17.0, macOS 14.0 |
+
+The iOS app build is the one step that does not run on the pinned Xcode.
+Xcode 16.2's iOS SDK is 18.2, the `macos-15` image installs no iOS 18.2
+simulator runtime, and Xcode will not substitute a newer one, so under Xcode
+16.2 the demo's scheme offers no iOS destination at all: not a simulator, not
+a generic device. Xcode 16.4 is the next pinned cell up, its iOS SDK is 18.5,
+and an 18.5 runtime is installed, so the iOS build uses that and nothing else
+moves.
+
+What the pinned cell is covering is steps 1 to 4, which build and test
+TodoKit, whose whole data layer is SwiftQL, against the oldest compiler the
+package supports. Step 7 builds the SwiftUI app shell for a second platform.
+Splitting it off costs nothing the pin was buying, and the alternative was
+downloading a multi-gigabyte simulator runtime on every run of a
+release-blocking job.
 
 The demo's floor is above the library's iOS 16 / macOS 13 floor because it uses
 `@Observable`. That does not change the library's floor.

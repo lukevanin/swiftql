@@ -16,6 +16,19 @@
 #   6. The app builds for macOS.
 #   7. The app builds for an iOS simulator destination.
 #
+# Steps 1 to 6 run on whatever DEVELOPER_DIR selects, which in CI is the
+# pinned Swift 6.0 support point. Step 7 does not, because it cannot: Xcode
+# 16.2's iOS SDK is 18.2, the runner image ships no 18.2 simulator runtime,
+# and Xcode will not use a newer one, so that Xcode offers no iOS destination
+# at all. Set SWIFTQL_DEMO_IOS_DEVELOPER_DIR to an Xcode whose iOS SDK matches
+# an installed runtime and step 7 uses it. CI points it at the next pinned
+# cell up, Xcode 16.4, so the iOS build moves as little as it can.
+#
+# The compiler-compatibility part of this check is steps 1 to 4, which build
+# and test TodoKit, the target whose whole data layer is SwiftQL. Step 7
+# builds the SwiftUI app shell for a second platform, and moving it does not
+# weaken what the pinned cell is covering.
+#
 # Warnings are errors on both sides of the demo, by two different mechanisms.
 # The Xcode project sets SWIFT_TREAT_WARNINGS_AS_ERRORS and
 # GCC_TREAT_WARNINGS_AS_ERRORS, and step 5 verifies those are still YES rather
@@ -81,7 +94,8 @@ main() {
 
     echo "== 7. The app builds for an iOS simulator =="
     build_app "$demo_root" "$derived_data-ios" "$ios_destination" \
-        "$log_directory/swiftql-todo-demo-ios.log"
+        "$log_directory/swiftql-todo-demo-ios.log" \
+        "${SWIFTQL_DEMO_IOS_DEVELOPER_DIR:-}"
 
     echo "OK: the to-do demo builds and tests cleanly on both platforms"
 }
@@ -183,20 +197,34 @@ require_warning_setting() {
     fi
 }
 
+# Builds the app for one destination, optionally under a different Xcode.
+#
+# The fifth argument overrides DEVELOPER_DIR for this build alone. Step 7
+# needs it: Xcode 16.2's iOS SDK is 18.2, and no 18.2 simulator runtime is
+# installed on the runner image any more, so Xcode 16.2 offers no iOS
+# destination at all, not even a generic device one. The header comment says
+# which Xcode the iOS build uses instead and why.
 build_app() {
     local demo_root="$1"
     local derived_data="$2"
     local destination="$3"
     local log="$4"
+    local developer_dir="${5:-}"
 
     rm -rf "$derived_data"
-    xcodebuild build \
-        -project "$demo_root/TodoApp.xcodeproj" \
-        -scheme TodoApp \
-        -destination "$destination" \
-        -derivedDataPath "$derived_data" \
-        CODE_SIGNING_ALLOWED=NO \
-        2>&1 | tee "$log" | grep -E '^(\*\*|.*(error|warning):)' || true
+    # The override lives in a subshell so it cannot leak into a later step.
+    (
+        if [[ -n "$developer_dir" ]]; then
+            export DEVELOPER_DIR="$developer_dir"
+        fi
+        xcodebuild build \
+            -project "$demo_root/TodoApp.xcodeproj" \
+            -scheme TodoApp \
+            -destination "$destination" \
+            -derivedDataPath "$derived_data" \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1
+    ) | tee "$log" | grep -E '^(\*\*|.*(error|warning):)' || true
 
     if ! grep -q "BUILD SUCCEEDED" "$log"; then
         echo "error: the demo failed to build for $destination" >&2
