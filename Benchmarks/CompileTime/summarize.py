@@ -759,7 +759,19 @@ def compare(
                 "buildModes",
             ),
         ),
-        ("environment", ("model", "processor", "architecture", "swift")),
+        (
+            "environment",
+            (
+                "model",
+                "processor",
+                "coreCount",
+                "memoryBytes",
+                "architecture",
+                "operatingSystem",
+                "xcode",
+                "swift",
+            ),
+        ),
     ):
         left = baseline[section]
         right = candidate[section]

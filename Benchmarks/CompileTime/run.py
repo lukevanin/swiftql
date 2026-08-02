@@ -1248,9 +1248,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
         if not options.prepare_only:
             if output.exists():
                 raise HarnessError(f"refusing to overwrite report: {output}")
-            if runs_directory.exists() and any(runs_directory.iterdir()):
+            if runs_directory.exists():
                 raise HarnessError(
-                    f"refusing to mix outputs with existing files: {runs_directory}"
+                    f"refusing to reuse an existing Runs directory: {runs_directory}"
                 )
 
         selected = [CONSUMERS_BY_IDENTIFIER[name] for name in options.consumers]
