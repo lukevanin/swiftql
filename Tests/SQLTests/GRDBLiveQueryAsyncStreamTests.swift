@@ -59,49 +59,61 @@ private enum AsyncStreamTestError: Error, Equatable {
 
 // MARK: - Locked helpers
 
+/// Backed by ``XLAwaitableState`` (`XLLiveQueryWaitSupport.swift`) so a test can *await* the value
+/// it needs -- resumed by the write that produces it -- instead of polling for it (#467).
 private final class AsyncStreamLockedValue<Value>: @unchecked Sendable {
 
-    private let lock = NSLock()
-
-    private var value: Value
+    private let state: XLAwaitableState<Value>
 
     init(_ value: Value) {
-        self.value = value
+        state = XLAwaitableState(value)
     }
 
     @discardableResult
     func withValue<Result>(_ body: (inout Value) -> Result) -> Result {
-        lock.lock()
-        defer { lock.unlock() }
-        return body(&value)
+        state.withValue(body)
     }
 
     func set(_ newValue: Value) {
-        withValue { $0 = newValue }
+        state.set(newValue)
     }
 
     func read() -> Value {
-        withValue { $0 }
+        state.read()
+    }
+
+    /// Suspends until the value satisfies `isSatisfied`.
+    func wait(until isSatisfied: @escaping (Value) -> Bool) async {
+        await state.wait(until: isSatisfied)
     }
 }
 
 
+extension AsyncStreamLockedValue where Value: Equatable {
+
+    /// Suspends until the value equals `expected`.
+    func wait(for expected: Value) async {
+        await state.wait(for: expected)
+    }
+}
+
+
+/// The array form of ``AsyncStreamLockedValue``, with the same awaitable semantics.
 private final class AsyncStreamLockedArray<Element>: @unchecked Sendable {
 
-    private let lock = NSLock()
-
-    private var values: [Element] = []
+    private let state = XLAwaitableState<[Element]>([])
 
     func append(_ value: Element) {
-        lock.lock()
-        defer { lock.unlock() }
-        values.append(value)
+        state.withValue { $0.append(value) }
     }
 
     func read() -> [Element] {
-        lock.lock()
-        defer { lock.unlock() }
-        return values
+        state.read()
+    }
+
+    /// Suspends until at least `count` elements have been appended.
+    func wait(untilCountIsAtLeast count: Int) async {
+        await state.wait(untilCountIsAtLeast: count)
     }
 }
 
@@ -114,26 +126,29 @@ private final class AsyncStreamInjectedBusyFunctionState: @unchecked Sendable {
         case failAlways
     }
 
-    private let lock = NSLock()
-
     private let behavior: Behavior
 
-    private var invocationCountValue = 0
+    /// Awaitable, so a test can wait for the attempt it cares about rather than polling for it.
+    private let invocations = XLAwaitableState(0)
 
     init(behavior: Behavior) {
         self.behavior = behavior
     }
 
     var invocationCount: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return invocationCountValue
+        invocations.read()
+    }
+
+    /// Suspends until this function has been invoked at least `count` times.
+    func waitForInvocationCount(atLeast count: Int) async {
+        await invocations.wait(until: { $0 >= count })
     }
 
     func invoke() throws -> Int {
-        lock.lock()
-        invocationCountValue += 1
-        let invocationCount = invocationCountValue
+        let invocationCount = invocations.withValue { value -> Int in
+            value += 1
+            return value
+        }
         let failsThisInvocation: Bool
         switch behavior {
         case .succeed:
@@ -143,7 +158,6 @@ private final class AsyncStreamInjectedBusyFunctionState: @unchecked Sendable {
         case .failAlways:
             failsThisInvocation = true
         }
-        lock.unlock()
 
         if failsThisInvocation {
             throw DatabaseError(
@@ -166,11 +180,11 @@ private final class AsyncStreamManualRetryScheduler: @unchecked Sendable {
         let subject: PassthroughSubject<Void, Never>
     }
 
-    private let lock = NSLock()
+    /// Awaitable, so a test waits for "the backoff for attempt N has been scheduled" and is resumed
+    /// by the scheduling itself, instead of polling `pendingDelays` against a deadline (#467).
+    private let pending = XLAwaitableState<[PendingDelay]>([])
 
-    private var pending: [PendingDelay] = []
-
-    private var recorded: [TimeInterval] = []
+    private let recorded = XLAwaitableState<[TimeInterval]>([])
 
     var scheduler: GRDBLiveQueryRetryScheduler {
         GRDBLiveQueryRetryScheduler { [weak self] delay in
@@ -178,38 +192,32 @@ private final class AsyncStreamManualRetryScheduler: @unchecked Sendable {
                 return Empty(completeImmediately: false).eraseToAnyPublisher()
             }
             let subject = PassthroughSubject<Void, Never>()
-            self.lock.lock()
-            self.pending.append(PendingDelay(delay: delay, subject: subject))
-            self.recorded.append(delay)
-            self.lock.unlock()
+            self.recorded.withValue { $0.append(delay) }
+            // Appended last, so a test resumed by this write already sees the delay recorded.
+            self.pending.withValue { $0.append(PendingDelay(delay: delay, subject: subject)) }
             return subject.eraseToAnyPublisher()
         }
     }
 
     var pendingDelays: [TimeInterval] {
-        lock.lock()
-        defer { lock.unlock() }
-        return pending.map(\.delay)
+        pending.read().map(\.delay)
     }
 
     var recordedDelays: [TimeInterval] {
-        lock.lock()
-        defer { lock.unlock() }
-        return recorded
+        recorded.read()
+    }
+
+    /// Suspends until exactly `expected` is outstanding -- the deterministic replacement for polling
+    /// `pendingDelays` until it matches.
+    func waitForPendingDelays(_ expected: [TimeInterval]) async {
+        await pending.wait(until: { $0.map(\.delay) == expected })
     }
 
     @discardableResult
     func runNext() -> Bool {
-        let next: PendingDelay?
-        lock.lock()
-        if pending.isEmpty {
-            next = nil
+        let next: PendingDelay? = pending.withValue { pending in
+            pending.isEmpty ? nil : pending.removeFirst()
         }
-        else {
-            next = pending.removeFirst()
-        }
-        lock.unlock()
-
         guard let next else { return false }
         next.subject.send(())
         next.subject.send(completion: .finished)
@@ -285,14 +293,14 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
 
     // MARK: - Lazy start / unused stream
 
-    func testUnusedStreamPerformsNoObservationOrFetch() throws {
+    func testUnusedStreamPerformsNoObservationOrFetch() async throws {
         try createRecordTable()
         let request = database.makeRequest(with: orderedStatement())
 
         _ = request.stream() // constructed, never iterated
         _ = request.streamOne() // constructed, never iterated
 
-        drainMainQueue()
+        await drainMainQueue()
         XCTAssertEqual(
             logger.count(containing: "stream:"),
             0,
@@ -582,14 +590,14 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
             loopEnded.set(true)
         }
 
-        try await waitUntil { !seen.read().isEmpty }
+        await seen.wait(untilCountIsAtLeast: 1)
         task.cancel()
-        try await waitUntil { loopEnded.read() }
+        await loopEnded.wait(for: true)
         XCTAssertEqual(seen.read(), [[]])
 
         let fetchCountAtCancel = logger.count(containing: "stream:")
         try insertDirect(AsyncStreamRecord(id: "after-cancel", value: 1))
-        drainMainQueue()
+        await drainMainQueue()
         XCTAssertEqual(
             logger.count(containing: "stream:"),
             fetchCountAtCancel,
@@ -719,7 +727,7 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         XCTAssertEqual(refreshedA, [AsyncStreamRecord(id: "only-in-a", value: 1)])
 
         // The second, identically-named table in the other pool must remain empty.
-        drainMainQueue()
+        await drainMainQueue()
         let secondRows = try secondDatabase.makeRequest(with: orderedStatement()).fetchAll()
         XCTAssertEqual(secondRows, [])
     }
@@ -774,16 +782,16 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
             }
         }
 
-        try await waitUntil { scheduler.pendingDelays == [0.1] }
+        await scheduler.waitForPendingDelays([0.1])
         XCTAssertEqual(fixture.functionState.invocationCount, 1)
         scheduler.runNext()
-        try await waitUntil { scheduler.pendingDelays == [0.2] }
+        await scheduler.waitForPendingDelays([0.2])
         XCTAssertEqual(fixture.functionState.invocationCount, 2)
         scheduler.runNext()
-        try await waitUntil { scheduler.pendingDelays == [0.4] }
+        await scheduler.waitForPendingDelays([0.4])
         XCTAssertEqual(fixture.functionState.invocationCount, 3)
         scheduler.runNext()
-        try await waitUntil { fixture.functionState.invocationCount == 4 }
+        await fixture.functionState.waitForInvocationCount(atLeast: 4)
 
         switch await consumeTask.value {
         case .success:
@@ -838,7 +846,7 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
             try await iterator.next()
         }
 
-        try await waitUntil { scheduler.pendingDelays == [0.1] }
+        await scheduler.waitForPendingDelays([0.1])
         XCTAssertEqual(fixture.functionState.invocationCount, 1)
         task.cancel()
 
@@ -847,7 +855,7 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
 
         // Firing the pending delay after cancellation must not start a new attempt.
         scheduler.runNext()
-        drainMainQueue()
+        await drainMainQueue()
         XCTAssertEqual(
             fixture.functionState.invocationCount,
             1,
@@ -874,7 +882,7 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
             try await iterator.next()
         }
 
-        try await waitUntil { scheduler.pendingDelays == [0.1] }
+        await scheduler.waitForPendingDelays([0.1])
         scheduler.runNext()
         let delivered = try await consumeTask.value
         XCTAssertEqual(delivered, [AsyncStreamRetryRecord(id: "initial", value: 1)])
@@ -1026,31 +1034,13 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         }
     }
 
-    private func drainMainQueue() {
-        let barrier = expectation(description: "main-queue barrier")
-        DispatchQueue.main.async {
-            barrier.fulfill()
-        }
-        wait(for: [barrier], timeout: 2)
-    }
-
-    /// Bounded, deterministic polling: sleeps in small increments up to `timeout`, checking
-    /// `condition` each time, rather than proving anything via one blind sleep.
-    private func waitUntil(
-        timeout: TimeInterval = 3,
-        pollInterval: UInt64 = 10_000_000,
-        file: StaticString = #filePath,
-        line: UInt = #line,
-        _ condition: () -> Bool
-    ) async throws {
-        let maxAttempts = max(Int((timeout * 1_000_000_000) / Double(pollInterval)), 1)
-        for _ in 0 ..< maxAttempts {
-            if condition() {
-                return
-            }
-            try await Task.sleep(nanoseconds: pollInterval)
-        }
-        XCTFail("Condition not met within \(timeout)s", file: file, line: line)
+    /// A barrier on the queue GRDB's `ValueObservation` actually delivers on, not a deadline: it
+    /// resumes when the main queue reaches the block it enqueued, however long that takes. Every
+    /// call site below uses it to let already-scheduled observation work run before asserting that
+    /// no *further* fetch happened. The suite's polling `waitUntil` is gone (#467): the conditions
+    /// it polled are now awaited directly on the harness state that produces them.
+    private func drainMainQueue() async {
+        await xlDrainMainQueue()
     }
 
     private struct InjectedBusyFixture {
