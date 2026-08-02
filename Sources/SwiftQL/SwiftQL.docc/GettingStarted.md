@@ -70,8 +70,9 @@ results. Optional properties can store `NULL`; non-optional properties are
 emitted with a `NOT NULL` constraint.
 
 On Swift 6.0 and later, a table declared `public` or `package` also conforms to
-`Sendable`, so rows can be passed between tasks and held in `static` properties
-without tripping strict-concurrency checking. Swift infers the same conformance
+`Sendable`, so rows can be passed between tasks and held in `static let`
+constants without tripping strict-concurrency checking. A `static var` is
+shared mutable state whatever it holds, and still needs isolating. Swift infers the same conformance
 for a table that is `internal` or narrower, so those are left alone. Should a
 table hold a stored property that is not itself `Sendable`, the compiler says so
 on the generated conformance; declaring the table `@unchecked Sendable` takes
