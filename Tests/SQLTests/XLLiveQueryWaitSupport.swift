@@ -122,7 +122,7 @@ extension XLAwaitableState {
 /// particular queue -- rather than evolving state. Awaiting the callback *itself* and then asserting
 /// on what it carried keeps the wrong outcome a test failure rather than a hang, which is not true
 /// of waiting for a flag that is only set when the outcome is already the expected one.
-final class XLAwaitableValue<Value>: @unchecked Sendable {
+final class XLAwaitableValue<Value: Sendable>: @unchecked Sendable {
 
     private let lock = NSLock()
 
