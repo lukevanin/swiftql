@@ -66,7 +66,10 @@ final class TodoDatabaseTests: XCTestCase {
             at: url.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        FileManager.default.createFile(atPath: url.path, contents: Data())
+        XCTAssertTrue(
+            FileManager.default.createFile(atPath: url.path, contents: Data()),
+            "Precondition: could not create the empty file this test needs."
+        )
 
         let database = try TodoDatabase(url: url, referenceDate: referenceDate)
 

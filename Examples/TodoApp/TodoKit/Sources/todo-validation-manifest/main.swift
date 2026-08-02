@@ -84,7 +84,10 @@ let schemaStatements: [any XLEncodable] = [
 
 // MARK: - Declared queries
 
-// One entry per declared query in TodoReads.swift, in the same order.
+// One entry per declared query in TodoReads.swift, declared here in the same
+// order. SQLiteBuildValidationManifest.canonicalJSONData() sorts the query
+// list when encoding, so the emitted manifest JSON does not preserve this
+// order -- only the generator's own declarations mirror TodoReads.swift.
 let uuidResult = { (index: Int, alias: String) in
     result(
         index: index,
