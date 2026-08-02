@@ -5,7 +5,10 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    # Milestone branches get the same pull-request signal main does. Without
+    # this, work merged into version/x.y.z reaches main having never been
+    # built by CI.
+    branches: [main, 'version/**']
 
 permissions:
   contents: read
@@ -287,6 +290,62 @@ jobs:
         run: |
           set -euo pipefail
           cd "$GITHUB_WORKSPACE"
+          git diff --exit-code
+          test -z "$(git status --porcelain)"
+
+  todo-demo:
+    name: To-do demo app
+    # macOS-only: the demo is a SwiftUI app for iOS and macOS, so it cannot
+    # run on the Linux cells. A separate job rather than a matrix entry, for
+    # the same reason.
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+
+    steps:
+      - name: Check out exact source commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # github.sha, matching release-tooling: on a pull request that is
+          # the merge commit, so the demo is built against the base branch it
+          # would actually land on rather than against its own head.
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact source commit
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Validate and report compiler environment
+        env:
+          EXPECTED_XCODE_VERSION: "16.2"
+          EXPECTED_XCODE_BUILD: 16C5032a
+          EXPECTED_SWIFT_SERIES: "6.0"
+          EXPECTED_SDK_VERSION: "15.2"
+          EXPECTED_DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+        run: scripts/ci/check-compatibility-environment.sh
+
+      - name: Report the pinned iOS simulator runtime
+        run: |
+          set -euo pipefail
+          xcrun simctl list runtimes | tee "$RUNNER_TEMP/simulator-runtimes.txt"
+
+      - name: Build and test the to-do demo
+        run: scripts/ci/check-todo-demo.sh "$RUNNER_TEMP"
+
+      - name: Upload demo build logs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: swiftql-todo-demo-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/swiftql-todo-demo-*.log
+            ${{ runner.temp }}/simulator-runtimes.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Verify checkout remains clean
+        run: |
           git diff --exit-code
           test -z "$(git status --porcelain)"
 
