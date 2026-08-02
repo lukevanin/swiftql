@@ -109,11 +109,19 @@ public final class TodoListModel {
             return
         }
         let sameList: Bool = updated.listID == query.listID
-        let listChanged = !sameList
+
+        // Build the replacement before touching anything. If it fails, the
+        // model keeps observing what it was already observing, and `query`
+        // still describes it — a half-applied rebind would leave a live view
+        // bound to a stopped observation.
+        guard let replacement = try? Self.observe(updated, in: database) else {
+            return
+        }
+        let previous = todos
         query = updated
-        todos.stop()
-        todos = (try? Self.observe(updated, in: database)) ?? todos
-        if listChanged {
+        todos = replacement
+        previous.stop()
+        if !sameList {
             reloadTags()
         }
     }

@@ -45,7 +45,13 @@ struct TodoDetailPane: View {
             }
         }
         .onAppear(perform: start)
-        .onDisappear { model?.stop() }
+        .onDisappear {
+            // Clearing the model as well as stopping it is what lets the
+            // observation restart if this view comes back. Keeping a stopped
+            // one would leave the pane permanently frozen.
+            model?.stop()
+            model = nil
+        }
     }
 
     private func start() {
