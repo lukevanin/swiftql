@@ -14,6 +14,7 @@ struct TodoDetailPane: View {
 
     @State private var model: TodoDetailModel?
     @State private var failure: String?
+    @State private var writeFailure: String?
 
     @State private var title = ""
     @State private var notes = ""
@@ -130,10 +131,29 @@ struct TodoDetailPane: View {
                     "Completed",
                     isOn: Binding(
                         get: { todo.isCompleted },
-                        set: { _ = try? database.setCompleted($0, todoID: todo.id) }
+                        set: { isCompleted in
+                            write {
+                                try database.setCompleted(
+                                    isCompleted,
+                                    todoID: todo.id
+                                )
+                            }
+                        }
                     )
                 )
             }
+        }
+        .alert(
+            "The write failed",
+            isPresented: Binding(
+                get: { writeFailure != nil },
+                set: { if !$0 { writeFailure = nil } }
+            ),
+            presenting: writeFailure
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { description in
+            Text(description)
         }
         .formStyle(.grouped)
         .navigationTitle(todo.title)
@@ -161,13 +181,26 @@ struct TodoDetailPane: View {
     }
 
     private func save(_ todo: Todo) {
-        _ = try? database.updateTodo(
-            id: todo.id,
-            title: title,
-            notes: notes,
-            dueAt: hasDueDate ? TodoDate(dueDate) : nil,
-            priority: priority
-        )
+        write {
+            try database.updateTodo(
+                id: todo.id,
+                title: title,
+                notes: notes,
+                dueAt: hasDueDate ? TodoDate(dueDate) : nil,
+                priority: priority
+            )
+        }
+    }
+
+    /// Runs a write and surfaces anything it throws, rather than leaving a
+    /// failed save looking like a successful one.
+    private func write(_ operation: () throws -> Void) {
+        do {
+            try operation()
+        }
+        catch {
+            writeFailure = error.localizedDescription
+        }
     }
 
     private func name(of priority: TodoPriority) -> String {

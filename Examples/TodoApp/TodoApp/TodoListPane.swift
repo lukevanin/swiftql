@@ -14,6 +14,7 @@ struct TodoListPane: View {
 
     @State private var model: TodoListModel?
     @State private var failure: String?
+    @State private var writeFailure: String?
 
     private let listID: TodoUUID
 
@@ -71,7 +72,7 @@ struct TodoListPane: View {
     private func content(_ model: TodoListModel) -> some View {
         List(model.todos.rows, id: \.id, selection: $selection) { todo in
             TodoRow(todo: todo, tags: model.tags(for: todo)) {
-                toggle(todo, in: model)
+                toggle(todo)
             }
             .tag(todo.id)
         }
@@ -112,11 +113,23 @@ struct TodoListPane: View {
             }
             ToolbarItem {
                 Button {
-                    add(to: model)
+                    add()
                 } label: {
                     Label("New to-do", systemImage: "plus")
                 }
             }
+        }
+        .alert(
+            "The write failed",
+            isPresented: Binding(
+                get: { writeFailure != nil },
+                set: { if !$0 { writeFailure = nil } }
+            ),
+            presenting: writeFailure
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { description in
+            Text(description)
         }
         .overlay {
             if model.todos.rows.isEmpty, !model.todos.isLoading {
@@ -131,13 +144,28 @@ struct TodoListPane: View {
 
     /// A write, and then nothing. The list, the sidebar counts, and the
     /// detail pane all update from their own observations of this commit.
-    private func toggle(_ todo: Todo, in model: TodoListModel) {
-        _ = try? database.toggleCompleted(todoID: todo.id)
+    private func toggle(_ todo: Todo) {
+        write { try database.toggleCompleted(todoID: todo.id) }
     }
 
-    private func add(to model: TodoListModel) {
-        _ = try? database.createTodo(listID: listID, title: "New to-do")
-        model.reloadTags()
+    private func add() {
+        // No reloadTags() here: a new to-do has no tags yet, and the rows
+        // themselves arrive through the live query.
+        write { try database.createTodo(listID: listID, title: "New to-do") }
+    }
+
+    /// Runs a write and surfaces anything it throws.
+    ///
+    /// A demo that swallows write errors teaches the wrong habit, and a
+    /// silent no-op is the hardest kind of failure to notice in a UI that
+    /// otherwise updates itself.
+    private func write(_ operation: () throws -> Void) {
+        do {
+            try operation()
+        }
+        catch {
+            writeFailure = error.localizedDescription
+        }
     }
 }
 
