@@ -805,12 +805,14 @@ jobs:
         id: playground-pages
         if: ${{ matrix.platform == 'macos' && matrix.resolution == 'committed' }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           cd "$SWIFTQL_SOURCE"
+          status=0
           scripts/ci/check-playground-pages.sh \
-            "$RUNNER_TEMP/swiftql-playground"
+            "$RUNNER_TEMP/swiftql-playground" || status=$?
           cat "$RUNNER_TEMP/swiftql-playground/summary.md" \
             >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
 
       # The per-page transcript is the evidence for what each page actually
       # printed, which matters most on the runs where the check failed and the
