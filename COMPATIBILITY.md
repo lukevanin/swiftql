@@ -227,6 +227,88 @@ including 5.9 and 6.0. This is the package's first source-level API
 divergence across compiler cells; see `Sources/SwiftQL/SQLRowMacro.swift` and
 `Sources/SwiftQL/SQLRowResult.swift` for the gated declarations.
 
+The `Sendable` conformance `@SQLTable` and `@SQLResult` declare for a `public`
+or `package` model (issue #531) requires Swift 6.0 or later. Swift 5.9 treats a
+macro-expanded extension as a separate source file for the rule that a
+`Sendable` conformance must be declared alongside its type, so every model there
+draws `conformance to 'Sendable' must occur in the same source file as struct
+'X'; use '@unchecked Sendable' for retroactive conformance`, which the
+first-party warnings-as-errors gate turns into a build failure. The spelling the
+compiler suggests is the one the conformance exists to avoid, so the 5.9 support
+point keeps the behaviour it had: nothing is generated, and a model that should
+be `Sendable` states it on the declaration. Swift 6.0 accepts the generated
+conformance without a diagnostic, verified on the pinned 6.0 cell. The gate is
+`#if compiler(>=6.0)` in `makeSendableExtension` in
+`Sources/SQLMacros/SQLMacro.swift`; because SwiftPM builds a macro plugin with
+the same toolchain that compiles the client, it resolves per compilation rather
+than per plugin build. The macro-expansion tests in
+`Tests/SQLMacrosTests/SQLTests.swift` and the conformance tests in
+`Tests/SQLTests/SQLModelSendableConformanceTests.swift` carry the same gate.
+
+### Swift 6.0 crashes on a statement built inline in a fetched request
+
+On the pinned Swift 6.0 cell (Xcode 16.2, Apple Swift 6.0.3), `swift-frontend`
+segfaults while compiling a single expression that builds a statement inline
+and then fetches from the request that statement produces:
+
+```swift
+// Crashes swift-frontend on Xcode 16.2 with signal 11.
+let everyone = try database.makeRequest(with: sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+}).fetchAll()
+```
+
+Give either half a name and the same query compiles:
+
+```swift
+let everyoneQuery = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+}
+let everyone = try database.makeRequest(with: everyoneQuery).fetchAll()
+```
+
+Both halves have to be in one expression for the crash to happen. What breaks
+is the combination of erasing a concrete statement type to the
+`any XLQueryStatement<Row>` or `any XLReturningStatement<Row>` parameter and
+opening the `any XLRequest<Row>` that comes back, in the same expression. The
+crash is in SILGen rather than IR generation, at
+`Callee::forWitnessMethod` by way of `GenericFunctionType::substGenericArgs`
+and `BoundGenericType::get`, so it is a different bug from the multi-generic
+IRGen crash above and it has a different trigger. Some spellings abort inside
+`SILGenModule::useConformancesFromType` instead of segfaulting, and which of
+the two you get is not stable across runs of the same source.
+
+Reaching for a local is the whole workaround, and it does not matter which
+local:
+
+| Written as | Xcode 16.2 |
+| --- | --- |
+| `makeRequest(with: sql { … }).fetchAll()` | crashes |
+| `makeRequest(with: insert(t).values(…).returning(t)).fetchAll()` | crashes |
+| the same, with `fetchOne()` or `stream()` | crashes |
+| `let s = sql { … }` then `makeRequest(with: s).fetchAll()` | compiles |
+| `let r = makeRequest(with: sql { … })` then `r.fetchAll()` | compiles |
+| `makeRequest(with: aFunctionReturningTheExistential()).fetchAll()` | compiles |
+| `makeRequest(with: sqlInsert(row)).execute()` | compiles |
+
+The last two rows say what the trigger is not. An argument that is already the
+existential the parameter takes is fine however it is spelled, so this is not
+about writing a call rather than a name in the argument. `execute()` is fine
+because `any XLWriteRequest` carries no primary associated type, so nothing
+gets opened.
+
+Swift 6.1 (Xcode 16.4) compiles every one of those spellings, verified by
+running the same set of cases on both toolchains while diagnosing #530. The
+library needs no `#if` for this, because the workaround is source that
+compiles on every supported cell. The to-do demo and the Getting Started
+playground are both written in the two-step form, and CI builds both on the
+pinned Swift 6.0 cell, so a reintroduced one-liner fails there rather than in
+a user's project.
+
 ## Swift 6 series coverage
 
 | Swift series | GitHub runner | Xcode | Swift | macOS SDK |
@@ -382,11 +464,38 @@ separate job rather than a matrix entry.
 | Swift series | 6.0 |
 | macOS SDK | 15.2 |
 | `DEVELOPER_DIR` | `/Applications/Xcode_16.2.app/Contents/Developer` |
+| `SWIFTQL_DEMO_IOS_DEVELOPER_DIR` | `/Applications/Xcode_16.4.app/Contents/Developer` |
 | iOS simulator destination | `generic/platform=iOS Simulator` |
 | Demo deployment floor | iOS 17.0, macOS 14.0 |
 
+The iOS app build is the one step that does not run on the pinned Xcode.
+Xcode 16.2's iOS SDK is 18.2, the `macos-15` image installs no iOS 18.2
+simulator runtime, and Xcode will not substitute a newer one, so under Xcode
+16.2 the demo's scheme offers no iOS destination at all: not a simulator, not
+a generic device. Xcode 16.4 is the next pinned cell up, its iOS SDK is 18.5,
+and an 18.5 runtime is installed, so the iOS build uses that and nothing else
+moves.
+
+What the pinned cell is covering is steps 1 to 4, which build and test
+TodoKit, whose whole data layer is SwiftQL, against the oldest compiler the
+package supports. Step 7 builds the SwiftUI app shell for a second platform.
+Splitting it off costs nothing the pin was buying, and the alternative was
+downloading a multi-gigabyte simulator runtime on every run of a
+release-blocking job.
+
 The demo's floor is above the library's iOS 16 / macOS 13 floor because it uses
 `@Observable`. That does not change the library's floor.
+
+The job stays on the Swift 6.0 cell even though the demo's own floor is higher
+than the library's, because the point of building the demo in CI is to find out
+what a reader on the oldest supported compiler will hit. It earned that in
+#530: the demo was the first thing in the repository to compile
+`makeRequest(with:)` and a fetch in one expression on Xcode 16.2, and it
+segfaulted the compiler. Moving the job to a newer Xcode would have made the
+red square go away and left the crash in front of the next person to write that
+line. The demo is written around the crash instead, and
+"Swift 6.0 crashes on a statement built inline in a fetched request" above says
+what the shape is.
 
 The iOS runtime is whichever the pinned Xcode ships, resolved through a generic
 simulator destination rather than a named device, so the job does not break
@@ -404,10 +513,22 @@ scripts/ci/check-todo-demo.sh
 
 The checker builds the demo package from clean (which is what forces SwiftQL's
 build-time query validator to run over every declared query), runs its tests,
-regenerates the checked-in validation manifest and schema snapshot and fails on
-any diff, asserts that `SWIFT_TREAT_WARNINGS_AS_ERRORS` and
-`GCC_TREAT_WARNINGS_AS_ERRORS` are still `YES` rather than trusting them, and
-then builds the app for macOS and for an iOS simulator.
+regenerates the validation manifest and schema snapshot into a scratch
+directory and fails if they no longer reproduce what is checked in, asserts
+that `SWIFT_TREAT_WARNINGS_AS_ERRORS` and `GCC_TREAT_WARNINGS_AS_ERRORS` are
+still `YES` rather than trusting them, and then builds the app for macOS and
+for an iOS simulator.
+
+That comparison skips the snapshot's raw bytes. SQLite writes its own
+`SQLITE_VERSION_NUMBER` into the header of every database file it touches, so
+the checked-in `.sqlite` and its `database_sha256` depend on which SQLite the
+generator linked, and the pinned Xcode 16.2 cell does not link the same one a
+current Xcode does. The manifest is compared with `database_sha256` excluded
+and the snapshot by the schema SQLite reads back out of it, which is what the
+gate is about: an edited query changes its manifest entry, and an edited
+schema changes both the dumped schema and the manifest's `schema_fingerprint`.
+`database_sha256` still binds the two checked-in files together for the build
+plugin, which reads both from the same checkout, and step 1 runs that plugin.
 
 ## First-party warnings as errors
 

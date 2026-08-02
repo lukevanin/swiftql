@@ -116,12 +116,16 @@ let birthdays = sql { schema in
 }
 try database.makeRequest(with: birthdays).execute()
 
-print("after birthdays:", try database.makeRequest(with: sql { schema in
+let everyoneByID = sql { schema in
     let person = schema.table(Person.self)
     Select(person)
     From(person)
     OrderBy(person.id.ascending())
-}).fetchAll().map(\.exampleSummary))
+}
+print(
+    "after birthdays:",
+    try database.makeRequest(with: everyoneByID).fetchAll().map(\.exampleSummary)
+)
 //: Prints `after birthdays: ["Fred (42)", "Grace (30)", "Harold (45)", "Ida B. (69)"]`
 //: Only Grace was under 40, so only Grace had a birthday.
 

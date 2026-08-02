@@ -133,6 +133,14 @@ jobs:
           cat "$RUNNER_TEMP/swiftql-coverage-run-1/summary.md" \
             >> "$GITHUB_STEP_SUMMARY"
 
+      # Diagnostic evidence upload, not a release gate (Coverage/README.md) -- failure here
+      # must never fail this job, hence fail_ci_if_error: false.
+      - name: Upload coverage evidence to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          files: ${{ runner.temp }}/swiftql-coverage-run-1/llvm-coverage.lcov
+          fail_ci_if_error: false
+
       - name: Prepare retained source coverage evidence
         if: ${{ always() && !cancelled() }}
         env:
@@ -302,6 +310,12 @@ jobs:
     timeout-minutes: 30
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+      # The iOS app build alone, and only because Xcode 16.2 cannot do it on
+      # this runner image: its iOS SDK is 18.2, no 18.2 simulator runtime is
+      # installed, and it will not use a newer one, so it offers no iOS
+      # destination at all. The next pinned cell up does, and its SDK matches
+      # an installed runtime. See COMPATIBILITY.md, "To-do demo application".
+      SWIFTQL_DEMO_IOS_DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
 
     steps:
       - name: Check out exact source commit
@@ -326,9 +340,14 @@ jobs:
         run: scripts/ci/check-compatibility-environment.sh
 
       - name: Report the pinned iOS simulator runtime
+        env:
+          # The runtimes that matter here are the ones the iOS build can
+          # reach, so report from the Xcode that runs it.
+          DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
         run: |
           set -euo pipefail
-          xcrun simctl list runtimes | tee "$RUNNER_TEMP/simulator-runtimes.txt"
+          xcodebuild -version | tee "$RUNNER_TEMP/simulator-runtimes.txt"
+          xcrun simctl list runtimes | tee -a "$RUNNER_TEMP/simulator-runtimes.txt"
 
       - name: Build and test the to-do demo
         run: scripts/ci/check-todo-demo.sh "$RUNNER_TEMP"

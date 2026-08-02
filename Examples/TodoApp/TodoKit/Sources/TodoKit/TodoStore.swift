@@ -142,11 +142,15 @@ extension TodoDatabase {
             )
             let schema = XLSchema()
             let table = schema.table(Todo.self)
-            let rows = try scope.makeRequest(
-                with: insert(table)
-                    .values(Todo.MetaInsert(todo))
-                    .returning(table)
-            ).fetchAll()
+            // The statement goes in a local rather than inline in the
+            // `makeRequest` call. Swift 6.0 segfaults on the inline form --
+            // see COMPATIBILITY.md, "Swift 6.0 crashes on a statement built
+            // inline in a fetched request". Every fetched request in this
+            // file is written this way for that reason.
+            let statement = insert(table)
+                .values(Todo.MetaInsert(todo))
+                .returning(table)
+            let rows = try scope.makeRequest(with: statement).fetchAll()
             guard let written = rows.first else {
                 throw TodoStoreError.todoNotFound(todo.id)
             }
@@ -224,13 +228,12 @@ extension TodoDatabase {
     public func setCompleted(_ isCompleted: Bool, todoID id: TodoUUID) throws -> Todo {
         let schema = XLSchema()
         let table = schema.into(Todo.self)
+        let statement = update(table)
+            .set { row in row.isCompleted = isCompleted }
+            .where(table.id == id)
+            .returning(schema.table(Todo.self))
         return try written(
-            database.makeRequest(
-                with: update(table)
-                    .set { row in row.isCompleted = isCompleted }
-                    .where(table.id == id)
-                    .returning(schema.table(Todo.self))
-            ).fetchAll(),
+            database.makeRequest(with: statement).fetchAll(),
             or: id
         )
     }
@@ -244,12 +247,11 @@ extension TodoDatabase {
             }
             let schema = XLSchema()
             let table = schema.into(Todo.self)
-            let rows = try scope.makeRequest(
-                with: update(table)
-                    .set { row in row.isCompleted = !current.isCompleted }
-                    .where(table.id == id)
-                    .returning(schema.table(Todo.self))
-            ).fetchAll()
+            let statement = update(table)
+                .set { row in row.isCompleted = !current.isCompleted }
+                .where(table.id == id)
+                .returning(schema.table(Todo.self))
+            let rows = try scope.makeRequest(with: statement).fetchAll()
             guard let written = rows.first else {
                 throw TodoStoreError.todoNotFound(id)
             }
@@ -268,11 +270,10 @@ extension TodoDatabase {
             ).execute()
 
             let table = schema.into(Todo.self)
-            let rows = try scope.makeRequest(
-                with: delete(table)
-                    .where(table.id == id)
-                    .returning(schema.table(Todo.self))
-            ).fetchAll()
+            let statement = delete(table)
+                .where(table.id == id)
+                .returning(schema.table(Todo.self))
+            let rows = try scope.makeRequest(with: statement).fetchAll()
             guard let removed = rows.first else {
                 throw TodoStoreError.todoNotFound(id)
             }
@@ -323,15 +324,14 @@ extension TodoDatabase {
                 in: scope
             )
             let moved = schema.into(Todo.self)
-            let rows = try scope.makeRequest(
-                with: update(moved)
-                    .set { row in
-                        row.listID = destinationID
-                        row.position = destinationPosition
-                    }
-                    .where(moved.id == todoID)
-                    .returning(schema.table(Todo.self))
-            ).fetchAll()
+            let statement = update(moved)
+                .set { row in
+                    row.listID = destinationID
+                    row.position = destinationPosition
+                }
+                .where(moved.id == todoID)
+                .returning(schema.table(Todo.self))
+            let rows = try scope.makeRequest(with: statement).fetchAll()
             guard let written = rows.first else {
                 throw TodoStoreError.todoNotFound(todoID)
             }

@@ -77,6 +77,154 @@ private func makeColumnsMemberTestMacros() -> [String: Macro.Type] {
 }
 
 
+// MARK: - Sendable conformance (issue #531)
+
+// Gated to match the macro (see `makeSendableExtension`): Swift 5.9 treats a macro-expanded
+// extension as a separate source file for the rule that a `Sendable` conformance must be declared
+// alongside its type, so the conformance is generated on Swift 6.0 and later only.
+#if compiler(>=6.0)
+
+
+///
+/// Reduces each generated extension to its signature -- extended type, conformances, and generic
+/// `where` clause -- discarding the member block.
+///
+/// The `Sendable` extension is one of several the macros return, and the other two carry the
+/// entire generated metadata surface. Asserting on signatures keeps a conformance test about
+/// conformances while still showing that the new extension is *added to* the existing ones rather
+/// than replacing or reordering them.
+///
+private func extensionSignatures(
+    _ extensions: [ExtensionDeclSyntax]
+) throws -> [ExtensionDeclSyntax] {
+    try extensions.map { declaration in
+        let inheritance = declaration.inheritanceClause?.trimmedDescription ?? ""
+        let whereClause = declaration.genericWhereClause.map { " \($0.trimmedDescription)" } ?? ""
+        let source = "extension \(declaration.extendedType.trimmedDescription)\(inheritance)\(whereClause) {\n}"
+        guard let signature = ExtensionDeclSyntax(DeclSyntax(stringLiteral: source)) else {
+            throw SQLMacroError.invalidGeneratedCode
+        }
+        return signature
+    }
+}
+
+
+///
+/// Stands in for the compiler when the attached type does *not* already conform to `Sendable`.
+///
+/// `assertMacroExpansion` has no macro *declaration* to read a `conformances:` list from, so it
+/// always passes an empty protocol list. These wrappers supply the list the compiler would, which
+/// is the whole input the conformance decision turns on.
+///
+private struct SQLTableRequestingSendableMacro: ExtensionMacro {
+
+    static func expansion(
+        of node: AttributeSyntax,
+        attachedTo declaration: some DeclGroupSyntax,
+        providingExtensionsOf type: some TypeSyntaxProtocol,
+        conformingTo protocols: [TypeSyntax],
+        in context: some MacroExpansionContext
+    ) throws -> [ExtensionDeclSyntax] {
+        try extensionSignatures(
+            SQLTableMacro.expansion(
+                of: node,
+                attachedTo: declaration,
+                providingExtensionsOf: type,
+                conformingTo: [TypeSyntax(stringLiteral: "Sendable")],
+                in: context
+            )
+        )
+    }
+}
+
+
+/// Stands in for the compiler when the attached type already conforms to `Sendable`, which is how
+/// the compiler reports a declaration written `: Sendable` or `: @unchecked Sendable`.
+private struct SQLTableSatisfyingSendableMacro: ExtensionMacro {
+
+    static func expansion(
+        of node: AttributeSyntax,
+        attachedTo declaration: some DeclGroupSyntax,
+        providingExtensionsOf type: some TypeSyntaxProtocol,
+        conformingTo protocols: [TypeSyntax],
+        in context: some MacroExpansionContext
+    ) throws -> [ExtensionDeclSyntax] {
+        try extensionSignatures(
+            SQLTableMacro.expansion(
+                of: node,
+                attachedTo: declaration,
+                providingExtensionsOf: type,
+                conformingTo: [],
+                in: context
+            )
+        )
+    }
+}
+
+
+/// `@SQLResult`'s counterpart to `SQLTableRequestingSendableMacro`.
+private struct SQLResultRequestingSendableMacro: ExtensionMacro {
+
+    static func expansion(
+        of node: AttributeSyntax,
+        attachedTo declaration: some DeclGroupSyntax,
+        providingExtensionsOf type: some TypeSyntaxProtocol,
+        conformingTo protocols: [TypeSyntax],
+        in context: some MacroExpansionContext
+    ) throws -> [ExtensionDeclSyntax] {
+        try extensionSignatures(
+            SQLResultMacro.expansion(
+                of: node,
+                attachedTo: declaration,
+                providingExtensionsOf: type,
+                conformingTo: [TypeSyntax(stringLiteral: "Sendable")],
+                in: context
+            )
+        )
+    }
+}
+
+
+/// `@SQLResult`'s counterpart to `SQLTableSatisfyingSendableMacro`.
+private struct SQLResultSatisfyingSendableMacro: ExtensionMacro {
+
+    static func expansion(
+        of node: AttributeSyntax,
+        attachedTo declaration: some DeclGroupSyntax,
+        providingExtensionsOf type: some TypeSyntaxProtocol,
+        conformingTo protocols: [TypeSyntax],
+        in context: some MacroExpansionContext
+    ) throws -> [ExtensionDeclSyntax] {
+        try extensionSignatures(
+            SQLResultMacro.expansion(
+                of: node,
+                attachedTo: declaration,
+                providingExtensionsOf: type,
+                conformingTo: [],
+                in: context
+            )
+        )
+    }
+}
+
+
+private func makeSendableTestMacros() -> [String: Macro.Type] {
+    [
+        "SQLTable": SQLTableRequestingSendableMacro.self,
+        "SQLResult": SQLResultRequestingSendableMacro.self,
+    ]
+}
+
+private func makeAlreadySendableTestMacros() -> [String: Macro.Type] {
+    [
+        "SQLTable": SQLTableSatisfyingSendableMacro.self,
+        "SQLResult": SQLResultSatisfyingSendableMacro.self,
+    ]
+}
+
+#endif
+
+
 final class SQLMacroDiagnosticTests: XCTestCase {
 
     func test_missingTypeAnnotation_emitsError() {
@@ -1492,3 +1640,235 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("fields: [\(expectedFieldsExpression)].flatMap { $0 },"))
     }
 }
+
+
+#if compiler(>=6.0)
+// Issue #531: the model macros declare the model's `Sendable` conformance, so a value type built
+// from column values does not need it written out by hand at every public declaration.
+//
+// The assertions below run against extension *signatures* (see `extensionSignatures`), so they
+// read as a statement about conformances rather than about the metadata surface that happens to
+// travel in the same extensions.
+final class SQLMacroSendableConformanceTests: XCTestCase {
+
+    // The ordinary case: a public model of plain column types. The `Sendable` extension is added
+    // after the metadata extensions, which are themselves unchanged.
+    func test_sendableConformanceIsGeneratedWhenTheCompilerRequestsIt() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            public struct Person {
+                public var id: String
+                public var occupationId: String?
+                public var name: String
+                public var age: Int
+            }
+            """,
+            expandedSource: """
+            public struct Person {
+                public var id: String
+                public var occupationId: String?
+                public var name: String
+                public var age: Int
+            }
+
+            extension Person: XLResult {
+            }
+
+            extension Person: XLTable {
+            }
+
+            extension Person: Sendable {
+            }
+            """,
+            macros: makeSendableTestMacros()
+        )
+    }
+
+    // The compiler drops a conformance the declaration already states from the requested list, so
+    // a model written `: Sendable` (or `: @unchecked Sendable`, for a property whose safety its
+    // author vouches for) keeps its own conformance and gets no second, conflicting one.
+    func test_sendableConformanceIsOmittedWhenTheDeclarationAlreadyStatesIt() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            public struct Person: Sendable {
+                public var id: String
+                public var name: String
+            }
+            """,
+            expandedSource: """
+            public struct Person: Sendable {
+                public var id: String
+                public var name: String
+            }
+
+            extension Person: XLResult {
+            }
+
+            extension Person: XLTable {
+            }
+            """,
+            macros: makeAlreadySendableTestMacros()
+        )
+    }
+
+    // `@SQLResult` derives the conformance on the same terms as `@SQLTable`: a projection decoded
+    // from a row is as much a value type as the table row it came from.
+    func test_sendableConformanceIsGeneratedForResultTypes() {
+        assertMacroExpansion(
+            """
+            @SQLResult
+            public struct Projection {
+                public var id: Int
+                public var name: String?
+            }
+            """,
+            expandedSource: """
+            public struct Projection {
+                public var id: Int
+                public var name: String?
+            }
+
+            extension Projection: XLResult {
+            }
+
+            extension Projection: Sendable {
+            }
+            """,
+            macros: makeSendableTestMacros()
+        )
+    }
+
+    func test_sendableConformanceIsOmittedForResultTypesThatAlreadyStateIt() {
+        assertMacroExpansion(
+            """
+            @SQLResult
+            public struct Projection: Sendable {
+                public var id: Int
+            }
+            """,
+            expandedSource: """
+            public struct Projection: Sendable {
+                public var id: Int
+            }
+
+            extension Projection: XLResult {
+            }
+            """,
+            macros: makeAlreadySendableTestMacros()
+        )
+    }
+
+    // A generic model would need a *conditional* conformance, and an extension macro cannot write
+    // one: the compiler reports `circular reference expanding extension macros` because resolving
+    // the `where` clause needs the generic signature, which needs the type's extensions, which is
+    // what the macro is producing. So generic models are left as they were -- including SwiftQL's
+    // own public `#row` shapes, `SQLScalarResult<T>` and `SQLRow2<C0, C1>`...`SQLRow6`, whose
+    // parameters are constrained to `XLLiteral & XLExpression` and are not `Sendable` on their own
+    // account. This pins the exclusion, because the failure it prevents is a build error in the
+    // library itself rather than a warning anyone could overlook.
+    func test_sendableConformanceIsNotGeneratedForGenericResultTypes() {
+        assertMacroExpansion(
+            """
+            @SQLResult
+            public struct Pair<C0, C1> where C0: XLLiteral & XLExpression, C1: XLLiteral & XLExpression {
+                public var first: C0
+                public var second: C1
+            }
+            """,
+            expandedSource: """
+            public struct Pair<C0, C1> where C0: XLLiteral & XLExpression, C1: XLLiteral & XLExpression {
+                public var first: C0
+                public var second: C1
+            }
+
+            extension Pair: XLResult {
+            }
+            """,
+            macros: makeSendableTestMacros()
+        )
+    }
+
+    func test_sendableConformanceIsNotGeneratedForGenericTables() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            public struct Box<Value> where Value: XLLiteral & XLExpression {
+                public var id: Int
+                public var value: Value
+            }
+            """,
+            expandedSource: """
+            public struct Box<Value> where Value: XLLiteral & XLExpression {
+                public var id: Int
+                public var value: Value
+            }
+
+            extension Box: XLResult {
+            }
+
+            extension Box: XLTable {
+            }
+            """,
+            macros: makeSendableTestMacros()
+        )
+    }
+
+    // A `package` model is visible outside its module on the same terms as a `public` one, so the
+    // inference is withheld from it too and the macro supplies the conformance.
+    func test_sendableConformanceIsGeneratedForPackageModels() {
+        assertMacroExpansion(
+            """
+            @SQLResult
+            package struct Projection {
+                package var id: Int
+            }
+            """,
+            expandedSource: """
+            package struct Projection {
+                package var id: Int
+            }
+
+            extension Projection: XLResult {
+            }
+
+            extension Projection: Sendable {
+            }
+            """,
+            macros: makeSendableTestMacros()
+        )
+    }
+
+    // An `internal` model -- the default, and what most declarations in an app are -- already has
+    // a compiler-inferred conformance derived from its actual stored properties. Generating a
+    // second one adds nothing and can only take something away: an internal model holding a
+    // non-`Sendable` property would start being diagnosed where the inference simply declines to
+    // apply.
+    func test_sendableConformanceIsNotGeneratedForInternalModels() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            struct Person {
+                var id: String
+                var name: String
+            }
+            """,
+            expandedSource: """
+            struct Person {
+                var id: String
+                var name: String
+            }
+
+            extension Person: XLResult {
+            }
+
+            extension Person: XLTable {
+            }
+            """,
+            macros: makeSendableTestMacros()
+        )
+    }
+
+}
+#endif
