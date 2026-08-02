@@ -477,9 +477,22 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
     /// value performs no database work: only the first `next()` call (i.e.
     /// the first iteration attempt, whether via `for try await` or a manual
     /// `makeAsyncIterator().next()`) starts the GRDB observation.
+    ///
+    /// The closure captures `self` strongly, matching `GRDBLiveQueryAsyncBridge.stream()`. That is
+    /// not incidental: `AsyncThrowingStream`'s own `unfolding` wrapper resolves to `nil` *without
+    /// calling this closure* when the consuming task is already cancelled, and it releases the
+    /// closure at the same time. For the production bridge that release is what tears the
+    /// observation down -- the stream is the bridge's only owner, so the bridge deinits and its
+    /// `AnyDatabaseCancellable` cancels on deinit. A `[weak self]` capture here broke that model:
+    /// a cancellation landing *between* two `next()` calls never reached the bridge (the closure
+    /// was never entered) and never released it either, so the observation kept fetching. That is
+    /// issue #541, seen first as a 1-in-50 failure of
+    /// `testCancellingTheConsumingTaskCancelsTheUnderlyingObservation`.
+    ///
+    /// No retain cycle: the bridge holds no reference back to the stream.
     func stream() -> AsyncThrowingStream<Value, Error> {
-        AsyncThrowingStream(unfolding: { [weak self] in
-            try await self?.next()
+        AsyncThrowingStream(unfolding: {
+            try await self.next()
         })
     }
 }
@@ -812,10 +825,122 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         )
     }
 
-    func testCancellingTheConsumingTaskCancelsTheUnderlyingObservation() async throws {
+    /// Cancellation that lands *between* two `next()` calls must still stop the observation.
+    ///
+    /// The consumer parks in the loop body rather than inside `next()`, so this is the case
+    /// `AsyncThrowingStream`'s `unfolding` wrapper short-circuits: it resolves the next iteration to
+    /// `nil` without ever calling the bridge, so the bridge's own
+    /// `withTaskCancellationHandler(onCancel:)` never fires. What stops the observation instead is
+    /// the release of the unfolding closure -- the stream is the bridge's only owner, so the bridge
+    /// deinits and its `AnyDatabaseCancellable` cancels. Issue #541: while the prototype's
+    /// `stream()` captured `self` weakly, nothing tore it down on this path and the observation
+    /// kept fetching, which is what made
+    /// `testCancellingTheConsumingTaskCancelsTheUnderlyingObservation` fail roughly 1 run in 50.
+    func testCancellationBetweenNextCallsStillCancelsTheObservation() async throws {
+        let fetchCounter = LockedCounter()
+        // The stream is deliberately the bridge's only owner, exactly as in production
+        // (`GRDBRequest.stream()` hands its bridge straight to the returned stream).
+        let stream = makeBridge(fetchProbe: { fetchCounter.increment() }).stream()
+        let firstValue = XLAwaitableValue<Bool>()
+        let resumeLoopBody = XLAwaitableValue<Bool>()
+        let loopEnded = XLAwaitableValue<Bool>()
+
+        let task = Task {
+            do {
+                for try await _ in stream {
+                    firstValue.fulfill(true)
+                    // Parking here, rather than inside `next()`, is the whole point of this test.
+                    _ = await resumeLoopBody.wait()
+                }
+            }
+            catch {
+                XCTFail("Unexpected stream error: \(error)")
+            }
+            loopEnded.fulfill(true)
+        }
+
+        _ = await firstValue.wait()
+        task.cancel()
+        resumeLoopBody.fulfill(true)
+        _ = await loopEnded.wait()
+
+        let fetchCountAtCancel = fetchCounter.read()
+        try insert("after-cancel-between-next", 99)
+        await xlDrainMainQueue()
+        XCTAssertEqual(
+            fetchCounter.read(),
+            fetchCountAtCancel,
+            "A write after cancellation must not fetch, even when the cancellation landed between "
+                + "two next() calls."
+        )
+        // Holds the stream -- and so the bridge -- past the assertion. Without this, ARC is free to
+        // release it once the consuming task has ended, and the test would pass because the bridge
+        // deallocated rather than because cancellation tore the observation down.
+        withExtendedLifetime(stream) {}
+    }
+
+    /// Negative control for the test above: it must be able to fail.
+    ///
+    /// The teardown that test relies on is deallocation-driven -- the stream releases the unfolding
+    /// closure when the consuming task is cancelled, the bridge is then unreferenced, and its
+    /// `AnyDatabaseCancellable` cancels on deinit. So the way to reach the broken world is to break
+    /// the ownership rule rather than to break the code: this control keeps its own strong
+    /// reference to the bridge, which production has no way to do (`GRDBRequest.stream()` hands its
+    /// bridge straight to the stream and keeps nothing), and the observation then survives the
+    /// cancellation and fetches again.
+    ///
+    /// Reverting `stream()`'s capture to `[weak self]` is *not* a usable control here: with the
+    /// production ownership shape nothing would retain the bridge past `stream()` at all, so the
+    /// stream would vend nothing and the test would hang instead of failing -- the other failure
+    /// mode that capture's comment warns about.
+    ///
+    /// Constants are decoupled from the paired test's: a different row id and a different value.
+    func testNegativeControlARetainedBridgeKeepsObservingAfterCancellation() async throws {
         let fetchCounter = LockedCounter()
         let bridge = makeBridge(fetchProbe: { fetchCounter.increment() })
         let stream = bridge.stream()
+        let firstValue = XLAwaitableValue<Bool>()
+        let resumeLoopBody = XLAwaitableValue<Bool>()
+        let loopEnded = XLAwaitableValue<Bool>()
+
+        let task = Task {
+            do {
+                for try await _ in stream {
+                    firstValue.fulfill(true)
+                    _ = await resumeLoopBody.wait()
+                }
+            }
+            catch {
+                XCTFail("Unexpected stream error: \(error)")
+            }
+            loopEnded.fulfill(true)
+        }
+
+        _ = await firstValue.wait()
+        task.cancel()
+        resumeLoopBody.fulfill(true)
+        _ = await loopEnded.wait()
+
+        let fetchCountAtCancel = fetchCounter.read()
+        try insert("retained-bridge-after-cancel", 77)
+        await xlDrainMainQueue()
+
+        XCTAssertNotEqual(
+            fetchCounter.read(),
+            fetchCountAtCancel,
+            "Negative control: with an extra strong reference keeping the bridge alive, the "
+                + "observation must still be fetching -- otherwise the paired test's assertion "
+                + "cannot fail and proves nothing."
+        )
+        withExtendedLifetime((bridge, stream)) {}
+    }
+
+    func testCancellingTheConsumingTaskCancelsTheUnderlyingObservation() async throws {
+        let fetchCounter = LockedCounter()
+        // As in production, the stream owns the bridge (see `stream()`'s note): holding a separate
+        // strong reference here would keep the observation alive past a cancellation that landed
+        // between two `next()` calls, which is issue #541.
+        let stream = makeBridge(fetchProbe: { fetchCounter.increment() }).stream()
         let seen = LockedArray<Int>()
         let loopExpectation = expectation(description: "loop ends after task cancellation")
 
@@ -844,6 +969,9 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
             fetchCountAtCancel,
             "Cancelling the consuming task must cancel the underlying GRDB observation."
         )
+        // See the note in testCancellationBetweenNextCallsStillCancelsTheObservation: the stream
+        // must outlive the assertion, or a pass proves deallocation rather than cancellation.
+        withExtendedLifetime(stream) {}
     }
 
     // MARK: - Terminal error (edge case: terminal error)

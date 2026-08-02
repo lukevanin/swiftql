@@ -639,6 +639,59 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         )
     }
 
+    /// Cancellation that lands *between* two `next()` calls must still tear the observation down.
+    ///
+    /// The sibling test above cancels while the consumer is suspended inside `next()`, where
+    /// `GRDBLiveQueryAsyncBridge`'s own `withTaskCancellationHandler(onCancel:)` fires. This one
+    /// parks the consumer in the loop *body* instead, which is the case `AsyncThrowingStream`'s
+    /// `unfolding` wrapper short-circuits: the next iteration resolves to `nil` without ever
+    /// calling the bridge, so that handler never runs. What stops the observation instead is the
+    /// wrapper releasing the unfolding closure -- the stream is the bridge's only owner, so the
+    /// bridge deinits and its `AnyDatabaseCancellable` cancels on deinit, which is exactly why
+    /// `stream()` captures `self` strongly.
+    ///
+    /// Added by #541, where the same cancellation path left a prototype bridge fetching because it
+    /// captured `self` weakly. The production bridge was checked and found safe; this test is what
+    /// keeps it that way. `withExtendedLifetime(stream)` holds the stream past the assertion, so a
+    /// regression cannot hide behind the test's own scope ending.
+    func testCancellationBetweenNextCallsTearsDownObservation() async throws {
+        try createRecordTable()
+        let stream = database.makeRequest(with: orderedStatement()).stream()
+        let firstValue = XLAwaitableValue<Bool>()
+        let resumeLoopBody = XLAwaitableValue<Bool>()
+        let loopEnded = XLAwaitableValue<Bool>()
+
+        let task = Task {
+            do {
+                for try await _ in stream {
+                    firstValue.fulfill(true)
+                    // Parking here, rather than inside `next()`, is the whole point of this test.
+                    _ = await resumeLoopBody.wait()
+                }
+            }
+            catch {
+                XCTFail("Unexpected stream error: \(error)")
+            }
+            loopEnded.fulfill(true)
+        }
+
+        _ = await firstValue.wait()
+        task.cancel()
+        resumeLoopBody.fulfill(true)
+        _ = await loopEnded.wait()
+
+        let fetchCountAtCancel = logger.count(containing: "stream:")
+        try insertDirect(AsyncStreamRecord(id: "after-cancel-between-next", value: 1))
+        await drainMainQueue()
+        XCTAssertEqual(
+            logger.count(containing: "stream:"),
+            fetchCountAtCancel,
+            "A write after cancellation must not fetch, even when the cancellation landed between "
+                + "two next() calls."
+        )
+        withExtendedLifetime(stream) {}
+    }
+
     func testCancellationBeforeFirstNextPreventsAnyFetch() async throws {
         try createRecordTable()
         let stream = database.makeRequest(with: orderedStatement()).stream()
