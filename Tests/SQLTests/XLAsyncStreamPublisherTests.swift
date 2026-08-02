@@ -742,11 +742,14 @@ final class XLAsyncStreamPublisherTests: XCTestCase {
         let subscriber = RecordingSubscriber<Int>(initialDemand: .unlimited)
 
         await startConsuming(publisher, with: subscriber)
+        await consumeStartupDemandUnit()
         source.yield(1)
         await events.wait(for: .delivered)
         // Waiting for the *next* demand unit to be consumed puts the consumer loop provably inside
         // `next()` before cancelling, which is the case under test: cancellation resolves `next()`
-        // to nil, and a naive bridge would forward that as `.finished`.
+        // to nil, and a naive bridge would forward that as `.finished`. The startup unit consumed
+        // above is what makes this wait refer to that second pull rather than resolving against the
+        // first one, still buffered in the recorder.
         await events.wait(for: .demandUnitConsumed)
 
         subscriber.cancel()
@@ -1101,6 +1104,7 @@ final class XLAsyncStreamPublisherTests: XCTestCase {
         let subscriber = RecordingSubscriber<Int>(initialDemand: .unlimited)
 
         await startConsuming(publisher, with: subscriber)
+        await consumeStartupDemandUnit()
         source.yield(951)
         await events.wait(for: .delivered)
         await events.wait(for: .demandUnitConsumed)
@@ -1171,6 +1175,7 @@ final class XLAsyncStreamPublisherTests: XCTestCase {
         let subscriber = RecordingSubscriber<Int>(initialDemand: .unlimited)
 
         await startConsuming(publisher, with: subscriber)
+        await consumeStartupDemandUnit()
         source.yield(971)
         await events.wait(for: .delivered)
         await events.wait(for: .demandUnitConsumed)
@@ -1222,6 +1227,7 @@ final class XLAsyncStreamPublisherTests: XCTestCase {
         let subscriber = RecordingSubscriber<Int>(initialDemand: .unlimited)
 
         await startConsuming(publisher, with: subscriber)
+        await consumeStartupDemandUnit()
         source.yield(991)
         await events.wait(for: .delivered)
         await events.wait(for: .demandUnitConsumed)
@@ -1316,6 +1322,16 @@ final class XLAsyncStreamPublisherTests: XCTestCase {
         publisher.receive(subscriber: subscriber)
         await events.fenceOnConsumerTaskStart()
         await events.wait(for: .streamCreated)
+    }
+
+    /// Consumes the demand unit the consumer loop takes at startup, before any value exists.
+    ///
+    /// A subscriber with demand outstanding at subscribe time makes the loop consume a unit and call
+    /// `next()` immediately, so `.demandUnitConsumed` is already in the recorder before the test
+    /// yields anything. Consuming it here is what lets a later `.demandUnitConsumed` wait mean "the
+    /// loop went back around and re-entered `next()`" rather than resolving against that first one.
+    private func consumeStartupDemandUnit() async {
+        await events.wait(for: .demandUnitConsumed)
     }
 
     /// Runs an independent subscription all the way from subscribing to a delivered value.
