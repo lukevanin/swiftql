@@ -166,6 +166,20 @@ for My Mac, and step through it.
 Each page prints its results and states the output it expects next to the code
 producing it, so you can change a query and see immediately what moved.
 
+### Read an application
+
+[The to-do demo](Examples/TodoApp/README.md) is a SwiftUI app for iOS 17 and
+macOS 14 whose entire data layer is SwiftQL. It shows the parts a guide covers
+one at a time working together: a four-table schema with a many-to-many join,
+declared `@SQLQuery` reads including a join and a grouped aggregate, one query
+serving every filter, sort, and search combination, writes that return their
+row through `RETURNING`, an atomic move between lists, and an interface fed
+entirely by live queries — completing a to-do updates the list and the sidebar
+counts with no reload call anywhere. Queries are checked against a schema
+snapshot at build time, and 62 tests cover the query layer.
+
+Open `Examples/TodoApp/TodoApp.xcodeproj` and run the **TodoApp** scheme.
+
 ## What's new
 
 [WHATSNEW.md](WHATSNEW.md) describes each release in plain language — what you
