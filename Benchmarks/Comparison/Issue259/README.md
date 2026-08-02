@@ -260,62 +260,69 @@ python3 -m unittest discover -s Benchmarks/Comparison/Issue259 -p 'test_*.py'
 ## Recorded prototype results
 
 [`2026-08-02-mac16-8.json`](2026-08-02-mac16-8.json) was recorded at
-`2026-08-01T22:46:33Z` from clean SwiftQL revision
-`106ad457bd3f0531e402157028364bee09380005`, after the release build and a
+`2026-08-02T09:15:28Z` from clean SwiftQL revision
+`d996b71227564420eb59575985c64b7e9c50177b`, after the release build and a
 60-second cooldown. It links 27 raw sample TSVs and 27 `/usr/bin/time -l`
 resource logs under [`Runs/`](Runs/), preserving all 2,700 timed samples and
 their verified SHA-256 values. The graph pins GRDB 6.29.3, SQLite.swift 0.16.0,
 SwiftSyntax 509.1.1, and OpenCombine 0.14.0.
 
 The run used a Mac16,8 with Apple M4 Pro, 14 cores, 24 GiB memory, arm64
-macOS 26.5.1 (25F80), Xcode 26.5, Swift 6.3.2, and system SQLite 3.51.0.
+macOS 26.5.1 (25F80), Xcode 26.5, Swift 6.3.2, and system SQLite 3.51.0. The
+host was doing other work at the time, which shows up in the point-lookup
+spreads below and is the reason those rows carry no conclusion.
 
 ### `point_lookup`
 
 | Implementation | API tier | Median | p95 | Lookups/s | Process spread | Peak RSS |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| GRDB | typed record request | 51.92 us | 58.04 us | 19,262 | 3.0% | 9.9 MiB |
-| SQLite.swift | typed query builder | 35.29 us | 39.83 us | 28,335 | 3.7% | 9.0 MiB |
-| SwiftQL | typed declared query | 44.33 us | 53.58 us | 22,557 | 6.3% | 10.8 MiB |
+| GRDB | typed record request | 35.94 us | 53.83 us | 27,826 | 48.9% | 10.0 MiB |
+| SQLite.swift | typed query builder | 24.81 us | 31.29 us | 40,302 | 24.1% | 9.0 MiB |
+| SwiftQL | typed declared query | 29.33 us | 34.92 us | 34,091 | 99.8% | 10.7 MiB |
 
 ### `join_aggregate`
 
 | Implementation | API tier | Median | p95 | Queries/s | Process spread | Peak RSS |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| GRDB | raw SQL row mapping | 9.86 ms | 10.12 ms | 101 | 2.0% | 16.9 MiB |
-| SQLite.swift | typed query builder | 9.71 ms | 9.94 ms | 103 | 1.1% | 16.0 MiB |
-| SwiftQL | typed query builder | 10.23 ms | 10.49 ms | 98 | 0.4% | 18.5 MiB |
+| GRDB | raw SQL row mapping | 6.23 ms | 6.47 ms | 161 | 2.2% | 16.3 MiB |
+| SQLite.swift | typed query builder | 6.23 ms | 6.66 ms | 161 | 2.3% | 16.0 MiB |
+| SwiftQL | typed query builder | 6.49 ms | 7.05 ms | 154 | 1.9% | 17.8 MiB |
 
 ### `transactional_write`
 
 | Implementation | API tier | Median | p95 | Rows/s | Process spread | Peak RSS |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| GRDB | typed persistable record | 620.35 us | 730.46 us | 161,198 | 2.0% | 9.3 MiB |
-| SQLite.swift | typed query builder | 1.04 ms | 1.16 ms | 96,119 | 5.2% | 8.5 MiB |
-| SwiftQL | typed transaction scope | 1.50 ms | 1.67 ms | 66,880 | 1.2% | 10.3 MiB |
+| GRDB | typed persistable record | 409.90 us | 482.00 us | 243,964 | 11.2% | 9.3 MiB |
+| SQLite.swift | typed query builder | 653.31 us | 713.50 us | 153,066 | 6.5% | 8.4 MiB |
+| SwiftQL | typed transaction scope | 909.08 us | 984.58 us | 110,001 | 0.8% | 10.3 MiB |
 
 ### What these three prototypes showed
 
-The point lookup separates the three libraries by 20-45%, against process
-spreads of 3-6%, so the ordering is outside noise on this host. That is the
-result which most justifies building the family, because the full-fetch baseline
-amortises every per-call cost over 16,143 rows and cannot see it at all. The
-point lookup also exercises binding, which the baseline never does.
+**`transactional_write` is the one result this run supports.** SwiftQL is 2.2x
+GRDB on the same 100-row batch, against process spreads of 0.8% and 11.2%, so
+the gap is far outside anything the noise could produce. `sqlInsert(_:)` builds
+a fresh insert statement per row inside the transaction scope where GRDB's
+`PersistableRecord.insert` reuses a cached statement. This is a workload-design
+finding rather than a regression: no earlier measurement of this path exists to
+regress against, which is precisely the gap the family fills, since the
+full-fetch baseline contains no write at all.
 
-The join/aggregate separates them by 5% against spreads of 0.4-2%. The work is
-dominated by SQLite scanning 16,143 rows and grouping them, so which API the
-caller used barely registers. That is itself worth recording: a workload whose
-cost is dominated by the engine discriminates poorly between libraries, and this
-family is worth implementing for its semantic coverage (joins, grouping, NULL
-groups, aggregate representation) rather than as a speed comparison.
+**`point_lookup` carries no ordering conclusion from this run.** The medians
+separate the three libraries by 18-45%, but SwiftQL's process spread is 99.8%
+and GRDB's is 48.9%, so the spreads swallow the differences. What the run does
+establish is that the contract is implementable and its oracle holds while a
+different key is bound on every iteration, which is the thing that had to be
+proven before the family is worth building. The family is worth building because
+it exercises binding and per-call overhead at all, not because of any ordering
+visible here. Establishing an ordering needs a quiet host and more processes,
+which is #509's job.
 
-The transactional write separates SwiftQL from GRDB by 2.4x, far outside the
-1-5% spreads. SwiftQL's `sqlInsert(_:)` builds a fresh insert statement per row
-inside the transaction scope, where GRDB's `PersistableRecord.insert` reuses a
-cached statement. That is a reproducible cost on the write path and exactly the
-kind of thing the full-fetch baseline was never going to surface. It is
-reported here as a workload-design finding rather than a regression, since no
-earlier measurement of this path exists to regress against.
+**`join_aggregate` is engine-dominated, as expected.** The three libraries land
+within 4% of each other against 1.9-2.3% spreads, because SQLite scanning and
+grouping 16,143 rows dominates whatever the caller's API did. Recording that is
+useful: this family discriminates poorly between libraries and should be built
+for its semantic coverage (joins, grouping, NULL groups, aggregate
+representation) rather than as a speed comparison.
 
 Peak RSS is the whole process, including the executable, its dependency graph,
 the connection, and retained results, so it is not an allocation attributable to
@@ -336,8 +343,10 @@ milestone, with the ordering recorded as GitHub dependencies.
    and an API-tier record. Every family below needs those, so they belong in one
    place.
 2. **[#509](https://github.com/lukevanin/swiftql/issues/509) `point_lookup`.**
-   Cheapest to make fair, the only family that exercises binding, and the one
-   with the clearest separation between libraries.
+   Cheapest to make fair, and the only family that exercises binding or per-call
+   overhead at all. The recorded run proves the contract and its per-key oracle
+   work; establishing an ordering between libraries needs a quiet host and more
+   processes than a prototype run.
 3. **[#510](https://github.com/lukevanin/swiftql/issues/510)
    `transactional_write`.** The existing baseline has no write path at all, and
    transaction boundaries are the part of a database API most likely to differ
@@ -358,7 +367,8 @@ milestone, with the ordering recorded as GitHub dependencies.
 
 Do not build a single aggregate score across these families. Each one answers a
 different question, and a library that wins the point lookup can lose the write
-without either result being wrong.
+without either result being wrong. Build #509 before #512 and #514, which both
+reuse its contract.
 
 ## Limits
 
@@ -367,8 +377,14 @@ machine, with 10 warmups and 100 timed samples each, and retains every raw
 sample. That is enough to establish that the contracts are implementable and
 that their oracles hold; it is not enough to declare a winner. Read the process
 spread column before reading any difference: a gap smaller than the larger of
-the two spreads being compared is noise on this host, and this project's
-benchmark machine is documented as noisy.
+the two spreads being compared is noise on this host.
+
+The recorded run makes that concrete. Its point-lookup spreads reach 99.8%,
+because the host was building other things at the time, so those medians support
+no ordering at all even though they look neatly separated. Only the
+transactional-write gap survives its own spread by enough to mean something.
+Three processes is a prototype sample size, not a baseline one, and this
+project's benchmark machine is documented as noisy.
 
 Nothing in this directory is a baseline, a threshold, or a CI gate. The #250
 report remains the only recorded cross-library baseline.

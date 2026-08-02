@@ -13,6 +13,6 @@
                    0  signals received
                    0  voluntary context switches
                   14  involuntary context switches
-            87590843  instructions retired
-            28660966  cycles elapsed
-             3228056  peak memory footprint
+            87927261  instructions retired
+            28207762  cycles elapsed
+             3178856  peak memory footprint
