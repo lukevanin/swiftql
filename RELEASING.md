@@ -208,7 +208,16 @@ the milestone actually shipped, and correct:
 - **"Where the correspondence is not exact" in PortingFromSQL.** This restates
   the conformance inventory's gaps and must agree with it exactly. Update it
   from the inventory, not from recollection.
-- **Version numbers** in the installation instructions.
+- **Version numbers** in the installation instructions. The claim about which
+  version is published lives in six places, and every one of them ships stale
+  if it is missed: README.md, `Sources/SwiftQL/SwiftQL.docc/GettingStarted.md`,
+  `Sources/SwiftQL/SwiftQL.docc/SwiftQL.md`, SKILL.md's front-matter
+  description and its body, and Website/index.html. Bump them together.
+  `SQLDocumentationCatalogTests.testV13PublicDocumentsShareReleaseAndBoundaryContract`
+  and `SQLSkillDocumentationTests` pin the exact strings, so the pins move in
+  the same change — a bump that updates the prose but not the test fails the
+  suite, and one that updates neither passes it while shipping the wrong
+  number.
 
 The landing page at [Website/index.html](Website/index.html) restates the
 tagline, the comparison table, the "Choose something else when" list, and the

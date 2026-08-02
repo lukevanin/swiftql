@@ -40,6 +40,7 @@ numericdatecodecs|Numeric Date Codecs
 queries|Select Queries
 realvalues|Real Values
 staticqueries|Static queries
+tododemo|The to-do demo
 ARTICLES
 
     check_tutorials "$output"

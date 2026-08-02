@@ -282,7 +282,10 @@ It always returns a `Double`, ignores individual NULL values, and returns `0.0`
 for empty or all-NULL input. Existing `sum()` and `sumOrNull()` behavior is
 unchanged.
 
-Use `all().count()` when NULL values must still contribute to the row count.
+Use `all().count()` when NULL values must still contribute to the row count. It
+is the method-style spelling v1.5.4 introduced, and it replaces the free
+function `count(_:)`: `count(all())` becomes `all().count()`. The free function
+still compiles with a deprecation warning and will be removed in SwiftQL 2.
 
 <!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift

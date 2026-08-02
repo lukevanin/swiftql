@@ -30,6 +30,13 @@ research-only schema-snapshot preparation prototype. Applications still own
 their schema lifecycle and perform physical preparation on the runtime
 connection that executes each statement.
 
+The build-time validator v1.5.2 shipped from that research does not change
+either point. It prepares a manifest of declared queries against a checked-in
+schema snapshot during the build and finalizes each statement immediately, so
+runtime preparation on the executing connection still happens exactly as
+described here. See <doc:StaticQueries> for what a successful validation does
+and does not prove.
+
 ## Requests, layouts, and packets
 
 Requests retain the generated SQL and an immutable `XLParameterLayout`. The
