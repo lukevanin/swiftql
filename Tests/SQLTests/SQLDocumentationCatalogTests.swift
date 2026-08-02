@@ -278,11 +278,27 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                     let path = String(
                         line.dropFirst("<!-- source: ".count).dropLast(" -->".count)
                     )
+                    // The contract says repository-relative. Enforce it,
+                    // rather than letting an absolute path or a `..` hop
+                    // quietly read something outside the repository and
+                    // still pass.
+                    XCTAssertFalse(
+                        path.hasPrefix("/"),
+                        "\(article):\(lineNumber) source path must be repository-relative: \(path)"
+                    )
+                    XCTAssertFalse(
+                        path.components(separatedBy: "/").contains(".."),
+                        "\(article):\(lineNumber) source path must not traverse upwards: \(path)"
+                    )
                     XCTAssertTrue(
                         FileManager.default.fileExists(
                             atPath: repositoryRoot.appendingPathComponent(path).path
                         ),
                         "\(article):\(lineNumber) points at a file that does not exist: \(path)"
+                    )
+                    XCTAssertNil(
+                        pendingSource,
+                        "\(article):\(lineNumber) follows a source marker that never reached a Swift fence."
                     )
                     pendingSource = (path, lineNumber)
                     continue
@@ -299,6 +315,13 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             }
 
             XCTAssertNil(fence, "\(article) has an unterminated code fence.")
+            // A marker that never reached a Swift fence -- a typo, or one
+            // left above a sql or text block -- would otherwise be silently
+            // ignored, and the excerpt it was meant to guard unchecked.
+            XCTAssertNil(
+                pendingSource,
+                "\(article) has a source marker with no Swift example after it."
+            )
             XCTAssertGreaterThan(
                 checkedExcerpts,
                 0,
