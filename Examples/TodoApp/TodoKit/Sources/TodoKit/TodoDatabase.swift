@@ -18,27 +18,45 @@ public final class TodoDatabase {
 
     /// Opens the database, creating and seeding it the first time only.
     ///
-    /// The schema and the seed rows go in together, in one transaction, so a
-    /// failure part-way through leaves no half-built database for the next
-    /// launch to mistake for a finished one.
+    /// Both steps run in one transaction, and both ask the database rather
+    /// than the file system what state it is in. Opening a connection is what
+    /// creates the file, so "does the file exist" answers `true` even for a
+    /// database whose schema never got written — after a crash between the
+    /// two, say. `sqlCreate` is `CREATE TABLE IF NOT EXISTS`, so running it
+    /// every time costs nothing and repairs that case; seeding then keys off
+    /// whether there are any lists, which only an unseeded database answers
+    /// `no` to.
     public init(url: URL, referenceDate: Date = Date()) throws {
-        let fileManager = FileManager.default
-        try fileManager.createDirectory(
+        try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        let isFirstLaunch = !fileManager.fileExists(atPath: url.path)
 
         self.url = url
         database = try GRDBDatabase(url: url, logger: nil)
-        didSeed = isFirstLaunch
-
-        if isFirstLaunch {
-            try database.withTransaction { scope in
-                try Self.createSchema(in: scope)
-                try Self.insert(TodoSeed(referenceDate: referenceDate), in: scope)
+        didSeed = try database.withTransaction { scope in
+            try Self.createSchema(in: scope)
+            guard try Self.isUnseeded(scope) else {
+                return false
             }
+            try Self.insert(TodoSeed(referenceDate: referenceDate), in: scope)
+            return true
         }
+    }
+
+    /// Whether the database holds no lists yet.
+    ///
+    /// A plain request rather than the declared `todoLists()` read: a
+    /// generated executor opens a transaction of its own, and SwiftQL rejects
+    /// a nested one with `XLTransactionScopeError.nestedTransactionUnsupported`.
+    private static func isUnseeded(_ scope: GRDBDatabase) throws -> Bool {
+        let anyList = sql { schema in
+            let list = schema.table(TodoList.self)
+            Select(list)
+            From(list)
+            Limit(1)
+        }
+        return try scope.makeRequest(with: anyList).fetchOne() == nil
     }
 
     /// Opens the demo's durable database in Application Support.

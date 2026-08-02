@@ -56,6 +56,24 @@ final class TodoDatabaseTests: XCTestCase {
         XCTAssertEqual(try todos(in: second).count, 5)
     }
 
+    func testAnEmptyFileLeftByAnInterruptedFirstOpenIsRepaired() throws {
+        // Opening a connection creates the file, so a crash between that and
+        // the seed transaction leaves a file with no schema behind. The next
+        // open has to build it rather than treat the file's existence as
+        // proof the database is ready.
+        let url = databaseURL()
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        FileManager.default.createFile(atPath: url.path, contents: Data())
+
+        let database = try TodoDatabase(url: url, referenceDate: referenceDate)
+
+        XCTAssertTrue(database.didSeed)
+        XCTAssertEqual(try todos(in: database).count, 6)
+    }
+
     // MARK: - Value round trip
 
     func testIdentifiersAndDatesSurviveAWriteAndARead() throws {
