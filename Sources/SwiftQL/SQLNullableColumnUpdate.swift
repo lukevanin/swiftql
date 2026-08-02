@@ -29,13 +29,38 @@ public struct XLNullExpression<Wrapped>: XLExpression {
 
 
 ///
-/// Records the value assigned to a nullable column in an update statement.
+/// The state of one non-nullable column in an update statement's `SET`
+/// clause.
+///
+/// Generated `MetaUpdate` types store one slot per column and route
+/// `row.column = expression` assignments to it through key-path member
+/// lookup. A slot whose `expression` is `nil` takes no part in the `SET`
+/// clause.
+///
+public struct XLColumnUpdate<Wrapped> {
+
+    /// The expression assigned to the column, or `nil` when the column is
+    /// left out of the `SET` clause.
+    public var expression: (any XLExpression<Wrapped>)?
+
+    /// Creates a slot that leaves the column out of the `SET` clause.
+    public init() {
+        self.expression = nil
+    }
+}
+
+
+///
+/// The state of one nullable column in an update statement's `SET` clause.
 ///
 /// A nullable column has two independent pieces of state: whether the column
-/// takes part in the `SET` clause at all, and — if it does — whether the value
-/// it is set to is `NULL`. Reusing `Optional` for both makes them collide, so
-/// this wrapper tracks participation separately from the value. That lets a
-/// nullable column be assigned the same way an ordinary Swift optional is:
+/// takes part in the `SET` clause at all, and — if it does — whether the
+/// value it is set to is `NULL`. Reusing `Optional` for both makes them
+/// collide, so this slot tracks participation separately from the value.
+/// Generated `MetaUpdate` types store one slot per nullable column and route
+/// assignments to it through overloaded key-path member subscripts, which is
+/// what lets a nullable column be assigned the same way an ordinary Swift
+/// optional is:
 ///
 /// ```swift
 /// Setting(person) { row in
@@ -44,67 +69,57 @@ public struct XLNullExpression<Wrapped>: XLExpression {
 /// }
 /// ```
 ///
-/// A column that is never assigned stays out of the statement entirely.
+/// An expression whose own type is already optional — a
+/// `XLNamedBindingReference<String?>` whose bound value may be `NULL` at
+/// runtime, or another nullable column — assigns the same way, through the
+/// slot's ``optionalExpression``. A column that is never assigned stays out
+/// of the statement entirely.
 ///
-/// The wrapped value is an expression of the column's *wrapped* type, so
-/// literals and non-optional expressions assign directly. To assign an
-/// expression that is itself optional-typed — a `XLNamedBindingReference<T?>`
-/// whose bound value may be `NULL` at runtime, or another nullable column —
-/// assign to the projected value instead:
-///
-/// ```swift
-/// let occupation = XLNamedBindingReference<String?>(name: "occupationId")
-/// Setting(person) { row in
-///     row.$occupationId = occupation
-/// }
-/// ```
-///
-@propertyWrapper
 public struct XLNullableColumnUpdate<Wrapped> {
 
     private var wrappedExpression: (any XLExpression<Wrapped>)?
 
-    private var optionalExpression: (any XLExpression<Optional<Wrapped>>)?
+    private var storedExpression: (any XLExpression<Optional<Wrapped>>)?
 
     private var isAssigned: Bool
 
-    /// Creates an assignment that leaves the column out of the `SET` clause.
+    /// Creates a slot that leaves the column out of the `SET` clause.
     public init() {
         self.wrappedExpression = nil
-        self.optionalExpression = nil
+        self.storedExpression = nil
         self.isAssigned = false
     }
 
-    /// The expression assigned to the column, as an expression of the column's
-    /// wrapped type.
+    /// The expression assigned to the column, as an expression of the
+    /// column's wrapped type.
     ///
     /// Assigning `nil` sets the column to SQL `NULL`; it does not remove the
-    /// column from the statement. Reading returns `nil` both for a column that
-    /// was never assigned and for one assigned an optional-typed expression
-    /// through ``projectedValue``.
-    public var wrappedValue: (any XLExpression<Wrapped>)? {
+    /// column from the statement. Reading returns `nil` both for a column
+    /// that was never assigned and for one assigned an optional-typed
+    /// expression through ``optionalExpression``.
+    public var expression: (any XLExpression<Wrapped>)? {
         get {
             wrappedExpression
         }
         set {
             wrappedExpression = newValue
-            optionalExpression = newValue?.toNullable()
+            storedExpression = newValue?.toNullable()
             isAssigned = true
         }
     }
 
-    /// The expression assigned to the column, as an optional-typed expression.
+    /// The expression assigned to the column, as an optional-typed
+    /// expression.
     ///
-    /// Use this to assign an expression whose own type is already optional,
-    /// which the wrapped value cannot accept. Assigning `nil` here sets the
-    /// column to SQL `NULL`, the same as assigning `nil` to the wrapped value.
-    public var projectedValue: (any XLExpression<Optional<Wrapped>>)? {
+    /// Assigning `nil` here sets the column to SQL `NULL`, the same as
+    /// assigning `nil` to ``expression``.
+    public var optionalExpression: (any XLExpression<Optional<Wrapped>>)? {
         get {
-            optionalExpression
+            storedExpression
         }
         set {
             wrappedExpression = nil
-            optionalExpression = newValue
+            storedExpression = newValue
             isAssigned = true
         }
     }
@@ -120,6 +135,6 @@ public struct XLNullableColumnUpdate<Wrapped> {
         guard isAssigned else {
             return nil
         }
-        return optionalExpression ?? XLNullExpression<Wrapped>()
+        return storedExpression ?? XLNullExpression<Wrapped>()
     }
 }

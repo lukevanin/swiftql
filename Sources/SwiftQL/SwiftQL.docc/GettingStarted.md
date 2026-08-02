@@ -433,11 +433,10 @@ statement. A column the closure never assigns takes no part in the `SET`
 clause and keeps whatever value the row already held, which is why an update
 that sets only `age` leaves `occupationId` alone.
 
-The value you assign is an expression of the column's *wrapped* type, so
-literals, column references, and `XLNamedBindingReference<String>` all assign
-directly. To assign an expression that is itself optional-typed — a binding
-whose bound value may be `NULL` at runtime, or another nullable column —
-assign to the projected value with `$` instead:
+Any expression of the column's wrapped type (`String`) or of its optional
+type (`String?`) assigns the same way — literals, plain values, column
+references, and named bindings included. A binding whose runtime value may be
+`NULL` needs no special spelling:
 
 <!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
@@ -447,7 +446,7 @@ let bindOccupationStatement = sql { schema in
     let person = schema.into(Person.self)
     Update(person)
     Setting(person) { row in
-        row.$occupationId = occupationParameter
+        row.occupationId = occupationParameter
     }
     Where(person.id == "fred")
 }
