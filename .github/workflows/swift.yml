@@ -810,8 +810,13 @@ jobs:
           status=0
           scripts/ci/check-playground-pages.sh \
             "$RUNNER_TEMP/swiftql-playground" || status=$?
-          cat "$RUNNER_TEMP/swiftql-playground/summary.md" \
-            >> "$GITHUB_STEP_SUMMARY"
+          summary="$RUNNER_TEMP/swiftql-playground/summary.md"
+          if [[ -f "$summary" ]]; then
+            cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf 'check-playground-pages.sh exited %s before writing a summary.\n' \
+              "$status" >> "$GITHUB_STEP_SUMMARY"
+          fi
           exit "$status"
 
       # The per-page transcript is the evidence for what each page actually
