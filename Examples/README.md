@@ -106,14 +106,6 @@ The live-queries page drives the main run loop instead, with
 there lives in a `Task` owned by a view model and nothing waits on the main
 thread.
 
-Assigning a nullable column in a `Setting` closure has a non-obvious spelling.
-The generated setter's type is `Optional<any XLExpression<T?>>`, where the
-outer `Optional` means "leave this column out of the `SET` clause", and that
-collides with the value's own optionality. `toNullable()` lifts a non-optional
-value expression into that slot, and an explicit `any XLExpression<T?>` cast
-assigns an already-optional value, including `nil` to clear the column back to
-`NULL`. The update page covers both.
-
 ## Keeping it working
 
 `SwiftQLExamples` is a first-party target, so `swift build` and the CI warning

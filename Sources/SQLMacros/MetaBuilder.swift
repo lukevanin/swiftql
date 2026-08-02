@@ -1061,33 +1061,75 @@ internal struct MetaBuilder {
             
             context.line("public typealias Row = \(structName)")
             
+            // A nullable column needs two independent pieces of state: whether
+            // it takes part in the SET clause, and whether the value it is set
+            // to is NULL. `Optional` alone cannot carry both -- reusing it for
+            // participation is what made `row.column = nil` and
+            // `row.column = value` unspellable -- so nullable columns go
+            // through a wrapper that tracks participation separately. The
+            // wrapped value is an expression of the column's *wrapped* type,
+            // which is what lets a literal or a non-optional expression assign
+            // directly.
             for property in properties {
-                context.line("public var \(property.name): Optional<any SwiftQL.XLExpression<\(property.qualifiedType)>>")
+                if property.optional {
+                    context.line("@SwiftQL.XLNullableColumnUpdate public var \(property.name): Optional<any SwiftQL.XLExpression<\(property.type)>>")
+                }
+                else {
+                    context.line("public var \(property.name): Optional<any SwiftQL.XLExpression<\(property.qualifiedType)>>")
+                }
             }
-            
+
             context.block("public init()") { context in
                 for property in properties {
-                    context.line("\(property.name) = nil")
-                }
-            }
-            
-            if !properties.isEmpty {
-                var parameters: [String] = []
-                for property in properties {
-                    parameters.append("\(property.name): Optional<any XLExpression<\(property.qualifiedType)>> = nil")
-                }
-                context.block("public init(\(parameters.joined(separator: ", ")))") { context in
-                    for property in properties {
-                        context.line("self.\(property.name) = \(property.name)")
+                    if property.optional {
+                        context.line("_\(property.name) = SwiftQL.XLNullableColumnUpdate()")
+                    }
+                    else {
+                        context.line("\(property.name) = nil")
                     }
                 }
             }
-            
+
+            if !properties.isEmpty {
+                var parameters: [String] = []
+                for property in properties {
+                    parameters.append("\(property.name): Optional<any XLExpression<\(property.type)>> = nil")
+                }
+                // A `nil` argument here means "leave this column out of the
+                // statement", matching every other column and this
+                // initializer's previous behaviour. That is deliberately not
+                // what `nil` means when assigned inside a `Setting` closure,
+                // where the column is already part of the statement and `nil`
+                // is the value it takes.
+                context.block("public init(\(parameters.joined(separator: ", ")))") { context in
+                    // Every stored property has to be initialized before any
+                    // of them can be assigned through an accessor, so the
+                    // wrapped columns are initialized first and only then
+                    // assigned.
+                    for property in properties {
+                        if property.optional {
+                            context.line("_\(property.name) = SwiftQL.XLNullableColumnUpdate()")
+                        }
+                        else {
+                            context.line("self.\(property.name) = \(property.name)")
+                        }
+                    }
+                    for property in properties where property.optional {
+                        context.block("if let \(property.name)") { context in
+                            context.line("self.\(property.name) = \(property.name)")
+                        }
+                    }
+                }
+            }
+
             context.block("public func makeSQL(context: inout XLBuilder)") { context in
                 context.block("context.unaryPrefix(\"SET\")") { context in
                     context.block("$0.list(separator: \",\")") { context in
                         for property in properties {
-                            context.block("if let \(property.name)") { context in
+                            let assigned = property.optional
+                                ? "let \(property.name) = _\(property.name)._xlAssignedExpression"
+                                : "let \(property.name)"
+                            context.block("if \(assigned)") { context in
                                 context.block("$0.listItem") { context in
                                     context.block("$0.binaryOperator(\"=\", left: XLName(\"\(property.alias)\").makeSQL)") { context in
                                         context.line("\(property.name).writeSQL(context: &$0)")
@@ -1147,14 +1189,12 @@ internal struct MetaBuilder {
                 }
                 else {
                     context.line("var output = MetaUpdate()")
+                    // A nullable column's setter now takes an expression of the
+                    // wrapped type, so the value no longer has to be lifted
+                    // with `toNullable()` before it is assigned.
                     for property in mutableProperties {
                         context.block("if let value = \(property.name)") { context in
-                            if property.optional {
-                                context.line("output.\(property.name) = SwiftQL._xlLegacyValueExpression(value).toNullable()")
-                            }
-                            else {
-                                context.line("output.\(property.name) = SwiftQL._xlLegacyValueExpression(value)")
-                            }
+                            context.line("output.\(property.name) = SwiftQL._xlLegacyValueExpression(value)")
                         }
                     }
                     context.line("return output")

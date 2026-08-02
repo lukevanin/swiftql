@@ -53,6 +53,26 @@
   manifest format, the CLI surface, and every existing pass/fail outcome are
   unchanged, and canonical reports remain byte-identical across repeated runs.
 
+- Nullable columns are now assigned in a `Setting` closure the way any Swift
+  optional is: `row.occupationId = "occ-1"` sets the column and
+  `row.occupationId = nil` sets it to SQL `NULL`. Previously the generated
+  setter's type was `Optional<any XLExpression<T?>>`, where the outer
+  `Optional` meant "leave this column out of the `SET` clause" — that collided
+  with the column's own optionality, and no assignment of a value or of `nil`
+  compiled at all. A nullable column's setter now takes an expression of the
+  column's *wrapped* type, and whether the column takes part in the `SET`
+  clause is tracked separately by the new `@XLNullableColumnUpdate` wrapper, so
+  the two meanings no longer share one `Optional`. A column the closure never
+  assigns still stays out of the statement.
+
+  **Source break, nullable columns only.** An expression that is itself
+  optional-typed — a `XLNamedBindingReference<T?>` whose bound value may be
+  `NULL` at runtime, or another nullable column — no longer assigns to the
+  setter directly; assign it to the projected value instead
+  (`row.$occupationId = parameter`). Non-optional columns are unchanged, as is
+  `MetaUpdate`'s initializer, where a `nil` argument still means "omit this
+  column".
+
 ### Fixed
 
 - Fixed `SwiftQLSQLiteBuildValidationPlugin` failing every Xcode build of a

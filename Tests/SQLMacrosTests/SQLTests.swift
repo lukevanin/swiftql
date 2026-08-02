@@ -1530,6 +1530,46 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("output.id = SwiftQL._xlLegacyValueExpression(value)"))
     }
 
+    // A nullable column's update setter is keyed on the column's *wrapped*
+    // type and wrapped in `@XLNullableColumnUpdate`, which is what lets
+    // `row.nickname = "Ada"` and `row.nickname = nil` both compile and mean
+    // different things. A non-optional column keeps the plain optional
+    // existential, where `nil` still means "leave this column out".
+    func test_metaUpdateWrapsNullableColumnsOnly() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct NullableRow {
+                var id: Int
+                var nickname: String?
+            }
+            """
+        )
+        let source = builder.makeMetaTableExtension()
+
+        XCTAssertTrue(
+            source.contains(
+                "@SwiftQL.XLNullableColumnUpdate public var nickname: Optional<any SwiftQL.XLExpression<String>>"
+            )
+        )
+        XCTAssertTrue(
+            source.contains("public var id: Optional<any SwiftQL.XLExpression<Int>>")
+        )
+        XCTAssertFalse(source.contains("XLNullableColumnUpdate public var id"))
+
+        // The wrapper's backing storage is what carries "was this column
+        // assigned at all", so the SET clause reads it rather than the
+        // property.
+        XCTAssertTrue(
+            source.contains("if let nickname = _nickname._xlAssignedExpression")
+        )
+        XCTAssertTrue(source.contains("if let id"))
+
+        // A nullable column no longer needs `toNullable()` to bridge a value
+        // into the setter.
+        XCTAssertFalse(source.contains(".toNullable()"))
+    }
+
     // MARK: - #256 regression corpus: builder-level shape checks
     //
     // See `MacroRegressionCorpus.json` for the provenance record backing
