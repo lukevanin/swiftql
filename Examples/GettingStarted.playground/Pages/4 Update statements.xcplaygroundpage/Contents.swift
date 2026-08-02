@@ -59,12 +59,46 @@ print("ida:", try database.fetchPersonByID(id: "ida")?.exampleSummary ?? "no mat
 //: Prints `ida: Ida B. (69)`
 
 /*:
- Both columns above are non-optional. Assigning to a nullable column such as
- `Person.occupationId` currently has no spelling that compiles, because the
- setter uses `Optional` itself to mean "leave this column out of the `SET`
- clause" and that collides with the value's own optionality. Filter or delete
- and re-insert until that is resolved.
+ ## Setting a nullable column
+
+ Both columns above are non-optional. `Person.occupationId` is `String?`, so
+ its generated setter type is `Optional<any XLExpression<String?>>`. The outer
+ `Optional` means "leave this column out of the `SET` clause" — a different
+ thing from the column's own optionality, so assigning a plain `String` or
+ `String?` value does not compile. `toNullable()` lifts a non-optional value
+ expression into that slot:
  */
+let hireFred = sql { schema in
+    let person = schema.into(Person.self)
+    Update(person)
+    Setting(person) { row in
+        row.occupationId = "chef".toNullable()
+    }
+    Where(person.id == "fred")
+}
+try database.makeRequest(with: hireFred).execute()
+
+print("fred's occupation:", try database.fetchPersonByID(id: "fred")?.occupationId ?? "none")
+//: Prints `fred's occupation: chef`
+
+/*:
+ Clearing the column back to `NULL` needs an already-*optional* value, so cast
+ it to the existential explicitly instead of relying on `toNullable()`, which
+ only accepts a non-optional expression:
+ */
+let retireFred = sql { schema in
+    let person = schema.into(Person.self)
+    Update(person)
+    Setting(person) { row in
+        let clearedOccupationId: String? = nil
+        row.occupationId = clearedOccupationId as any XLExpression<String?>
+    }
+    Where(person.id == "fred")
+}
+try database.makeRequest(with: retireFred).execute()
+
+print("fred's occupation:", try database.fetchPersonByID(id: "fred")?.occupationId ?? "none")
+//: Prints `fred's occupation: none`
 
 /*:
  ## Updating everything that matches

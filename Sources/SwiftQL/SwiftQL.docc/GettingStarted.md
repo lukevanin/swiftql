@@ -400,6 +400,41 @@ let updateBindings = try XLInvocationBindings<XLSQLiteValue>(
 try updateAgeRequest.execute(bindings: updateBindings)
 ```
 
+### Setting a nullable column
+
+`Person.occupationId` is `String?`, so the generated setter's type is
+`Optional<any XLExpression<String?>>`. The outer `Optional` means "leave this
+column out of the `SET` clause" — a different thing from the column's own
+`String?` optionality, so assigning a plain `String` or `String?` value does
+not compile. Use `toNullable()` to lift a non-optional value expression into
+that slot, and an explicit `any XLExpression<String?>` cast to assign an
+already-optional value, including `nil` to clear the column back to SQL
+`NULL`:
+
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
+```swift
+let setOccupationStatement = sql { schema in
+    let person = schema.into(Person.self)
+    Update(person)
+    Setting(person) { row in
+        row.occupationId = "occ-1".toNullable()
+    }
+    Where(person.id == "fred")
+}
+try database.makeRequest(with: setOccupationStatement).execute()
+
+let clearOccupationStatement = sql { schema in
+    let person = schema.into(Person.self)
+    Update(person)
+    Setting(person) { row in
+        let clearedOccupationId: String? = nil
+        row.occupationId = clearedOccupationId as any XLExpression<String?>
+    }
+    Where(person.id == "fred")
+}
+try database.makeRequest(with: clearOccupationStatement).execute()
+```
+
 ## Delete statements
 
 Use a delete statement with a `Where` clause to remove matching rows:

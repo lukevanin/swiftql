@@ -96,7 +96,7 @@ The package itself supports a much wider matrix (see
 [COMPATIBILITY.md](../COMPATIBILITY.md)); the rows above record what the
 workspace and playground were opened and run against.
 
-## Two things a page has to work around
+## One thing a page has to work around
 
 Live queries deliver on the main queue. The GRDB adapter starts its
 observation with GRDB's default scheduling, so a page that blocks the main
@@ -106,11 +106,13 @@ The live-queries page drives the main run loop instead, with
 there lives in a `Task` owned by a view model and nothing waits on the main
 thread.
 
-Nullable columns cannot currently be assigned in a `Setting` closure. The
-generated setter's type is `Optional<any XLExpression<T?>>`, where the outer
-`Optional` means "leave this column out of the `SET` clause", and that collides
-with the value's own optionality. The update page therefore only sets
-non-optional columns.
+Assigning a nullable column in a `Setting` closure has a non-obvious spelling.
+The generated setter's type is `Optional<any XLExpression<T?>>`, where the
+outer `Optional` means "leave this column out of the `SET` clause", and that
+collides with the value's own optionality. `toNullable()` lifts a non-optional
+value expression into that slot, and an explicit `any XLExpression<T?>` cast
+assigns an already-optional value, including `nil` to clear the column back to
+`NULL`. The update page covers both.
 
 ## Keeping it working
 
