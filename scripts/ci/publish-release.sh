@@ -434,10 +434,28 @@ verify_local_assets
 run_id="$(jq -er '.run_id | select(type == "string")' "$manifest_path")" ||
     fail 'release manifest has no run ID'
 server_url="${GITHUB_SERVER_URL:-https://github.com}"
-release_body_prefix="$(printf \
+release_provenance_block="$(printf \
     'Verified commit: [`%s`](%s/%s/commit/%s)\n\nValidation run: [%s](%s/%s/actions/runs/%s)\n\n%s\n' \
     "$commit_sha" "$server_url" "$repository" "$commit_sha" \
     "$run_id" "$server_url" "$repository" "$run_id" "$release_marker")"
+
+# A hand-written summary for the tag, when the tagged commit carries one, leads
+# the published body; the provenance block and GitHub's generated notes follow
+# it. The file is read from the checked-out tag, so it is covered by the same
+# exact-commit guarantees as every other release artifact. Absent, the body
+# keeps its previous shape. See "Release notes" in RELEASING.md.
+repository_root="$(cd "$script_directory/../.." && pwd -P)"
+release_summary_path="$repository_root/Documentation/ReleaseNotes/$release_tag.md"
+if [[ -f "$release_summary_path" ]]; then
+    release_summary="$(cat "$release_summary_path")"
+    if [[ -z "${release_summary//[[:space:]]/}" ]]; then
+        fail "release summary $release_summary_path is empty"
+    fi
+    release_body_prefix="$(printf '%s\n\n---\n\n%s' \
+        "$release_summary" "$release_provenance_block")"
+else
+    release_body_prefix="$release_provenance_block"
+fi
 
 releases_json="$(release_api list-releases)"
 if ! jq -e 'type == "array"' <<< "$releases_json" > /dev/null; then

@@ -42,6 +42,12 @@ jobs:
           EXPECTED_DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
         run: scripts/ci/check-compatibility-environment.sh
 
+      - name: Install Hugo
+        run: |
+          set -euo pipefail
+          brew install hugo
+          hugo version
+
       - name: Configure Pages metadata
         id: pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6

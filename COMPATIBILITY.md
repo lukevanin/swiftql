@@ -46,6 +46,28 @@ surface. The core protocols are extension seams, not claims that another
 dialect, driver, nested transaction/savepoint API, asynchronous cursor, or
 Swift 6 language mode is supported.
 
+## Build-validation plugin build systems
+
+`SwiftQLSQLiteBuildValidationPlugin` is supported under both SwiftPM's build
+system (`swift build`) and Xcode's, from v1.5.6 onwards. Both are verified
+against `IntegrationTests/BuildValidationPluginFixture`: `verify.sh` drives
+`swift build` and `verify-xcode.sh` drives `xcodebuild -destination
+'platform=macOS'`, and both assert the same outcomes — a valid manifest builds,
+and an invalid one fails with the validator's own diagnostic.
+
+On v1.5.2 through v1.5.5 the plugin is `swift build`-only. Adopting it in a
+target that Xcode builds fails that build with `Build input file cannot be
+found` naming the validator executable, before validation runs, on a valid
+manifest as much as an invalid one. The cause was a name mismatch between the
+validator's executable target and its product, which Xcode's build system does
+not tolerate (#492); v1.5.6 renames the target to match. On those versions, run
+the validator from CI or a `swift build` step rather than from an Xcode target.
+
+Verified on Xcode 26.5 (17F42), macOS 26.5 arm64. Xcode is not part of the
+pinned compatibility matrix below, so this is a verified support point rather
+than a per-commit CI gate. `verify-xcode.sh` is the check to run whenever the
+plugin's declaration or its tool resolution changes.
+
 ## SQLite conformance inventory
 
 The [SQLite conformance report](Conformance/SQLite/REPORT.md) summarizes the
@@ -55,27 +77,27 @@ The report is evidence for SwiftQL's existing public SQLite subset; it is not a
 claim of complete SQLite grammar coverage. The inventory remains the source of
 truth, while the report is its readable generated view.
 
-The v1.3 inventory contains 111 feature records and 164 evidence records. Its
+The v1.4 inventory contains 114 feature records and 180 evidence records. Its
 support-status totals are exact and mutually exclusive:
 
 | Support status | Features |
 | --- | ---: |
-| Supported | 104 |
+| Supported | 110 |
 | Partial | 0 |
 | Capability-gated | 2 |
 | Intentionally unsupported | 1 |
-| Unimplemented | 4 |
+| Unimplemented | 1 |
 
-Of those 164 evidence records, 101 exercise real SQLite and
+Of those 180 evidence records, 110 exercise real SQLite and
 cite one captured environment, SQLite 3.51.0. An inventory entry is counted in
-the 104 supported features only when it links to successful preparation by a
+the 110 supported features only when it links to successful preparation by a
 real SQLite engine whose version and source ID are recorded. Partial,
 capability-gated, intentionally unsupported, and unimplemented entries remain
 visible with their evidence, requirements, or rationale, but are excluded
 from the supported total. Evidence records are reusable proofs, so their count
 is not intended to match the feature count one for one.
 
-The v1.3 work has distinct ownership and claims:
+The original v1.3 work has distinct ownership and claims:
 
 - [#190](https://github.com/lukevanin/swiftql/issues/190) owns the canonical
   feature taxonomy, status decisions, evidence references, generated report,
@@ -142,15 +164,55 @@ and the `x86_64-unknown-linux-gnu` target. macOS additionally verifies the exact
 Xcode version, build, and SDK. Toolchain or image drift therefore fails instead
 of silently redefining support.
 
-GRDB 6.29.3's Swift 5.9 Linux condition assumes the linked SQLite exports its
-optional snapshot symbols. The pinned amalgamation intentionally leaves that
-optional API disabled, so the Linux cells consistently define GRDB's documented
-`GRDBCUSTOMSQLITE` build path through SwiftPM's compiler override. This removes
-only the unavailable snapshot API branch. The override delegates SwiftPM's
-module-wrapping phase directly to the matching `swift-frontend` and remains next
-to the selected compiler so SwiftPM loads that toolchain's index-store runtime.
-The exact-version runtime probe, capability report, and full tests remain
-authoritative for the pinned SQLite surface.
+The Linux cells compile the pinned amalgamation with `-DSQLITE_ENABLE_SNAPSHOT`
+and fail unless `nm -D --defined-only` lists `sqlite3_snapshot_get` among the
+resulting library's exported definitions, so the optional snapshot API is
+enabled rather than disabled. Because the cells link that private build instead
+of the distribution's `libsqlite3-dev` package that GRDB's SwiftPM
+system-library target otherwise expects, they follow GRDB's documented
+custom-SQLite recipe through SwiftPM's compiler override: the override passes
+`-DGRDBCUSTOMSQLITE` to `swiftc` and points compilation and linking at the
+pinned headers and library. GRDB 6.29.3 compiles its `WALSnapshot` support
+whenever the Swift-side `SQLITE_ENABLE_SNAPSHOT` condition is defined, and
+otherwise only through a fallback that additionally requires both
+`GRDBCUSTOMSQLITE` and `GRDBCIPHER` to be undefined and a compiler-version and
+platform condition to hold. `-DGRDBCUSTOMSQLITE` closes that fallback, so on
+its own it would compile the support out. The override therefore passes
+`-DSQLITE_ENABLE_SNAPSHOT` to `swiftc` alongside it, which satisfies the first
+condition directly and keeps the snapshot path in the build; `DatabasePool`
+observations use it to avoid an unconditional second startup fetch when the
+database has not changed. The override delegates SwiftPM's module-wrapping
+phase directly to the matching
+`swift-frontend` and remains next to the selected compiler so SwiftPM loads
+that toolchain's index-store runtime. The exact-version runtime probe,
+capability report, and full tests remain authoritative for the pinned SQLite
+surface.
+
+### Swift 5.9 and Swift 6.0 API surface gaps
+
+The `#row(...)` freestanding macro's two-to-six column shapes (`SQLRow2`
+through `SQLRow6`) require `#if compiler(>=6.1)` and are unavailable on the
+Swift 5.9 support point or the pinned Swift 6.0 cell. Decoding a result type
+with 2 or more generic parameters through `fetchAll()` or `publish()` crashes
+`swift-frontend` during IR generation (`NativeConventionSchema::mapIntoNative`
+and other, seemingly unrelated internal symbols — this is a compiler
+memory-safety bug, not a clean type error, so its crash site is not stable)
+on both the pinned Swift 5.9.2 toolchain and the pinned Swift 6.0 cell (Xcode
+16.2) — reproduced for 5.9.2 with a minimal case in Docker (`swift:5.9.2-jammy`
+plus the pinned SQLite 3.53.3 amalgamation and the
+`GRDBCUSTOMSQLITE`/`SQLITE_ENABLE_SNAPSHOT` compiler override above), and
+observed directly on the pinned Swift 6.0 cell in this release's CI run,
+independent of restructuring the decode boundary to avoid returning the
+multi-generic-parameter type directly from `pool.read`, `withTransaction`,
+`ValueObservation`, or a Combine operator closure — every one of those
+crossings independently triggers the same crash for such a type. The bug is
+fixed by Swift 6.1 (Xcode 16.4): the compatibility matrix's `Swift 6.1 / Apple
+clean resolution` cell compiles and runs `#row`'s multi-column shapes without
+incident. `#row`'s one-column shape (`SQLScalarResult`, a single generic
+parameter) is unaffected and remains available on every pinned cell,
+including 5.9 and 6.0. This is the package's first source-level API
+divergence across compiler cells; see `Sources/SwiftQL/SQLRowMacro.swift` and
+`Sources/SwiftQL/SQLRowResult.swift` for the gated declarations.
 
 ## Swift 6 series coverage
 
@@ -329,6 +391,15 @@ site to the ignored `docs/` directory, and validates the SwiftQL landing page
 and all twelve source articles. Pass an existing external destination when a
 separate output is useful, for example `./make-docs.sh /tmp/swiftql-docs`.
 The command never stages or commits files.
+
+The site also carries the blog under `Website/blog`, generated with
+[Hugo](https://gohugo.io). `make-docs.sh` requires Hugo 0.164.x on `PATH` and
+stops with an explicit error when it is absent or a different version, so
+install it first:
+
+```sh
+brew install hugo
+```
 
 Every Swift fence carries a marker for a named `XLDocumentationTests` scenario.
 `SQLDocumentationCatalogTests` verifies the complete source file set, marker

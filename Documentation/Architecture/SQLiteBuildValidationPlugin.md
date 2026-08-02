@@ -12,9 +12,12 @@ and runs the already-built `swiftql-build-validate` executable.
 
 `SwiftQLSQLiteBuildValidationPlugin` (`Plugins/SwiftQLSQLiteBuildValidationPlugin`)
 is a `.plugin(capability: .buildTool())` target, exposed as a product of the
-same name, depending on the `SwiftQLSQLiteBuildValidationValidatorCLI`
-executable target so it can resolve the validator's built path via
-`context.tool(named:)`.
+same name, depending on the `swiftql-build-validate` executable target so it
+can resolve the validator's built path via `context.tool(named:)`.
+
+That executable's target name and its product name are both
+`swiftql-build-validate`, and they have to stay identical — see
+[Build systems](#build-systems) below.
 
 ## Opting in
 
@@ -79,6 +82,8 @@ bundle resources for the target's own product.
 For a self-contained, runnable version of this walkthrough see
 `IntegrationTests/BuildValidationPluginFixture` and its `verify.sh`, which
 drives exactly these steps against the real pinned Northwind snapshot.
+`verify-xcode.sh` next to it drives the same steps through Xcode's build
+system (see [Build systems](#build-systems)).
 
 ## Package layout example
 
@@ -87,8 +92,9 @@ example: a standalone SwiftPM package depending on this repository by local
 path, with one target (`ValidatedLibrary`) that opts into the plugin against
 the real pinned Northwind snapshot. `verify.sh` in that directory drives
 `swift build` through both a valid and an invalid manifest and asserts on
-exit codes, forwarded diagnostics, and incremental-build behavior — this is
-the plugin's invocation-contract test, since a build-tool plugin's
+exit codes, forwarded diagnostics, and incremental-build behavior, and
+`verify-xcode.sh` drives the valid/invalid pair through `xcodebuild` — these
+are the plugin's invocation-contract tests, since a build-tool plugin's
 `createBuildCommands` cannot be meaningfully unit-tested without a live
 `PluginContext` supplied by SwiftPM itself.
 
@@ -149,6 +155,39 @@ exiting nonzero, and SwiftPM's build system surfaces a failing build
 command's stderr directly in `swift build` output. A `failed` or
 `unsupported` verdict exits `1`; the build command — and therefore
 `swift build` for the whole package — fails accordingly.
+
+## Build systems
+
+The plugin runs under both SwiftPM's build system (`swift build`) and Xcode's,
+and the two agree: a valid manifest builds, an invalid one fails with the
+validator's own diagnostic. `verify.sh` covers the first and `verify-xcode.sh`
+the second.
+
+Getting Xcode to agree took one constraint on the validator's declaration.
+`context.tool(named:)` resolves a build-tool plugin's tool to
+`$BUILD_DIR/$CONFIGURATION/<target name>`, but Xcode's build system names a
+package executable after its *product*. Through v1.5.5 those names differed:
+the target was `SwiftQLSQLiteBuildValidationValidatorCLI` and the product was
+`swiftql-build-validate`. Xcode then dropped the executable from the adopting
+target's dependency graph — it built the validator's *library* dependencies but
+never the executable itself — and every plugin-adopting target failed with:
+
+```
+Build input file cannot be found:
+'.../Build/Products/Debug/SwiftQLSQLiteBuildValidationValidatorCLI'.
+Did you forget to declare this file as an output of a script phase or custom
+build rule which produces it?
+```
+
+`swift build` resolved the same graph correctly, so the failure only ever
+appeared in Xcode, on a valid manifest as much as an invalid one (#492).
+
+Since v1.5.6 the executable target is named `swiftql-build-validate`, matching
+its product, and both build systems find it. Vending a same-named alias product
+alongside the differently-named one does *not* work — Xcode still builds only
+one executable per target, under one name — so the names have to match rather
+than merely overlap. Anything that renames the target or the product has to
+rename both together; `verify-xcode.sh` fails if they drift apart.
 
 ## Toolchain and compatibility
 

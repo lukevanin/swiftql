@@ -1,0 +1,100 @@
+/*:
+ # Update statements
+
+ [Previous: Running select queries](@previous)
+
+ An update statement modifies matching rows. It uses `schema.into(_:)` rather
+ than `schema.table(_:)`, because the table is the target of the write rather
+ than a source to read from.
+ */
+
+import Foundation
+import SwiftQL
+import SwiftQLExamples
+
+let database = try ExampleDatabase.makeSeeded()
+
+print("before:", try database.fetchPersonByID(id: "fred")?.exampleSummary ?? "no match")
+//: Prints `before: Fred (31)`
+
+let updateFred = sql { schema in
+    let person = schema.into(Person.self)
+    Update(person)
+    Setting(person) { row in
+        row.age = 42
+    }
+    Where(person.id == "fred")
+}
+try database.makeRequest(with: updateFred).execute()
+
+print("after:", try database.fetchPersonByID(id: "fred")?.exampleSummary ?? "no match")
+//: Prints `after: Fred (42)`
+
+/*:
+ Passing the same table reference to `Setting(_:_:)` lets Swift infer which row
+ type the closure updates, so the type does not have to be repeated as an
+ explicit `Setting<Row>` generic argument. Inside the closure, `row.age = 42`
+ builds a `SET age = 42` clause rather than assigning to a Swift value.
+
+ - Warning: An update without a `Where` clause modifies every row in the table.
+ */
+
+/*:
+ ## Updating several columns
+
+ Each assignment in the closure becomes another column in the `SET` clause.
+ */
+let renameIda = sql { schema in
+    let person = schema.into(Person.self)
+    Update(person)
+    Setting(person) { row in
+        row.name = "Ida B."
+        row.age = 69
+    }
+    Where(person.id == "ida")
+}
+try database.makeRequest(with: renameIda).execute()
+
+print("ida:", try database.fetchPersonByID(id: "ida")?.exampleSummary ?? "no match")
+//: Prints `ida: Ida B. (69)`
+
+/*:
+ Both columns above are non-optional. Assigning to a nullable column such as
+ `Person.occupationId` currently has no spelling that compiles, because the
+ setter uses `Optional` itself to mean "leave this column out of the `SET`
+ clause" and that collides with the value's own optionality. Filter or delete
+ and re-insert until that is resolved.
+ */
+
+/*:
+ ## Updating everything that matches
+
+ The `Where` clause is an ordinary typed expression, so one statement can
+ update a whole range of rows.
+ */
+let birthdays = sql { schema in
+    let person = schema.into(Person.self)
+    Update(person)
+    Setting(person) { row in
+        row.age = person.age + 1
+    }
+    Where(person.age < 40)
+}
+try database.makeRequest(with: birthdays).execute()
+
+print("after birthdays:", try database.makeRequest(with: sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    OrderBy(person.id.ascending())
+}).fetchAll().map(\.exampleSummary))
+//: Prints `after birthdays: ["Fred (42)", "Grace (30)", "Harold (45)", "Ida B. (69)"]`
+//: Only Grace was under 40, so only Grace had a birthday.
+
+/*:
+ The next page covers deletes, and the named bindings page covers running one
+ update repeatedly with different values instead of hard-coding them into the
+ statement.
+
+ [Next: Delete statements](@next)
+ */

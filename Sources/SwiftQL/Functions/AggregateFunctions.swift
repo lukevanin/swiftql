@@ -35,11 +35,20 @@ public func all() -> XLAllColumns {
 }
 
 
-/// Counts every input row by rendering `COUNT(*)`.
+@available(*, deprecated, message: "Use all().count() instead. count(_:) will be removed in SwiftQL 2.")
 public func count(
     _ expression: any XLExpression<XLAllColumns>
 ) -> some XLExpression<Int> {
     XLFunction<Int>(name: "COUNT", parameters: [expression])
+}
+
+
+extension XLExpression where T == XLAllColumns {
+
+    /// Counts every input row by rendering `COUNT(*)`.
+    public func count() -> some XLExpression<Int> {
+        XLFunction<Int>(name: "COUNT", parameters: [self])
+    }
 }
 
 
