@@ -58,8 +58,13 @@ public struct TodoUUID: XLCustomType, XLComparable, Hashable, Sendable {
         TodoUUID(UUID(uuidString: "00000000-0000-0000-0000-000000000000")!)
     }
 
-    private var storedText: String {
+    var storedText: String {
         wrappedValue.uuidString.lowercased()
+    }
+
+    /// The value a binding packet carries for this identifier.
+    var sqlValue: XLSQLiteValue {
+        .text(storedText)
     }
 }
 
@@ -141,8 +146,22 @@ public struct TodoDate: XLCustomType, XLComparable, Hashable, Sendable {
         TodoDate(Date(timeIntervalSince1970: 0))
     }
 
-    private var storedText: String {
+    /// Sorts after every date a to-do could plausibly carry.
+    ///
+    /// Used as the stand-in when a due-date sort is not the one selected, and
+    /// as the value a `NULL` due date sorts as, so a to-do with no deadline
+    /// lands at the end rather than the beginning.
+    public static let distantFuture = TodoDate(
+        Date(timeIntervalSince1970: 4_102_444_800)
+    )
+
+    var storedText: String {
         Self.formatter.string(from: wrappedValue)
+    }
+
+    /// The value a binding packet carries for this date.
+    var sqlValue: XLSQLiteValue {
+        .text(storedText)
     }
 }
 
