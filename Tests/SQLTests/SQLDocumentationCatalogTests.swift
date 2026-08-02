@@ -177,7 +177,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
 
         XCTAssertEqual(
             Set(articleURLs.map(\.lastPathComponent)),
-            Set(expectedMarkerByFile.keys),
+            Set(expectedMarkerByFile.keys).union(sourceExcerptArticles),
             "Update the documentation example registry when the source catalog changes."
         )
         XCTAssertEqual(
@@ -190,7 +190,8 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "Every marker must target a compile-time-checked documentation scenario."
         )
 
-        for articleURL in articleURLs.sorted(by: { $0.path < $1.path }) {
+        for articleURL in articleURLs.sorted(by: { $0.path < $1.path })
+        where !sourceExcerptArticles.contains(articleURL.lastPathComponent) {
             let contents = try String(contentsOf: articleURL, encoding: .utf8)
             try assertExampleCoverage(
                 in: contents,
@@ -213,6 +214,99 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     /// snapshot a reader sees is cut from source the package compiles, the
     /// snapshots only ever grow, and the last one is the compiled walkthrough
     /// in full.
+    /// Articles whose Swift examples are cut from a source file rather than
+    /// compiled by `XLDocumentationTests`.
+    ///
+    /// `TodoDemo.md` describes the demo application in `Examples/TodoApp`,
+    /// which is a separate package this test target cannot import. Compiling
+    /// its excerpts here is impossible, so they carry a `source:` marker and
+    /// are checked verbatim against the file they came from instead --
+    /// a drift check with the same job as the `test:` markers, enforced
+    /// differently because the code lives somewhere this target cannot reach.
+    private var sourceExcerptArticles: Set<String> {
+        ["TodoDemo.md"]
+    }
+
+    func testSourceExcerptArticlesQuoteTheirSourcesVerbatim() throws {
+        let repositoryRoot = repositoryRootURL()
+
+        for article in sourceExcerptArticles.sorted() {
+            let articleURL = documentationCatalogURL().appendingPathComponent(article)
+            let contents = try String(contentsOf: articleURL, encoding: .utf8)
+            let lines = contents.components(separatedBy: .newlines)
+
+            var pendingSource: (path: String, line: Int)?
+            var fence: (language: String, body: [String], line: Int)?
+            var checkedExcerpts = 0
+
+            for (offset, line) in lines.enumerated() {
+                let lineNumber = offset + 1
+
+                if var open = fence {
+                    if line == "```" {
+                        if open.language == "swift" {
+                            let source = try XCTUnwrap(
+                                pendingSource,
+                                "\(article):\(open.line) is a Swift example with no source marker."
+                            )
+                            let sourceURL = repositoryRoot
+                                .appendingPathComponent(source.path)
+                            let sourceText = try String(
+                                contentsOf: sourceURL,
+                                encoding: .utf8
+                            )
+                            XCTAssertTrue(
+                                sourceText.contains(open.body.joined(separator: "\n")),
+                                """
+                                \(article):\(open.line) no longer matches \(source.path).
+                                Re-cut the excerpt from the source file.
+                                """
+                            )
+                            checkedExcerpts += 1
+                            pendingSource = nil
+                        }
+                        fence = nil
+                    }
+                    else {
+                        open.body.append(line)
+                        fence = open
+                    }
+                    continue
+                }
+
+                if line.hasPrefix("<!-- source: "), line.hasSuffix(" -->") {
+                    let path = String(
+                        line.dropFirst("<!-- source: ".count).dropLast(" -->".count)
+                    )
+                    XCTAssertTrue(
+                        FileManager.default.fileExists(
+                            atPath: repositoryRoot.appendingPathComponent(path).path
+                        ),
+                        "\(article):\(lineNumber) points at a file that does not exist: \(path)"
+                    )
+                    pendingSource = (path, lineNumber)
+                    continue
+                }
+
+                if line.hasPrefix("```") {
+                    let language = String(line.dropFirst(3))
+                    XCTAssertTrue(
+                        ["swift", "sql", "text"].contains(language),
+                        "\(article):\(lineNumber) has unsupported code-fence language '\(language)'."
+                    )
+                    fence = (language, [], lineNumber)
+                }
+            }
+
+            XCTAssertNil(fence, "\(article) has an unterminated code fence.")
+            XCTAssertGreaterThan(
+                checkedExcerpts,
+                0,
+                "\(article) must quote at least one excerpt from the demo."
+            )
+        }
+    }
+
     func testEveryTutorialCodeSnapshotIsCutFromCompiledSource() throws {
         let catalog = documentationCatalogURL()
         let tutorialURLs = try tutorialFileURLs(in: catalog)
@@ -710,6 +804,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "Documentation/DESIGN.md",
                 "Documentation/PortingFromSQL.md",
                 "Examples/README.md",
+                "Examples/TodoApp/README.md",
                 "LICENSE.md",
                 "RELEASING.md",
                 "ROADMAP.md",
