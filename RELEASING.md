@@ -477,6 +477,8 @@ Repeatable channels, used for every announced release:
 
 - **The GitHub release itself.** Already done by the time you reach this
   section, provided the summary file existed at tag time.
+- **The project blog.** A "What's new in vX.Y" post, for every announced
+  release. See "The what's-new post" below.
 - **Social - Mastodon and Bluesky.** Lead with the problem the release solves
   and a code screenshot. The release link belongs in a reply, not the opening
   post.
@@ -488,6 +490,43 @@ Channels reserved for a major version, and deliberately not spent on a minor:
 a new Swift Forums thread, Hacker News, iOS Dev Weekly, and Reddit. Each is
 effectively one-shot; using one on a point release forfeits it for the release
 that needed it.
+
+### The what's-new post
+
+Write "What's new in vX.Y" as a new post under
+[`Website/blog/content/posts/`](Website/blog/content/posts), on the same
+release-preparation commit as the changelog and the release-notes summary.
+Match the front matter and tone of the existing posts -
+[`why-i-taught-the-swift-compiler-to-read-sql.md`](Website/blog/content/posts/why-i-taught-the-swift-compiler-to-read-sql.md)
+and
+[`porting-sql-to-swiftql.md`](Website/blog/content/posts/porting-sql-to-swiftql.md).
+It expands on the release-notes summary rather than duplicating it: the
+summary is the pitch, the blog post is the walkthrough.
+
+Include, wherever the release makes them relevant:
+
+- **Code examples.** Before/after snippets for anything the release changes
+  about what user code looks like - the same bar as the release-notes
+  summary's code example, but with more of them and more context.
+- **Data tables.** Benchmark numbers, conformance-inventory totals, or other
+  measurable claims. Pull figures from the sources this document already
+  treats as ground truth - the conformance inventory,
+  `Documentation/ReleaseAudits/` - rather than restating them from memory.
+- **Graphs**, when a trend or comparison reads better as a chart than a table,
+  such as a before/after benchmark. The blog ships with no external
+  subresources - [`check-blog-output.sh`](scripts/ci/check-blog-output.sh)
+  fails the build if a post pulls one in - so a graph must be a static image
+  under `Website/blog/static/` or an inline SVG, never a CDN chart library.
+
+A new post is invisible to CI until it is registered in the two places that
+hardcode the post list, so add it to both:
+
+- the post list in [`check-blog-output.sh`](scripts/ci/check-blog-output.sh);
+- the deployed-post link check in
+  [`documentation.yml`](.github/workflows/documentation.yml).
+
+Then confirm `make-docs.sh`'s Hugo build and `check-blog-output.sh` both pass
+on the new post before merging it.
 
 ### Recording it
 
