@@ -103,7 +103,22 @@ public struct XLNullableColumnUpdate<Wrapped> {
         }
         set {
             wrappedExpression = newValue
-            storedExpression = newValue?.toNullable()
+            if let newValue {
+                // Built directly rather than through the generic
+                // `toNullable()` helper: calling a method with an opaque
+                // return type on a constrained existential
+                // (`any XLExpression<Wrapped>`) type-checks under Swift 6.0+
+                // but is ambiguous under the pinned Swift 5.9.2 compiler.
+                // `XLTypeAffinityExpression`'s own initializer takes an
+                // unconstrained `any XLExpression`, so widening to that
+                // sidesteps the limitation entirely.
+                storedExpression = XLTypeAffinityExpression<Optional<Wrapped>>(
+                    expression: newValue
+                )
+            }
+            else {
+                storedExpression = nil
+            }
             isAssigned = true
         }
     }
