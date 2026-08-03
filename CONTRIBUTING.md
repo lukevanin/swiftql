@@ -38,16 +38,18 @@ swift test
 fail intermittently under load, and the working rule was to re-run them before
 believing a failure. That is no longer true, and the rule is retired.
 
-Every wait in those suites is an await on a named event -- a subscription
-lifecycle transition, a harness state change, an Observation change -- through
-the shared helpers in `Tests/SQLTests/XLLiveQueryWaitSupport.swift`. None of
-them derives a verdict from elapsed wall-clock time, so a loaded machine can
-make one of these tests slower but cannot make it fail. **A failure there is a
-regression to investigate, not noise to re-run away.**
+Waits in those suites are awaits on a named event -- a subscription lifecycle
+transition, a harness state change, a change reported by Observation -- through
+the shared helpers in `Tests/SQLTests/XLLiveQueryWaitSupport.swift`. A loaded
+machine makes those tests slower; it does not change their verdict. **A failure
+there is a regression to investigate, not noise to re-run away.**
 
-When adding a test to those files, wait on an event rather than a duration. For
-the one condition nothing can signal -- an object being deallocated -- use
-`xlWaitUntil(describing:)`, whose failure names what it was waiting for.
+There is one deliberate exception. `xlWaitUntil(describing:)` is time-bounded,
+because the condition it exists for -- an object being deallocated -- has
+nothing to signal it. Only three tests use it, and its failure names what it was
+waiting for, so a timeout there says which unobservable condition never became
+true rather than leaving you to guess. Treat that one as the exception it is:
+everything else should wait on an event, not a duration.
 
 ### Test directory layout
 

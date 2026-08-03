@@ -421,8 +421,9 @@ The live-query async suites -- `XLAsyncStreamPublisherTests`,
 `XLObservableLiveQueryTests`, `GRDBLiveQueryAsyncStreamTests`, and
 `LiveQueryBufferingSemanticsTests` -- were unreliable for a long time, and the
 standing advice was to treat any failure in them as flaky until proven
-otherwise. That advice is retired. No test in them derives a verdict from
-elapsed time any more: every wait is an await on a named event, through
-`Tests/SQLTests/XLLiveQueryWaitSupport.swift`. Load can delay one of these
-tests; it cannot change its outcome. Investigate a failure there as a
-regression rather than re-running it away.
+otherwise. That advice is retired. Waits there are awaits on named events,
+through `Tests/SQLTests/XLLiveQueryWaitSupport.swift`, so load delays these
+tests rather than changing their verdict. The one time-bounded helper,
+`xlWaitUntil(describing:)`, covers the only condition nothing can signal -- an
+object being deallocated -- and names that condition when it times out.
+Investigate a failure there as a regression rather than re-running it away.
