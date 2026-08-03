@@ -28,7 +28,22 @@ main() {
 
     for post in \
         posts/why-i-taught-the-swift-compiler-to-read-sql/index.html \
-        posts/porting-sql-to-swiftql/index.html
+        posts/porting-sql-to-swiftql/index.html \
+        posts/whats-new-in-1-0-0/index.html \
+        posts/whats-new-in-1-1-0/index.html \
+        posts/whats-new-in-1-2-0/index.html \
+        posts/whats-new-in-1-3-0/index.html \
+        posts/whats-new-in-1-4-1/index.html \
+        posts/whats-new-in-1-4-2/index.html \
+        posts/whats-new-in-1-4-3/index.html \
+        posts/whats-new-in-1-4-4/index.html \
+        posts/whats-new-in-1-4-5/index.html \
+        posts/whats-new-in-1-4-6/index.html \
+        posts/whats-new-in-1-5-1/index.html \
+        posts/whats-new-in-1-5-2/index.html \
+        posts/whats-new-in-1-5-3/index.html \
+        posts/whats-new-in-1-5-4/index.html \
+        posts/whats-new-in-1-5-5/index.html
     do
         require_file "$blog/$post"
         # Every template token was substituted, in every page Hugo generated.
