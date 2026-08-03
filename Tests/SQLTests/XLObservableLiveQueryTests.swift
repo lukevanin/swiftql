@@ -132,21 +132,57 @@ final class XLObservableLiveQueryTests: XCTestCase {
     func testCancellationBeforeInitialValuePreventsAnyFetch() async throws {
         try createRecordTable()
         let model = XLObservableQuery(database.makeRequest(with: orderedStatement()))
-        // `stop()` here does not depend on beating the consumer Task's own scheduling: even if that
-        // Task had already started running by this point, `stream()`'s own cancellation contract
-        // (`GRDBLiveQueryAsyncBridge.next()`, issue #308) checks `Task.isCancelled` *before* starting
-        // any GRDB observation, inside `withTaskCancellationHandler`'s `operation` closure -- so no
-        // fetch can occur once `stop()` has been called, regardless of the exact interleaving.
         model.stop()
 
+        // What `stop()` guarantees is that nothing fetches *after* it. It cannot promise the initial
+        // fetch never started: the model starts its consumer `Task` in `init`, that `Task` is
+        // nonisolated, and it can reach the observation start on a cooperative-pool thread inside the
+        // window before this main-actor method gets to run `stop()`. This test used to assert a flat
+        // zero and claim the interleaving could not happen; #468's repeat run disproved that at
+        // roughly 1 run in 50 under load (`("1") is not equal to ("0")`).
+        //
+        // So the invariant is asserted as a *bound on the total*, not as a delta against a snapshot.
+        // A snapshot taken after `stop()` can still be beaten by that initial fetch logging from a
+        // GRDB queue afterwards -- `drainMainQueue()` fences the main queue, not GRDB's -- which
+        // would just move the same race somewhere new. The bound holds under every interleaving: a
+        // torn-down observation can never produce a second fetch, whenever the first one lands.
         await drainMainQueue()
-        XCTAssertEqual(
+        try insertDirect(ObservableLiveQueryRecord(id: "after-stop", value: 1))
+        await drainMainQueue()
+        XCTAssertLessThanOrEqual(
             logger.count(containing: "stream:"),
-            0,
-            "Stopping before the first value is ever delivered must perform no fetch."
+            1,
+            "stop() must tear the observation down: at most the initial fetch may ever run, and a "
+                + "write afterwards must not add another."
         )
         let isLoadingAfterCancellation = model.isLoading
         XCTAssertTrue(isLoadingAfterCancellation, "A cancelled-before-delivery model never leaves isLoading.")
+    }
+
+    /// Negative control for the test above: a model that was *not* stopped must fetch again on a
+    /// relevant write, so "the count did not move" is a real check rather than a vacuous one.
+    ///
+    /// Constants are decoupled from the paired test's: a different row id and value.
+    @MainActor
+    func testNegativeControlLiveModelFetchesAgainOnAWrite() async throws {
+        try createRecordTable()
+        let model = XLObservableQuery(database.makeRequest(with: orderedStatement()))
+        await xlWaitForObservedState { !model.isLoading }
+
+        try insertDirect(ObservableLiveQueryRecord(id: "control-live", value: 7))
+        await xlWaitForObservedState {
+            model.rows == [ObservableLiveQueryRecord(id: "control-live", value: 7)]
+        }
+
+        // Deliberately the same quantity the paired test bounds at 1, so the two assertions speak
+        // the same language: a live model exceeds that bound, a stopped one cannot.
+        XCTAssertGreaterThan(
+            logger.count(containing: "stream:"),
+            1,
+            "Negative control: a live model must fetch again on a relevant write -- otherwise the "
+                + "stopped model's at-most-one-fetch bound cannot fail and proves nothing."
+        )
+        model.stop()
     }
 
     // MARK: - Model release stops further work
