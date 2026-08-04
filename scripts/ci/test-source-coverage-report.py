@@ -293,6 +293,64 @@ class SourceCoverageReportTests(unittest.TestCase):
         self.assertNotIn("macro expansion", manifest)
         self.assertNotIn("@__swiftmacro_", manifest)
 
+    def track_documentation_catalog_snapshot(self) -> Path:
+        relative = "Sources/SwiftQL/SwiftQL.docc/Tutorials/Resources/Step-01-01.swift"
+        snapshot = self.make_source(relative)
+        subprocess.run(
+            ["git", "-C", str(self.root), "add", "--", relative],
+            check=True,
+            capture_output=True,
+        )
+        return snapshot
+
+    def test_documentation_catalog_resources_are_not_production_sources(
+        self,
+    ) -> None:
+        snapshot = self.track_documentation_catalog_snapshot()
+        self.run_report(
+            [
+                file_entry(self.sql_macros, (8, 4), (4, 2)),
+                file_entry(self.swiftql, (10, 5), (2, 1)),
+            ],
+            "catalog",
+        )
+        report = json.loads(
+            (self.root / "catalog/first-party-coverage.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        manifest = (self.root / "catalog/included-sources.txt").read_text(
+            encoding="utf-8"
+        )
+        self.assertEqual(report["filtering"]["included_source_files"], 2)
+        self.assertNotIn("Step-01-01.swift", manifest)
+        self.assertTrue(snapshot.is_file())
+
+    def test_documentation_catalog_resource_with_coverage_data_is_ignored(
+        self,
+    ) -> None:
+        snapshot = self.track_documentation_catalog_snapshot()
+        self.run_report(
+            [
+                file_entry(self.sql_macros, (8, 4), (4, 2)),
+                file_entry(self.swiftql, (10, 5), (2, 1)),
+                file_entry(snapshot, (100, 100), (50, 50)),
+            ],
+            "catalog-covered",
+        )
+        report = json.loads(
+            (self.root / "catalog-covered/first-party-coverage.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(report["overall"]["lines"]["count"], 18)
+        self.assertEqual(report["overall"]["lines"]["covered"], 9)
+        self.assertEqual(report["filtering"]["included_source_files"], 2)
+        self.assertEqual(
+            report["filtering"]["excluded_raw_file_entries_by_category"],
+            {"documentation_catalog": 1},
+        )
+
     def test_large_dependency_input_cannot_change_first_party_totals(self) -> None:
         outside_root = Path(self.temporary_directory.name) / "dependencies"
         dependency_entries = [

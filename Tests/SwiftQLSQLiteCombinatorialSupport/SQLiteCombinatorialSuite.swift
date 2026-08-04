@@ -207,22 +207,7 @@ private extension SQLiteCombinatorialSuite {
     }
 
     static let gatedPrerequisites = [
-        GatedPrerequisite(
-            issue: 43,
-            id: "direct-scalar-compounds",
-            title: "direct scalar compounds"
-        ),
-        GatedPrerequisite(
-            issue: 10,
-            id: "cte-materialization-hints",
-            title: "CTE materialization hints"
-        ),
         GatedPrerequisite(issue: 139, id: "typed-ddl", title: "typed DDL"),
-        GatedPrerequisite(
-            issue: 45,
-            id: "natural-using-joins",
-            title: "NATURAL and USING joins"
-        ),
         GatedPrerequisite(
             issue: 70,
             id: "nullable-subquery-shapes",

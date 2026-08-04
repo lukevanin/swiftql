@@ -44,6 +44,12 @@ This statement returns the person's name in the `person` column, and the word
 `Unemployed` in the `occupation` column if the person's occupation is `NULL`,
 or `Employed` if the person's occupation is not `NULL`.
 
+> Note: `condition.iif(then:else:)` is the method-style spelling v1.5.4
+> introduced. The free function `iif(_:then:else:)` still compiles with a
+> deprecation warning and will be removed in SwiftQL 2. Migrate by moving the
+> condition in front of the call: `iif(c, then: a, else: b)` becomes
+> `c.iif(then: a, else: b)`.
+
 ### switchCase(), when(), and else()
 
 The `switchCase-when-then-else` APIs create conditional expressions matching
@@ -164,6 +170,14 @@ let smallest = x.min(0, 10)
 let largest = x.max(0, 10)
 ```
 
+> Note: these method-style spellings arrived in v1.5.4 and require at least one
+> further expression, because SQLite's scalar `MIN`/`MAX` is meaningless with
+> fewer. The free functions `min(_:)` and `max(_:)` still compile with a
+> deprecation warning and will be removed in SwiftQL 2. A multi-argument
+> `min(x, 0, 10)` becomes `x.min(0, 10)`. A *single*-argument `min(x)` was
+> never the scalar function — SQLite parses `MIN(expr)` as the aggregate — so
+> migrate that spelling to `minOrNull()` or `maxOrNull()` instead.
+
 ## String functions
 
 ### collate()
@@ -235,6 +249,11 @@ let formatted = "%s is %d years old".printf(name, age)
 
 Refer to the [SQLite printf](https://sqlite.org/printf.html) documentation for
 more information.
+
+> Note: calling `printf` on the format expression is the v1.5.4 spelling. The
+> free function `printf(format:_:)` still compiles with a deprecation warning
+> and will be removed in SwiftQL 2. Migrate by moving the format string in
+> front of the call: `printf(format: f, a, b)` becomes `f.printf(a, b)`.
 
 ## Type conversion
 

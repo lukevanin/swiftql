@@ -205,7 +205,11 @@ the graphs physically identical. Generated raw access is a useful workload
 control, not a theoretical hardware or SQLite lower bound.
 
 Do not extrapolate this one schema and access pattern to a general library
-ranking. Broader runtime workload design belongs to issue #259. Consumer
-compile time, generated-source size, binary size, and a dedicated RSS matrix
-belong to issue #257. No absolute timing or memory value in this directory is
-a CI gate.
+ranking. Broader runtime workload design is researched separately in
+[Issue259](Issue259/README.md), which specifies point-lookup, join/aggregate,
+and transactional-write contracts, prototypes them against this same fixture in
+its own graph, and records which further workload families are comparable across
+libraries at all. That directory does not modify this baseline. Consumer
+compile time, generated-source size, binary size, and build-process RSS are
+measured separately in [../CompileTime](../CompileTime/README.md). No absolute
+timing or memory value in this directory is a CI gate.

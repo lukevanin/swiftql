@@ -33,6 +33,14 @@ to the style and conventions of the Swift language.
 SwiftQL targets SQLite's SQL dialect. If you already know SQLite syntax, the
 corresponding SwiftQL statements should feel familiar.
 
+New here? Follow <doc:/tutorials/SwiftQL> to build one query from an empty
+file, then read <doc:GettingStarted> for the rest of the everyday API.
+Upgrading? The repository's
+[what's new](https://github.com/lukevanin/swiftql/blob/main/WHATSNEW.md)
+summarizes each release in plain language, and the
+[changelog](https://github.com/lukevanin/swiftql/blob/main/CHANGELOG.md)
+records the exact detail.
+
 ## Why SQLite?
 
 SQLite is a commonly used database in many iOS and macOS applications. It has
@@ -69,7 +77,7 @@ application-facing compatibility facade: it adds the macros, typed SQL DSL,
 contextual codecs, and the current GRDB-backed SQLite implementation. Dialects
 own SQL spelling and value storage rules; drivers own connections, physical
 preparation, binding transport, execution, and row transport. See
-<doc:GettingStarted> for connection, transaction, and prepared-statement
+<doc:AdvancedUsage> for connection, transaction, and prepared-statement
 ownership.
 
 Existing v1 requests, named bindings, `XLCustomType` wrappers, and explicit
@@ -98,7 +106,16 @@ Its internal prototype prepares static SQL against a pinned, read-only schema
 snapshot and emits deterministic diagnostics, but v1.3 does not ship a public
 validator, build plugin, query macro, schema system, or new query-declaration
 API. It neither persists prepared statements nor removes runtime preparation
-on each physical connection. Version 1.5.5 is the latest published package.
+on each physical connection. Version 1.5.6 is the latest published package.
+
+Two of those did ship later in the v1.5 line, and this page's boundary
+statement is about v1.3 rather than about SwiftQL today. v1.5.1 added the
+`@SQLQuery` and `@SQLQueries` query-declaration macros, described in
+<doc:DeclaredQueries>; v1.5.2 added the `swiftql-build-validate` executable and
+the `SwiftQLSQLiteBuildValidationPlugin` build-tool plugin, described in
+<doc:StaticQueries>. Neither persists prepared statements or removes runtime
+preparation, so the sentence above still holds for that part. SwiftQL still
+ships no schema system; migrations remain GRDB's `DatabaseMigrator`.
 
 ## When to use SwiftQL
 
@@ -125,6 +142,11 @@ replacing SQLite's runtime type rules.
 
 ## Topics
 
+### Tutorials
+
+- <doc:/tutorials/SwiftQL>
+- <doc:TodoDemo>
+
 ### Essentials
 
 - <doc:GettingStarted>
@@ -138,6 +160,7 @@ replacing SQLite's runtime type rules.
 - <doc:FunctionalSyntax>
 
 ### Advanced topics
+- <doc:AdvancedUsage>
 - <doc:Enums>
 - <doc:CustomFunctions>
 - <doc:CustomTypes>

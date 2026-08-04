@@ -80,7 +80,7 @@ final class XLObservableLiveQueryTests: XCTestCase {
         let isLoadingInitially = model.isLoading
         XCTAssertTrue(isLoadingInitially)
 
-        try await waitUntil { !model.isLoading }
+        await xlWaitForObservedState { !model.isLoading }
         let rowsAfterInitialFetch = model.rows
         XCTAssertEqual(rowsAfterInitialFetch, [ObservableLiveQueryRecord(id: "a", value: 1)])
         let errorAfterInitialFetch = model.error
@@ -92,13 +92,13 @@ final class XLObservableLiveQueryTests: XCTestCase {
     func testRelevantWriteRefreshesRows() async throws {
         try createRecordTable()
         let model = XLObservableQuery(database.makeRequest(with: orderedStatement()))
-        try await waitUntil { !model.isLoading }
+        await xlWaitForObservedState { !model.isLoading }
         let rowsBeforeInsert = model.rows
         XCTAssertEqual(rowsBeforeInsert, [])
 
         try insertDirect(ObservableLiveQueryRecord(id: "a", value: 1))
 
-        try await waitUntil { model.rows == [ObservableLiveQueryRecord(id: "a", value: 1)] }
+        await xlWaitForObservedState { model.rows == [ObservableLiveQueryRecord(id: "a", value: 1)] }
         model.stop()
     }
 
@@ -114,7 +114,7 @@ final class XLObservableLiveQueryTests: XCTestCase {
             .returning(table)
         let model = XLObservableQuery(database.makeRequest(with: statement))
 
-        try await waitUntil { !model.isLoading }
+        await xlWaitForObservedState { !model.isLoading }
         let error = model.error
         XCTAssertEqual(error as? XLReturningRequestError, .observationUnsupported)
         let rowsAfterFailure = model.rows
@@ -132,21 +132,57 @@ final class XLObservableLiveQueryTests: XCTestCase {
     func testCancellationBeforeInitialValuePreventsAnyFetch() async throws {
         try createRecordTable()
         let model = XLObservableQuery(database.makeRequest(with: orderedStatement()))
-        // `stop()` here does not depend on beating the consumer Task's own scheduling: even if that
-        // Task had already started running by this point, `stream()`'s own cancellation contract
-        // (`GRDBLiveQueryAsyncBridge.next()`, issue #308) checks `Task.isCancelled` *before* starting
-        // any GRDB observation, inside `withTaskCancellationHandler`'s `operation` closure -- so no
-        // fetch can occur once `stop()` has been called, regardless of the exact interleaving.
         model.stop()
 
+        // What `stop()` guarantees is that nothing fetches *after* it. It cannot promise the initial
+        // fetch never started: the model starts its consumer `Task` in `init`, that `Task` is
+        // nonisolated, and it can reach the observation start on a cooperative-pool thread inside the
+        // window before this main-actor method gets to run `stop()`. This test used to assert a flat
+        // zero and claim the interleaving could not happen; #468's repeat run disproved that at
+        // roughly 1 run in 50 under load (`("1") is not equal to ("0")`).
+        //
+        // So the invariant is asserted as a *bound on the total*, not as a delta against a snapshot.
+        // A snapshot taken after `stop()` can still be beaten by that initial fetch logging from a
+        // GRDB queue afterwards -- `drainMainQueue()` fences the main queue, not GRDB's -- which
+        // would just move the same race somewhere new. The bound holds under every interleaving: a
+        // torn-down observation can never produce a second fetch, whenever the first one lands.
         await drainMainQueue()
-        XCTAssertEqual(
+        try insertDirect(ObservableLiveQueryRecord(id: "after-stop", value: 1))
+        await drainMainQueue()
+        XCTAssertLessThanOrEqual(
             logger.count(containing: "stream:"),
-            0,
-            "Stopping before the first value is ever delivered must perform no fetch."
+            1,
+            "stop() must tear the observation down: at most the initial fetch may ever run, and a "
+                + "write afterwards must not add another."
         )
         let isLoadingAfterCancellation = model.isLoading
         XCTAssertTrue(isLoadingAfterCancellation, "A cancelled-before-delivery model never leaves isLoading.")
+    }
+
+    /// Negative control for the test above: a model that was *not* stopped must fetch again on a
+    /// relevant write, so "the count did not move" is a real check rather than a vacuous one.
+    ///
+    /// Constants are decoupled from the paired test's: a different row id and value.
+    @MainActor
+    func testNegativeControlLiveModelFetchesAgainOnAWrite() async throws {
+        try createRecordTable()
+        let model = XLObservableQuery(database.makeRequest(with: orderedStatement()))
+        await xlWaitForObservedState { !model.isLoading }
+
+        try insertDirect(ObservableLiveQueryRecord(id: "control-live", value: 7))
+        await xlWaitForObservedState {
+            model.rows == [ObservableLiveQueryRecord(id: "control-live", value: 7)]
+        }
+
+        // Deliberately the same quantity the paired test bounds at 1, so the two assertions speak
+        // the same language: a live model exceeds that bound, a stopped one cannot.
+        XCTAssertGreaterThan(
+            logger.count(containing: "stream:"),
+            1,
+            "Negative control: a live model must fetch again on a relevant write -- otherwise the "
+                + "stopped model's at-most-one-fetch bound cannot fail and proves nothing."
+        )
+        model.stop()
     }
 
     // MARK: - Model release stops further work
@@ -159,7 +195,7 @@ final class XLObservableLiveQueryTests: XCTestCase {
         var model: XLObservableQuery<ObservableLiveQueryRecord>? = XLObservableQuery(
             database.makeRequest(with: orderedStatement())
         )
-        try await waitUntil { !(model?.isLoading ?? true) }
+        await xlWaitForObservedState { !(model?.isLoading ?? true) }
 
         // `weak let` needs Swift 6.2+: the pinned Swift 5.9/6.0 cells reject it ("'weak' must be
         // a mutable variable"), and Swift 6.1 (Xcode 16.4) does too, despite `#if compiler(>=6.1)`
@@ -173,7 +209,12 @@ final class XLObservableLiveQueryTests: XCTestCase {
         #endif
         model = nil // Drop the only strong reference; deinit must cancel the owned Task deterministically.
 
-        try await waitUntil { weakModel == nil }
+        // The one condition in this file nothing can signal: deallocation has no notification to
+        // await, so this stays a bounded wait -- now one whose failure names what it was waiting
+        // for. Everything else here is resumed by an Observation change.
+        try await xlWaitUntil(describing: "the released model to be deallocated") {
+            weakModel == nil
+        }
 
         let fetchCountAfterRelease = logger.count(containing: "stream:")
         try insertDirect(ObservableLiveQueryRecord(id: "b", value: 2))
@@ -189,7 +230,7 @@ final class XLObservableLiveQueryTests: XCTestCase {
     func testExplicitStopPreventsFurtherWorkWithoutWaitingForDeallocation() async throws {
         try createRecordTable()
         let model = XLObservableQuery(database.makeRequest(with: orderedStatement()))
-        try await waitUntil { !model.isLoading }
+        await xlWaitForObservedState { !model.isLoading }
 
         model.stop()
         let fetchCountAtStop = logger.count(containing: "stream:")
@@ -208,13 +249,13 @@ final class XLObservableLiveQueryTests: XCTestCase {
     func testRapidUpdatesEventuallyReflectTheFinalDurableState() async throws {
         try createRecordTable()
         let model = XLObservableQuery(database.makeRequest(with: orderedStatement()))
-        try await waitUntil { !model.isLoading }
+        await xlWaitForObservedState { !model.isLoading }
 
         for index in 0 ..< 20 {
             try insertDirect(ObservableLiveQueryRecord(id: "row-\(index)", value: index))
         }
 
-        try await waitUntil(timeout: 5) { model.rows.count == 20 }
+        await xlWaitForObservedState { model.rows.count == 20 }
         model.stop()
     }
 
@@ -230,7 +271,7 @@ final class XLObservableLiveQueryTests: XCTestCase {
         let bindings = try makeIDBindings(request: request, id: "per-1")
 
         let model = XLObservableQuery(request, bindings: bindings)
-        try await waitUntil { model.rows == [ObservableLiveQueryRecord(id: "per-1", value: 1)] }
+        await xlWaitForObservedState { model.rows == [ObservableLiveQueryRecord(id: "per-1", value: 1)] }
 
         try insertDirect(ObservableLiveQueryRecord(id: "per-3", value: 3))
         await drainMainQueue()
@@ -255,7 +296,7 @@ final class XLObservableLiveQueryTests: XCTestCase {
             requestA,
             bindings: bindingsA
         )
-        try await waitUntil { modelA?.rows == [ObservableLiveQueryRecord(id: "per-1", value: 1)] }
+        await xlWaitForObservedState { modelA?.rows == [ObservableLiveQueryRecord(id: "per-1", value: 1)] }
 
         // Releasing the first model and constructing a second with a different packet is how binding
         // replacement happens for this Observation-native surface: each model owns one immutable
@@ -267,12 +308,15 @@ final class XLObservableLiveQueryTests: XCTestCase {
         weak var weakModelA = modelA
         #endif
         modelA = nil
-        try await waitUntil { weakModelA == nil }
+        // See the deallocation note in testReleasedModelPerformsNoFurtherWorkAfterRelease.
+        try await xlWaitUntil(describing: "the released model to be deallocated") {
+            weakModelA == nil
+        }
 
         let requestB = database.makeRequest(with: byIDStatement())
         let bindingsB = try makeIDBindings(request: requestB, id: "per-2")
         let modelB = XLObservableQuery(requestB, bindings: bindingsB)
-        try await waitUntil { modelB.rows == [ObservableLiveQueryRecord(id: "per-2", value: 2)] }
+        await xlWaitForObservedState { modelB.rows == [ObservableLiveQueryRecord(id: "per-2", value: 2)] }
         modelB.stop()
     }
 
@@ -307,7 +351,7 @@ final class XLObservableLiveQueryTests: XCTestCase {
 
         let modelA = XLObservableQuery(database.makeRequest(with: orderedStatement()))
         let modelB = XLObservableQuery(secondDatabase.makeRequest(with: orderedStatement()))
-        try await waitUntil {
+        await xlWaitForObservedState {
             let isLoadingA = modelA.isLoading
             let isLoadingB = modelB.isLoading
             return !isLoadingA && !isLoadingB
@@ -318,7 +362,7 @@ final class XLObservableLiveQueryTests: XCTestCase {
         XCTAssertEqual(initialRowsB, [])
 
         try insertDirect(ObservableLiveQueryRecord(id: "only-in-a", value: 1))
-        try await waitUntil { modelA.rows == [ObservableLiveQueryRecord(id: "only-in-a", value: 1)] }
+        await xlWaitForObservedState { modelA.rows == [ObservableLiveQueryRecord(id: "only-in-a", value: 1)] }
 
         await drainMainQueue()
         let finalRowsB = modelB.rows
@@ -335,13 +379,13 @@ final class XLObservableLiveQueryTests: XCTestCase {
         try insertDirect(ObservableLiveQueryRecord(id: "a", value: 1))
 
         let model = XLObservableQueryRow(database.makeRequest(with: orderedStatement()))
-        try await waitUntil { !model.isLoading }
+        await xlWaitForObservedState { !model.isLoading }
         let initialRow = model.row
         XCTAssertEqual(initialRow, ObservableLiveQueryRecord(id: "a", value: 1))
 
         // "A-earlier" sorts before "a", so the observed first row changes.
         try insertDirect(ObservableLiveQueryRecord(id: "A-earlier", value: 2))
-        try await waitUntil { model.row == ObservableLiveQueryRecord(id: "A-earlier", value: 2) }
+        await xlWaitForObservedState { model.row == ObservableLiveQueryRecord(id: "A-earlier", value: 2) }
         model.stop()
     }
 
@@ -353,7 +397,7 @@ final class XLObservableLiveQueryTests: XCTestCase {
         var model: XLObservableQueryRow<ObservableLiveQueryRecord>? = XLObservableQueryRow(
             database.makeRequest(with: orderedStatement())
         )
-        try await waitUntil { !(model?.isLoading ?? true) }
+        await xlWaitForObservedState { !(model?.isLoading ?? true) }
 
         // See the compiler(>=6.2) note in testReleasedModelPerformsNoFurtherWorkAfterRelease above.
         #if compiler(>=6.2)
@@ -362,7 +406,12 @@ final class XLObservableLiveQueryTests: XCTestCase {
         weak var weakModel = model
         #endif
         model = nil
-        try await waitUntil { weakModel == nil }
+        // The one condition in this file nothing can signal: deallocation has no notification to
+        // await, so this stays a bounded wait -- now one whose failure names what it was waiting
+        // for. Everything else here is resumed by an Observation change.
+        try await xlWaitUntil(describing: "the released model to be deallocated") {
+            weakModel == nil
+        }
 
         let fetchCountAfterRelease = logger.count(containing: "streamOne:")
         try insertDirect(ObservableLiveQueryRecord(id: "b", value: 2))
@@ -434,44 +483,14 @@ final class XLObservableLiveQueryTests: XCTestCase {
     // file's `@MainActor` test methods -- it needs to pump the run loop to let the `DispatchQueue.main
     // .async` block run, but that block competes with the same main-actor executor already suspended
     // resuming the calling test method's own async context, so it never gets a turn within the timeout.
-    // `@MainActor`, matching every caller and `waitUntil` above: calling a nonisolated async function
-    // from `@MainActor` code needs to send `self` (this non-Sendable XCTestCase instance) across that
-    // boundary, which this annotation avoids the same way it does for `waitUntil`.
+    //
+    // A barrier, not a deadline: it resumes when the main queue reaches the block it enqueued. Used
+    // only where the assertion is "no *further* work happened", after letting whatever was already
+    // scheduled on the delivery queue run. The suite's polling `waitUntil` is gone (#467): every
+    // other wait here is resumed by an Observation change through `xlWaitForObservedState`.
     @MainActor
     private func drainMainQueue() async {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.main.async {
-                continuation.resume()
-            }
-        }
-    }
-
-    /// Bounded, deterministic polling: sleeps in small increments up to `timeout`, checking `condition`
-    /// each time, rather than proving anything via one blind sleep. Mirrors
-    /// `GRDBLiveQueryAsyncStreamTests.waitUntil`, adapted to an `async` condition closure so it can read
-    /// this file's main-actor-isolated `@Observable` state.
-    ///
-    /// `@MainActor`, matching every caller: each call site is a closure literal formed inside one of
-    /// this file's `@MainActor` test methods, so it is itself `@MainActor`-isolated by inference. A
-    /// plain nonisolated `waitUntil` would need to *send* that closure (and the `self`/`model` it
-    /// captures) across an actor boundary just to receive it as a parameter, which is exactly the
-    /// "sending risks causing data races" warning this annotation avoids.
-    @MainActor
-    private func waitUntil(
-        timeout: TimeInterval = 3,
-        pollInterval: UInt64 = 10_000_000,
-        file: StaticString = #filePath,
-        line: UInt = #line,
-        _ condition: () async -> Bool
-    ) async throws {
-        let maxAttempts = max(Int((timeout * 1_000_000_000) / Double(pollInterval)), 1)
-        for _ in 0 ..< maxAttempts {
-            if await condition() {
-                return
-            }
-            try await Task.sleep(nanoseconds: pollInterval)
-        }
-        XCTFail("Condition not met within \(timeout)s", file: file, line: line)
+        await xlDrainMainQueue()
     }
 }
 #endif

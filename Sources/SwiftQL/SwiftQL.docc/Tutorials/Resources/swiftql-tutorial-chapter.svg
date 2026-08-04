@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 260" width="640" height="260" role="img">
+  <style>
+    .card { fill: none; stroke: #8E8E93; stroke-width: 2; rx: 10; }
+    .label { fill: #8E8E93; font-family: -apple-system, "SF Pro Text", Helvetica, Arial, sans-serif; font-size: 17px; font-weight: 600; }
+    .detail { fill: #8E8E93; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; }
+    .arrow { fill: none; stroke: #F05138; stroke-width: 2.5; }
+    .head { fill: #F05138; }
+  </style>
+  <rect class="card" x="12" y="60" width="176" height="140" rx="10"/>
+  <text class="label" x="100" y="98" text-anchor="middle">Swift types</text>
+  <text class="detail" x="100" y="130" text-anchor="middle">@SQLTable Studio</text>
+  <text class="detail" x="100" y="152" text-anchor="middle">@SQLTable Album</text>
+  <text class="detail" x="100" y="174" text-anchor="middle">@SQLResult AlbumCredit</text>
+
+  <rect class="card" x="232" y="60" width="176" height="140" rx="10"/>
+  <text class="label" x="320" y="98" text-anchor="middle">Rendered SQL</text>
+  <text class="detail" x="320" y="130" text-anchor="middle">SELECT ... FROM Album</text>
+  <text class="detail" x="320" y="152" text-anchor="middle">JOIN Studio ON ...</text>
+  <text class="detail" x="320" y="174" text-anchor="middle">WHERE country = :country</text>
+
+  <rect class="card" x="452" y="60" width="176" height="140" rx="10"/>
+  <text class="label" x="540" y="98" text-anchor="middle">Decoded rows</text>
+  <text class="detail" x="540" y="130" text-anchor="middle">1966 Revolver</text>
+  <text class="detail" x="540" y="152" text-anchor="middle">1969 Abbey Road</text>
+
+  <path class="arrow" d="M196 130 h24"/>
+  <path class="head" d="M220 124 l12 6 -12 6 z"/>
+  <path class="arrow" d="M416 130 h24"/>
+  <path class="head" d="M440 124 l12 6 -12 6 z"/>
+</svg>

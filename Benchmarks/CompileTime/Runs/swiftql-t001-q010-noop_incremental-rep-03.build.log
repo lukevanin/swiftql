@@ -1,0 +1,21 @@
+Building for debugging...
+[0/2] Write swift-version--790FFD00C0E38EAB.txt
+Build of product 'ConsumerLibrary' complete! (0.24s)
+        0.65 real         0.49 user         0.18 sys
+            68829184  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               39760  page reclaims
+                 849  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                  83  voluntary context switches
+                 806  involuntary context switches
+          2751597668  instructions retired
+           694655372  cycles elapsed
+            27902672  peak memory footprint

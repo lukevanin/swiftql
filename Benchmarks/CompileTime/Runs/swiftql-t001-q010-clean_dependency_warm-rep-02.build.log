@@ -1,0 +1,27 @@
+Building for debugging...
+[0/4] Write sources
+[1/4] Write swift-version--790FFD00C0E38EAB.txt
+[3/6] Compiling Consumer Queries.swift
+[4/6] Emitting module Consumer
+[5/6] Compiling Consumer Tables.swift
+[5/7] Write Objects.LinkFileList
+[6/7] Archiving libConsumerLibrary.a
+Build of product 'ConsumerLibrary' complete! (1.71s)
+        2.11 real         3.61 user         0.38 sys
+           138313728  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               79985  page reclaims
+                1432  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   6  messages sent
+                   0  messages received
+                   0  signals received
+                 173  voluntary context switches
+                1302  involuntary context switches
+          2789812638  instructions retired
+           703049940  cycles elapsed
+            28017336  peak memory footprint

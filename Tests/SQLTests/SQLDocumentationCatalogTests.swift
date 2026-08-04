@@ -68,6 +68,10 @@ private let documentationTests = [
         XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings
     ),
     DocumentationTestReference(
+        "XLDocumentationTests.testDocumentationAdvancedUsage",
+        XLDocumentationTests.testDocumentationAdvancedUsage
+    ),
+    DocumentationTestReference(
         "XLDocumentationTests.testDocumentationExpressions",
         XLDocumentationTests.testDocumentationExpressions
     ),
@@ -115,12 +119,17 @@ private let documentationTests = [
         "XLDocumentationTests.testDocumentationNumericDateCodecs",
         XLDocumentationTests.testDocumentationNumericDateCodecs
     ),
+    DocumentationTestReference(
+        "XLDocumentationTests.testDocumentationTutorialEndToEndQuery",
+        XLDocumentationTests.testDocumentationTutorialEndToEndQuery
+    ),
 ]
 
 
 final class SQLDocumentationCatalogTests: XCTestCase {
 
     private let expectedMarkerByFile = [
+        "AdvancedUsage.md": "XLDocumentationTests.testDocumentationAdvancedUsage",
         "BuiltinFunctions.md": "XLDocumentationTests.testDocumentationConditionalAndScalarFunctions",
         "CustomFunctions.md": "XLDocumentationTests.testDocumentationCustomFunctionRegistrationAndExecution",
         "CustomTypes.md": "XLDocumentationTests.testDocumentationCustomTypeRoundTrips",
@@ -138,6 +147,27 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         "SwiftQL.md": "XLDocumentationTests.testDocumentationQuickStart",
     ]
 
+    /// Tutorial pages carry no Markdown fences, so instead of a `<!-- test:
+    /// -->` marker each one names the compiled walkthrough its `@Code(file:)`
+    /// snapshots are cut from, and the scenario that runs the last snapshot.
+    private let expectedTutorialWalkthroughByFile = [
+        "EndToEndQuery.tutorial": TutorialWalkthrough(
+            source: "Tests/SQLTests/SQLTutorialWalkthrough.swift",
+            marker: "swiftql-tutorial-walkthrough",
+            expectedTest: "XLDocumentationTests.testDocumentationTutorialEndToEndQuery"
+        ),
+    ]
+
+    /// A tutorial page with no code of its own. It only lists the tutorials
+    /// that do have code, so there is nothing to check against a walkthrough.
+    private let tableOfContentsTutorialFiles: Set<String> = ["SwiftQL.tutorial"]
+
+    struct TutorialWalkthrough {
+        let source: String
+        let marker: String
+        let expectedTest: String
+    }
+
     func testEverySwiftExampleMapsToACompiledDocumentationScenario() throws {
         let catalog = documentationCatalogURL()
         let articleURLs = try FileManager.default.contentsOfDirectory(
@@ -147,18 +177,21 @@ final class SQLDocumentationCatalogTests: XCTestCase {
 
         XCTAssertEqual(
             Set(articleURLs.map(\.lastPathComponent)),
-            Set(expectedMarkerByFile.keys),
+            Set(expectedMarkerByFile.keys).union(sourceExcerptArticles),
             "Update the documentation example registry when the source catalog changes."
         )
         XCTAssertEqual(
             Set(documentationTests.map(\.name)),
-            Set(expectedMarkerByFile.values).union([
-                "XLDocumentationTests.testDocumentationREADME",
-            ]),
+            Set(expectedMarkerByFile.values)
+                .union(expectedTutorialWalkthroughByFile.values.map(\.expectedTest))
+                .union([
+                    "XLDocumentationTests.testDocumentationREADME",
+                ]),
             "Every marker must target a compile-time-checked documentation scenario."
         )
 
-        for articleURL in articleURLs.sorted(by: { $0.path < $1.path }) {
+        for articleURL in articleURLs.sorted(by: { $0.path < $1.path })
+        where !sourceExcerptArticles.contains(articleURL.lastPathComponent) {
             let contents = try String(contentsOf: articleURL, encoding: .utf8)
             try assertExampleCoverage(
                 in: contents,
@@ -175,17 +208,288 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         )
     }
 
-    func testGettingStartedDocumentsPreparedStatementOwnershipAndFailureSemantics() throws {
-        let gettingStartedURL = documentationCatalogURL()
-            .appendingPathComponent("GettingStarted.md")
-        let contents = try String(contentsOf: gettingStartedURL, encoding: .utf8)
+    /// The Markdown coverage check above cannot see tutorials, because a
+    /// `.tutorial` page shows code through `@Code(file:)` resources instead of
+    /// fenced examples. This is the same contract for those resources: every
+    /// snapshot a reader sees is cut from source the package compiles, the
+    /// snapshots only ever grow, and the last one is the compiled walkthrough
+    /// in full.
+    /// Articles whose Swift examples are cut from a source file rather than
+    /// compiled by `XLDocumentationTests`.
+    ///
+    /// `TodoDemo.md` describes the demo application in `Examples/TodoApp`,
+    /// which is a separate package this test target cannot import. Compiling
+    /// its excerpts here is impossible, so they carry a `source:` marker and
+    /// are checked verbatim against the file they came from instead --
+    /// a drift check with the same job as the `test:` markers, enforced
+    /// differently because the code lives somewhere this target cannot reach.
+    private var sourceExcerptArticles: Set<String> {
+        ["TodoDemo.md"]
+    }
+
+    func testSourceExcerptArticlesQuoteTheirSourcesVerbatim() throws {
+        let repositoryRoot = repositoryRootURL()
+
+        for article in sourceExcerptArticles.sorted() {
+            let articleURL = documentationCatalogURL().appendingPathComponent(article)
+            let contents = try String(contentsOf: articleURL, encoding: .utf8)
+            let lines = contents.components(separatedBy: .newlines)
+
+            var pendingSource: (path: String, line: Int)?
+            var fence: (language: String, body: [String], line: Int)?
+            var checkedExcerpts = 0
+
+            for (offset, line) in lines.enumerated() {
+                let lineNumber = offset + 1
+
+                if var open = fence {
+                    if line == "```" {
+                        if open.language == "swift" {
+                            let source = try XCTUnwrap(
+                                pendingSource,
+                                "\(article):\(open.line) is a Swift example with no source marker."
+                            )
+                            let sourceURL = repositoryRoot
+                                .appendingPathComponent(source.path)
+                            // A relative path can still leave the repository
+                            // through a symlink, so check where it actually
+                            // lands rather than only how it is spelled.
+                            let resolvedRoot = repositoryRoot
+                                .resolvingSymlinksInPath().standardizedFileURL.path
+                            let resolvedSource = sourceURL
+                                .resolvingSymlinksInPath().standardizedFileURL.path
+                            XCTAssertTrue(
+                                resolvedSource.hasPrefix(resolvedRoot + "/"),
+                                "\(article):\(source.line) resolves outside the repository: \(source.path)"
+                            )
+                            // An empty fence would satisfy `contains` for any
+                            // file, since every string contains the empty
+                            // one, and count as a checked excerpt.
+                            XCTAssertFalse(
+                                open.body.allSatisfy { $0.trimmingCharacters(in: .whitespaces).isEmpty },
+                                "\(article):\(open.line) is an empty Swift example."
+                            )
+                            let sourceText = try String(
+                                contentsOf: sourceURL,
+                                encoding: .utf8
+                            )
+                            XCTAssertTrue(
+                                sourceText.contains(open.body.joined(separator: "\n")),
+                                """
+                                \(article):\(open.line) no longer matches \(source.path).
+                                Re-cut the excerpt from the source file.
+                                """
+                            )
+                            checkedExcerpts += 1
+                            pendingSource = nil
+                        }
+                        fence = nil
+                    }
+                    else {
+                        open.body.append(line)
+                        fence = open
+                    }
+                    continue
+                }
+
+                if line.hasPrefix("<!-- source: "), line.hasSuffix(" -->") {
+                    let path = String(
+                        line.dropFirst("<!-- source: ".count).dropLast(" -->".count)
+                    )
+                    // The contract says repository-relative. Enforce it,
+                    // rather than letting an absolute path or a `..` hop
+                    // quietly read something outside the repository and
+                    // still pass.
+                    XCTAssertFalse(
+                        path.hasPrefix("/"),
+                        "\(article):\(lineNumber) source path must be repository-relative: \(path)"
+                    )
+                    XCTAssertFalse(
+                        path.components(separatedBy: "/").contains(".."),
+                        "\(article):\(lineNumber) source path must not traverse upwards: \(path)"
+                    )
+                    XCTAssertTrue(
+                        FileManager.default.fileExists(
+                            atPath: repositoryRoot.appendingPathComponent(path).path
+                        ),
+                        "\(article):\(lineNumber) points at a file that does not exist: \(path)"
+                    )
+                    XCTAssertNil(
+                        pendingSource,
+                        "\(article):\(lineNumber) follows a source marker that never reached a Swift fence."
+                    )
+                    pendingSource = (path, lineNumber)
+                    continue
+                }
+
+                if line.hasPrefix("```") {
+                    let language = String(line.dropFirst(3))
+                    XCTAssertTrue(
+                        ["swift", "sql", "text"].contains(language),
+                        "\(article):\(lineNumber) has unsupported code-fence language '\(language)'."
+                    )
+                    fence = (language, [], lineNumber)
+                }
+            }
+
+            XCTAssertNil(fence, "\(article) has an unterminated code fence.")
+            // A marker that never reached a Swift fence -- a typo, or one
+            // left above a sql or text block -- would otherwise be silently
+            // ignored, and the excerpt it was meant to guard unchecked.
+            XCTAssertNil(
+                pendingSource,
+                "\(article) has a source marker with no Swift example after it."
+            )
+            XCTAssertGreaterThan(
+                checkedExcerpts,
+                0,
+                "\(article) must quote at least one excerpt from the demo."
+            )
+        }
+    }
+
+    func testEveryTutorialCodeSnapshotIsCutFromCompiledSource() throws {
+        let catalog = documentationCatalogURL()
+        let tutorialURLs = try tutorialFileURLs(in: catalog)
+        XCTAssertEqual(
+            Set(tutorialURLs.map(\.lastPathComponent)),
+            Set(expectedTutorialWalkthroughByFile.keys)
+                .union(tableOfContentsTutorialFiles),
+            "Update the tutorial registry when the source catalog changes."
+        )
+
+        var referencedResources: Set<String> = []
+        for tutorialURL in tutorialURLs {
+            let file = tutorialURL.lastPathComponent
+            let contents = try String(contentsOf: tutorialURL, encoding: .utf8)
+
+            for image in imageDirectives(in: contents) {
+                referencedResources.insert(image.source)
+                XCTAssertFalse(
+                    image.alt.trimmingCharacters(in: .whitespaces).isEmpty,
+                    "\(file) references \(image.source) without alternative text."
+                )
+                XCTAssertGreaterThan(
+                    image.alt.split(separator: " ").count,
+                    5,
+                    "\(file) gives \(image.source) alternative text too short to describe it."
+                )
+            }
+
+            let codeSnapshots = codeDirectives(in: contents)
+            guard let walkthrough = expectedTutorialWalkthroughByFile[file] else {
+                XCTAssertTrue(
+                    codeSnapshots.isEmpty,
+                    "\(file) shows code but is registered as a table of contents."
+                )
+                continue
+            }
+
+            XCTAssertFalse(
+                codeSnapshots.isEmpty,
+                "\(file) must show at least one code snapshot."
+            )
+            XCTAssertEqual(
+                Set(codeSnapshots.map(\.file)).count,
+                codeSnapshots.count,
+                "\(file) shows the same snapshot more than once."
+            )
+            XCTAssertEqual(
+                codeSnapshots.map(\.file),
+                codeSnapshots.map(\.file).sorted(),
+                "\(file) shows its snapshots out of order."
+            )
+            referencedResources.formUnion(codeSnapshots.map(\.file))
+
+            let walkthroughSource = try String(
+                contentsOf: repositoryRootURL()
+                    .appendingPathComponent(walkthrough.source),
+                encoding: .utf8
+            )
+            XCTAssertTrue(
+                walkthroughSource.contains(file),
+                "\(walkthrough.source) must name the tutorial it feeds."
+            )
+            XCTAssertTrue(
+                walkthroughSource.contains(walkthrough.expectedTest),
+                "\(walkthrough.source) must name \(walkthrough.expectedTest)."
+            )
+
+            let compiled = try markedRegion(
+                named: walkthrough.marker,
+                in: walkthroughSource,
+                source: walkthrough.source
+            )
+            var previous: [String] = []
+            var previousName = ""
+            for snapshot in codeSnapshots {
+                let resourceURL = try resourceURL(named: snapshot.file, in: catalog)
+                let lines = try String(contentsOf: resourceURL, encoding: .utf8)
+                    .components(separatedBy: "\n")
+                    .dropLast()
+                XCTAssertFalse(lines.isEmpty, "\(snapshot.file) is empty.")
+                XCTAssertTrue(
+                    isOrderedSubsequence(Array(lines), of: compiled),
+                    "\(snapshot.file) contains lines that are not in \(walkthrough.source)."
+                )
+                XCTAssertTrue(
+                    isOrderedSubsequence(previous, of: Array(lines)),
+                    "\(snapshot.file) drops lines that \(previousName) already showed."
+                )
+                if !previousName.isEmpty {
+                    XCTAssertGreaterThan(
+                        lines.count,
+                        previous.count,
+                        "\(snapshot.file) adds nothing to \(previousName)."
+                    )
+                }
+                previous = Array(lines)
+                previousName = snapshot.file
+            }
+            XCTAssertEqual(
+                previous,
+                compiled,
+                "\(previousName) must be the whole \(walkthrough.marker) region of \(walkthrough.source)."
+            )
+        }
+
+        let resources = try FileManager.default.contentsOfDirectory(
+            at: catalog.appendingPathComponent("Tutorials/Resources", isDirectory: true),
+            includingPropertiesForKeys: nil
+        ).map(\.lastPathComponent)
+        XCTAssertEqual(
+            Set(resources),
+            referencedResources,
+            "Every tutorial resource must be referenced by exactly the tutorials that ship it."
+        )
+        for resource in resources {
+            XCTAssertTrue(
+                try pathExistsWithExactCase(
+                    "Sources/SwiftQL/SwiftQL.docc/Tutorials/Resources/\(resource)",
+                    below: repositoryRootURL()
+                ),
+                "Tutorial resource does not resolve with exact case: \(resource)"
+            )
+        }
+    }
+
+    /// The execution-model contract moved out of `GettingStarted.md` so the
+    /// onboarding guide stays an onboarding guide. Every heading and phrase
+    /// this test pinned there is still pinned — on the article that now owns
+    /// it.
+    func testAdvancedUsageDocumentsPreparedStatementOwnershipAndFailureSemantics() throws {
+        let advancedUsageURL = documentationCatalogURL()
+            .appendingPathComponent("AdvancedUsage.md")
+        let contents = try String(contentsOf: advancedUsageURL, encoding: .utf8)
 
         for heading in [
-            "#### Dialect and driver responsibilities",
-            "#### Logical and physical preparation",
-            "#### Transactions and bindings",
+            "## Dialect and driver responsibilities",
+            "## Logical and physical preparation",
+            "## Incremental row lifetime",
+            "## Transactions and bindings",
+            "## Typed multi-statement transaction scopes",
         ] {
-            XCTAssertTrue(contents.contains(heading), "GettingStarted.md is missing \(heading).")
+            XCTAssertTrue(contents.contains(heading), "AdvancedUsage.md is missing \(heading).")
         }
 
         for semanticPhrase in [
@@ -198,14 +502,56 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "fresh bindings",
             "current `XLRequest` facade itself is not `Sendable`",
             "Its `GRDBPreparedInvocation` result is",
-            "not the same as SQL `NULL`",
             "normalize transport failures",
             "keeps raw `DatabaseError` and `XLColumnReadError`",
             "fail later on a newly leased connection",
         ] {
             XCTAssertTrue(
                 contents.contains(semanticPhrase),
-                "GettingStarted.md is missing prepared-statement guidance for '\(semanticPhrase)'."
+                "AdvancedUsage.md is missing prepared-statement guidance for '\(semanticPhrase)'."
+            )
+        }
+    }
+
+    /// The onboarding guide keeps the everyday contract a first-time reader
+    /// needs, and keeps pointing at the advanced article for the rest.
+    func testGettingStartedStaysAnOnboardingGuide() throws {
+        let gettingStartedURL = documentationCatalogURL()
+            .appendingPathComponent("GettingStarted.md")
+        let contents = try String(contentsOf: gettingStartedURL, encoding: .utf8)
+
+        for heading in [
+            "## Defining tables",
+            "## Executing statements",
+            "## Inserting data",
+            "## Running select queries",
+            "## Named bindings",
+            "## Update statements",
+            "## Delete statements",
+            "## Grouping work in a transaction",
+            "## Where to go next",
+        ] {
+            XCTAssertTrue(contents.contains(heading), "GettingStarted.md is missing \(heading).")
+        }
+
+        for semanticPhrase in [
+            "not the same as SQL `NULL`",
+            "<doc:AdvancedUsage>",
+        ] {
+            XCTAssertTrue(
+                contents.contains(semanticPhrase),
+                "GettingStarted.md is missing onboarding guidance for '\(semanticPhrase)'."
+            )
+        }
+
+        for relocatedPhrase in [
+            "Physical GRDB statements are connection-bound",
+            "must not re-enter the root pool",
+            "normalize transport failures",
+        ] {
+            XCTAssertFalse(
+                contents.contains(relocatedPhrase),
+                "GettingStarted.md regained execution-model depth that belongs in AdvancedUsage.md: '\(relocatedPhrase)'."
             )
         }
     }
@@ -342,7 +688,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
 
         let requiredPhrasesByPath = [
             "README.md": [
-                "`1.5.5` is the latest published package",
+                "`1.5.6` is the latest published package",
             ],
             "COMPATIBILITY.md": [
                 "## v1.3 public products and runtime boundaries",
@@ -383,12 +729,14 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "not a claim of complete SQLite",
                 "v1.3 does not ship a public",
                 "validator, build plugin, query macro, schema system",
-                "Version 1.5.5 is the latest published package",
+                "Version 1.5.6 is the latest published package",
             ],
             "Sources/SwiftQL/SwiftQL.docc/GettingStarted.md": [
-                "Version 1.5.5 is the published package",
+                "Version 1.5.6 is the published package",
                 "This guide's basic request path remains",
                 "from version 1.2.0 or later",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/AdvancedUsage.md": [
                 "research-only schema-snapshot preparation prototype",
                 "perform physical preparation on the runtime",
             ],
@@ -406,7 +754,10 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         ]
         let inventoryPhrasesByPath = [
             "COMPATIBILITY.md": [
-                "The v1.3 inventory contains \(inventory.features.count) feature records and \(inventory.evidence.count) evidence records",
+                // This label tracks the inventory's own `inventory_version`,
+                // which the 1.4.5-1.5.4 fold bumped to 1.4.0. It is unrelated
+                // to the v1.3 source-tree milestone the phrases above pin.
+                "The v1.4 inventory contains \(inventory.features.count) feature records and \(inventory.evidence.count) evidence records",
                 "| Supported | \(supportedCount) |",
                 "| Partial | \(partialCount) |",
                 "| Capability-gated | \(capabilityGatedCount) |",
@@ -456,7 +807,166 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         let firstReleaseHeading = changelog
             .components(separatedBy: .newlines)
             .first(where: { $0.hasPrefix("## [") })
-        XCTAssertEqual(firstReleaseHeading, "## [1.5.5] - 2026-07-30")
+        // RELEASING.md step 4 dates this heading during release preparation,
+        // replacing `Unreleased` with the release date; update this pin in the
+        // same change.
+        XCTAssertEqual(firstReleaseHeading, "## [1.5.6] - 2026-08-04")
+    }
+
+    /// `check-docc-output.sh` proves one built page per catalog article. An
+    /// article missing from its list is published without ever being checked,
+    /// so a broken route or a renamed page 404s on the site with nothing
+    /// failing first. That is how `TodoDemo.md` shipped unvalidated, found by
+    /// issue #230. Deriving the expected list from the catalog itself, titles
+    /// included, means the next article cannot repeat it.
+    func testEveryCatalogArticleIsCheckedInTheBuiltDocCOutput() throws {
+        let catalog = documentationCatalogURL()
+        var expectedPages: [String: String] = [:]
+        for articleURL in try FileManager.default.contentsOfDirectory(
+            at: catalog,
+            includingPropertiesForKeys: nil
+        ) where articleURL.pathExtension == "md" {
+            let name = articleURL.deletingPathExtension().lastPathComponent
+            // The landing page is checked by its own `documentation/swiftql`
+            // route above the article list, not as an article.
+            guard name != "SwiftQL" else {
+                continue
+            }
+            let heading = try String(contentsOf: articleURL, encoding: .utf8)
+                .components(separatedBy: .newlines)
+                .first { $0.hasPrefix("# ") }
+            expectedPages[name.lowercased()] = try XCTUnwrap(
+                heading,
+                "\(articleURL.lastPathComponent) has no level-one heading to publish as its title."
+            ).dropFirst(2).trimmingCharacters(in: .whitespaces)
+        }
+
+        let script = try String(
+            contentsOf: repositoryRootURL().appendingPathComponent(
+                "scripts/ci/check-docc-output.sh"
+            ),
+            encoding: .utf8
+        )
+        let lines = script.components(separatedBy: .newlines)
+        let start = try XCTUnwrap(
+            lines.firstIndex(where: { $0.hasSuffix("<<'ARTICLES'") }),
+            "check-docc-output.sh no longer opens an ARTICLES heredoc."
+        )
+        let end = try XCTUnwrap(
+            lines[start...].dropFirst().firstIndex(of: "ARTICLES"),
+            "check-docc-output.sh no longer terminates its ARTICLES heredoc."
+        )
+        var checkedPages: [String: String] = [:]
+        for line in lines[(start + 1) ..< end] {
+            let fields = line.split(separator: "|", maxSplits: 1)
+            XCTAssertEqual(
+                fields.count,
+                2,
+                "ARTICLES entries are `slug|title`, but found: \(line)"
+            )
+            guard fields.count == 2 else {
+                continue
+            }
+            checkedPages[String(fields[0])] = String(fields[1])
+        }
+
+        XCTAssertEqual(
+            checkedPages,
+            expectedPages,
+            """
+            Every DocC article must have a `slug|title` line in \
+            check-docc-output.sh, with the slug lowercased from its file name \
+            and the title matching its level-one heading exactly.
+            """
+        )
+    }
+
+    /// The v1.3 contract above pins statements the v1.3 milestone made. Some
+    /// of them are boundary claims the v1.5 line then crossed, and a reader of
+    /// the current site has no way to tell a historical scope note from a
+    /// present-tense limitation. These pins hold the correction next to each
+    /// one, and hold the published-version claim consistent across every
+    /// document that restates it (issue #230).
+    func testPublicDocumentsAgreeOnTheShippedV15Surface() throws {
+        let repositoryRoot = repositoryRootURL()
+        let requiredPhrasesByPath = [
+            "README.md": [
+                "Write a query as an ordinary Swift function with `@SQLQuery`",
+                "Observe typed query results with `for try await` over `stream()`",
+            ],
+            // Nothing generated restates the landing page, so its Swift
+            // Package Manager version drifts silently; it was still on 1.5.4
+            // two releases later when #230 found it.
+            "Website/index.html": [
+                #".package(url: "https://github.com/lukevanin/swiftql.git", from: "1.5.6")"#,
+            ],
+            "COMPATIBILITY.md": [
+                "`SwiftQLSQLiteBuildValidationManifest` and",
+                "`SwiftQLExamples` holds the pre-expanded schema",
+            ],
+            "CHANGELOG.md": [
+                "Added a `SwiftQLExamples` library product",
+                "`SQLiteBuildValidator` now reports the schema checks it could not run",
+            ],
+            "RELEASING.md": [
+                "The claim about which",
+                "version is published lives in six places",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/SwiftQL.md": [
+                "v1.5.2 added the `swiftql-build-validate` executable",
+                "SwiftQL still",
+                "ships no schema system",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/StaticQueries.md": [
+                "The standalone validator and SwiftPM plugin that research led to shipped in",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/AdvancedUsage.md": [
+                "The build-time validator v1.5.2 shipped from that research",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/BuiltinFunctions.md": [
+                "The free function `iif(_:then:else:)` still compiles with a",
+                "The free functions `min(_:)` and `max(_:)` still compile with a",
+                "free function `printf(format:_:)` still compiles with a",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/Queries.md": [
+                "`count(_:)`: `count(all())` becomes `all().count()`",
+            ],
+        ]
+        // Claims the v1.5 line falsified. Each one read as a present-tense
+        // statement about SwiftQL on the published site.
+        let forbiddenPhrasesByPath = [
+            "Sources/SwiftQL/SwiftQL.docc/StaticQueries.md": [
+                "remain separate v1.5 follow-up work",
+            ],
+            "README.md": [
+                "the unreleased v1.3",
+            ],
+        ]
+
+        for (path, requiredPhrases) in requiredPhrasesByPath {
+            let contents = try String(
+                contentsOf: repositoryRoot.appendingPathComponent(path),
+                encoding: .utf8
+            )
+            for phrase in requiredPhrases {
+                XCTAssertTrue(
+                    contents.contains(phrase),
+                    "\(path) is missing the v1.5 currency phrase '\(phrase)'."
+                )
+            }
+        }
+        for (path, forbiddenPhrases) in forbiddenPhrasesByPath {
+            let contents = try String(
+                contentsOf: repositoryRoot.appendingPathComponent(path),
+                encoding: .utf8
+            )
+            for phrase in forbiddenPhrases {
+                XCTAssertFalse(
+                    contents.contains(phrase),
+                    "\(path) still makes the superseded claim '\(phrase)'."
+                )
+            }
+        }
     }
 
     func testREADMERepositoryLinksResolveWithExactCase() throws {
@@ -490,9 +1000,12 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "Coverage/README.md",
                 "Documentation/DESIGN.md",
                 "Documentation/PortingFromSQL.md",
+                "Examples/README.md",
+                "Examples/TodoApp/README.md",
                 "LICENSE.md",
                 "RELEASING.md",
                 "ROADMAP.md",
+                "WHATSNEW.md",
             ]
         )
         for link in repositoryLinks {
@@ -650,6 +1163,94 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "SQLNamedBindingReference",
         ] {
             XCTAssertFalse(contents.contains(staleName), "\(file) uses stale API name \(staleName).")
+        }
+    }
+
+    private func tutorialFileURLs(in catalog: URL) throws -> [URL] {
+        guard let enumerator = FileManager.default.enumerator(
+            at: catalog,
+            includingPropertiesForKeys: nil
+        ) else {
+            throw CocoaError(.fileReadUnknown)
+        }
+        return enumerator
+            .compactMap { $0 as? URL }
+            .filter { $0.pathExtension == "tutorial" }
+            .sorted { $0.path < $1.path }
+    }
+
+    private func resourceURL(named name: String, in catalog: URL) throws -> URL {
+        guard let enumerator = FileManager.default.enumerator(
+            at: catalog,
+            includingPropertiesForKeys: nil
+        ) else {
+            throw CocoaError(.fileReadUnknown)
+        }
+        let matches = enumerator
+            .compactMap { $0 as? URL }
+            .filter { $0.lastPathComponent == name }
+        // DocC resolves `@Code(file:)` and `@Image(source:)` by file name
+        // alone, so a name that matches twice is ambiguous in the built site
+        // even though both files exist.
+        XCTAssertEqual(matches.count, 1, "\(name) does not resolve to one catalog resource.")
+        return try XCTUnwrap(matches.first)
+    }
+
+    private func markedRegion(
+        named marker: String,
+        in contents: String,
+        source: String
+    ) throws -> [String] {
+        let lines = contents.components(separatedBy: "\n")
+        let begin = lines.firstIndex(of: "// \(marker)-begin")
+        let end = lines.firstIndex(of: "// \(marker)-end")
+        let start = try XCTUnwrap(begin, "\(source) is missing // \(marker)-begin.")
+        let finish = try XCTUnwrap(end, "\(source) is missing // \(marker)-end.")
+        XCTAssertLessThan(start, finish, "\(source) closes \(marker) before it opens it.")
+        return Array(lines[(start + 1) ..< finish])
+    }
+
+    private func isOrderedSubsequence(_ candidate: [String], of whole: [String]) -> Bool {
+        var index = whole.startIndex
+        for line in candidate {
+            guard let match = whole[index...].firstIndex(of: line) else {
+                return false
+            }
+            index = whole.index(after: match)
+        }
+        return true
+    }
+
+    private func codeDirectives(in contents: String) -> [(name: String, file: String)] {
+        let expression = try? NSRegularExpression(
+            pattern: #"@Code\(name: "([^"]+)", file: ([^)\s]+)\)"#
+        )
+        return matches(of: expression, in: contents).map {
+            (name: $0[0], file: $0[1])
+        }
+    }
+
+    private func imageDirectives(in contents: String) -> [(source: String, alt: String)] {
+        let expression = try? NSRegularExpression(
+            pattern: #"@Image\(source: ([^,\s]+), alt: "([^"]*)"\)"#
+        )
+        return matches(of: expression, in: contents).map {
+            (source: $0[0], alt: $0[1])
+        }
+    }
+
+    private func matches(
+        of expression: NSRegularExpression?,
+        in contents: String
+    ) -> [[String]] {
+        guard let expression else {
+            return []
+        }
+        let range = NSRange(contents.startIndex ..< contents.endIndex, in: contents)
+        return expression.matches(in: contents, range: range).map { match in
+            (1 ..< match.numberOfRanges).compactMap { group in
+                Range(match.range(at: group), in: contents).map { String(contents[$0]) }
+            }
         }
     }
 

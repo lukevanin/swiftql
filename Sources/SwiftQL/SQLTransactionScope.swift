@@ -57,8 +57,9 @@ import Foundation
 /// synchronously to completion and has no cooperative cancellation point
 /// while committed or rolled-back writes are underway.
 ///
-/// See <doc:GettingStarted> for the isolation and lifetime rules, and for
+/// See <doc:AdvancedUsage> for the isolation and lifetime rules, and for
 /// concrete examples of the durable-state guarantees this API makes.
+/// <doc:GettingStarted> introduces the everyday spelling.
 ///
 public protocol XLTransactionalDatabase: XLDatabase {
 

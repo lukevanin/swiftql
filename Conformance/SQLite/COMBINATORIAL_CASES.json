@@ -12477,20 +12477,8 @@
       "title" : "Explicitly gated typed prerequisite",
       "values" : [
         {
-          "id" : "issue-43-direct-scalar-compounds",
-          "label" : "#43 direct scalar compounds"
-        },
-        {
-          "id" : "issue-10-cte-materialization-hints",
-          "label" : "#10 CTE materialization hints"
-        },
-        {
           "id" : "issue-139-typed-ddl",
           "label" : "#139 typed DDL"
-        },
-        {
-          "id" : "issue-45-natural-using-joins",
-          "label" : "#45 NATURAL and USING joins"
         },
         {
           "id" : "issue-70-nullable-subquery-shapes",
@@ -12534,41 +12522,11 @@
       "dimension_vector" : [
         {
           "dimension_id" : "gated-prerequisite",
-          "value_id" : "issue-43-direct-scalar-compounds"
-        }
-      ],
-      "id" : "gated.issue-43.direct-scalar-compounds",
-      "reason" : "Not executable in issue #191: typed prerequisite #43 (direct scalar compounds) is not implemented."
-    },
-    {
-      "dimension_vector" : [
-        {
-          "dimension_id" : "gated-prerequisite",
-          "value_id" : "issue-10-cte-materialization-hints"
-        }
-      ],
-      "id" : "gated.issue-10.cte-materialization-hints",
-      "reason" : "Not executable in issue #191: typed prerequisite #10 (CTE materialization hints) is not implemented."
-    },
-    {
-      "dimension_vector" : [
-        {
-          "dimension_id" : "gated-prerequisite",
           "value_id" : "issue-139-typed-ddl"
         }
       ],
       "id" : "gated.issue-139.typed-ddl",
       "reason" : "Not executable in issue #191: typed prerequisite #139 (typed DDL) is not implemented."
-    },
-    {
-      "dimension_vector" : [
-        {
-          "dimension_id" : "gated-prerequisite",
-          "value_id" : "issue-45-natural-using-joins"
-        }
-      ],
-      "id" : "gated.issue-45.natural-using-joins",
-      "reason" : "Not executable in issue #191: typed prerequisite #45 (NATURAL and USING joins) is not implemented."
     },
     {
       "dimension_vector" : [
@@ -12590,7 +12548,7 @@
     "maximum_rendered_sql_bytes" : 4096,
     "maximum_reproduction_command_bytes" : 512
   },
-  "inventory_version" : "1.3.0",
+  "inventory_version" : "1.4.0",
   "issue" : 191,
   "schema_version" : 1
 }

@@ -109,8 +109,22 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
 
     private let state = OSAllocatedUnfairLock(uncheckedState: State())
 
+    /// The most recent value this mailbox has been handed, whether it was delivered straight to a
+    /// waiter or buffered. Separate from `State` and awaitable, so a test can wait for the
+    /// *observation* to have produced a particular snapshot -- rather than assuming, from a main-queue
+    /// barrier, that GRDB has already fetched it (#533).
+    private let newestYield = XLAwaitableState<Value?>(nil)
+
     var totalYieldCount: Int {
         state.withLock { $0.totalYieldCount }
+    }
+
+    /// Suspends until a value satisfying `isExpected` has been yielded into this mailbox.
+    func waitForYield(satisfying isExpected: @escaping (Value) -> Bool) async {
+        await newestYield.wait(until: { value in
+            guard let value else { return false }
+            return isExpected(value)
+        })
     }
 
     // `@unchecked Sendable`, matching `FastPathOutcome`/`RegistrationOutcome` below: a bare
@@ -159,7 +173,11 @@ private final class SingleSlotMailbox<Value>: @unchecked Sendable {
         // arbitrary downstream code, which must never happen while this
         // mailbox's own lock is held.
         if let delivery {
+            newestYield.set(delivery.value)
             delivery.waiter.resume(returning: delivery.value)
+        }
+        else {
+            newestYield.set(value)
         }
     }
 
@@ -379,6 +397,12 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
 
     var totalYieldCount: Int { mailbox.totalYieldCount }
 
+    /// Suspends until the underlying observation has produced a value satisfying `isExpected`,
+    /// whether or not a consumer has pulled it yet.
+    func waitForYield(satisfying isExpected: @escaping (Value) -> Bool) async {
+        await mailbox.waitForYield(satisfying: isExpected)
+    }
+
     var startCount: Int { state.withLock { $0.startCount } }
 
     /// Synchronous locked mutation kept out of `next()`'s `async` body (see
@@ -453,9 +477,22 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
     /// value performs no database work: only the first `next()` call (i.e.
     /// the first iteration attempt, whether via `for try await` or a manual
     /// `makeAsyncIterator().next()`) starts the GRDB observation.
+    ///
+    /// The closure captures `self` strongly, matching `GRDBLiveQueryAsyncBridge.stream()`. That is
+    /// not incidental: `AsyncThrowingStream`'s own `unfolding` wrapper resolves to `nil` *without
+    /// calling this closure* when the consuming task is already cancelled, and it releases the
+    /// closure at the same time. For the production bridge that release is what tears the
+    /// observation down -- the stream is the bridge's only owner, so the bridge deinits and its
+    /// `AnyDatabaseCancellable` cancels on deinit. A `[weak self]` capture here broke that model:
+    /// a cancellation landing *between* two `next()` calls never reached the bridge (the closure
+    /// was never entered) and never released it either, so the observation kept fetching. That is
+    /// issue #541, seen first as a 1-in-50 failure of
+    /// `testCancellingTheConsumingTaskCancelsTheUnderlyingObservation`.
+    ///
+    /// No retain cycle: the bridge holds no reference back to the stream.
     func stream() -> AsyncThrowingStream<Value, Error> {
-        AsyncThrowingStream(unfolding: { [weak self] in
-            try await self?.next()
+        AsyncThrowingStream(unfolding: {
+            try await self.next()
         })
     }
 }
@@ -614,28 +651,29 @@ private final class LockedCounter: @unchecked Sendable {
 }
 
 
+/// Backed by ``XLAwaitableState`` (`XLLiveQueryWaitSupport.swift`), so a test awaits the appends it
+/// needs and is resumed by the append itself.
+///
+/// The previous version was polled by a `waitForCount` helper that created one `XCTestExpectation`
+/// per attempt and waited on it with a 0.2s timeout, up to 200 times per call. Under load those
+/// waits time out while the value is merely late, and the `asyncAfter` block that fulfils an
+/// already-timed-out expectation is an XCTest API violation -- one of the two candidate mechanisms
+/// for the `Index out of range` crash recorded on #533.
 private final class LockedArray<Element>: @unchecked Sendable {
 
-    private let state = OSAllocatedUnfairLock(uncheckedState: [Element]())
+    private let state = XLAwaitableState<[Element]>([])
 
-    // See the `nonisolated(unsafe)` shadow note on `SingleSlotMailbox.yield(_:)` above -- identical
-    // reasoning.
     func append(_ value: Element) {
-        #if compiler(>=6.0)
-        nonisolated(unsafe) let value = value
-        #endif
-        state.withLock { $0.append(value) }
-    }
-
-    // `@unchecked Sendable` box, matching `Delivery`/`FastPathOutcome`/`RegistrationOutcome` above:
-    // returning a bare `[Element]` directly from this `@Sendable` closure is itself flagged, the same
-    // way those types were.
-    private struct ElementsBox: @unchecked Sendable {
-        let elements: [Element]
+        state.withValue { $0.append(value) }
     }
 
     func read() -> [Element] {
-        state.withLock { ElementsBox(elements: $0) }.elements
+        state.read()
+    }
+
+    /// Suspends until at least `count` elements have been appended.
+    func wait(untilCountIsAtLeast count: Int) async {
+        await state.wait(untilCountIsAtLeast: count)
     }
 }
 
@@ -787,10 +825,122 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         )
     }
 
-    func testCancellingTheConsumingTaskCancelsTheUnderlyingObservation() throws {
+    /// Cancellation that lands *between* two `next()` calls must still stop the observation.
+    ///
+    /// The consumer parks in the loop body rather than inside `next()`, so this is the case
+    /// `AsyncThrowingStream`'s `unfolding` wrapper short-circuits: it resolves the next iteration to
+    /// `nil` without ever calling the bridge, so the bridge's own
+    /// `withTaskCancellationHandler(onCancel:)` never fires. What stops the observation instead is
+    /// the release of the unfolding closure -- the stream is the bridge's only owner, so the bridge
+    /// deinits and its `AnyDatabaseCancellable` cancels. Issue #541: while the prototype's
+    /// `stream()` captured `self` weakly, nothing tore it down on this path and the observation
+    /// kept fetching, which is what made
+    /// `testCancellingTheConsumingTaskCancelsTheUnderlyingObservation` fail roughly 1 run in 50.
+    func testCancellationBetweenNextCallsStillCancelsTheObservation() async throws {
+        let fetchCounter = LockedCounter()
+        // The stream is deliberately the bridge's only owner, exactly as in production
+        // (`GRDBRequest.stream()` hands its bridge straight to the returned stream).
+        let stream = makeBridge(fetchProbe: { fetchCounter.increment() }).stream()
+        let firstValue = XLAwaitableValue<Bool>()
+        let resumeLoopBody = XLAwaitableValue<Bool>()
+        let loopEnded = XLAwaitableValue<Bool>()
+
+        let task = Task {
+            do {
+                for try await _ in stream {
+                    firstValue.fulfill(true)
+                    // Parking here, rather than inside `next()`, is the whole point of this test.
+                    _ = await resumeLoopBody.wait()
+                }
+            }
+            catch {
+                XCTFail("Unexpected stream error: \(error)")
+            }
+            loopEnded.fulfill(true)
+        }
+
+        _ = await firstValue.wait()
+        task.cancel()
+        resumeLoopBody.fulfill(true)
+        _ = await loopEnded.wait()
+
+        let fetchCountAtCancel = fetchCounter.read()
+        try insert("after-cancel-between-next", 99)
+        await xlDrainMainQueue()
+        XCTAssertEqual(
+            fetchCounter.read(),
+            fetchCountAtCancel,
+            "A write after cancellation must not fetch, even when the cancellation landed between "
+                + "two next() calls."
+        )
+        // Holds the stream -- and so the bridge -- past the assertion. Without this, ARC is free to
+        // release it once the consuming task has ended, and the test would pass because the bridge
+        // deallocated rather than because cancellation tore the observation down.
+        withExtendedLifetime(stream) {}
+    }
+
+    /// Negative control for the test above: it must be able to fail.
+    ///
+    /// The teardown that test relies on is deallocation-driven -- the stream releases the unfolding
+    /// closure when the consuming task is cancelled, the bridge is then unreferenced, and its
+    /// `AnyDatabaseCancellable` cancels on deinit. So the way to reach the broken world is to break
+    /// the ownership rule rather than to break the code: this control keeps its own strong
+    /// reference to the bridge, which production has no way to do (`GRDBRequest.stream()` hands its
+    /// bridge straight to the stream and keeps nothing), and the observation then survives the
+    /// cancellation and fetches again.
+    ///
+    /// Reverting `stream()`'s capture to `[weak self]` is *not* a usable control here: with the
+    /// production ownership shape nothing would retain the bridge past `stream()` at all, so the
+    /// stream would vend nothing and the test would hang instead of failing -- the other failure
+    /// mode that capture's comment warns about.
+    ///
+    /// Constants are decoupled from the paired test's: a different row id and a different value.
+    func testNegativeControlARetainedBridgeKeepsObservingAfterCancellation() async throws {
         let fetchCounter = LockedCounter()
         let bridge = makeBridge(fetchProbe: { fetchCounter.increment() })
         let stream = bridge.stream()
+        let firstValue = XLAwaitableValue<Bool>()
+        let resumeLoopBody = XLAwaitableValue<Bool>()
+        let loopEnded = XLAwaitableValue<Bool>()
+
+        let task = Task {
+            do {
+                for try await _ in stream {
+                    firstValue.fulfill(true)
+                    _ = await resumeLoopBody.wait()
+                }
+            }
+            catch {
+                XCTFail("Unexpected stream error: \(error)")
+            }
+            loopEnded.fulfill(true)
+        }
+
+        _ = await firstValue.wait()
+        task.cancel()
+        resumeLoopBody.fulfill(true)
+        _ = await loopEnded.wait()
+
+        let fetchCountAtCancel = fetchCounter.read()
+        try insert("retained-bridge-after-cancel", 77)
+        await xlDrainMainQueue()
+
+        XCTAssertNotEqual(
+            fetchCounter.read(),
+            fetchCountAtCancel,
+            "Negative control: with an extra strong reference keeping the bridge alive, the "
+                + "observation must still be fetching -- otherwise the paired test's assertion "
+                + "cannot fail and proves nothing."
+        )
+        withExtendedLifetime((bridge, stream)) {}
+    }
+
+    func testCancellingTheConsumingTaskCancelsTheUnderlyingObservation() async throws {
+        let fetchCounter = LockedCounter()
+        // As in production, the stream owns the bridge (see `stream()`'s note): holding a separate
+        // strong reference here would keep the observation alive past a cancellation that landed
+        // between two `next()` calls, which is issue #541.
+        let stream = makeBridge(fetchProbe: { fetchCounter.increment() }).stream()
         let seen = LockedArray<Int>()
         let loopExpectation = expectation(description: "loop ends after task cancellation")
 
@@ -806,19 +956,22 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
             loopExpectation.fulfill()
         }
 
-        waitForCount(seen, atLeast: 1)
+        await seen.wait(untilCountIsAtLeast: 1)
         task.cancel()
-        wait(for: [loopExpectation], timeout: 2)
+        await fulfillment(of: [loopExpectation], timeout: 2)
         XCTAssertEqual(seen.read(), [0])
 
         let fetchCountAtCancel = fetchCounter.read()
         try insert("after-task-cancel", 99)
-        drainMainQueue()
+        await xlDrainMainQueue()
         XCTAssertEqual(
             fetchCounter.read(),
             fetchCountAtCancel,
             "Cancelling the consuming task must cancel the underlying GRDB observation."
         )
+        // See the note in testCancellationBetweenNextCallsStillCancelsTheObservation: the stream
+        // must outlive the assertion, or a pass proves deallocation rather than cancellation.
+        withExtendedLifetime(stream) {}
     }
 
     // MARK: - Terminal error (edge case: terminal error)
@@ -870,7 +1023,7 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
     // MARK: - Demand mapping (edge cases: zero demand, incremental demand,
     // unlimited demand, demand added from receive)
 
-    func testDemandDrivenPullerConsumesExactlyDemandedCountWithoutEagerDraining() throws {
+    func testDemandDrivenPullerConsumesExactlyDemandedCountWithoutEagerDraining() async throws {
         let bridge = makeBridge()
         let delivered = LockedArray<Int>()
         let puller = DemandDrivenPuller(
@@ -880,13 +1033,13 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         )
 
         // Zero demand: the puller must not touch the bridge at all.
-        drainMainQueue()
+        await xlDrainMainQueue()
         XCTAssertEqual(bridge.startCount, 0, "Zero demand must not start the observation.")
         XCTAssertEqual(delivered.read(), [])
 
         // Grant demand for exactly one value.
         puller.requestDemand(1)
-        waitForCount(delivered, atLeast: 1)
+        await delivered.wait(untilCountIsAtLeast: 1)
         XCTAssertEqual(delivered.read(), [0])
 
         // Multiple rapid writes while demand is exhausted (zero outstanding):
@@ -896,7 +1049,16 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         // the observed count).
         try insert("a", 1)
         try insert("b", 2)
-        drainMainQueue()
+        // Wait for the observation to have actually produced the state after
+        // *both* commits. GRDB fetches on a reader queue and only then
+        // dispatches to main, so a main-queue barrier says nothing about
+        // whether the second commit has been fetched yet: under load it often
+        // has not, the mailbox still holds the snapshot for the first insert,
+        // and resuming demand correctly delivered `1` rather than `2` (#533).
+        // How many fetches those two commits coalesce into is GRDB's business
+        // and deliberately not asserted -- only that the newest value the
+        // mailbox holds is the final one before demand resumes.
+        await bridge.waitForYield(satisfying: { $0 == 2 })
         XCTAssertEqual(
             delivered.read(),
             [0],
@@ -907,13 +1069,13 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         // single buffered "newest" snapshot, not a backlog of every write
         // that occurred while paused.
         puller.requestDemand(1)
-        waitForCount(delivered, atLeast: 2)
+        await delivered.wait(untilCountIsAtLeast: 2)
         XCTAssertEqual(delivered.read(), [0, 2])
 
         puller.cancel()
     }
 
-    func testUnlimitedDemandDeliversAsValuesBecomeAvailableWithoutSpinningOrDoubleDelivery() throws {
+    func testUnlimitedDemandDeliversAsValuesBecomeAvailableWithoutSpinningOrDoubleDelivery() async throws {
         let bridge = makeBridge()
         let delivered = LockedArray<Int>()
         let finished = LockedValueBox<Error??>(nil)
@@ -925,19 +1087,19 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
 
         // A very large demand simulates Combine's `.unlimited`.
         puller.requestDemand(1_000_000)
-        waitForCount(delivered, atLeast: 1)
+        await delivered.wait(untilCountIsAtLeast: 1)
         XCTAssertEqual(delivered.read(), [0])
 
         // The bridge observes `COUNT(*)`, so one insert into this fresh
         // table moves the row count from 0 to 1 (the inserted row's own
         // `value` column, 42, is unrelated to the observed count).
         try insert("x", 42)
-        waitForCount(delivered, atLeast: 2)
+        await delivered.wait(untilCountIsAtLeast: 2)
         XCTAssertEqual(delivered.read(), [0, 1])
 
         // No further writes: the puller must not spin, error, or duplicate
         // delivery while waiting for the next relevant commit.
-        drainMainQueue()
+        await xlDrainMainQueue()
         XCTAssertEqual(delivered.read(), [0, 1])
         XCTAssertNil(finished.get() ?? nil)
 
@@ -999,19 +1161,6 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         wait(for: [barrier], timeout: 2)
     }
 
-    private func waitForCount<Element>(_ array: LockedArray<Element>, atLeast minimumCount: Int) {
-        for attempt in 1 ... 200 {
-            if array.read().count >= minimumCount {
-                return
-            }
-            let poll = expectation(description: "array poll \(attempt)")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-                poll.fulfill()
-            }
-            wait(for: [poll], timeout: 0.2)
-        }
-        XCTFail("Expected at least \(minimumCount) delivered values; received \(array.read().count).")
-    }
 }
 
 
