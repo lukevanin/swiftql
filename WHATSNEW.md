@@ -13,6 +13,42 @@ Almost every 1.x release has been purely additive. The one exception so far is
 `TimeInterval`. Each entry below ends with whether it affects code you already
 wrote.
 
+## 1.5.6 — nullable columns in `Setting` closures
+
+*Released 4 August 2026.*
+
+- A nullable column can now be assigned in a `Setting` closure the way any
+  Swift optional is. `row.occupationId = "occ-1"` sets the column,
+  `row.occupationId = nil` sets it to SQL `NULL`, and an optional-typed
+  expression such as a binding reference or another nullable column assigns
+  with that same spelling. None of those compiled before, because the generated
+  setter's outer `Optional` meant "leave this column out of the `SET` clause"
+  and collided with the column's own optionality. A column the closure never
+  assigns still stays out of the statement.
+- `@SQLTable` and `@SQLResult` now generate a `Sendable` conformance for
+  `public` and `package` models, so a model built entirely from column values
+  crosses isolation domains without a `nonisolated(unsafe)` at the call site.
+  Swift already infers the conformance for an internal struct, so nothing is
+  generated below `package`, and a model that states its own `Sendable` or
+  `@unchecked Sendable` keeps that declaration. This needs Swift 6.0 or later;
+  the Swift 5.9 support point behaves as it did.
+- The build-validation plugin builds under Xcode again. On the published 1.5.2
+  through 1.5.5 packages, a plugin-adopting target failed with `Build input
+  file cannot be found` before validation ran, because the executable target
+  and the product it ships under had different names.
+- `SQLiteBuildValidator` reports the schema checks it could not run as
+  `.unsupported` diagnostics instead of dropping them from the report, so a
+  check that failed to run is distinguishable from one that was never asked
+  for.
+
+**Affects existing code?** Almost none of it: the new `Setting` spelling is
+additive, and `.toNullable()` still compiles wherever you already use it. One
+narrow case does change. A `public` or `package` model holding a stored
+property that is not itself `Sendable` is now diagnosed on the generated
+conformance, where it used to compile silently; declaring `@unchecked
+Sendable` on that model turns the generation off and takes responsibility for
+it.
+
 ## 1.5.5 — async live queries, by default
 
 *Released 30 July 2026.*

@@ -1,6 +1,6 @@
 ---
 name: swiftql
-description: Use when Codex works in a Swift package or Apple application that uses SwiftQL to define typed tables and results, declare or modify SQLite queries, run typed transactions, observe live results, pass immutable bindings, add contextual codecs, prepare static queries, integrate a database adapter, or diagnose SwiftQL execution boundaries. Use the checked-out public v1 contract; 1.5.5 is the latest published package, adding async live-query streams, `@Observable` query wrappers, and lazy result sets on top of v1.5.4 method-style scalar functions and observers, v1.5.3 contextual codec presets and `@SQLCodec`, v1.5.2 build-time query validation, and v1.5.1 declared-query macros (`@SQLQuery`/`@SQLQueries`) and typed transaction scopes. Do not use this skill to teach SQL generally or claim unshipped features.
+description: Use when Codex works in a Swift package or Apple application that uses SwiftQL to define typed tables and results, declare or modify SQLite queries, run typed transactions, observe live results, pass immutable bindings, add contextual codecs, prepare static queries, integrate a database adapter, or diagnose SwiftQL execution boundaries. Use the checked-out public v1 contract; 1.5.6 is the latest published package, adding nullable-column assignment in `Setting` closures on top of v1.5.5 async live-query streams, `@Observable` query wrappers, and lazy result sets, v1.5.4 method-style scalar functions and observers, v1.5.3 contextual codec presets and `@SQLCodec`, v1.5.2 build-time query validation, and v1.5.1 declared-query macros (`@SQLQuery`/`@SQLQueries`) and typed transaction scopes. Do not use this skill to teach SQL generally or claim unshipped features.
 ---
 
 # SwiftQL
@@ -32,7 +32,7 @@ roadmap work as shipped API.
   `SQLRow6`) require Swift 6.1 or later, because earlier compilers crash during
   IR generation. `#row`'s single-column shape works everywhere.
 - Read [the changelog](CHANGELOG.md) before choosing a package requirement.
-  `1.5.5` is the latest published package. Pin a source revision only when
+  `1.5.6` is the latest published package. Pin a source revision only when
   intentionally testing later changes from `main`.
 
 ## Prefer the v1.5 declared-query workflow
@@ -342,7 +342,7 @@ opened, or a raw-value handle that can cross tasks.
   manifest from a `@SQLQuery` declaration yet. On the published v1.5.2 through
   v1.5.5 packages a plugin-adopting target also fails to build under Xcode 26.5
   before validation runs, which is issue #492; drive it with `swift build`
-  there. The unreleased v1.5.6 fixes that and builds under both.
+  there. v1.5.6 fixes that and builds under both.
 
 Read the [static-query guide](https://lukevanin.github.io/swiftql/documentation/swiftql/staticqueries/)
 for descriptor construction, captures, cardinality, preparation, and typed
