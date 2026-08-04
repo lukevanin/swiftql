@@ -55,6 +55,24 @@
 
 ### Fixed
 
+- Nullable columns can now be assigned in a `Setting` closure the way any
+  Swift optional is: `row.occupationId = "occ-1"` sets the column,
+  `row.occupationId = nil` sets it to SQL `NULL`, and an optional-typed
+  expression — a `XLNamedBindingReference<String?>` whose bound value may be
+  `NULL` at runtime, or another nullable column — assigns with the same
+  spelling. Previously the generated setter's type was
+  `Optional<any XLExpression<T?>>`, where the outer `Optional` meant "leave
+  this column out of the `SET` clause"; that collided with the column's own
+  optionality, and no assignment of a plain value or of `nil` compiled at
+  all. Generated `MetaUpdate` types now route column assignment through
+  key-path member lookup over typed per-column slots (`XLColumnUpdate` /
+  `XLNullableColumnUpdate`), so participation in the `SET` clause is tracked
+  separately from the value's own optionality and one column name resolves
+  against every assignment shape. A column the closure never assigns still
+  stays out of the statement, non-optional columns behave as before, and
+  `MetaUpdate`'s memberwise initializer keeps its v1 shape, where a `nil`
+  argument still means "omit this column".
+
 - Fixed `SwiftQLSQLiteBuildValidationPlugin` failing every Xcode build of a
   plugin-adopting target (issue #492). `context.tool(named:)` resolves a
   build-tool plugin's tool to `$BUILD_DIR/$CONFIGURATION/<target name>`, while

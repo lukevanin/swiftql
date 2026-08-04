@@ -1171,10 +1171,11 @@ final class MetaBuilderTests: XCTestCase {
             """
         )
         let source = builder.makeMetaTableExtension()
-        // MetaInsert, MetaUpdate and UpdateRequest each declare exactly one parameterless
-        // initializer. Before the fix, MetaUpdate declared a duplicate `init()`.
+        // MetaInsert, MetaUpdate, MetaUpdate.Columns and UpdateRequest each declare exactly
+        // one parameterless initializer. Before the fix, MetaUpdate declared a duplicate
+        // `init()`.
         let count = source.components(separatedBy: "public init()").count - 1
-        XCTAssertEqual(count, 3)
+        XCTAssertEqual(count, 4)
     }
 
     func test_columnsBuildsResultWithoutDeprecatedHelper() throws {
@@ -1528,6 +1529,80 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertTrue(source.contains("output.id = value"))
         XCTAssertTrue(source.contains("var output = MetaUpdate()"))
         XCTAssertTrue(source.contains("output.id = SwiftQL._xlLegacyValueExpression(value)"))
+    }
+
+    // MetaUpdate routes column assignment through key-path member lookup over
+    // typed slots. A nullable column gets an `XLNullableColumnUpdate` slot and
+    // two subscript overloads -- one keyed on the column's *wrapped* type
+    // (which is what lets `row.nickname = "Ada"` and `row.nickname = nil`
+    // both compile and mean different things) and a disfavored one keyed on
+    // the optional type (which is what lets an optional-typed expression such
+    // as a `XLNamedBindingReference<String?>` assign with the same spelling).
+    // A non-optional column gets a plain `XLColumnUpdate` slot, where `nil`
+    // still means "leave this column out".
+    func test_metaUpdateRoutesColumnsThroughTypedSlots() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct NullableRow {
+                var id: Int
+                var nickname: String?
+            }
+            """
+        )
+        let source = builder.makeMetaTableExtension()
+
+        XCTAssertTrue(
+            source.contains("@dynamicMemberLookup public struct MetaUpdate: XLMetaUpdate")
+        )
+        XCTAssertTrue(
+            source.contains("public var nickname = SwiftQL.XLNullableColumnUpdate<String>()")
+        )
+        XCTAssertTrue(
+            source.contains("public var id = SwiftQL.XLColumnUpdate<Int>()")
+        )
+
+        // The three subscript overloads: wrapped-type for both slot kinds,
+        // and the disfavored optional-typed overload for nullable slots.
+        XCTAssertTrue(
+            source.contains(
+                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLExpression<Wrapped>>"
+            )
+        )
+        XCTAssertTrue(
+            source.contains(
+                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> Optional<any SwiftQL.XLExpression<Wrapped>>"
+            )
+        )
+        XCTAssertTrue(source.contains("@_disfavoredOverload"))
+        XCTAssertTrue(
+            source.contains(
+                "public subscript<Wrapped>(dynamicMember keyPath: Swift.WritableKeyPath<Columns, SwiftQL.XLNullableColumnUpdate<Wrapped>>) -> any SwiftQL.XLExpression<Optional<Wrapped>>"
+            )
+        )
+
+        // The slots carry "was this column assigned at all", so the SET
+        // clause reads them rather than a stored property.
+        XCTAssertTrue(
+            source.contains("if let nickname = _xlColumns.nickname._xlAssignedExpression")
+        )
+        XCTAssertTrue(
+            source.contains("if let id = _xlColumns.id.expression")
+        )
+
+        // The memberwise initializer keeps its v1 shape: parameters are keyed
+        // on the column's declared (qualified) type, and `nil` means "omit
+        // this column from the statement".
+        XCTAssertTrue(
+            source.contains("nickname: Optional<any XLExpression<String?>> = nil")
+        )
+        XCTAssertTrue(
+            source.contains("id: Optional<any XLExpression<Int>> = nil")
+        )
+
+        // The generated expansion never needs `toNullable()` to bridge a
+        // value into a nullable column.
+        XCTAssertFalse(source.contains(".toNullable()"))
     }
 
     // MARK: - #256 regression corpus: builder-level shape checks

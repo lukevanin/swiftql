@@ -61,18 +61,15 @@ print("ida:", try database.fetchPersonByID(id: "ida")?.exampleSummary ?? "no mat
 /*:
  ## Setting a nullable column
 
- Both columns above are non-optional. `Person.occupationId` is `String?`, so
- its generated setter type is `Optional<any XLExpression<String?>>`. The outer
- `Optional` means "leave this column out of the `SET` clause" — a different
- thing from the column's own optionality, so assigning a plain `String` or
- `String?` value does not compile. `toNullable()` lifts a non-optional value
- expression into that slot:
+ Both columns above are non-optional. `Person.occupationId` is `String?`, and
+ it is assigned the way any Swift optional is — a value sets the column, and
+ `nil` sets it to SQL `NULL`.
  */
 let hireFred = sql { schema in
     let person = schema.into(Person.self)
     Update(person)
     Setting(person) { row in
-        row.occupationId = "chef".toNullable()
+        row.occupationId = "chef"
     }
     Where(person.id == "fred")
 }
@@ -81,17 +78,11 @@ try database.makeRequest(with: hireFred).execute()
 print("fred's occupation:", try database.fetchPersonByID(id: "fred")?.occupationId ?? "none")
 //: Prints `fred's occupation: chef`
 
-/*:
- Clearing the column back to `NULL` needs an already-*optional* value, so cast
- it to the existential explicitly instead of relying on `toNullable()`, which
- only accepts a non-optional expression:
- */
 let retireFred = sql { schema in
     let person = schema.into(Person.self)
     Update(person)
     Setting(person) { row in
-        let clearedOccupationId: String? = nil
-        row.occupationId = clearedOccupationId as any XLExpression<String?>
+        row.occupationId = nil
     }
     Where(person.id == "fred")
 }
@@ -99,6 +90,29 @@ try database.makeRequest(with: retireFred).execute()
 
 print("fred's occupation:", try database.fetchPersonByID(id: "fred")?.occupationId ?? "none")
 //: Prints `fred's occupation: none`
+
+/*:
+ Setting a column to `NULL` is not the same as leaving it out of the statement.
+ A column the closure never assigns takes no part in the `SET` clause and keeps
+ the value the row already held — which is why the `row.age = 42` update at the
+ top of this page left Fred's occupation untouched.
+
+ Any expression of the column's wrapped type (`String`) or of its optional
+ type (`String?`) assigns the same way, so a named binding whose runtime value
+ may be `NULL` needs no special spelling. The named bindings page covers how
+ the value reaches that placeholder.
+ */
+let occupationParameter = XLNamedBindingReference<String?>(name: "occupationId")
+
+let setOccupationFromBinding = sql { schema in
+    let person = schema.into(Person.self)
+    Update(person)
+    Setting(person) { row in
+        row.occupationId = occupationParameter
+    }
+    Where(person.id == "fred")
+}
+_ = setOccupationFromBinding
 
 /*:
  ## Updating everything that matches

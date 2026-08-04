@@ -1411,7 +1411,7 @@ extension XLDocumentationTests {
             let person = schema.into(Person.self)
             Update(person)
             Setting(person) { row in
-                row.occupationId = "occ-1".toNullable()
+                row.occupationId = "occ-1"
             }
             Where(person.id == "fred")
         }
@@ -1426,12 +1426,25 @@ extension XLDocumentationTests {
             let person = schema.into(Person.self)
             Update(person)
             Setting(person) { row in
-                let clearedOccupationId: String? = nil
-                row.occupationId = clearedOccupationId as any XLExpression<String?>
+                row.occupationId = nil
             }
             Where(person.id == "fred")
         }
         try database.makeRequest(with: clearOccupationStatement).execute()
+
+        let occupationParameter = XLNamedBindingReference<String?>(name: "occupationId")
+        let bindOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = occupationParameter
+            }
+            Where(person.id == "fred")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(bindOccupationStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = :occupationId WHERE (t0.id == 'fred')"
+        )
 
         XCTAssertEqual(
             try peopleByNameRequest.fetchOne(bindings: fredBindings),
@@ -1506,14 +1519,10 @@ extension XLDocumentationTests {
         )
     }
 
-    /// Regression test for the `Setting` closure not having an obvious
-    /// spelling for assigning a value to a nullable column. The generated
-    /// setter's type is `Optional<any XLExpression<T?>>`: the outer
-    /// `Optional` means "leave this column out of the `SET` clause", which
-    /// collides with the column's own optionality. `toNullable()` is the
-    /// supported way to bridge a non-optional value expression into that
-    /// slot; an explicit `any XLExpression<T?>` cast bridges a
-    /// already-optional value (including `nil`, to clear the column).
+    /// A nullable column is assigned in a `Setting` closure the same way an
+    /// ordinary Swift optional is: a value sets the column, and `nil` sets it
+    /// to SQL `NULL`. The two are distinct from leaving the column out of the
+    /// statement altogether, which is what an unassigned column does.
     func testExample_Setting_NullableColumn() throws {
         try database.makeRequest(with: sqlCreate(Person.self)).execute()
 
@@ -1524,7 +1533,7 @@ extension XLDocumentationTests {
             let person = schema.into(Person.self)
             Update(person)
             Setting(person) { row in
-                row.occupationId = "occ-1".toNullable()
+                row.occupationId = "occ-1"
             }
             Where(person.id == "per-3")
         }
@@ -1549,15 +1558,133 @@ extension XLDocumentationTests {
             let person = schema.into(Person.self)
             Update(person)
             Setting(person) { row in
-                let clearedOccupationId: String? = nil
-                row.occupationId = clearedOccupationId as any XLExpression<String?>
+                row.occupationId = nil
             }
             Where(person.id == "per-3")
         }
+        XCTAssertEqual(
+            encoder.makeSQL(clearOccupationStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = NULL WHERE (t0.id == 'per-3')"
+        )
         try database.makeRequest(with: clearOccupationStatement).execute()
         XCTAssertEqual(
             try database.makeRequest(with: personByIDQuery).fetchOne(),
             Person(id: "per-3", occupationId: nil, name: "Yogi Bear", age: 68)
+        )
+
+        // A plain optional value also assigns directly: a wrapped value
+        // renders the value, `nil` renders NULL.
+        let maybeOccupation: String? = "occ-4"
+        let setFromOptionalValueStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = maybeOccupation
+            }
+            Where(person.id == "per-3")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(setFromOptionalValueStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = 'occ-4' WHERE (t0.id == 'per-3')"
+        )
+        try database.makeRequest(with: setFromOptionalValueStatement).execute()
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-3", occupationId: "occ-4", name: "Yogi Bear", age: 68)
+        )
+    }
+
+    /// A column that is never assigned stays out of the `SET` clause, so an
+    /// update that touches one column leaves every other column alone --
+    /// including a nullable one holding a value.
+    func testExample_Setting_UnassignedNullableColumnIsNotCleared() throws {
+        try database.makeRequest(with: sqlCreate(Person.self)).execute()
+
+        let johnDoe = Person(id: "per-1", occupationId: "occ-1", name: "John Doe", age: 31)
+        try database.makeRequest(with: sqlInsert(johnDoe)).execute()
+
+        let updateAgeStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.age = 32
+            }
+            Where(person.id == "per-1")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(updateAgeStatement).sql,
+            "UPDATE Person AS t0 SET age = 32 WHERE (t0.id == 'per-1')"
+        )
+        try database.makeRequest(with: updateAgeStatement).execute()
+
+        let personByIDQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.id == "per-1")
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-1", occupationId: "occ-1", name: "John Doe", age: 32)
+        )
+    }
+
+    /// An expression whose own type is already optional -- a binding reference
+    /// whose bound value may be `NULL` at runtime, or another nullable column
+    /// -- assigns with the same spelling as a wrapped-type expression.
+    func testExample_Setting_NullableColumnFromOptionalExpression() throws {
+        try database.makeRequest(with: sqlCreate(Person.self)).execute()
+
+        let johnDoe = Person(id: "per-1", occupationId: "occ-1", name: "John Doe", age: 31)
+        try database.makeRequest(with: sqlInsert(johnDoe)).execute()
+
+        let occupationParameter = XLNamedBindingReference<String?>(name: "occupationId")
+        let setOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = occupationParameter
+            }
+            Where(person.id == "per-1")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(setOccupationStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = :occupationId WHERE (t0.id == 'per-1')"
+        )
+
+        let request = database.makeRequest(with: setOccupationStatement)
+        let occupationSlot = try XCTUnwrap(
+            request.parameterLayout.slot(for: .named("occupationId"))
+        )
+
+        // The slot is nullable, so the same statement can bind a value or NULL.
+        try request.execute(
+            bindings: try XLInvocationBindings<XLSQLiteValue>(
+                layout: request.parameterLayout,
+                bindings: [try XLInvocationBinding(slot: occupationSlot, value: .text("occ-2"))]
+            ).validatingComplete()
+        )
+
+        let personByIDQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.id == "per-1")
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-1", occupationId: "occ-2", name: "John Doe", age: 31)
+        )
+
+        try request.execute(
+            bindings: try XLInvocationBindings<XLSQLiteValue>(
+                layout: request.parameterLayout,
+                bindings: [try XLInvocationBinding(slot: occupationSlot, value: .null)]
+            ).validatingComplete()
+        )
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-1", occupationId: nil, name: "John Doe", age: 31)
         )
     }
 
