@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<playground version='6.0' target-platform='macos' buildActiveScheme='true' executeOnSourceChanges='false'>
+    <pages>
+        <page name='1 Defining tables'/>
+        <page name='2 Inserting data'/>
+        <page name='3 Running select queries'/>
+        <page name='4 Update statements'/>
+        <page name='5 Delete statements'/>
+        <page name='6 Named bindings'/>
+        <page name='7 Lazy result sets'/>
+        <page name='8 Transactions'/>
+        <page name='9 Live queries'/>
+    </pages>
+</playground>

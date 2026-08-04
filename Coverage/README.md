@@ -47,6 +47,14 @@ generated macro expansion files therefore cannot contribute to the reported
 first-party totals. Fixture tests inject each excluded category and verify that
 the totals and manifest remain unchanged.
 
+Swift files inside a `.docc` catalog are excluded as well, even though they sit
+under a configured target root. SwiftPM copies a documentation catalog as a
+resource bundle rather than compiling what is in it, so those files are the code
+snapshots the DocC tutorial displays through `@Code(file:)` and LLVM never
+reports a region for one. `Tests/SQLTests/SQLDocumentationCatalogTests.swift`
+checks each snapshot against the compiled walkthrough it was cut from, which is
+where their type checking comes from.
+
 LLVM does not currently report executable regions for `Sources/SwiftQL/SQL.swift`,
 `Sources/SwiftQL/SQLScalarResult.swift`, or the import-only
 `Sources/SwiftQL/SwiftQLCore.swift` compatibility shim. They are explicit

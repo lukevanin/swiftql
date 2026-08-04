@@ -12,6 +12,88 @@ import OpenCombineDispatch
 #endif
 
 
+#if DEBUG
+/// The lifecycle transitions of `XLAsyncStreamSubscription`'s consumer loop that a test can observe
+/// through ``XLAsyncStreamSubscriptionTestHooks`` instead of polling or sleeping. Each case names a
+/// point that already exists in the loop's control flow (issue #465) -- observing it changes nothing
+/// about demand accounting, cancellation suppression, or delivery ordering.
+enum XLAsyncStreamSubscriptionEvent: Sendable, Equatable {
+    /// The consumer `Task` has started and passed its post-spawn cancellation re-check.
+    case consumerTaskStarted
+    /// `makeStream()` has been called and the iterator exists.
+    case streamCreated
+    /// `resolveDemandOrRegister` took the `.pending` path and registered a demand waiter.
+    case demandWaiterRegistered
+    /// A demand unit was consumed and the loop is about to call `next()`.
+    case demandUnitConsumed
+    /// `deliver(_:)` completed, including the downstream `receive(_:)` callback.
+    case delivered
+    /// `finish(error:)` ran: `forwarded` is `true` if it called `receive(completion:)`, `false` if it
+    /// suppressed the outcome (already cancelled, already finished, or no downstream left).
+    case finished(forwarded: Bool)
+}
+
+/// Test-only observation of every `XLAsyncStreamSubscription`'s lifecycle transitions, process-wide.
+/// Not part of SwiftQL's public API: this type has no explicit access modifier, so it is `internal`
+/// and reachable only via `@testable import SwiftQL`. `#if DEBUG`-gated, so it and every call site
+/// that reports to it compile away entirely in a release build -- there is no synchronization for
+/// production to pay when no observer is attached, and none of it exists at all outside DEBUG.
+///
+/// Global rather than per-instance because `Subscription` erases `XLAsyncStreamSubscription` behind
+/// the `Combine.Subscription` existential the moment it is vended, so no test call site ever holds a
+/// concrete reference to configure a hook on. Tests that care about ordering across multiple
+/// concurrent subscriptions can still discriminate by the sequence/shape of events observed; tests
+/// are responsible for calling ``reset()`` (e.g. in `tearDown`) so one test's observers don't leak
+/// into the next.
+final class XLAsyncStreamSubscriptionTestHooks: @unchecked Sendable {
+
+    static let shared = XLAsyncStreamSubscriptionTestHooks()
+
+    private let lock = NSLock()
+
+    private var continuations: [UUID: AsyncStream<XLAsyncStreamSubscriptionEvent>.Continuation] = [:]
+
+    private init() {}
+
+    /// Vends a fresh `AsyncStream` of every subscription's lifecycle events from this call onward.
+    func events() -> AsyncStream<XLAsyncStreamSubscriptionEvent> {
+        let id = UUID()
+        return AsyncStream { continuation in
+            lock.lock()
+            continuations[id] = continuation
+            lock.unlock()
+            continuation.onTermination = { [weak self] _ in
+                guard let self else { return }
+                self.lock.lock()
+                self.continuations.removeValue(forKey: id)
+                self.lock.unlock()
+            }
+        }
+    }
+
+    /// Finishes every currently-vended stream and forgets all observers.
+    func reset() {
+        lock.lock()
+        let pending = continuations
+        continuations = [:]
+        lock.unlock()
+        for continuation in pending.values {
+            continuation.finish()
+        }
+    }
+
+    fileprivate func emit(_ event: XLAsyncStreamSubscriptionEvent) {
+        lock.lock()
+        let observers = Array(continuations.values)
+        lock.unlock()
+        for observer in observers {
+            observer.yield(event)
+        }
+    }
+}
+#endif
+
+
 /// Combine convenience adapter over SwiftQL's canonical async live-query streams (issue #308),
 /// selected for `XLRequest.publish()`/`publishOne()` (and their `bindings:` variants) by issue #309.
 ///
@@ -210,9 +292,18 @@ where Downstream: Subscriber, Downstream.Failure == Error {
         guard !isCancelledNow() else {
             return
         }
+        #if DEBUG
+        XLAsyncStreamSubscriptionTestHooks.shared.emit(.consumerTaskStarted)
+        #endif
         let stream = makeStream()
         var iterator = stream.makeAsyncIterator()
+        #if DEBUG
+        XLAsyncStreamSubscriptionTestHooks.shared.emit(.streamCreated)
+        #endif
         while await waitForDemandUnit() {
+            #if DEBUG
+            XLAsyncStreamSubscriptionTestHooks.shared.emit(.demandUnitConsumed)
+            #endif
             do {
                 guard let value = try await iterator.next() else {
                     finish(error: nil)
@@ -279,6 +370,9 @@ where Downstream: Subscriber, Downstream.Failure == Error {
         )
         demandWaiter = continuation
         lock.unlock()
+        #if DEBUG
+        XLAsyncStreamSubscriptionTestHooks.shared.emit(.demandWaiterRegistered)
+        #endif
     }
 
     /// Suspends until either one unit of demand is available (consuming it and returning `true`) or
@@ -314,6 +408,9 @@ where Downstream: Subscriber, Downstream.Failure == Error {
             return
         }
         let additionalDemand = downstream.receive(value)
+        #if DEBUG
+        XLAsyncStreamSubscriptionTestHooks.shared.emit(.delivered)
+        #endif
         guard !isCancelled, additionalDemand > .none else {
             return
         }
@@ -332,6 +429,9 @@ where Downstream: Subscriber, Downstream.Failure == Error {
         lock.lock()
         defer { lock.unlock() }
         guard !isCancelled, !didFinish, let downstream else {
+            #if DEBUG
+            XLAsyncStreamSubscriptionTestHooks.shared.emit(.finished(forwarded: false))
+            #endif
             return
         }
         didFinish = true
@@ -342,5 +442,8 @@ where Downstream: Subscriber, Downstream.Failure == Error {
         else {
             downstream.receive(completion: .finished)
         }
+        #if DEBUG
+        XLAsyncStreamSubscriptionTestHooks.shared.emit(.finished(forwarded: true))
+        #endif
     }
 }

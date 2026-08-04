@@ -5,6 +5,10 @@ import SwiftQL
 // under the Swift 5 language-mode floor this fixture package pins to — the
 // same floor `SwiftQLSwift5Client` validates for every other macro in this
 // file.
+//
+// Only one `@SQLQueries` extension is supported per database type, and
+// `SkillQuickStart.swift` owns it, because SKILL.md embeds that container
+// verbatim. This file covers the peer form.
 
 extension GRDBDatabase {
 
@@ -15,25 +19,6 @@ extension GRDBDatabase {
             Select(person)
             From(person)
             Where(person.name == name)
-        }
-    }
-}
-
-
-@SQLQueries
-extension GRDBDatabase {
-
-    // Never referenced by the generated code, so it is safe to keep private
-    // to this file.
-    fileprivate struct Query {
-
-        func skillPeopleByName(name: String) -> [SkillPerson] {
-            sqlResult { schema in
-                let person = schema.table(SkillPerson.self)
-                Select(person)
-                From(person)
-                Where(person.name == name)
-            }
         }
     }
 }

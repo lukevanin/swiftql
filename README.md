@@ -17,6 +17,7 @@
 <p align="center">
   <a href="https://github.com/lukevanin/swiftql/actions/workflows/swift.yml?query=branch%3Amain"><img alt="Build and CI status" src="https://img.shields.io/github/actions/workflow/status/lukevanin/swiftql/swift.yml?branch=main&amp;label=build%20%26%20CI"></a>
   <a href="https://github.com/lukevanin/swiftql/actions/workflows/documentation.yml?query=branch%3Amain"><img alt="Documentation status" src="https://img.shields.io/github/actions/workflow/status/lukevanin/swiftql/documentation.yml?branch=main&amp;label=documentation"></a>
+  <a href="https://codecov.io/gh/lukevanin/swiftql"><img alt="Code coverage" src="https://img.shields.io/codecov/c/github/lukevanin/swiftql?logo=codecov&amp;label=coverage"></a>
   <a href="COMPATIBILITY.md#pinned-compiler-support-points"><img alt="Swift 5.9 CI" src="https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&amp;logoColor=white"></a>
   <a href="COMPATIBILITY.md#swift-6-series-coverage"><img alt="Swift 6.0 CI" src="https://img.shields.io/badge/Swift-6.0-F05138?logo=swift&amp;logoColor=white"></a>
   <a href="COMPATIBILITY.md#swift-6-series-coverage"><img alt="Swift 6.1 CI" src="https://img.shields.io/badge/Swift-6.1-F05138?logo=swift&amp;logoColor=white"></a>
@@ -114,6 +115,81 @@ If you know SQLite, you already know the shape of SwiftQL: `Select`, `From`,
 `Join`, `Where`, `GroupBy`, `Having`, and `With` appear in SQL order and retain
 their SQL meaning.
 
+## Get started
+
+### Install
+
+Add the following line to the `dependencies` section in your `Package.swift`
+file:
+
+```text
+.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.5.5")
+```
+
+`1.5.5` is the latest published package. The examples above use APIs retained
+by v1.3; the static-query surface remains available from version 1.2.0. Pin a
+source revision only when intentionally testing later changes from `main`.
+
+In Xcode, follow Apple's [Adding package dependencies to your app](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app#Add-a-package-dependency),
+and specify the package URL `https://github.com/lukevanin/swiftql.git`.
+
+### Read the guide
+
+**[Getting started](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/)**
+walks through defining a table, creating it, inserting, selecting, binding
+values, updating, deleting, and grouping work in a transaction. It is the
+fastest path from an empty file to a working query, and it doubles as a quick
+reference afterwards.
+
+From there:
+
+- [Select queries](https://lukevanin.github.io/swiftql/documentation/swiftql/queries/)
+  for joins, grouping, subqueries, and CTEs.
+- [Declared queries](https://lukevanin.github.io/swiftql/documentation/swiftql/declaredqueries/)
+  to write queries as ordinary Swift functions with `@SQLQuery`.
+- [Advanced usage](https://lukevanin.github.io/swiftql/documentation/swiftql/advancedusage/)
+  for connections, statement preparation, row lifetime, and the full
+  transaction contract.
+- The
+  [full documentation](https://lukevanin.github.io/swiftql/documentation/swiftql/),
+  whose examples are connected to executable test scenarios, so the API shown
+  in the guides stays aligned with the library.
+
+### Run it instead
+
+[The Getting Started playground](Examples/README.md) is that same walkthrough
+with the code running beside the explanation: nine pages against a real SQLite
+file, from defining a table through inserting, selecting, updating, deleting,
+named bindings, lazy result sets, and transactions, to observing a live query.
+Open `Examples/SwiftQLExamples.xcworkspace`, build the `SwiftQLExamples` scheme
+for My Mac, and step through it.
+
+Each page prints its results and states the output it expects next to the code
+producing it, so you can change a query and see immediately what moved.
+
+## Explore SwiftQL
+
+### The to-do demo
+
+[Examples/TodoApp](Examples/TodoApp/README.md) is a SwiftUI application for
+iOS 17 and macOS 14 whose entire data layer is SwiftQL. It shows the parts a
+guide covers one at a time working together: a four-table schema with a
+many-to-many join, declared `@SQLQueries` reads including a join and a grouped
+aggregate, one query serving every filter, sort, and search combination,
+writes that return their row through `RETURNING`, an atomic move between
+lists, and an interface fed entirely by live queries — completing a to-do
+updates the list and the sidebar counts with no reload call anywhere. Its
+queries are checked against a schema snapshot at build time, and 62 tests
+cover the query layer.
+
+Open `Examples/TodoApp/TodoApp.xcodeproj` and run the **TodoApp** scheme.
+
+## What's new
+
+[WHATSNEW.md](WHATSNEW.md) describes each release in plain language — what you
+can do that you could not before, and whether it affects code you already
+wrote. [CHANGELOG.md](CHANGELOG.md) remains the exact record.
+
 ## How SwiftQL compares
 
 Swift has good persistence libraries. They differ mainly in how much of the
@@ -189,10 +265,17 @@ explicit list of the places the correspondence is not exact.
   Define database-independent SQL, parameter, result, identity, and cardinality
   metadata before opening a database, then prepare it against a compatible
   driver.
+- **[Declared queries](https://lukevanin.github.io/swiftql/documentation/swiftql/declaredqueries/).**
+  Write a query as an ordinary Swift function with `@SQLQuery`, or a whole
+  container of them with `@SQLQueries`, and call it like any other function.
+  A SwiftPM build-tool plugin can prepare every declared query against a
+  schema snapshot at build time; see
+  [COMPATIBILITY.md](COMPATIBILITY.md) for the build systems it runs under.
 - **[Live data](https://lukevanin.github.io/swiftql/documentation/swiftql/livequeries/).**
-  Observe typed query results through GRDB-backed Combine publishers that track
-  the database region a query reads, or adopt `XLQueryObserver`/
-  `XLQueryRowObserver` directly with SwiftUI's `@StateObject`/`@ObservedObject`.
+  Observe typed query results with `for try await` over `stream()` and
+  `streamOne()`, the canonical live-query API. GRDB-backed Combine publishers
+  track the same database region a query reads, and `XLObservableQuery` or
+  `XLQueryObserver` adopt either one from SwiftUI.
 - **Your domain.** Extend SQLite with Swift enums, custom value types, and
   type-safe custom SQL functions.
 
@@ -209,42 +292,7 @@ SQLite remains the authority for the live schema, runtime constraints,
 coercion rules, and dialect-specific behavior. SwiftQL deliberately grows its
 SQLite coverage without blurring that line.
 
-## Installation
-
-### Swift Package Manager
-
-Add the following line to the `dependencies` section in your `Package.swift`
-file:
-
-```text
-.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.5.5")
-```
-
-`1.5.5` is the latest published package. The examples above use APIs retained
-by v1.3; the static-query surface remains available from version 1.2.0. Pin a
-source revision only when intentionally testing later changes from `main`.
-
-### Xcode
-
-Refer to Apple's documentation [Adding package dependencies to your app](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app#Add-a-package-dependency),
-and specify the package URL `https://github.com/lukevanin/swiftql.git`. 
-
-## Explore SwiftQL
-
-[swiftql on GitHub Pages](https://lukevanin.github.io/swiftql/) is the project
-site: the pitch, a worked comparison against raw SQL, and the API reference in
-one place.
-
-Start with the
-[documentation](https://lukevanin.github.io/swiftql/documentation/swiftql/).
-Its examples are connected to executable test scenarios, so the API shown in
-the guides stays aligned with the library.
-
-Already know SQL? The [porting guide](Documentation/PortingFromSQL.md) maps
-every clause to its SwiftQL form and works through ports up to recursive common
-table expressions.
-
-For project guarantees and direction:
+## Project guarantees and direction
 
 - [Design rationale](Documentation/DESIGN.md) explains why SwiftQL is
   SQL-shaped, why queries are result builders in SQL order, why column values
@@ -253,8 +301,8 @@ For project guarantees and direction:
   toolchains and reproducible CI matrix.
 - [SQLite conformance](COMPATIBILITY.md#sqlite-conformance-inventory) records
   the evidence boundary for SwiftQL's currently supported public subset.
-- [Changelog](CHANGELOG.md) records released behavior and the unreleased v1.3
-  evidence milestone.
+- [Changelog](CHANGELOG.md) records released behavior, and the unreleased
+  section records what has landed since the latest published version.
 - [Performance benchmarks](BENCHMARKS.md) measure query construction,
   preparation, caching, binding, execution, and decoding.
 - [First-party source coverage](Coverage/README.md) preserves the reproducible

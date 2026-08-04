@@ -13,8 +13,12 @@ prototype's own local model.
 
 `SwiftQLSQLiteBuildValidationValidator` (`Sources/SwiftQLSQLiteBuildValidationValidator`)
 is a library target depending on `SwiftQLCore`, `SwiftQLSQLiteBuildValidationManifest`,
-GRDB, and CSQLite. `SwiftQLSQLiteBuildValidationValidatorCLI` wraps it as the
-`swiftql-build-validate` executable product.
+GRDB, and CSQLite. The `swiftql-build-validate` executable target
+(`Sources/SwiftQLSQLiteBuildValidationValidatorCLI`) wraps it as the
+`swiftql-build-validate` executable product. Target and product carry the same
+name on purpose: the [#294 plugin](SQLiteBuildValidationPlugin.md) resolves
+this executable through `context.tool(named:)`, and Xcode's build system cannot
+find it when the two names disagree (#492).
 
 ```
 swiftql-build-validate \

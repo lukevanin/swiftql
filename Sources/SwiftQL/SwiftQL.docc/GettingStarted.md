@@ -6,7 +6,13 @@ Learn how to define a table and perform basic SQLite operations with SwiftQL.
 
 This guide introduces SwiftQL's essential database operations: creating a
 table, inserting rows, selecting data, binding values, updating rows, and
-deleting rows.
+deleting rows. Read it from start to finish once, then come back to it as a
+quick reference.
+
+It stays on the everyday path on purpose. Connection ownership, statement
+preparation, row lifetime, and the exact transaction rules are covered
+separately in <doc:AdvancedUsage>; you do not need them to write your first
+query.
 
 The guide assumes a basic understanding of SQLite SQL. For a more comprehensive
 introduction to SQL, see the
@@ -24,14 +30,6 @@ Version 1.5.5 is the published package. This guide's basic request path remains
 supported in v1.3, and its static-query and contextual-codec APIs remain
 available from version 1.2.0 or later. Pin a source revision only when
 intentionally testing later changes from `main`.
-
-SwiftQL v1.3 validates the existing SQLite surface against recorded real-engine,
-Northwind, and stress evidence; it does not introduce a new public syntax or
-validation API. In particular, issue
-[#132](https://github.com/lukevanin/swiftql/issues/132) is a
-research-only schema-snapshot preparation prototype. Applications still own
-their schema lifecycle and perform physical preparation on the runtime
-connection that executes each statement.
 
 Then add `SwiftQL` to the dependencies of your target and import the module in
 files that use it. The package requires Swift tools 5.9 and targets iOS 16 or
@@ -70,6 +68,17 @@ types when binding values to SQLite and reading values from SQLite:
 These mappings provide type safety for Swift expressions, bindings, and decoded
 results. Optional properties can store `NULL`; non-optional properties are
 emitted with a `NOT NULL` constraint.
+
+On Swift 6.0 and later, a table declared `public` or `package` also conforms to
+`Sendable`, so rows can be passed between tasks and held in `static let`
+constants without tripping strict-concurrency checking. A `static var` is
+shared mutable state whatever it holds, and still needs isolating. Swift infers the same conformance
+for a table that is `internal` or narrower, so those are left alone. Should a
+table hold a stored property that is not itself `Sendable`, the compiler says so
+on the generated conformance; declaring the table `@unchecked Sendable` takes
+responsibility for that property and turns the generation off. A generic table
+gets nothing generated either, because the conditional conformance it would need
+cannot be written by a macro, so declare that one yourself if you want it.
 
 ### Creating tables
 
@@ -256,105 +265,8 @@ This guide uses the explicit `schema` name for clarity.
 
 ### Reusing requests
 
-Requests retain the generated SQL and an immutable `XLParameterLayout`. The
-layout is static metadata: it records each logical parameter's deterministic
-index, binding key, value type, nullability, coding context, and selected codec
-identity. Runtime values are separate. Put them in a fresh
-`XLInvocationBindings` packet for each call, then pass that packet to
-`fetchAll(bindings:)`, `fetchOne(bindings:)`, `execute(bindings:)`, or a
-packet-backed publisher. Creating a request translates the SwiftQL statement
-into SQL but does not prepare it immediately. On execution, GRDB obtains a
-cached SQLite statement for that SQL on the connection performing the work.
-
-#### Dialect and driver responsibilities
-
-The SQLite dialect defines how SwiftQL renders valid SQLite syntax, including
-identifier quoting, placeholder spelling, value storage classes, and required
-SQLite capabilities. The database driver has a separate job: it leases a
-connection, prepares the rendered SQL, binds SQLite values to its transport,
-executes the statement, and reads SQLite values from the result. GRDB is the
-current SQLite driver, but it does not define the SQLite syntax or the logical
-policy for converting application values.
-
-Adapter packages can depend directly on the `SwiftQLCore` library product. It
-exports the dialect, dialect-value, logical-statement, and driver contracts
-without linking GRDB; the `SwiftQL` product remains the compatibility facade
-that includes the current GRDB-backed SQLite adapter.
-
-#### Logical and physical preparation
-
-Logical requests and prepared handles are database- or pool-bound. They retain
-the rendered SQL and request metadata, but they do not own one physical
-statement. Physical GRDB statements are connection-bound and must not be shared
-between connections or concurrent executions.
-
-With a connection pool, each execution leases a connection and resolves or
-caches the physical statement separately on that leased connection. Another
-execution may lease a different connection and therefore prepare the same SQL
-again. A single-connection database may reuse its own statement cache, but its
-physical statements still belong only to that connection.
-
-Preparation is therefore an execution-time operation. Successful preparation
-on one connection does not guarantee every later preparation: preparation can
-still fail later on a newly leased connection, for example when its schema,
-registered functions, or available capabilities differ.
-
-#### Incremental row lifetime
-
-The GRDB adapter steps result rows through a package-internal, driver-neutral
-callback while the leased connection is active. It copies each row into
-normalized SQLite values before advancing because GRDB reuses cursor-backed row
-storage. The synchronous callback may stop without stepping later rows, and a
-thrown decoding error releases the cursor and connection before it propagates.
-A cursor value is never returned from the database-access closure.
-
-The public v1 behavior remains eager: `fetchAll()` still returns a complete
-typed array, while `fetchOne()` returns an optional first row. Those
-compatibility APIs are layered over the same incremental primitive.
-`fetchAll()` therefore retains its typed output as required but no longer
-retains a complete intermediate array of GRDB rows or normalized SQLite-value
-rows before typed decoding. Future package adapters should implement the same
-callback lifetime rather than exposing their native cursor types.
-
-#### Transactions and bindings
-
-Transaction-scoped work pins one connection for the duration of the
-transaction. Code inside that transaction must use the pinned connection and
-must not re-enter the root pool, which could lease another connection and break
-the transaction boundary or deadlock while waiting for itself.
-
-The synchronous v1 driver commits when the transaction body returns and rolls
-back when it throws. `withValidatedTransaction` preserves the exact body error,
-so a dedicated caller error can express explicit rollback intent. The v1
-contract does not expose nested transactions, savepoints, or task-cancellation
-hooks; do not attempt those by re-entering the root pool from a pinned body.
-The current GRDB v1 driver is pool-backed and does not expose a separate
-single-connection transaction capability.
-
-Each invocation packet carries normalized dialect values in logical-index
-order, so every call has fresh bindings. Packet-backed execution does not move
-those values into the logical request or connection-wide statement cache.
-Packets and layouts are value-semantic and `Sendable` when their dialect values
-are. The current `XLRequest` facade itself is not `Sendable` and does not yet
-promise that one request can be shared across tasks; use packets to separate
-values across repeated calls in the request's supported isolation context.
-
-For cross-task raw-value execution with GRDB, call
-`GRDBDatabase.prepareInvocation(with:)`. Its `GRDBPreparedInvocation` result is
-`Sendable` and accepts an independent packet in `fetchAllValues`,
-`fetchOneValues`, or `execute`. It deliberately returns normalized SQLite
-values instead of retaining the legacy typed row-reader graph. For a durable,
-database-independent SQL and value-layout contract, create an
-`XLStaticQueryDescriptor` and prepare it through the overload described in
-<doc:StaticQueries>.
-
-Driver integrations can use the `prepareValidated`, `bindValidated`,
-`fetchAllValidated`, `fetchOneValidated`, `executeValidated`, and
-`withValidatedTransaction` helpers to normalize transport failures into
-`XLDatabaseContractError` categories. The existing GRDB compatibility facade
-keeps raw `DatabaseError` and `XLColumnReadError` values where its retry policy
-and established decoding API need to inspect them; database and dialect
-mismatches are still rejected before physical preparation in both paths.
+Creating a request translates a SwiftQL statement into SQL once. Keep the
+request and execute it as many times as you need:
 
 <!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
 ```swift
@@ -374,86 +286,14 @@ Execute the request whenever it is needed:
 let workingAgePeople = try workingAgeRequest.fetchAll()
 ```
 
-#### Typed multi-statement transaction scopes
+A request holds the rendered SQL and an immutable description of its
+parameters. It does not hold the values for a particular call — those go in a
+separate bindings packet, described in the next section. That separation is
+what lets one request serve many calls with different values.
 
-`GRDBDatabase.withTransaction(_:)` (issue #284, `XLTransactionalDatabase`) runs
-an ordered sequence of typed requests — reads and writes alike — as one atomic
-unit on a single pinned connection, without ever naming a GRDB type. It is the
-typed counterpart to the driver-level `withTransaction` described above: where
-the driver hands an adapter integration a raw connection, this hands ordinary
-application code another `GRDBDatabase`, so the body is just more
-`makeRequest(with:)` calls (and, inside a `@SQLQueries` extension, more
-`Context` calls — `execute(_:)` is sugar over this same primitive).
-
-<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
-```swift
-let (workingAgeCount, insertedID) = try database.withTransaction { scope in
-    let newHire = Person(id: "txn-scope-a", occupationId: nil, name: "Grace", age: 29)
-    try scope.makeRequest(with: sqlInsert(newHire)).execute()
-    let promoted = Person(id: "txn-scope-b", occupationId: nil, name: "Harold", age: 45)
-    try scope.makeRequest(with: sqlInsert(promoted)).execute()
-    let matches = try scope.makeRequest(with: workingAgeQuery).fetchAll()
-    return (matches.count, newHire.id)
-}
-```
-
-Ordering, atomicity, and lifetime work exactly as the driver-level contract
-above describes, plus the guarantees a typed, adapter-neutral surface adds:
-
-- **Order and results.** Every request the body issues runs in source order
-  on the one connection `withTransaction(_:)` pinned for this call; an
-  ordinary local variable carries one operation's result to a later one or to
-  the transaction's own return value.
-- **Commit and rollback.** The whole body is one commit unit: it commits only
-  after the body returns normally, and rolls back every write the body
-  performed — on a preparation, binding, execution, decoding, or user-thrown
-  failure alike — before rethrowing the original, unmodified error.
-- **Read-your-writes.** A read issued from the scope observes an earlier,
-  still-uncommitted write from the same body, because both run on the same
-  pinned connection.
-- **No GRDB type in the contract.** The scope handed to the body is another
-  `GRDBDatabase` — the exact same type the rest of this article uses — never a
-  GRDB `Database`, `DatabasePool`, or statement handle.
-
-Three cases are rejected before any transaction work happens, each with a
-predictable, catchable `XLTransactionScopeError` rather than a crash or silent
-wrong answer:
-
-- **Nested transactions and savepoints are not supported.** Calling
-  `withTransaction(_:)` again from inside an active body — on the scope it was
-  given, *or* on the original database captured from the enclosing scope —
-  throws `.nestedTransactionUnsupported`. The v1 driver has no savepoint hook,
-  so a nested call cannot prove it would only commit or roll back its own
-  writes; re-entering the connection pool from inside an open transaction can
-  also deadlock or silently lease a different connection that only sees the
-  database's last *committed* state, missing the transaction's own
-  uncommitted writes.
-- **The scope must not escape the body.** A request, write request, or scope
-  value used after `withTransaction(_:)` returns throws `.scopeEscaped`: the
-  pinned connection is invalidated the instant the body returns, so
-  continuing would silently touch a connection GRDB may already be reusing
-  for unrelated work.
-- **Live queries are not supported inside a transaction.** `publish()` /
-  `publishOne()` on a transaction-scoped request throws
-  `.liveQueriesUnsupportedInTransaction`: `ValueObservation` tracks a
-  connection pool across commits over time, and a transaction-scoped
-  connection is invalidated before there is anything to observe.
-
-Cancellation is checked once, at the very start of `withTransaction(_:)`: a
-task that is already cancelled throws `CancellationError` before opening the
-transaction. The body itself runs synchronously to completion once started —
-there is no later cooperative cancellation point, so mid-transaction
-cancellation is not a supported capability of this v1 surface, not a silently
-ignored one.
-
-`withTransaction(_:)` is a non-macro v1 compatibility API: a plain closure
-over `XLTransactionalDatabase`, available on the same Swift 5.9 floor as the
-rest of this article, independent of the `@SQLQuery`/`@SQLQueries` macros
-described in <doc:DeclaredQueries>. Composing with those macros needs no
-separate transaction-aware spelling — a `@SQLQueries` extension's generated
-`execute(_:)` already calls `withTransaction(_:)` internally, so every
-declared query it runs shares the same pinned connection as any
-`makeRequest(with:)` call alongside it in the same body.
+<doc:AdvancedUsage> covers when SQLite actually prepares the statement, how
+that interacts with a connection pool, and which of these types are safe to
+share between tasks.
 
 ## Named bindings
 
@@ -509,15 +349,6 @@ duplicate bindings, and missing parameters before driver execution. Missing is
 not the same as SQL `NULL`: omitting a binding fails completeness validation,
 while `.null` is a present value accepted only by a `.nullable` slot. Repeated
 uses of the same named reference share one logical slot and one value.
-
-The mutating `set` methods remain as a migration shim for v1 literal bindings.
-They immediately normalize each value into a compatibility packet stored in
-that request copy. Existing code can continue to copy, set, and execute a
-request, but new code should keep the prepared request immutable and pass an
-explicit packet for each call. The shim cannot override a contextual
-parameter's selected codec. Static descriptors use the same immutable packet
-contract while adding stable identity, result metadata, cardinality, and a
-cross-task prepared handle; see <doc:StaticQueries>.
 
 ## Update statements
 
@@ -580,6 +411,61 @@ let updateBindings = try XLInvocationBindings<XLSQLiteValue>(
 try updateAgeRequest.execute(bindings: updateBindings)
 ```
 
+### Setting a nullable column
+
+Assign a nullable column the way you would an ordinary Swift optional. A value
+sets the column, and `nil` sets it to SQL `NULL`:
+
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
+```swift
+let setOccupationStatement = sql { schema in
+    let person = schema.into(Person.self)
+    Update(person)
+    Setting(person) { row in
+        row.occupationId = "occ-1"
+    }
+    Where(person.id == "fred")
+}
+try database.makeRequest(with: setOccupationStatement).execute()
+
+let clearOccupationStatement = sql { schema in
+    let person = schema.into(Person.self)
+    Update(person)
+    Setting(person) { row in
+        row.occupationId = nil
+    }
+    Where(person.id == "fred")
+}
+try database.makeRequest(with: clearOccupationStatement).execute()
+```
+
+Setting a column to `NULL` is a different thing from leaving it out of the
+statement. A column the closure never assigns takes no part in the `SET`
+clause and keeps whatever value the row already held, which is why an update
+that sets only `age` leaves `occupationId` alone.
+
+Any expression of the column's wrapped type (`String`) or of its optional
+type (`String?`) assigns the same way — literals, plain values, column
+references, and named bindings included. A binding whose runtime value may be
+`NULL` needs no special spelling:
+
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
+```swift
+let occupationParameter = XLNamedBindingReference<String?>(name: "occupationId")
+
+let bindOccupationStatement = sql { schema in
+    let person = schema.into(Person.self)
+    Update(person)
+    Setting(person) { row in
+        row.occupationId = occupationParameter
+    }
+    Where(person.id == "fred")
+}
+```
+
+That parameter's slot is nullable, so one prepared statement can bind either a
+value or `NULL` for each call.
+
 ## Delete statements
 
 Use a delete statement with a `Where` clause to remove matching rows:
@@ -612,5 +498,45 @@ try deletePersonRequest.execute(bindings: deleteBindings)
 
 > Warning: A delete without a `Where` clause removes every row in the table.
 
-Continue with <doc:Queries> for select composition, <doc:Expressions> for
-conditions and operators, or <doc:LiveQueries> to observe changing results.
+## Grouping work in a transaction
+
+When several statements must succeed or fail together, run them inside
+`withTransaction(_:)`. The closure receives a scope that works exactly like the
+database you already have — call `makeRequest(with:)` on it as usual:
+
+<!-- test: XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings -->
+```swift
+let (workingAgeCount, insertedID) = try database.withTransaction { scope in
+    let newHire = Person(id: "txn-scope-a", occupationId: nil, name: "Grace", age: 29)
+    try scope.makeRequest(with: sqlInsert(newHire)).execute()
+    let promoted = Person(id: "txn-scope-b", occupationId: nil, name: "Harold", age: 45)
+    try scope.makeRequest(with: sqlInsert(promoted)).execute()
+    let matches = try scope.makeRequest(with: workingAgeQuery).fetchAll()
+    return (matches.count, newHire.id)
+}
+```
+
+The three rules worth knowing on day one:
+
+- Statements run in the order you write them, on one connection.
+- The transaction commits when the closure returns and rolls back every write
+  if the closure throws — including errors you throw yourself.
+- A read inside the closure sees the writes the closure already made.
+
+Values computed inside the closure come back out as its return value, as
+`workingAgeCount` and `insertedID` do above.
+
+Transactions have boundaries the compiler cannot enforce: nesting them, using
+the scope after the closure returns, and observing live queries inside one are
+all rejected at runtime. <doc:AdvancedUsage> lists each rejection and the
+reason for it.
+
+## Where to go next
+
+- <doc:Queries> — joins, grouping, ordering, subqueries, and CTEs.
+- <doc:Expressions> — conditions, operators, and typed expression composition.
+- <doc:DeclaredQueries> — declare queries as functions with the `@SQLQuery` and
+  `@SQLQueries` macros.
+- <doc:LiveQueries> — observe results that change as the database changes.
+- <doc:AdvancedUsage> — connections, statement preparation, row lifetime, and
+  the full transaction contract.

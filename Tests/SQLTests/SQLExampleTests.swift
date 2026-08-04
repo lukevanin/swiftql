@@ -1407,6 +1407,50 @@ extension XLDocumentationTests {
             Person(id: "fred", occupationId: nil, name: "Fred", age: 42)
         )
 
+        let setOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = "occ-1"
+            }
+            Where(person.id == "fred")
+        }
+        try database.makeRequest(with: setOccupationStatement).execute()
+
+        XCTAssertEqual(
+            try peopleByNameRequest.fetchOne(bindings: fredBindings),
+            Person(id: "fred", occupationId: "occ-1", name: "Fred", age: 42)
+        )
+
+        let clearOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = nil
+            }
+            Where(person.id == "fred")
+        }
+        try database.makeRequest(with: clearOccupationStatement).execute()
+
+        let occupationParameter = XLNamedBindingReference<String?>(name: "occupationId")
+        let bindOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = occupationParameter
+            }
+            Where(person.id == "fred")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(bindOccupationStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = :occupationId WHERE (t0.id == 'fred')"
+        )
+
+        XCTAssertEqual(
+            try peopleByNameRequest.fetchOne(bindings: fredBindings),
+            Person(id: "fred", occupationId: nil, name: "Fred", age: 42)
+        )
+
         let deleteIDParameter = XLNamedBindingReference<String>(name: "id")
         let deletePersonStatement = sql { schema in
             let person = schema.into(Person.self)
@@ -1429,6 +1473,218 @@ extension XLDocumentationTests {
 
         XCTAssertNil(
             try peopleByNameRequest.fetchOne(bindings: fredBindings)
+        )
+    }
+
+    func testDocumentationAdvancedUsage() throws {
+        let minimumAgeParameter = XLNamedBindingReference<Int>(name: "minimumAge")
+        let namedAdultsQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.age >= minimumAgeParameter)
+        }
+        let preparedInvocation = database.prepareInvocation(with: namedAdultsQuery)
+
+        let minimumAgeSlot = try XCTUnwrap(
+            preparedInvocation.parameterLayout.slot(for: .named("minimumAge"))
+        )
+        let invocationBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: preparedInvocation.parameterLayout,
+            bindings: [
+                try XLInvocationBinding(slot: minimumAgeSlot, value: .integer(21))
+            ]
+        ).validatingComplete()
+
+        let rows: [[XLSQLiteValue]] = try preparedInvocation.fetchAllValues(
+            bindings: invocationBindings
+        )
+        XCTAssertEqual(rows.count, 3)
+
+        var rejection: XLTransactionScopeError?
+        do {
+            try database.withTransaction { scope in
+                let candidate = Person(id: "nested", occupationId: nil, name: "Ida", age: 33)
+                try scope.makeRequest(with: sqlInsert(candidate)).execute()
+                try scope.withTransaction { _ in }
+            }
+        } catch let error as XLTransactionScopeError {
+            rejection = error
+        }
+        XCTAssertEqual(rejection, .nestedTransactionUnsupported)
+        XCTAssertEqual(
+            try preparedInvocation.fetchAllValues(bindings: invocationBindings).count,
+            3,
+            "The outer body's insert must roll back with the rejected transaction."
+        )
+    }
+
+    /// A nullable column is assigned in a `Setting` closure the same way an
+    /// ordinary Swift optional is: a value sets the column, and `nil` sets it
+    /// to SQL `NULL`. The two are distinct from leaving the column out of the
+    /// statement altogether, which is what an unassigned column does.
+    func testExample_Setting_NullableColumn() throws {
+        try database.makeRequest(with: sqlCreate(Person.self)).execute()
+
+        let yogiBear = Person(id: "per-3", occupationId: nil, name: "Yogi Bear", age: 68)
+        try database.makeRequest(with: sqlInsert(yogiBear)).execute()
+
+        let setOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = "occ-1"
+            }
+            Where(person.id == "per-3")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(setOccupationStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = 'occ-1' WHERE (t0.id == 'per-3')"
+        )
+        try database.makeRequest(with: setOccupationStatement).execute()
+
+        let personByIDQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.id == "per-3")
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-3", occupationId: "occ-1", name: "Yogi Bear", age: 68)
+        )
+
+        let clearOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = nil
+            }
+            Where(person.id == "per-3")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(clearOccupationStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = NULL WHERE (t0.id == 'per-3')"
+        )
+        try database.makeRequest(with: clearOccupationStatement).execute()
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-3", occupationId: nil, name: "Yogi Bear", age: 68)
+        )
+
+        // A plain optional value also assigns directly: a wrapped value
+        // renders the value, `nil` renders NULL.
+        let maybeOccupation: String? = "occ-4"
+        let setFromOptionalValueStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = maybeOccupation
+            }
+            Where(person.id == "per-3")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(setFromOptionalValueStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = 'occ-4' WHERE (t0.id == 'per-3')"
+        )
+        try database.makeRequest(with: setFromOptionalValueStatement).execute()
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-3", occupationId: "occ-4", name: "Yogi Bear", age: 68)
+        )
+    }
+
+    /// A column that is never assigned stays out of the `SET` clause, so an
+    /// update that touches one column leaves every other column alone --
+    /// including a nullable one holding a value.
+    func testExample_Setting_UnassignedNullableColumnIsNotCleared() throws {
+        try database.makeRequest(with: sqlCreate(Person.self)).execute()
+
+        let johnDoe = Person(id: "per-1", occupationId: "occ-1", name: "John Doe", age: 31)
+        try database.makeRequest(with: sqlInsert(johnDoe)).execute()
+
+        let updateAgeStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.age = 32
+            }
+            Where(person.id == "per-1")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(updateAgeStatement).sql,
+            "UPDATE Person AS t0 SET age = 32 WHERE (t0.id == 'per-1')"
+        )
+        try database.makeRequest(with: updateAgeStatement).execute()
+
+        let personByIDQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.id == "per-1")
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-1", occupationId: "occ-1", name: "John Doe", age: 32)
+        )
+    }
+
+    /// An expression whose own type is already optional -- a binding reference
+    /// whose bound value may be `NULL` at runtime, or another nullable column
+    /// -- assigns with the same spelling as a wrapped-type expression.
+    func testExample_Setting_NullableColumnFromOptionalExpression() throws {
+        try database.makeRequest(with: sqlCreate(Person.self)).execute()
+
+        let johnDoe = Person(id: "per-1", occupationId: "occ-1", name: "John Doe", age: 31)
+        try database.makeRequest(with: sqlInsert(johnDoe)).execute()
+
+        let occupationParameter = XLNamedBindingReference<String?>(name: "occupationId")
+        let setOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = occupationParameter
+            }
+            Where(person.id == "per-1")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(setOccupationStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = :occupationId WHERE (t0.id == 'per-1')"
+        )
+
+        let request = database.makeRequest(with: setOccupationStatement)
+        let occupationSlot = try XCTUnwrap(
+            request.parameterLayout.slot(for: .named("occupationId"))
+        )
+
+        // The slot is nullable, so the same statement can bind a value or NULL.
+        try request.execute(
+            bindings: try XLInvocationBindings<XLSQLiteValue>(
+                layout: request.parameterLayout,
+                bindings: [try XLInvocationBinding(slot: occupationSlot, value: .text("occ-2"))]
+            ).validatingComplete()
+        )
+
+        let personByIDQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.id == "per-1")
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-1", occupationId: "occ-2", name: "John Doe", age: 31)
+        )
+
+        try request.execute(
+            bindings: try XLInvocationBindings<XLSQLiteValue>(
+                layout: request.parameterLayout,
+                bindings: [try XLInvocationBinding(slot: occupationSlot, value: .null)]
+            ).validatingComplete()
+        )
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-1", occupationId: nil, name: "John Doe", age: 31)
         )
     }
 
@@ -3132,5 +3388,56 @@ extension XLDocumentationTests {
             interoperabilityRowValue[2],
         ]
         XCTAssertEqual(interoperabilityDates, Array(repeating: "2023-11-14 22:13:20", count: 3))
+    }
+
+    /// Runs the finished program from the DocC tutorial at
+    /// `Sources/SwiftQL/SwiftQL.docc/Tutorials/EndToEndQuery.tutorial` against
+    /// a temporary SQLite file, so the last code snapshot the tutorial shows is
+    /// executed rather than only compiled. `SQLDocumentationCatalogTests` ties
+    /// the earlier snapshots back to the same compiled source.
+    func testDocumentationTutorialEndToEndQuery() throws {
+        let tutorialDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: tutorialDirectory,
+            withIntermediateDirectories: false
+        )
+        defer { try? FileManager.default.removeItem(at: tutorialDirectory) }
+
+        // Each call builds its own database, because the walkthrough creates
+        // the tables and inserts the rows itself.
+        XCTAssertEqual(
+            try albumCredits(
+                recordedIn: "GB",
+                databaseURL: tutorialDirectory
+                    .appendingPathComponent("british-credits.sqlite")
+            ),
+            [
+                AlbumCredit(title: "Revolver", year: 1966, studioName: "Abbey Road"),
+                AlbumCredit(title: "Abbey Road", year: 1969, studioName: "Abbey Road"),
+            ]
+        )
+        XCTAssertEqual(
+            try albumCredits(
+                recordedIn: "US",
+                databaseURL: tutorialDirectory
+                    .appendingPathComponent("american-credits.sqlite")
+            ),
+            [
+                AlbumCredit(
+                    title: "The Sun Sessions",
+                    year: 1976,
+                    studioName: "Sun"
+                ),
+            ]
+        )
+        XCTAssertEqual(
+            try albumCredits(
+                recordedIn: "ZA",
+                databaseURL: tutorialDirectory
+                    .appendingPathComponent("unmatched-credits.sqlite")
+            ),
+            []
+        )
     }
 }

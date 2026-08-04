@@ -280,8 +280,8 @@ checking:
 4. **Outer-joined tables are declared nullable at the source**, via
    `schema.nullableTable`, rather than only being nullable in the result.
 
-Beyond those, the current gaps are recorded rather than hidden. As of the v1.3
-conformance inventory, of 111 tracked features, 107 are supported with evidence
+Beyond those, the current gaps are recorded rather than hidden. As of the v1.4
+conformance inventory, of 114 tracked features, 110 are supported with evidence
 from a real SQLite engine, and the exceptions are:
 
 - A typed DDL model is not implemented. `sqlCreate` creates a basic table and

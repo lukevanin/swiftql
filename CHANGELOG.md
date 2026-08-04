@@ -1,5 +1,97 @@
 # Changelog
 
+## [1.5.6] - Unreleased
+
+### Added
+
+- `@SQLTable` and `@SQLResult` now declare a `Sendable` conformance for the
+  models they expand, so a value built entirely from column values can be
+  shared across isolation domains without the conformance being written out at
+  every declaration (issue #531). Swift already infers `Sendable` for a struct
+  whose stored properties are all `Sendable`, but withholds that inference from
+  a type other modules can see, which is why a `public` model used to warn
+  under complete strict-concurrency checking and left callers reaching for
+  `nonisolated(unsafe)` to silence it. The macros fill in exactly that gap:
+  a `public` or `package` model gets the conformance, and a model that is
+  `internal` or narrower keeps the compiler's own inferred one and gets nothing
+  generated. This is a public API addition. A model that already states
+  `Sendable`, or `@unchecked Sendable`, keeps its own declaration and gets no
+  second one, so existing declarations such as the `TodoKit` schema still
+  compile unchanged. The generated conformance is checked rather than asserted,
+  so a `public` model holding a non-`Sendable` stored property is now diagnosed
+  on the generated extension where it previously compiled silently; declaring
+  `@unchecked Sendable` on such a model takes responsibility for it and turns
+  the generation off. Generic models are left alone, because the conditional
+  conformance they need cannot be written by an extension macro without the
+  compiler reporting `circular reference expanding extension macros`;
+  `SQLScalarResult` and `SQLRow2`...`SQLRow6`, the shapes behind `#row`, are
+  the affected types and they were not `Sendable` before this either. The
+  conformance requires Swift 6.0 or later, since Swift 5.9 treats a
+  macro-expanded extension as a separate source file for the rule that a
+  `Sendable` conformance must be declared alongside its type and warns on every
+  model; the 5.9 support point keeps the behaviour it had. See COMPATIBILITY.md.
+- Added a `SwiftQLExamples` library product (issue #480), holding the
+  pre-expanded schema and declared queries the Getting Started playground
+  imports. A classic Xcode playground has no `Package.swift` of its own and
+  cannot reliably load a Swift macro compiler plugin, so the example schema is
+  built during the ordinary package build and the playground calls
+  already-expanded API. It is example code rather than a supported API, and
+  nothing in `SwiftQL` or `SwiftQLCore` depends on it.
+
+### Changed
+
+- `SQLiteBuildValidator` now reports the schema checks it could not run, and
+  stops preparing queries once the snapshot's schema identity is already known
+  not to match the manifest (issue #440). When
+  `SQLiteBuildValidationRuntime.capture` fails, the row-count and fingerprint
+  checks used to vanish from the report; they now appear as `.unsupported`
+  `schema.row-count` and `schema.fingerprint` diagnostics, so a reader can tell
+  a check that could not run apart from one that was never in the report. When
+  a schema identity mismatch is already recorded, every manifest entry gets one
+  deterministic `schema.mismatch-skipped` outcome instead of a preparation
+  whose result is already meaningless. `overallVerdict` resolution, the
+  manifest format, the CLI surface, and every existing pass/fail outcome are
+  unchanged, and canonical reports remain byte-identical across repeated runs.
+
+### Fixed
+
+- Nullable columns can now be assigned in a `Setting` closure the way any
+  Swift optional is: `row.occupationId = "occ-1"` sets the column,
+  `row.occupationId = nil` sets it to SQL `NULL`, and an optional-typed
+  expression — a `XLNamedBindingReference<String?>` whose bound value may be
+  `NULL` at runtime, or another nullable column — assigns with the same
+  spelling. Previously the generated setter's type was
+  `Optional<any XLExpression<T?>>`, where the outer `Optional` meant "leave
+  this column out of the `SET` clause"; that collided with the column's own
+  optionality, and no assignment of a plain value or of `nil` compiled at
+  all. Generated `MetaUpdate` types now route column assignment through
+  key-path member lookup over typed per-column slots (`XLColumnUpdate` /
+  `XLNullableColumnUpdate`), so participation in the `SET` clause is tracked
+  separately from the value's own optionality and one column name resolves
+  against every assignment shape. A column the closure never assigns still
+  stays out of the statement, non-optional columns behave as before, and
+  `MetaUpdate`'s memberwise initializer keeps its v1 shape, where a `nil`
+  argument still means "omit this column".
+
+- Fixed `SwiftQLSQLiteBuildValidationPlugin` failing every Xcode build of a
+  plugin-adopting target (issue #492). `context.tool(named:)` resolves a
+  build-tool plugin's tool to `$BUILD_DIR/$CONFIGURATION/<target name>`, while
+  Xcode's build system names a package executable after its *product*. The
+  validator's target (`SwiftQLSQLiteBuildValidationValidatorCLI`) and product
+  (`swiftql-build-validate`) had different names, so Xcode built the
+  validator's library dependencies, left the executable out of the adopting
+  target's dependency graph, and failed with `Build input file cannot be found`
+  before validation ran — on a valid manifest as much as an invalid one.
+  `swift build` resolved the same graph correctly, which is why only Xcode was
+  affected. The executable target is now named `swiftql-build-validate`,
+  matching its product; its source directory is unchanged. Both build systems
+  now agree: a valid manifest builds, and an invalid one fails with the
+  validator's own diagnostic.
+  `IntegrationTests/BuildValidationPluginFixture/verify-xcode.sh` drives that
+  agreement through `xcodebuild` so the two names cannot drift apart again. No
+  public API changed, and the `swiftql-build-validate` product and its CLI
+  contract are unchanged.
+
 ## [1.5.5] - 2026-07-30
 
 ### Added
@@ -254,7 +346,8 @@ new, additive surfaces with no changes to any existing public API.
 - The plugin is verified under `swift build`. Building a plugin-adopting
   package in Xcode 26.5 fails before validation runs, reporting `Build input
   file cannot be found` for the validator executable, on a valid manifest as
-  well as an invalid one (#492).
+  well as an invalid one (#492). Fixed in v1.5.6; on v1.5.2 through v1.5.5 the
+  plugin is usable from `swift build` and CI only.
 
 ## [1.5.1] - 2026-07-26
 
@@ -532,9 +625,9 @@ render unchanged.
   conformance inventory.
 - Recorded the new conflict-resolution, replace, upsert, update-with-CTE,
   RETURNING (insert, delete, update), and INSERT/UPDATE SELECT surfaces in the
-  #190 canonical SQLite conformance inventory. It records 111 public-surface feature records: 107
+  #190 canonical SQLite conformance inventory. It records 114 public-surface feature records: 110
   supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-  1 unimplemented. Of the 171 evidence records, 105 exercise real SQLite and
+  1 unimplemented. Of the 180 evidence records, 110 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
 ### Migration

@@ -31,6 +31,26 @@ Run the full test suite:
 swift test
 ```
 
+### The live-query async suites are deterministic
+
+`XLAsyncStreamPublisherTests`, `XLObservableLiveQueryTests`,
+`GRDBLiveQueryAsyncStreamTests`, and `LiveQueryBufferingSemanticsTests` used to
+fail intermittently under load, and the working rule was to re-run them before
+believing a failure. That is no longer true, and the rule is retired.
+
+Waits in those suites are awaits on a named event -- a subscription lifecycle
+transition, a harness state change, a change reported by Observation -- through
+the shared helpers in `Tests/SQLTests/XLLiveQueryWaitSupport.swift`. A loaded
+machine makes those tests slower; it does not change their verdict. **A failure
+there is a regression to investigate, not noise to re-run away.**
+
+There is one deliberate exception. `xlWaitUntil(describing:)` is time-bounded,
+because the condition it exists for -- an object being deallocated -- has
+nothing to signal it. Only three tests use it, and its failure names what it was
+waiting for, so a timeout there says which unobservable condition never became
+true rather than leaving you to guess. Treat that one as the exception it is:
+everything else should wait on an event, not a duration.
+
 ### Test directory layout
 
 The `Tests/` directory contains several distinct kinds of targets, and the split

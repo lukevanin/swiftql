@@ -232,11 +232,9 @@ private func executeFixture(
     try database.makeRequest(
         with: sqlInsert(Person(id: "grace", name: "Grace Hopper", age: 85))
     ).execute()
-    try database.makeRequest(with: sqlCreate(SkillPerson.self)).execute()
-    try database.makeRequest(
-        with: sqlInsert(SkillPerson(id: "ada", name: "Ada Lovelace"))
-    ).execute()
-    let skillPeople = try fetchSkillPeople(named: "Ada Lovelace", from: database)
+    // Creates the table, inserts inside a transaction, reads through the
+    // declared query, then updates and deletes with named bindings.
+    let skillPeople = try runSkillLifecycle(in: database)
     guard skillPeople == [SkillPerson(id: "ada", name: "Ada Lovelace")] else {
         throw FixtureError.unexpectedSkillQueryResult(skillPeople)
     }
