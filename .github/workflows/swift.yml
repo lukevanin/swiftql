@@ -133,6 +133,16 @@ jobs:
           cat "$RUNNER_TEMP/swiftql-coverage-run-1/summary.md" \
             >> "$GITHUB_STEP_SUMMARY"
 
+      # Checked here, immediately after the captures that must not mutate the
+      # source tree, and before any diagnostic step below. The Codecov action
+      # in particular downloads its uploader into the checkout and leaves it
+      # behind as an untracked file, which is its own side effect, not
+      # evidence that a capture touched first-party source.
+      - name: Verify checkout remains clean
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain)"
+
       # Diagnostic evidence upload, not a release gate (Coverage/README.md) -- failure here
       # must never fail this job, hence fail_ci_if_error: false.
       - name: Upload coverage evidence to Codecov
@@ -187,11 +197,6 @@ jobs:
             "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
           printf -- '- Artifact SHA-256: `%s`\n' \
             "$ARTIFACT_DIGEST" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Verify checkout remains clean
-        run: |
-          git diff --exit-code
-          test -z "$(git status --porcelain)"
 
   swift-series:
     name: Swift ${{ matrix.swift_series }} / Apple clean resolution
