@@ -190,7 +190,8 @@ jobs:
 
       - name: Verify checkout remains clean
         run: |
-          rm -f codecov .codecov codecov.exe
+          rm -rf codecov* .codecov*
+          git status --porcelain
           git diff --exit-code
           test -z "$(git status --porcelain)"
 
