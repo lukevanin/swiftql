@@ -17,3 +17,8 @@ DerivedData/
 /Website/blog/public/
 /Website/blog/resources/
 /Website/blog/.hugo_build.lock
+
+# Codecov CLI artifacts
+codecov
+.codecov*
+
