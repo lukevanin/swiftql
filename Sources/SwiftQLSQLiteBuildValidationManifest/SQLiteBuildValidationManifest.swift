@@ -168,7 +168,7 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
     /// byte-identical output. No timestamp, hostname, process ID, local path,
     /// or elapsed-time field exists anywhere in this schema.
     public func canonicalJSONData() throws -> Data {
-        try SQLiteBuildValidationManifestCanonicalJSON.encode(validating())
+        try SQLiteBuildValidationCanonicalJSON.encode(validating())
     }
 
     private static func validateStructure(
@@ -354,19 +354,5 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
         case combinatorialManifestVersion = "combinatorial_manifest_version"
         case schemaSnapshot = "schema_snapshot"
         case queries
-    }
-}
-
-
-enum SQLiteBuildValidationManifestCanonicalJSON {
-    static func encode<Value: Encodable>(_ value: Value) throws -> Data {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        var data = try encoder.encode(value)
-        while data.last == 0x0A {
-            data.removeLast()
-        }
-        data.append(0x0A)
-        return data
     }
 }

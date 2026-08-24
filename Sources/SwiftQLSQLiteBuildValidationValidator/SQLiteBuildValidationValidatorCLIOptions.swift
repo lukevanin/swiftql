@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLSQLiteBuildValidationManifest
 
 
 // Swift 5.9's Linux Foundation predates URL's Sendable annotation. Options are
@@ -94,11 +95,75 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
             outputURL: outputPath.map {
                 resolvedURL(path: $0, currentDirectory: currentDirectory)
             },
-            codecIdentifiers: sortedUnique(codecIdentifiers),
-            extensionNames: sortedUnique(extensionNames),
-            capabilityIDs: sortedUnique(capabilityIDs),
+            codecIdentifiers: sqliteBuildValidationSortedUnique(codecIdentifiers),
+            extensionNames: sqliteBuildValidationSortedUnique(extensionNames),
+            capabilityIDs: sqliteBuildValidationSortedUnique(capabilityIDs),
             showsHelp: showsHelp
         )
+    }
+
+    /// What the parsed arguments actually ask the CLI to do.
+    ///
+    /// The two are not variations of one shape: `--help` needs none of the
+    /// operational paths, and a run needs all three. Modelling that as one
+    /// options value with three optionals meant every consumer re-checked the
+    /// same three optionals, and the runner's check for them was unreachable
+    /// because parsing had already enforced it (#566).
+    public enum Invocation: Equatable, Sendable {
+        case help
+        case run(Resolved)
+    }
+
+    /// A run's settled inputs. Every path is present, because a run without one
+    /// is not something ``resolved()`` returns.
+    public struct Resolved: Equatable, Sendable {
+        public let databaseURL: URL
+        public let manifestURL: URL
+        public let outputURL: URL
+        public let environment: SQLiteBuildValidationEnvironment
+
+        public init(
+            databaseURL: URL,
+            manifestURL: URL,
+            outputURL: URL,
+            environment: SQLiteBuildValidationEnvironment
+        ) {
+            self.databaseURL = databaseURL
+            self.manifestURL = manifestURL
+            self.outputURL = outputURL
+            self.environment = environment
+        }
+    }
+
+    /// Settles these options into help or a run.
+    ///
+    /// ``parse(arguments:currentDirectory:)`` already refuses a run missing any
+    /// required path, so for options that came from it this cannot throw. It
+    /// can for options a caller built by hand, which is where the check now
+    /// lives instead of in the runner.
+    public func resolved() throws -> Invocation {
+        if showsHelp {
+            return .help
+        }
+        guard let databaseURL else {
+            throw SQLiteBuildValidationValidatorCLIError.requiredOption("--database")
+        }
+        guard let manifestURL else {
+            throw SQLiteBuildValidationValidatorCLIError.requiredOption("--manifest")
+        }
+        guard let outputURL else {
+            throw SQLiteBuildValidationValidatorCLIError.requiredOption("--output")
+        }
+        return .run(Resolved(
+            databaseURL: databaseURL,
+            manifestURL: manifestURL,
+            outputURL: outputURL,
+            environment: SQLiteBuildValidationEnvironment(
+                codecIdentifiers: codecIdentifiers,
+                extensionNames: extensionNames,
+                capabilityIDs: capabilityIDs
+            )
+        ))
     }
 
     public static let usage = """
@@ -113,58 +178,23 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
           --help, -h              Show this help
         """
 
+    /// Refuses an output path that would clobber one of the inputs.
+    ///
+    /// Kept here as the CLI's entry point; the check itself is
+    /// ``SQLiteBuildValidationOutputSafetyPreflight`` (#566), which is
+    /// filesystem work rather than argument parsing.
     public static func preflightOutputSafety(
         databaseURL: URL,
         manifestURL: URL,
         outputURL: URL,
         fileManager: FileManager = .default
     ) throws {
-        let outputIdentityURL = identityURL(
-            for: outputURL,
+        try SQLiteBuildValidationOutputSafetyPreflight.check(
+            databaseURL: databaseURL,
+            manifestURL: manifestURL,
+            outputURL: outputURL,
             fileManager: fileManager
         )
-        let outputFileIdentity = existingFileIdentity(
-            at: outputIdentityURL,
-            fileManager: fileManager
-        )
-        let databasePaths = [
-            databaseURL.path,
-            identityURL(for: databaseURL, fileManager: fileManager).path,
-        ]
-        let protectedDatabaseSidecarPaths = Set(databasePaths.flatMap { path in
-            ["-journal", "-shm", "-wal"].map { suffix in
-                ((path + suffix) as NSString).standardizingPath
-            }
-        })
-        let outputPaths = Set([
-            (outputURL.path as NSString).standardizingPath,
-            outputIdentityURL.path,
-        ])
-        if !protectedDatabaseSidecarPaths.isDisjoint(with: outputPaths) {
-            throw SQLiteBuildValidationValidatorCLIError.outputConflictsWithDatabaseSidecar
-        }
-
-        for (option, inputURL) in [
-            ("--database", databaseURL),
-            ("--manifest", manifestURL),
-        ] {
-            let inputIdentityURL = identityURL(
-                for: inputURL,
-                fileManager: fileManager
-            )
-            if outputIdentityURL.path == inputIdentityURL.path {
-                throw SQLiteBuildValidationValidatorCLIError.outputConflictsWithInput(option)
-            }
-
-            if let outputFileIdentity,
-               let inputFileIdentity = existingFileIdentity(
-                   at: inputIdentityURL,
-                   fileManager: fileManager
-               ),
-               outputFileIdentity == inputFileIdentity {
-                throw SQLiteBuildValidationValidatorCLIError.outputConflictsWithInput(option)
-            }
-        }
     }
 
     private static func resolvedURL(path: String, currentDirectory: URL) -> URL {
@@ -174,50 +204,6 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         return currentDirectory.appendingPathComponent(path).standardizedFileURL
     }
 
-    private static func sortedUnique(_ values: [String]) -> [String] {
-        Array(Set(values)).sorted()
-    }
-
-    private static func identityURL(
-        for url: URL,
-        fileManager: FileManager
-    ) -> URL {
-        var existingAncestor = url.standardizedFileURL
-        var missingComponents: [String] = []
-        while existingAncestor.path != "/",
-              !fileManager.fileExists(atPath: existingAncestor.path) {
-            missingComponents.insert(
-                existingAncestor.lastPathComponent,
-                at: 0
-            )
-            existingAncestor.deleteLastPathComponent()
-        }
-        let resolvedAncestor = existingAncestor.resolvingSymlinksInPath()
-        return missingComponents.reduce(resolvedAncestor) { partialURL, component in
-            partialURL.appendingPathComponent(component)
-        }.standardizedFileURL
-    }
-
-    private static func existingFileIdentity(
-        at url: URL,
-        fileManager: FileManager
-    ) -> ExistingFileIdentity? {
-        guard let attributes = try? fileManager.attributesOfItem(atPath: url.path),
-              let device = unsignedInteger(attributes[.systemNumber]),
-              let inode = unsignedInteger(attributes[.systemFileNumber]) else {
-            return nil
-        }
-        return ExistingFileIdentity(device: device, inode: inode)
-    }
-
-    private static func unsignedInteger(_ value: Any?) -> UInt64? {
-        (value as? NSNumber)?.uint64Value
-    }
-
-    private struct ExistingFileIdentity: Equatable {
-        let device: UInt64
-        let inode: UInt64
-    }
 }
 
 
