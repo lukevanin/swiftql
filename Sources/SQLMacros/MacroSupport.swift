@@ -11,6 +11,7 @@
 //
 
 import SwiftDiagnostics
+import SwiftParser
 import SwiftSyntax
 
 
@@ -70,6 +71,13 @@ internal enum MacroNameArgument {
     /// rest of the declaration still gets classified and reports its own
     /// problems in the same pass.
     ///
+    /// The literal's *represented value* is what is returned, not its source
+    /// text. The two differ for a raw string (`#"a"b"#` is written without
+    /// escapes) and for an escaped one (`"a\"b"` is written with a backslash
+    /// that is not part of the name), and it is the represented value that is
+    /// the SQL name. ``quoted(_:)`` puts the escapes back when the name is
+    /// emitted into generated source.
+    ///
     static func resolve(
         of node: AttributeSyntax,
         defaultingTo fallback: String,
@@ -84,7 +92,8 @@ internal enum MacroNameArgument {
         guard
             let literal = nameArgument.expression.as(StringLiteralExprSyntax.self),
             literal.segments.count == 1,
-            case let .stringSegment(name)? = literal.segments.first
+            case .stringSegment = literal.segments.first,
+            let name = literal.representedLiteralValue
         else {
             diagnostics.report(
                 nameArgument.expression,
@@ -93,7 +102,7 @@ internal enum MacroNameArgument {
             )
             return fallback
         }
-        return name.content.text
+        return name
     }
 }
 
@@ -266,9 +275,59 @@ internal func macroModifierPrefix(_ modifiers: DeclModifierListSyntax) -> String
 
 
 ///
-/// Surrounds a string with quote `"` characters for emission as a Swift string
-/// literal in generated source.
+/// Renders a string as a Swift string literal in generated source.
+///
+/// The escaping is not decoration. A name reaching here is a *value* -- an
+/// `@SQLTable(name:)` argument the author may have written as a raw string, a
+/// property name, a column alias -- and pasting a value containing `"` or `\\`
+/// between quotes produces source that does not parse. Before issue #563 this
+/// only added the quotes, so `@SQLTable(name: #"my"table"#)` expanded to
+/// `name: "my"table"` and the annotated declaration failed to compile with
+/// errors pointing at generated code.
 ///
 internal func quoted(_ input: String) -> String {
-    "\"\(input)\""
+    var escaped = ""
+    escaped.reserveCapacity(input.count + 2)
+    for character in input {
+        switch character {
+        case "\\":
+            escaped += "\\\\"
+        case "\"":
+            escaped += "\\\""
+        case "\n":
+            escaped += "\\n"
+        case "\r":
+            escaped += "\\r"
+        case "\t":
+            escaped += "\\t"
+        case "\0":
+            escaped += "\\0"
+        default:
+            escaped.append(character)
+        }
+    }
+    return "\"" + escaped + "\""
+}
+
+
+///
+/// Parses one generated declaration, failing loudly when what the macro built
+/// does not parse.
+///
+/// `DeclSyntax(stringLiteral:)` never fails. It parses whatever it is handed
+/// and leaves error nodes in the tree, which the compiler then reports against
+/// the *expansion* -- so a single missing brace or malformed signature in a
+/// generated member surfaces as a wall of errors about code the author never
+/// wrote. Checking `hasError` here turns that into one diagnostic that names
+/// the generated source, which is a SwiftQL bug report rather than a puzzle for
+/// whoever wrote the annotated declaration.
+///
+/// - throws: ``SQLMacroError/invalidGeneratedCode(_:)`` carrying `source`.
+///
+internal func makeDecl(_ source: String) throws -> DeclSyntax {
+    let declaration = DeclSyntax(stringLiteral: source)
+    guard !declaration.hasError else {
+        throw SQLMacroError.invalidGeneratedCode(source)
+    }
+    return declaration
 }

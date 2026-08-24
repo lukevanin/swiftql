@@ -2,7 +2,6 @@ import Foundation
 import SwiftCompilerPlugin
 import SwiftDiagnostics
 import SwiftSyntax
-import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
 
@@ -12,15 +11,20 @@ public enum SQLMacroError: Error, CustomStringConvertible, LocalizedError {
     /// The macro is attached to a declaration which is not supported, such as a class or an enum.
     case unsupportedType
 
-    /// The macro generated code which could not be parsed. This indicates a bug in SwiftQL.
-    case invalidGeneratedCode
+    /// The macro generated code which could not be parsed, carrying that
+    /// source. This indicates a bug in SwiftQL.
+    case invalidGeneratedCode(String)
 
     public var description: String {
         switch self {
         case .unsupportedType:
             return "'@SQLTable' and '@SQLResult' can only be applied to a struct."
-        case .invalidGeneratedCode:
-            return "The macro generated invalid code. This is a bug in SwiftQL - please report it."
+        case .invalidGeneratedCode(let source):
+            return """
+                The macro generated invalid code. This is a bug in SwiftQL - please report it. \
+                Generated source:
+                \(source)
+                """
         }
     }
 
@@ -37,8 +41,8 @@ public enum SQLMacroError: Error, CustomStringConvertible, LocalizedError {
 /// declaration, instead of crashing the compiler plugin.
 ///
 private func makeExtensionDecl(_ source: String) throws -> ExtensionDeclSyntax {
-    guard let extensionDecl = ExtensionDeclSyntax(DeclSyntax(stringLiteral: source)) else {
-        throw SQLMacroError.invalidGeneratedCode
+    guard let extensionDecl = ExtensionDeclSyntax(try makeDecl(source)) else {
+        throw SQLMacroError.invalidGeneratedCode(source)
     }
     return extensionDecl
 }
@@ -141,15 +145,13 @@ private func makeSendableExtension(
 /// convenience per `@SQLCodec`-annotated property. Kept in one place so both macros stay in sync.
 private func makeCodecAwareMembers(builder: MetaBuilder) throws -> [DeclSyntax] {
     var members: [DeclSyntax] = [
-        DeclSyntax(stringLiteral: builder.makeMemberwizeInitializer()),
-        DeclSyntax(stringLiteral: builder.makeColumnsFunction()),
-        DeclSyntax(stringLiteral: builder.makeStaticRowLayoutFunction()),
-        DeclSyntax(stringLiteral: builder.makeCodecKeysDeclaration()),
+        try makeDecl(builder.makeMemberwizeInitializer()),
+        try makeDecl(builder.makeColumnsFunction()),
+        try makeDecl(builder.makeStaticRowLayoutFunction()),
+        try makeDecl(builder.makeCodecKeysDeclaration()),
     ]
     members.append(
-        contentsOf: builder.makeCodecResultFieldFunctions().map {
-            DeclSyntax(stringLiteral: $0)
-        }
+        contentsOf: try builder.makeCodecResultFieldFunctions().map(makeDecl)
     )
     return members
 }

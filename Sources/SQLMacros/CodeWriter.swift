@@ -1,5 +1,5 @@
 //
-//  SwiftSyntaxBuilder.swift
+//  CodeWriter.swift
 //
 //
 //  Created by Luke Van In on 2024/09/20.
@@ -12,7 +12,7 @@ import Foundation
 /// General purpose helper used to write Swift code. Used by SwiftQL macro builders for generating code for
 /// table and result types annotated with the `SQLTable` and `SQLResult` macros.
 ///
-internal struct SwiftSyntaxBuilder {
+internal struct CodeWriter {
     
     let indentation: String
     
@@ -39,7 +39,7 @@ internal struct SwiftSyntaxBuilder {
     ///
     /// Example: Declare a variable named "foo" with the value 42.
     /// ```swift
-    /// var builder = SwiftSyntaxBuilder()
+    /// var builder = CodeWriter()
     /// builder.line("let foo = 12")
     /// ```
     ///
@@ -56,12 +56,12 @@ internal struct SwiftSyntaxBuilder {
     /// - Parameter contents: Closure defining code contained in the block.
     ///
     /// The `block` method is used to add a structured block of code, such as a function definition or
-    /// closure. The `contents` closure provides a `SwiftSyntaxBuilder` which is used to specify the contents of the code block.
+    /// closure. The `contents` closure provides a `CodeWriter` which is used to specify the contents of the code block.
     ///
     /// Example: Declare a function named "makeFoo" which returns an Int, in this case the number 42.
     ///
     /// ```swift
-    /// var builder = SwiftSyntaxBuilder()
+    /// var builder = CodeWriter()
     /// builder.block("makeFoo() -> Int") { builder in
     ///     builder.line("return 42")
     /// }
@@ -70,14 +70,14 @@ internal struct SwiftSyntaxBuilder {
     /// Example: Define a struct "Foo", with an attribute "name" of type Int.
     ///
     /// ```swift
-    /// var builder = SwiftSyntaxBuilder()
+    /// var builder = CodeWriter()
     /// builder.block("Foo") { builder in
     ///     builder.line("var name: Int")
     /// }
     /// ```
     ///
-    mutating func block(_ prefix: String, opening: String = " {", closing: String = "}", contents: (inout SwiftSyntaxBuilder) -> Void) {
-        var builder = SwiftSyntaxBuilder(indentation: indentation)
+    mutating func block(_ prefix: String, opening: String = " {", closing: String = "}", contents: (inout CodeWriter) -> Void) {
+        var builder = CodeWriter(indentation: indentation)
         contents(&builder)
         appendLine(prefix + opening)
         for line in builder.lines {
@@ -94,13 +94,13 @@ internal struct SwiftSyntaxBuilder {
     /// - Parameter contents: Closure defining the items in the declaration.
     ///
     /// The `declaration` method is used to add a declaration such as an instance of a struct or class.
-    /// The `contents` closure provides an instance of a `SwiftSyntaxListBuilder` which is
+    /// The `contents` closure provides an instance of a `CodeListWriter` which is
     /// used to define the parameters passed to the declaration.
     ///
     /// Example: Instantiate a struct named "Foo", setting the "name" attribute to the value 42:
     ///
     /// ```swift
-    /// var builder = SwiftSyntaxBuilder()
+    /// var builder = CodeWriter()
     /// builder.declaration("Foo") { builder in
     ///     builder.item { builder in
     ///         builder.line("name: 42")
@@ -108,7 +108,7 @@ internal struct SwiftSyntaxBuilder {
     /// }
     /// ```
     ///
-    mutating func declaration(_ prefix: String, separator: String = ",", contents: (inout SwiftSyntaxListBuilder) -> Void) {
+    mutating func declaration(_ prefix: String, separator: String = ",", contents: (inout CodeListWriter) -> Void) {
         block(prefix, opening: "(", closing: ")") { context in
             context.list(separator: separator, contents: contents)
         }
@@ -120,8 +120,8 @@ internal struct SwiftSyntaxBuilder {
     /// - Parameter separator: List item delimiter.
     /// - Parameter contents: Closure defining the items in the list.
     ///
-    mutating func list(separator: String, contents: (inout SwiftSyntaxListBuilder) -> Void) {
-        var builder = SwiftSyntaxListBuilder(separator: separator, builder: SwiftSyntaxBuilder(indentation: indentation))
+    mutating func list(separator: String, contents: (inout CodeListWriter) -> Void) {
+        var builder = CodeListWriter(separator: separator, builder: CodeWriter(indentation: indentation))
         contents(&builder)
         for line in builder.lines {
             appendLine(line)
@@ -142,9 +142,9 @@ internal struct SwiftSyntaxBuilder {
 ///
 /// Specialised Swift code builder used to construct lists, such as arrays and parameters.
 ///
-/// > Note: Use a relevant list method on `SwiftSyntaxBuilder` to obtain an instance of this object.
+/// > Note: Use a relevant list method on `CodeWriter` to obtain an instance of this object.
 ///
-internal struct SwiftSyntaxListBuilder {
+internal struct CodeListWriter {
     
     ///
     /// Delimiter interposed between successive list items.
@@ -152,9 +152,9 @@ internal struct SwiftSyntaxListBuilder {
     let separator: String
     
     ///
-    /// Parent `SwiftSyntaxBuilder` builder.
+    /// Parent `CodeWriter` builder.
     ///
-    let builder: SwiftSyntaxBuilder
+    let builder: CodeWriter
     
     fileprivate var lines: [String] = []
     
@@ -163,7 +163,7 @@ internal struct SwiftSyntaxListBuilder {
     ///
     /// - Parameter contents: Closure defining the contents of the list item.
     ///
-    mutating func item(contents: (inout SwiftSyntaxBuilder) -> Void) {
+    mutating func item(contents: (inout CodeWriter) -> Void) {
         var builder = self.builder
         contents(&builder)
         if !lines.isEmpty {

@@ -11,7 +11,6 @@
 import Foundation
 import SwiftDiagnostics
 import SwiftSyntax
-import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
 
@@ -129,7 +128,7 @@ extension SQLQueriesMacro: MemberMacro {
         for builder in builders {
             members.append(builder.makeDatabaseExecutorFunction(modifierPrefix: modifierPrefix))
         }
-        return members.map { DeclSyntax(stringLiteral: $0) }
+        return try members.map(makeDecl)
     }
 
     ///

@@ -103,7 +103,11 @@ let package = Package(
             name: "SQLMacros",
             dependencies: [
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
-                .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
+                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+                // `StringLiteralExprSyntax.representedLiteralValue`, which
+                // `MacroNameArgument` reads a `name:` argument through, lives
+                // in SwiftParser rather than SwiftSyntax.
+                .product(name: "SwiftParser", package: "swift-syntax"),
             ]
         ),
 
