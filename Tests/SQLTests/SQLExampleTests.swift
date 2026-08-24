@@ -1815,9 +1815,10 @@ extension XLDocumentationTests {
             XLRegexpOperatorTests.testRegexpWithoutRegisteredFunctionFailsAtPreparation
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testBetweenExecutesWithLiteralBindingAndColumnBounds
-        let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.test_TextBinding_In_Subquery
-        let _: (XLSyntaxTests) -> () -> Void =
-            XLSyntaxTests.testBetweenOperatorPreservesNestedBooleanAndComparisonPrecedence
+        let _: (XLSyntaxExpressionTests) -> () -> Void =
+            XLSyntaxExpressionTests.test_TextBinding_In_Subquery
+        let _: (XLSyntaxExpressionTests) -> () -> Void =
+            XLSyntaxExpressionTests.testBetweenOperatorPreservesNestedBooleanAndComparisonPrecedence
     }
 
     func testDocumentationRealValues() throws {
@@ -2068,8 +2069,10 @@ extension XLDocumentationTests {
             ExampleValue(id: "example-id", value: 42)
         )
 
-        let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.testUpdateWhere
-        let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.testCreateTableUsingSelect
+        let _: (XLSyntaxWriteStatementTests) -> () -> Void =
+            XLSyntaxWriteStatementTests.testUpdateWhere
+        let _: (XLSyntaxWriteStatementTests) -> () -> Void =
+            XLSyntaxWriteStatementTests.testCreateTableUsingSelect
     }
 
     func testDocumentationGenericTableParameters() throws {
