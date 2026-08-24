@@ -3001,7 +3001,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3062,7 +3062,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3123,7 +3123,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3254,7 +3254,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3316,7 +3316,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3509,7 +3509,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3570,7 +3570,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3748,7 +3748,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3809,7 +3809,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3870,7 +3870,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3931,7 +3931,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -4080,7 +4080,7 @@
       "public_api": [
         {
           "symbol": "Select",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLSelectStatements.swift",
           "source_tokens": [
             "Select"
           ]
@@ -4135,7 +4135,7 @@
       "public_api": [
         {
           "symbol": "Select",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLSelectStatements.swift",
           "source_tokens": [
             "Select"
           ]
@@ -4189,7 +4189,7 @@
       "public_api": [
         {
           "symbol": "Select",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLSelectStatements.swift",
           "source_tokens": [
             "Select"
           ]
@@ -4300,21 +4300,21 @@
       "public_api": [
         {
           "symbol": "OrderBy",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLQueryClauses.swift",
           "source_tokens": [
             "OrderBy"
           ]
         },
         {
           "symbol": "Limit",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLQueryClauses.swift",
           "source_tokens": [
             "Limit"
           ]
         },
         {
           "symbol": "Offset",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLQueryClauses.swift",
           "source_tokens": [
             "Offset"
           ]
@@ -4422,7 +4422,7 @@
       "public_api": [
         {
           "symbol": "Join.Inner",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/Join+Factories.swift",
           "source_tokens": [
             "Inner"
           ]
@@ -4476,7 +4476,7 @@
       "public_api": [
         {
           "symbol": "Join.Left",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/Join+Factories.swift",
           "source_tokens": [
             "Left"
           ]
@@ -4583,14 +4583,14 @@
       "public_api": [
         {
           "symbol": "GroupBy",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLQueryClauses.swift",
           "source_tokens": [
             "GroupBy"
           ]
         },
         {
           "symbol": "Having",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLQueryClauses.swift",
           "source_tokens": [
             "Having"
           ]
@@ -4698,7 +4698,7 @@
       "public_api": [
         {
           "symbol": "Select",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLSelectStatements.swift",
           "source_tokens": [
             "Select"
           ]
@@ -4806,7 +4806,7 @@
       "public_api": [
         {
           "symbol": "Union",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLSelectStatements.swift",
           "source_tokens": [
             "Union"
           ]
@@ -4914,21 +4914,21 @@
       "public_api": [
         {
           "symbol": "Insert",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Insert"
           ]
         },
         {
           "symbol": "Update",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Update"
           ]
         },
         {
           "symbol": "Delete",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Delete"
           ]
@@ -5061,7 +5061,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5436,7 +5436,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5497,7 +5497,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5558,7 +5558,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5620,7 +5620,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5681,7 +5681,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5742,7 +5742,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5803,7 +5803,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5864,7 +5864,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5925,7 +5925,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5986,7 +5986,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -6047,7 +6047,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -6108,7 +6108,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -6513,21 +6513,21 @@
       "public_api": [
         {
           "symbol": "Insert",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Insert"
           ]
         },
         {
           "symbol": "Update",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Update"
           ]
         },
         {
           "symbol": "Delete",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Delete"
           ]
@@ -6588,14 +6588,14 @@
       "public_api": [
         {
           "symbol": "Insert",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Insert"
           ]
         },
         {
           "symbol": "XLInsertOrAction",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "XLInsertOrAction"
           ]
@@ -6637,7 +6637,7 @@
       "public_api": [
         {
           "symbol": "Replace",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Replace"
           ]
@@ -6685,7 +6685,7 @@
       "public_api": [
         {
           "symbol": "OnConflict",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "OnConflict"
           ]
@@ -8085,7 +8085,7 @@
       "public_api": [
         {
           "symbol": "Join",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLFromAndJoin.swift",
           "source_tokens": [
             "Join"
           ]
@@ -8123,7 +8123,7 @@
       "public_api": [
         {
           "symbol": "Join.FullOuter",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/Join+Factories.swift",
           "source_tokens": [
             "FullOuter"
           ]
@@ -8161,7 +8161,7 @@
       "public_api": [
         {
           "symbol": "Join",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLFromAndJoin.swift",
           "source_tokens": [
             "Join"
           ]
@@ -8201,7 +8201,7 @@
       "public_api": [
         {
           "symbol": "Join.Right",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/Join+Factories.swift",
           "source_tokens": [
             "Right"
           ]
@@ -8239,7 +8239,7 @@
       "public_api": [
         {
           "symbol": "Select",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLSelectStatements.swift",
           "source_tokens": [
             "Select"
           ]
