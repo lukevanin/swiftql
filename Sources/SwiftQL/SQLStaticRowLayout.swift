@@ -808,18 +808,11 @@ where Dialect == XLSQLiteDialect, Value: XLLiteral, Storage == Value {
                 )
             },
             encode: { value in
-                var context: any XLBindingContext = _XLStaticLiteralBindingContext()
-                value.bind(context: &context)
-                let encoded = (context as! _XLStaticLiteralBindingContext).value
-                if case .real(let real) = encoded,
-                   let error = XLSQLValueEncodingError.bindingFailure(
-                       for: real,
-                       valueType: metadata.typeName,
-                       context: codingContext
-                   ) {
-                    throw error
-                }
-                return encoded
+                try _xlCaptureSQLiteValue(
+                    value,
+                    valueType: metadata.typeName,
+                    codingContext: codingContext
+                )
             }
         )
     }
@@ -864,17 +857,6 @@ where Dialect: XLValueCodingDialect {
         }
         return value
     }
-}
-
-
-private struct _XLStaticLiteralBindingContext: XLBindingContext {
-    var value: XLSQLiteValue = .null
-
-    mutating func bindNull() { value = .null }
-    mutating func bindInteger(value: Int) { self.value = .integer(Int64(value)) }
-    mutating func bindReal(value: Double) { self.value = .real(value) }
-    mutating func bindText(value: String) { self.value = .text(value) }
-    mutating func bindBlob(value: Data) { self.value = .blob(value) }
 }
 
 

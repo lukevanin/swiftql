@@ -104,32 +104,6 @@ package struct GRDBRowDecoder<Output> {
 }
 
 
-fileprivate struct BindingContext: XLBindingContext {
-
-    var value: XLSQLiteValue = .null
-    
-    mutating func bindNull() {
-        self.value = .null
-    }
-    
-    mutating func bindInteger(value: Int) {
-        self.value = .integer(Int64(value))
-    }
-    
-    mutating func bindReal(value: Double) {
-        self.value = .real(value)
-    }
-    
-    mutating func bindText(value: String) {
-        self.value = .text(value)
-    }
-    
-    mutating func bindBlob(value: Data) {
-        self.value = .blob(value)
-    }
-}
-
-
 struct GRDBRequest<Row>: XLRequest {
 
     private let executor: GRDBInvocationExecutor
@@ -240,9 +214,13 @@ struct GRDBRequest<Row>: XLRequest {
             }
             return
         }
-        var context: any XLBindingContext = BindingContext()
-        bind(&context)
-        let value = (context as! BindingContext).value
+        // No NaN guard here: this legacy setter has no throwing channel, and
+        // `compatibilityBindingError` carries an `XLInvocationBindingError`
+        // rather than an encoding error. The driver boundary rejects a NaN
+        // `REAL` for this path when the packet is executed.
+        let value = _xlCapturedSQLiteValue(of: declaration.valueTypeName) { context in
+            bind(&context)
+        }
         do {
             compatibilityBindings = try replacingBinding(
                 value,
@@ -740,9 +718,13 @@ struct GRDBWriteRequest: XLWriteRequest {
             }
             return
         }
-        var context: any XLBindingContext = BindingContext()
-        bind(&context)
-        let value = (context as! BindingContext).value
+        // No NaN guard here: this legacy setter has no throwing channel, and
+        // `compatibilityBindingError` carries an `XLInvocationBindingError`
+        // rather than an encoding error. The driver boundary rejects a NaN
+        // `REAL` for this path when the packet is executed.
+        let value = _xlCapturedSQLiteValue(of: declaration.valueTypeName) { context in
+            bind(&context)
+        }
         do {
             compatibilityBindings = try replacingBinding(
                 value,

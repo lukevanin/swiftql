@@ -11,35 +11,6 @@ import Foundation
 
 
 ///
-/// Captures one normalized SQLite value from an `XLBindable` conformer.
-///
-private struct XLSQLiteValueCaptureContext: XLBindingContext {
-
-    var value: XLSQLiteValue = .null
-
-    mutating func bindNull() {
-        self.value = .null
-    }
-
-    mutating func bindInteger(value: Int) {
-        self.value = .integer(Int64(value))
-    }
-
-    mutating func bindReal(value: Double) {
-        self.value = .real(value)
-    }
-
-    mutating func bindText(value: String) {
-        self.value = .text(value)
-    }
-
-    mutating func bindBlob(value: Data) {
-        self.value = .blob(value)
-    }
-}
-
-
-///
 /// Encodes one intrinsic literal parameter value for a named placeholder in a
 /// prepared parameter layout.
 ///
@@ -70,19 +41,11 @@ public func _xlQueryParameterBinding<T>(
             actual: declaration.slot(at: slot.index)
         )
     }
-    var context: any XLBindingContext = XLSQLiteValueCaptureContext()
-    value.bind(context: &context)
-    guard let capture = context as? XLSQLiteValueCaptureContext else {
-        // `bind(context:)` receives the context `inout`, so a conformer could
-        // replace it with a different type. Intrinsic literal conformers never
-        // do; fail with a diagnostic that names the offender if one does.
-        preconditionFailure(
-            "\(T.self).bind(context:) replaced the binding context with "
-            + "\(type(of: context)); expected it to write the value into the "
-            + "provided XLSQLiteValueCaptureContext."
-        )
-    }
-    let sqliteValue = capture.value
+    let sqliteValue = try _xlCaptureSQLiteValue(
+        value,
+        valueType: slot.valueTypeName,
+        codingContext: slot.codingContext
+    )
     if sqliteValue == .null, slot.nullability == .required {
         throw XLInvocationBindingError.nullForRequiredParameter(slot: slot)
     }

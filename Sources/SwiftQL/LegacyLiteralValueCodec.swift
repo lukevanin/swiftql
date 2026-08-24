@@ -35,18 +35,11 @@ public struct XLV1LiteralCodec<Value>: Sendable where Value: XLLiteral & Sendabl
                 rawValue: storageClass.rawValue
             ),
             encode: { value, _, codingContext in
-                var context: any XLBindingContext = _XLV1LiteralBindingContext()
-                value.bind(context: &context)
-                let encoded = (context as! _XLV1LiteralBindingContext).value
-                if case .real(let real) = encoded,
-                   let error = XLSQLValueEncodingError.bindingFailure(
-                       for: real,
-                       valueType: String(reflecting: Value.self),
-                       context: codingContext
-                   ) {
-                    throw error
-                }
-                return encoded
+                try _xlCaptureSQLiteValue(
+                    value,
+                    valueType: String(reflecting: Value.self),
+                    codingContext: codingContext
+                )
             },
             decode: { value, _, _ in
                 try Value(
@@ -55,31 +48,5 @@ public struct XLV1LiteralCodec<Value>: Sendable where Value: XLLiteral & Sendabl
                 )
             }
         )
-    }
-}
-
-
-private struct _XLV1LiteralBindingContext: XLBindingContext {
-
-    var value: XLSQLiteValue = .null
-
-    mutating func bindNull() {
-        value = .null
-    }
-
-    mutating func bindInteger(value: Int) {
-        self.value = .integer(Int64(value))
-    }
-
-    mutating func bindReal(value: Double) {
-        self.value = .real(value)
-    }
-
-    mutating func bindText(value: String) {
-        self.value = .text(value)
-    }
-
-    mutating func bindBlob(value: Data) {
-        self.value = .blob(value)
     }
 }
