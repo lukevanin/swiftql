@@ -2,6 +2,13 @@ name: Swift compatibility
 
 on:
   workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        description: >-
+          Codecov upload token. Optional: the coverage upload is diagnostic
+          evidence, not a release gate, so a release run without it still
+          succeeds -- it just publishes no coverage report.
+        required: false
   push:
     branches: [main]
   pull_request:
@@ -136,10 +143,40 @@ jobs:
       # Diagnostic evidence upload, not a release gate (Coverage/README.md) -- failure here
       # must never fail this job, hence fail_ci_if_error: false.
       - name: Upload coverage evidence to Codecov
+        id: codecov-upload
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ runner.temp }}/swiftql-coverage-run-1/llvm-coverage.lcov
           fail_ci_if_error: false
+
+      # The upload above is intentionally non-fatal, which previously let a
+      # missing token rot the coverage badge to "unknown" without any signal.
+      # Record the token's presence and the step outcome so a silent upload
+      # failure is visible in the job summary instead of invisible.
+      - name: Report Codecov upload outcome
+        if: ${{ always() && !cancelled() }}
+        env:
+          UPLOAD_OUTCOME: ${{ steps.codecov-upload.outcome }}
+          UPLOAD_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$UPLOAD_TOKEN" ]]; then
+            token_state=present
+          else
+            token_state=missing
+          fi
+          {
+            printf '\n## Codecov upload\n\n'
+            printf -- '- Token: `%s`\n' "$token_state"
+            printf -- '- Outcome: `%s`\n' "$UPLOAD_OUTCOME"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$token_state" == missing ]]; then
+            printf '::warning::CODECOV_TOKEN is unavailable; coverage was not published.\n'
+          elif [[ "$UPLOAD_OUTCOME" != success ]]; then
+            printf '::warning::Codecov upload did not succeed (%s); coverage may be stale.\n' \
+              "$UPLOAD_OUTCOME"
+          fi
 
       - name: Prepare retained source coverage evidence
         if: ${{ always() && !cancelled() }}
