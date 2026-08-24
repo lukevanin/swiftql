@@ -1183,6 +1183,19 @@ public struct GRDBDatabase: XLDatabase {
     /// Validation happens before a runtime handle is returned. Physical SQLite
     /// statements remain connection-owned and are created only while executing
     /// through the GRDB driver.
+    ///
+    /// Unlike the encodable overloads, this path deliberately registers no
+    /// custom functions. A descriptor carries only deterministic SQL and
+    /// immutable parameter metadata -- ``XLStaticStatementDefinition/init(validating:)``
+    /// discards the expression graph, and with it the
+    /// ``XLCustomFunctionRegistration`` closures that implicit registration
+    /// needs -- so there is nothing to register here. A statement that calls a
+    /// custom function must therefore have that function registered upfront
+    /// with `GRDBDatabaseBuilder.addFunction(_:)` before it is executed as a
+    /// static descriptor; implicit registration through
+    /// ``XLBuilder/customFunctionCall(_:parameters:)`` applies only to the
+    /// `makeRequest(with:)` and `prepareInvocation(with: any XLEncodable)`
+    /// paths, which still hold the rendered encoding.
     public func prepareInvocation(
         with descriptor: XLStaticQueryDescriptor
     ) throws -> GRDBPreparedStaticQuery {
@@ -1224,6 +1237,7 @@ public struct GRDBDatabase: XLDatabase {
             parameterLayoutError: preparedParameterLayoutError(for: encoding),
             valueEncodingError: encoding.valueEncodingError,
             requiresWriteConnection: true,
+            customFunctions: encoding.customFunctions,
             liveQueryRetryPolicy: liveQueryRetryPolicy,
             liveQueryRetryScheduler: liveQueryRetryScheduler
         )

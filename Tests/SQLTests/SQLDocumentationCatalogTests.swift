@@ -810,7 +810,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         // RELEASING.md step 4 dates this heading during release preparation,
         // replacing `Unreleased` with the release date; update this pin in the
         // same change.
-        XCTAssertEqual(firstReleaseHeading, "## [1.5.6] - 2026-08-04")
+        XCTAssertEqual(firstReleaseHeading, "## [1.5.7] - Unreleased")
     }
 
     /// `check-docc-output.sh` proves one built page per catalog article. An

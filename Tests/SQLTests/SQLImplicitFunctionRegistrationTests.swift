@@ -164,6 +164,53 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
         }
     }
 
+    // MARK: - RETURNING requests
+
+    /// `makeRequest(with: any XLReturningStatement<Row>)` builds its own `GRDBRequest` rather than
+    /// going through the query overload, and originally omitted `customFunctions:` from that
+    /// construction -- so the request's registration table was empty and the implicitly registered
+    /// function never reached the connection. A data-changing statement whose `WHERE` clause calls an
+    /// implicitly registered function then failed with SQLite's "no such function" error, even though
+    /// the identical predicate worked in a plain `SELECT`.
+    func testCustomFunctionCallRegistersImplicitlyForReturningRequests() throws {
+        let database = try makeDatabase()
+        try database.makeRequest(with: sqlCreate(TestTable.self)).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 4))).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "b", value: 5))).execute()
+
+        let schema = XLSchema()
+        let target = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let statement = update(target)
+            .set { row in row.value = 99 }
+            .where(ImplicitSquareFunction(target.value) == 16)
+            .returning(projection)
+
+        let updated: [TestTable] = try database.makeRequest(with: statement).fetchAll()
+
+        XCTAssertEqual(updated, [TestTable(id: "a", value: 99)])
+    }
+
+    /// The same omission, on the delete form of the RETURNING request, to confirm the fix is in the
+    /// shared request factory rather than in one statement kind.
+    func testCustomFunctionCallRegistersImplicitlyForDeleteReturningRequests() throws {
+        let database = try makeDatabase()
+        try database.makeRequest(with: sqlCreate(TestTable.self)).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 4))).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "b", value: 5))).execute()
+
+        let schema = XLSchema()
+        let target = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let statement = delete(target)
+            .where(ImplicitSquareFunction(target.value) == 25)
+            .returning(projection)
+
+        let deleted: [TestTable] = try database.makeRequest(with: statement).fetchAll()
+
+        XCTAssertEqual(deleted, [TestTable(id: "b", value: 5)])
+    }
+
     // MARK: - Pool concurrency
 
     /// `DatabasePool` maintains several persistent reader connections and hands any given read to whichever

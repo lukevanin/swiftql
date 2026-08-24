@@ -9,6 +9,14 @@ extension XLStaticStatementDefinition {
     /// The SwiftQL expression graph is deliberately discarded here. Static
     /// descriptors retain only deterministic SQL, dialect requirements,
     /// referenced entities, and immutable parameter metadata.
+    ///
+    /// `encoding.customFunctions` is discarded with the graph: a registration
+    /// is a live closure, not deterministic metadata, so it cannot survive into
+    /// a database-independent descriptor. A statement that calls a custom
+    /// function therefore has to have it registered upfront with
+    /// `GRDBDatabaseBuilder.addFunction(_:)` to be executed as a static
+    /// descriptor -- implicit registration covers only the request and
+    /// encodable-invocation paths, which still hold the encoding.
     public init(validating encoding: XLEncoding) throws {
         if let valueEncodingError = encoding.valueEncodingError {
             throw valueEncodingError

@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.5.7] - Unreleased
+
+### Fixed
+
+- A `RETURNING` request now registers custom functions that opt into implicit
+  registration, so a data-changing statement whose clauses call one executes
+  instead of failing with SQLite's "no such function" error (issue #553).
+  `GRDBDatabase.makeRequest(with: any XLReturningStatement<Row>)` built its
+  request without passing the rendered encoding's registrations, so the
+  registration table reaching the connection was empty -- a predicate that
+  worked in a plain `SELECT` failed once the same statement was written as
+  `UPDATE ... RETURNING` or `DELETE ... RETURNING`. Functions registered
+  upfront with `GRDBDatabaseBuilder.addFunction(_:)` were never affected.
+  Static query descriptors still register nothing, which is deliberate and now
+  documented: a descriptor keeps only deterministic SQL and parameter
+  metadata, and a registration is a live closure that cannot survive into it.
+
 ## [1.5.6] - 2026-08-04
 
 ### Added
