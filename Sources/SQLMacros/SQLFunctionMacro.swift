@@ -78,46 +78,19 @@ internal struct FunctionMetaBuilder {
     init(node: AttributeSyntax, declaration: StructDeclSyntax) throws {
         self.structName = declaration.name.text
 
-        var diagnostics: [Diagnostic] = []
+        var diagnostics = MacroDiagnosticCollector()
 
         // Use the name parameter from the macro if it is defined, otherwise use the name of the
         // enclosing struct as the SQL function name.
-        if
-            case let .argumentList(arguments) = node.arguments,
-            let nameArg = arguments.first(where: { $0.label?.text == "name" })
-        {
-            if
-                let nameLiteral = nameArg.expression.as(StringLiteralExprSyntax.self),
-                nameLiteral.segments.count == 1,
-                case let .stringSegment(nameString)? = nameLiteral.segments.first
-            {
-                self.functionName = nameString.content.text
-            }
-            else {
-                diagnostics.append(
-                    Diagnostic(
-                        node: nameArg.expression,
-                        id: "invalid-name-argument",
-                        message: "The 'name' argument must be a simple string literal without interpolation. Remove the interpolation, or omit the argument to use the name of the struct."
-                    )
-                )
-                self.functionName = structName
-            }
-        }
-        else {
-            self.functionName = structName
-        }
+        self.functionName = MacroNameArgument.resolve(
+            of: node,
+            defaultingTo: structName,
+            diagnostics: &diagnostics
+        )
 
         let argumentNames = Self.collectArguments(declaration: declaration, diagnostics: &diagnostics)
 
-        guard diagnostics.isEmpty else {
-            // Report the diagnostics in source order, regardless of the order in which the
-            // declarations were classified.
-            let sorted = diagnostics.sorted {
-                $0.node.positionAfterSkippingLeadingTrivia < $1.node.positionAfterSkippingLeadingTrivia
-            }
-            throw DiagnosticsError(diagnostics: sorted)
-        }
+        try diagnostics.throwIfNotEmpty()
 
         self.argumentNames = argumentNames
     }
@@ -133,7 +106,7 @@ internal struct FunctionMetaBuilder {
     ///
     private static func collectArguments(
         declaration: StructDeclSyntax,
-        diagnostics: inout [Diagnostic]
+        diagnostics: inout MacroDiagnosticCollector
     ) -> [String] {
         var names: [String] = []
         for member in declaration.memberBlock.members {
@@ -153,65 +126,43 @@ internal struct FunctionMetaBuilder {
     ///
     private static func collectArguments(
         variable: VariableDeclSyntax,
-        diagnostics: inout [Diagnostic]
+        diagnostics: inout MacroDiagnosticCollector
     ) -> [String] {
 
         func report(_ node: some SyntaxProtocol, id: String, _ message: String) {
-            diagnostics.append(Diagnostic(node: node, id: id, message: message))
+            diagnostics.report(node, id: id, message)
         }
 
-        for modifier in variable.modifiers {
-            switch modifier.name.text {
-            case "static", "class":
-                report(
-                    modifier, id: "static-property",
-                    "'\(modifier.name.text)' properties cannot be used as function arguments. Move the property to an extension of the type to exclude it from the generated 'makeSQL' implementation."
-                )
-                return []
-            case "lazy":
-                report(
-                    modifier, id: "lazy-property",
-                    "'lazy' properties cannot be used as function arguments. Use a plain stored property instead."
-                )
-                return []
-            case "weak", "unowned":
-                report(
-                    modifier, id: "reference-modifier",
-                    "'\(modifier.name.text)' properties cannot be used as function arguments. Use a plain stored property instead."
-                )
-                return []
-            default:
-                // Access control and other modifiers do not affect argument generation.
-                break
-            }
-        }
-
-        switch variable.bindingSpecifier.text {
-        case "var", "let":
-            break
-        default:
-            report(
-                variable.bindingSpecifier, id: "binding-specifier",
-                "'\(variable.bindingSpecifier.text)' properties cannot be used as function arguments. Use 'var' or 'let'."
+        guard
+            StoredPropertyClassifier.accepts(
+                variable,
+                as: .functionArgument,
+                diagnostics: &diagnostics
             )
+        else {
             return []
         }
 
         var names: [String] = []
         for binding in variable.bindings {
 
-            if let accessorBlock = binding.accessorBlock, isComputed(accessorBlock) {
-                report(
-                    binding, id: "computed-property",
-                    "Computed properties cannot be used as function arguments. Move the property to an extension of the type to exclude it from the generated 'makeSQL' implementation."
+            if
+                let accessorBlock = binding.accessorBlock,
+                StoredPropertyClassifier.isComputed(accessorBlock)
+            {
+                StoredPropertyClassifier.reportComputed(
+                    binding,
+                    as: .functionArgument,
+                    diagnostics: &diagnostics
                 )
                 continue
             }
 
             guard let pattern = binding.pattern.as(IdentifierPatternSyntax.self) else {
-                report(
-                    binding.pattern, id: "unsupported-pattern",
-                    "Pattern '\(binding.pattern.trimmedDescription)' cannot be used as a function argument. Declare each argument as a separate property with its own name and type."
+                StoredPropertyClassifier.reportUnsupportedPattern(
+                    binding.pattern,
+                    as: .functionArgument,
+                    diagnostics: &diagnostics
                 )
                 continue
             }
@@ -236,26 +187,6 @@ internal struct FunctionMetaBuilder {
             names.append(name)
         }
         return names
-    }
-
-    ///
-    /// Determines whether an accessor block belongs to a computed property. Stored properties may
-    /// legitimately define `willSet` and `didSet` observers.
-    ///
-    private static func isComputed(_ accessorBlock: AccessorBlockSyntax) -> Bool {
-        switch accessorBlock.accessors {
-        case .getter:
-            return true
-        case .accessors(let accessors):
-            return accessors.contains { accessor in
-                switch accessor.accessorSpecifier.text {
-                case "willSet", "didSet":
-                    return false
-                default:
-                    return true
-                }
-            }
-        }
     }
 
     ///
@@ -307,12 +238,6 @@ internal struct FunctionMetaBuilder {
         return context.build()
     }
 
-    ///
-    /// Helper method used to surround a string with quote `"` characters.
-    ///
-    private func quoted(_ input: String) -> String {
-        "\"\(input)\""
-    }
 }
 
 

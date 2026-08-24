@@ -213,47 +213,20 @@ internal struct MetaBuilder {
         self.structName = declaration.name.text
         self.declaration = declaration
 
-        var diagnostics: [Diagnostic] = []
+        var diagnostics = MacroDiagnosticCollector()
 
         // Use the name parameter from the macro if it is defined, otherwise
         // use the name of the struct for the table name.
-        if
-            case let .argumentList(arguments) = node.arguments,
-            let nameArg = arguments.first(where: { $0.label?.text == "name" })
-        {
-            if
-                let nameLiteral = nameArg.expression.as(StringLiteralExprSyntax.self),
-                nameLiteral.segments.count == 1,
-                case let .stringSegment(nameString)? = nameLiteral.segments.first
-            {
-                self.tableName = nameString.content.text
-            }
-            else {
-                diagnostics.append(
-                    Diagnostic(
-                        node: nameArg.expression,
-                        id: "invalid-name-argument",
-                        message: "The 'name' argument must be a simple string literal without interpolation. Remove the interpolation, or omit the argument to use the name of the struct."
-                    )
-                )
-                self.tableName = structName
-            }
-        }
-        else {
-            self.tableName = structName
-        }
+        self.tableName = MacroNameArgument.resolve(
+            of: node,
+            defaultingTo: structName,
+            diagnostics: &diagnostics
+        )
 
         // Collect the properties from the struct definition.
         let properties = Self.collectProperties(declaration: declaration, diagnostics: &diagnostics)
 
-        guard diagnostics.isEmpty else {
-            // Report the diagnostics in source order, regardless of the order in which the
-            // declarations were classified.
-            let sorted = diagnostics.sorted {
-                $0.node.positionAfterSkippingLeadingTrivia < $1.node.positionAfterSkippingLeadingTrivia
-            }
-            throw DiagnosticsError(diagnostics: sorted)
-        }
+        try diagnostics.throwIfNotEmpty()
 
         self.properties = properties
         self.optionalProperties = properties.map {
@@ -280,7 +253,7 @@ internal struct MetaBuilder {
     ///
     private static func collectProperties(
         declaration: StructDeclSyntax,
-        diagnostics: inout [Diagnostic]
+        diagnostics: inout MacroDiagnosticCollector
     ) -> [MetaProperty] {
         var properties: [MetaProperty] = []
         for member in declaration.memberBlock.members {
@@ -300,37 +273,15 @@ internal struct MetaBuilder {
     ///
     private static func collectProperties(
         variable: VariableDeclSyntax,
-        diagnostics: inout [Diagnostic]
+        diagnostics: inout MacroDiagnosticCollector
     ) -> [MetaProperty] {
 
         func report(_ node: some SyntaxProtocol, id: String, _ message: String) {
-            diagnostics.append(Diagnostic(node: node, id: id, message: message))
+            diagnostics.report(node, id: id, message)
         }
 
-        for modifier in variable.modifiers {
-            switch modifier.name.text {
-            case "static", "class":
-                report(
-                    modifier, id: "static-property",
-                    "'\(modifier.name.text)' properties cannot be used as columns. Move the property to an extension of the type to exclude it from the generated columns."
-                )
-                return []
-            case "lazy":
-                report(
-                    modifier, id: "lazy-property",
-                    "'lazy' properties cannot be used as columns. Use a plain stored property instead."
-                )
-                return []
-            case "weak", "unowned":
-                report(
-                    modifier, id: "reference-modifier",
-                    "'\(modifier.name.text)' properties cannot be used as columns. Use a plain stored property instead."
-                )
-                return []
-            default:
-                // Access control and other modifiers do not affect column generation.
-                break
-            }
+        guard StoredPropertyClassifier.accepts(variable, as: .column, diagnostics: &diagnostics) else {
+            return []
         }
 
         // Issue #66: a stored property may carry at most one `@SQLCodec(_:)` attribute,
@@ -349,19 +300,10 @@ internal struct MetaBuilder {
             )
         }
 
-        let mutability: MetaProperty.Mutability
-        switch variable.bindingSpecifier.text {
-        case "var":
-            mutability = .mutable
-        case "let":
-            mutability = .immutable
-        default:
-            report(
-                variable.bindingSpecifier, id: "binding-specifier",
-                "'\(variable.bindingSpecifier.text)' properties cannot be used as columns. Use 'var' or 'let'."
-            )
-            return []
-        }
+        // The specifier is known to be `var` or `let`: anything else was
+        // rejected by the classifier above.
+        let mutability: MetaProperty.Mutability =
+            variable.bindingSpecifier.text == "var" ? .mutable : .immutable
 
         // The type annotation carried backwards across the bindings of the declaration. A carried
         // annotation which was already reported as unsupported is marked invalid, so that the
@@ -397,19 +339,24 @@ internal struct MetaBuilder {
 
         for binding in variable.bindings.reversed() {
 
-            if let accessorBlock = binding.accessorBlock, isComputed(accessorBlock) {
-                report(
-                    binding, id: "computed-property",
-                    "Computed properties cannot be used as columns. Move the property to an extension of the type to exclude it from the generated columns."
+            if
+                let accessorBlock = binding.accessorBlock,
+                StoredPropertyClassifier.isComputed(accessorBlock)
+            {
+                StoredPropertyClassifier.reportComputed(
+                    binding,
+                    as: .column,
+                    diagnostics: &diagnostics
                 )
                 carryAnnotation(of: binding)
                 continue
             }
 
             guard let pattern = binding.pattern.as(IdentifierPatternSyntax.self) else {
-                report(
-                    binding.pattern, id: "unsupported-pattern",
-                    "Pattern '\(binding.pattern.trimmedDescription)' cannot be used as a column. Declare each column as a separate property with its own name and type."
+                StoredPropertyClassifier.reportUnsupportedPattern(
+                    binding.pattern,
+                    as: .column,
+                    diagnostics: &diagnostics
                 )
                 carryAnnotation(of: binding)
                 continue
@@ -509,7 +456,7 @@ internal struct MetaBuilder {
     /// labeled/argument-count mismatch inside an already-valid call -- are reported here.
     private static func collectCodecSelector(
         attributes: AttributeListSyntax,
-        diagnostics: inout [Diagnostic]
+        diagnostics: inout MacroDiagnosticCollector
     ) -> (expression: String, node: AttributeSyntax)? {
         var selectors: [(expression: String, node: AttributeSyntax)] = []
         for element in attributes {
@@ -525,12 +472,10 @@ internal struct MetaBuilder {
                 let argument = arguments.first,
                 argument.label == nil
             else {
-                diagnostics.append(
-                    Diagnostic(
-                        node: attribute,
-                        id: "invalid-codec-selector",
-                        message: "'@SQLCodec' requires exactly one unlabeled argument naming a durable 'XLValueCodecKey'."
-                    )
+                diagnostics.report(
+                    attribute,
+                    id: "invalid-codec-selector",
+                    "'@SQLCodec' requires exactly one unlabeled argument naming a durable 'XLValueCodecKey'."
                 )
                 continue
             }
@@ -540,35 +485,13 @@ internal struct MetaBuilder {
             return nil
         }
         for duplicate in selectors.dropFirst() {
-            diagnostics.append(
-                Diagnostic(
-                    node: duplicate.node,
-                    id: "conflicting-codec-selector",
-                    message: "Property has more than one '@SQLCodec' attribute. A property may select at most one explicit codec."
-                )
+            diagnostics.report(
+                duplicate.node,
+                id: "conflicting-codec-selector",
+                "Property has more than one '@SQLCodec' attribute. A property may select at most one explicit codec."
             )
         }
         return first
-    }
-
-    ///
-    /// Determines whether an accessor block belongs to a computed property. Stored properties may
-    /// legitimately define `willSet` and `didSet` observers.
-    ///
-    private static func isComputed(_ accessorBlock: AccessorBlockSyntax) -> Bool {
-        switch accessorBlock.accessors {
-        case .getter:
-            return true
-        case .accessors(let accessors):
-            return accessors.contains { accessor in
-                switch accessor.accessorSpecifier.text {
-                case "willSet", "didSet":
-                    return false
-                default:
-                    return true
-                }
-            }
-        }
     }
 
     ///
@@ -1584,10 +1507,4 @@ internal struct MetaBuilder {
         return context.build()
     }
 
-    ///
-    /// Helper method used to surround a string with quote `"` characters.
-    ///
-    private func quoted(_ input: String) -> String {
-        "\"\(input)\""
-    }
 }
