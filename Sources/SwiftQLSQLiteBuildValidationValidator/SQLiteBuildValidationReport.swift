@@ -229,6 +229,20 @@ public struct SQLiteBuildValidationReport: Codable, Equatable, Sendable {
     public let observedDatabaseSHA256: String?
     public let runtimeMetadata: SQLiteBuildValidationRuntimeMetadata?
     public let environmentEvidence: SQLiteBuildValidationEnvironment
+    /// Checks this validator deliberately does not make, named in every report
+    /// so a reader can tell "not checked" from "checked and passed".
+    ///
+    /// A constant, not rebuilt per report: it is the same list every time, and
+    /// the report's bytes are a determinism gate.
+    static let delegatedChecks: [String] = [
+        "#214 catalog membership and table-reference binding",
+        "#214 correlated and nested reference scopes",
+        "#214 DML target roles",
+        "#214 nullability views",
+        "#214 same-scope alias uniqueness",
+        "SQLite declared types do not prove dynamic expression storage or codec compatibility",
+    ].sorted()
+
     public let delegatedChecks: [String]
     public let overallVerdict: SQLiteBuildValidationVerdict
     public let diagnostics: [SQLiteBuildValidationDiagnostic]
@@ -256,14 +270,7 @@ public struct SQLiteBuildValidationReport: Codable, Equatable, Sendable {
         self.observedDatabaseSHA256 = observedDatabaseSHA256?.lowercased()
         self.runtimeMetadata = runtimeMetadata
         self.environmentEvidence = environmentEvidence
-        self.delegatedChecks = [
-            "#214 catalog membership and table-reference binding",
-            "#214 correlated and nested reference scopes",
-            "#214 DML target roles",
-            "#214 nullability views",
-            "#214 same-scope alias uniqueness",
-            "SQLite declared types do not prove dynamic expression storage or codec compatibility",
-        ].sorted()
+        self.delegatedChecks = Self.delegatedChecks
         self.overallVerdict = Self.overallVerdict(
             diagnostics: diagnostics,
             outcomes: outcomes

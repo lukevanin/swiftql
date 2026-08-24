@@ -17,7 +17,6 @@ struct SQLiteBuildValidationManifestPlaceholderOccurrence: Equatable {
 /// name share that index, matching SQLite's own binding semantics.
 struct SQLiteBuildValidationManifestPlaceholderAnalysis: Equatable {
     let occurrences: [SQLiteBuildValidationManifestPlaceholderOccurrence]
-    let largestPhysicalIndex: Int
 }
 
 
@@ -114,8 +113,7 @@ enum SQLiteBuildValidationManifestPlaceholderScanner {
         }
 
         return SQLiteBuildValidationManifestPlaceholderAnalysis(
-            occurrences: occurrences,
-            largestPhysicalIndex: largestPhysicalIndex
+            occurrences: occurrences
         )
     }
 }

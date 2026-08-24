@@ -2,6 +2,17 @@
 
 ## [1.5.7] - Unreleased
 
+### Removed
+
+- Four public types that nothing referenced, in SwiftQL or anywhere in this
+  repository (issue #555): `XLDatabaseMetadata` and its only conformer
+  `XLDatabaseMetadataObject`, `XLTableName`, and `XLUnionDependency`. Each was
+  declared and never used -- no call site, no conformance, no mention outside
+  its own declaration. `hasFunction(named:argumentCount:)` on
+  `SQLiteBuildValidationRuntimeMetadata` loses its `argumentCount` parameter for
+  the same reason; no caller ever passed one, and arity was the wrong question
+  to ask anyway, since SQLite reports `-1` for a variadic function.
+
 ### Fixed
 
 - A NaN `Double` bound through a `@SQLQuery` macro parameter is now rejected
