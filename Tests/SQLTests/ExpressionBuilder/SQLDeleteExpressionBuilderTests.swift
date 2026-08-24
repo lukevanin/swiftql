@@ -10,20 +10,12 @@ import XCTest
 import SwiftQL
 
 
-final class XLDeleteExpressionBuilderTests: XCTestCase {
-    
-    var encoder: XLiteEncoder!
-    
-    override func setUp() {
-        let formatter = XLiteFormatter(
-            identifierFormattingOptions: .noEscape
-        )
-        encoder = XLiteEncoder(formatter: formatter)
+final class XLDeleteExpressionBuilderTests: XLEncoderTestCase {
+
+    override class var identifierFormattingOptions: XLSQLiteIdentifierFormattingOptions {
+        .noEscape
     }
-    
-    override func tearDown() {
-        encoder = nil
-    }
+
     
     // MARK: - Delete
     

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 import SwiftQLSQLiteConformanceFixtures
 import XCTest
 
@@ -170,7 +171,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     }
 
     func testEverySwiftExampleMapsToACompiledDocumentationScenario() throws {
-        let catalog = documentationCatalogURL()
+        let catalog = try documentationCatalogURL()
         let articleURLs = try FileManager.default.contentsOfDirectory(
             at: catalog,
             includingPropertiesForKeys: nil
@@ -201,7 +202,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             )
         }
 
-        let readme = repositoryRootURL().appendingPathComponent("README.md")
+        let readme = try repositoryRootURL().appendingPathComponent("README.md")
         try assertExampleCoverage(
             in: String(contentsOf: readme, encoding: .utf8),
             file: readme.lastPathComponent,
@@ -229,10 +230,10 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     }
 
     func testSourceExcerptArticlesQuoteTheirSourcesVerbatim() throws {
-        let repositoryRoot = repositoryRootURL()
+        let repositoryRoot = try repositoryRootURL()
 
         for article in sourceExcerptArticles.sorted() {
-            let articleURL = documentationCatalogURL().appendingPathComponent(article)
+            let articleURL = try documentationCatalogURL().appendingPathComponent(article)
             let contents = try String(contentsOf: articleURL, encoding: .utf8)
             let lines = contents.components(separatedBy: .newlines)
 
@@ -350,7 +351,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     }
 
     func testEveryTutorialCodeSnapshotIsCutFromCompiledSource() throws {
-        let catalog = documentationCatalogURL()
+        let catalog = try documentationCatalogURL()
         let tutorialURLs = try tutorialFileURLs(in: catalog)
         XCTAssertEqual(
             Set(tutorialURLs.map(\.lastPathComponent)),
@@ -403,7 +404,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             referencedResources.formUnion(codeSnapshots.map(\.file))
 
             let walkthroughSource = try String(
-                contentsOf: repositoryRootURL()
+                contentsOf: try repositoryRootURL()
                     .appendingPathComponent(walkthrough.source),
                 encoding: .utf8
             )
@@ -467,7 +468,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             XCTAssertTrue(
                 try pathExistsWithExactCase(
                     "Sources/SwiftQL/SwiftQL.docc/Tutorials/Resources/\(resource)",
-                    below: repositoryRootURL()
+                    below: try repositoryRootURL()
                 ),
                 "Tutorial resource does not resolve with exact case: \(resource)"
             )
@@ -479,7 +480,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     /// this test pinned there is still pinned — on the article that now owns
     /// it.
     func testAdvancedUsageDocumentsPreparedStatementOwnershipAndFailureSemantics() throws {
-        let advancedUsageURL = documentationCatalogURL()
+        let advancedUsageURL = try documentationCatalogURL()
             .appendingPathComponent("AdvancedUsage.md")
         let contents = try String(contentsOf: advancedUsageURL, encoding: .utf8)
 
@@ -517,7 +518,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     /// The onboarding guide keeps the everyday contract a first-time reader
     /// needs, and keeps pointing at the advanced article for the rest.
     func testGettingStartedStaysAnOnboardingGuide() throws {
-        let gettingStartedURL = documentationCatalogURL()
+        let gettingStartedURL = try documentationCatalogURL()
             .appendingPathComponent("GettingStarted.md")
         let contents = try String(contentsOf: gettingStartedURL, encoding: .utf8)
 
@@ -558,7 +559,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     }
 
     func testStaticQueriesDocumentsIdentityPreparationAndExecutionContracts() throws {
-        let staticQueriesURL = documentationCatalogURL()
+        let staticQueriesURL = try documentationCatalogURL()
             .appendingPathComponent("StaticQueries.md")
         let contents = try String(
             contentsOf: staticQueriesURL,
@@ -603,7 +604,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     }
 
     func testCustomTypesDocumentsContextualCodecPolicyAndV1Migration() throws {
-        let customTypesURL = documentationCatalogURL()
+        let customTypesURL = try documentationCatalogURL()
             .appendingPathComponent("CustomTypes.md")
         let contents = try String(contentsOf: customTypesURL, encoding: .utf8)
 
@@ -647,7 +648,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     }
 
     func testV13PublicDocumentsShareReleaseAndBoundaryContract() throws {
-        let repositoryRoot = repositoryRootURL()
+        let repositoryRoot = try repositoryRootURL()
         let inventory = try JSONDecoder().decode(
             DocumentationConformanceInventory.self,
             from: Data(
@@ -821,7 +822,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     /// issue #230. Deriving the expected list from the catalog itself, titles
     /// included, means the next article cannot repeat it.
     func testEveryCatalogArticleIsCheckedInTheBuiltDocCOutput() throws {
-        let catalog = documentationCatalogURL()
+        let catalog = try documentationCatalogURL()
         var expectedPages: [String: String] = [:]
         for articleURL in try FileManager.default.contentsOfDirectory(
             at: catalog,
@@ -843,7 +844,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         }
 
         let script = try String(
-            contentsOf: repositoryRootURL().appendingPathComponent(
+            contentsOf: try repositoryRootURL().appendingPathComponent(
                 "scripts/ci/check-docc-output.sh"
             ),
             encoding: .utf8
@@ -889,7 +890,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     /// one, and hold the published-version claim consistent across every
     /// document that restates it (issue #230).
     func testPublicDocumentsAgreeOnTheShippedV15Surface() throws {
-        let repositoryRoot = repositoryRootURL()
+        let repositoryRoot = try repositoryRootURL()
         let requiredPhrasesByPath = [
             "README.md": [
                 "Write a query as an ordinary Swift function with `@SQLQuery`",
@@ -971,7 +972,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     }
 
     func testREADMERepositoryLinksResolveWithExactCase() throws {
-        let repositoryRoot = repositoryRootURL()
+        let repositoryRoot = try repositoryRootURL()
         let readme = try String(
             contentsOf: repositoryRoot.appendingPathComponent("README.md"),
             encoding: .utf8
@@ -1040,7 +1041,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     }
 
     func testTrackedSwiftFileHeadersMatchFilenames() throws {
-        let repositoryRoot = repositoryRootURL()
+        let repositoryRoot = try repositoryRootURL()
         let skippedDirectoryNames: Set<String> = [".build", ".swiftpm", ".git"]
         for directoryName in ["IntegrationTests", "Sources", "Tests"] {
             let directory = repositoryRoot.appendingPathComponent(directoryName, isDirectory: true)
@@ -1255,16 +1256,17 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         }
     }
 
-    private func documentationCatalogURL() -> URL {
-        repositoryRootURL()
+    private func documentationCatalogURL() throws -> URL {
+        try repositoryRootURL()
             .appendingPathComponent("Sources/SwiftQL/SwiftQL.docc", isDirectory: true)
     }
 
-    private func repositoryRootURL() -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+    /// The repository root, found by walking up to the `Package.swift` rather
+    /// than by counting directories from this file. A fixed-depth ladder is a
+    /// silent dependency on where this file sits, and moving it makes the tests
+    /// read whatever happens to be at the resulting path (issue #557).
+    private func repositoryRootURL() throws -> URL {
+        try swiftQLRepositoryRootURL()
     }
 
     private func markdownHeadingAnchor(_ line: String) -> String? {

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 #if canImport(Combine)
 import Combine
 #else
@@ -929,13 +930,19 @@ private struct InvocationToken {
 }
 
 
+/// A temporary database with a `GRDBDatabase` already built over it.
+///
+/// The directory, the pool, and their cleanup are
+/// ``TemporaryDatabaseFixture``'s (issue #557); this adds only the database
+/// these tests actually work through.
 private struct InvocationFixture {
-    let directoryURL: URL
+    let temporary: TemporaryDatabaseFixture
     let database: GRDBDatabase
 
+    var directoryURL: URL { temporary.directoryURL }
+
     func tearDown() {
-        try? database.databasePool.close()
-        try? FileManager.default.removeItem(at: directoryURL)
+        temporary.tearDown()
     }
 }
 
@@ -948,12 +955,7 @@ private enum InvocationFixtureError: Error {
 
 
 private func makeFixture() throws -> InvocationFixture {
-    let directoryURL = FileManager.default.temporaryDirectory
-        .appendingPathComponent("swiftql-invocation-\(UUID().uuidString)")
-    try FileManager.default.createDirectory(
-        at: directoryURL,
-        withIntermediateDirectories: false
-    )
+let temporary = try TemporaryDatabaseFixture.make(named: "invocation-bindings")
 
     let dateCodec = XLValueCodec<Date, XLSQLiteDialect>(
         key: XLValueCodecKey(id: "tests.date.text", version: 1),
@@ -1004,13 +1006,10 @@ private func makeFixture() throws -> InvocationFixture {
             tokenCodec.identity.key,
         ]
     )
-    let databasePool = try DatabasePool(
-        path: directoryURL.appendingPathComponent("database.sqlite").path
-    )
     return try InvocationFixture(
-        directoryURL: directoryURL,
+        temporary: temporary,
         database: GRDBDatabase(
-            databasePool: databasePool,
+            databasePool: temporary.pool,
             codingConfiguration: configuration,
             formatter: XLiteFormatter(),
             logger: nil

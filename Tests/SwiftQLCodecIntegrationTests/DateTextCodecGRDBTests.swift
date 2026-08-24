@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 import GRDB
 import XCTest
 @testable import SwiftQL
@@ -495,14 +496,8 @@ final class DateTextCodecGRDBTests: XCTestCase {
         )
     }
 
-    private func makeFixture() throws -> DateTextCodecFixture {
-        let directoryURL = try makeDirectory()
-        return DateTextCodecFixture(
-            directoryURL: directoryURL,
-            pool: try DatabasePool(
-                path: directoryURL.appendingPathComponent("database.sqlite").path
-            )
-        )
+    private func makeFixture() throws -> TemporaryDatabaseFixture {
+        try TemporaryDatabaseFixture.make(named: "date-text-codec")
     }
 
     private func makeDirectory() throws -> URL {
@@ -513,16 +508,5 @@ final class DateTextCodecGRDBTests: XCTestCase {
             withIntermediateDirectories: false
         )
         return directoryURL
-    }
-}
-
-
-private struct DateTextCodecFixture {
-    let directoryURL: URL
-    let pool: DatabasePool
-
-    func tearDown() {
-        try? pool.close()
-        try? FileManager.default.removeItem(at: directoryURL)
     }
 }

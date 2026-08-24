@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 import GRDB
 import XCTest
 @testable import SwiftQL
@@ -23,7 +24,7 @@ final class GRDBDriverContractTests: XCTestCase {
         defer { fixture.tearDown() }
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
         let logicalStatement = makeLogicalStatement(
@@ -117,7 +118,7 @@ final class GRDBDriverContractTests: XCTestCase {
         )
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
         let statement = makeLogicalStatement(
@@ -196,7 +197,7 @@ final class GRDBDriverContractTests: XCTestCase {
         defer { fixture.tearDown() }
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
         let create = makeLogicalStatement(
@@ -294,7 +295,7 @@ final class GRDBDriverContractTests: XCTestCase {
         defer { fixture.tearDown() }
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
         let create = makeLogicalStatement(
@@ -381,7 +382,7 @@ final class GRDBDriverContractTests: XCTestCase {
         defer { fixture.tearDown() }
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
         let repeated = makeLogicalStatement(
@@ -441,7 +442,7 @@ final class GRDBDriverContractTests: XCTestCase {
         defer { fixture.tearDown() }
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
         let overflow = makeLogicalStatement(
@@ -536,7 +537,7 @@ final class GRDBDriverContractTests: XCTestCase {
         defer { fixture.tearDown() }
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
         let values: [(String, XLSQLiteValue)] = [
@@ -582,7 +583,7 @@ final class GRDBDriverContractTests: XCTestCase {
         defer { fixture.tearDown() }
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
         let logicalStatement = makeLogicalStatement(
@@ -619,7 +620,7 @@ final class GRDBDriverContractTests: XCTestCase {
         defer { fixture.tearDown() }
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
         let logicalStatement = makeLogicalStatement(
@@ -659,7 +660,7 @@ final class GRDBDriverContractTests: XCTestCase {
         defer { fixture.tearDown() }
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
         let actualDatabaseIdentifier = driver.databaseIdentifier
@@ -738,7 +739,7 @@ final class GRDBDriverContractTests: XCTestCase {
         defer { fixture.tearDown() }
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
         let logicalStatement = makeLogicalStatement(for: driver, sql: "SELECT 1")
@@ -764,7 +765,7 @@ final class GRDBDriverContractTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let database = try GRDBDatabase(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             formatter: XLiteFormatter(),
             logger: nil
         )
@@ -800,7 +801,7 @@ final class GRDBDriverContractTests: XCTestCase {
         defer { fixture.tearDown() }
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
         let create = makeLogicalStatement(
@@ -896,7 +897,7 @@ final class GRDBDriverContractTests: XCTestCase {
         defer { fixture.tearDown() }
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
         let create = makeLogicalStatement(
@@ -951,20 +952,10 @@ final class GRDBDriverContractTests: XCTestCase {
 
     private func makeFixture(
         configuration: Configuration = Configuration()
-    ) throws -> Fixture {
-        let directoryURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("swiftql-grdb-driver-contract-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(
-            at: directoryURL,
-            withIntermediateDirectories: false
-        )
-        let databasePool = try DatabasePool(
-            path: directoryURL.appendingPathComponent("database.sqlite").path,
+    ) throws -> TemporaryDatabaseFixture {
+        try TemporaryDatabaseFixture.make(
+            named: "grdb-driver-contract",
             configuration: configuration
-        )
-        return Fixture(
-            directoryURL: directoryURL,
-            databasePool: databasePool
         )
     }
 }
@@ -989,16 +980,5 @@ private final class GRDBStreamStepProbe: @unchecked Sendable {
         invocationCountValue += 1
         lock.unlock()
         return Int64.fromDatabaseValue(value)
-    }
-}
-
-
-private struct Fixture {
-    let directoryURL: URL
-    let databasePool: DatabasePool
-
-    func tearDown() {
-        try? databasePool.close()
-        try? FileManager.default.removeItem(at: directoryURL)
     }
 }

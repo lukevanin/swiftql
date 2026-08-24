@@ -1,7 +1,11 @@
 //
 //  SQLSyntaxTestCase.swift
 //
-//  The fixture the syntax-rendering tests share.
+//  The fixture the rendering tests share: an encoder, and nothing else.
+//
+//  Eight suites carried an identical `setUp`/`tearDown` pair building one and
+//  clearing it, each forcing an implicitly-unwrapped optional to hold it
+//  (issue #557).
 //
 //  `SQLSyntaxTests.swift` was 2,042 lines, one class, 187 tests, and twenty
 //  `// MARK:` sections. Issue #567 split it along those boundaries; every test
@@ -13,17 +17,22 @@ import XCTest
 import SwiftQL
 
 
-class XLSyntaxTestCase: XCTestCase {
+class XLEncoderTestCase: XCTestCase {
 
     var encoder: XLiteEncoder!
 
+    /// How identifiers are spelled in the SQL these tests expect. Override in
+    /// a subclass that needs a different one.
+    class var identifierFormattingOptions: XLSQLiteIdentifierFormattingOptions {
+        .sqlite
+    }
+
     override func setUp() {
-        // `.noEscape` so the expected SQL in these tests reads as SQL rather
-        // than as a wall of quoting. Identifier escaping has its own coverage.
-        let formatter = XLiteFormatter(
-            identifierFormattingOptions: .noEscape
+        encoder = XLiteEncoder(
+            formatter: XLiteFormatter(
+                identifierFormattingOptions: Self.identifierFormattingOptions
+            )
         )
-        encoder = XLiteEncoder(formatter: formatter)
     }
 
     override func tearDown() {
@@ -44,6 +53,15 @@ class XLSyntaxTestCase: XCTestCase {
         line: UInt = #line
     ) {
         XCTAssertEqual(encoder.makeSQL(expression).sql, sql, file: file, line: line)
+    }
+}
+
+class XLSyntaxTestCase: XLEncoderTestCase {
+
+    /// `.noEscape` so the expected SQL in these tests reads as SQL rather than
+    /// as a wall of quoting. Identifier escaping has its own coverage.
+    override class var identifierFormattingOptions: XLSQLiteIdentifierFormattingOptions {
+        .noEscape
     }
 }
 

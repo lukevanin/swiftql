@@ -12,6 +12,7 @@ import OpenCombine
 import OpenCombineDispatch
 #endif
 import Foundation
+import SwiftQLTestSupport
 import GRDB
 import XCTest
 @testable import SwiftQL
@@ -1143,9 +1144,7 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         functionState: AsyncStreamInjectedBusyFunctionState? = nil,
         retryScheduler: GRDBLiveQueryRetryScheduler? = nil
     ) throws -> InjectedBusyFixture {
-        let directoryURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        let directoryURL = try makeTemporaryDirectory(named: "live-query-async-stream")
         let databaseURL = directoryURL.appendingPathComponent("retry.sqlite", isDirectory: false)
         let resolvedFunctionState = functionState ?? AsyncStreamInjectedBusyFunctionState(behavior: behavior)
 

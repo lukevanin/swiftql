@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 import GRDB
 import XCTest
 
@@ -586,13 +587,19 @@ private struct DescriptorToken: Equatable, Sendable {
 }
 
 
+/// A temporary database with a `GRDBDatabase` already built over it.
+///
+/// The directory, the pool, and their cleanup are
+/// ``TemporaryDatabaseFixture``'s (issue #557); this adds only the database
+/// these tests actually work through.
 private struct DescriptorDatabaseFixture {
-    let directoryURL: URL
+    let temporary: TemporaryDatabaseFixture
     let database: GRDBDatabase
 
+    var directoryURL: URL { temporary.directoryURL }
+
     func tearDown() {
-        try? database.databasePool.close()
-        try? FileManager.default.removeItem(at: directoryURL)
+        temporary.tearDown()
     }
 }
 
@@ -887,23 +894,17 @@ private func tokenPacket(
 private func makeDatabase(
     configuration: XLValueCodingConfiguration
 ) throws -> DescriptorDatabaseFixture {
-    let directoryURL = FileManager.default.temporaryDirectory
-        .appendingPathComponent("swiftql-static-query-\(UUID().uuidString)")
-    try FileManager.default.createDirectory(
-        at: directoryURL,
-        withIntermediateDirectories: false
-    )
-    let databasePool = try DatabasePool(
-        path: directoryURL.appendingPathComponent("database.sqlite").path
+    let temporary = try TemporaryDatabaseFixture.make(
+        named: "static-query-descriptor"
     )
     let database = try GRDBDatabase(
-        databasePool: databasePool,
+        databasePool: temporary.pool,
         codingConfiguration: configuration,
         formatter: XLiteFormatter(),
         logger: nil
     )
     return DescriptorDatabaseFixture(
-        directoryURL: directoryURL,
+        temporary: temporary,
         database: database
     )
 }
