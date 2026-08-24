@@ -81,9 +81,11 @@ bundle resources for the target's own product.
 
 For a self-contained, runnable version of this walkthrough see
 `IntegrationTests/BuildValidationPluginFixture` and its `verify.sh`, which
-drives exactly these steps against the real pinned Northwind snapshot.
-`verify-xcode.sh` next to it drives the same steps through Xcode's build
-system (see [Build systems](#build-systems)).
+drives exactly these steps against the real pinned Northwind snapshot and runs
+on every cell of the pinned compatibility matrix in CI. `verify-xcode.sh` next
+to it drives the same steps through Xcode's build system (see
+[Build systems](#build-systems)); that one stays a manual check, because Xcode
+is not part of the pinned matrix.
 
 ## Package layout example
 
