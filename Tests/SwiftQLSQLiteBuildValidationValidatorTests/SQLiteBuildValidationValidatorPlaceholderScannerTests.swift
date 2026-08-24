@@ -1,11 +1,25 @@
+//
+//  SQLiteBuildValidationValidatorPlaceholderScannerTests.swift
+//
+//  The lexical placeholder scan the validator runs over a manifest query's SQL
+//  before preparing it: which spellings become physical parameters, which
+//  collide, which are unsupported, and which text is not scanned at all.
+//
+//  Ported from the research prototype when `Research/SQLiteBuildValidation`
+//  was retired (issue #565). The shipped scanner had no tests of its own; the
+//  quoting rules in particular -- string literals, quoted identifiers,
+//  bracketed identifiers, line and block comments -- are exactly where a scan
+//  invents or loses a parameter without any query failing to prepare.
+//
+
 import XCTest
 
-@testable import SwiftQLSQLiteBuildValidationPrototype
+@testable import SwiftQLSQLiteBuildValidationValidator
 
 
-final class SQLiteBuildValidationPlaceholderScannerTests: XCTestCase {
+final class SQLiteBuildValidationValidatorPlaceholderScannerTests: XCTestCase {
     func testRecognizesNamedIndexedGapsAndRepeatedNamesWhileIgnoringQuotedText() {
-        let analysis = SQLiteBuildValidationPlaceholderScanner.scan(
+        let analysis = SQLiteBuildValidationValidatorPlaceholderScanner.scan(
             """
             SELECT ?3, :later, :later, ?1,
                    ':string', "?:identifier", `:quoted`, [?:bracket]
@@ -34,7 +48,7 @@ final class SQLiteBuildValidationPlaceholderScannerTests: XCTestCase {
     }
 
     func testRecordsCollisionsAndUnsupportedPlaceholderSpellings() {
-        let analysis = SQLiteBuildValidationPlaceholderScanner.scan(
+        let analysis = SQLiteBuildValidationValidatorPlaceholderScanner.scan(
             "SELECT :first, ?1, ?, @other, $cash, ?0"
         )
 
