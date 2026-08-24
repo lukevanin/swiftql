@@ -19,7 +19,7 @@ import OpenCombine
 extension GRDBRequest {
 
     func fetchAll() throws -> [Row] {
-        try fetchAll(bindings: compatibilityPacket())
+        try fetchAll(bindings: legacyBindings.packet())
     }
 
     func fetchAll(
@@ -32,7 +32,7 @@ extension GRDBRequest {
     }
 
     func decodeRows(
-        packet: XLInvocationBindings<XLSQLiteValue>
+        packet: XLValidatedSQLitePacket
     ) throws -> [Row] {
         var driver = executor.driver
         // Both branches accumulate into an outer array and return Void from
@@ -70,7 +70,7 @@ extension GRDBRequest {
     }
 
     func decodeRows(
-        packet: XLInvocationBindings<XLSQLiteValue>,
+        packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws -> [Row] {
         let rowDecoder = GRDBRowDecoder(reader: reader)
@@ -101,7 +101,7 @@ extension GRDBRequest {
     }
 
     func decodeRows(
-        packet: XLInvocationBindings<XLSQLiteValue>,
+        packet: XLValidatedSQLitePacket,
         limit: Int
     ) throws -> [Row] {
         var driver = executor.driver
@@ -118,7 +118,7 @@ extension GRDBRequest {
     }
 
     func decodeRows(
-        packet: XLInvocationBindings<XLSQLiteValue>,
+        packet: XLValidatedSQLitePacket,
         limit: Int,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws -> [Row] {
@@ -144,7 +144,7 @@ extension GRDBRequest {
     }
 
     func fetchOne() throws -> Row? {
-        try fetchOne(bindings: compatibilityPacket())
+        try fetchOne(bindings: legacyBindings.packet())
     }
 
     func fetchOne(
@@ -161,7 +161,7 @@ extension GRDBRequest {
             }
         }
         else {
-            values = try executor.fetchOne(bindings: packet)
+            values = try executor.fetchOne(packet: packet)
         }
         guard let values else {
             return nil

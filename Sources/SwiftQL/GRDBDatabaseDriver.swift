@@ -305,7 +305,7 @@ struct GRDBInvocationExecutor: Sendable {
     }
 
     func fetchAll(
-        packet: XLInvocationBindings<XLSQLiteValue>,
+        packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws -> [[XLSQLiteValue]] {
         try connection.fetchAll(boundStatement(packet: packet, in: &connection))
@@ -330,7 +330,7 @@ struct GRDBInvocationExecutor: Sendable {
     }
 
     func forEachRow(
-        packet: XLInvocationBindings<XLSQLiteValue>,
+        packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection,
         _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
     ) throws {
@@ -352,7 +352,7 @@ struct GRDBInvocationExecutor: Sendable {
     /// is built directly on top of this seam.
     ///
     func withValuesStepper<Result>(
-        packet: XLInvocationBindings<XLSQLiteValue>,
+        packet: XLValidatedSQLitePacket,
         requiresWriteConnection: Bool,
         _ operation: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
     ) throws -> Result {
@@ -380,8 +380,18 @@ struct GRDBInvocationExecutor: Sendable {
         }
     }
 
+    /// Reads on a connection this executor takes for the call.
     func fetchOne(
-        packet: XLInvocationBindings<XLSQLiteValue>,
+        packet: XLValidatedSQLitePacket
+    ) throws -> [XLSQLiteValue]? {
+        var driver = driver
+        return try driver.withReadConnection { connection in
+            try fetchOne(packet: packet, in: &connection)
+        }
+    }
+
+    func fetchOne(
+        packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws -> [XLSQLiteValue]? {
         try connection.fetchOne(boundStatement(packet: packet, in: &connection))
@@ -397,37 +407,44 @@ struct GRDBInvocationExecutor: Sendable {
         }
     }
 
+    /// Executes inside a transaction this executor opens for the call.
     func execute(
-        packet: XLInvocationBindings<XLSQLiteValue>,
+        packet: XLValidatedSQLitePacket
+    ) throws {
+        var driver = driver
+        try driver.withTransaction { connection in
+            try execute(packet: packet, in: &connection)
+        }
+    }
+
+    func execute(
+        packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws {
         try connection.execute(boundStatement(packet: packet, in: &connection))
     }
 
+    /// Checks an invocation packet against this statement's parameter layout,
+    /// and returns the evidence that it passed.
+    ///
+    /// The returned ``XLValidatedSQLitePacket`` is the only way to reach
+    /// execution, and the only way to obtain one is here -- so validation
+    /// happens exactly once per execution rather than the two or three times it
+    /// used to (issue #561).
     func sqlitePacket(
         _ bindings: any XLInvocationBindingPacket
-    ) throws -> XLInvocationBindings<XLSQLiteValue> {
+    ) throws -> XLValidatedSQLitePacket {
         if let valueEncodingError {
             throw valueEncodingError
         }
         if let parameterLayoutError {
             throw parameterLayoutError
         }
-        guard let packet = bindings as? XLInvocationBindings<XLSQLiteValue> else {
-            throw XLRequestBindingError.incompatibleInvocationPacket(
-                requestType: String(reflecting: Self.self),
-                expectedDialect: XLSQLiteDialect.identity,
-                expectedValueType: String(reflecting: XLSQLiteValue.self),
-                actualPacketType: String(reflecting: type(of: bindings))
-            )
-        }
-        guard packet.layout == parameterLayout else {
-            throw XLInvocationBindingError.packetLayoutMismatch(
-                expected: parameterLayout,
-                actual: packet.layout
-            )
-        }
-        let validatedPacket = try packet.validatingComplete()
+        let validatedPacket = try _xlSQLiteInvocationPacket(
+            bindings,
+            matching: parameterLayout,
+            requestType: Self.self
+        )
         for binding in validatedPacket.bindings {
             if case .real(let value) = binding.value,
                let error = XLSQLValueEncodingError.bindingFailure(
@@ -466,15 +483,17 @@ struct GRDBInvocationExecutor: Sendable {
                 }
             }
         }
-        return validatedPacket
+        return XLValidatedSQLitePacket(
+            validated: validatedPacket.bindings,
+            layout: validatedPacket.layout
+        )
     }
 
     private func boundStatement(
-        packet: XLInvocationBindings<XLSQLiteValue>,
+        packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws -> GRDBPhysicalStatement {
         connection.registerCustomFunctions(customFunctions)
-        let packet = try sqlitePacket(packet)
         var statement = try connection.prepare(logicalStatement)
         for binding in packet.bindings {
             do {

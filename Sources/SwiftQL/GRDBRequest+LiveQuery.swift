@@ -41,7 +41,7 @@ extension GRDBRequest {
             return Fail(error: error).eraseToAnyPublisher()
         }
         do {
-            return publish(bindings: try compatibilityPacket())
+            return publish(bindings: try legacyBindings.packet())
         }
         catch {
             return Fail(error: error).eraseToAnyPublisher()
@@ -66,7 +66,7 @@ extension GRDBRequest {
             return Fail(error: error).eraseToAnyPublisher()
         }
         do {
-            return publishOne(bindings: try compatibilityPacket())
+            return publishOne(bindings: try legacyBindings.packet())
         }
         catch {
             return Fail(error: error).eraseToAnyPublisher()
@@ -88,7 +88,7 @@ extension GRDBRequest {
     
     func stream() -> AsyncThrowingStream<[Row], Error> {
         do {
-            return try stream(bindings: compatibilityPacket())
+            return try stream(bindings: legacyBindings.packet())
         }
         catch {
             return xlFailingAsyncThrowingStream(error)
@@ -120,7 +120,7 @@ extension GRDBRequest {
 
     func streamOne() -> AsyncThrowingStream<Row?, Error> {
         do {
-            return try streamOne(bindings: compatibilityPacket())
+            return try streamOne(bindings: legacyBindings.packet())
         }
         catch {
             return xlFailingAsyncThrowingStream(error)
@@ -173,10 +173,5 @@ extension GRDBRequest {
         )
     }
 
-    func compatibilityPacket() throws -> XLInvocationBindings<XLSQLiteValue> {
-        if let compatibilityBindingError {
-            throw compatibilityBindingError
-        }
-        return compatibilityBindings
-    }
+
 }
