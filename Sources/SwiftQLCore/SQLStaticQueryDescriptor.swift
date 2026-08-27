@@ -1100,6 +1100,23 @@ private struct XLCanonicalByteWriter {
         byte(1)
         write(&self, value)
     }
+    /// The written bytes as lowercase hexadecimal.
+    ///
+    /// Identity material has to survive being used as a SQL identifier, which
+    /// arbitrary bytes do not.
+    package var hexEncoded: String {
+        let digits = Self.hexDigits
+        var encoded: [UInt8] = []
+        encoded.reserveCapacity(output.count * 2)
+        for byte in output {
+            encoded.append(digits[Int(byte >> 4)])
+            encoded.append(digits[Int(byte & 0x0f)])
+        }
+        return String(decoding: encoded, as: UTF8.self)
+    }
+
+    /// The lowercase hex alphabet, built once rather than per access.
+    private static let hexDigits = Array("0123456789abcdef".utf8)
 }
 
 
