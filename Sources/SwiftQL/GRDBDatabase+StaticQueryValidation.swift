@@ -31,31 +31,44 @@ extension GRDBDatabase {
         }
 
         for slot in encoding.parameterLayout.slots {
-            guard let expected = slot.codecIdentity else {
-                continue
-            }
-            guard expected.dialectIdentifier == dialect.descriptor.identity else {
-                return .preparedCodecDialectMismatch(
+            if let failure = codecResolutionFailure(for: slot.codecIdentity) {
+                return failure.bindingError(
                     slot: slot,
-                    codecIdentity: expected,
                     expectedDialectIdentifier: dialect.descriptor.identity
                 )
             }
-            guard let actual = codingConfiguration.registry.identity(
-                for: expected.key
-            ) else {
-                return .preparedCodecUnavailable(
-                    slot: slot,
-                    codecIdentity: expected
-                )
-            }
-            guard actual == expected else {
-                return .preparedCodecIdentityMismatch(
-                    slot: slot,
-                    expected: expected,
-                    actual: actual
-                )
-            }
+        }
+        return nil
+    }
+
+    ///
+    /// Why a slot's declared codec cannot be used against this database, or
+    /// `nil` when it can be -- including when the slot declares no codec.
+    ///
+    /// The resolution is one question asked in three places: on the rendered
+    /// parameter layout, on a static descriptor's parameters, and on its
+    /// results. Each reports it in a different taxonomy -- the first as an
+    /// `XLInvocationBindingError` returned rather than thrown, the second as
+    /// the same error thrown, the third as a `GRDBStaticQueryError` naming the
+    /// descriptor -- which is why they were three copies (issue #561). The
+    /// answer is shared; only the reporting differs.
+    ///
+    func codecResolutionFailure(
+        for codecIdentity: XLValueCodecIdentity?
+    ) -> GRDBCodecResolutionFailure? {
+        guard let expected = codecIdentity else {
+            return nil
+        }
+        guard expected.dialectIdentifier == dialect.descriptor.identity else {
+            return .dialectMismatch(expected)
+        }
+        guard let actual = codingConfiguration.registry.identity(
+            for: expected.key
+        ) else {
+            return .unavailable(expected)
+        }
+        guard actual == expected else {
+            return .identityMismatch(expected: expected, actual: actual)
         }
         return nil
     }
@@ -65,60 +78,20 @@ extension GRDBDatabase {
     ) throws {
         for metadata in descriptor.parameters {
             let slot = metadata.slot
-            guard let expected = slot.codecIdentity else {
-                continue
-            }
-            guard expected.dialectIdentifier == dialect.descriptor.identity else {
-                throw XLInvocationBindingError.preparedCodecDialectMismatch(
+            if let failure = codecResolutionFailure(for: slot.codecIdentity) {
+                throw failure.bindingError(
                     slot: slot,
-                    codecIdentity: expected,
                     expectedDialectIdentifier: dialect.descriptor.identity
-                )
-            }
-            guard let actual = codingConfiguration.registry.identity(
-                for: expected.key
-            ) else {
-                throw XLInvocationBindingError.preparedCodecUnavailable(
-                    slot: slot,
-                    codecIdentity: expected
-                )
-            }
-            guard actual == expected else {
-                throw XLInvocationBindingError.preparedCodecIdentityMismatch(
-                    slot: slot,
-                    expected: expected,
-                    actual: actual
                 )
             }
         }
 
         for slot in descriptor.results.slots {
-            guard let expected = slot.codecIdentity else {
-                continue
-            }
-            guard expected.dialectIdentifier == dialect.descriptor.identity else {
-                throw GRDBStaticQueryError.resultCodecDialectMismatch(
+            if let failure = codecResolutionFailure(for: slot.codecIdentity) {
+                throw failure.staticQueryError(
                     identity: descriptor.identity,
                     slot: slot,
-                    codecIdentity: expected,
                     expectedDialectIdentifier: dialect.descriptor.identity
-                )
-            }
-            guard let actual = codingConfiguration.registry.identity(
-                for: expected.key
-            ) else {
-                throw GRDBStaticQueryError.resultCodecUnavailable(
-                    identity: descriptor.identity,
-                    slot: slot,
-                    codecIdentity: expected
-                )
-            }
-            guard actual == expected else {
-                throw GRDBStaticQueryError.resultCodecIdentityMismatch(
-                    identity: descriptor.identity,
-                    slot: slot,
-                    expected: expected,
-                    actual: actual
                 )
             }
         }

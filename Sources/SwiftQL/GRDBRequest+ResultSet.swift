@@ -22,7 +22,7 @@ extension GRDBRequest {
     func withResultSet<Result>(
         _ operation: (XLResultSet<Row>) throws -> Result
     ) throws -> Result {
-        try withResultSet(bindings: try compatibilityPacket(), operation)
+        try withResultSet(bindings: try legacyBindings.packet(), operation)
     }
 
     ///
@@ -57,6 +57,11 @@ extension GRDBRequest {
             try driver.withTransaction { connection in
                 items = try decodeRows(packet: packet, in: &connection)
             }
+            // The shared eager fallback from `XLRequest` (see
+            // `SQLDatabase.swift`). A `RETURNING` statement writes as it
+            // reads, so its rows are decoded inside the transaction above and
+            // are already in memory by the time `operation` runs -- there is
+            // no cursor left to stream from.
             return try withEagerResultSet(items, operation)
         }
 
@@ -76,18 +81,6 @@ extension GRDBRequest {
         }
     }
 
-    /// Mirrors `XLRequest`'s eager compatibility fallback (see
-    /// `SQLDatabase.swift`), used only for the `RETURNING` path above where
-    /// rows must already be fully decoded before `operation` runs.
-    func withEagerResultSet<Result>(
-        _ rows: [Row],
-        _ operation: (XLResultSet<Row>) throws -> Result
-    ) throws -> Result {
-        var iterator = rows.makeIterator()
-        let resultSet = XLResultSet<Row>(stepper: { iterator.next() })
-        defer { resultSet.close() }
-        return try operation(resultSet)
-    }
 
     // `publish()`/`publish(bindings:)`/`publishOne()`/`publishOne(bindings:)` are Combine convenience
     // adapters over `stream()`/`streamOne()` (issue #309): they never call `ValueObservation

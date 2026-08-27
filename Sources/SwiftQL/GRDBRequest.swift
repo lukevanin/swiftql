@@ -41,9 +41,8 @@ struct GRDBRequest<Row>: XLRequest {
 
     let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
 
-    var compatibilityBindings: XLInvocationBindings<XLSQLiteValue>
-
-    var compatibilityBindingError: XLInvocationBindingError?
+    /// Bindings set through the v1 mutable `set(parameter:value:)` facade.
+    var legacyBindings: GRDBLegacyBindingAccumulator
 
     init(
         driver: GRDBDatabaseDriver,
@@ -71,10 +70,10 @@ struct GRDBRequest<Row>: XLRequest {
         self.reader = reader
         self.liveQueryRetryPolicy = liveQueryRetryPolicy
         self.liveQueryRetryScheduler = liveQueryRetryScheduler
-        self.compatibilityBindings = XLInvocationBindings(
-            layout: logicalStatement.parameterLayout
+        self.legacyBindings = GRDBLegacyBindingAccumulator(
+            layout: logicalStatement.parameterLayout,
+            initialError: parameterLayoutError
         )
-        self.compatibilityBindingError = parameterLayoutError
     }
 
     var parameterLayout: XLParameterLayout {
@@ -82,74 +81,10 @@ struct GRDBRequest<Row>: XLRequest {
     }
     
     public mutating func set<T>(parameter reference: XLNamedBindingReference<Optional<T>>, value: T?) where T: XLBindable {
-        bindValue(
-            declaration: _xlLegacyParameterDeclaration(
-                for: Optional<T>.self,
-                key: .named(reference.name.rawValue)
-            )
-        ) { context in
-            if let value {
-                value.bind(context: &context)
-            }
-            else {
-                context.bindNull()
-            }
-        }
+        legacyBindings.set(optional: value, named: reference.name)
     }
 
     public mutating func set<T>(parameter reference: XLNamedBindingReference<T>, value: T) where T: XLBindable {
-        bindValue(
-            declaration: _xlLegacyParameterDeclaration(
-                for: T.self,
-                key: .named(reference.name.rawValue)
-            )
-        ) { context in
-            value.bind(context: &context)
-        }
-    }
-    
-    mutating func bindValue(
-        declaration: XLParameterDeclaration,
-        bind: (inout XLBindingContext) -> Void
-    ) {
-        guard let slot = parameterLayout.slot(for: declaration.key) else {
-            if compatibilityBindingError == nil {
-                compatibilityBindingError = .parameterDeclarationNotInLayout(
-                    declaration: declaration
-                )
-            }
-            return
-        }
-        guard slot.acceptsLegacySet(declaration) else {
-            if compatibilityBindingError == nil {
-                compatibilityBindingError = .parameterMetadataMismatch(
-                    expected: slot,
-                    actual: declaration.slot(at: slot.index)
-                )
-            }
-            return
-        }
-        // No NaN guard here: this legacy setter has no throwing channel, and
-        // `compatibilityBindingError` carries an `XLInvocationBindingError`
-        // rather than an encoding error. The driver boundary rejects a NaN
-        // `REAL` for this path when the packet is executed.
-        let value = _xlCapturedSQLiteValue(of: declaration.valueTypeName) { context in
-            bind(&context)
-        }
-        do {
-            compatibilityBindings = try replacingBinding(
-                value,
-                at: slot,
-                in: compatibilityBindings
-            )
-        }
-        catch let error as XLInvocationBindingError {
-            if compatibilityBindingError == nil {
-                compatibilityBindingError = error
-            }
-        }
-        catch {
-            preconditionFailure("Unexpected invocation binding error: \(error)")
-        }
+        legacyBindings.set(value, named: reference.name)
     }
 }
