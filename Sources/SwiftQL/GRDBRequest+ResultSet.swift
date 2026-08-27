@@ -57,6 +57,11 @@ extension GRDBRequest {
             try driver.withTransaction { connection in
                 items = try decodeRows(packet: packet, in: &connection)
             }
+            // The shared eager fallback from `XLRequest` (see
+            // `SQLDatabase.swift`). A `RETURNING` statement writes as it
+            // reads, so its rows are decoded inside the transaction above and
+            // are already in memory by the time `operation` runs -- there is
+            // no cursor left to stream from.
             return try withEagerResultSet(items, operation)
         }
 
@@ -75,10 +80,6 @@ extension GRDBRequest {
             return try operation(resultSet)
         }
     }
-
-    /// Mirrors `XLRequest`'s eager compatibility fallback (see
-    /// `SQLDatabase.swift`), used only for the `RETURNING` path above where
-    /// rows must already be fully decoded before `operation` runs.
 
 
     // `publish()`/`publish(bindings:)`/`publishOne()`/`publishOne(bindings:)` are Combine convenience
