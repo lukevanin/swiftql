@@ -39,9 +39,38 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
         self.row = layout.readRow
     }
     
+    /// Builds a select from dynamic projection metadata.
+    ///
+    /// The projection is replayed once against a definition reader to capture
+    /// its output columns. The definition reader returns SQL defaults, so no
+    /// database row is decoded here. The replay runs only for that side effect,
+    /// and its value is discarded.
+    ///
+    /// `readRow(reader:)` is throwing and may be implemented outside this
+    /// package. A projection that cannot enumerate its columns against the
+    /// definition reader is unsupported here and traps diagnostically, rather
+    /// than surfacing an opaque `try!` crash. This matches `Returning.init(_:)`.
+    ///
+    /// A static row layout belongs to the ``XLStaticRowReadable`` overload
+    /// above, which skips the replay. Erasing such a layout to
+    /// `any XLRowReadable` selects this initializer instead, so the diagnostic
+    /// names that overload as the remedy.
     public init<T>(_ meta: T) where T: XLRowReadable, T.Row == Row {
         let reader = XLColumnsDefinitionRowReader()
-        let _ = try! meta.readRow(reader: reader)
+        do {
+            _ = try meta.readRow(reader: reader)
+        }
+        catch {
+            preconditionFailure(
+                "SELECT projection \(String(reflecting: T.self)) could not "
+                + "enumerate its columns: \(error). Use a table or @SQLResult "
+                + "projection whose columns render against the definition "
+                + "reader. A static row layout must instead reach the "
+                + "XLStaticRowReadable overload of Select(_:), which skips "
+                + "this replay; erasing the layout to any XLRowReadable "
+                + "selects this initializer."
+            )
+        }
         self.fields = reader
         self.row = meta.readRow
     }
