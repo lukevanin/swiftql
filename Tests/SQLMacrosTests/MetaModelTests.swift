@@ -78,6 +78,22 @@ final class MetaPropertyBindingWalkTests: XCTestCase {
         XCTAssertEqual(diagnosticIDs(diagnostics), ["missing-type-annotation"])
     }
 
+    /// And it stops the carry for the bindings *before* it. A binding with its
+    /// own initial value takes its type from that value, so it ends the
+    /// contiguous run a later annotation reaches back over -- which is what
+    /// Swift itself does. `a` here is missing a type, not an `Int`.
+    func testAnInitialValueEndsTheRunALaterAnnotationCarriesOver() throws {
+        let (columns, diagnostics) = try resolveReportingDiagnostics(
+            "let a, b = 1, c: Int"
+        )
+
+        XCTAssertEqual(columns.map(\.name), ["c"])
+        XCTAssertEqual(
+            diagnosticIDs(diagnostics),
+            ["missing-type-annotation", "missing-type-annotation"]
+        )
+    }
+
     func testABindingWithNoAnnotationAndNoCarryIsReported() throws {
         let (columns, diagnostics) = try resolveReportingDiagnostics("var value")
 

@@ -33,7 +33,6 @@ extension MetaBuilder {
         
         var properties: [MetaProperty]
         var optionalProperties: [MetaProperty]
-        let conformances: [String] = ["XLRowReadable", "XLEncodable"]
         let columnKind: MetaProperty.ColumnKind
         if table {
             // Table

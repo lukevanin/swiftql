@@ -129,6 +129,12 @@ internal enum MetaPropertyBindingWalk {
                     binding, id: "missing-type-annotation",
                     "Property '\(name)' needs an explicit type annotation to be used as a column. The type of the initial value cannot be inferred by the macro."
                 )
+                // A binding with its own initial value takes its type from that
+                // value, so it ends the contiguous run a later annotation
+                // carries back over. Leaving the carry in place let a binding
+                // before it inherit an annotation Swift would not have given
+                // it: in `let a, b = 1, c: Int`, `a` was silently typed `Int`.
+                carriedType = .none
                 continue
             case (nil, nil, .resolved(let type, let optional)):
                 resolvedType = (type, optional)
