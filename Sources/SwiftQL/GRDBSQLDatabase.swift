@@ -14,38 +14,16 @@ import OpenCombine
 #endif
 
 
-struct GRDBRowAdapter: XLColumnReader {
-
-    private let reader: XLSQLiteValueReader
-
-    init(row: GRDB.Row) {
-        self.reader = XLSQLiteValueReader(
-            values: row.databaseValues.map(\.sqliteDialectValue)
-        )
-    }
-    
-    func isNull(at index: Int) throws -> Bool {
-        try reader.isNull(at: index)
-    }
-    
-    func readInteger(at index: Int) throws -> Int {
-        try reader.readInteger(at: index)
-    }
-    
-    func readReal(at index: Int) throws -> Double {
-        try reader.readReal(at: index)
-    }
-    
-    func readText(at index: Int) throws -> String {
-        try reader.readText(at: index)
-    }
-    
-    func readBlob(at index: Int) throws -> Data {
-        try reader.readBlob(at: index)
-    }
-}
-
-
+/// Reads a GRDB row's values positionally, as a custom function's
+/// `execute(reader:)` sees them.
+///
+/// Deliberately only an ``XLColumnReader``: it does not forward
+/// ``XLStaticColumnReader/dialectValue(at:using:)`` to the
+/// ``XLSQLiteValueReader`` it wraps, so asking it for a raw dialect value
+/// throws `rawDialectValuesUnavailable`. That is not a gap. A custom function
+/// reads intrinsic values by position; a static row layout is a different
+/// contract, and production decoding reaches the reader that supports it
+/// directly through ``GRDBRowDecoder``.
 struct GRDBValuesAdapter: XLColumnReader {
 
     private let reader: XLSQLiteValueReader
@@ -54,6 +32,10 @@ struct GRDBValuesAdapter: XLColumnReader {
         self.reader = XLSQLiteValueReader(
             values: values.map(\.sqliteDialectValue)
         )
+    }
+
+    init(row: GRDB.Row) {
+        self.init(values: Array(row.databaseValues))
     }
     
     func isNull(at index: Int) throws -> Bool {

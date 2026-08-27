@@ -1,3 +1,15 @@
+//
+//  SQLStaticQueryDescriptor+Encoding.swift
+//  SwiftQL
+//
+//  Bridging from a rendered `XLEncoding` to the database-independent static
+//  descriptor types, which live in SwiftQLCore.
+//
+//  Renamed from `SQLStaticQueryDescriptor.swift` (issue #555): the old name
+//  promised the descriptor types themselves, and this file holds neither --
+//  only the two extensions that build one.
+//
+
 import Foundation
 
 

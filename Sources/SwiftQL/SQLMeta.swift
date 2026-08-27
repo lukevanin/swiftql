@@ -8,29 +8,6 @@
 import Foundation
 
 
-// MARK: - Database
-
-
-public protocol XLDatabaseMetadata {
-    func schema() -> XLSchemaName
-}
-
-
-public class XLDatabaseMetadataObject: XLDatabaseMetadata {
-    
-    private let _schema: XLSchemaName
-    
-    init(schema: XLSchemaName = .main) {
-        self._schema = schema
-    }
-    
-    public func schema() -> XLSchemaName {
-        _schema
-    }
-    
-}
-
-
 // MARK: - Column reading
 
 
@@ -547,33 +524,41 @@ public protocol XLResult {
     ///
     static func makeSQLCommonTable(namespace: XLNamespace, dependency: XLCommonTableDependency) -> MetaCommonTable
 
+    // The anonymous-result requirements below are live, not pending removal.
+    // `SQLFunctionalSyntax` calls them for every selection whose rows are
+    // assembled by the query rather than by the result type itself, and the
+    // `@SQLTable`/`@SQLResult` macros generate all six. They carried a
+    // `TODO: Remove` each; retiring the surface is tracked by issue #90 and is
+    // a v2 change, not something to do in passing.
+
     ///
-    /// TODO: Remove
+    /// Creates a result whose rows the caller assembles.
     ///
     static func makeSQLAnonymousResult(namespace: XLNamespace, dependency: XLTableDeclaration, iterator: @escaping MetaRowIterator) -> MetaResult
 
     ///
-    /// TODO: Remove
+    /// Creates a named result whose rows the caller assembles.
     ///
     static func makeSQLAnonymousNamedResult(namespace: XLNamespace, dependency: XLNamedTableDeclaration, iterator: @escaping MetaRowIterator) -> MetaNamedResult
 
     ///
-    /// TODO: Remove
+    /// Creates a result that reads its own rows from the columns it is given.
     ///
     static func makeSQLAnonymousResult(namespace: XLNamespace, dependency: XLTableDeclaration) -> MetaResult
-    
+
     ///
-    /// TODO: Remove
+    /// Creates a named result that reads its own rows.
     ///
     static func makeSQLAnonymousNamedResult(namespace: XLNamespace, dependency: XLNamedTableDeclaration) -> MetaNamedResult
 
     ///
-    /// TODO: Remove
+    /// Creates a nullable result that reads its own rows -- the shape an outer
+    /// join produces, where every column may be absent.
     ///
     static func makeSQLAnonymousNullableResult(namespace: XLNamespace, dependency: XLTableDeclaration) -> MetaNullableResult
 
     ///
-    /// TODO: Remove
+    /// Creates a nullable named result that reads its own rows.
     ///
     static func makeSQLAnonymousNullableNamedResult(namespace: XLNamespace, dependency: XLNamedTableDeclaration) -> MetaNullableNamedResult
 }
@@ -1092,23 +1077,6 @@ public struct XLUpdateFromTableDependency: XLTableDeclaration, XLNamedDependency
     
     public func qualifiedName(forColumn name: XLName) -> XLQualifiedName {
         XLQualifiedTableAliasColumnName(table: alias, column: name)
-    }
-}
-
-
-///
-/// A table used in a UNION clause.
-///
-public struct XLUnionDependency: XLTableDeclaration {
-
-    public init() {
-    }
-
-    public func makeSQL(context: inout XLBuilder) {
-    }
-    
-    public func qualifiedName(forColumn name: XLName) -> XLQualifiedName {
-        XLQualifiedSelectColumnName(column: name)
     }
 }
 

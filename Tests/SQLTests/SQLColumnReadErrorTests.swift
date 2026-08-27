@@ -116,9 +116,9 @@ final class XLColumnReadErrorTests: XCTestCase {
         databaseDirectoryURL = nil
     }
 
-    func testGRDBRowAdapterReadsIntrinsicValuesAndOptionalNull() throws {
+    func testValuesAdapterReadsIntrinsicValuesAndOptionalNullFromARow() throws {
         let row = try fetchRow(sql: "SELECT 42, 1.5, 'text', X'00FF', NULL")
-        let reader = GRDBRowAdapter(row: row)
+        let reader = GRDBValuesAdapter(row: row)
 
         XCTAssertEqual(try reader.readInteger(at: 0), 42)
         XCTAssertEqual(try reader.readReal(at: 1), 1.5)
@@ -131,7 +131,7 @@ final class XLColumnReadErrorTests: XCTestCase {
     }
 
     func testAdaptersUseStorageClassConversionsConsistently() throws {
-        let rowReader = GRDBRowAdapter(
+        let rowReader = GRDBValuesAdapter(
             row: try fetchRow(sql: "SELECT 42, 42.75, X'74657874', 'blob'")
         )
         let valuesReader = GRDBValuesAdapter(values: [
@@ -157,8 +157,8 @@ final class XLColumnReadErrorTests: XCTestCase {
         }
     }
 
-    func testGRDBRowAdapterThrowsStructuredErrors() throws {
-        let reader = GRDBRowAdapter(row: try fetchRow(sql: "SELECT NULL, 'text'"))
+    func testValuesAdapterThrowsStructuredErrorsFromARow() throws {
+        let reader = GRDBValuesAdapter(row: try fetchRow(sql: "SELECT NULL, 'text'"))
 
         assertColumnReadError(
             try reader.readInteger(at: 0),

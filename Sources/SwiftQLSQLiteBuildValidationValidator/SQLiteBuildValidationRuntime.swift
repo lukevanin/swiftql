@@ -58,41 +58,16 @@ public struct SQLiteBuildValidationRuntimeMetadata:
         case schemaFNV1A64 = "schema_fnv1a_64"
     }
 
-    /// Computed sets are for capability lookup only and are not serialized.
-    public var compileOptionCapabilities: Set<String> {
-        Set(compileOptions)
-    }
-
-    public var functionCapabilities: Set<SQLiteBuildValidationRuntimeFunction> {
-        Set(functions)
-    }
-
-    public var collationCapabilities: Set<String> {
-        Set(collations)
-    }
-
-    public var moduleCapabilities: Set<String> {
-        Set(moduleNames)
-    }
-
-    public var extensionCapabilities: Set<String> {
-        Set(extensionNames)
-    }
-
-    public func hasFunction(
-        named name: String,
-        argumentCount: Int? = nil
-    ) -> Bool {
+    /// Whether a function of this name is registered on the connection.
+    ///
+    /// Arity is deliberately not part of the question. A manifest capability
+    /// names a function, not an overload, and SQLite reports `-1` for a
+    /// variadic one -- so an arity test would reject a variadic function that
+    /// can in fact serve the call.
+    public func hasFunction(named name: String) -> Bool {
         let requiredName = sqliteASCIIFolded(name)
         return functions.contains { function in
-            guard sqliteASCIIFolded(function.name) == requiredName else {
-                return false
-            }
-            guard let argumentCount else {
-                return true
-            }
-            return function.argumentCount == argumentCount
-                || function.argumentCount == -1
+            sqliteASCIIFolded(function.name) == requiredName
         }
     }
 

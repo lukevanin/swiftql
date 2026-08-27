@@ -548,23 +548,6 @@ public struct XLSchemaName: XLEncodable, Equatable, Sendable {
 
 
 ///
-/// A name of a table used in a SwiftQL expression.
-///
-public struct XLTableName: XLEncodable, Equatable {
-    
-    public var name: XLName
-    
-    public init(name: XLName) {
-        self.name = name
-    }
-    
-    public func makeSQL(context: inout XLBuilder) {
-        context.name(name)
-    }
-}
-
-
-///
 /// A qualified name used in a SwiftQL expression, such as the name of a column on a table.
 ///
 public protocol XLQualifiedName: XLEncodable {
