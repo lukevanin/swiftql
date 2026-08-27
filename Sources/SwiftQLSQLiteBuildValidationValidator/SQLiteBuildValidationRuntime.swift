@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLSQLiteBuildValidationManifest
 import GRDB
 
 
@@ -35,13 +36,13 @@ public struct SQLiteBuildValidationRuntimeMetadata:
     ) {
         self.sqliteVersion = sqliteVersion
         self.sqliteSourceID = sqliteSourceID
-        self.compileOptions = sortedUniqueRuntimeStrings(compileOptions)
+        self.compileOptions = sqliteBuildValidationSortedUnique(compileOptions)
         self.functions = Array(Set(functions)).sorted(
             by: SQLiteBuildValidationRuntimeFunction.canonicalOrder
         )
-        self.collations = sortedUniqueRuntimeStrings(collations)
-        self.moduleNames = sortedUniqueRuntimeStrings(moduleNames)
-        self.extensionNames = sortedUniqueRuntimeStrings(extensionNames)
+        self.collations = sqliteBuildValidationSortedUnique(collations)
+        self.moduleNames = sqliteBuildValidationSortedUnique(moduleNames)
+        self.extensionNames = sqliteBuildValidationSortedUnique(extensionNames)
         self.schemaRowCount = schemaRowCount
         self.schemaFNV1A64 = schemaFNV1A64.lowercased()
     }
@@ -373,11 +374,6 @@ private enum SQLiteBuildValidationFNV1A64 {
             hash &*= prime
         }
     }
-}
-
-
-private func sortedUniqueRuntimeStrings(_ values: [String]) -> [String] {
-    Array(Set(values)).sorted()
 }
 
 

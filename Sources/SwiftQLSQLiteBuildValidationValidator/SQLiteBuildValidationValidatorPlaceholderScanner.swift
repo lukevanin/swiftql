@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLSQLiteBuildValidationManifest
 
 
 public struct SQLiteBuildValidationValidatorPlaceholderOccurrence:
@@ -87,134 +88,71 @@ public struct SQLiteBuildValidationValidatorPlaceholderAnalysis:
 }
 
 
+/// The validator's view of a query's placeholders: everything the manifest
+/// scanner sees, plus the spellings SwiftQL never emits and the slot collisions
+/// that make a declared parameter ambiguous.
+///
+/// The scan itself is ``SQLiteBuildValidationPlaceholderLexer``, shared with the
+/// manifest (#566). The two must agree on which slot each placeholder binds --
+/// the manifest cross-checks its declared parameters against its scan when a
+/// manifest is built, and this scan is cross-checked against the same
+/// parameters and against SQLite's real parameter table when the manifest is
+/// validated. Two implementations that drift produce a manifest that builds and
+/// then fails validation for no visible reason.
 public enum SQLiteBuildValidationValidatorPlaceholderScanner {
+
     public static func scan(
         _ sql: String
     ) -> SQLiteBuildValidationValidatorPlaceholderAnalysis {
-        let bytes = Array(sql.utf8)
         var physicalNameByIndex: [Int: String] = [:]
-        var physicalIndexByNamedToken: [String: Int] = [:]
-        var largestPhysicalIndex = 0
         var occurrences: [SQLiteBuildValidationValidatorPlaceholderOccurrence] = []
         var unsupported: [SQLiteBuildValidationUnsupportedPlaceholder] = []
         var collisions: [String] = []
-        var index = 0
 
-        while index < bytes.count {
-            let currentByte = bytes[index]
-            if currentByte == 0x2D, byte(at: index + 1, in: bytes) == 0x2D {
-                index = skipLineComment(startingAt: index + 2, bytes: bytes)
-                continue
-            }
-            if currentByte == 0x2F, byte(at: index + 1, in: bytes) == 0x2A {
-                index = skipBlockComment(startingAt: index + 2, bytes: bytes)
-                continue
-            }
-            if currentByte == 0x27 || currentByte == 0x22 || currentByte == 0x60 {
-                index = skipQuoted(
-                    startingAt: index + 1,
-                    delimiter: currentByte,
-                    bytes: bytes
-                )
-                continue
-            }
-            if currentByte == 0x5B {
-                index = skipBracketQuoted(startingAt: index + 1, bytes: bytes)
-                continue
-            }
-
-            if currentByte == 0x3F { // ? or ?NNN
-                let tokenEnd = consumeDigits(startingAt: index + 1, bytes: bytes)
-                guard tokenEnd > index + 1 else {
-                    unsupported.append(SQLiteBuildValidationUnsupportedPlaceholder(
-                        spelling: "?",
-                        byteOffset: index,
-                        reason: "Anonymous ? placeholders are not emitted by SwiftQL static descriptors."
-                    ))
-                    index += 1
+        let stream = SQLiteBuildValidationPlaceholderLexer.scan(sql)
+        for token in stream.tokens {
+            switch token.kind {
+            case .indexed, .named:
+                guard let physicalIndex = token.physicalIndex else {
                     continue
                 }
-                let spelling = String(
-                    decoding: bytes[index..<tokenEnd],
-                    as: UTF8.self
-                )
-                guard let physicalIndex = Int(spelling.dropFirst()),
-                      physicalIndex > 0 else {
-                    unsupported.append(SQLiteBuildValidationUnsupportedPlaceholder(
-                        spelling: spelling,
-                        byteOffset: index,
-                        reason: "Indexed placeholders require a positive one-based SQLite index."
-                    ))
-                    index = tokenEnd
-                    continue
-                }
-                largestPhysicalIndex = max(largestPhysicalIndex, physicalIndex)
                 register(
-                    spelling: spelling,
+                    spelling: token.spelling,
                     physicalIndex: physicalIndex,
-                    byteOffset: index,
+                    byteOffset: token.byteOffset,
                     physicalNameByIndex: &physicalNameByIndex,
                     occurrences: &occurrences,
                     collisions: &collisions
                 )
-                index = tokenEnd
-                continue
-            }
-
-            if currentByte == 0x3A { // :name
-                let tokenEnd = consumeName(startingAt: index + 1, bytes: bytes)
-                guard tokenEnd > index + 1 else {
-                    index += 1
-                    continue
-                }
-                let spelling = String(
-                    decoding: bytes[index..<tokenEnd],
-                    as: UTF8.self
-                )
-                let physicalIndex: Int
-                if let existing = physicalIndexByNamedToken[spelling] {
-                    physicalIndex = existing
-                } else {
-                    physicalIndex = largestPhysicalIndex + 1
-                    largestPhysicalIndex = physicalIndex
-                    physicalIndexByNamedToken[spelling] = physicalIndex
-                }
-                register(
-                    spelling: spelling,
-                    physicalIndex: physicalIndex,
-                    byteOffset: index,
-                    physicalNameByIndex: &physicalNameByIndex,
-                    occurrences: &occurrences,
-                    collisions: &collisions
-                )
-                index = tokenEnd
-                continue
-            }
-
-            if currentByte == 0x40 || currentByte == 0x24 { // @name or $name
-                let tokenEnd = consumeName(startingAt: index + 1, bytes: bytes)
-                let end = max(index + 1, tokenEnd)
-                let spelling = String(
-                    decoding: bytes[index..<end],
-                    as: UTF8.self
-                )
+            case .anonymous:
                 unsupported.append(SQLiteBuildValidationUnsupportedPlaceholder(
-                    spelling: spelling,
-                    byteOffset: index,
+                    spelling: token.spelling,
+                    byteOffset: token.byteOffset,
+                    reason: "Anonymous ? placeholders are not emitted by SwiftQL static descriptors."
+                ))
+            case .invalidIndex:
+                unsupported.append(SQLiteBuildValidationUnsupportedPlaceholder(
+                    spelling: token.spelling,
+                    byteOffset: token.byteOffset,
+                    reason: "Indexed placeholders require a positive one-based SQLite index."
+                ))
+            case .foreignSigil:
+                unsupported.append(SQLiteBuildValidationUnsupportedPlaceholder(
+                    spelling: token.spelling,
+                    byteOffset: token.byteOffset,
                     reason: "Only SwiftQL-emitted :name and ?N placeholders are supported."
                 ))
-                index = end
-                continue
             }
-
-            index += 1
         }
 
+        // SQLite sizes a statement's parameter table by the largest index used,
+        // so an unused slot is a real gap in it rather than an absence. The
+        // table is reported with those gaps present and unnamed.
         let parameters: [SQLitePreparedParameter]
-        if largestPhysicalIndex == 0 {
+        if stream.largestPhysicalIndex == 0 {
             parameters = []
         } else {
-            parameters = (1...largestPhysicalIndex).map {
+            parameters = (1...stream.largestPhysicalIndex).map {
                 SQLitePreparedParameter(
                     physicalIndex: $0,
                     name: physicalNameByIndex[$0]
@@ -222,7 +160,7 @@ public enum SQLiteBuildValidationValidatorPlaceholderScanner {
             }
         }
         return SQLiteBuildValidationValidatorPlaceholderAnalysis(
-            physicalParameterCount: largestPhysicalIndex,
+            physicalParameterCount: stream.largestPhysicalIndex,
             parameters: parameters,
             occurrences: occurrences,
             unsupported: unsupported,
@@ -233,6 +171,11 @@ public enum SQLiteBuildValidationValidatorPlaceholderScanner {
 
 
 private extension SQLiteBuildValidationValidatorPlaceholderScanner {
+
+    /// Records one occurrence, and reports a collision when a slot is named by
+    /// two different spellings -- `:first` and `?1` both binding slot 1, say.
+    /// The manifest can declare only one key for a slot, so which of the two it
+    /// means is unanswerable.
     static func register(
         spelling: String,
         physicalIndex: Int,
@@ -254,91 +197,5 @@ private extension SQLiteBuildValidationValidatorPlaceholderScanner {
             byteOffset: byteOffset,
             physicalIndex: physicalIndex
         ))
-    }
-
-    static func byte(at index: Int, in bytes: [UInt8]) -> UInt8? {
-        bytes.indices.contains(index) ? bytes[index] : nil
-    }
-
-    static func skipLineComment(startingAt index: Int, bytes: [UInt8]) -> Int {
-        var index = index
-        while index < bytes.count, bytes[index] != 0x0A, bytes[index] != 0x0D {
-            index += 1
-        }
-        return index
-    }
-
-    static func skipBlockComment(startingAt index: Int, bytes: [UInt8]) -> Int {
-        var index = index
-        while index < bytes.count {
-            if bytes[index] == 0x2A, byte(at: index + 1, in: bytes) == 0x2F {
-                return index + 2
-            }
-            index += 1
-        }
-        return index
-    }
-
-    static func skipQuoted(
-        startingAt index: Int,
-        delimiter: UInt8,
-        bytes: [UInt8]
-    ) -> Int {
-        var index = index
-        while index < bytes.count {
-            guard bytes[index] == delimiter else {
-                index += 1
-                continue
-            }
-            if byte(at: index + 1, in: bytes) == delimiter {
-                index += 2
-                continue
-            }
-            return index + 1
-        }
-        return index
-    }
-
-    // Treats a doubled "]]" as an escaped literal "]" inside a bracket-quoted
-    // identifier, matching the doubled-delimiter escape honored above for
-    // the single-quote, double-quote, and backtick delimiters.
-    static func skipBracketQuoted(startingAt index: Int, bytes: [UInt8]) -> Int {
-        var index = index
-        while index < bytes.count {
-            guard bytes[index] == 0x5D else {
-                index += 1
-                continue
-            }
-            if byte(at: index + 1, in: bytes) == 0x5D {
-                index += 2
-                continue
-            }
-            return index + 1
-        }
-        return index
-    }
-
-    static func consumeDigits(startingAt index: Int, bytes: [UInt8]) -> Int {
-        var index = index
-        while index < bytes.count, (0x30...0x39).contains(bytes[index]) {
-            index += 1
-        }
-        return index
-    }
-
-    static func consumeName(startingAt index: Int, bytes: [UInt8]) -> Int {
-        var index = index
-        while index < bytes.count, isNameByte(bytes[index]) {
-            index += 1
-        }
-        return index
-    }
-
-    static func isNameByte(_ byte: UInt8) -> Bool {
-        (0x30...0x39).contains(byte)
-            || (0x41...0x5A).contains(byte)
-            || byte == 0x5F
-            || (0x61...0x7A).contains(byte)
-            || byte >= 0x80
     }
 }
