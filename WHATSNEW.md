@@ -13,6 +13,41 @@ Almost every 1.x release has been purely additive. The one exception so far is
 `TimeInterval`. Each entry below ends with whether it affects code you already
 wrote.
 
+## 1.5.7 — internal cleanup, and two fixes
+
+*Released 27 August 2026.*
+
+This release is almost all internal. It carries the refactoring from the August
+2026 audit: dead code removed, oversized files decomposed, duplicated macro,
+driver, and codec code collapsed, test scaffolding consolidated, and the
+build-validation research prototype retired. Two real bugs are fixed along the
+way.
+
+- A `RETURNING` request now registers the custom functions that opt into
+  implicit registration. A predicate that called such a function worked in a
+  plain `SELECT`, but failed with SQLite's "no such function" error once you
+  wrote the same statement as `UPDATE ... RETURNING` or
+  `DELETE ... RETURNING`. Functions added upfront with
+  `GRDBDatabaseBuilder.addFunction(_:)` were never affected.
+- A NaN `Double` bound through a `@SQLQuery` parameter now throws where the
+  value is captured, instead of further down at the driver boundary. Nothing
+  was ever stored as SQL `NULL`: the driver already rejected the value, so such
+  a query already threw. Every capture path now agrees on where the throw
+  happens and which error it carries.
+- Four public types that nothing referenced are gone: `XLDatabaseMetadata`,
+  `XLDatabaseMetadataObject`, `XLTableName`, and `XLUnionDependency`. Six
+  unreferenced members of `SQLiteBuildValidationRuntimeMetadata` are gone too,
+  and `hasFunction(named:argumentCount:)` loses its `argumentCount` parameter.
+
+**Affects existing code?** Almost none of it. The two fixes only turn a failure
+into the correct behaviour. Three narrow cases do change. Code that names one of
+the four removed types no longer compiles, although nothing referenced them
+anywhere in this repository. Code that calls
+`hasFunction(named:argumentCount:)` must drop the `argumentCount` argument.
+Code that calls `_xlQueryParameterBinding` directly and inspects its result,
+rather than executing the query, now sees a throw for a NaN `Double` where it
+saw `.real(nan)` before.
+
 ## 1.5.6 — nullable columns in `Setting` closures
 
 *Released 4 August 2026.*
