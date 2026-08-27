@@ -23,7 +23,7 @@ let package = Package(
         // as `sourceTarget.directory.appending(...)` and fails the build when
         // either is absent from the target's own directory, so an opted-in
         // target cannot borrow another's files. Two copies of the 588K snapshot
-        // is the cost of covering the multi-target case at all.
+        // are the cost of covering the multi-target case at all.
         .target(
             name: "SecondValidatedLibrary",
             plugins: [
