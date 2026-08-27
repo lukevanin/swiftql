@@ -1,6 +1,6 @@
 ---
 name: swiftql
-description: Use when Codex works in a Swift package or Apple application that uses SwiftQL to define typed tables and results, declare or modify SQLite queries, run typed transactions, observe live results, pass immutable bindings, add contextual codecs, prepare static queries, integrate a database adapter, or diagnose SwiftQL execution boundaries. Use the checked-out public v1 contract; 1.5.6 is the latest published package, adding nullable-column assignment in `Setting` closures on top of v1.5.5 async live-query streams, `@Observable` query wrappers, and lazy result sets, v1.5.4 method-style scalar functions and observers, v1.5.3 contextual codec presets and `@SQLCodec`, v1.5.2 build-time query validation, and v1.5.1 declared-query macros (`@SQLQuery`/`@SQLQueries`) and typed transaction scopes. Do not use this skill to teach SQL generally or claim unshipped features.
+description: Use when Codex works in a Swift package or Apple application that uses SwiftQL to define typed tables and results, declare or modify SQLite queries, run typed transactions, observe live results, pass immutable bindings, add contextual codecs, prepare static queries, integrate a database adapter, or diagnose SwiftQL execution boundaries. Use the checked-out public v1 contract; 1.5.7 is the latest published package, an internal refactoring release that adds no API on top of v1.5.6 nullable-column assignment in `Setting` closures, v1.5.5 async live-query streams, `@Observable` query wrappers, and lazy result sets, v1.5.4 method-style scalar functions and observers, v1.5.3 contextual codec presets and `@SQLCodec`, v1.5.2 build-time query validation, and v1.5.1 declared-query macros (`@SQLQuery`/`@SQLQueries`) and typed transaction scopes. Do not use this skill to teach SQL generally or claim unshipped features.
 ---
 
 # SwiftQL
@@ -32,7 +32,7 @@ roadmap work as shipped API.
   `SQLRow6`) require Swift 6.1 or later, because earlier compilers crash during
   IR generation. `#row`'s single-column shape works everywhere.
 - Read [the changelog](CHANGELOG.md) before choosing a package requirement.
-  `1.5.6` is the latest published package. Pin a source revision only when
+  `1.5.7` is the latest published package. Pin a source revision only when
   intentionally testing later changes from `main`.
 
 ## Prefer the v1.5 declared-query workflow

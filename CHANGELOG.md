@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.5.7] - Unreleased
+## [1.5.7] - 2026-08-27
 
 ### Removed
 
@@ -18,6 +18,17 @@
   `hasFunction(named:argumentCount:)` loses its `argumentCount` parameter: no
   caller ever passed one, and arity was the wrong question to ask anyway, since
   SQLite reports `-1` for a variadic function.
+
+### Changed
+
+- `Select(_ meta:)` now traps with a diagnostic message when a dynamic
+  projection cannot enumerate its columns against the definition reader, in
+  place of the bare `try!` it used before (pull request #584). The message
+  names the projection type, the underlying error, and the
+  `XLStaticRowReadable` overload that skips the replay, which is the remedy
+  when a static row layout was erased to `any XLRowReadable`. The same input
+  trapped before this change, so no working code is affected; only the
+  diagnostic is.
 
 ### Fixed
 
