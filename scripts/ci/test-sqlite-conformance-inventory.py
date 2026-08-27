@@ -327,9 +327,9 @@ final class OtherTests {
 
     def test_valid_fixture_and_repository_inventory_validate(self) -> None:
         self.validate(self.valid_inventory())
+        INVENTORY_TOOL.verify_inventory_path_constant(REPOSITORY_ROOT)
         repository_inventory = INVENTORY_TOOL.load_inventory(
-            REPOSITORY_ROOT
-            / "Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json"
+            REPOSITORY_ROOT / INVENTORY_TOOL.INVENTORY_RELATIVE_PATH
         )
         INVENTORY_TOOL.validate_inventory(repository_inventory, REPOSITORY_ROOT)
 

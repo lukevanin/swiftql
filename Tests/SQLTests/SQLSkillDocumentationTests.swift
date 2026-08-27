@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLSQLiteConformanceFixtures
 import XCTest
 
 
@@ -79,8 +80,8 @@ final class SQLSkillDocumentationTests: XCTestCase {
         let inventory = try JSONDecoder().decode(
             SkillConformanceInventory.self,
             from: Data(
-                contentsOf: repositoryRootURL().appendingPathComponent(
-                    "Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json"
+                contentsOf: SQLiteConformanceInventory.url(
+                    inRepositoryRoot: repositoryRootURL()
                 )
             )
         )
@@ -243,7 +244,7 @@ final class SQLSkillDocumentationTests: XCTestCase {
             "CHANGELOG.md",
             "COMPATIBILITY.md",
             "Conformance/SQLite/REPORT.md",
-            "Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json",
+            SQLiteConformanceInventory.repositoryRelativePath,
         ] {
             XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent(path).path))
             XCTAssertTrue(contents.contains("](\(path))"), "SKILL.md must link \(path).")

@@ -174,6 +174,40 @@ class InventoryError(RuntimeError):
     """Raised when the inventory or generated report violates its contract."""
 
 
+
+# The inventory's path relative to the repository root.
+#
+# `SQLiteConformanceInventory.repositoryRelativePath` in
+# Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.swift is
+# the same value; a script cannot import Swift, so the two are kept honest by
+# `verify_inventory_path_constant` below rather than by the type system
+# (issue #567).
+INVENTORY_RELATIVE_PATH = (
+    "Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json"
+)
+
+# Where the Swift constant is declared, and the exact line it must contain.
+INVENTORY_PATH_DECLARATION = Path(
+    "Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.swift"
+)
+
+
+def verify_inventory_path_constant(repository_root: Path) -> None:
+    """Fails when the Swift constant and this script disagree on the path.
+
+    A move that updates one and not the other would otherwise be found one
+    caller at a time, whenever each next happened to run.
+    """
+    declaration = repository_root / INVENTORY_PATH_DECLARATION
+    expected = f'"{INVENTORY_RELATIVE_PATH}"'
+    if expected not in declaration.read_text(encoding="utf-8"):
+        raise SystemExit(
+            f"{INVENTORY_PATH_DECLARATION} no longer declares "
+            f"{expected}; this script and the Swift constant must agree on "
+            "where the inventory lives."
+        )
+
+
 def _reject_duplicate_keys(pairs: Sequence[Tuple[str, Any]]) -> Dict[str, Any]:
     result: Dict[str, Any] = {}
     for key, value in pairs:
@@ -1527,7 +1561,7 @@ def parse_arguments(arguments: Optional[Sequence[str]] = None) -> argparse.Names
     parser.add_argument(
         "--inventory",
         type=Path,
-        default=Path("Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json"),
+        default=Path(INVENTORY_RELATIVE_PATH),
     )
     parser.add_argument(
         "--report",

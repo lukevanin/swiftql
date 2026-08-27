@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLSQLiteConformanceFixtures
 import XCTest
 
 
@@ -650,8 +651,8 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         let inventory = try JSONDecoder().decode(
             DocumentationConformanceInventory.self,
             from: Data(
-                contentsOf: repositoryRoot.appendingPathComponent(
-                    "Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json"
+                contentsOf: SQLiteConformanceInventory.url(
+                    inRepositoryRoot: repositoryRoot
                 )
             )
         )

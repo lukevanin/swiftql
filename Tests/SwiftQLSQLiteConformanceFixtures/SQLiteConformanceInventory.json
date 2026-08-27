@@ -374,7 +374,7 @@
     },
     {
       "id": "evidence.syntax.compound.render-except",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLQueryExpressionBuilderTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLQueryExpressionBuilderTests.swift",
       "test_case": "XLQueryExpressionBuilderTests.testExcept",
       "runner_path": null,
       "layers": [
@@ -386,7 +386,7 @@
     },
     {
       "id": "evidence.syntax.compound.render-intersect",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLQueryExpressionBuilderTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLQueryExpressionBuilderTests.swift",
       "test_case": "XLQueryExpressionBuilderTests.testIntersect",
       "runner_path": null,
       "layers": [
@@ -398,7 +398,7 @@
     },
     {
       "id": "evidence.syntax.compound.render-union",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLQueryExpressionBuilderTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLQueryExpressionBuilderTests.swift",
       "test_case": "XLQueryExpressionBuilderTests.testUnion",
       "runner_path": null,
       "layers": [
@@ -559,7 +559,7 @@
     },
     {
       "id": "evidence.syntax.ddl.render-create",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLCreateExpressionBuilderTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLCreateExpressionBuilderTests.swift",
       "test_case": "XLCreateExpressionBuilderTests.testCreateTable",
       "runner_path": null,
       "layers": [
@@ -653,7 +653,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-update-select",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLUpdateExpressionBuilderTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLUpdateExpressionBuilderTests.swift",
       "test_case": "XLUpdateExpressionBuilderTests.testUpdateFrom",
       "runner_path": null,
       "layers": [
@@ -730,8 +730,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-between",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testBetweenOperatorPreservesNestedBooleanAndComparisonPrecedence",
+      "source_path": "Tests/SQLTests/SQLSyntaxExpressionTests.swift",
+      "test_case": "XLSyntaxExpressionTests.testBetweenOperatorPreservesNestedBooleanAndComparisonPrecedence",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -742,8 +742,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-collation",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.test_TextConcatenation_PreservesCollatedOperandGrouping",
+      "source_path": "Tests/SQLTests/SQLSyntaxExpressionTests.swift",
+      "test_case": "XLSyntaxExpressionTests.test_TextConcatenation_PreservesCollatedOperandGrouping",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -754,8 +754,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-coalescing-operator",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.test_OptionalIntegerBinding_CoalescingOperator_Integer",
+      "source_path": "Tests/SQLTests/SQLSyntaxOperatorTests.swift",
+      "test_case": "XLSyntaxOperatorTests.test_OptionalIntegerBinding_CoalescingOperator_Integer",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -831,8 +831,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-like-escape",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereLikeWithEscape",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereLikeWithEscape",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -843,8 +843,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-like-escape-binding",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereLikeWithEscapeBindsToItsOwnLike",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereLikeWithEscapeBindsToItsOwnLike",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -855,8 +855,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-regexp",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereRegexp",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereRegexp",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -867,8 +867,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-regexp-composition",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereRegexpComposesWithOtherPredicates",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereRegexpComposesWithOtherPredicates",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -924,8 +924,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-custom-collation",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.test_CustomCollation_RendersThroughTheIdentifierPath",
+      "source_path": "Tests/SQLTests/SQLSyntaxExpressionTests.swift",
+      "test_case": "XLSyntaxExpressionTests.test_CustomCollation_RendersThroughTheIdentifierPath",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -947,8 +947,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-custom-collation-escaping",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.test_CustomCollation_EscapesQuotesInTheName",
+      "source_path": "Tests/SQLTests/SQLSyntaxExpressionTests.swift",
+      "test_case": "XLSyntaxExpressionTests.test_CustomCollation_EscapesQuotesInTheName",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1006,8 +1006,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-in-null-element",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereInArrayContainingNull",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereInArrayContainingNull",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1018,8 +1018,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-not-in-null-element",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereNotInArrayContainingNull",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereNotInArrayContainingNull",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1030,8 +1030,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-not-in",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereNotInArrayOfText",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereNotInArrayOfText",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1042,8 +1042,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-not-in-composition",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereNotInComposesWithoutMovingTheNegation",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereNotInComposesWithoutMovingTheNegation",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1054,8 +1054,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-operator-divide",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.test_IntegerReference_DividedBy_IntegerReference",
+      "source_path": "Tests/SQLTests/SQLSyntaxOperatorTests.swift",
+      "test_case": "XLSyntaxOperatorTests.test_IntegerReference_DividedBy_IntegerReference",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1066,8 +1066,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-operator-logical-not",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.test_Not_BooleanReference",
+      "source_path": "Tests/SQLTests/SQLSyntaxOperatorTests.swift",
+      "test_case": "XLSyntaxOperatorTests.test_Not_BooleanReference",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1078,8 +1078,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-operator-logical-or",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testOrBinaryBooleanOperator_BooleanExpression",
+      "source_path": "Tests/SQLTests/SQLSyntaxOperatorTests.swift",
+      "test_case": "XLSyntaxOperatorTests.testOrBinaryBooleanOperator_BooleanExpression",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1090,8 +1090,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-operator-remainder",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.test_IntegerReference_Remainder_IntegerReference",
+      "source_path": "Tests/SQLTests/SQLSyntaxOperatorTests.swift",
+      "test_case": "XLSyntaxOperatorTests.test_IntegerReference_Remainder_IntegerReference",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1126,8 +1126,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-unary-plus",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testPlusOperator_IntegerExpression",
+      "source_path": "Tests/SQLTests/SQLSyntaxOperatorTests.swift",
+      "test_case": "XLSyntaxOperatorTests.testPlusOperator_IntegerExpression",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1811,8 +1811,8 @@
     },
     {
       "id": "evidence.syntax.subquery.render-flattened-scalar",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectSubqueryAggregate",
+      "source_path": "Tests/SQLTests/SQLSyntaxCompoundSelectTests.swift",
+      "test_case": "XLSyntaxCompoundSelectTests.testSelectSubqueryAggregate",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1823,8 +1823,8 @@
     },
     {
       "id": "evidence.syntax.subquery.render-nullable-left-join",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testNullableSubqueryOnLeftJoin",
+      "source_path": "Tests/SQLTests/SQLSyntaxCompoundSelectTests.swift",
+      "test_case": "XLSyntaxCompoundSelectTests.testNullableSubqueryOnLeftJoin",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1851,8 +1851,8 @@
     },
     {
       "id": "evidence.syntax.subquery.render-in",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testScalarSelectWhereIn",
+      "source_path": "Tests/SQLTests/SQLSyntaxCompoundSelectTests.swift",
+      "test_case": "XLSyntaxCompoundSelectTests.testScalarSelectWhereIn",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1863,8 +1863,8 @@
     },
     {
       "id": "evidence.syntax.subquery.render-table",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSubquery",
+      "source_path": "Tests/SQLTests/SQLSyntaxCompoundSelectTests.swift",
+      "test_case": "XLSyntaxCompoundSelectTests.testSubquery",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -2421,7 +2421,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-insert-or",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testInsertOrAllActionsRender",
       "runner_path": null,
       "layers": [
@@ -2467,7 +2467,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-replace",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testReplace",
       "runner_path": null,
       "layers": [
@@ -2496,7 +2496,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-upsert-do-nothing",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testOnConflictDoNothingWithTarget",
       "runner_path": null,
       "layers": [
@@ -2508,7 +2508,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-upsert-do-update",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testOnConflictDoUpdateWithExcluded",
       "runner_path": null,
       "layers": [
@@ -2520,7 +2520,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-upsert-do-update-where",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testOnConflictDoUpdateWithWhere",
       "runner_path": null,
       "layers": [
@@ -2583,7 +2583,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-update-common-table",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testUpdateWithCommonTable",
       "runner_path": null,
       "layers": [
@@ -2612,7 +2612,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-insert-returning",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testInsertValuesReturning",
       "runner_path": null,
       "layers": [
@@ -2624,7 +2624,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-insert-on-conflict-returning",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testInsertOnConflictReturning",
       "runner_path": null,
       "layers": [
@@ -2670,7 +2670,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-delete-returning",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testDeleteReturning",
       "runner_path": null,
       "layers": [
@@ -2699,7 +2699,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-update-returning",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testUpdateReturning",
       "runner_path": null,
       "layers": [
