@@ -427,10 +427,10 @@ struct GRDBInvocationExecutor: Sendable {
     /// Checks an invocation packet against this statement's parameter layout,
     /// and returns the evidence that it passed.
     ///
-    /// The returned ``XLValidatedSQLitePacket`` is the only way to reach
-    /// execution, and the only way to obtain one is here -- so validation
-    /// happens exactly once per execution rather than the two or three times it
-    /// used to (issue #561).
+    /// Execution takes an ``XLValidatedSQLitePacket``, which cannot be built
+    /// without the structural checks running, and this is the only place the
+    /// semantic ones are applied -- so validation happens once per execution
+    /// rather than the two or three times it used to (issue #561).
     func sqlitePacket(
         _ bindings: any XLInvocationBindingPacket
     ) throws -> XLValidatedSQLitePacket {
@@ -440,8 +440,8 @@ struct GRDBInvocationExecutor: Sendable {
         if let parameterLayoutError {
             throw parameterLayoutError
         }
-        let validatedPacket = try _xlSQLiteInvocationPacket(
-            bindings,
+        let validatedPacket = try XLValidatedSQLitePacket(
+            validating: bindings,
             matching: parameterLayout,
             requestType: Self.self
         )
@@ -483,10 +483,7 @@ struct GRDBInvocationExecutor: Sendable {
                 }
             }
         }
-        return XLValidatedSQLitePacket(
-            validated: validatedPacket.bindings,
-            layout: validatedPacket.layout
-        )
+        return validatedPacket
     }
 
     private func boundStatement(

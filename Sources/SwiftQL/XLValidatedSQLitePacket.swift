@@ -17,8 +17,17 @@
 /// The outcome of checking one invocation packet against one prepared
 /// statement's parameter layout.
 ///
-/// Every way of obtaining one runs the checks, so a value of this type is
-/// evidence rather than an assertion.
+/// The structural checks are enforced by construction: the only initializer
+/// runs them and throws, so a value of this type cannot exist without a packet
+/// that is SQLite's, was built for the statement being executed, and has a
+/// value in every slot the layout declares.
+///
+/// The *semantic* checks -- codec identity, storage agreement, nullability, and
+/// the NaN guard -- stay with ``GRDBInvocationExecutor/sqlitePacket(_:)``,
+/// which is the only caller. Those need the driver's dialect and registry,
+/// which this type deliberately knows nothing about. So the invariant this
+/// carries is "structurally valid for its layout", and the reason a second
+/// pass is unnecessary is that `sqlitePacket` runs the rest before returning.
 ///
 struct XLValidatedSQLitePacket {
 
@@ -28,15 +37,28 @@ struct XLValidatedSQLitePacket {
     /// The layout they were checked against.
     let layout: XLParameterLayout
 
-    /// Only ``GRDBInvocationExecutor/sqlitePacket(_:)`` calls this, after
-    /// running the checks. It is not `private` only because the executor lives
-    /// in another file.
+    ///
+    /// Checks `bindings` against `layout` and keeps the result.
+    ///
+    /// This is the only way to make one, and it cannot be handed something it
+    /// has not checked -- which is what lets `boundStatement` execute a packet
+    /// without validating it again.
+    ///
+    /// - Parameter requestType: Named in the mismatch error, so the message
+    ///   says which execution path rejected the packet.
+    ///
     init(
-        validated bindings: [XLInvocationBinding<XLSQLiteValue>],
-        layout: XLParameterLayout
-    ) {
-        self.bindings = bindings
-        self.layout = layout
+        validating bindings: any XLInvocationBindingPacket,
+        matching layout: XLParameterLayout,
+        requestType: Any.Type
+    ) throws {
+        let validated = try _xlSQLiteInvocationPacket(
+            bindings,
+            matching: layout,
+            requestType: requestType
+        )
+        self.bindings = validated.bindings
+        self.layout = validated.layout
     }
 }
 
