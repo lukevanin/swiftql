@@ -955,7 +955,7 @@ private enum InvocationFixtureError: Error {
 
 
 private func makeFixture() throws -> InvocationFixture {
-let temporary = try TemporaryDatabaseFixture.make(named: "invocation-bindings")
+    let temporary = try TemporaryDatabaseFixture.make(named: "invocation-bindings")
 
     let dateCodec = XLValueCodec<Date, XLSQLiteDialect>(
         key: XLValueCodecKey(id: "tests.date.text", version: 1),
