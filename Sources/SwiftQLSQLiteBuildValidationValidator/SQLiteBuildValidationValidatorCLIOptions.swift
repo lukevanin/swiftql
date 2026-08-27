@@ -184,8 +184,10 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
     /// Refuses an output path that would clobber one of the inputs.
     ///
     /// Kept here as the CLI's entry point; the check itself is
-    /// ``SQLiteBuildValidationOutputSafetyPreflight`` (#566), which is
-    /// filesystem work rather than argument parsing.
+    /// `SQLiteBuildValidationOutputSafetyPreflight` (#566), which is
+    /// filesystem work rather than argument parsing. Plain backticks, not a
+    /// DocC symbol link: that type is internal, and a link from a public
+    /// symbol to one DocC cannot see fails the documentation build.
     public static func preflightOutputSafety(
         databaseURL: URL,
         manifestURL: URL,

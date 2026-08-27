@@ -15,11 +15,13 @@ extension SQLiteBuildValidator {
     /// Checks the connected database's identity against the manifest's schema
     /// snapshot and captures the connection's runtime evidence.
     ///
-    /// Every check reports something. Evidence the caller-owned seam did not
-    /// supply, and a check that could not run because the runtime capture
-    /// failed, both produce an `unsupported` diagnostic rather than vanishing
-    /// from the report -- a check that silently did not happen is
-    /// indistinguishable from one that passed.
+    /// A check that passes says nothing; a check that *could not run* says so
+    /// rather than vanishing, because a check that silently did not happen is
+    /// indistinguishable in the report from one that passed. So evidence the
+    /// caller-owned seam did not supply, and the row-count and fingerprint
+    /// checks when the runtime capture failed, each produce an `unsupported`
+    /// diagnostic. The capture failure itself is a `failed` diagnostic -- that
+    /// one is a fault, not an absence.
     ///
     /// - Parameter runtimeMetadata: Set to the captured evidence, or to `nil`
     ///   when capture failed. The caller needs it for per-query validation,
