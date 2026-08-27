@@ -7679,7 +7679,7 @@
         },
         {
           "symbol": "GRDBDatabaseBuilder.addCollation(_:compare:)",
-          "source_path": "Sources/SwiftQL/GRDBSQLDatabase.swift",
+          "source_path": "Sources/SwiftQL/GRDBDatabaseBuilder.swift",
           "source_tokens": [
             "addCollation"
           ]
