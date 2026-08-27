@@ -13,7 +13,7 @@ import SwiftQL
 
 final class XLSyntaxOperatorTests: XLSyntaxTestCase {
 
-    // MARK: - Integer unary opperator
+    // MARK: - Integer unary operator
     
     
     func testPlusOperator_IntegerExpression() {
