@@ -68,6 +68,10 @@ against `IntegrationTests/BuildValidationPluginFixture`: `verify.sh` drives
 'platform=macOS'`, and both assert the same outcomes — a valid manifest builds,
 and an invalid one fails with the validator's own diagnostic.
 
+`verify.sh` runs in CI on every cell of the pinned compatibility matrix, so the
+`swift build` contract is gated on each supported Swift series and platform.
+`verify-xcode.sh` remains a manual check: Xcode is not part of that matrix.
+
 On v1.5.2 through v1.5.5 the plugin is `swift build`-only. Adopting it in a
 target that Xcode builds fails that build with `Build input file cannot be
 found` naming the validator executable, before validation runs, on a valid
