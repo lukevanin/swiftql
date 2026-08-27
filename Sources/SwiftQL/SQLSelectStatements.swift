@@ -50,6 +50,11 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
     /// package. A projection that cannot enumerate its columns against the
     /// definition reader is unsupported here and traps diagnostically, rather
     /// than surfacing an opaque `try!` crash. This matches `Returning.init(_:)`.
+    ///
+    /// A static row layout belongs to the ``XLStaticRowReadable`` overload
+    /// above, which skips the replay. Erasing such a layout to
+    /// `any XLRowReadable` selects this initializer instead, so the diagnostic
+    /// names that overload as the remedy.
     public init<T>(_ meta: T) where T: XLRowReadable, T.Row == Row {
         let reader = XLColumnsDefinitionRowReader()
         do {
@@ -59,8 +64,11 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
             preconditionFailure(
                 "SELECT projection \(String(reflecting: T.self)) could not "
                 + "enumerate its columns: \(error). Use a table or @SQLResult "
-                + "projection, or a static row layout, whose columns render "
-                + "against the definition reader."
+                + "projection whose columns render against the definition "
+                + "reader. A static row layout must instead reach the "
+                + "XLStaticRowReadable overload of Select(_:), which skips "
+                + "this replay; erasing the layout to any XLRowReadable "
+                + "selects this initializer."
             )
         }
         self.fields = reader
