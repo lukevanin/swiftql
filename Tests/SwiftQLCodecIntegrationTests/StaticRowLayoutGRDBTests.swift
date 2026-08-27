@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 import GRDB
 import XCTest
 @testable import SwiftQL
@@ -301,7 +302,7 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
     }
 
     func testGeneratedResultLayoutProjectsComputedAliasesWithCapturedInvocation() throws {
-        let fixture = try StaticRowLayoutFixture()
+        let fixture = try TemporaryDatabaseFixture.make(named: "static-row-layout")
         defer { fixture.tearDown() }
 
         let markerCodec = makeStaticLayoutCodecs().left
@@ -437,7 +438,7 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
     }
 
     func testGeneratedLayoutRoundTripsPlainValuesWithDistinctPerFieldCodecs() throws {
-        let fixture = try StaticRowLayoutFixture()
+        let fixture = try TemporaryDatabaseFixture.make(named: "static-row-layout")
         defer { fixture.tearDown() }
 
         let codecs = makeStaticLayoutCodecs()
@@ -600,7 +601,7 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
     }
 
     func testGeneratedCompositeLayoutFlattensNestedTablesAndReconstructsSubObjects() throws {
-        let fixture = try StaticRowLayoutFixture()
+        let fixture = try TemporaryDatabaseFixture.make(named: "static-row-layout")
         defer { fixture.tearDown() }
 
         let database = try GRDBDatabase(
@@ -778,7 +779,8 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
                 }
             )
         }
-        let fixture = try StaticRowLayoutFixture(
+        let fixture = try TemporaryDatabaseFixture.make(
+            named: "static-row-layout",
             configuration: poolConfiguration
         )
         defer { fixture.tearDown() }
@@ -1002,27 +1004,6 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
 private enum StaticRowLayoutTestError: Error, Equatable {
     case invalidValue
     case decodeRejected
-}
-
-
-private struct StaticRowLayoutFixture {
-    let url: URL
-    let pool: DatabasePool
-
-    init(configuration: Configuration = Configuration()) throws {
-        url = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("sqlite")
-        pool = try DatabasePool(
-            path: url.path,
-            configuration: configuration
-        )
-    }
-
-    func tearDown() {
-        try? pool.close()
-        try? FileManager.default.removeItem(at: url)
-    }
 }
 
 

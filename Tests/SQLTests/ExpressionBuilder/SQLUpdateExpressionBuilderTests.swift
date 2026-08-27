@@ -12,20 +12,12 @@ import XCTest
 @testable import SwiftQL
 
 
-final class XLUpdateExpressionBuilderTests: XCTestCase {
-    
-    var encoder: XLiteEncoder!
-    
-    override func setUp() {
-        let formatter = XLiteFormatter(
-            identifierFormattingOptions: .noEscape
-        )
-        encoder = XLiteEncoder(formatter: formatter)
+final class XLUpdateExpressionBuilderTests: XLEncoderTestCase {
+
+    override class var identifierFormattingOptions: XLSQLiteIdentifierFormattingOptions {
+        .noEscape
     }
-    
-    override func tearDown() {
-        encoder = nil
-    }
+
     
     // MARK: - UPDATE
     

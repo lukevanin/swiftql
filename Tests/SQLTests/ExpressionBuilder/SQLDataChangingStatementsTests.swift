@@ -10,18 +10,12 @@ import XCTest
 @testable import SwiftQL
 
 
-final class XLDataChangingStatementsTests: XCTestCase {
+final class XLDataChangingStatementsTests: XLEncoderTestCase {
 
-    var encoder: XLiteEncoder!
-
-    override func setUp() {
-        let formatter = XLiteFormatter(identifierFormattingOptions: .noEscape)
-        encoder = XLiteEncoder(formatter: formatter)
+    override class var identifierFormattingOptions: XLSQLiteIdentifierFormattingOptions {
+        .noEscape
     }
 
-    override func tearDown() {
-        encoder = nil
-    }
 
     private func instanceValues() -> TestTable.MetaInsert {
         TestTable.MetaInsert(TestTable(id: "foo", value: 42))

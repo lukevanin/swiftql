@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 import SwiftQLSQLiteConformanceFixtures
 import XCTest
 
@@ -81,14 +82,14 @@ final class SQLSkillDocumentationTests: XCTestCase {
             SkillConformanceInventory.self,
             from: Data(
                 contentsOf: SQLiteConformanceInventory.url(
-                    inRepositoryRoot: repositoryRootURL()
+                    inRepositoryRoot: try repositoryRootURL()
                 )
             )
         )
         let combinatorialManifest = try JSONDecoder().decode(
             SkillCombinatorialManifest.self,
             from: Data(
-                contentsOf: repositoryRootURL().appendingPathComponent(
+                contentsOf: try repositoryRootURL().appendingPathComponent(
                     "Conformance/SQLite/COMBINATORIAL_CASES.json"
                 )
             )
@@ -196,7 +197,7 @@ final class SQLSkillDocumentationTests: XCTestCase {
         let fixturePath =
             "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/SkillQuickStart.swift"
         let source = try String(
-            contentsOf: repositoryRootURL().appendingPathComponent(fixturePath),
+            contentsOf: try repositoryRootURL().appendingPathComponent(fixturePath),
             encoding: .utf8
         )
         let regions = ["schema", "lifecycle", "live"]
@@ -236,7 +237,7 @@ final class SQLSkillDocumentationTests: XCTestCase {
     }
 
     func testSkillLinksResolveAndCommandsStayRepositoryRelative() throws {
-        let root = repositoryRootURL()
+        let root = try repositoryRootURL()
         let contents = try skillContents()
 
         for path in [
@@ -306,7 +307,7 @@ final class SQLSkillDocumentationTests: XCTestCase {
 
     private func skillContents() throws -> String {
         try String(
-            contentsOf: repositoryRootURL().appendingPathComponent("SKILL.md"),
+            contentsOf: try repositoryRootURL().appendingPathComponent("SKILL.md"),
             encoding: .utf8
         )
     }
@@ -332,11 +333,12 @@ final class SQLSkillDocumentationTests: XCTestCase {
             .joined(separator: " ")
     }
 
-    private func repositoryRootURL() -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+    /// The repository root, found by walking up to the `Package.swift` rather
+    /// than by counting directories from this file. A fixed-depth ladder is a
+    /// silent dependency on where this file sits, and moving it makes the tests
+    /// read whatever happens to be at the resulting path (issue #557).
+    private func repositoryRootURL() throws -> URL {
+        try swiftQLRepositoryRootURL()
     }
 }
 

@@ -10,20 +10,12 @@ import GRDB
 @testable import SwiftQL
 
     
-final class QueryBuilderTests: XCTestCase {
-    
-    var encoder: XLiteEncoder!
-    
-    override func setUp() {
-        let formatter = XLiteFormatter(
-            identifierFormattingOptions: .mysqlCompatible
-        )
-        encoder = XLiteEncoder(formatter: formatter)
+final class QueryBuilderTests: XLEncoderTestCase {
+
+    override class var identifierFormattingOptions: XLSQLiteIdentifierFormattingOptions {
+        .mysqlCompatible
     }
-    
-    override func tearDown() {
-        encoder = nil
-    }
+
     
     
     func test_select() throws {

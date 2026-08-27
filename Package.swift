@@ -84,6 +84,19 @@ let package = Package(
             resources: [.copy("Resources/Northwind")]
         ),
 
+        // Test-only scaffolding shared across test targets: scoped temporary
+        // databases, numeric SQLite version comparison, and repository-root
+        // lookup. Deliberately free of XCTest so it can be a regular target --
+        // a library target has no XCTest search paths, and importing it here
+        // would break `swift build` (issue #557).
+        .target(
+            name: "SwiftQLTestSupport",
+            dependencies: [
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            path: "Tests/SwiftQLTestSupport"
+        ),
+
         // Test-only, constraint-aware syntax generator and real-SQLite replay
         // support. The target consumes the canonical inventory and Northwind
         // fixture without taking ownership of either artifact.
@@ -232,6 +245,7 @@ let package = Package(
         .testTarget(
             name: "SwiftQLCoreTests",
             dependencies: [
+                "SwiftQLTestSupport",
                 "SwiftQLCore",
                 "SwiftQLSQLiteConformanceFixtures",
             ]
@@ -255,6 +269,7 @@ let package = Package(
         .testTarget(
             name: "SQLTests",
             dependencies: [
+                "SwiftQLTestSupport",
                 "SwiftQL",
                 "SwiftQLNorthwindFixtures",
                 "SwiftQLSQLiteConformanceFixtures",
@@ -270,6 +285,7 @@ let package = Package(
         .testTarget(
             name: "SwiftQLCodecIntegrationTests",
             dependencies: [
+                "SwiftQLTestSupport",
                 "SwiftQL",
                 "SwiftQLSQLiteConformanceFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),

@@ -11,20 +11,12 @@ import SwiftQL
 
 
 
-final class InsertBuilderTests: XCTestCase {
-    
-    var encoder: XLiteEncoder!
-    
-    override func setUp() {
-        let formatter = XLiteFormatter(
-            identifierFormattingOptions: .mysqlCompatible
-        )
-        encoder = XLiteEncoder(formatter: formatter)
+final class InsertBuilderTests: XLEncoderTestCase {
+
+    override class var identifierFormattingOptions: XLSQLiteIdentifierFormattingOptions {
+        .mysqlCompatible
     }
-    
-    override func tearDown() {
-        encoder = nil
-    }
+
     
     func testInsert() throws {
         let schema = XLSchema()
