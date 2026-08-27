@@ -704,13 +704,13 @@ internal struct SQLQueryBuilder {
     /// the caller's generated function signature.
     ///
     /// - Parameters:
-    ///   - statementExpression: The value-free statement the render-once cache
-    ///     renders, spelled as something callable: the generated builder
-    ///     function's name for the peer macro, the inlined rewritten body for
-    ///     the container.
-    ///   - databaseExpression: What the request is prepared against -- `self`
-    ///     for the peer macro's database extension, `database` for the
-    ///     container's context.
+    ///   - preparing: The value-free statement the render-once cache renders,
+    ///     spelled as something callable: the generated builder function's
+    ///     name for the peer macro, the inlined rewritten body for the
+    ///     container.
+    ///   - against: What the request is prepared against -- `self` for the
+    ///     peer macro's database extension, `database` for the container's
+    ///     context.
     func makeExecutorBodyLines(
         preparing statementExpression: String,
         against databaseExpression: String
