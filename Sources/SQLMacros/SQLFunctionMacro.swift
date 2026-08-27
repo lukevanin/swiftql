@@ -9,7 +9,6 @@ import Foundation
 import SwiftCompilerPlugin
 import SwiftDiagnostics
 import SwiftSyntax
-import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
 
@@ -223,7 +222,7 @@ internal struct FunctionMetaBuilder {
     /// argument, in declaration order.
     ///
     func makeMakeSQLFunction() -> String {
-        var context = SwiftSyntaxBuilder()
+        var context = CodeWriter()
         context.block("public func makeSQL(context: inout XLBuilder)") { context in
             context.block(
                 "context.simpleFunction(name: Self.definition.name)",
@@ -265,8 +264,8 @@ extension SQLFunctionMacro: MemberMacro {
     ) throws -> [DeclSyntax] {
         let builder = try FunctionMetaBuilder(node: node, declaration: declaration)
         return [
-            DeclSyntax(stringLiteral: builder.makeDefinitionDecl()),
-            DeclSyntax(stringLiteral: builder.makeMakeSQLFunction()),
+            try makeDecl(builder.makeDefinitionDecl()),
+            try makeDecl(builder.makeMakeSQLFunction()),
         ]
     }
 }

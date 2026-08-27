@@ -9,7 +9,6 @@ import Foundation
 import SwiftCompilerPlugin
 import SwiftDiagnostics
 import SwiftSyntax
-import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
 
@@ -77,7 +76,19 @@ internal struct MetaProperty {
 }
 
 
-private struct GeneratedIdentifierAllocator {
+///
+/// Hands out generated identifiers that cannot collide with names already in
+/// scope.
+///
+/// A generated member sits alongside the author's own declarations, so a name
+/// the macro picks freely -- a loop variable, a temporary -- can shadow or
+/// redeclare one of theirs. Each allocation takes `base` when it is free and
+/// otherwise appends the lowest `_N` that is not, and every name handed out is
+/// remembered, so two allocations of the same base never agree.
+///
+/// Internal rather than private so its algorithm can be tested directly; it is
+/// otherwise only used from `MetaBuilder`.
+internal struct GeneratedIdentifierAllocator {
     private var used: Set<String>
 
     init(used: Set<String>) {
@@ -552,7 +563,7 @@ internal struct MetaBuilder {
 
     // Build result-only meta data, used to select explicit columns without an underlying table.
     func makeMetaResultExtension(table: Bool) -> String {
-        var context = SwiftSyntaxBuilder()
+        var context = CodeWriter()
         context.block("extension \(structName): XLResult") { context in
             
             makeCommonMeta(context: &context, table: table)
@@ -565,7 +576,7 @@ internal struct MetaBuilder {
     // projection factory through the MemberMacro role so `.columns(...)` remains available on
     // every supported compiler.
     func makeColumnsFunction() -> String {
-        var context = SwiftSyntaxBuilder()
+        var context = CodeWriter()
         var columnParameters: [String] = []
         for property in properties {
             columnParameters.append("\(property.name): any SwiftQL.XLExpression<\(property.qualifiedType)>")
@@ -604,7 +615,7 @@ internal struct MetaBuilder {
     // every one of its own flattened slots, re-aliased with its property name
     // as a prefix so the flattened SQL output columns stay unique.
     func makeStaticRowLayoutFunction() -> String {
-        var context = SwiftSyntaxBuilder()
+        var context = CodeWriter()
         var allocator = GeneratedIdentifierAllocator(
             used: generatedIdentifierReservations
         )
@@ -720,7 +731,7 @@ internal struct MetaBuilder {
     // static stored properties on generic types -- so a computed property is the only form that
     // works uniformly for both generic and non-generic generated types.
     func makeCodecKeysDeclaration() -> String {
-        var context = SwiftSyntaxBuilder()
+        var context = CodeWriter()
         let entries = properties.compactMap { property -> (alias: String, expression: String)? in
             guard let codecKeyExpression = property.codecKeyExpression else {
                 return nil
@@ -765,7 +776,7 @@ internal struct MetaBuilder {
             let storage = allocator.allocate("_SwiftQLCodecStorage")
             let valueType = property.optional ? "\(property.type)?" : property.type
             let storageType = property.optional ? "\(storage)?" : storage
-            var context = SwiftSyntaxBuilder()
+            var context = CodeWriter()
             context.block(
                 "public static func staticResultField<\(storage)>("
                     + "\(property.name) expression: any SwiftQL.XLEncodable, "
@@ -798,7 +809,7 @@ internal struct MetaBuilder {
 
     // Build table meta data, used to select from concrete tables and views which are defined by the database schema.
     func makeMetaTableExtension() -> String {
-        var context = SwiftSyntaxBuilder()
+        var context = CodeWriter()
 
         context.block("extension \(structName): XLTable") { context in
             
@@ -898,7 +909,7 @@ internal struct MetaBuilder {
         return context.build()
     }
     
-    private func makeWriter(context: inout SwiftSyntaxBuilder) {
+    private func makeWriter(context: inout CodeWriter) {
         
         context.block("public struct MetaWritableTable: XLMetaWritableTable") { context in
 
@@ -1163,7 +1174,7 @@ internal struct MetaBuilder {
         }
     }
     
-    private func makeCreate(context: inout SwiftSyntaxBuilder) {
+    private func makeCreate(context: inout CodeWriter) {
         
         context.block("public struct MetaCreate: XLMetaCreate") { context in
             
@@ -1209,7 +1220,7 @@ internal struct MetaBuilder {
         }
     }
     
-    private func makeCommonMeta(context: inout SwiftSyntaxBuilder, table: Bool) {
+    private func makeCommonMeta(context: inout CodeWriter, table: Bool) {
         
         var properties: [MetaProperty]
         var optionalProperties: [MetaProperty]
@@ -1494,7 +1505,7 @@ internal struct MetaBuilder {
         }    }
     
     func makeMemberwizeInitializer() -> String {
-        var context = SwiftSyntaxBuilder()
+        var context = CodeWriter()
         var parameters: [String] = []
         for property in properties {
             parameters.append("\(property.name): \(property.qualifiedType)")

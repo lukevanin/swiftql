@@ -12,7 +12,6 @@
 import Foundation
 import SwiftDiagnostics
 import SwiftSyntax
-import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
 
@@ -43,9 +42,9 @@ extension SQLQueryMacro: PeerMacro {
     ) throws -> [DeclSyntax] {
         let builder = try SQLQueryBuilder(node: node, declaration: declaration)
         return [
-            DeclSyntax(stringLiteral: builder.makeStatementFunction()),
-            DeclSyntax(stringLiteral: builder.makeRenderOnceCacheDeclaration()),
-            DeclSyntax(stringLiteral: builder.makeExecutorFunction()),
+            try makeDecl(builder.makeStatementFunction()),
+            try makeDecl(builder.makeRenderOnceCacheDeclaration()),
+            try makeDecl(builder.makeExecutorFunction()),
         ]
     }
 }
