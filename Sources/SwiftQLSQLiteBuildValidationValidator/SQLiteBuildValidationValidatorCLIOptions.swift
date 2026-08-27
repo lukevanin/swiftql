@@ -109,14 +109,17 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
     /// options value with three optionals meant every consumer re-checked the
     /// same three optionals, and the runner's check for them was unreachable
     /// because parsing had already enforced it (#566).
-    public enum Invocation: Equatable, Sendable {
+    // `@unchecked` for the same reason the enclosing type is: these hold
+    // `URL`, and Swift 5.9's Linux Foundation predates `URL: Sendable`. They
+    // are immutable values.
+    public enum Invocation: Equatable, @unchecked Sendable {
         case help
         case run(Resolved)
     }
 
     /// A run's settled inputs. Every path is present, because a run without one
     /// is not something ``resolved()`` returns.
-    public struct Resolved: Equatable, Sendable {
+    public struct Resolved: Equatable, @unchecked Sendable {
         public let databaseURL: URL
         public let manifestURL: URL
         public let outputURL: URL
