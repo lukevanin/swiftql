@@ -87,7 +87,7 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
 
 
 ///
-/// A boolean set operation, succh as a union or intersection.
+/// A boolean set operation, such as a union or intersection.
 ///
 internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
     
