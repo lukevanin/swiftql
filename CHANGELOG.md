@@ -4,6 +4,20 @@
 
 ### Fixed
 
+- A NaN `Double` bound through a `@SQLQuery` macro parameter is now rejected
+  where the value is captured, rather than further down at the driver boundary
+  (issue #554). SwiftQL's documented policy is that binding a NaN throws
+  `XLSQLValueEncodingError.realBindingWouldBecomeNull` instead of letting SQLite silently store SQL `NULL` in its place, and
+  `_xlQueryParameterBinding` -- the capture behind every macro parameter --
+  was the one capture path missing that check. **Nothing was ever stored as
+  `NULL` through it**: `GRDBDatabaseDriver` rejects a NaN `REAL` before the
+  value reaches SQLite, so executing such a query already threw. It now throws
+  from the capture, with the same error the driver produced, so every capture
+  path agrees. A caller who invokes `_xlQueryParameterBinding` directly and
+  inspects its result, rather than executing, sees the throw where they
+  previously saw `.real(nan)`. Infinities are unaffected: they survive
+  SQLite's binding round trip and remain valid bound values.
+
 - A `RETURNING` request now registers custom functions that opt into implicit
   registration, so a data-changing statement whose clauses call one executes
   instead of failing with SQLite's "no such function" error (issue #553).

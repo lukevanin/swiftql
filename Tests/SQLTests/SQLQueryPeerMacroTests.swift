@@ -73,6 +73,16 @@ extension GRDBDatabase {
     }
 
     @SQLQuery
+    func doubleRowsMatchingValue(value: Double) -> any XLQueryStatement<DoubleTest> {
+        sql { schema in
+            let table = schema.table(DoubleTest.self)
+            Select(table)
+            From(table)
+            Where(table.value == value)
+        }
+    }
+
+    @SQLQuery
     func nullableRowsMatchingValue(value: Int?) -> any XLQueryStatement<TestNullablesTable> {
         sql { schema in
             let table = schema.table(TestNullablesTable.self)
@@ -302,7 +312,87 @@ final class XLQueryPeerMacroTests: XCTestCase {
     }
 
 
+    // MARK: - Non-finite REAL parameters
+
+    /// SwiftQL rejects a bound NaN rather than letting SQLite's binding API
+    /// silently store SQL `NULL` in its place (see the Real Values article).
+    /// `_xlQueryParameterBinding` -- the capture the generated executors call
+    /// for every macro parameter -- used to skip that check, unlike the codec
+    /// and static-layout captures beside it, and returned `.real(nan)`. The
+    /// driver boundary caught it before it ever reached SQLite, so nothing was
+    /// ever stored as `NULL`; the value now fails at the point of capture, with
+    /// the same error the driver produced.
+    func testNaNDoubleParameterIsRejectedAtCapture() throws {
+        let layout = encoder
+            .makeSQL(database.doubleRowsMatchingValueStatement())
+            .parameterLayout
+
+        XCTAssertThrowsError(
+            try _xlQueryParameterBinding(Double.nan, named: "value", in: layout)
+        ) { error in
+            XCTAssertEqual(
+                error as? XLSQLValueEncodingError,
+                .realBindingWouldBecomeNull(
+                    value: .notANumber,
+                    valueType: String(reflecting: Double.self),
+                    context: XLValueCodingContext(
+                        site: .parameter,
+                        path: XLValueCodingPath("value")
+                    )
+                )
+            )
+        }
+    }
+
+    /// The same rejection seen through the generated executor, which is how a
+    /// caller meets it.
+    func testNaNDoubleParameterIsRejectedThroughTheGeneratedExecutor() throws {
+        try createDoubleTable()
+
+        XCTAssertThrowsError(
+            try database.fetchDoubleRowsMatchingValue(value: .nan)
+        ) { error in
+            XCTAssertEqual(
+                error as? XLSQLValueEncodingError,
+                .realBindingWouldBecomeNull(
+                    value: .notANumber,
+                    valueType: String(reflecting: Double.self),
+                    context: XLValueCodingContext(
+                        site: .parameter,
+                        path: XLValueCodingPath("value")
+                    )
+                )
+            )
+        }
+    }
+
+    /// Infinities survive SQLite's binding round trip, so the guard must let
+    /// them through -- it rejects NaN specifically, not every non-finite value.
+    /// Only the bound parameter carries an infinity here: an inline `REAL`
+    /// literal is a separate policy and is rejected before SQLite parses the
+    /// statement, so the fixture rows hold finite values.
+    func testInfiniteDoubleParametersRemainBindable() throws {
+        try createDoubleTable()
+        try insert(DoubleTest(id: "finite", value: 1.5))
+
+        XCTAssertEqual(try database.fetchDoubleRowsMatchingValue(value: .infinity), [])
+        XCTAssertEqual(try database.fetchDoubleRowsMatchingValue(value: -.infinity), [])
+        XCTAssertEqual(
+            try database.fetchDoubleRowsMatchingValue(value: 1.5),
+            [DoubleTest(id: "finite", value: 1.5)]
+        )
+    }
+
+
     // MARK: - Helpers
+
+    private func createDoubleTable() throws {
+        try database.makeRequest(with: sqlCreate(DoubleTest.self)).execute()
+    }
+
+    private func insert(_ row: DoubleTest) throws {
+        try database.makeRequest(with: sqlInsert(row)).execute()
+    }
 
     private func createTestTable() throws {
         try database.makeRequest(with: sqlCreate(TestTable.self)).execute()
