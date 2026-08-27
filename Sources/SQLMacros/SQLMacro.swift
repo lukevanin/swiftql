@@ -190,6 +190,46 @@ extension SQLCodecMacro: PeerMacro {
 
 
 ///
+/// Generates the extensions both `@SQLTable` and `@SQLResult` attach to a model
+/// -- the metadata extension, the table extension for a table, and the derived
+/// `Sendable` conformance when the model qualifies for one.
+///
+/// The two macros differ only in whether the model is a table. Sharing one
+/// expansion keeps them from drifting apart, which is otherwise invisible: each
+/// difference would look like a deliberate distinction between the two macros
+/// rather than an omission in one of them.
+///
+/// An invalid declaration yields no extensions at all. The member expansion
+/// runs first and reports the diagnostics for it; repeating them here would
+/// show the same error twice on one declaration.
+///
+private func expandModelExtensions(
+    of node: AttributeSyntax,
+    attachedTo declaration: some DeclGroupSyntax,
+    conformingTo protocols: [TypeSyntax],
+    table: Bool
+) throws -> [ExtensionDeclSyntax] {
+    let builder: MetaBuilder
+    do {
+        builder = try MetaBuilder(node: node, declaration: declaration)
+    }
+    catch is DiagnosticsError, is SQLMacroError {
+        return []
+    }
+    var extensions = [
+        try makeExtensionDecl(builder.makeMetaResultExtension(table: table)),
+    ]
+    if table {
+        extensions.append(try makeExtensionDecl(builder.makeMetaTableExtension()))
+    }
+    if let sendable = try makeSendableExtension(builder: builder, conformingTo: protocols) {
+        extensions.append(sendable)
+    }
+    return extensions
+}
+
+
+///
 /// Declares a struct as an SQL table.
 ///
 public struct SQLTableMacro {
@@ -222,23 +262,12 @@ extension SQLTableMacro: ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
-        let builder: MetaBuilder
-        do {
-            builder = try MetaBuilder(node: node, declaration: declaration)
-        }
-        catch is DiagnosticsError, is SQLMacroError {
-            // The member expansion reports the diagnostics for an invalid declaration. The same
-            // errors are not reported again here to avoid emitting duplicate diagnostics.
-            return []
-        }
-        var extensions = [
-            try makeExtensionDecl(builder.makeMetaResultExtension(table: true)),
-            try makeExtensionDecl(builder.makeMetaTableExtension()),
-        ]
-        if let sendable = try makeSendableExtension(builder: builder, conformingTo: protocols) {
-            extensions.append(sendable)
-        }
-        return extensions
+        try expandModelExtensions(
+            of: node,
+            attachedTo: declaration,
+            conformingTo: protocols,
+            table: true
+        )
     }
 }
 
@@ -273,22 +302,12 @@ extension SQLResultMacro: ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
-        let builder: MetaBuilder
-        do {
-            builder = try MetaBuilder(node: node, declaration: declaration)
-        }
-        catch is DiagnosticsError, is SQLMacroError {
-            // The member expansion reports the diagnostics for an invalid declaration. The same
-            // errors are not reported again here to avoid emitting duplicate diagnostics.
-            return []
-        }
-        var extensions = [
-            try makeExtensionDecl(builder.makeMetaResultExtension(table: false)),
-        ]
-        if let sendable = try makeSendableExtension(builder: builder, conformingTo: protocols) {
-            extensions.append(sendable)
-        }
-        return extensions
+        try expandModelExtensions(
+            of: node,
+            attachedTo: declaration,
+            conformingTo: protocols,
+            table: false
+        )
     }
 }
 

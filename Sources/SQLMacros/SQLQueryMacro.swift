@@ -578,11 +578,7 @@ internal struct SQLQueryBuilder {
     }
 
     private var modifierPrefix: String {
-        let modifiers = function.modifiers.trimmedDescription
-        if modifiers.isEmpty {
-            return ""
-        }
-        return modifiers + " "
+        macroModifierPrefix(function.modifiers)
     }
 
     private var statementFunctionName: String {
@@ -682,8 +678,46 @@ internal struct SQLQueryBuilder {
         let resultType = executorResultType
         var lines: [String] = []
         lines.append("\(modifierPrefix)func \(executorFunctionName)\(parameterClause) throws -> \(resultType) {")
-        lines.append("    let __xlRequest = Self.\(renderOnceCacheName).request(for: self) {")
-        lines.append("        \(statementFunctionName)()")
+        lines.append(
+            contentsOf: makeExecutorBodyLines(
+                preparing: statementFunctionName,
+                against: "self"
+            )
+        )
+        lines.append("}")
+        return lines.joined(separator: "\n")
+    }
+
+    ///
+    /// Generates the body every declared-query executor shares: take the
+    /// render-once request, bind each rewritten parameter into an immutable
+    /// invocation packet, and dispatch the fetch for the declared cardinality.
+    ///
+    /// This encodes the invocation-packet contract with the runtime -- the
+    /// `_xlQueryParameterBinding` capture, `validatingComplete()`, and the
+    /// fetch spelling per cardinality. The `@SQLQuery` peer executor and the
+    /// `@SQLQueries` container's context executor generate the identical body,
+    /// and a divergence between them would be a silent wrong-bindings bug
+    /// rather than a compile error, so both emit it from here.
+    ///
+    /// The returned lines are already indented one level, ready to sit inside
+    /// the caller's generated function signature.
+    ///
+    /// - Parameters:
+    ///   - preparing: The value-free statement the render-once cache renders,
+    ///     spelled as something callable: the generated builder function's
+    ///     name for the peer macro, the inlined rewritten body for the
+    ///     container.
+    ///   - against: What the request is prepared against -- `self` for the
+    ///     peer macro's database extension, `database` for the container's
+    ///     context.
+    func makeExecutorBodyLines(
+        preparing statementExpression: String,
+        against databaseExpression: String
+    ) -> [String] {
+        var lines: [String] = []
+        lines.append("    let __xlRequest = Self.\(renderOnceCacheName).request(for: \(databaseExpression)) {")
+        lines.append("        \(statementExpression)()")
         lines.append("    }")
         lines.append("    let __xlLayout = __xlRequest.parameterLayout")
         if parameters.isEmpty {
@@ -702,8 +736,7 @@ internal struct SQLQueryBuilder {
         for fetchLine in makeFetchLines(requestVariable: "__xlRequest", packetVariable: "__xlPacket") {
             lines.append("    " + fetchLine)
         }
-        lines.append("}")
-        return lines.joined(separator: "\n")
+        return lines
     }
 }
 
