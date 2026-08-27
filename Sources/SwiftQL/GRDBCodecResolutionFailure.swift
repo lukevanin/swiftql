@@ -12,9 +12,6 @@
 //  another database is only usable when it is provably the same codec.
 //
 
-import Foundation
-
-
 ///
 /// Why a slot's declared codec cannot be used against a given database.
 ///

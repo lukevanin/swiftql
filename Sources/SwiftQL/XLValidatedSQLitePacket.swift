@@ -13,9 +13,6 @@
 //  knows, so a second pass is not merely unnecessary but unrepresentable.
 //
 
-import Foundation
-
-
 ///
 /// The outcome of checking one invocation packet against one prepared
 /// statement's parameter layout.

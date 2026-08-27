@@ -12,9 +12,6 @@
 //  binding the other rejects.
 //
 
-import Foundation
-
-
 ///
 /// Accumulates the bindings set through the v1 mutable request facade, and the
 /// first error that facade could not report.

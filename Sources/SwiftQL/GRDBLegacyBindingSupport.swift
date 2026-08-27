@@ -9,9 +9,6 @@
 //  them, and `private` is file-scoped, so they cannot sit inside either one.
 //
 
-import Foundation
-
-
 extension XLParameterSlot {
 
     func acceptsLegacySet(_ declaration: XLParameterDeclaration) -> Bool {
