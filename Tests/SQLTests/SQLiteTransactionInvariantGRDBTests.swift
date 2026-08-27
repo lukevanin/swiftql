@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 import GRDB
 import XCTest
 
@@ -18,7 +19,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = makeDriver(fixture.databasePool)
+        var driver = makeDriver(fixture.pool)
         try createSchema(using: &driver)
 
         var before = try snapshot(using: &driver)
@@ -124,7 +125,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = makeDriver(fixture.databasePool)
+        var driver = makeDriver(fixture.pool)
         try createSchema(using: &driver)
         try commitSeed(using: &driver)
 
@@ -275,7 +276,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = makeDriver(fixture.databasePool)
+        var driver = makeDriver(fixture.pool)
         try createSchema(using: &driver)
         try commitSeed(using: &driver)
         let before = try snapshot(using: &driver)
@@ -344,7 +345,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         let caseFixture = try transactionCase(.independentDatabases)
         let firstID = "\(caseFixture.id.rawValue).first"
         let secondID = "\(caseFixture.id.rawValue).second"
-        let pools = [firstFixture.databasePool, secondFixture.databasePool]
+        let pools = [firstFixture.pool, secondFixture.pool]
         let rowIDs = [firstID, secondID]
 
         let results = try await withThrowingTaskGroup(
@@ -546,21 +547,8 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         )
     }
 
-    private func makeFixture() throws -> SQLiteTransactionFixture {
-        let directoryURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(
-                "swiftql-transaction-contract-\(UUID().uuidString)"
-            )
-        try FileManager.default.createDirectory(
-            at: directoryURL,
-            withIntermediateDirectories: false
-        )
-        return SQLiteTransactionFixture(
-            directoryURL: directoryURL,
-            databasePool: try DatabasePool(
-                path: directoryURL.appendingPathComponent("database.sqlite").path
-            )
-        )
+    private func makeFixture() throws -> TemporaryDatabaseFixture {
+        try TemporaryDatabaseFixture.make(named: "transaction-invariant")
     }
 
     private static func commitIndependentRow(
@@ -623,16 +611,5 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
                 }
             )
         }
-    }
-}
-
-
-private struct SQLiteTransactionFixture {
-    let directoryURL: URL
-    let databasePool: DatabasePool
-
-    func tearDown() {
-        try? databasePool.close()
-        try? FileManager.default.removeItem(at: directoryURL)
     }
 }

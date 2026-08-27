@@ -1036,6 +1036,19 @@ jobs:
             "$RESOLUTION_MODE" \
             "$RUNNER_TEMP/swift5-client.log"
 
+      # A build-tool plugin's createBuildCommands cannot be unit-tested without
+      # a live PluginContext, so this fixture package is the only check of the
+      # plugin's real invocation contract. It was manual-only until #556, which
+      # is how the #492 target/product naming break shipped across v1.5.2-v1.5.5
+      # with the fixture that catches it sitting in the repo unrun. Only the
+      # `swift build` half runs here; verify-xcode.sh stays manual because Xcode
+      # is not part of the pinned matrix (see COMPATIBILITY.md).
+      - name: Verify the build-validation plugin's invocation contract
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          IntegrationTests/BuildValidationPluginFixture/verify.sh
+
       # make-docs.sh builds Website/blog with Hugo as part of the site, so this
       # job needs it for the same reason documentation-build.yml does.
       - name: Install Hugo

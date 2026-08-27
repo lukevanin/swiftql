@@ -266,3 +266,31 @@ public struct SQLiteConformanceInventory: Decodable, Equatable, Sendable {
 public enum SQLiteConformanceInventoryError: Error, Equatable {
     case missingResource
 }
+
+
+extension SQLiteConformanceInventory {
+
+    ///
+    /// Where the inventory lives, relative to the repository root.
+    ///
+    /// The file is read three ways -- as a bundled resource of this target, as
+    /// a path by tests that check the documentation quotes it accurately, and
+    /// as a path by the two generator scripts. The path spellings had drifted
+    /// apart into separate string literals in each (issue #567), so a move
+    /// would have been found one caller at a time, at whatever point each
+    /// happened to run next.
+    ///
+    /// Scripts outside the Swift build still spell it themselves; they cannot
+    /// import this. What they can do is fail loudly, and they do -- this
+    /// constant is the value they must agree with.
+    ///
+    public static let repositoryRelativePath =
+        "Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json"
+
+    ///
+    /// The inventory's location under a given repository root.
+    ///
+    public static func url(inRepositoryRoot root: URL) -> URL {
+        root.appendingPathComponent(repositoryRelativePath)
+    }
+}

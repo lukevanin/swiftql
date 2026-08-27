@@ -34,13 +34,13 @@ public struct SQLiteBuildValidationEnvironment:
         extensionNames: [String] = [],
         capabilityIDs: [String] = []
     ) {
-        self.codecIdentifiers = Self.sortedUnique(codecIdentifiers)
+        self.codecIdentifiers = sqliteBuildValidationSortedUnique(codecIdentifiers)
         // Fold before deduping: extension-name matching is ASCII
         // case-insensitive (SQLiteBuildValidationRuntimeMetadata.hasExtension),
         // so "MyExt" and "myext" are the same semantic requirement and must
         // not survive as two distinct entries in the canonical report.
-        self.extensionNames = Self.sortedUnique(extensionNames.map(sqliteASCIIFolded))
-        self.capabilityIDs = Self.sortedUnique(capabilityIDs)
+        self.extensionNames = sqliteBuildValidationSortedUnique(extensionNames.map(sqliteASCIIFolded))
+        self.capabilityIDs = sqliteBuildValidationSortedUnique(capabilityIDs)
     }
 
     public init(
@@ -53,10 +53,6 @@ public struct SQLiteBuildValidationEnvironment:
             extensionNames: extensionNames,
             capabilityIDs: capabilityIDs
         )
-    }
-
-    private static func sortedUnique(_ values: [String]) -> [String] {
-        Array(Set(values)).sorted()
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -91,6 +87,43 @@ public struct SQLiteBuildValidationDiagnostic: Codable, Equatable, Sendable {
     public let sqliteResultCode: Int32?
     public let sqliteExtendedResultCode: Int32?
 
+    /// ``code`` as one of the validator's own codes, or `nil` when the
+    /// diagnostic was decoded from a report carrying a code this build does
+    /// not know.
+    public var diagnosticCode: SQLiteBuildValidationDiagnosticCode? {
+        SQLiteBuildValidationDiagnosticCode(rawValue: code)
+    }
+
+    /// Creates a diagnostic with one of the validator's own codes.
+    ///
+    /// This is the initializer the validator uses. Naming the code rather than
+    /// spelling it makes a code that does not exist a compile error, and lets
+    /// ``SQLiteBuildValidationDiagnosticCode`` be the single definition the
+    /// short-circuit sets are matched against (#566).
+    public init(
+        verdict: SQLiteBuildValidationVerdict,
+        stage: Stage,
+        code: SQLiteBuildValidationDiagnosticCode,
+        message: String,
+        query: SQLiteBuildValidationQueryEntry? = nil,
+        sqliteResultCode: Int32? = nil,
+        sqliteExtendedResultCode: Int32? = nil
+    ) {
+        self.init(
+            verdict: verdict,
+            stage: stage,
+            code: code.rawValue,
+            message: message,
+            query: query,
+            sqliteResultCode: sqliteResultCode,
+            sqliteExtendedResultCode: sqliteExtendedResultCode
+        )
+    }
+
+    /// Creates a diagnostic with an arbitrary code.
+    ///
+    /// Present so a decoded report round-trips whatever code it carries,
+    /// including one written by a newer validator than the reader.
     public init(
         verdict: SQLiteBuildValidationVerdict,
         stage: Stage,
@@ -229,6 +262,20 @@ public struct SQLiteBuildValidationReport: Codable, Equatable, Sendable {
     public let observedDatabaseSHA256: String?
     public let runtimeMetadata: SQLiteBuildValidationRuntimeMetadata?
     public let environmentEvidence: SQLiteBuildValidationEnvironment
+    /// Checks this validator deliberately does not make, named in every report
+    /// so a reader can tell "not checked" from "checked and passed".
+    ///
+    /// A constant, not rebuilt per report: it is the same list every time, and
+    /// the report's bytes are a determinism gate.
+    static let delegatedChecks: [String] = [
+        "#214 catalog membership and table-reference binding",
+        "#214 correlated and nested reference scopes",
+        "#214 DML target roles",
+        "#214 nullability views",
+        "#214 same-scope alias uniqueness",
+        "SQLite declared types do not prove dynamic expression storage or codec compatibility",
+    ].sorted()
+
     public let delegatedChecks: [String]
     public let overallVerdict: SQLiteBuildValidationVerdict
     public let diagnostics: [SQLiteBuildValidationDiagnostic]
@@ -256,14 +303,7 @@ public struct SQLiteBuildValidationReport: Codable, Equatable, Sendable {
         self.observedDatabaseSHA256 = observedDatabaseSHA256?.lowercased()
         self.runtimeMetadata = runtimeMetadata
         self.environmentEvidence = environmentEvidence
-        self.delegatedChecks = [
-            "#214 catalog membership and table-reference binding",
-            "#214 correlated and nested reference scopes",
-            "#214 DML target roles",
-            "#214 nullability views",
-            "#214 same-scope alias uniqueness",
-            "SQLite declared types do not prove dynamic expression storage or codec compatibility",
-        ].sorted()
+        self.delegatedChecks = Self.delegatedChecks
         self.overallVerdict = Self.overallVerdict(
             diagnostics: diagnostics,
             outcomes: outcomes
@@ -272,8 +312,41 @@ public struct SQLiteBuildValidationReport: Codable, Equatable, Sendable {
         self.outcomes = outcomes
     }
 
+    /// A plain-text rendering of everything this report has to say, one
+    /// diagnostic per line.
+    ///
+    /// The canonical JSON is the artifact of record; this is what a failing
+    /// build prints so the author sees something actionable without opening the
+    /// report file. It lives here rather than in the executable's `main.swift`
+    /// (#566) so it can be tested -- stderr formatting inside a top-level
+    /// script is reachable only by running the process.
+    ///
+    /// Empty when the run passed: there is nothing to say, and a build that
+    /// succeeded should print nothing.
+    public func humanReadableSummary() -> String {
+        guard overallVerdict != .passed else {
+            return ""
+        }
+        var lines = [
+            "swiftql-build-validate: overall verdict \(overallVerdict.rawValue)",
+        ]
+        for diagnostic in diagnostics {
+            lines.append(
+                "  [\(diagnostic.verdict.rawValue)] \(diagnostic.stage.rawValue).\(diagnostic.code): \(diagnostic.message)"
+            )
+        }
+        for outcome in outcomes where outcome.verdict != .passed {
+            for diagnostic in outcome.diagnostics {
+                lines.append(
+                    "  \(outcome.queryID): [\(diagnostic.verdict.rawValue)] \(diagnostic.stage.rawValue).\(diagnostic.code): \(diagnostic.message)"
+                )
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
     public func canonicalJSONData() throws -> Data {
-        try SQLiteBuildValidationValidatorCanonicalJSON.encode(self)
+        try SQLiteBuildValidationCanonicalJSON.encode(self)
     }
 
     private static func overallVerdict(
@@ -305,19 +378,5 @@ public struct SQLiteBuildValidationReport: Codable, Equatable, Sendable {
         case overallVerdict = "overall_verdict"
         case diagnostics
         case outcomes
-    }
-}
-
-
-enum SQLiteBuildValidationValidatorCanonicalJSON {
-    static func encode<Value: Encodable>(_ value: Value) throws -> Data {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        var data = try encoder.encode(value)
-        while data.last == 0x0A {
-            data.removeLast()
-        }
-        data.append(0x0A)
-        return data
     }
 }

@@ -18,8 +18,9 @@ does not depend on the test-only targets that own the #190 inventory, #191
 combinatorial cases, or #254 Northwind fixture (`SwiftQLSQLiteConformanceFixtures`,
 `SwiftQLSQLiteCombinatorialSupport`, `SwiftQLNorthwindFixtures`); a regular
 SwiftPM target cannot depend on a `.testTarget`, and this codebase's existing
-targets already follow that boundary (see `SwiftQLSQLiteBuildValidationPrototype`,
-which likewise avoids depending on them).
+targets already follow that boundary (see
+`SwiftQLSQLiteBuildValidationValidator`, which likewise avoids depending on
+them).
 
 ## Schema
 

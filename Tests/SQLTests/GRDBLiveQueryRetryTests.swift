@@ -5,6 +5,7 @@ import OpenCombine
 import OpenCombineDispatch
 #endif
 import Foundation
+import SwiftQLTestSupport
 import GRDB
 import XCTest
 @testable import SwiftQL
@@ -469,12 +470,7 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
         busyBehavior: InjectedBusyFunctionState.Behavior = .failOnce,
         initialValue: Int? = 1
     ) throws -> IntegrationFixture {
-        let directoryURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(
-            at: directoryURL,
-            withIntermediateDirectories: true
-        )
+        let directoryURL = try makeTemporaryDirectory(named: "live-query-retry")
         let databaseURL = directoryURL
             .appendingPathComponent("retry.sqlite", isDirectory: false)
         let functionState = InjectedBusyFunctionState(behavior: busyBehavior)

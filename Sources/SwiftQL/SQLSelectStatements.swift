@@ -1,0 +1,259 @@
+//
+//  SQLSelectStatements.swift
+//  SwiftQL
+//
+//  Reading statements: SELECT and the compound operators that combine several
+//  of them, and the WITH clause that names one.
+//
+//  Split out of SQLStatements.swift (issue #559).
+//
+
+import Foundation
+
+
+public protocol XLQueryComponent: XLEncodable {
+    
+}
+
+
+// MARK: Select
+
+
+///
+/// A select statement.
+///
+public struct Select<Row>: XLEncodable, XLRowReadable {
+    
+    private let fields: any XLEncodable
+    
+    private let row: (XLRowReader) throws -> Row
+
+    /// Builds a select directly from immutable static projection metadata.
+    ///
+    /// This more-specific overload deliberately does not call `readRow` while
+    /// constructing the statement. Generated model initializers and
+    /// contextual codecs run only when a returned database row is decoded.
+    public init<T>(_ layout: T)
+    where T: XLStaticRowReadable, T.Row == Row {
+        self.fields = layout
+        self.row = layout.readRow
+    }
+    
+    /// Builds a select from dynamic projection metadata.
+    ///
+    /// The projection is replayed once against a definition reader to capture
+    /// its output columns. The definition reader returns SQL defaults, so no
+    /// database row is decoded here. The replay runs only for that side effect,
+    /// and its value is discarded.
+    ///
+    /// `readRow(reader:)` is throwing and may be implemented outside this
+    /// package. A projection that cannot enumerate its columns against the
+    /// definition reader is unsupported here and traps diagnostically, rather
+    /// than surfacing an opaque `try!` crash. This matches `Returning.init(_:)`.
+    ///
+    /// A static row layout belongs to the ``XLStaticRowReadable`` overload
+    /// above, which skips the replay. Erasing such a layout to
+    /// `any XLRowReadable` selects this initializer instead, so the diagnostic
+    /// names that overload as the remedy.
+    public init<T>(_ meta: T) where T: XLRowReadable, T.Row == Row {
+        let reader = XLColumnsDefinitionRowReader()
+        do {
+            _ = try meta.readRow(reader: reader)
+        }
+        catch {
+            preconditionFailure(
+                "SELECT projection \(String(reflecting: T.self)) could not "
+                + "enumerate its columns: \(error). Use a table or @SQLResult "
+                + "projection whose columns render against the definition "
+                + "reader. A static row layout must instead reach the "
+                + "XLStaticRowReadable overload of Select(_:), which skips "
+                + "this replay; erasing the layout to any XLRowReadable "
+                + "selects this initializer."
+            )
+        }
+        self.fields = reader
+        self.row = meta.readRow
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        context.unaryPrefix("SELECT", expression: fields.makeSQL)
+    }
+    
+    public func readRow(reader: XLRowReader) throws -> Row {
+        try row(reader)
+    }
+    
+    /// Builds a scalar select without requiring the logical result type to
+    /// adopt the legacy expression and literal protocols.
+    ///
+    /// Bare contextual values can be rendered by this initializer, but their
+    /// row decoding still requires an ``XLStaticRowLayout`` carrying codec
+    /// metadata. The legacy path reports ``XLStaticRowReadError/staticLayoutRequired(valueType:alias:)``
+    /// instead of fabricating a value.
+    public init(
+        @XLScalarExpressionBuilder _ expression: @escaping () -> some XLExpression<Row>
+    ) {
+        self.fields = expression()
+        self.row = { reader in
+            try reader.staticColumn(expression(), alias: "c0")
+        }
+    }
+
+    /// Builds an unconstrained scalar select.
+    ///
+    /// Bare contextual values still require an ``XLStaticRowLayout`` to carry
+    /// the codec metadata needed during row decoding.
+    public init(_ expression: any XLExpression<Row>) {
+        self.fields = expression
+        self.row = { reader in
+            try reader.staticColumn(expression, alias: "c0")
+        }
+    }
+}
+
+
+// MARK: - Union
+
+
+///
+/// A boolean set operation, such as a union or intersection.
+///
+internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
+    
+    enum Kind {
+        case union
+        case unionAll
+        case except
+        case intersect
+    }
+    
+    private let kind: Kind
+
+    private let lhs: any XLEncodable
+
+    private let rhs: any XLEncodable
+
+    private let row: (XLRowReader) throws -> Row
+
+    ///
+    /// Combines two branches, preserving the first branch's existing row reader.
+    ///
+    /// The compound result decodes with the same reader as its left branch
+    /// rather than reconstructing metadata from `Row: XLResult`, so a direct
+    /// scalar branch (`select(expr)`) flows through `UNION` / `UNION ALL` /
+    /// `INTERSECT` / `EXCEPT` without a boxed `@SQLResult` wrapper.
+    ///
+    internal init(kind: Kind, lhs: XLQueryStatementComponents<Row>, rhs: any XLEncodable) {
+        self.kind = kind
+        self.lhs = lhs
+        self.rhs = rhs
+        self.row = lhs.readRow
+    }
+    
+    public func makeSQL(context: inout XLBuilder) {
+        let op: String
+        switch kind {
+        case .union:
+            op = "UNION"
+        case .unionAll:
+            op = "UNION ALL"
+        case .intersect:
+            op = "INTERSECT"
+        case .except:
+            op = "EXCEPT"
+        }
+        context.binaryOperator(op, left: lhs.makeSQL, right: rhs.makeSQL(context:))
+    }
+
+    public func readRow(reader: XLRowReader) throws -> Row {
+        try row(reader)
+    }
+}
+
+
+///
+/// Union clause.
+///
+/// Combines two queries, and returns the rows returned by the first query followed by the rows returned by
+/// the second query.
+///
+/// Duplicate rows are excluded.
+///
+/// > Note: Both queries must return the same row type.
+///
+public struct Union {
+    public init() {
+        
+    }
+}
+
+
+///
+/// Union all clause.
+///
+/// Combines two queries, and returns the rows returned by the first query followed by the rows returned by
+/// the second query.
+///
+/// Duplicate rows are included.
+///
+/// > Note: Both queries must return the same row type.
+///
+public struct UnionAll {
+    public init() {
+        
+    }
+}
+
+
+///
+/// Intersect clause.
+///
+/// Combines two queries, and returns only the rows which are returned by both queries.
+///
+/// > Note: Both queries must return the same row type.
+///
+public struct Intersect {
+    public init() {
+        
+    }
+}
+
+
+///
+/// Except clause.
+///
+/// Combines two queries, and returns the rows from the first query which do not exist in the second query.
+///
+/// > Note: Both queries must return the same row type.
+///
+public struct Except {
+    public init() {
+        
+    }
+}
+
+
+// MARK: - With
+
+
+///
+/// With clause.
+///
+/// Specifies common tables used in a select, update, insert, or delete statement.
+///
+public struct With {
+    
+    internal let commonTables: [XLCommonTableDependency]
+    
+    public init(_ tables: any XLMetaCommonTable...) {
+        self.commonTables = tables.map { $0.definition }
+    }
+
+    public init(_ commonTables: XLCommonTableDependency...) {
+        self.commonTables = commonTables.map { $0 }
+    }
+
+    public init(_ commonTables: [XLCommonTableDependency]) {
+        self.commonTables = commonTables.map { $0 }
+    }
+}

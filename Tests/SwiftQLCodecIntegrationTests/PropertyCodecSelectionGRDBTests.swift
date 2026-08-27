@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 import GRDB
 import XCTest
 
@@ -92,24 +93,6 @@ private struct AuditStamp: Equatable {
 }
 
 
-private struct PropertyCodecSelectionFixture {
-    let url: URL
-    let pool: DatabasePool
-
-    init() throws {
-        url = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("sqlite")
-        pool = try DatabasePool(path: url.path)
-    }
-
-    func tearDown() {
-        try? pool.close()
-        try? FileManager.default.removeItem(at: url)
-    }
-}
-
-
 final class PropertyCodecSelectionGRDBTests: XCTestCase {
 
     // MARK: - Declaration-level metadata
@@ -127,7 +110,7 @@ final class PropertyCodecSelectionGRDBTests: XCTestCase {
     // MARK: - Insert, update, projection, optional/NULL, and binding
 
     func testDeclaredSelectionAppliesAcrossInsertUpdateProjectionAndParameterBinding() throws {
-        let fixture = try PropertyCodecSelectionFixture()
+        let fixture = try TemporaryDatabaseFixture.make(named: "property-codec-selection")
         defer { fixture.tearDown() }
 
         let registry = try XLValueCodecRegistry()

@@ -213,19 +213,6 @@ private final class XLiteDialectRequirementRecorder {
 }
 
 
-private extension XLParameterSlot {
-
-    var isRendererLegacyBindingWildcard: Bool {
-        valueTypeIdentifier == XLValueTypeIdentifier(
-            rawValue: "swiftql.legacy-binding-value"
-        )
-            && valueTypeName == "SwiftQL.XLBindable"
-            && nullability == .nullable
-            && codecIdentity == nil
-    }
-}
-
-
 private extension XLBindingKey {
 
     var parameterPathComponent: String {

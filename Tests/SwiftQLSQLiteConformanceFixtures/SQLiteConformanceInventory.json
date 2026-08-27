@@ -374,7 +374,7 @@
     },
     {
       "id": "evidence.syntax.compound.render-except",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLQueryExpressionBuilderTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLQueryExpressionBuilderTests.swift",
       "test_case": "XLQueryExpressionBuilderTests.testExcept",
       "runner_path": null,
       "layers": [
@@ -386,7 +386,7 @@
     },
     {
       "id": "evidence.syntax.compound.render-intersect",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLQueryExpressionBuilderTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLQueryExpressionBuilderTests.swift",
       "test_case": "XLQueryExpressionBuilderTests.testIntersect",
       "runner_path": null,
       "layers": [
@@ -398,7 +398,7 @@
     },
     {
       "id": "evidence.syntax.compound.render-union",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLQueryExpressionBuilderTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLQueryExpressionBuilderTests.swift",
       "test_case": "XLQueryExpressionBuilderTests.testUnion",
       "runner_path": null,
       "layers": [
@@ -559,7 +559,7 @@
     },
     {
       "id": "evidence.syntax.ddl.render-create",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLCreateExpressionBuilderTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLCreateExpressionBuilderTests.swift",
       "test_case": "XLCreateExpressionBuilderTests.testCreateTable",
       "runner_path": null,
       "layers": [
@@ -653,7 +653,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-update-select",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLUpdateExpressionBuilderTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLUpdateExpressionBuilderTests.swift",
       "test_case": "XLUpdateExpressionBuilderTests.testUpdateFrom",
       "runner_path": null,
       "layers": [
@@ -730,8 +730,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-between",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testBetweenOperatorPreservesNestedBooleanAndComparisonPrecedence",
+      "source_path": "Tests/SQLTests/SQLSyntaxExpressionTests.swift",
+      "test_case": "XLSyntaxExpressionTests.testBetweenOperatorPreservesNestedBooleanAndComparisonPrecedence",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -742,8 +742,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-collation",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.test_TextConcatenation_PreservesCollatedOperandGrouping",
+      "source_path": "Tests/SQLTests/SQLSyntaxExpressionTests.swift",
+      "test_case": "XLSyntaxExpressionTests.test_TextConcatenation_PreservesCollatedOperandGrouping",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -754,8 +754,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-coalescing-operator",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.test_OptionalIntegerBinding_CoalescingOperator_Integer",
+      "source_path": "Tests/SQLTests/SQLSyntaxOperatorTests.swift",
+      "test_case": "XLSyntaxOperatorTests.test_OptionalIntegerBinding_CoalescingOperator_Integer",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -831,8 +831,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-like-escape",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereLikeWithEscape",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereLikeWithEscape",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -843,8 +843,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-like-escape-binding",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereLikeWithEscapeBindsToItsOwnLike",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereLikeWithEscapeBindsToItsOwnLike",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -855,8 +855,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-regexp",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereRegexp",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereRegexp",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -867,8 +867,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-regexp-composition",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereRegexpComposesWithOtherPredicates",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereRegexpComposesWithOtherPredicates",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -924,8 +924,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-custom-collation",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.test_CustomCollation_RendersThroughTheIdentifierPath",
+      "source_path": "Tests/SQLTests/SQLSyntaxExpressionTests.swift",
+      "test_case": "XLSyntaxExpressionTests.test_CustomCollation_RendersThroughTheIdentifierPath",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -947,8 +947,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-custom-collation-escaping",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.test_CustomCollation_EscapesQuotesInTheName",
+      "source_path": "Tests/SQLTests/SQLSyntaxExpressionTests.swift",
+      "test_case": "XLSyntaxExpressionTests.test_CustomCollation_EscapesQuotesInTheName",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1006,8 +1006,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-in-null-element",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereInArrayContainingNull",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereInArrayContainingNull",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1018,8 +1018,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-not-in-null-element",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereNotInArrayContainingNull",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereNotInArrayContainingNull",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1030,8 +1030,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-not-in",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereNotInArrayOfText",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereNotInArrayOfText",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1042,8 +1042,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-not-in-composition",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectWhereNotInComposesWithoutMovingTheNegation",
+      "source_path": "Tests/SQLTests/SQLSyntaxSelectTests.swift",
+      "test_case": "XLSyntaxSelectTests.testSelectWhereNotInComposesWithoutMovingTheNegation",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1054,8 +1054,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-operator-divide",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.test_IntegerReference_DividedBy_IntegerReference",
+      "source_path": "Tests/SQLTests/SQLSyntaxOperatorTests.swift",
+      "test_case": "XLSyntaxOperatorTests.test_IntegerReference_DividedBy_IntegerReference",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1066,8 +1066,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-operator-logical-not",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.test_Not_BooleanReference",
+      "source_path": "Tests/SQLTests/SQLSyntaxOperatorTests.swift",
+      "test_case": "XLSyntaxOperatorTests.test_Not_BooleanReference",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1078,8 +1078,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-operator-logical-or",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testOrBinaryBooleanOperator_BooleanExpression",
+      "source_path": "Tests/SQLTests/SQLSyntaxOperatorTests.swift",
+      "test_case": "XLSyntaxOperatorTests.testOrBinaryBooleanOperator_BooleanExpression",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1090,8 +1090,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-operator-remainder",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.test_IntegerReference_Remainder_IntegerReference",
+      "source_path": "Tests/SQLTests/SQLSyntaxOperatorTests.swift",
+      "test_case": "XLSyntaxOperatorTests.test_IntegerReference_Remainder_IntegerReference",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1126,8 +1126,8 @@
     },
     {
       "id": "evidence.syntax.expression.render-unary-plus",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testPlusOperator_IntegerExpression",
+      "source_path": "Tests/SQLTests/SQLSyntaxOperatorTests.swift",
+      "test_case": "XLSyntaxOperatorTests.testPlusOperator_IntegerExpression",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1811,8 +1811,8 @@
     },
     {
       "id": "evidence.syntax.subquery.render-flattened-scalar",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSelectSubqueryAggregate",
+      "source_path": "Tests/SQLTests/SQLSyntaxCompoundSelectTests.swift",
+      "test_case": "XLSyntaxCompoundSelectTests.testSelectSubqueryAggregate",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1823,8 +1823,8 @@
     },
     {
       "id": "evidence.syntax.subquery.render-nullable-left-join",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testNullableSubqueryOnLeftJoin",
+      "source_path": "Tests/SQLTests/SQLSyntaxCompoundSelectTests.swift",
+      "test_case": "XLSyntaxCompoundSelectTests.testNullableSubqueryOnLeftJoin",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1851,8 +1851,8 @@
     },
     {
       "id": "evidence.syntax.subquery.render-in",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testScalarSelectWhereIn",
+      "source_path": "Tests/SQLTests/SQLSyntaxCompoundSelectTests.swift",
+      "test_case": "XLSyntaxCompoundSelectTests.testScalarSelectWhereIn",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1863,8 +1863,8 @@
     },
     {
       "id": "evidence.syntax.subquery.render-table",
-      "source_path": "Tests/SQLTests/SQLSyntaxTests.swift",
-      "test_case": "XLSyntaxTests.testSubquery",
+      "source_path": "Tests/SQLTests/SQLSyntaxCompoundSelectTests.swift",
+      "test_case": "XLSyntaxCompoundSelectTests.testSubquery",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -2421,7 +2421,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-insert-or",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testInsertOrAllActionsRender",
       "runner_path": null,
       "layers": [
@@ -2467,7 +2467,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-replace",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testReplace",
       "runner_path": null,
       "layers": [
@@ -2496,7 +2496,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-upsert-do-nothing",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testOnConflictDoNothingWithTarget",
       "runner_path": null,
       "layers": [
@@ -2508,7 +2508,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-upsert-do-update",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testOnConflictDoUpdateWithExcluded",
       "runner_path": null,
       "layers": [
@@ -2520,7 +2520,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-upsert-do-update-where",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testOnConflictDoUpdateWithWhere",
       "runner_path": null,
       "layers": [
@@ -2583,7 +2583,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-update-common-table",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testUpdateWithCommonTable",
       "runner_path": null,
       "layers": [
@@ -2612,7 +2612,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-insert-returning",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testInsertValuesReturning",
       "runner_path": null,
       "layers": [
@@ -2624,7 +2624,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-insert-on-conflict-returning",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testInsertOnConflictReturning",
       "runner_path": null,
       "layers": [
@@ -2670,7 +2670,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-delete-returning",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testDeleteReturning",
       "runner_path": null,
       "layers": [
@@ -2699,7 +2699,7 @@
     },
     {
       "id": "evidence.syntax.dml.render-update-returning",
-      "source_path": "Tests/SQLTests/Tests/Expression Builder/SQLDataChangingStatementsTests.swift",
+      "source_path": "Tests/SQLTests/ExpressionBuilder/SQLDataChangingStatementsTests.swift",
       "test_case": "XLDataChangingStatementsTests.testUpdateReturning",
       "runner_path": null,
       "layers": [
@@ -3001,7 +3001,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3062,7 +3062,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3123,7 +3123,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3254,7 +3254,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3316,7 +3316,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3509,7 +3509,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3570,7 +3570,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3748,7 +3748,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3809,7 +3809,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3870,7 +3870,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -3931,7 +3931,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -4080,7 +4080,7 @@
       "public_api": [
         {
           "symbol": "Select",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLSelectStatements.swift",
           "source_tokens": [
             "Select"
           ]
@@ -4135,7 +4135,7 @@
       "public_api": [
         {
           "symbol": "Select",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLSelectStatements.swift",
           "source_tokens": [
             "Select"
           ]
@@ -4189,7 +4189,7 @@
       "public_api": [
         {
           "symbol": "Select",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLSelectStatements.swift",
           "source_tokens": [
             "Select"
           ]
@@ -4300,21 +4300,21 @@
       "public_api": [
         {
           "symbol": "OrderBy",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLQueryClauses.swift",
           "source_tokens": [
             "OrderBy"
           ]
         },
         {
           "symbol": "Limit",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLQueryClauses.swift",
           "source_tokens": [
             "Limit"
           ]
         },
         {
           "symbol": "Offset",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLQueryClauses.swift",
           "source_tokens": [
             "Offset"
           ]
@@ -4422,7 +4422,7 @@
       "public_api": [
         {
           "symbol": "Join.Inner",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/Join+Factories.swift",
           "source_tokens": [
             "Inner"
           ]
@@ -4476,7 +4476,7 @@
       "public_api": [
         {
           "symbol": "Join.Left",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/Join+Factories.swift",
           "source_tokens": [
             "Left"
           ]
@@ -4583,14 +4583,14 @@
       "public_api": [
         {
           "symbol": "GroupBy",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLQueryClauses.swift",
           "source_tokens": [
             "GroupBy"
           ]
         },
         {
           "symbol": "Having",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLQueryClauses.swift",
           "source_tokens": [
             "Having"
           ]
@@ -4698,7 +4698,7 @@
       "public_api": [
         {
           "symbol": "Select",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLSelectStatements.swift",
           "source_tokens": [
             "Select"
           ]
@@ -4806,7 +4806,7 @@
       "public_api": [
         {
           "symbol": "Union",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLSelectStatements.swift",
           "source_tokens": [
             "Union"
           ]
@@ -4914,21 +4914,21 @@
       "public_api": [
         {
           "symbol": "Insert",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Insert"
           ]
         },
         {
           "symbol": "Update",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Update"
           ]
         },
         {
           "symbol": "Delete",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Delete"
           ]
@@ -5061,7 +5061,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5436,7 +5436,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5497,7 +5497,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5558,7 +5558,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5620,7 +5620,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5681,7 +5681,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5742,7 +5742,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5803,7 +5803,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5864,7 +5864,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5925,7 +5925,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -5986,7 +5986,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -6047,7 +6047,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -6108,7 +6108,7 @@
         },
         {
           "symbol": "XLValueCodingConfiguration",
-          "source_path": "Sources/SwiftQLCore/ValueCodec.swift",
+          "source_path": "Sources/SwiftQLCore/ValueCodecRegistry.swift",
           "source_tokens": [
             "XLValueCodingConfiguration"
           ]
@@ -6513,21 +6513,21 @@
       "public_api": [
         {
           "symbol": "Insert",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Insert"
           ]
         },
         {
           "symbol": "Update",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Update"
           ]
         },
         {
           "symbol": "Delete",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Delete"
           ]
@@ -6588,14 +6588,14 @@
       "public_api": [
         {
           "symbol": "Insert",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Insert"
           ]
         },
         {
           "symbol": "XLInsertOrAction",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "XLInsertOrAction"
           ]
@@ -6637,7 +6637,7 @@
       "public_api": [
         {
           "symbol": "Replace",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "Replace"
           ]
@@ -6685,7 +6685,7 @@
       "public_api": [
         {
           "symbol": "OnConflict",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
           "source_tokens": [
             "OnConflict"
           ]
@@ -7679,7 +7679,7 @@
         },
         {
           "symbol": "GRDBDatabaseBuilder.addCollation(_:compare:)",
-          "source_path": "Sources/SwiftQL/GRDBSQLDatabase.swift",
+          "source_path": "Sources/SwiftQL/GRDBDatabaseBuilder.swift",
           "source_tokens": [
             "addCollation"
           ]
@@ -8085,7 +8085,7 @@
       "public_api": [
         {
           "symbol": "Join",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLFromAndJoin.swift",
           "source_tokens": [
             "Join"
           ]
@@ -8123,7 +8123,7 @@
       "public_api": [
         {
           "symbol": "Join.FullOuter",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/Join+Factories.swift",
           "source_tokens": [
             "FullOuter"
           ]
@@ -8161,7 +8161,7 @@
       "public_api": [
         {
           "symbol": "Join",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLFromAndJoin.swift",
           "source_tokens": [
             "Join"
           ]
@@ -8201,7 +8201,7 @@
       "public_api": [
         {
           "symbol": "Join.Right",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/Join+Factories.swift",
           "source_tokens": [
             "Right"
           ]
@@ -8239,7 +8239,7 @@
       "public_api": [
         {
           "symbol": "Select",
-          "source_path": "Sources/SwiftQL/SQLStatements.swift",
+          "source_path": "Sources/SwiftQL/SQLSelectStatements.swift",
           "source_tokens": [
             "Select"
           ]

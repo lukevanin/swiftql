@@ -331,7 +331,12 @@ extension XLRequest {
         try withEagerResultSet(fetchAll(bindings: bindings), operation)
     }
 
-    private func withEagerResultSet<Result>(
+    /// Presents rows already in memory as a result set.
+    ///
+    /// Internal rather than private so `GRDBRequest` can use it for the case
+    /// where it has already decoded every row -- it carried a verbatim copy
+    /// (issue #561), which `private` being file-scoped had forced.
+    func withEagerResultSet<Result>(
         _ rows: [Row],
         _ operation: (XLResultSet<Row>) throws -> Result
     ) throws -> Result {

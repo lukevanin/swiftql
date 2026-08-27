@@ -102,7 +102,7 @@ private func extensionSignatures(
         let whereClause = declaration.genericWhereClause.map { " \($0.trimmedDescription)" } ?? ""
         let source = "extension \(declaration.extendedType.trimmedDescription)\(inheritance)\(whereClause) {\n}"
         guard let signature = ExtensionDeclSyntax(DeclSyntax(stringLiteral: source)) else {
-            throw SQLMacroError.invalidGeneratedCode
+            throw SQLMacroError.invalidGeneratedCode(source)
         }
         return signature
     }

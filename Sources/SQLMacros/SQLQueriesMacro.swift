@@ -11,7 +11,6 @@
 import Foundation
 import SwiftDiagnostics
 import SwiftSyntax
-import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
 
@@ -66,8 +65,7 @@ extension SQLQueriesMacro: MemberMacro {
         // Propagate the extension's modifiers (access level) to every
         // generated member, so a `public extension` exposes the executors to
         // outside-module callers.
-        let extensionModifiers = extensionDecl.modifiers.trimmedDescription
-        let modifierPrefix = extensionModifiers.isEmpty ? "" : extensionModifiers + " "
+        let modifierPrefix = macroModifierPrefix(extensionDecl.modifiers)
 
         var builders: [SQLQueryBuilder] = []
         var diagnostics: [Diagnostic] = []
@@ -130,7 +128,7 @@ extension SQLQueriesMacro: MemberMacro {
         for builder in builders {
             members.append(builder.makeDatabaseExecutorFunction(modifierPrefix: modifierPrefix))
         }
-        return members.map { DeclSyntax(stringLiteral: $0) }
+        return try members.map(makeDecl)
     }
 
     ///
@@ -208,26 +206,12 @@ extension SQLQueryBuilder {
         let statementExpression = indentSkippingFirstLine(rewrittenBodyText, by: 8)
         var lines: [String] = []
         lines.append("\(modifierPrefix)func \(function.name.text)\(parameterClause) throws -> \(executorResultType) {")
-        lines.append("    let __xlRequest = Self.\(renderOnceCacheName).request(for: database) {")
-        lines.append("        \(statementExpression)()")
-        lines.append("    }")
-        lines.append("    let __xlLayout = __xlRequest.parameterLayout")
-        if parameters.isEmpty {
-            lines.append("    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()")
-        }
-        else {
-            lines.append("    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(")
-            lines.append("        layout: __xlLayout,")
-            lines.append("        bindings: [")
-            for parameter in parameters {
-                lines.append("            try _xlQueryParameterBinding(\(parameter.swiftName), named: \"\(parameter.placeholderName)\", in: __xlLayout),")
-            }
-            lines.append("        ]")
-            lines.append("    ).validatingComplete()")
-        }
-        for fetchLine in makeFetchLines(requestVariable: "__xlRequest", packetVariable: "__xlPacket") {
-            lines.append("    " + fetchLine)
-        }
+        lines.append(
+            contentsOf: makeExecutorBodyLines(
+                preparing: statementExpression,
+                against: "database"
+            )
+        )
         lines.append("}")
         return lines.joined(separator: "\n")
     }

@@ -1,5 +1,16 @@
 # Build-Time SQLite Query Preparation and Schema Validation
 
+> **The prototype this document describes no longer exists in the repository.**
+> `Research/SQLiteBuildValidation/` was removed in v1.5.7 ([#565]) once every
+> test it had that the shipped targets lacked was ported across. What shipped
+> from it is [`SwiftQLSQLiteBuildValidationManifest`](SQLiteBuildValidationManifest.md),
+> [`SwiftQLSQLiteBuildValidationValidator`](SQLiteBuildValidationValidator.md),
+> and the [build-tool plugin](SQLiteBuildValidationPlugin.md). This document is
+> kept as the record of the research decision, so the prototype file and type
+> names below name code that has been superseded rather than code you can read.
+
+[#565]: https://github.com/lukevanin/swiftql/issues/565
+
 ## 1. Executive decision and v1.3 boundary
 
 Issue [#132](https://github.com/lukevanin/swiftql/issues/132) is a research-only

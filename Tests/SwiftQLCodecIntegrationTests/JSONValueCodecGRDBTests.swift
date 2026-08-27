@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 import GRDB
 import XCTest
 @testable import SwiftQL
@@ -30,7 +31,7 @@ final class JSONValueCodecGRDBTests: XCTestCase {
         let dialect = XLSQLiteDialect()
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: dialect
         )
         let create = logicalStatement(
@@ -122,7 +123,7 @@ final class JSONValueCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [jsonCodecFixtureTextKey]
         )
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.databasePool, dialect: dialect)
+        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let create = logicalStatement(
             for: driver,
             sql: "CREATE TABLE optional_profiles (profile TEXT)"
@@ -176,7 +177,7 @@ final class JSONValueCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [jsonCodecFixtureTextKey]
         )
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.databasePool, dialect: dialect)
+        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let create = logicalStatement(
             for: driver,
             sql: "CREATE TABLE corrupt_profiles (profile TEXT NOT NULL)"
@@ -231,7 +232,7 @@ final class JSONValueCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [jsonCodecFixtureTextKey]
         )
         let database = try GRDBDatabase(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             codingConfiguration: codingConfiguration,
             formatter: XLiteFormatter(),
             logger: nil
@@ -255,29 +256,7 @@ final class JSONValueCodecGRDBTests: XCTestCase {
         )
     }
 
-    private func makeFixture() throws -> JSONCodecFixtureDatabase {
-        let directoryURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("swiftql-json-codec-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(
-            at: directoryURL,
-            withIntermediateDirectories: false
-        )
-        return JSONCodecFixtureDatabase(
-            directoryURL: directoryURL,
-            databasePool: try DatabasePool(
-                path: directoryURL.appendingPathComponent("database.sqlite").path
-            )
-        )
-    }
-}
-
-
-private struct JSONCodecFixtureDatabase {
-    let directoryURL: URL
-    let databasePool: DatabasePool
-
-    func tearDown() {
-        try? databasePool.close()
-        try? FileManager.default.removeItem(at: directoryURL)
+    private func makeFixture() throws -> TemporaryDatabaseFixture {
+        try TemporaryDatabaseFixture.make(named: "json-codec")
     }
 }

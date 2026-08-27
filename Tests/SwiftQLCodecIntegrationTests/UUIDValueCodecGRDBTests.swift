@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 import GRDB
 import XCTest
 @testable import SwiftQL
@@ -332,28 +333,6 @@ final class UUIDValueCodecGRDBTests: XCTestCase {
 }
 
 
-private struct UUIDCodecFixture {
-    let directoryURL: URL
-    let pool: DatabasePool
-
-    func tearDown() {
-        try? pool.close()
-        try? FileManager.default.removeItem(at: directoryURL)
-    }
-}
-
-
-private func makeFixture() throws -> UUIDCodecFixture {
-    let directoryURL = FileManager.default.temporaryDirectory
-        .appendingPathComponent("swiftql-uuid-codec-\(UUID().uuidString)")
-    try FileManager.default.createDirectory(
-        at: directoryURL,
-        withIntermediateDirectories: false
-    )
-    return UUIDCodecFixture(
-        directoryURL: directoryURL,
-        pool: try DatabasePool(
-            path: directoryURL.appendingPathComponent("database.sqlite").path
-        )
-    )
+private func makeFixture() throws -> TemporaryDatabaseFixture {
+    try TemporaryDatabaseFixture.make(named: "uuid-codec")
 }
