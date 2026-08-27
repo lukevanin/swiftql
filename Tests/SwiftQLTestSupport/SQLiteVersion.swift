@@ -55,10 +55,33 @@ public struct SQLiteVersion: Comparable, CustomStringConvertible, Sendable {
 ///
 /// The version of the SQLite this connection is talking to.
 ///
+/// Throws rather than falling back when the query returns nothing. An empty
+/// version parses as 0.0.0, which is below every gate -- so a lookup that
+/// quietly failed would skip the tests it guards instead of failing them, and
+/// the coverage would disappear silently.
+///
 public func sqliteVersion(in database: Database) throws -> SQLiteVersion {
-    SQLiteVersion(
-        try String.fetchOne(database, sql: "SELECT sqlite_version()") ?? ""
-    )
+    guard let version = try String.fetchOne(
+        database,
+        sql: "SELECT sqlite_version()"
+    ) else {
+        throw SQLiteVersionError.unavailable
+    }
+    return SQLiteVersion(version)
+}
+
+
+public enum SQLiteVersionError: Error, CustomStringConvertible {
+
+    case unavailable
+
+    public var description: String {
+        switch self {
+        case .unavailable:
+            return "SELECT sqlite_version() returned no row; the linked "
+                + "SQLite's version could not be determined."
+        }
+    }
 }
 
 

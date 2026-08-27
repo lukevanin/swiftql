@@ -81,6 +81,14 @@ public func withTemporaryDatabasePool<Result>(
 /// database file is a failure that reproduces only under load.
 ///
 public func makeTemporaryDirectory(named name: String) throws -> URL {
+    // `name` becomes part of a path. Every caller passes a literal label, and
+    // this keeps it that way: a name carrying `/` or `..` would place the
+    // directory -- and the `removeItem` that later tears it down -- somewhere
+    // other than the temporary directory.
+    precondition(
+        !name.isEmpty && name.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" },
+        "Temporary directory labels must be plain identifiers; got '\(name)'."
+    )
     let directoryURL = FileManager.default.temporaryDirectory
         .appendingPathComponent("swiftql-\(name)-\(UUID().uuidString)", isDirectory: true)
     try FileManager.default.createDirectory(
