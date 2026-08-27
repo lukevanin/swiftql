@@ -1,19 +1,41 @@
+//
+//  SQLiteBuildValidationValidatorCLIOptionsTests.swift
+//
+//  Argument parsing and output-safety preflight for the validator CLI.
+//
+//  The preflight coverage here was ported from the research prototype's
+//  `SQLiteBuildValidationCLIOptionsTests` when `Research/SQLiteBuildValidation`
+//  was retired (issue #565). The shipped validator implements the same
+//  identity-based safety check the prototype did -- resolving symlinks,
+//  comparing device/inode of existing files, and protecting SQLite's
+//  `-journal`/`-shm`/`-wal` sidecars -- but only the aliasing-by-same-path case
+//  was covered on this side. Overwriting the database being validated, or one
+//  of its sidecars, corrupts the input the build is checking against.
+//
+
 import Foundation
 import XCTest
+@testable import SwiftQLSQLiteBuildValidationValidator
 
-@testable import SwiftQLSQLiteBuildValidationPrototype
 
+final class SQLiteBuildValidationValidatorCLIOptionsTests: XCTestCase {
 
-final class SQLiteBuildValidationCLIOptionsTests: XCTestCase {
+    // MARK: - Parsing
+
+    /// Repeatable options are canonicalized -- deduplicated and sorted -- so a
+    /// report is a function of which codecs, extensions, and capabilities were
+    /// declared, not of the order they appeared on the command line. Relative
+    /// paths resolve against the working directory; absolute ones are taken as
+    /// they are.
     func testParsesRequiredPathsAndCanonicalizesRepeatableValues() throws {
         let currentDirectory = URL(
             fileURLWithPath: "/tmp/swiftql-build-validation-options",
             isDirectory: true
         )
-        let options = try SQLiteBuildValidationCLIOptions.parse(
+        let options = try SQLiteBuildValidationValidatorCLIOptions.parse(
             arguments: [
                 "--database", "fixtures/northwind.db",
-                "--plan", "input/plan.json",
+                "--manifest", "input/manifest.json",
                 "--output", "/tmp/report.json",
                 "--codec", "z-codec",
                 "--codec", "a-codec",
@@ -33,9 +55,9 @@ final class SQLiteBuildValidationCLIOptionsTests: XCTestCase {
                 .standardizedFileURL
         )
         XCTAssertEqual(
-            options.planURL,
+            options.manifestURL,
             currentDirectory
-                .appendingPathComponent("input/plan.json")
+                .appendingPathComponent("input/manifest.json")
                 .standardizedFileURL
         )
         XCTAssertEqual(
@@ -48,53 +70,43 @@ final class SQLiteBuildValidationCLIOptionsTests: XCTestCase {
         XCTAssertFalse(options.showsHelp)
     }
 
-    func testHelpDoesNotRequireOperationalArguments() throws {
-        for argument in ["--help", "-h"] {
-            let options = try SQLiteBuildValidationCLIOptions.parse(
-                arguments: [argument]
-            )
-            XCTAssertTrue(options.showsHelp)
-            XCTAssertNil(options.databaseURL)
-            XCTAssertNil(options.planURL)
-            XCTAssertNil(options.outputURL)
-        }
-        XCTAssertTrue(SQLiteBuildValidationCLIOptions.usage.contains("--database"))
-        XCTAssertTrue(SQLiteBuildValidationCLIOptions.usage.contains("--codec"))
-    }
-
     func testRejectsMissingDuplicateRequiredAndUnknownOptions() throws {
-        assertCLIError(
+        assertParseError(
             arguments: ["--database"],
             expected: .missingValue("--database")
         )
-        assertCLIError(
+        assertParseError(
             arguments: [
                 "--database", "first.db",
                 "--database", "second.db",
-                "--plan", "plan.json",
+                "--manifest", "manifest.json",
                 "--output", "report.json",
             ],
             expected: .duplicateOption("--database")
         )
-        assertCLIError(
+        assertParseError(
             arguments: [],
             expected: .requiredOption("--database")
         )
-        assertCLIError(
+        assertParseError(
             arguments: ["--unknown"],
             expected: .unknownOption("--unknown")
         )
     }
 
-    func testPreflightRejectsStandardizedDatabaseAndPlanEquality() throws {
+    // MARK: - Output-safety preflight
+
+    /// Path spelling alone does not make an output distinct from an input: two
+    /// different spellings that standardize to one path are the same file.
+    func testPreflightRejectsStandardizedDatabaseAndManifestEquality() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
 
-        let cases: [([String], SQLiteBuildValidationCLIError)] = [
+        let cases: [([String], SQLiteBuildValidationValidatorCLIError)] = [
             (
                 [
                     "--database", "inputs/../database.sqlite",
-                    "--plan", "plan.json",
+                    "--manifest", "manifest.json",
                     "--output", "./database.sqlite",
                 ],
                 .outputConflictsWithInput("--database")
@@ -102,22 +114,24 @@ final class SQLiteBuildValidationCLIOptionsTests: XCTestCase {
             (
                 [
                     "--database", "database.sqlite",
-                    "--plan", "inputs/../plan.json",
-                    "--output", "./plan.json",
+                    "--manifest", "inputs/../manifest.json",
+                    "--output", "./manifest.json",
                 ],
-                .outputConflictsWithInput("--plan")
+                .outputConflictsWithInput("--manifest")
             ),
         ]
 
         for (arguments, expected) in cases {
-            let options = try SQLiteBuildValidationCLIOptions.parse(
+            let options = try SQLiteBuildValidationValidatorCLIOptions.parse(
                 arguments: arguments,
                 currentDirectory: directory
             )
-            assertOutputPreflightError(options: options, expected: expected)
+            assertPreflightError(options: options, expected: expected)
         }
     }
 
+    /// A symlink to an input, and a path reached through a symlinked parent
+    /// directory, are both the input. Comparing spelled paths would miss both.
     func testPreflightRejectsSymlinkAliasesAndSymlinkedParents() throws {
         let fileManager = FileManager.default
         let directory = try makeTemporaryDirectory()
@@ -132,73 +146,62 @@ final class SQLiteBuildValidationCLIOptionsTests: XCTestCase {
             withIntermediateDirectories: true
         )
         let databaseURL = realDirectory.appendingPathComponent("database.sqlite")
-        let planURL = realDirectory.appendingPathComponent("plan.json")
+        let manifestURL = realDirectory.appendingPathComponent("manifest.json")
         try Data("database".utf8).write(to: databaseURL)
-        try Data("plan".utf8).write(to: planURL)
+        try Data("manifest".utf8).write(to: manifestURL)
 
         let databaseAliasURL = directory.appendingPathComponent("database-alias")
         try fileManager.createSymbolicLink(
             at: databaseAliasURL,
             withDestinationURL: databaseURL
         )
-        XCTAssertThrowsError(
-            try SQLiteBuildValidationCLIOptions.preflightOutputSafety(
-                databaseURL: databaseURL,
-                planURL: planURL,
-                outputURL: databaseAliasURL
-            )
-        ) { error in
-            XCTAssertEqual(
-                error as? SQLiteBuildValidationCLIError,
-                .outputConflictsWithInput("--database")
-            )
-        }
+        assertPreflightError(
+            databaseURL: databaseURL,
+            manifestURL: manifestURL,
+            outputURL: databaseAliasURL,
+            expected: .outputConflictsWithInput("--database")
+        )
 
         let parentAliasURL = directory.appendingPathComponent("parent-alias")
         try fileManager.createSymbolicLink(
             at: parentAliasURL,
             withDestinationURL: realDirectory
         )
-        XCTAssertThrowsError(
-            try SQLiteBuildValidationCLIOptions.preflightOutputSafety(
-                databaseURL: databaseURL,
-                planURL: planURL,
-                outputURL: parentAliasURL.appendingPathComponent("database.sqlite")
-            )
-        ) { error in
-            XCTAssertEqual(
-                error as? SQLiteBuildValidationCLIError,
-                .outputConflictsWithInput("--database")
-            )
-        }
+        assertPreflightError(
+            databaseURL: databaseURL,
+            manifestURL: manifestURL,
+            outputURL: parentAliasURL.appendingPathComponent("database.sqlite"),
+            expected: .outputConflictsWithInput("--database")
+        )
     }
 
+    /// A hard link shares no path with its input and resolves no symlinks, so
+    /// only device and inode identify it. Writing the report through one would
+    /// overwrite the database in place.
     func testPreflightRejectsExistingHardLinkIdentity() throws {
         let fileManager = FileManager.default
         let directory = try makeTemporaryDirectory()
         defer { try? fileManager.removeItem(at: directory) }
 
         let databaseURL = directory.appendingPathComponent("database.sqlite")
-        let planURL = directory.appendingPathComponent("plan.json")
+        let manifestURL = directory.appendingPathComponent("manifest.json")
         let outputURL = directory.appendingPathComponent("report.json")
         try Data("database".utf8).write(to: databaseURL)
-        try Data("plan".utf8).write(to: planURL)
+        try Data("manifest".utf8).write(to: manifestURL)
         try fileManager.linkItem(at: databaseURL, to: outputURL)
 
-        XCTAssertThrowsError(
-            try SQLiteBuildValidationCLIOptions.preflightOutputSafety(
-                databaseURL: databaseURL,
-                planURL: planURL,
-                outputURL: outputURL
-            )
-        ) { error in
-            XCTAssertEqual(
-                error as? SQLiteBuildValidationCLIError,
-                .outputConflictsWithInput("--database")
-            )
-        }
+        assertPreflightError(
+            databaseURL: databaseURL,
+            manifestURL: manifestURL,
+            outputURL: outputURL,
+            expected: .outputConflictsWithInput("--database")
+        )
     }
 
+    /// SQLite's rollback journal, shared-memory, and write-ahead log files are
+    /// derived from the database's own path. They are not the database, so the
+    /// identity checks above never see them -- they are protected by name, for
+    /// the spelled path and for the symlink-resolved one alike.
     func testPreflightRejectsDatabaseSidecarOutputPaths() throws {
         let fileManager = FileManager.default
         let directory = try makeTemporaryDirectory()
@@ -213,9 +216,9 @@ final class SQLiteBuildValidationCLIOptionsTests: XCTestCase {
             withIntermediateDirectories: true
         )
         let databaseURL = realDirectory.appendingPathComponent("database.sqlite")
-        let planURL = realDirectory.appendingPathComponent("plan.json")
+        let manifestURL = realDirectory.appendingPathComponent("manifest.json")
         try Data("database".utf8).write(to: databaseURL)
-        try Data("plan".utf8).write(to: planURL)
+        try Data("manifest".utf8).write(to: manifestURL)
 
         let parentAliasURL = directory.appendingPathComponent("parent-alias")
         try fileManager.createSymbolicLink(
@@ -241,56 +244,54 @@ final class SQLiteBuildValidationCLIOptionsTests: XCTestCase {
                 ),
             ]
             for (inputURL, outputURL) in cases {
-                XCTAssertThrowsError(
-                    try SQLiteBuildValidationCLIOptions.preflightOutputSafety(
-                        databaseURL: inputURL,
-                        planURL: planURL,
-                        outputURL: outputURL
-                    ),
-                    "Expected \(outputURL.path) to be protected for \(inputURL.path)"
-                ) { error in
-                    XCTAssertEqual(
-                        error as? SQLiteBuildValidationCLIError,
-                        .outputConflictsWithDatabaseSidecar
-                    )
-                }
+                assertPreflightError(
+                    databaseURL: inputURL,
+                    manifestURL: manifestURL,
+                    outputURL: outputURL,
+                    expected: .outputConflictsWithDatabaseSidecar,
+                    message: "Expected \(outputURL.path) to be protected for \(inputURL.path)"
+                )
             }
         }
     }
 
+    /// The counterpart to every rejection above: writing a new report into the
+    /// same directory as the inputs is the ordinary case and stays allowed.
     func testPreflightAllowsNewOutputBesideInputs() throws {
         let fileManager = FileManager.default
         let directory = try makeTemporaryDirectory()
         defer { try? fileManager.removeItem(at: directory) }
 
         let databaseURL = directory.appendingPathComponent("database.sqlite")
-        let planURL = directory.appendingPathComponent("plan.json")
+        let manifestURL = directory.appendingPathComponent("manifest.json")
         let outputURL = directory.appendingPathComponent("report.json")
         try Data("database".utf8).write(to: databaseURL)
-        try Data("plan".utf8).write(to: planURL)
+        try Data("manifest".utf8).write(to: manifestURL)
 
         XCTAssertNoThrow(
-            try SQLiteBuildValidationCLIOptions.preflightOutputSafety(
+            try SQLiteBuildValidationValidatorCLIOptions.preflightOutputSafety(
                 databaseURL: databaseURL,
-                planURL: planURL,
+                manifestURL: manifestURL,
                 outputURL: outputURL
             )
         )
     }
 
-    private func assertCLIError(
+    // MARK: - Helpers
+
+    private func assertParseError(
         arguments: [String],
-        expected: SQLiteBuildValidationCLIError,
+        expected: SQLiteBuildValidationValidatorCLIError,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
         XCTAssertThrowsError(
-            try SQLiteBuildValidationCLIOptions.parse(arguments: arguments),
+            try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: arguments),
             file: file,
             line: line
         ) { error in
             XCTAssertEqual(
-                error as? SQLiteBuildValidationCLIError,
+                error as? SQLiteBuildValidationValidatorCLIError,
                 expected,
                 file: file,
                 line: line
@@ -299,30 +300,52 @@ final class SQLiteBuildValidationCLIOptionsTests: XCTestCase {
         }
     }
 
-    private func assertOutputPreflightError(
-        options: SQLiteBuildValidationCLIOptions,
-        expected: SQLiteBuildValidationCLIError,
+    private func assertPreflightError(
+        options: SQLiteBuildValidationValidatorCLIOptions,
+        expected: SQLiteBuildValidationValidatorCLIError,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        guard let databaseURL = options.databaseURL,
-              let planURL = options.planURL,
-              let outputURL = options.outputURL else {
+        guard
+            let databaseURL = options.databaseURL,
+            let manifestURL = options.manifestURL,
+            let outputURL = options.outputURL
+        else {
             return XCTFail("Expected operational URLs", file: file, line: line)
         }
+        assertPreflightError(
+            databaseURL: databaseURL,
+            manifestURL: manifestURL,
+            outputURL: outputURL,
+            expected: expected,
+            file: file,
+            line: line
+        )
+    }
 
+    private func assertPreflightError(
+        databaseURL: URL,
+        manifestURL: URL,
+        outputURL: URL,
+        expected: SQLiteBuildValidationValidatorCLIError,
+        message: String = "",
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
         XCTAssertThrowsError(
-            try SQLiteBuildValidationCLIOptions.preflightOutputSafety(
+            try SQLiteBuildValidationValidatorCLIOptions.preflightOutputSafety(
                 databaseURL: databaseURL,
-                planURL: planURL,
+                manifestURL: manifestURL,
                 outputURL: outputURL
             ),
+            message,
             file: file,
             line: line
         ) { error in
             XCTAssertEqual(
-                error as? SQLiteBuildValidationCLIError,
+                error as? SQLiteBuildValidationValidatorCLIError,
                 expected,
+                message,
                 file: file,
                 line: line
             )

@@ -5,9 +5,22 @@ the [#132 research](SQLiteBuildValidation.md) and produced by
 [#293](https://github.com/lukevanin/swiftql/issues/293), consuming the
 [#292 manifest](SQLiteBuildValidationManifest.md) and an explicit checked-in
 SQLite snapshot. It is a promotion of the already-validated `#132` research
-prototype (`Research/SQLiteBuildValidation/`) into a real product, adapted to
-consume `SwiftQLSQLiteBuildValidationManifest` types instead of the
-prototype's own local model.
+prototype into a real product, adapted to consume
+`SwiftQLSQLiteBuildValidationManifest` types instead of the prototype's own
+local model.
+
+The prototype itself was removed in v1.5.7 (#565). It was a file-for-file fork
+of these targets that only ever drifted one way -- fixes landed here and were
+never backported -- and both modules exported the same type names, so a target
+importing both would not compile. The coverage it had and this validator did
+not was ported first: the CLI output-safety preflight cases
+(`SQLiteBuildValidationValidatorCLIOptionsTests`), the probe-level tests
+(`SQLitePrepareV3ProbeTests`), the placeholder-scanner tests
+(`SQLiteBuildValidationValidatorPlaceholderScannerTests`), and the binding-shape
+and runtime-evidence cross-check cases in
+`SQLiteBuildValidatorIntegrationTests`. The [#132 research
+write-up](SQLiteBuildValidation.md) still describes the prototype's design; it
+is the record of what was evaluated, not a pointer to live code.
 
 ## Package surface
 

@@ -1,12 +1,26 @@
+//
+//  SQLitePrepareV3ProbeTests.swift
+//
+//  Direct coverage of the `sqlite3_prepare_v3` probe the validator prepares
+//  every manifest query through: what it refuses to prepare, and the binding
+//  and result metadata it reads back.
+//
+//  Ported from the research prototype when `Research/SQLiteBuildValidation`
+//  was retired (issue #565). The shipped validator had no probe-level tests of
+//  its own -- everything reached it through `SQLiteBuildValidator`, where a
+//  probe change shows up as a differently-shaped report rather than as the
+//  behaviour that produced it.
+//
+
 import CSQLite
 import GRDB
 import XCTest
 
-@testable import SwiftQLSQLiteBuildValidationPrototype
+@testable import SwiftQLSQLiteBuildValidationValidator
 
 
 final class SQLitePrepareV3ProbeTests: XCTestCase {
-    typealias Support = SQLiteBuildValidationTestSupport
+    typealias Support = SQLiteBuildValidationValidatorTestSupport
 
     func testEmptyCommentSingleTrailingCommentAndMultipleStatementTails() throws {
         try Support.withReadOnlyNorthwindDatabase { database in

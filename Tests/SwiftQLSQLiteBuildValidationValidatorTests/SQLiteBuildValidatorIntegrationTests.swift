@@ -3,6 +3,7 @@ import GRDB
 import SwiftQLCore
 import SwiftQLNorthwindFixtures
 import SwiftQLSQLiteBuildValidationManifest
+import SwiftQLSQLiteCombinatorialSupport
 import XCTest
 @testable import SwiftQLSQLiteBuildValidationValidator
 
@@ -440,5 +441,195 @@ final class SQLiteBuildValidatorIntegrationTests: XCTestCase {
                 )
             }
         }
+    }
+
+    // MARK: - Binding-shape reconciliation
+    //
+    // Ported from the research prototype when `Research/SQLiteBuildValidation`
+    // was retired (issue #565). The shipped validator implements the same
+    // reconciliation between SwiftQL's logical parameter layout and SQLite's
+    // physical parameter table, but nothing on this side covered the three
+    // outcomes that reconciliation can produce.
+
+    /// SQLite's physical parameter table is not a dense list of the
+    /// placeholders written in the SQL, and the two ways it can diverge inside
+    /// a well-formed manifest get different verdicts.
+    ///
+    /// `?3` alone reserves physical slots 1 and 2 as unused gaps, which is a
+    /// legitimate shape the manifest describes exactly -- it passes. A named
+    /// placeholder and an indexed one that land on the same physical slot are a
+    /// collision: the manifest names one key for a slot two spellings write to,
+    /// which fails.
+    func testIndexedGapPassesAndParameterKeyCollisionFails() throws {
+        let indexedGap = Support.query(
+            id: "binding.indexed-gap",
+            sql: "SELECT ?3 AS value",
+            parameters: [Support.parameter(
+                physicalIndex: 3,
+                keyKind: .indexed,
+                keyName: nil,
+                keyIndex: 2
+            )]
+        )
+        let collision = Support.query(
+            id: "binding.collision",
+            sql: "SELECT :first AS first, ?1 AS duplicate",
+            parameters: [Support.parameter(
+                identity: "parameter/first",
+                keyName: "first"
+            )],
+            results: [
+                Support.result(identity: "result/first", declaredAlias: "first"),
+                Support.result(
+                    index: 1,
+                    identity: "result/duplicate",
+                    declaredAlias: "duplicate"
+                ),
+            ]
+        )
+
+        try Support.withValidatorOwnedNorthwindURL { url in
+            let report = try SQLiteBuildValidator.validate(
+                manifest: Support.manifest(queries: [collision, indexedGap]),
+                againstDatabaseAt: url
+            )
+            XCTAssertEqual(report.overallVerdict, .failed)
+            XCTAssertEqual(
+                try outcome("binding.indexed-gap", in: report).verdict,
+                .passed
+            )
+            XCTAssertTrue(
+                try outcome("binding.collision", in: report).diagnostics.contains {
+                    $0.code == "parameter.key" && $0.verdict == .failed
+                }
+            )
+        }
+    }
+
+    /// The prototype reached a third verdict here that the shipped manifest
+    /// makes unreachable, and this pins that difference rather than losing it.
+    ///
+    /// A bare `?` is ambiguous in SQLite's statement metadata -- indistinguishable
+    /// from an unused `?NNN` gap -- so the prototype's validator reported the
+    /// query `.unsupported` and moved on. `SQLiteBuildValidationManifest`
+    /// rejects such a query outright when the manifest is built, well before
+    /// any database is opened: its own placeholder scan finds no supported
+    /// placeholder to match the declared parameter against. The stricter gate
+    /// is the one that ships, so there is no `parameter.syntax` outcome to
+    /// assert on.
+    func testAnonymousPlaceholderIsRejectedWhenTheManifestIsBuilt() throws {
+        let manifest = Support.manifest(queries: [
+            Support.query(
+                id: "binding.anonymous",
+                sql: "SELECT ? AS value",
+                parameters: [Support.parameter(
+                    keyKind: .indexed,
+                    keyName: nil,
+                    keyIndex: 0
+                )]
+            ),
+        ])
+
+        XCTAssertThrowsError(try manifest.validating()) { error in
+            guard
+                case .invalidQuery(let queryID, let reason) =
+                    error as? SQLiteBuildValidationManifestError
+            else {
+                return XCTFail("Expected an invalid-query rejection, received \(error)")
+            }
+            XCTAssertEqual(queryID, "binding.anonymous")
+            XCTAssertTrue(
+                reason.contains("do not match the placeholders found in SQL"),
+                reason
+            )
+        }
+    }
+
+    // MARK: - Runtime evidence agrees with the conformance collector
+
+    /// The validator captures its own runtime evidence rather than reusing the
+    /// conformance suite's issue #191 collector, because it runs in a build
+    /// plugin that cannot depend on a test target. Two independent readers of
+    /// the same SQLite connection have to agree, or a query the conformance
+    /// evidence says is supported can be reported unsupported by a build --
+    /// with nothing to show which reader was wrong.
+    ///
+    /// Ported from the research prototype (issue #565), which is where this
+    /// cross-check was written and where it stayed.
+    func testRuntimeMetadataMatchesConformanceCollectorOnSameConnection() throws {
+        try Support.withReadOnlyNorthwindDatabase { database in
+            let extensionNames = ["tests.extension.z", "tests.extension.a"]
+            let validator = try SQLiteBuildValidationRuntime.capture(
+                from: database,
+                extensionNames: extensionNames
+            )
+            let conformance = try SQLiteRuntimeMetadata.capture(
+                from: database,
+                extensionNames: extensionNames
+            )
+
+            XCTAssertEqual(validator.sqliteVersion, conformance.sqliteVersion)
+            XCTAssertEqual(validator.sqliteSourceID, conformance.sqliteSourceID)
+            XCTAssertEqual(validator.compileOptions, conformance.compileOptions)
+            XCTAssertEqual(validator.collations, conformance.collations)
+            XCTAssertEqual(validator.moduleNames, conformance.moduleNames)
+            XCTAssertEqual(validator.extensionNames, conformance.extensionNames)
+            XCTAssertEqual(validator.schemaRowCount, conformance.schemaRowCount)
+            XCTAssertEqual(validator.schemaFNV1A64, conformance.schemaFNV1A64)
+            XCTAssertEqual(validator.schemaRowCount, Support.northwindSchemaRowCount)
+            XCTAssertEqual(
+                validator.schemaFNV1A64,
+                Support.northwindSchemaFingerprint
+            )
+            XCTAssertEqual(
+                validator.functions.map(validatorFunctionSignature),
+                conformance.functions.map(conformanceFunctionSignature)
+            )
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func outcome(
+        _ queryID: String,
+        in report: SQLiteBuildValidationReport,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws -> SQLiteBuildValidationQueryOutcome {
+        try XCTUnwrap(
+            report.outcomes.first { $0.queryID == queryID },
+            "Missing outcome for \(queryID)",
+            file: file,
+            line: line
+        )
+    }
+
+    /// The two collectors describe a function with distinct types, so they are
+    /// compared field by field through one flattened spelling. Comparing every
+    /// field matters: an omission would let the two disagree unnoticed.
+    private func validatorFunctionSignature(
+        _ function: SQLiteBuildValidationRuntimeFunction
+    ) -> String {
+        [
+            function.name,
+            function.isBuiltIn ? "1" : "0",
+            function.kind,
+            function.encoding,
+            String(function.argumentCount),
+            String(function.flags),
+        ].joined(separator: "|")
+    }
+
+    private func conformanceFunctionSignature(
+        _ function: SQLiteRuntimeFunction
+    ) -> String {
+        [
+            function.name,
+            function.isBuiltIn ? "1" : "0",
+            function.kind,
+            function.encoding,
+            String(function.argumentCount),
+            String(function.flags),
+        ].joined(separator: "|")
     }
 }
