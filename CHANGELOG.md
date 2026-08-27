@@ -8,10 +8,16 @@
   repository (issue #555): `XLDatabaseMetadata` and its only conformer
   `XLDatabaseMetadataObject`, `XLTableName`, and `XLUnionDependency`. Each was
   declared and never used -- no call site, no conformance, no mention outside
-  its own declaration. `hasFunction(named:argumentCount:)` on
-  `SQLiteBuildValidationRuntimeMetadata` loses its `argumentCount` parameter for
-  the same reason; no caller ever passed one, and arity was the wrong question
-  to ask anyway, since SQLite reports `-1` for a variadic function.
+  its own declaration.
+
+- Six unreferenced members of `SQLiteBuildValidationRuntimeMetadata` (issue
+  #555). Five computed capability sets --  `compileOptionCapabilities`,
+  `functionCapabilities`, `collationCapabilities`, `moduleCapabilities`, and
+  `extensionCapabilities` -- which nothing read; the `has…(named:)` predicates
+  beside them are how capabilities are actually resolved. And
+  `hasFunction(named:argumentCount:)` loses its `argumentCount` parameter: no
+  caller ever passed one, and arity was the wrong question to ask anyway, since
+  SQLite reports `-1` for a variadic function.
 
 ### Fixed
 
