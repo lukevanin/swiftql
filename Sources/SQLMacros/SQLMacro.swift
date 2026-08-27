@@ -37,7 +37,7 @@ public enum SQLMacroError: Error, CustomStringConvertible, LocalizedError {
 ///
 /// Parses generated source code as an extension declaration.
 ///
-/// - throws: `SQLMacroError.invalidGeneratedCode` if the source does not parse to an extension
+/// - throws: `SQLMacroError.invalidGeneratedCode(_:)` if the source does not parse to an extension
 /// declaration, instead of crashing the compiler plugin.
 ///
 private func makeExtensionDecl(_ source: String) throws -> ExtensionDeclSyntax {

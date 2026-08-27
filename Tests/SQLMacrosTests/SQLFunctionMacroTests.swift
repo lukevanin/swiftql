@@ -48,7 +48,7 @@ final class SQLFunctionMacroTests: XCTestCase {
     /// A raw string literal carries no escapes, so a `name:` written as one can
     /// hold a quote or a backslash that has to be put back when the name is
     /// emitted into generated source. Before issue #563 the name went between
-    /// quotes unchanged, so this expanded to `name: "quote\"inside"` and the
+    /// quotes unchanged, so this expanded to `name: "quote"inside"` and the
     /// annotated declaration failed to compile with errors pointing at code the
     /// author never wrote.
     func test_rawStringName_isEscapedInTheGeneratedDefinition() {
