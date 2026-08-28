@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.6.0] - Unreleased
+
+### Added
+
+- `XLJSONPath`, a typed SQLite JSON path built from segments rather than
+  written as a string literal (issue #588). `XLJSONPath.root` is the document
+  root, `key(_:)` adds an object member, `index(_:)` adds an array element
+  counted from the start, and `last` and `index(fromEnd:)` count back from the
+  end. Every key is rendered in SQLite's quoted form with JSON string escapes,
+  so a key that holds a `.`, a `[`, a `]`, or a `"` names that key instead of
+  changing the shape of the path. A path renders through the same text
+  formatter as any other text operand, so it cannot carry raw SQL. SQLite has
+  no negative array index, so `index(_:)` stops with a diagnostic message when
+  it is given one, and names `last` and `index(fromEnd:)` as the remedy.
+
+- `jsonArrayLength(path:)` gains an `XLJSONPath` overload (issue #588). The
+  existing `String` overload is unchanged.
+
 ## [1.5.7] - 2026-08-27
 
 ### Removed
