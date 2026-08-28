@@ -916,6 +916,86 @@
           "storage" : "text",
           "tagged_value" : {
             "tag" : "text",
+            "value" : "x"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-group-array"
+        }
+      ],
+      "id" : "c191.v1.expression.json-group-array",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-group-array",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_group_array(:text_value)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-group-array swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function-signature:JSON_GROUP_ARRAY/1"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-group-array"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "x"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-group-object"
+        }
+      ],
+      "id" : "c191.v1.expression.json-group-object",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-group-object",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_group_object(:text_value, 1)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-group-object swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function-signature:JSON_GROUP_OBJECT/2"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-group-object"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
             "value" : "{\"a\":1}"
           }
         }
@@ -12481,12 +12561,12 @@
       "strength" : 2
     },
     {
-      "covered_tuple_count" : 56,
+      "covered_tuple_count" : 58,
       "dimension_ids" : [
         "expression-case"
       ],
       "excluded_tuple_count" : 0,
-      "required_tuple_count" : 56,
+      "required_tuple_count" : 58,
       "strength" : 1
     },
     {
@@ -12807,6 +12887,14 @@
         {
           "id" : "json-array-length",
           "label" : "json-array-length"
+        },
+        {
+          "id" : "json-group-array",
+          "label" : "json-group-array"
+        },
+        {
+          "id" : "json-group-object",
+          "label" : "json-group-object"
         },
         {
           "id" : "json-extract-one-path",

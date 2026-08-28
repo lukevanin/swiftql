@@ -387,8 +387,8 @@ changing product, platform, dependency, or concurrency claims.
 - Of the 180 evidence records, 110 exercise real SQLite against one captured
   environment, SQLite 3.51.0. Evidence is reusable, so evidence and feature
   counts do not map one to one; never turn this into an exhaustive-SQL claim.
-- The generated corpus holds 224 positives plus one broken-renderer control:
-  139 from #191, 27 from #286, 35 from #287, 5 from #288, and 18 JSON
+- The generated corpus holds 226 positives plus one broken-renderer control:
+  139 from #191, 27 from #286, 35 from #287, 5 from #288, and 20 JSON
   expression cases. #254 adds 18 Northwind and #255 adds 12
   observation-stress cases; no new syntax. This
   census is separate from v1.5.2's build validator, which checks one target's
