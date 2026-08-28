@@ -8,12 +8,19 @@
   written as a string literal (issue #588). `XLJSONPath.root` is the document
   root, `key(_:)` adds an object member, `index(_:)` adds an array element
   counted from the start, and `last` and `index(fromEnd:)` count back from the
-  end. Every key is rendered in SQLite's quoted form with JSON string escapes,
-  so a key that holds a `.`, a `[`, a `]`, or a `"` names that key instead of
-  changing the shape of the path. A path renders through the same text
+  end. A key is quoted only where SQLite's path grammar needs it -- when the
+  key is empty, or holds a `.` or a `[` -- so a key that holds either names
+  that key instead of changing the shape of the path. A key holding a `"`, a
+  `\`, or a control character resolves only on a SQLite that unescapes JSON
+  labels: JSON stores such a key escaped, older engines match a path label
+  against that raw escaped text, and newer engines unescape both sides first,
+  so no single spelling suits both. SwiftQL renders for the newer behaviour,
+  which is what SQLite documents. A path renders through the same text
   formatter as any other text operand, so it cannot carry raw SQL. SQLite has
   no negative array index, so `index(_:)` stops with a diagnostic message when
   it is given one, and names `last` and `index(fromEnd:)` as the remedy.
+  `appended` names the position one past the last element, rendered `[#]`,
+  which is SQLite's idiom for appending to an array.
 
 - `jsonArrayLength(path:)` gains an `XLJSONPath` overload (issue #588). The
   existing `String` overload is unchanged.
