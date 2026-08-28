@@ -89,8 +89,8 @@
 | c191.v1.expression.indexed-binding | expression.indexed-binding | targeted | semantic | expression-case=indexed-binding | binding.indexed |  | 1 |
 | c191.v1.expression.json-array-constructor | expression.json-array-constructor | targeted | semantic | expression-case=json-array-constructor | syntax.expression.json-functions |  | 1 |
 | c191.v1.expression.json-array-length | expression.json-array-length | targeted | semantic | expression-case=json-array-length | syntax.expression.json-functions |  | 1 |
-| c191.v1.expression.json-arrow-element | expression.json-arrow-element | targeted | semantic | expression-case=json-arrow-element | syntax.expression.json-functions |  | 1 |
-| c191.v1.expression.json-arrow-value | expression.json-arrow-value | targeted | semantic | expression-case=json-arrow-value | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-arrow-element | expression.json-arrow-element | targeted | semantic | expression-case=json-arrow-element | syntax.expression.json-operators |  | 1 |
+| c191.v1.expression.json-arrow-value | expression.json-arrow-value | targeted | semantic | expression-case=json-arrow-value | syntax.expression.json-operators |  | 1 |
 | c191.v1.expression.json-error-position | expression.json-error-position | targeted | semantic | expression-case=json-error-position | syntax.expression.json-functions |  | 1 |
 | c191.v1.expression.json-extract-one-path | expression.json-extract-one-path | targeted | semantic | expression-case=json-extract-one-path | syntax.expression.json-functions |  | 1 |
 | c191.v1.expression.json-extract-two-paths | expression.json-extract-two-paths | targeted | semantic | expression-case=json-extract-two-paths | syntax.expression.json-functions |  | 1 |

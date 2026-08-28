@@ -626,20 +626,17 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
         XCTAssertTrue(signatures.contains("JSON_VALID/1"))
         XCTAssertTrue(signatures.contains("JSON_ARRAY_LENGTH/1"))
         XCTAssertTrue(signatures.contains("JSON_ARRAY_LENGTH/2"))
-        // Three original function cases, the two `->` and `->>` operator
-        // cases from issue #589, seven of the nine constructor and inspection
-        // cases from issue #590, the seven extraction and mutation cases from
-        // issue #591, and the two aggregate cases from issue #592. The two
-        // left out of #590 are json_pretty and the two-argument json_valid,
-        // which need a newer SQLite than the oldest runtime in the supported
-        // matrix, so they are covered by runtime-gated execution tests and
-        // have no combinatorial case.
+        // Three original function cases, seven of the nine constructor and
+        // inspection cases from issue #590, the seven extraction and mutation
+        // cases from issue #591, and the two aggregate cases from issue #592.
+        // The two left out of #590 are json_pretty and the two-argument
+        // json_valid, which need a newer SQLite than the oldest runtime in the
+        // supported matrix, so they are covered by runtime-gated execution
+        // tests and have no combinatorial case.
         //
-        // This count is by inventory feature, not by case id, so it is one
-        // higher than the 20 cases whose ids begin `c191.v1.expression.json-`:
-        // `json-array-length-path` carries the same feature but is a #286
-        // case.
-        XCTAssertEqual(jsonCases.count, 21)
+        // The two `->` and `->>` cases are counted under their own inventory
+        // feature, `syntax.expression.json-operators`, so they are not here.
+        XCTAssertEqual(jsonCases.count, 19)
         // The operators are not functions, so the pinned runtime attests them
         // by version rather than by signature.
         XCTAssertTrue(

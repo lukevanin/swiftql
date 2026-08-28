@@ -106,6 +106,10 @@ private let documentationTests = [
         XLDocumentationTests.testDocumentationConditionalAndScalarFunctions
     ),
     DocumentationTestReference(
+        "XLDocumentationTests.testDocumentationJSON",
+        XLDocumentationTests.testDocumentationJSON
+    ),
+    DocumentationTestReference(
         "XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs",
         XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs
     ),
@@ -141,6 +145,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         "FunctionalSyntax.md": "XLDocumentationTests.testDocumentationFunctionalQueriesAndMutations",
         "GenericTableParameters.md": "XLDocumentationTests.testDocumentationGenericTableParameters",
         "GettingStarted.md": "XLDocumentationTests.testDocumentationGettingStartedCRUDAndBindings",
+        "JSON.md": "XLDocumentationTests.testDocumentationJSON",
         "LiveQueries.md": "XLDocumentationTests.testDocumentationLiveQueryPublishers",
         "NumericDateCodecs.md": "XLDocumentationTests.testDocumentationNumericDateCodecs",
         "Queries.md": "XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs",

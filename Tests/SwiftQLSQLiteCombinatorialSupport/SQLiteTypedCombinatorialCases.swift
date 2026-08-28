@@ -1797,7 +1797,7 @@ public enum SQLiteTypedCombinatorialCases {
             ),
             expressionCase(
                 id: "json-arrow-element",
-                featureID: "syntax.expression.json-functions",
+                featureID: "syntax.expression.json-operators",
                 statement: select(
                     namedText.jsonElement(at: XLJSONPath.root.key("name"))
                 ),
@@ -1811,7 +1811,7 @@ public enum SQLiteTypedCombinatorialCases {
             ),
             expressionCase(
                 id: "json-arrow-value",
-                featureID: "syntax.expression.json-functions",
+                featureID: "syntax.expression.json-operators",
                 statement: select(
                     namedText.jsonValue(
                         at: XLJSONPath.root.key("name"),
