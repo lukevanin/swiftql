@@ -109,9 +109,13 @@ final class SQLiteCombinatorialClauseCoverageTests: XCTestCase {
         // Issue #286 adds 27 finite expression cases, issue #288 adds five
         // finite query-backed IN cases, and issue #287 adds 35 packed
         // operator-family cases to issue #191's original 141-case manifest.
-        // Issue #589 then adds the two JSON operator cases. None of them
+        // Issues #589 and #590 then add the two JSON operator cases and
+        // seven of the nine JSON constructor and inspection cases. The other
+        // two, json_pretty and the two-argument json_valid, need a newer
+        // SQLite than the oldest runtime in the supported matrix, so they are
+        // covered by runtime-gated execution tests instead. None of this
         // changes the SELECT pairwise plan.
-        XCTAssertEqual(manifest.cases.count, 210)
+        XCTAssertEqual(manifest.cases.count, 217)
         let requiredStrengthCounts = Dictionary(
             grouping: try SQLiteCombinatorialSuite.makeDrafts(from: plan)
                 .filter { $0.strength.hasPrefix("required-") },
