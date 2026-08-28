@@ -25,6 +25,18 @@
 - `jsonArrayLength(path:)` gains an `XLJSONPath` overload (issue #588). The
   existing `String` overload is unchanged.
 
+- SQLite's two JSON selection operators, added in SQLite 3.38.0 (issue #589).
+  `jsonElement(at:)` renders `->` and returns the selected element as JSON
+  text, so a selected string keeps its quotes and a JSON `null` reads back as
+  the four characters `null`. `jsonValue(at:as:)` renders `->>` and returns
+  the element as a SQL value of the requested type, so a selected string loses
+  its quotes and a JSON `null` reads back as SQL `NULL`. Both results are
+  optional, because a path that matches nothing yields SQL `NULL`. Both are
+  methods rather than Swift operators: the compiler reserves `->` and refuses
+  to declare it. SQLite's bare-name form on the right of the operator is not
+  exposed, because `XLJSONPath.key(_:)` already names any single key and also
+  composes.
+
 ## [1.5.7] - 2026-08-27
 
 ### Removed

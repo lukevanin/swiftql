@@ -1621,6 +1621,37 @@ public enum SQLiteTypedCombinatorialCases {
                 requiredCapabilities: ["sqlite-json-functions"]
             ),
             expressionCase(
+                id: "json-arrow-element",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonElement(at: XLJSONPath.root.key("name"))
+                ),
+                bindings: [
+                    .init(
+                        key: .named("text_value"),
+                        value: .text("{\"name\":\"Alice\"}")
+                    ),
+                ],
+                requiredCapabilities: ["sqlite-json-operators"]
+            ),
+            expressionCase(
+                id: "json-arrow-value",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonValue(
+                        at: XLJSONPath.root.key("name"),
+                        as: String.self
+                    )
+                ),
+                bindings: [
+                    .init(
+                        key: .named("text_value"),
+                        value: .text("{\"name\":\"Alice\"}")
+                    ),
+                ],
+                requiredCapabilities: ["sqlite-json-operators"]
+            ),
+            expressionCase(
                 id: "operator-arithmetic-precedence",
                 featureID: "syntax.expression.operator-prepare-gap",
                 statement: select((namedInteger + 7) * 2),
