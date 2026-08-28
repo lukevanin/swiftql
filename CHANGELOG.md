@@ -117,6 +117,16 @@
   draw a row. `Examples/TodoApp/README.md` and the `TodoDemo` page explain
   why a JSON column is the honest choice for that one field.
 
+- `sql { ... }` works as a subquery on Swift 6.1 and later, inferring a table
+  row, a nullable table row, or a scalar value from the context expecting its
+  result (issue #69). The six overloads are behind `#if compiler(>=6.1)`,
+  because they crash the Swift 5.9 and 6.0 compilers when compiled with the
+  rest of the package -- the reason this work was reverted once already, in
+  pull request #408. On those toolchains nothing changes:
+  `subqueryExpression { ... }` remains the spelling, and it is what the gated
+  overloads forward to. Recorded in COMPATIBILITY.md beside `#row`'s
+  multi-column shapes, which are gated for the same class of compiler bug.
+
 ### Deprecated
 
 - `validJSON()`, in favour of `validJSONOrNull()` and

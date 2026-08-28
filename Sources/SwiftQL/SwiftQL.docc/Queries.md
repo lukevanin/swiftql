@@ -459,6 +459,19 @@ let query = sql { schema in
 }
 ```
 
+On Swift 6.1 and later, `sql` works in both positions above: it infers
+whether it is building a top-level statement, a table subquery, or a scalar
+subquery from the context expecting its result, so `sql { ... }` and
+`subqueryExpression { ... }` are interchangeable here. Use whichever reads
+better -- `subqueryExpression` makes the intent explicit, while reusing `sql`
+everywhere means one name to remember.
+
+> Important: the subquery spellings of `sql` need Swift 6.1. The overloads
+> that provide them crash the Swift 5.9 and 6.0 compilers, so they are not
+> compiled there, and `subqueryExpression { ... }` is the spelling that works
+> on every supported toolchain. See COMPATIBILITY.md, "Swift 5.9 and Swift 6.0
+> API surface gaps".
+
 See the <doc:Expressions/In-operator> documentation for an example of using a
 subquery with the `in` operator.
 

@@ -231,6 +231,21 @@ including 5.9 and 6.0. This is the package's first source-level API
 divergence across compiler cells; see `Sources/SwiftQL/SQLRowMacro.swift` and
 `Sources/SwiftQL/SQLRowResult.swift` for the gated declarations.
 
+Using `sql { ... }` as a subquery (issue #69) requires `#if compiler(>=6.1)`
+for the same reason, and is unavailable on the Swift 5.9 support point or the
+pinned Swift 6.0 cell. The six `@_disfavoredOverload` overloads that give
+`sql` its subquery shapes crash `swift-frontend` on both, compiled together
+with the rest of the package -- reproduced in Docker and bisected to those
+declarations, since removing them alone removes the crash. `sql` is called at
+nearly every call site in the package, so disfavouring six more overloads
+under that name is enough overload-resolution load to trip a compiler bug of
+that generation. The work shipped once as pull request #416 and was reverted
+in #408 for this. Swift 6.1 (Xcode 16.4) fixes it. On 5.9 and 6.0 the
+overloads are not compiled, so nothing crashes and every subquery is spelled
+`subqueryExpression { ... }`, which is what every SwiftQL version so far has
+required and what the gated overloads forward to unchanged. See
+`Sources/SwiftQL/Expression Builder/SQLQueryExpressionBuilder.swift`.
+
 The `Sendable` conformance `@SQLTable` and `@SQLResult` declare for a `public`
 or `package` model (issue #531) requires Swift 6.0 or later. Swift 5.9 treats a
 macro-expanded extension as a separate source file for the rule that a
