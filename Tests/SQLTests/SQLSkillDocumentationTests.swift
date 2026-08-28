@@ -157,10 +157,22 @@ final class SQLSkillDocumentationTests: XCTestCase {
         let issue288CaseCount = combinatorialManifest.cases.filter {
             $0.id.hasPrefix("c288.v1.subquery.")
         }.count
+        // The `c191` JSON expression cases are counted on their own. They
+        // were two when #191 was written, and the v1.6 milestone adds one per
+        // JSON function and operator, so folding them into #191's remainder
+        // would make that number drift away from what #191 delivered.
+        //
+        // This is by case-id prefix, so it covers only the `c191` family.
+        // `c286.v1.expression.json-array-length-path` is a JSON case too, but
+        // it belongs to #286's overload matrix and stays counted there.
+        let jsonCaseCount = combinatorialManifest.cases.filter {
+            $0.id.hasPrefix("c191.v1.expression.json-")
+        }.count
         let issue191CaseCount = combinatorialManifest.cases.count
             - issue286CaseCount
             - issue287CaseCount
             - issue288CaseCount
+            - jsonCaseCount
         XCTAssertTrue(
             combinatorialSuite.evidenceIDs.contains(
                 "evidence.combinatorial.broken-renderer.sqlite"
@@ -180,8 +192,9 @@ final class SQLSkillDocumentationTests: XCTestCase {
             "The generated corpus holds \(combinatorialManifest.cases.count) "
                 + "positives plus one broken-renderer control: "
                 + "\(issue191CaseCount) from #191, \(issue286CaseCount) from #286, "
-                + "\(issue287CaseCount) from #287, and \(issue288CaseCount) from "
-                + "#288. #254 adds \(northwindSuite.caseIDs.count) Northwind and "
+                + "\(issue287CaseCount) from #287, \(issue288CaseCount) from "
+                + "#288, and \(jsonCaseCount) JSON expression cases. "
+                + "#254 adds \(northwindSuite.caseIDs.count) Northwind and "
                 + "#255 adds \(observationSuite.caseIDs.count) "
                 + "observation-stress cases",
         ] {

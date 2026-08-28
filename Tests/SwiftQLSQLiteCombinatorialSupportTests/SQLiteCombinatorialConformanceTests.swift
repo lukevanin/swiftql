@@ -4,6 +4,7 @@ import SwiftQL
 import SwiftQLNorthwindFixtures
 import SwiftQLSQLiteCombinatorialSupport
 import SwiftQLSQLiteConformanceFixtures
+import SwiftQLTestSupport
 import XCTest
 
 
@@ -631,7 +632,7 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
         // The operators are not functions, so the pinned runtime attests them
         // by version rather than by signature.
         XCTAssertTrue(
-            sqliteVersionIsAtLeast(runtime.sqliteVersion, [3, 38, 0]),
+            SQLiteVersion(runtime.sqliteVersion) >= SQLiteVersion("3.38.0"),
             "the pinned runtime reports SQLite \(runtime.sqliteVersion), "
                 + "which predates the -> and ->> operators"
         )
@@ -1106,20 +1107,6 @@ private extension SQLiteCombinatorialConformanceTests {
         )
     }
 
-    /// Compares a reported SQLite version against a minimum, component by
-    /// component. A component that is missing or not a number counts as zero,
-    /// so a malformed version reads as older rather than newer.
-    func sqliteVersionIsAtLeast(_ version: String, _ minimum: [Int]) -> Bool {
-        let components = version.split(separator: ".").map { Int($0) ?? 0 }
-        for (index, required) in minimum.enumerated() {
-            let actual = index < components.count ? components[index] : 0
-            if actual != required {
-                return actual > required
-            }
-        }
-        return true
-    }
-
     func assertRequiredCapabilities(
         for cases: [SQLiteCombinatorialCase],
         runtime: SQLiteRuntimeMetadata
@@ -1158,7 +1145,8 @@ private extension SQLiteCombinatorialConformanceTests {
                     // runtime function list. The reported version is the only
                     // runtime evidence there is.
                     guard
-                        sqliteVersionIsAtLeast(runtime.sqliteVersion, [3, 38, 0])
+                        SQLiteVersion(runtime.sqliteVersion)
+                            >= SQLiteVersion("3.38.0")
                     else {
                         throw SQLiteCombinatorialConformanceError.missingCapability(
                             caseID: testCase.id,
@@ -1464,9 +1452,9 @@ private extension SQLiteCombinatorialConformanceTests {
         case "json-array-length":
             return "SELECT JSON_ARRAY_LENGTH(:text_value)"
         case "json-arrow-element":
-            return "SELECT :text_value -> '$.\"name\"'"
+            return "SELECT :text_value -> '$.name'"
         case "json-arrow-value":
-            return "SELECT :text_value ->> '$.\"name\"'"
+            return "SELECT :text_value ->> '$.name'"
         case "json-array-length-path":
             return "SELECT JSON_ARRAY_LENGTH(:text_value, '$.items')"
         case "operator-arithmetic-precedence":

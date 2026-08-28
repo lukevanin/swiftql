@@ -34,14 +34,14 @@ final class XLJSONOperatorRenderingTests: XCTestCase {
     func testElementSelectionRendersTheArrowOperator() {
         assertSQL(
             document().jsonElement(at: XLJSONPath.root.key("a")),
-            "(:document -> '$.\"a\"')"
+            "(:document -> '$.a')"
         )
     }
 
     func testValueSelectionRendersTheDoubleArrowOperator() {
         assertSQL(
             document().jsonValue(at: XLJSONPath.root.key("a"), as: String.self),
-            "(:document ->> '$.\"a\"')"
+            "(:document ->> '$.a')"
         )
     }
 
@@ -51,11 +51,11 @@ final class XLJSONOperatorRenderingTests: XCTestCase {
         let path = XLJSONPath.root.key("a")
         assertSQL(
             document().jsonValue(at: path, as: Int.self),
-            "(:document ->> '$.\"a\"')"
+            "(:document ->> '$.a')"
         )
         assertSQL(
             document().jsonValue(at: path, as: Double.self),
-            "(:document ->> '$.\"a\"')"
+            "(:document ->> '$.a')"
         )
         assertExpressionType(
             document().jsonValue(at: path, as: Int.self),
@@ -76,7 +76,7 @@ final class XLJSONOperatorRenderingTests: XCTestCase {
             document()
                 .jsonElement(at: XLJSONPath.root.key("a"))
                 .jsonValue(at: XLJSONPath.root.key("b"), as: Int.self),
-            "((:document -> '$.\"a\"') ->> '$.\"b\"')"
+            "((:document -> '$.a') ->> '$.b')"
         )
     }
 
@@ -85,7 +85,7 @@ final class XLJSONOperatorRenderingTests: XCTestCase {
         // when it is nested in a function argument.
         assertSQL(
             document().jsonElement(at: XLJSONPath.root.key("a")).validJSON(),
-            "json_valid((:document -> '$.\"a\"'))"
+            "json_valid((:document -> '$.a'))"
         )
     }
 

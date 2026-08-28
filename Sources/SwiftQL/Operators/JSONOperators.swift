@@ -16,28 +16,28 @@ import Foundation
 /// return. See ``XLExpression/jsonElement(at:)`` and
 /// ``XLExpression/jsonValue(at:as:)``.
 ///
-public struct XLJSONSelectionExpression<T>: XLExpression {
+struct XLJSONSelectionExpression<T>: XLExpression {
 
-    private let `operator`: String
+    private let symbol: String
 
     private let document: any XLExpression
 
     private let path: any XLExpression
 
     init(
-        operator: String,
+        symbol: String,
         document: any XLExpression,
         path: any XLExpression
     ) {
-        self.operator = `operator`
+        self.symbol = symbol
         self.document = document
         self.path = path
     }
 
-    public func makeSQL(context: inout XLBuilder) {
+    func makeSQL(context: inout XLBuilder) {
         context.parenthesis { context in
             context.binaryOperator(
-                `operator`,
+                symbol,
                 left: document.makeSQL,
                 right: path.makeSQL
             )
@@ -82,7 +82,7 @@ extension XLExpression {
     public func jsonElement(at path: XLJSONPath) -> some XLExpression<String?>
     where T: XLLiteral {
         XLJSONSelectionExpression<String?>(
-            operator: "->",
+            symbol: "->",
             document: self,
             path: path
         )
@@ -102,10 +102,10 @@ extension XLExpression {
     ///
     public func jsonValue<Value>(
         at path: XLJSONPath,
-        as type: Value.Type
+        as _: Value.Type
     ) -> some XLExpression<Value?> where T: XLLiteral, Value: XLLiteral {
         XLJSONSelectionExpression<Value?>(
-            operator: "->>",
+            symbol: "->>",
             document: self,
             path: path
         )

@@ -293,6 +293,7 @@ let package = Package(
                 "SwiftQLSQLiteCombinatorialSupport",
                 "SwiftQLNorthwindFixtures",
                 "SwiftQLSQLiteConformanceFixtures",
+                "SwiftQLTestSupport",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
