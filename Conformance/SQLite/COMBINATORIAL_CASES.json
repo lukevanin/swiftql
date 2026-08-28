@@ -836,6 +836,126 @@
           "storage" : "text",
           "tagged_value" : {
             "tag" : "text",
+            "value" : "{\"a\":1}"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-extract-one-path"
+        }
+      ],
+      "id" : "c191.v1.expression.json-extract-one-path",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-extract-one-path",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_extract(:text_value, '$.a')",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-extract-one-path swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function:JSON_EXTRACT"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-extract-one-path"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "{\"a\":1,\"b\":2}"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-extract-two-paths"
+        }
+      ],
+      "id" : "c191.v1.expression.json-extract-two-paths",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-extract-two-paths",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_extract(:text_value, '$.a', '$.b')",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-extract-two-paths swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function:JSON_EXTRACT"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-extract-two-paths"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "{\"a\":1}"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-insert"
+        }
+      ],
+      "id" : "c191.v1.expression.json-insert",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-insert",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_insert(:text_value, '$.b', 2)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-insert swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function:JSON_INSERT"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-insert"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
             "value" : " { \"a\" : 1 } "
           }
         }
@@ -916,6 +1036,46 @@
           "storage" : "text",
           "tagged_value" : {
             "tag" : "text",
+            "value" : "{\"a\":1,\"b\":2}"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-patch"
+        }
+      ],
+      "id" : "c191.v1.expression.json-patch",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-patch",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_patch(:text_value, '{\"b\":null,\"c\":3}')",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-patch swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function-signature:JSON_PATCH/2"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-patch"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
             "value" : "a\"b"
           }
         }
@@ -945,6 +1105,126 @@
       ],
       "strength" : "targeted",
       "template" : "expression.json-quote"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "{\"a\":1,\"b\":2}"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-remove"
+        }
+      ],
+      "id" : "c191.v1.expression.json-remove",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-remove",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_remove(:text_value, '$.a')",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-remove swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function:JSON_REMOVE"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-remove"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "{\"a\":1}"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-replace"
+        }
+      ],
+      "id" : "c191.v1.expression.json-replace",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-replace",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_replace(:text_value, '$.a', 9)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-replace swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function:JSON_REPLACE"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-replace"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "{\"a\":1}"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-set"
+        }
+      ],
+      "id" : "c191.v1.expression.json-set",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-set",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_set(:text_value, '$.a', 9)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-set swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function:JSON_SET"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-set"
     },
     {
       "bindings" : [
@@ -12201,12 +12481,12 @@
       "strength" : 2
     },
     {
-      "covered_tuple_count" : 49,
+      "covered_tuple_count" : 56,
       "dimension_ids" : [
         "expression-case"
       ],
       "excluded_tuple_count" : 0,
-      "required_tuple_count" : 49,
+      "required_tuple_count" : 56,
       "strength" : 1
     },
     {
@@ -12527,6 +12807,34 @@
         {
           "id" : "json-array-length",
           "label" : "json-array-length"
+        },
+        {
+          "id" : "json-extract-one-path",
+          "label" : "json-extract-one-path"
+        },
+        {
+          "id" : "json-extract-two-paths",
+          "label" : "json-extract-two-paths"
+        },
+        {
+          "id" : "json-insert",
+          "label" : "json-insert"
+        },
+        {
+          "id" : "json-replace",
+          "label" : "json-replace"
+        },
+        {
+          "id" : "json-set",
+          "label" : "json-set"
+        },
+        {
+          "id" : "json-remove",
+          "label" : "json-remove"
+        },
+        {
+          "id" : "json-patch",
+          "label" : "json-patch"
         },
         {
           "id" : "json-minified",
@@ -12938,7 +13246,7 @@
   "generator_version" : "c191-v2",
   "hard_bounds" : {
     "maximum_bindings_per_case" : 8,
-    "maximum_case_count" : 224,
+    "maximum_case_count" : 256,
     "maximum_dimensions_per_case" : 9,
     "maximum_reduction_attempts" : 64,
     "maximum_rendered_sql_bytes" : 4096,

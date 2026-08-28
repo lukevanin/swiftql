@@ -1621,6 +1621,98 @@ public enum SQLiteTypedCombinatorialCases {
                 requiredCapabilities: ["sqlite-json-functions"]
             ),
             expressionCase(
+                id: "json-extract-one-path",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonExtract(
+                        at: XLJSONPath.root.key("a"),
+                        as: Int.self
+                    )
+                ),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("{\"a\":1}")),
+                ],
+                requiredCapabilities: ["function:JSON_EXTRACT"]
+            ),
+            expressionCase(
+                id: "json-extract-two-paths",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonExtract(
+                        at: XLJSONPath.root.key("a"),
+                        XLJSONPath.root.key("b")
+                    )
+                ),
+                bindings: [
+                    .init(
+                        key: .named("text_value"),
+                        value: .text("{\"a\":1,\"b\":2}")
+                    ),
+                ],
+                requiredCapabilities: ["function:JSON_EXTRACT"]
+            ),
+            expressionCase(
+                id: "json-insert",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonInserting((XLJSONPath.root.key("b"), 2))
+                ),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("{\"a\":1}")),
+                ],
+                requiredCapabilities: ["function:JSON_INSERT"]
+            ),
+            expressionCase(
+                id: "json-replace",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonReplacing((XLJSONPath.root.key("a"), 9))
+                ),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("{\"a\":1}")),
+                ],
+                requiredCapabilities: ["function:JSON_REPLACE"]
+            ),
+            expressionCase(
+                id: "json-set",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonSetting((XLJSONPath.root.key("a"), 9))
+                ),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("{\"a\":1}")),
+                ],
+                requiredCapabilities: ["function:JSON_SET"]
+            ),
+            expressionCase(
+                id: "json-remove",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonRemoving(at: XLJSONPath.root.key("a"))
+                ),
+                bindings: [
+                    .init(
+                        key: .named("text_value"),
+                        value: .text("{\"a\":1,\"b\":2}")
+                    ),
+                ],
+                requiredCapabilities: ["function:JSON_REMOVE"]
+            ),
+            expressionCase(
+                id: "json-patch",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonPatched(with: "{\"b\":null,\"c\":3}")
+                ),
+                bindings: [
+                    .init(
+                        key: .named("text_value"),
+                        value: .text("{\"a\":1,\"b\":2}")
+                    ),
+                ],
+                requiredCapabilities: ["function-signature:JSON_PATCH/2"]
+            ),
+            expressionCase(
                 id: "json-minified",
                 featureID: "syntax.expression.json-functions",
                 statement: select(namedText.minifiedJSON()),

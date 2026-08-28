@@ -61,6 +61,18 @@
   which is what SQLite uses when the argument is left out, because SQLite
   rejects a zero mask.
 
+- `json_extract` and the five JSON mutation functions (issue #591).
+  `jsonExtract(at:as:)` reads one path as a SQL value in the type the caller
+  states. `jsonExtract(at:_:_:)` reads two or more paths and returns the JSON
+  array SQLite builds from them; it requires two paths by its signature, so
+  the two result types cannot be confused at the call site.
+
+- `jsonInserting(_:_:)`, `jsonReplacing(_:_:)`, `jsonSetting(_:_:)`,
+  `jsonRemoving(at:_:)`, and `jsonPatched(with:)` write values back into a
+  document (issue #591). Each takes its path/value pairs as pairs, and each
+  requires at least one, so an incomplete or empty argument list cannot be
+  written. Every result is optional, because a `NULL` document gives `NULL`.
+
 ### Deprecated
 
 - `validJSON()`, in favour of `validJSONOrNull()` and
