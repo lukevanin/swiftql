@@ -634,6 +634,11 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
         // which need a newer SQLite than the oldest runtime in the supported
         // matrix, so they are covered by runtime-gated execution tests and
         // have no combinatorial case.
+        //
+        // This count is by inventory feature, not by case id, so it is one
+        // higher than the 20 cases whose ids begin `c191.v1.expression.json-`:
+        // `json-array-length-path` carries the same feature but is a #286
+        // case.
         XCTAssertEqual(jsonCases.count, 21)
         // The operators are not functions, so the pinned runtime attests them
         // by version rather than by signature.

@@ -114,9 +114,12 @@ final class SQLiteCombinatorialClauseCoverageTests: XCTestCase {
         // cases (#590), seven extraction and mutation cases (#591), and two
         // aggregate cases (#592). The two left out of #590 are json_pretty
         // and the two-argument json_valid, which need a newer SQLite than the
-        // oldest runtime in the supported matrix, so they are covered by
-        // runtime-gated execution tests instead. None of this changes the
-        // SELECT pairwise plan.
+        // oldest runtime in the supported matrix. #593 adds no case at all:
+        // JSONB needs SQLite 3.45.0, and a missing capability is a failure in
+        // this harness rather than a skip, so a JSONB case would turn the
+        // oldest supported cell red. Its coverage is runtime-gated execution
+        // tests plus an inventory record. None of this changes the SELECT
+        // pairwise plan.
         XCTAssertEqual(manifest.cases.count, 226)
         let requiredStrengthCounts = Dictionary(
             grouping: try SQLiteCombinatorialSuite.makeDrafts(from: plan)
