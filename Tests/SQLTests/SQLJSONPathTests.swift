@@ -286,13 +286,17 @@ final class XLJSONPathExecutionTests: XCTestCase {
 
     func testAPathThatMatchesNothingIsNull() throws {
         // `evaluate` returns `Value?`, and `Value` is itself `Int?` here, so
-        // the row is present and its single column is SQL NULL. Flattening
-        // separates that from "no row at all".
-        let result = try evaluate(
+        // the row is present and its single column is SQL NULL. Unwrapping
+        // the outer optional separates that from "no row at all", and keeps
+        // the assertion off a double optional, which XCTAssertNil and
+        // XCTAssertNotNil both warn about.
+        guard let result = try evaluate(
             document().jsonArrayLength(path: XLJSONPath.root.key("missing")),
             document: #"{"items":[1]}"#
-        )
-        XCTAssertNotNil(result, "the statement should return one row")
-        XCTAssertNil(result ?? nil, "the selected column should be SQL NULL")
+        ) else {
+            XCTFail("the statement should return one row")
+            return
+        }
+        XCTAssertNil(result, "the selected column should be SQL NULL")
     }
 }
