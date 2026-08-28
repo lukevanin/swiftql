@@ -138,7 +138,8 @@ extension TodoDatabase {
                 priority: priority,
                 isCompleted: false,
                 position: try Self.nextPosition(inList: listID, in: scope),
-                createdAt: now
+                createdAt: now,
+                checklist: TodoChecklist.empty
             )
             let schema = XLSchema()
             let table = schema.table(Todo.self)
@@ -257,6 +258,125 @@ extension TodoDatabase {
             }
             return written
         }
+    }
+
+    // MARK: - Checklist
+
+    /// Appends a sub-task, returning the to-do as it now stands.
+    ///
+    /// SQLite does the work. `json_insert` with the append path adds the item
+    /// to the stored array, so nothing loads the checklist, changes it in
+    /// Swift, and writes it back — which is what makes a JSON column worth
+    /// having rather than a serialised blob.
+    ///
+    /// The title arrives in a binding packet, so a sub-task called
+    /// `", "isDone": true}` is one title and not a rewritten document.
+    ///
+    /// `json_insert` returns `NULL` for a `NULL` document, so its result is
+    /// optional while the column is not. `coalesce` supplies the row's
+    /// current checklist for that case, which cannot arise here — the column
+    /// is `NOT NULL` — but has to be spelled out for the types to meet.
+    @discardableResult
+    public func appendChecklistItem(
+        title: String,
+        todoID id: TodoUUID
+    ) throws -> Todo {
+        let schema = XLSchema()
+        let table = schema.into(Todo.self)
+        let idParameter = XLNamedBindingReference<TodoUUID>(name: "id")
+        let titleParameter = XLNamedBindingReference<String>(name: "title")
+        let statement = update(table)
+            .set { row in
+                row.checklist = table.checklist
+                    .jsonInserting(
+                        (
+                            TodoChecklist.end,
+                            jsonObject(
+                                ("title", titleParameter),
+                                ("isDone", "false".minifiedJSON())
+                            )
+                        )
+                    )
+                    .coalesce(table.checklist)
+            }
+            .where(table.id == idParameter)
+            .returning(schema.table(Todo.self))
+
+        let request = database.makeRequest(with: statement)
+        let layout = request.parameterLayout
+        let bindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: layout,
+            bindings: [
+                try Self.binding(layout, "id", id.sqlValue),
+                try Self.binding(layout, "title", .text(title)),
+            ]
+        ).validatingComplete()
+        return try written(request.fetchAll(bindings: bindings), or: id)
+    }
+
+    /// Ticks or unticks one sub-task, returning the to-do as it now stands.
+    ///
+    /// An index past the end changes nothing: `json_set` leaves a path it
+    /// cannot reach alone, so the statement still returns the row unchanged
+    /// rather than failing.
+    @discardableResult
+    public func setChecklistItem(
+        at index: Int,
+        isDone: Bool,
+        todoID id: TodoUUID
+    ) throws -> Todo {
+        let schema = XLSchema()
+        let table = schema.into(Todo.self)
+        // A JSON boolean, not SQLite's 0 and 1. `json_object('isDone', 0)`
+        // stores the number zero, which is not what a JSON reader expects to
+        // find behind a flag.
+        let flag = (isDone ? "true" : "false").minifiedJSON()
+        let statement = update(table)
+            .set { row in
+                row.checklist = table.checklist
+                    .jsonSetting((TodoChecklist.isDone(at: index), flag))
+                    .coalesce(table.checklist)
+            }
+            .where(table.id == id)
+            .returning(schema.table(Todo.self))
+        return try written(
+            database.makeRequest(with: statement).fetchAll(),
+            or: id
+        )
+    }
+
+    /// Deletes one sub-task, returning the to-do as it now stands.
+    @discardableResult
+    public func removeChecklistItem(
+        at index: Int,
+        todoID id: TodoUUID
+    ) throws -> Todo {
+        let schema = XLSchema()
+        let table = schema.into(Todo.self)
+        let statement = update(table)
+            .set { row in
+                row.checklist = table.checklist
+                    .jsonRemoving(at: TodoChecklist.item(at: index))
+                    .coalesce(table.checklist)
+            }
+            .where(table.id == id)
+            .returning(schema.table(Todo.self))
+        return try written(
+            database.makeRequest(with: statement).fetchAll(),
+            or: id
+        )
+    }
+
+    /// One row per to-do in a list, with what SQLite could tell us about its
+    /// checklist without reading the array into Swift.
+    public func checklistSummaries(
+        inList listID: TodoUUID
+    ) throws -> [TodoUUID: TodoChecklistSummary] {
+        var summaries: [TodoUUID: TodoChecklistSummary] = [:]
+        for summary in try database.checklistSummaries(listID: listID) {
+            summaries[summary.todoID] = summary
+        }
+        return summaries
     }
 
     /// Deletes a to-do and its tag links, returning the row that went.

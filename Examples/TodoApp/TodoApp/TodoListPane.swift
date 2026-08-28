@@ -71,7 +71,11 @@ struct TodoListPane: View {
     @ViewBuilder
     private func content(_ model: TodoListModel) -> some View {
         List(model.todos.rows, id: \.id, selection: $selection) { todo in
-            TodoRow(todo: todo, tags: model.tags(for: todo)) {
+            TodoRow(
+                todo: todo,
+                tags: model.tags(for: todo),
+                checklistItemCount: model.checklistItemCount(for: todo)
+            ) {
                 toggle(todo)
             }
             .tag(todo.id)
@@ -149,8 +153,9 @@ struct TodoListPane: View {
     }
 
     private func add() {
-        // No reloadTags() here: a new to-do has no tags yet, and the rows
-        // themselves arrive through the live query.
+        // No reloadRowDetails() here: a new to-do has no tags and no
+        // sub-tasks yet, and the rows themselves arrive through the live
+        // query.
         write { try database.createTodo(listID: listID, title: "New to-do") }
     }
 
@@ -173,6 +178,7 @@ private struct TodoRow: View {
 
     let todo: Todo
     let tags: [Tag]
+    let checklistItemCount: Int
     let toggle: () -> Void
 
     var body: some View {
@@ -198,6 +204,18 @@ private struct TodoRow: View {
             }
 
             Spacer()
+
+            if checklistItemCount > 0 {
+                Label("\(checklistItemCount)", systemImage: "checklist")
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(
+                        checklistItemCount == 1
+                            ? "1 sub-task"
+                            : "\(checklistItemCount) sub-tasks"
+                    )
+            }
 
             if let dueAt = todo.dueAt {
                 Text(dueAt.wrappedValue, style: .date)

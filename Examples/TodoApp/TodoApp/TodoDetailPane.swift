@@ -22,6 +22,7 @@ struct TodoDetailPane: View {
     @State private var hasDueDate = false
     @State private var dueDate = Date()
     @State private var isEditing = false
+    @State private var newChecklistItem = ""
 
     var body: some View {
         Group {
@@ -126,6 +127,8 @@ struct TodoDetailPane: View {
                 }
             }
 
+            checklistSection(todo)
+
             Section {
                 Toggle(
                     "Completed",
@@ -170,6 +173,74 @@ struct TodoDetailPane: View {
                 }
             }
         }
+    }
+
+    /// The to-do's sub-tasks.
+    ///
+    /// Every button here is one `UPDATE`. The checklist is a JSON column, so
+    /// SQLite adds, ticks, or deletes the item in place; this view never
+    /// rewrites the whole array. The live query the pane already observes
+    /// delivers the new row, so nothing refetches after a write either.
+    @ViewBuilder
+    private func checklistSection(_ todo: Todo) -> some View {
+        let items = TodoChecklist.items(from: todo.checklist)
+        Section("Checklist") {
+            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                HStack {
+                    Toggle(
+                        item.title,
+                        isOn: Binding(
+                            get: { item.isDone },
+                            set: { isDone in
+                                write {
+                                    try database.setChecklistItem(
+                                        at: index,
+                                        isDone: isDone,
+                                        todoID: todo.id
+                                    )
+                                }
+                            }
+                        )
+                    )
+                    Button {
+                        write {
+                            try database.removeChecklistItem(
+                                at: index,
+                                todoID: todo.id
+                            )
+                        }
+                    } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Delete \(item.title)")
+                }
+            }
+
+            HStack {
+                TextField("Add a sub-task", text: $newChecklistItem)
+                    .onSubmit { addChecklistItem(to: todo) }
+                Button("Add") { addChecklistItem(to: todo) }
+                    .disabled(
+                        newChecklistItem.trimmingCharacters(
+                            in: .whitespacesAndNewlines
+                        ).isEmpty
+                    )
+            }
+        }
+    }
+
+    private func addChecklistItem(to todo: Todo) {
+        let title = newChecklistItem.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        guard !title.isEmpty else {
+            return
+        }
+        write {
+            try database.appendChecklistItem(title: title, todoID: todo.id)
+        }
+        newChecklistItem = ""
     }
 
     private func load(_ todo: Todo) {
