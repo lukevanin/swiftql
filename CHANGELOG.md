@@ -127,6 +127,45 @@
   overloads forward to. Recorded in COMPATIBILITY.md beside `#row`'s
   multi-column shapes, which are gated for the same class of compiler bug.
 
+### Changed
+
+- Decoding a full result set is 39.4% faster (issue #353). `XLRowReader` gains
+  a second `staticColumn(_:alias:)` requirement, constrained to a value type
+  that conforms to `XLLiteral`. Generated row readers name one concrete Swift
+  type per column, so the compiler selects the constrained requirement for
+  every literal column, and the unconstrained requirement only for a
+  contextual one. The unconstrained requirement has to find the literal
+  conformance at run time and reopen the expression as a parameterised
+  existential; a profile attributed about 54% of main-thread samples to that
+  work, which ran 226,002 times for one 16,143-row, 14-column fetch. The
+  constrained requirement receives the conformance statically and reads the
+  value directly. Measured over six interleaved pairs on one machine: median
+  72.38 ms to 43.88 ms, p95 74.67 ms to 45.32 ms, with every pair between
+  -38.4% and -40.0%. See `Benchmarks/Comparison/Issue353/README.md`.
+
+  No source change is needed to get this. Nothing in the macros changes, so
+  every existing `@SQLTable` and `@SQLResult` reaches the faster path as it
+  is. The new requirement has a default implementation that forwards to
+  `column(_:alias:)`, so an `XLRowReader` conformance outside this package
+  keeps compiling.
+
+  One conformance is affected. A row reader that overrides the unconstrained
+  `staticColumn(_:alias:)` to give literal columns behaviour that
+  `column(_:alias:)` does not give will no longer see literal columns arrive
+  there, because those columns now select the constrained requirement.
+  Implement the constrained requirement as well to keep that behaviour. A
+  reader that implements only `column(_:alias:)`, which is the documented
+  shape, is unaffected.
+
+### Fixed
+
+- The `Benchmarks/Comparison` harness can build its SwiftQL graph again (issue
+  #353). The graph's pinned `Package.resolved` was captured before SwiftQL
+  took its OpenCombine dependency, so SwiftPM added an OpenCombine pin during
+  every build and the harness stopped, as it should, rather than measure
+  dependency versions other than the pinned ones. The missing pin is now
+  recorded at the version and revision SwiftPM resolves. No other pin changes.
+
 ### Deprecated
 
 - `validJSON()`, in favour of `validJSONOrNull()` and

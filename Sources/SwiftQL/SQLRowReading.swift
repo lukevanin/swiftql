@@ -218,6 +218,26 @@ public protocol XLRowReader {
         alias: XLName
     ) throws -> T
 
+    /// Reads a value whose type is statically known to be a literal.
+    ///
+    /// This is the same seam as ``staticColumn(_:alias:)``, restricted to a
+    /// `T` that already conforms to ``XLLiteral``. Generated row readers name
+    /// one concrete type per column, so the compiler selects this requirement
+    /// for every literal column and the unconstrained requirement only for a
+    /// contextual one.
+    ///
+    /// The distinction is a performance one. The unconstrained requirement
+    /// must find the literal conformance at run time and reopen the
+    /// expression as a parameterised existential; this requirement receives
+    /// the conformance statically and reads the value directly. It is a
+    /// requirement, and not an overload in an extension, because the
+    /// generated code calls it on a protocol-typed reader: an extension
+    /// member cannot win a dispatch that resolves through the witness table.
+    func staticColumn<T>(
+        _ expression: any XLExpression<T>,
+        alias: XLName
+    ) throws -> T where T: XLLiteral
+
     /// Reads one raw dialect value for a statically described row field.
     ///
     /// Legacy row readers may rely on the default implementation. Database
@@ -231,6 +251,13 @@ public protocol XLRowReader {
 
 
 extension XLRowReader {
+    public func staticColumn<T>(
+        _ expression: any XLExpression<T>,
+        alias: XLName
+    ) throws -> T where T: XLLiteral {
+        try column(expression, alias: alias)
+    }
+
     public func staticColumn<T>(
         _ expression: any XLExpression<T>,
         alias: XLName
