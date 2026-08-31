@@ -436,7 +436,75 @@ final class XLQueryExpressionBuilderTests: XLEncoderTestCase {
         )
     }
     
-    
+
+    #if compiler(>=6.1)
+    /// Issue #69: `sql` itself works as a table subquery, inferring the shape
+    /// from the surrounding `From(...)`. The rendering is the same as
+    /// `testInlineSubquery` above, spelled with `sql` instead of
+    /// `subqueryExpression`.
+    ///
+    /// Gated on the compiler, not the platform: the overloads this exercises
+    /// crash swift-frontend on Swift 5.9.2 and 6.0, so they are not compiled
+    /// there. See the declarations in SQLQueryExpressionBuilder.swift.
+    func testInlineSubqueryUsingSqlAsSubquery() {
+        let expression = sql { schema in
+            let t = schema.table(TestTable.self)
+            Select(t)
+            From(
+                sql { _ in
+                    Select(t)
+                    From(t)
+                    Where(t.value > 10)
+                }
+            )
+            Where(t.value < 10)
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "SELECT t0.id AS id, t0.value AS value FROM (SELECT t0.id AS id, t0.value AS value FROM Test AS t0 WHERE (t0.value > 10)) AS t0 WHERE (t0.value < 10)"
+        )
+    }
+
+    /// Issue #69: the same inference for a scalar subquery, which is the
+    /// shape that decides between a value and a row.
+    func testSelectSubqueryAggregateUsingSqlAsSubquery() {
+        let expression = sql { schema in
+            let t = schema.table(TestTable.self)
+            let r = TestColumns.columns(
+                id: t.id,
+                value: sql { schema in
+                    let t = schema.table(TestTable.self)
+                    Select(t.value.sumOrNull())
+                    From(t)
+                }
+            )
+            Select(r)
+            From(t)
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "SELECT t0.id AS id, (SELECT SUM(t0.value) FROM Test AS t0) AS value FROM Test AS t0"
+        )
+    }
+
+    /// Issue #69: a top-level `sql { ... }` with no surrounding contextual
+    /// type still resolves to the statement overload. This is what
+    /// `@_disfavoredOverload` buys, and it is the case that broke when the
+    /// attribute was removed during the original work.
+    func testATopLevelStatementStillResolvesToTheStatementOverload() {
+        let statement: any XLQueryStatement<TestTable> = sql { schema in
+            let t = schema.table(TestTable.self)
+            Select(t)
+            From(t)
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(statement).sql,
+            "SELECT t0.id AS id, t0.value AS value FROM Test AS t0"
+        )
+    }
+    #endif
+
+
     // MARK: - Scalar select
     
     func testScalarSelect() {
