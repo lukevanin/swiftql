@@ -125,7 +125,7 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
 
         XCTAssertEqual(actualSuffixes, expectedSuffixes)
         XCTAssertEqual(issue286Cases.count, 27)
-        XCTAssertEqual(manifest.cases.count, 224)
+        XCTAssertEqual(manifest.cases.count, 226)
         XCTAssertEqual(manifest.hardBounds.maximumCaseCount, 256)
         XCTAssertFalse(issue286Cases.contains { $0.id.contains("unixepoch") })
         XCTAssertTrue(issue286Cases.allSatisfy { $0.mode == .semantic })
@@ -628,12 +628,13 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
         XCTAssertTrue(signatures.contains("JSON_ARRAY_LENGTH/2"))
         // Three original function cases, the two `->` and `->>` operator
         // cases from issue #589, seven of the nine constructor and inspection
-        // cases from issue #590, and the seven extraction and mutation cases
-        // from issue #591. The two left out are json_pretty and the
-        // two-argument json_valid, which need a newer SQLite than the oldest
-        // runtime in the supported matrix, so they are covered by
-        // runtime-gated execution tests and have no combinatorial case.
-        XCTAssertEqual(jsonCases.count, 19)
+        // cases from issue #590, the seven extraction and mutation cases from
+        // issue #591, and the two aggregate cases from issue #592. The two
+        // left out of #590 are json_pretty and the two-argument json_valid,
+        // which need a newer SQLite than the oldest runtime in the supported
+        // matrix, so they are covered by runtime-gated execution tests and
+        // have no combinatorial case.
+        XCTAssertEqual(jsonCases.count, 21)
         // The operators are not functions, so the pinned runtime attests them
         // by version rather than by signature.
         XCTAssertTrue(
@@ -1471,6 +1472,10 @@ private extension SQLiteCombinatorialConformanceTests {
             return "SELECT JSON_VALID(:text_value)"
         case "json-array-length":
             return "SELECT JSON_ARRAY_LENGTH(:text_value)"
+        case "json-group-array":
+            return "SELECT JSON_GROUP_ARRAY(:text_value)"
+        case "json-group-object":
+            return "SELECT JSON_GROUP_OBJECT(:text_value, 1)"
         case "json-extract-one-path":
             return "SELECT JSON_EXTRACT(:text_value, '$.a')"
         case "json-extract-two-paths":

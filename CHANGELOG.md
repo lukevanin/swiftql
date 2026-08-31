@@ -73,6 +73,14 @@
   requires at least one, so an incomplete or empty argument list cannot be
   written. Every result is optional, because a `NULL` document gives `NULL`.
 
+- SQLite's two JSON aggregates (issue #592). `jsonGroupArray(distinct:)`
+  renders `json_group_array(X)` and collects every input row into a JSON
+  array. `jsonGroupObject(name:value:)` renders `json_group_object(N, V)` and
+  collects name/value pairs into a JSON object. Neither result is optional:
+  an empty group gives `[]` and `{}`, not SQL `NULL`. `jsonGroupObject` has no
+  `distinct` parameter, because SQLite allows `DISTINCT` only on an aggregate
+  with exactly one argument.
+
 ### Deprecated
 
 - `validJSON()`, in favour of `validJSONOrNull()` and

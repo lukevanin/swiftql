@@ -1621,6 +1621,24 @@ public enum SQLiteTypedCombinatorialCases {
                 requiredCapabilities: ["sqlite-json-functions"]
             ),
             expressionCase(
+                id: "json-group-array",
+                featureID: "syntax.expression.json-functions",
+                statement: select(namedText.jsonGroupArray()),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("x")),
+                ],
+                requiredCapabilities: ["function-signature:JSON_GROUP_ARRAY/1"]
+            ),
+            expressionCase(
+                id: "json-group-object",
+                featureID: "syntax.expression.json-functions",
+                statement: select(jsonGroupObject(name: namedText, value: 1)),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("x")),
+                ],
+                requiredCapabilities: ["function-signature:JSON_GROUP_OBJECT/2"]
+            ),
+            expressionCase(
                 id: "json-extract-one-path",
                 featureID: "syntax.expression.json-functions",
                 statement: select(
