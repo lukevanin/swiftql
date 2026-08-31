@@ -81,6 +81,17 @@
   `distinct` parameter, because SQLite allows `DISTINCT` only on an aggregate
   with exactly one argument.
 
+- The JSONB function variants, which need SQLite 3.45.0 or later (issue #593).
+  Eleven SQLite functions return the binary JSON representation instead of
+  JSON text, reached through twelve Swift entry points because
+  `jsonbExtract` has a single-path and a multiple-path form: `minifiedJSONB()`, `jsonbArray(_:)`, `jsonbObject(_:)`,
+  `jsonbExtract(at:as:)` and `jsonbExtract(at:_:_:)`, `jsonbInserting(_:_:)`,
+  `jsonbReplacing(_:_:)`, `jsonbSetting(_:_:)`, `jsonbRemoving(at:_:)`,
+  `jsonbPatched(with:)`, `jsonbGroupArray(distinct:)`, and
+  `jsonbGroupObject(name:value:)`. The functions whose result is a SQL value
+  rather than JSON have no JSONB twin, because SQLite defines none: they read
+  a JSONB input directly and keep their own result types.
+
 ### Deprecated
 
 - `validJSON()`, in favour of `validJSONOrNull()` and
