@@ -1178,6 +1178,105 @@ final class MetaBuilderTests: XCTestCase {
         XCTAssertEqual(count, 4)
     }
 
+    // Issue #353: the generated row closure runs once per row. Each column
+    // expression must be built once, outside that closure, and must already be
+    // erased to the type the read takes.
+
+    func test_resultFactoryBindsColumnExpressionsOutsideTheRowClosure() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable(name: "Orders")
+            struct Order {
+                let id: Int
+                let name: String?
+            }
+            """
+        )
+        let source = builder.makeMetaTableExtension()
+
+        XCTAssertTrue(
+            source.contains(
+                "let _swiftQLRowColumn0: any SwiftQL.XLExpression<Int> = XLColumnReference<Int>(dependency: dependency, as: \"id\")"
+            )
+        )
+        XCTAssertTrue(
+            source.contains(
+                "let _swiftQLRowColumn1: any SwiftQL.XLExpression<String?> = XLColumnReference<String?>(dependency: dependency, as: \"name\")"
+            )
+        )
+        XCTAssertTrue(
+            source.contains("id: try $0.staticColumn(_swiftQLRowColumn0, alias: \"id\")")
+        )
+        XCTAssertTrue(
+            source.contains("name: try $0.staticColumn(_swiftQLRowColumn1, alias: \"name\")")
+        )
+        // No column expression is built inside the row closure any more.
+        XCTAssertFalse(source.contains("staticColumn(XLColumnReference<"))
+        XCTAssertFalse(source.contains("staticColumn(XLColumnResult<"))
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+    }
+
+    func test_resultFactoryReturnsExplicitlyWhenItBindsColumnExpressions() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable(name: "Orders")
+            struct Order {
+                let id: Int
+            }
+            """
+        )
+        let source = builder.makeMetaTableExtension()
+
+        // `makeSQLTable` and `makeSQLNamedResult` returned a single expression
+        // implicitly. A body that binds locals first cannot.
+        XCTAssertTrue(source.contains("return MetaResult(_namespace: namespace"))
+        XCTAssertTrue(source.contains("return MetaNamedResult(_namespace: namespace"))
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+    }
+
+    func test_anonymousResultFactoryBindsColumnExpressionsAsResults() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLResult
+            struct Projection {
+                let id: Int
+            }
+            """
+        )
+        let source = builder.makeMetaResultExtension(table: false)
+
+        // The anonymous factories read their rows as results, not references.
+        XCTAssertTrue(
+            source.contains(
+                "let _swiftQLRowColumn0: any SwiftQL.XLExpression<Int> = XLColumnResult<Int>(dependency: dependency, as: \"id\")"
+            )
+        )
+        XCTAssertTrue(
+            source.contains("id: try $0.staticColumn(_swiftQLRowColumn0, alias: \"id\")")
+        )
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+    }
+
+    func test_generatedColumnBindingsAvoidCollisionWithPropertyNames() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable(name: "Orders")
+            struct Order {
+                let _swiftQLRowColumn0: Int
+                let name: String
+            }
+            """
+        )
+        let source = builder.makeMetaTableExtension()
+
+        // The author owns `_swiftQLRowColumn0`, so the allocator moves its own
+        // binding aside rather than reuse a reserved name.
+        XCTAssertTrue(
+            source.contains("let _swiftQLRowColumn0_1: any SwiftQL.XLExpression<Int> = ")
+        )
+        XCTAssertFalse(Parser.parse(source: source).hasError)
+    }
+
     func test_columnsBuildsResultWithoutDeprecatedHelper() throws {
         let builder = try makeBuilder(
             """

@@ -55,6 +55,25 @@ final class StaticColumnDispatchTests: XCTestCase {
         XCTAssertEqual(reader.unconstrainedReads, ["contextual"])
     }
 
+    // The generated `makeSQL...Result` factories read a row through their own
+    // closure, not through `SQLReader`. That closure now reads a binding made
+    // once per factory call instead of an expression built per row. The
+    // binding keeps the column's concrete type, so a literal column must still
+    // reach the constrained requirement.
+
+    func testFactoryReaderSelectsTheLiteralRequirementForEveryLiteralColumn() throws {
+        let reader = DispatchRecordingRowReader()
+        let meta = StaticColumnDispatchRow.makeSQLAnonymousResult(
+            namespace: XLNamespace.table(),
+            dependency: XLSelectResultDependency()
+        )
+
+        _ = try meta.readRow(reader: reader)
+
+        XCTAssertEqual(reader.literalReads, ["name", "count", "note"])
+        XCTAssertEqual(reader.unconstrainedReads, [])
+    }
+
     private func column<T>(_ alias: XLName) -> XLColumnResult<T> where T: XLLiteral {
         XLColumnResult<T>(dependency: XLSelectResultDependency(), as: alias)
     }
