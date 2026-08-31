@@ -35,6 +35,7 @@ expressions|Expressions
 functionalsyntax|Functional Syntax
 generictableparameters|Generic Table Parameters
 gettingstarted|Getting started
+json|JSON
 livequeries|Live Queries
 numericdatecodecs|Numeric Date Codecs
 queries|Select Queries

@@ -92,6 +92,23 @@
   rather than JSON have no JSONB twin, because SQLite defines none: they read
   a JSONB input directly and keep their own result types.
 
+- A JSON documentation page, `JSON.md`, covering the whole v1.6 surface: the
+  path builder, the two operators, extraction, mutation, the constructors, the
+  aggregates, when JSONB is worth using, and the SQLite version each group
+  needs (issue #594). Every snippet on the page is built and executed by
+  `XLDocumentationTests.testDocumentationJSON`. `BuiltinFunctions.md` links to
+  it rather than repeating the list.
+
+- Conformance inventory records for the whole JSON surface (issue #594). The
+  `syntax.expression.json-functions` entry no longer names only
+  `JSON_ARRAY_LENGTH` and `JSON_VALID`; it covers the constructors,
+  inspection, extraction, mutation, and aggregates. Two new entries join it:
+  `syntax.expression.json-path` for the typed path builder and
+  `syntax.expression.json-operators` for `->` and `->>`, which record their
+  own SQLite 3.38.0 minimum. `syntax.expression.jsonb-functions` records the
+  JSONB surface and its 3.45.0 minimum. Thirteen evidence records cite the new
+  test suites, and `Conformance/SQLite/REPORT.md` is regenerated.
+
 ### Deprecated
 
 - `validJSON()`, in favour of `validJSONOrNull()` and
@@ -784,9 +801,9 @@ render unchanged.
   conformance inventory.
 - Recorded the new conflict-resolution, replace, upsert, update-with-CTE,
   RETURNING (insert, delete, update), and INSERT/UPDATE SELECT surfaces in the
-  #190 canonical SQLite conformance inventory. It records 114 public-surface feature records: 110
+  #190 canonical SQLite conformance inventory. It records 117 public-surface feature records: 113
   supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-  1 unimplemented. Of the 180 evidence records, 110 exercise real SQLite and
+  1 unimplemented. Of the 193 evidence records, 117 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
 ### Migration

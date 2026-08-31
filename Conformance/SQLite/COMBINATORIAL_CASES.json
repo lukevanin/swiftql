@@ -731,7 +731,7 @@
       ],
       "id" : "c191.v1.expression.json-arrow-element",
       "inventory_feature_ids" : [
-        "syntax.expression.json-functions"
+        "syntax.expression.json-operators"
       ],
       "mode" : "semantic",
       "oracle" : {
@@ -771,7 +771,7 @@
       ],
       "id" : "c191.v1.expression.json-arrow-value",
       "inventory_feature_ids" : [
-        "syntax.expression.json-functions"
+        "syntax.expression.json-operators"
       ],
       "mode" : "semantic",
       "oracle" : {

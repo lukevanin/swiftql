@@ -157,6 +157,7 @@ replacing SQLite's runtime type rules.
 - <doc:Expressions>
 - <doc:RealValues>
 - <doc:BuiltinFunctions>
+- <doc:JSON>
 - <doc:FunctionalSyntax>
 
 ### Advanced topics
