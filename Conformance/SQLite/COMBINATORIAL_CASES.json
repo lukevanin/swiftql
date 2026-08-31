@@ -636,6 +636,46 @@
           "storage" : "text",
           "tagged_value" : {
             "tag" : "text",
+            "value" : "x"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-array-constructor"
+        }
+      ],
+      "id" : "c191.v1.expression.json-array-constructor",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-array-constructor",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_array(:text_value)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-array-constructor swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function:JSON_ARRAY"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-array-constructor"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
             "value" : "[1,2,3]"
           }
         }
@@ -745,6 +785,246 @@
       ],
       "strength" : "targeted",
       "template" : "expression.json-arrow-value"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "{\"a\":"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-error-position"
+        }
+      ],
+      "id" : "c191.v1.expression.json-error-position",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-error-position",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_error_position(:text_value)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-error-position swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function-signature:JSON_ERROR_POSITION/1"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-error-position"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : " { \"a\" : 1 } "
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-minified"
+        }
+      ],
+      "id" : "c191.v1.expression.json-minified",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-minified",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json(:text_value)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-minified swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function-signature:JSON/1"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-minified"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "a"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-object-constructor"
+        }
+      ],
+      "id" : "c191.v1.expression.json-object-constructor",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-object-constructor",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_object(:text_value, 1)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-object-constructor swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function:JSON_OBJECT"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-object-constructor"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "a\"b"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-quote"
+        }
+      ],
+      "id" : "c191.v1.expression.json-quote",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-quote",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_quote(:text_value)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-quote swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function-signature:JSON_QUOTE/1"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-quote"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "{\"a\":[1]}"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-type"
+        }
+      ],
+      "id" : "c191.v1.expression.json-type",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-type",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_type(:text_value)",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-type swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function-signature:JSON_TYPE/1"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-type"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "{\"a\":[1]}"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-type-path"
+        }
+      ],
+      "id" : "c191.v1.expression.json-type-path",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-type-path",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT json_type(:text_value, '$.a')",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-type-path swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "function-signature:JSON_TYPE/2"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-type-path"
     },
     {
       "bindings" : [
@@ -11921,12 +12201,12 @@
       "strength" : 2
     },
     {
-      "covered_tuple_count" : 42,
+      "covered_tuple_count" : 49,
       "dimension_ids" : [
         "expression-case"
       ],
       "excluded_tuple_count" : 0,
-      "required_tuple_count" : 42,
+      "required_tuple_count" : 49,
       "strength" : 1
     },
     {
@@ -12247,6 +12527,34 @@
         {
           "id" : "json-array-length",
           "label" : "json-array-length"
+        },
+        {
+          "id" : "json-minified",
+          "label" : "json-minified"
+        },
+        {
+          "id" : "json-quote",
+          "label" : "json-quote"
+        },
+        {
+          "id" : "json-type",
+          "label" : "json-type"
+        },
+        {
+          "id" : "json-type-path",
+          "label" : "json-type-path"
+        },
+        {
+          "id" : "json-error-position",
+          "label" : "json-error-position"
+        },
+        {
+          "id" : "json-array-constructor",
+          "label" : "json-array-constructor"
+        },
+        {
+          "id" : "json-object-constructor",
+          "label" : "json-object-constructor"
         },
         {
           "id" : "json-arrow-element",

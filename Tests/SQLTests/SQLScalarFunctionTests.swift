@@ -71,12 +71,12 @@ final class XLScalarFunctionTests: XCTestCase {
         assertSQL(optionalDate.toUnixTimestamp(), "unixepoch(:optionalDate)")
         assertSQL(json.jsonArrayLength(), "json_array_length(:json)")
         assertSQL(json.jsonArrayLength(path: "$.items"), "json_array_length(:json, '$.items')")
-        assertSQL(json.validJSON(), "json_valid(:json)")
+        assertSQL(json.validJSONOrNull(), "json_valid(:json)")
 
         assertExpressionType(date.toUnixTimestamp(), Int.self)
         assertExpressionType(optionalDate.toUnixTimestamp(), Int?.self)
         assertExpressionType(json.jsonArrayLength(), Int?.self)
-        assertExpressionType(json.validJSON(), Bool.self)
+        assertExpressionType(json.validJSONOrNull(), Bool?.self)
     }
 
     func testDateConstructorsModifiersAndComponents() {

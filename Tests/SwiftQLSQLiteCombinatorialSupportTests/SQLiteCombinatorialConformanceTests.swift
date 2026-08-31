@@ -125,7 +125,7 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
 
         XCTAssertEqual(actualSuffixes, expectedSuffixes)
         XCTAssertEqual(issue286Cases.count, 27)
-        XCTAssertEqual(manifest.cases.count, 210)
+        XCTAssertEqual(manifest.cases.count, 217)
         XCTAssertEqual(manifest.hardBounds.maximumCaseCount, 224)
         XCTAssertFalse(issue286Cases.contains { $0.id.contains("unixepoch") })
         XCTAssertTrue(issue286Cases.allSatisfy { $0.mode == .semantic })
@@ -626,9 +626,13 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
         XCTAssertTrue(signatures.contains("JSON_VALID/1"))
         XCTAssertTrue(signatures.contains("JSON_ARRAY_LENGTH/1"))
         XCTAssertTrue(signatures.contains("JSON_ARRAY_LENGTH/2"))
-        // Three function cases, plus the two `->` and `->>` operator cases
-        // added by issue #589.
-        XCTAssertEqual(jsonCases.count, 5)
+        // Three original function cases, the two `->` and `->>` operator
+        // cases from issue #589, and seven of the nine constructor and
+        // inspection cases from issue #590. The other two, json_pretty and
+        // the two-argument json_valid, need a newer SQLite than the oldest
+        // runtime in the supported matrix, so they are covered by
+        // runtime-gated execution tests and have no combinatorial case.
+        XCTAssertEqual(jsonCases.count, 12)
         // The operators are not functions, so the pinned runtime attests them
         // by version rather than by signature.
         XCTAssertTrue(
@@ -1117,7 +1121,22 @@ private extension SQLiteCombinatorialConformanceTests {
         })
         for testCase in cases {
             for capability in testCase.requiredCapabilities {
-                if capability.hasPrefix("function:") {
+                if capability.hasPrefix("function-signature:") {
+                    // A name plus an arity, for a function whose overloads
+                    // arrived in different SQLite versions. `pragma
+                    // function_list` reports one row per arity, so this is
+                    // stronger evidence than the name alone.
+                    let signature = String(
+                        capability.dropFirst("function-signature:".count)
+                    ).uppercased()
+                    guard functionSignatures.contains(signature) else {
+                        throw SQLiteCombinatorialConformanceError.missingCapability(
+                            caseID: testCase.id,
+                            capability: capability
+                        )
+                    }
+                }
+                else if capability.hasPrefix("function:") {
                     let name = String(capability.dropFirst("function:".count)).uppercased()
                     guard functionNames.contains(name) else {
                         throw SQLiteCombinatorialConformanceError.missingCapability(
@@ -1451,6 +1470,20 @@ private extension SQLiteCombinatorialConformanceTests {
             return "SELECT JSON_VALID(:text_value)"
         case "json-array-length":
             return "SELECT JSON_ARRAY_LENGTH(:text_value)"
+        case "json-minified":
+            return "SELECT JSON(:text_value)"
+        case "json-quote":
+            return "SELECT JSON_QUOTE(:text_value)"
+        case "json-type":
+            return "SELECT JSON_TYPE(:text_value)"
+        case "json-type-path":
+            return "SELECT JSON_TYPE(:text_value, '$.a')"
+        case "json-error-position":
+            return "SELECT JSON_ERROR_POSITION(:text_value)"
+        case "json-array-constructor":
+            return "SELECT JSON_ARRAY(:text_value)"
+        case "json-object-constructor":
+            return "SELECT JSON_OBJECT(:text_value, 1)"
         case "json-arrow-element":
             return "SELECT :text_value -> '$.name'"
         case "json-arrow-value":

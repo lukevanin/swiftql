@@ -84,7 +84,7 @@ final class XLJSONOperatorRenderingTests: XCTestCase {
         // Each selection carries its own parentheses, so it stays one operand
         // when it is nested in a function argument.
         assertSQL(
-            document().jsonElement(at: XLJSONPath.root.key("a")).validJSON(),
+            document().jsonElement(at: XLJSONPath.root.key("a")).validJSONOrNull(),
             "json_valid((:document -> '$.a'))"
         )
     }

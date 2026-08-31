@@ -37,6 +37,38 @@
   exposed, because `XLJSONPath.key(_:)` already names any single key and also
   composes.
 
+- The SQLite JSON constructor and inspection functions (issue #590).
+  `jsonArray(_:)` and `jsonObject(_:)` build a JSON array and object.
+  `jsonObject` takes its members as name/value pairs, so an incomplete member
+  cannot be written and SQLite's "requires an even number of arguments" error
+  cannot be reached from Swift. On an expression: `minifiedJSON()` renders
+  `json(X)`, `prettyJSON()` renders `json_pretty(X)`, `jsonQuoted()` renders
+  `json_quote(X)`, `jsonType()` and `jsonType(at:)` render `json_type`, and
+  `jsonErrorPosition()` renders `json_error_position(X)`.
+
+  Three of these need a SQLite newer than 3.9.0, and SwiftQL renders the SQL
+  either way -- it is the engine that refuses. `json_error_position` needs
+  **3.42.0**, `json_valid(X, F)` with flags needs **3.45.0**, and
+  `json_pretty` needs **3.46.0**. The macOS cells in this repository's
+  supported matrix run SQLite 3.43.2, so the last two are covered by tests
+  that ask the connection what it defines and skip with a message naming the
+  runtime, rather than by combinatorial cases, where a missing capability is
+  a failure rather than a skip.
+
+- `XLJSONValidationFlags`, a typed option set for the second argument of
+  `json_valid` (issue #590), with one member per SQLite flag bit: `json`,
+  `json5`, `jsonbShallow`, and `jsonbStrict`. An empty set renders as `json`,
+  which is what SQLite uses when the argument is left out, because SQLite
+  rejects a zero mask.
+
+### Deprecated
+
+- `validJSON()`, in favour of `validJSONOrNull()` and
+  `validJSONOrNull(flags:)` (issue #590). `json_valid(NULL)` returns SQL
+  `NULL`, not false, so a non-optional `Bool` result cannot represent what
+  SQLite returns. `validJSON()` still compiles and renders the same SQL; it
+  will return an optional expression in SwiftQL 2.
+
 ## [1.5.7] - 2026-08-27
 
 ### Removed
