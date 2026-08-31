@@ -4,6 +4,7 @@ import SwiftQL
 import SwiftQLNorthwindFixtures
 import SwiftQLSQLiteCombinatorialSupport
 import SwiftQLSQLiteConformanceFixtures
+import SwiftQLTestSupport
 import XCTest
 
 
@@ -124,7 +125,7 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
 
         XCTAssertEqual(actualSuffixes, expectedSuffixes)
         XCTAssertEqual(issue286Cases.count, 27)
-        XCTAssertEqual(manifest.cases.count, 208)
+        XCTAssertEqual(manifest.cases.count, 210)
         XCTAssertEqual(manifest.hardBounds.maximumCaseCount, 224)
         XCTAssertFalse(issue286Cases.contains { $0.id.contains("unixepoch") })
         XCTAssertTrue(issue286Cases.allSatisfy { $0.mode == .semantic })
@@ -625,7 +626,16 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
         XCTAssertTrue(signatures.contains("JSON_VALID/1"))
         XCTAssertTrue(signatures.contains("JSON_ARRAY_LENGTH/1"))
         XCTAssertTrue(signatures.contains("JSON_ARRAY_LENGTH/2"))
-        XCTAssertEqual(jsonCases.count, 3)
+        // Three function cases, plus the two `->` and `->>` operator cases
+        // added by issue #589.
+        XCTAssertEqual(jsonCases.count, 5)
+        // The operators are not functions, so the pinned runtime attests them
+        // by version rather than by signature.
+        XCTAssertTrue(
+            SQLiteVersion(runtime.sqliteVersion) >= SQLiteVersion("3.38.0"),
+            "the pinned runtime reports SQLite \(runtime.sqliteVersion), "
+                + "which predates the -> and ->> operators"
+        )
         XCTAssertNoThrow(try assertRequiredCapabilities(for: jsonCases, runtime: runtime))
     }
 
@@ -1129,6 +1139,21 @@ private extension SQLiteCombinatorialConformanceTests {
                         )
                     }
                 }
+                else if capability == "sqlite-json-operators" {
+                    // `->` and `->>` arrived in SQLite 3.38.0. They are
+                    // operators, not functions, so they never appear in the
+                    // runtime function list. The reported version is the only
+                    // runtime evidence there is.
+                    guard
+                        SQLiteVersion(runtime.sqliteVersion)
+                            >= SQLiteVersion("3.38.0")
+                    else {
+                        throw SQLiteCombinatorialConformanceError.missingCapability(
+                            caseID: testCase.id,
+                            capability: capability
+                        )
+                    }
+                }
                 else {
                     throw SQLiteCombinatorialConformanceError.unknownCapability(
                         caseID: testCase.id,
@@ -1426,6 +1451,10 @@ private extension SQLiteCombinatorialConformanceTests {
             return "SELECT JSON_VALID(:text_value)"
         case "json-array-length":
             return "SELECT JSON_ARRAY_LENGTH(:text_value)"
+        case "json-arrow-element":
+            return "SELECT :text_value -> '$.name'"
+        case "json-arrow-value":
+            return "SELECT :text_value ->> '$.name'"
         case "json-array-length-path":
             return "SELECT JSON_ARRAY_LENGTH(:text_value, '$.items')"
         case "operator-arithmetic-precedence":

@@ -676,6 +676,86 @@
           "storage" : "text",
           "tagged_value" : {
             "tag" : "text",
+            "value" : "{\"name\":\"Alice\"}"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-arrow-element"
+        }
+      ],
+      "id" : "c191.v1.expression.json-arrow-element",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-arrow-element",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:text_value -> '$.name')",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-arrow-element swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "sqlite-json-operators"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-arrow-element"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
+            "value" : "{\"name\":\"Alice\"}"
+          }
+        }
+      ],
+      "constraint_ids" : [
+
+      ],
+      "dimension_vector" : [
+        {
+          "dimension_id" : "expression-case",
+          "value_id" : "json-arrow-value"
+        }
+      ],
+      "id" : "c191.v1.expression.json-arrow-value",
+      "inventory_feature_ids" : [
+        "syntax.expression.json-functions"
+      ],
+      "mode" : "semantic",
+      "oracle" : {
+        "id" : "oracle.c191.expression.json-arrow-value",
+        "kind" : "raw-sql"
+      },
+      "rendered_sql" : "SELECT (:text_value ->> '$.name')",
+      "reproduction_command" : "SWIFTQL_COMBINATORIAL_CASE=c191.v1.expression.json-arrow-value swift test --filter SQLiteCombinatorialConformanceTests",
+      "required_capabilities" : [
+        "sqlite-json-operators"
+      ],
+      "strength" : "targeted",
+      "template" : "expression.json-arrow-value"
+    },
+    {
+      "bindings" : [
+        {
+          "key_kind" : "named",
+          "key_name" : "text_value",
+          "logical_index" : 0,
+          "repeat_count" : 1,
+          "storage" : "text",
+          "tagged_value" : {
+            "tag" : "text",
             "value" : "{\"ok\":true}"
           }
         }
@@ -11841,12 +11921,12 @@
       "strength" : 2
     },
     {
-      "covered_tuple_count" : 40,
+      "covered_tuple_count" : 42,
       "dimension_ids" : [
         "expression-case"
       ],
       "excluded_tuple_count" : 0,
-      "required_tuple_count" : 40,
+      "required_tuple_count" : 42,
       "strength" : 1
     },
     {
@@ -12167,6 +12247,14 @@
         {
           "id" : "json-array-length",
           "label" : "json-array-length"
+        },
+        {
+          "id" : "json-arrow-element",
+          "label" : "json-arrow-element"
+        },
+        {
+          "id" : "json-arrow-value",
+          "label" : "json-arrow-value"
         },
         {
           "id" : "operator-arithmetic-precedence",
