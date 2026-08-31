@@ -34,7 +34,11 @@ public enum SQLiteCombinatorialSuiteError: Error, Equatable, Sendable {
 public enum SQLiteCombinatorialSuite {
 
     public static let maximumSelectCaseCount = 128
-    public static let maximumCaseCount = 224
+    // Raised from 224 by the v1.6 JSON milestone, which adds one targeted
+    // case per JSON function and operator. The bound exists to stop the
+    // pairwise plan from growing without anyone noticing, not to cap the
+    // finite typed factories, so it moves with them.
+    public static let maximumCaseCount = 256
     public static let generatorVersion = "c191-v2"
 
     /// Returns the deterministic, bounded pairwise SELECT plan.

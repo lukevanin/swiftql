@@ -125,8 +125,8 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
 
         XCTAssertEqual(actualSuffixes, expectedSuffixes)
         XCTAssertEqual(issue286Cases.count, 27)
-        XCTAssertEqual(manifest.cases.count, 217)
-        XCTAssertEqual(manifest.hardBounds.maximumCaseCount, 224)
+        XCTAssertEqual(manifest.cases.count, 224)
+        XCTAssertEqual(manifest.hardBounds.maximumCaseCount, 256)
         XCTAssertFalse(issue286Cases.contains { $0.id.contains("unixepoch") })
         XCTAssertTrue(issue286Cases.allSatisfy { $0.mode == .semantic })
 
@@ -627,12 +627,13 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
         XCTAssertTrue(signatures.contains("JSON_ARRAY_LENGTH/1"))
         XCTAssertTrue(signatures.contains("JSON_ARRAY_LENGTH/2"))
         // Three original function cases, the two `->` and `->>` operator
-        // cases from issue #589, and seven of the nine constructor and
-        // inspection cases from issue #590. The other two, json_pretty and
-        // the two-argument json_valid, need a newer SQLite than the oldest
+        // cases from issue #589, seven of the nine constructor and inspection
+        // cases from issue #590, and the seven extraction and mutation cases
+        // from issue #591. The two left out are json_pretty and the
+        // two-argument json_valid, which need a newer SQLite than the oldest
         // runtime in the supported matrix, so they are covered by
         // runtime-gated execution tests and have no combinatorial case.
-        XCTAssertEqual(jsonCases.count, 12)
+        XCTAssertEqual(jsonCases.count, 19)
         // The operators are not functions, so the pinned runtime attests them
         // by version rather than by signature.
         XCTAssertTrue(
@@ -1470,6 +1471,20 @@ private extension SQLiteCombinatorialConformanceTests {
             return "SELECT JSON_VALID(:text_value)"
         case "json-array-length":
             return "SELECT JSON_ARRAY_LENGTH(:text_value)"
+        case "json-extract-one-path":
+            return "SELECT JSON_EXTRACT(:text_value, '$.a')"
+        case "json-extract-two-paths":
+            return "SELECT JSON_EXTRACT(:text_value, '$.a', '$.b')"
+        case "json-insert":
+            return "SELECT JSON_INSERT(:text_value, '$.b', 2)"
+        case "json-replace":
+            return "SELECT JSON_REPLACE(:text_value, '$.a', 9)"
+        case "json-set":
+            return "SELECT JSON_SET(:text_value, '$.a', 9)"
+        case "json-remove":
+            return "SELECT JSON_REMOVE(:text_value, '$.a')"
+        case "json-patch":
+            return "SELECT JSON_PATCH(:text_value, '{\"b\":null,\"c\":3}')"
         case "json-minified":
             return "SELECT JSON(:text_value)"
         case "json-quote":
