@@ -51,6 +51,54 @@ through a type that says how to read it, bind it, and render it. That is
 contract and <doc:NumericDateCodecs> for the codecs the demo's stored forms
 match. Priority is an `XLEnum` — see <doc:Enums>.
 
+## One column holds JSON
+
+A to-do's sub-tasks are a JSON array in `Todo.checklist`:
+
+<!-- source: Examples/TodoApp/TodoKit/Sources/TodoKit/Schema.swift -->
+```swift
+    /// See ``TodoChecklist``.
+    public var checklist: String
+```
+
+This is the one place in the demo where a JSON column is the honest answer
+rather than a demonstration. Nothing queries a checklist on its own, nothing
+joins to it, and its length varies from zero to a handful; a second table
+would add a foreign key, a join, and an ordering column to model something no
+query ever asks about separately.
+
+What makes it worth having is that SQLite does the work. Adding, ticking, and
+deleting a sub-task are each one `UPDATE`:
+
+<!-- source: Examples/TodoApp/TodoKit/Sources/TodoKit/TodoStore.swift -->
+```swift
+                row.checklist = table.checklist
+                    .jsonSetting((TodoChecklist.isDone(at: index), flag))
+                    .coalesce(table.checklist)
+```
+
+The app never loads a to-do, edits the array in Swift, and writes it back, so
+two people ticking different sub-tasks cannot overwrite each other. The
+`coalesce` is there because `json_set` returns `NULL` for a `NULL` document,
+which makes its result optional even though the column is not.
+
+Reading follows the same rule. The list rows need a count and a first title,
+not the arrays, so the query asks SQLite for exactly those:
+
+<!-- source: Examples/TodoApp/TodoKit/Sources/TodoKit/TodoReads.swift -->
+```swift
+                Select(TodoChecklistSummary.columns(
+                    todoID: todo.id,
+                    itemCount: todo.checklist.jsonArrayLength(),
+                    firstItemTitle: todo.checklist.jsonValue(
+                        at: TodoChecklist.title(at: 0),
+                        as: String.self
+                    )
+                ))
+```
+
+See <doc:JSON> for the whole surface.
+
 ## Declared reads
 
 The demo's reads are functions. One `@SQLQueries` extension holds all of them,

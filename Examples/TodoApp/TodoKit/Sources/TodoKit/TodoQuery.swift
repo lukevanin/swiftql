@@ -117,3 +117,22 @@ public struct TodoListCounts: Equatable, Sendable {
     public var openCount: Int
     public var totalCount: Int
 }
+
+/// What SQLite can say about a to-do's checklist without the array leaving
+/// the database.
+///
+/// `itemCount` comes from `json_array_length` and `firstItemTitle` from the
+/// `->>` operator, so a list of fifty to-dos costs one query and decodes two
+/// small values per row rather than fifty JSON documents.
+@SQLResult
+public struct TodoChecklistSummary: Equatable, Sendable {
+
+    public var todoID: TodoUUID
+
+    /// `nil` only if the column ever held something that is not an array,
+    /// which the schema's default and every write here prevent.
+    public var itemCount: Int?
+
+    /// `nil` when the checklist is empty.
+    public var firstItemTitle: String?
+}

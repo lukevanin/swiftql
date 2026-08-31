@@ -55,13 +55,18 @@ public final class TodoListModel {
 
     public private(set) var tagsByTodo: [TodoUUID: [Tag]] = [:]
 
+    /// One summary per to-do on screen. SQLite counted the sub-tasks and
+    /// picked the first title, so no checklist array crosses the boundary
+    /// just to draw a badge.
+    public private(set) var checklistsByTodo: [TodoUUID: TodoChecklistSummary] = [:]
+
     private let database: TodoDatabase
 
     public init(database: TodoDatabase, query: TodoQuery) throws {
         self.database = database
         self.query = query
         todos = try Self.observe(query, in: database)
-        reloadTags()
+        reloadRowDetails()
     }
 
     public var filter: TodoFilter {
@@ -88,14 +93,26 @@ public final class TodoListModel {
         todos.stop()
     }
 
-    /// Tag labels for the rows on screen, fetched in one query for the whole
-    /// list rather than one per row.
-    public func reloadTags() {
+    /// Tag labels and checklist summaries for the rows on screen, each
+    /// fetched in one query for the whole list rather than one per row.
+    ///
+    /// Named for what it loads rather than for tags alone: the checklist
+    /// summaries joined it when the demo took on a JSON column, and a caller
+    /// reading a name about tags alone would not expect them.
+    public func reloadRowDetails() {
         tagsByTodo = (try? database.tagsByTodo(inList: query.listID)) ?? [:]
+        checklistsByTodo =
+            (try? database.checklistSummaries(inList: query.listID)) ?? [:]
     }
 
     public func tags(for todo: Todo) -> [Tag] {
         tagsByTodo[todo.id] ?? []
+    }
+
+    /// How many sub-tasks a row has, as SQLite counted them. Zero when the
+    /// to-do has none, which is also what an unsummarised row reads as.
+    public func checklistItemCount(for todo: Todo) -> Int {
+        checklistsByTodo[todo.id]?.itemCount ?? 0
     }
 
     private func rebind(_ change: (inout TodoQuery) -> Void) {
@@ -122,7 +139,7 @@ public final class TodoListModel {
         todos = replacement
         previous.stop()
         if !sameList {
-            reloadTags()
+            reloadRowDetails()
         }
     }
 

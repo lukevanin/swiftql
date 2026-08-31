@@ -75,6 +75,18 @@ a declared query, and the file says why.
 toggles, and deletes with `RETURNING`, so a caller gets the row the database
 holds without fetching again.
 
+**One column holds JSON, and SQLite does the work on it.** A to-do's
+sub-tasks live in `Todo.checklist` as a JSON array. Nothing queries a
+checklist on its own, nothing joins to it, and its length varies, so a second
+table would add a foreign key and a join to model something no query asks
+about separately. Adding, ticking, and deleting a sub-task are each one
+`UPDATE` — `json_insert`, `json_set`, `json_remove` — so the app never loads a
+to-do, edits the array in Swift, and writes it back. The list rows show a
+count that `json_array_length` produced and the `->>` operator's pick of the
+first title, so drawing fifty rows moves two small values per row rather than
+fifty documents. `TodoChecklist.swift` holds the paths and the two
+conversions the view layer needs.
+
 **A transaction that has to be all or nothing.** Moving a to-do between lists
 renumbers the list it left and appends it to the one it joined.
 `withTransaction` makes those a unit; `testAFailureMidMoveLeavesBothListsUntouched`
@@ -106,8 +118,8 @@ using the debug **Reset to seeded state** action).
 
 ## Known rough edges
 
-Building a whole application on v1.5 surfaced three places where the API
-resists, all recorded on
+Building a whole application on v1.5 and v1.6 surfaced four places where the
+API resists, all recorded on
 [#469](https://github.com/lukevanin/swiftql/issues/469):
 
 - **`LIKE` cannot appear in a declared query.** The frozen-literal guard
@@ -120,6 +132,13 @@ resists, all recorded on
 - **A declared query cannot be called inside `withTransaction`.** The generated
   executor opens its own transaction, and SwiftQL rejects nesting, so reads
   inside a transaction use plain requests.
+- **A JSON mutation cannot be assigned to a `NOT NULL` column without
+  `coalesce`.** `json_set` and its siblings return `NULL` for a `NULL`
+  document, so their result is optional even when the column is not. Every
+  checklist write ends `.coalesce(table.checklist)` to supply a case that
+  cannot arise. `@SQLTable`'s generated memberwise initializer also ignores a
+  Swift default on a property and requires it anyway, so a default would read
+  as optional at the call site and then not be.
 
 None of them stop the demo working. They are the kind of thing an application
 finds and a fragment does not, which is most of why this exists.

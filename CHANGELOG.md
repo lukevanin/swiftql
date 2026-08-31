@@ -109,6 +109,14 @@
   JSONB surface and its 3.45.0 minimum. Thirteen evidence records cite the new
   test suites, and `Conformance/SQLite/REPORT.md` is regenerated.
 
+- The to-do demo adopts the JSON surface (issue #479). A to-do's sub-tasks
+  live in a `checklist` JSON column: adding, ticking, and deleting one are
+  each a single `UPDATE` through `json_insert`, `json_set`, and
+  `json_remove`, and the list rows show a count from `json_array_length` and
+  a first title from `->>`, so no checklist array crosses the boundary to
+  draw a row. `Examples/TodoApp/README.md` and the `TodoDemo` page explain
+  why a JSON column is the honest choice for that one field.
+
 ### Deprecated
 
 - `validJSON()`, in favour of `validJSONOrNull()` and
