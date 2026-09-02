@@ -1,5 +1,199 @@
 # Changelog
 
+## [1.6.0] - Unreleased
+
+### Added
+
+- `XLJSONPath`, a typed SQLite JSON path built from segments rather than
+  written as a string literal (issue #588). `XLJSONPath.root` is the document
+  root, `key(_:)` adds an object member, `index(_:)` adds an array element
+  counted from the start, and `last` and `index(fromEnd:)` count back from the
+  end. A key is quoted only where SQLite's path grammar needs it -- when the
+  key is empty, or holds a `.` or a `[` -- so a key that holds either names
+  that key instead of changing the shape of the path. A key holding a `"`, a
+  `\`, or a control character resolves only on a SQLite that unescapes JSON
+  labels: JSON stores such a key escaped, older engines match a path label
+  against that raw escaped text, and newer engines unescape both sides first,
+  so no single spelling suits both. SwiftQL renders for the newer behaviour,
+  which is what SQLite documents. A path renders through the same text
+  formatter as any other text operand, so it cannot carry raw SQL. SQLite has
+  no negative array index, so `index(_:)` stops with a diagnostic message when
+  it is given one, and names `last` and `index(fromEnd:)` as the remedy.
+  `appended` names the position one past the last element, rendered `[#]`,
+  which is SQLite's idiom for appending to an array.
+
+- `jsonArrayLength(path:)` gains an `XLJSONPath` overload (issue #588). The
+  existing `String` overload is unchanged.
+
+- SQLite's two JSON selection operators, added in SQLite 3.38.0 (issue #589).
+  `jsonElement(at:)` renders `->` and returns the selected element as JSON
+  text, so a selected string keeps its quotes and a JSON `null` reads back as
+  the four characters `null`. `jsonValue(at:as:)` renders `->>` and returns
+  the element as a SQL value of the requested type, so a selected string loses
+  its quotes and a JSON `null` reads back as SQL `NULL`. Both results are
+  optional, because a path that matches nothing yields SQL `NULL`. Both are
+  methods rather than Swift operators: the compiler reserves `->` and refuses
+  to declare it. SQLite's bare-name form on the right of the operator is not
+  exposed, because `XLJSONPath.key(_:)` already names any single key and also
+  composes.
+
+- The SQLite JSON constructor and inspection functions (issue #590).
+  `jsonArray(_:)` and `jsonObject(_:)` build a JSON array and object.
+  `jsonObject` takes its members as name/value pairs, so an incomplete member
+  cannot be written and SQLite's "requires an even number of arguments" error
+  cannot be reached from Swift. On an expression: `minifiedJSON()` renders
+  `json(X)`, `prettyJSON()` renders `json_pretty(X)`, `jsonQuoted()` renders
+  `json_quote(X)`, `jsonType()` and `jsonType(at:)` render `json_type`, and
+  `jsonErrorPosition()` renders `json_error_position(X)`.
+
+  Three of these need a SQLite newer than 3.9.0, and SwiftQL renders the SQL
+  either way -- it is the engine that refuses. `json_error_position` needs
+  **3.42.0**, `json_valid(X, F)` with flags needs **3.45.0**, and
+  `json_pretty` needs **3.46.0**. The macOS cells in this repository's
+  supported matrix run SQLite 3.43.2, so the last two are covered by tests
+  that ask the connection what it defines and skip with a message naming the
+  runtime, rather than by combinatorial cases, where a missing capability is
+  a failure rather than a skip.
+
+- `XLJSONValidationFlags`, a typed option set for the second argument of
+  `json_valid` (issue #590), with one member per SQLite flag bit: `json`,
+  `json5`, `jsonbShallow`, and `jsonbStrict`. An empty set renders as `json`,
+  which is what SQLite uses when the argument is left out, because SQLite
+  rejects a zero mask.
+
+- `json_extract` and the five JSON mutation functions (issue #591).
+  `jsonExtract(at:as:)` reads one path as a SQL value in the type the caller
+  states. `jsonExtract(at:_:_:)` reads two or more paths and returns the JSON
+  array SQLite builds from them; it requires two paths by its signature, so
+  the two result types cannot be confused at the call site.
+
+- `jsonInserting(_:_:)`, `jsonReplacing(_:_:)`, `jsonSetting(_:_:)`,
+  `jsonRemoving(at:_:)`, and `jsonPatched(with:)` write values back into a
+  document (issue #591). Each takes its path/value pairs as pairs, and each
+  requires at least one, so an incomplete or empty argument list cannot be
+  written. Every result is optional, because a `NULL` document gives `NULL`.
+
+- SQLite's two JSON aggregates (issue #592). `jsonGroupArray(distinct:)`
+  renders `json_group_array(X)` and collects every input row into a JSON
+  array. `jsonGroupObject(name:value:)` renders `json_group_object(N, V)` and
+  collects name/value pairs into a JSON object. Neither result is optional:
+  an empty group gives `[]` and `{}`, not SQL `NULL`. `jsonGroupObject` has no
+  `distinct` parameter, because SQLite allows `DISTINCT` only on an aggregate
+  with exactly one argument.
+
+- The JSONB function variants, which need SQLite 3.45.0 or later (issue #593).
+  Eleven SQLite functions return the binary JSON representation instead of
+  JSON text, reached through twelve Swift entry points because
+  `jsonbExtract` has a single-path and a multiple-path form: `minifiedJSONB()`, `jsonbArray(_:)`, `jsonbObject(_:)`,
+  `jsonbExtract(at:as:)` and `jsonbExtract(at:_:_:)`, `jsonbInserting(_:_:)`,
+  `jsonbReplacing(_:_:)`, `jsonbSetting(_:_:)`, `jsonbRemoving(at:_:)`,
+  `jsonbPatched(with:)`, `jsonbGroupArray(distinct:)`, and
+  `jsonbGroupObject(name:value:)`. The functions whose result is a SQL value
+  rather than JSON have no JSONB twin, because SQLite defines none: they read
+  a JSONB input directly and keep their own result types.
+
+- A JSON documentation page, `JSON.md`, covering the whole v1.6 surface: the
+  path builder, the two operators, extraction, mutation, the constructors, the
+  aggregates, when JSONB is worth using, and the SQLite version each group
+  needs (issue #594). Every snippet on the page is built and executed by
+  `XLDocumentationTests.testDocumentationJSON`. `BuiltinFunctions.md` links to
+  it rather than repeating the list.
+
+- Conformance inventory records for the whole JSON surface (issue #594). The
+  `syntax.expression.json-functions` entry no longer names only
+  `JSON_ARRAY_LENGTH` and `JSON_VALID`; it covers the constructors,
+  inspection, extraction, mutation, and aggregates. Two new entries join it:
+  `syntax.expression.json-path` for the typed path builder and
+  `syntax.expression.json-operators` for `->` and `->>`, which record their
+  own SQLite 3.38.0 minimum. `syntax.expression.jsonb-functions` records the
+  JSONB surface and its 3.45.0 minimum. Thirteen evidence records cite the new
+  test suites, and `Conformance/SQLite/REPORT.md` is regenerated.
+
+- The to-do demo adopts the JSON surface (issue #479). A to-do's sub-tasks
+  live in a `checklist` JSON column: adding, ticking, and deleting one are
+  each a single `UPDATE` through `json_insert`, `json_set`, and
+  `json_remove`, and the list rows show a count from `json_array_length` and
+  a first title from `->>`, so no checklist array crosses the boundary to
+  draw a row. `Examples/TodoApp/README.md` and the `TodoDemo` page explain
+  why a JSON column is the honest choice for that one field.
+
+- `sql { ... }` works as a subquery on Swift 6.1 and later, inferring a table
+  row, a nullable table row, or a scalar value from the context expecting its
+  result (issue #69). The six overloads are behind `#if compiler(>=6.1)`,
+  because they crash the Swift 5.9 and 6.0 compilers when compiled with the
+  rest of the package -- the reason this work was reverted once already, in
+  pull request #408. On those toolchains nothing changes:
+  `subqueryExpression { ... }` remains the spelling, and it is what the gated
+  overloads forward to. Recorded in COMPATIBILITY.md beside `#row`'s
+  multi-column shapes, which are gated for the same class of compiler bug.
+
+### Changed
+
+- Decoding a full result set is 39.4% faster (issue #353). `XLRowReader` gains
+  a second `staticColumn(_:alias:)` requirement, constrained to a value type
+  that conforms to `XLLiteral`. Generated row readers name one concrete Swift
+  type per column, so the compiler selects the constrained requirement for
+  every literal column, and the unconstrained requirement only for a
+  contextual one. The unconstrained requirement has to find the literal
+  conformance at run time and reopen the expression as a parameterised
+  existential; a profile attributed about 54% of main-thread samples to that
+  work, which ran 226,002 times for one 16,143-row, 14-column fetch. The
+  constrained requirement receives the conformance statically and reads the
+  value directly. Measured over six interleaved pairs on one machine: median
+  72.38 ms to 43.88 ms, p95 74.67 ms to 45.32 ms, with every pair between
+  -38.4% and -40.0%. See `Benchmarks/Comparison/Issue353/README.md`.
+
+  No source change is needed to get this. Nothing in the macros changes, so
+  every existing `@SQLTable` and `@SQLResult` reaches the faster path as it
+  is. The new requirement has a default implementation that forwards to
+  `column(_:alias:)`, so an `XLRowReader` conformance outside this package
+  keeps compiling.
+
+  One conformance is affected. A row reader that overrides the unconstrained
+  `staticColumn(_:alias:)` to give literal columns behaviour that
+  `column(_:alias:)` does not give will no longer see literal columns arrive
+  there, because those columns now select the constrained requirement.
+  Implement the constrained requirement as well to keep that behaviour. A
+  reader that implements only `column(_:alias:)`, which is the documented
+  shape, is unaffected.
+
+- Decoding a full result set is a further 28.3% faster (issue #353). The row
+  closure that `@SQLTable` and `@SQLResult` generate runs once per row, and it
+  built each column's expression inside itself. For a 16,143-row, 14-column
+  fetch that built 226,002 `XLColumnResult` values instead of 14. Each was
+  built as its concrete type, so passing it to a read that takes
+  `any XLExpression` boxed it again, and the value is larger than the
+  existential's inline buffer, so each box was a heap allocation. The
+  generated factory now binds every column expression once, before it builds
+  its metadata value, and declares the binding as the erased type the read
+  already takes. Measured over six interleaved pairs on one machine, against
+  the constrained-requirement fix alone: median 42.74 ms to 30.63 ms, p95
+  44.08 ms to 31.32 ms, with every pair between -26.9% and -30.1%. See
+  `Benchmarks/Comparison/Issue353/README.md`.
+
+  No source change is needed to get this, and the generated API does not
+  change. The binding keeps the column's concrete type, so a literal column
+  still selects the constrained `staticColumn(_:alias:)` requirement.
+  `makeSQLTable` and `makeSQLNamedResult` now return explicitly, because a
+  body that binds locals is no longer a single expression.
+
+### Fixed
+
+- The `Benchmarks/Comparison` harness can build its SwiftQL graph again (issue
+  #353). The graph's pinned `Package.resolved` was captured before SwiftQL
+  took its OpenCombine dependency, so SwiftPM added an OpenCombine pin during
+  every build and the harness stopped, as it should, rather than measure
+  dependency versions other than the pinned ones. The missing pin is now
+  recorded at the version and revision SwiftPM resolves. No other pin changes.
+
+### Deprecated
+
+- `validJSON()`, in favour of `validJSONOrNull()` and
+  `validJSONOrNull(flags:)` (issue #590). `json_valid(NULL)` returns SQL
+  `NULL`, not false, so a non-optional `Bool` result cannot represent what
+  SQLite returns. `validJSON()` still compiles and renders the same SQL; it
+  will return an optional expression in SwiftQL 2.
+
 ## [1.5.7] - 2026-08-27
 
 ### Removed
@@ -684,9 +878,9 @@ render unchanged.
   conformance inventory.
 - Recorded the new conflict-resolution, replace, upsert, update-with-CTE,
   RETURNING (insert, delete, update), and INSERT/UPDATE SELECT surfaces in the
-  #190 canonical SQLite conformance inventory. It records 114 public-surface feature records: 110
+  #190 canonical SQLite conformance inventory. It records 117 public-surface feature records: 113
   supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-  1 unimplemented. Of the 180 evidence records, 110 exercise real SQLite and
+  1 unimplemented. Of the 193 evidence records, 117 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
 ### Migration

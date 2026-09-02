@@ -54,18 +54,45 @@ Version numbers express the intended order of work, not release dates.
 | [v1.2](https://github.com/lukevanin/swiftql/milestone/6) | Dialect-aware core and binding foundation | Internal seams needed by query declarations and future backends |
 | [v1.3](https://github.com/lukevanin/swiftql/milestone/8) | Existing SQLite-surface conformance | Current public syntax proven against real SQLite |
 | [v1.4](https://github.com/lukevanin/swiftql/milestone/9) | Common SQLite feature coverage | A documented, useful SQLite subset |
-| [v1.5](https://github.com/lukevanin/swiftql/milestone/1) | Query declarations, ergonomics, and v2 preview | The future API validated without silently raising the v1 toolchain floor |
+| [v1.5.1](https://github.com/lukevanin/swiftql/milestone/23) | Query declarations and macros | Callable prepared handles, the `@SQLQuery` declaration macro, and typed transaction scopes |
+| [v1.5.2](https://github.com/lukevanin/swiftql/milestone/24) | Build-time validation | Static SQLite validation of declared queries through a SwiftPM build-tool plugin |
+| [v1.5.3](https://github.com/lukevanin/swiftql/milestone/25) | Value codecs | Date, JSON, and UUID codec presets on the v1.4 codec registry |
+| [v1.5.4](https://github.com/lukevanin/swiftql/milestone/26) | Query-syntax ergonomics | Source-compatible expression and API conveniences |
+| [v1.5.5](https://github.com/lukevanin/swiftql/milestone/22) | Async live-query foundation | One canonical async observation engine, with the Combine and `@Observable` surfaces rebuilt over it |
+| [v1.5.6](https://github.com/lukevanin/swiftql/milestone/27) | Benchmarks, documentation, and release closeout | The v1.5 line documented, measured, and audited |
+| [v1.5.7](https://github.com/lukevanin/swiftql/milestone/32) | Internal refactoring | The August 2026 audit applied, with no public API change |
+| [v1.6](https://github.com/lukevanin/swiftql/milestone/17) | SQLite JSON support | The SQLite JSON surface reachable from typed Swift |
+| [v1.7](https://github.com/lukevanin/swiftql/milestone/18) | REGEXP backed by Swift Regex | The REGEXP operator usable without an application-supplied `regexp()` function |
+| [v1.8](https://github.com/lukevanin/swiftql/milestone/30) | Query-plan analysis and index advice | Advisory plan capture and index recommendations from the build validator |
 | [v2](https://github.com/lukevanin/swiftql/milestone/10) | Generated database catalogs, Swift 6, and a stable dialect-aware API | Fluent catalog-scoped queries plus intentional naming, package, DDL, and adapter cleanup |
 | [v2.1](https://github.com/lukevanin/swiftql/milestone/2) | Native SQLite adapter | Direct SQLite C execution as an alternative to GRDB |
 | [v2.2](https://github.com/lukevanin/swiftql/milestone/5) | PostgreSQL | Native PostgreSQL syntax and adapter |
 | [v2.3](https://github.com/lukevanin/swiftql/milestone/4) | MySQL | Native MySQL syntax and adapter |
 | [v2.4](https://github.com/lukevanin/swiftql/milestone/3) | SQL Server | Native T-SQL syntax and adapter |
 | [v2.5](https://github.com/lukevanin/swiftql/milestone/11) | Explicit versioned schema migrations | Catalog-owned, forward-only schema evolution after the v2 catalog and adapter foundations are established |
+| [v2.6](https://github.com/lukevanin/swiftql/milestone/19) | FTS5 full-text search | Typed virtual-table DDL, a match-query builder, and the ranking functions |
+| [v2.7](https://github.com/lukevanin/swiftql/milestone/20) | R-Tree spatial indexes | Typed `rtree` DDL and range queries over the v2.6 virtual-table machinery |
+| [v2.8](https://github.com/lukevanin/swiftql/milestone/21) | Table-valued row sources | `json_each` and `json_tree` in `FROM`, on a general row-source declaration |
 
 The v1 milestones are sequential quality and architecture layers. Work on a
 small PostgreSQL proof may start before v2 is frozen so the shared core is
 tested by a genuinely different dialect instead of being generalized from
 SQLite alone. That proof does not change the public release order.
+
+The v1.5 line shipped as the seven sub-milestones listed above, not as one
+milestone. The original
+[v1.5 milestone](https://github.com/lukevanin/swiftql/milestone/1)
+was never used to deliver it, and is now closed and empty: its remaining
+issues moved to the milestones where the work will happen. It is linked here
+rather than in the table because it is no longer a step in the release order.
+
+One milestone has no version title and does not appear in the table above,
+the
+[cross-library workload benchmark suite](https://github.com/lukevanin/swiftql/milestone/31).
+Its families produce advisory evidence and none of them adds a CI gate, so the
+suite does not define a release boundary and cannot be a step in the release
+order. Each family ships when it is ready, against the milestone's own
+fixture.
 
 Key planning and foundation issues:
 
@@ -75,13 +102,20 @@ Key planning and foundation issues:
 | v1.2 | [dialect/driver contracts](https://github.com/lukevanin/swiftql/issues/131), [streaming row decoding](https://github.com/lukevanin/swiftql/issues/248), [contextual value codecs](https://github.com/lukevanin/swiftql/issues/188), [static query descriptors](https://github.com/lukevanin/swiftql/issues/129), [immutable bindings](https://github.com/lukevanin/swiftql/issues/82), [source-coverage baseline](https://github.com/lukevanin/swiftql/issues/189), [SQLite value conformance](https://github.com/lukevanin/swiftql/issues/252), [transaction invariants](https://github.com/lukevanin/swiftql/issues/253) |
 | v1.3 | [syntax conformance inventory](https://github.com/lukevanin/swiftql/issues/190), [combinatorial conformance cases](https://github.com/lukevanin/swiftql/issues/191), [build-time SQLite validation research](https://github.com/lukevanin/swiftql/issues/132), [Northwind correctness corpus](https://github.com/lukevanin/swiftql/issues/254), [observation stress contracts](https://github.com/lukevanin/swiftql/issues/255) |
 | v1.4 | [SQLite coverage index](https://github.com/lukevanin/swiftql/issues/115), [direct scalar CTE rows](https://github.com/lukevanin/swiftql/issues/43) |
-| v1.5 | [ergonomics index](https://github.com/lukevanin/swiftql/issues/116), [macro index](https://github.com/lukevanin/swiftql/issues/117), [prepared handles](https://github.com/lukevanin/swiftql/issues/18), [lazy typed result set](https://github.com/lukevanin/swiftql/issues/249), [@SQLQuery prototype](https://github.com/lukevanin/swiftql/issues/26), [Date text](https://github.com/lukevanin/swiftql/issues/61) and [numeric codecs](https://github.com/lukevanin/swiftql/issues/62), [UUID codecs](https://github.com/lukevanin/swiftql/issues/192), [interactive DocC tutorial](https://github.com/lukevanin/swiftql/issues/27), [macro regression corpus](https://github.com/lukevanin/swiftql/issues/256), [compile scalability benchmarks](https://github.com/lukevanin/swiftql/issues/257), [runtime workload research](https://github.com/lukevanin/swiftql/issues/259) |
+| v1.5.1-v1.5.7 | [ergonomics index](https://github.com/lukevanin/swiftql/issues/116), [macro index](https://github.com/lukevanin/swiftql/issues/117), [prepared handles](https://github.com/lukevanin/swiftql/issues/18), [lazy typed result set](https://github.com/lukevanin/swiftql/issues/249), [@SQLQuery prototype](https://github.com/lukevanin/swiftql/issues/26), [Date text](https://github.com/lukevanin/swiftql/issues/61) and [numeric codecs](https://github.com/lukevanin/swiftql/issues/62), [UUID codecs](https://github.com/lukevanin/swiftql/issues/192), [interactive DocC tutorial](https://github.com/lukevanin/swiftql/issues/27), [macro regression corpus](https://github.com/lukevanin/swiftql/issues/256), [compile scalability benchmarks](https://github.com/lukevanin/swiftql/issues/257), [runtime workload research](https://github.com/lukevanin/swiftql/issues/259) |
+| v1.6 | [typed JSON path builder](https://github.com/lukevanin/swiftql/issues/588), the foundation the other JSON issues build on |
+| v1.7 | no live index issue yet. The milestone description is the plan, and its only open issue is [demo adoption](https://github.com/lukevanin/swiftql/issues/482) |
+| v1.8 | [query-plan capture](https://github.com/lukevanin/swiftql/issues/394), [plan-shape diagnostics](https://github.com/lukevanin/swiftql/issues/395), [index candidates](https://github.com/lukevanin/swiftql/issues/396), all accepted by the [query-plan research](https://github.com/lukevanin/swiftql/milestone/29) |
 | v2 | [generated database catalogs and fluent table references](https://github.com/lukevanin/swiftql/issues/217), [Swift 6 mode](https://github.com/lukevanin/swiftql/issues/133), [typed DDL](https://github.com/lukevanin/swiftql/issues/139), [FluentQL and DynamicQL extraction](https://github.com/lukevanin/swiftql/issues/326), [GRDB adapter boundary](https://github.com/lukevanin/swiftql/issues/113), [XL migration](https://github.com/lukevanin/swiftql/issues/33), [catalog stress fixtures](https://github.com/lukevanin/swiftql/issues/258) |
 | v2.1 | [native SQLite adapter](https://github.com/lukevanin/swiftql/issues/136), [Linux CI](https://github.com/lukevanin/swiftql/issues/135), [VDBE research](https://github.com/lukevanin/swiftql/issues/138), [shared-corpus adapter parity](https://github.com/lukevanin/swiftql/issues/260) |
 | v2.2 | [PostgreSQL vertical slice](https://github.com/lukevanin/swiftql/issues/137) |
 | v2.3 | [MySQL vertical slice](https://github.com/lukevanin/swiftql/issues/130) |
 | v2.4 | [SQL Server vertical slice](https://github.com/lukevanin/swiftql/issues/134) |
 | v2.5 | [schema-migration research](https://github.com/lukevanin/swiftql/issues/216), [semantic snapshots and fingerprints](https://github.com/lukevanin/swiftql/issues/276), [immutable registry and history](https://github.com/lukevanin/swiftql/issues/277), [atomic SQLite executor](https://github.com/lukevanin/swiftql/issues/278), [typed SQLite rebuilds](https://github.com/lukevanin/swiftql/issues/279), [catalog lifecycle integration](https://github.com/lukevanin/swiftql/issues/280), [read-only diffs and proposals](https://github.com/lukevanin/swiftql/issues/281) |
+| v2.6 | no live index issue yet. Its only open issue is [demo adoption](https://github.com/lukevanin/swiftql/issues/488) |
+| v2.7 | no live index issue yet, and no open issues |
+| v2.8 | no live index issue yet. Its only open issue is [demo adoption](https://github.com/lukevanin/swiftql/issues/489) |
+| [cross-library workload benchmark suite](https://github.com/lukevanin/swiftql/milestone/31) | [shared workload harness](https://github.com/lukevanin/swiftql/issues/508), accepted by the [runtime workload research](https://github.com/lukevanin/swiftql/issues/259) |
 
 ## Generated Database Catalogs and Fluent Table References
 
@@ -636,6 +670,9 @@ SQLite grammar coverage.
 
 ### v1.5 — Query Declarations, Ergonomics, and v2 Preview
 
+Delivered by the v1.5.1-v1.5.7 sub-milestones listed in the Release
+Sequence table above.
+
 Prototype and validate the future query-declaration model:
 
 - prototype `@SQLQuery` using function signatures as parameter and result
@@ -654,11 +691,54 @@ Prototype and validate the future query-declaration model:
   and whose final scenario executes;
 - benchmark macro expansion, generated code, clean and incremental consumer
   compilation, cold preparation, cache hits, binding, execution, decoding,
-  memory, and representative cross-library workloads;
+  and memory;
 - publish the proposed v2 migration surface.
+
+The cross-library workloads in that benchmark line landed as research, not as
+a published suite. [Issue #259](https://github.com/lukevanin/swiftql/issues/259) delivered the workload
+contracts, an applicability matrix, and a three-family prototype in
+`Benchmarks/Comparison/Issue259`. The families that will actually be published
+belong to the [cross-library workload benchmark suite](https://github.com/lukevanin/swiftql/milestone/31), and
+none of them has started.
 
 Swift 6-only functionality remains a preview if it cannot be packaged without
 silently raising the v1.x compiler minimum.
+
+### v1.6 — SQLite JSON Support
+
+Build the SQLite JSON surface on the expression machinery that already exists,
+rather than on a separate JSON subsystem:
+
+- a typed JSON path built from segments, so a path is checked at the call site
+  and a key that holds path syntax still names that key;
+- the `->` and `->>` operators, which differ in result type rather than in
+  what they select;
+- the scalar constructor, inspection, extraction, and mutation functions;
+- the `json_group_array` and `json_group_object` aggregates;
+- the `jsonb_` variants, which return SQLite's binary JSON representation;
+- one documented topic covering the whole surface, with each group's SQLite
+  minimum version stated.
+
+### v1.7 — REGEXP Backed by Swift Regex
+
+Make the `REGEXP` operator from v1.4.2 usable without the application first
+registering a `regexp()` function. Bundle an implementation registered through
+the custom-function seam, keep a fast path for a plain string pattern, and
+support `RegexBuilder` patterns through a registry with keyed dispatch.
+
+### v1.8 — Query-Plan Analysis and Index Advice
+
+Layer advisory query-plan capture onto the v1.5.2 build validator: normalized
+`EXPLAIN QUERY PLAN` records in the validation manifest and report, plan-shape
+diagnostics for full scans, temporary B-tree sorts and correlated subqueries,
+index candidates generated from static query descriptors, and re-plan
+verification on a scratch copy that produces before/after evidence. A codemod
+applies the recommended indices.
+
+Plan analysis is advisory: it never fails a build, and the pinned snapshot is
+never mutated. The [query-plan research](https://github.com/lukevanin/swiftql/milestone/29)
+established that this is measurable before the implementation issues were
+written.
 
 ### v2 — Generated Database Catalogs, Swift 6, and Stable API
 
@@ -756,6 +836,27 @@ and prototype evidence are recorded in
 Post-v2 adapter ordering may change if research, maintainership, or driver
 maturity changes, but backend-specific public syntax remains the architectural
 direction.
+
+### v2.6 — Full-Text Search with FTS5
+
+Add FTS5 as a typed feature rather than a raw-SQL escape: virtual-table DDL
+built on the typed DDL from v2, the `MATCH` operator, a typed match-query
+builder covering phrases, `AND`/`OR`/`NOT`, `NEAR`, prefixes and column
+filters, the `bm25`, `highlight`, `snippet` and `rank` functions, the
+maintenance commands, and external-content tables.
+
+### v2.7 — R-Tree Spatial Indexes
+
+Reuse the virtual-table machinery from v2.6 for `rtree`: virtual-table DDL
+with auxiliary columns, and typed range queries. Custom geometry callbacks are
+deferred.
+
+### v2.8 — Table-Valued Row Sources
+
+Allow a table-valued function in a `FROM` clause, starting with `json_each`
+and `json_tree` over the v1.6 JSON surface. The row source is declared
+generally, so a later table-valued function such as `generate_series` fits the
+same seam.
 
 ## Release Gates
 

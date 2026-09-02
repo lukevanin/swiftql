@@ -51,6 +51,29 @@ extension GRDBDatabase {
             }
         }
 
+        /// One row per to-do in a list, summarising its checklist.
+        ///
+        /// The counting happens in SQLite. `json_array_length` reads the
+        /// stored array, and `->>` selects the first item's title, so the
+        /// view gets what it draws without any checklist crossing the
+        /// boundary.
+        func checklistSummaries(listID: TodoUUID) -> [TodoChecklistSummary] {
+            sqlResult { schema in
+                let todo = schema.table(Todo.self)
+                Select(TodoChecklistSummary.columns(
+                    todoID: todo.id,
+                    itemCount: todo.checklist.jsonArrayLength(),
+                    firstItemTitle: todo.checklist.jsonValue(
+                        at: TodoChecklist.title(at: 0),
+                        as: String.self
+                    )
+                ))
+                From(todo)
+                Where(todo.listID == listID)
+                OrderBy(todo.position.ascending())
+            }
+        }
+
         /// The tags attached to one to-do, joined across the link table.
         func tagsForTodo(todoID: TodoUUID) -> [TodoTagPair] {
             sqlResult { schema in

@@ -1,6 +1,6 @@
 ---
 name: swiftql
-description: Use when Codex works in a Swift package or Apple application that uses SwiftQL to define typed tables and results, declare or modify SQLite queries, run typed transactions, observe live results, pass immutable bindings, add contextual codecs, prepare static queries, integrate a database adapter, or diagnose SwiftQL execution boundaries. Use the checked-out public v1 contract; 1.5.7 is the latest published package, an internal refactoring release that adds no API on top of v1.5.6 nullable-column assignment in `Setting` closures, v1.5.5 async live-query streams, `@Observable` query wrappers, and lazy result sets, v1.5.4 method-style scalar functions and observers, v1.5.3 contextual codec presets and `@SQLCodec`, v1.5.2 build-time query validation, and v1.5.1 declared-query macros (`@SQLQuery`/`@SQLQueries`) and typed transaction scopes. Do not use this skill to teach SQL generally or claim unshipped features.
+description: Use when Codex works in a Swift package or Apple application that uses SwiftQL to define typed tables and results, declare or modify SQLite queries, run typed transactions, observe live results, pass immutable bindings, add contextual codecs, prepare static queries, integrate a database adapter, or diagnose SwiftQL execution boundaries. Use the checked-out public v1 contract; 1.6.0 is the latest published package, which adds SQLite JSON support -- the `->` and `->>` selection operators, a typed `XLJSONPath`, the JSON constructor, inspection, extraction, mutation, and aggregate functions, and their JSONB variants -- on top of v1.5.6 nullable-column assignment in `Setting` closures, v1.5.5 async live-query streams, `@Observable` query wrappers, and lazy result sets, v1.5.4 method-style scalar functions and observers, v1.5.3 contextual codec presets and `@SQLCodec`, v1.5.2 build-time query validation, and v1.5.1 declared-query macros (`@SQLQuery`/`@SQLQueries`) and typed transaction scopes. Do not use this skill to teach SQL generally or claim unshipped features.
 ---
 
 # SwiftQL
@@ -32,7 +32,7 @@ roadmap work as shipped API.
   `SQLRow6`) require Swift 6.1 or later, because earlier compilers crash during
   IR generation. `#row`'s single-column shape works everywhere.
 - Read [the changelog](CHANGELOG.md) before choosing a package requirement.
-  `1.5.7` is the latest published package. Pin a source revision only when
+  `1.6.0` is the latest published package. Pin a source revision only when
   intentionally testing later changes from `main`.
 
 ## Prefer the v1.5 declared-query workflow
@@ -379,17 +379,18 @@ changing product, platform, dependency, or concurrency claims.
 - Treat the versioned [inventory](Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json) as
   the source of truth and its [report](Conformance/SQLite/REPORT.md) as a generated
   view; use the [compatibility guide](COMPATIBILITY.md#sqlite-conformance-inventory)
-  to interpret it. It records 114 feature records: 110 supported, 0 partial,
+  to interpret it. It records 117 feature records: 113 supported, 0 partial,
   2 capability-gated, 1 intentionally unsupported, and 1 unimplemented.
 - Keep those five statuses distinct. Bind every claim to the feature's recorded
   SQLite version, source ID, compile options, capabilities, evidence, and
   rationale before claiming support.
-- Of the 180 evidence records, 110 exercise real SQLite against one captured
+- Of the 193 evidence records, 117 exercise real SQLite against one captured
   environment, SQLite 3.51.0. Evidence is reusable, so evidence and feature
   counts do not map one to one; never turn this into an exhaustive-SQL claim.
-- The generated corpus holds 208 positives plus one broken-renderer control:
-  141 from #191, 27 from #286, 35 from #287, and 5 from #288. #254 adds 18
-  Northwind and #255 adds 12 observation-stress cases; no new syntax. This
+- The generated corpus holds 226 positives plus one broken-renderer control:
+  139 from #191, 27 from #286, 35 from #287, 5 from #288, and 20 JSON
+  expression cases. #254 adds 18 Northwind and #255 adds 12
+  observation-stress cases; no new syntax. This
   census is separate from v1.5.2's build validator, which checks one target's
   manifest against one schema snapshot instead.
 

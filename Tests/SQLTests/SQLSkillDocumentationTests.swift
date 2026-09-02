@@ -53,8 +53,8 @@ final class SQLSkillDocumentationTests: XCTestCase {
             "SwiftQL exposes no general raw-fragment API",
             "`XLRequest` across tasks; it is not `Sendable`",
             "checked-out public v1 contract",
-            "1.5.7 is the latest published package, an internal refactoring release that adds no API on top of v1.5.6 nullable-column assignment in `Setting` closures, v1.5.5 async live-query streams, `@Observable` query wrappers, and lazy result sets, v1.5.4 method-style scalar functions and observers, v1.5.3 contextual codec presets and `@SQLCodec`, v1.5.2 build-time query validation, and v1.5.1 declared-query macros (`@SQLQuery`/`@SQLQueries`) and typed transaction scopes",
-            "`1.5.7` is the latest published package",
+            "1.6.0 is the latest published package, which adds SQLite JSON support -- the `->` and `->>` selection operators, a typed `XLJSONPath`, the JSON constructor, inspection, extraction, mutation, and aggregate functions, and their JSONB variants -- on top of v1.5.6 nullable-column assignment in `Setting` closures, v1.5.5 async live-query streams, `@Observable` query wrappers, and lazy result sets, v1.5.4 method-style scalar functions and observers, v1.5.3 contextual codec presets and `@SQLCodec`, v1.5.2 build-time query validation, and v1.5.1 declared-query macros (`@SQLQuery`/`@SQLQueries`) and typed transaction scopes",
+            "`1.6.0` is the latest published package",
             "Keep those five statuses distinct",
             "recorded SQLite version, source ID, compile options, capabilities",
             "Swift 5.9 and Swift 6.0-6.3 evidence",
@@ -157,10 +157,22 @@ final class SQLSkillDocumentationTests: XCTestCase {
         let issue288CaseCount = combinatorialManifest.cases.filter {
             $0.id.hasPrefix("c288.v1.subquery.")
         }.count
+        // The `c191` JSON expression cases are counted on their own. They
+        // were two when #191 was written, and the v1.6 milestone adds one per
+        // JSON function and operator, so folding them into #191's remainder
+        // would make that number drift away from what #191 delivered.
+        //
+        // This is by case-id prefix, so it covers only the `c191` family.
+        // `c286.v1.expression.json-array-length-path` is a JSON case too, but
+        // it belongs to #286's overload matrix and stays counted there.
+        let jsonCaseCount = combinatorialManifest.cases.filter {
+            $0.id.hasPrefix("c191.v1.expression.json-")
+        }.count
         let issue191CaseCount = combinatorialManifest.cases.count
             - issue286CaseCount
             - issue287CaseCount
             - issue288CaseCount
+            - jsonCaseCount
         XCTAssertTrue(
             combinatorialSuite.evidenceIDs.contains(
                 "evidence.combinatorial.broken-renderer.sqlite"
@@ -180,8 +192,9 @@ final class SQLSkillDocumentationTests: XCTestCase {
             "The generated corpus holds \(combinatorialManifest.cases.count) "
                 + "positives plus one broken-renderer control: "
                 + "\(issue191CaseCount) from #191, \(issue286CaseCount) from #286, "
-                + "\(issue287CaseCount) from #287, and \(issue288CaseCount) from "
-                + "#288. #254 adds \(northwindSuite.caseIDs.count) Northwind and "
+                + "\(issue287CaseCount) from #287, \(issue288CaseCount) from "
+                + "#288, and \(jsonCaseCount) JSON expression cases. "
+                + "#254 adds \(northwindSuite.caseIDs.count) Northwind and "
                 + "#255 adds \(observationSuite.caseIDs.count) "
                 + "observation-stress cases",
         ] {

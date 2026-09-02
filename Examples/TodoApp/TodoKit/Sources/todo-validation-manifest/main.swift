@@ -203,6 +203,16 @@ let boolResult = { (index: Int, alias: String) in
         storageIdentifier: "integer"
     )
 }
+let nullableIntResult = { (index: Int, alias: String) in
+    resultEntry(
+        index: index,
+        alias: alias,
+        valueTypeIdentifier: "swift.int",
+        valueTypeName: "Swift.Int",
+        storageIdentifier: "integer",
+        nullability: "nullable"
+    )
+}
 let nullableTextResult = { (index: Int, alias: String) in
     resultEntry(
         index: index,
@@ -250,6 +260,7 @@ let queries: [ManifestedQuery] = [
             boolResult(6, "isCompleted"),
             intResult(7, "position"),
             textResult(8, "createdAt"),
+            textResult(9, "checklist"),
         ]
     ),
     ManifestedQuery(
@@ -289,6 +300,7 @@ let queries: [ManifestedQuery] = [
             boolResult(6, "isCompleted"),
             intResult(7, "position"),
             textResult(8, "createdAt"),
+            textResult(9, "checklist"),
         ]
     ),
     ManifestedQuery(
@@ -314,6 +326,31 @@ let queries: [ManifestedQuery] = [
             boolResult(6, "isCompleted"),
             intResult(7, "position"),
             textResult(8, "createdAt"),
+            textResult(9, "checklist"),
+        ]
+    ),
+    ManifestedQuery(
+        name: "checklist-summaries",
+        statement: sql { schema in
+            let todo = schema.table(Todo.self)
+            Select(TodoChecklistSummary.columns(
+                todoID: todo.id,
+                itemCount: todo.checklist.jsonArrayLength(),
+                firstItemTitle: todo.checklist.jsonValue(
+                    at: TodoChecklist.title(at: 0),
+                    as: String.self
+                )
+            ))
+            From(todo)
+            Where(todo.listID == XLNamedBindingReference<TodoUUID>(name: "listID"))
+            OrderBy(todo.position.ascending())
+        },
+        cardinality: .many,
+        parameters: ["listID": .text],
+        results: [
+            uuidResult(0, "todoID"),
+            nullableIntResult(1, "itemCount"),
+            nullableTextResult(2, "firstItemTitle"),
         ]
     ),
     ManifestedQuery(

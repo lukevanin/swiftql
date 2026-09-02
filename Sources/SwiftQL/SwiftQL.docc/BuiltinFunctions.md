@@ -255,6 +255,13 @@ more information.
 > and will be removed in SwiftQL 2. Migrate by moving the format string in
 > front of the call: `printf(format: f, a, b)` becomes `f.printf(a, b)`.
 
+## JSON functions
+
+SQLite's JSON functions and its `->` and `->>` operators are covered on their
+own page, <doc:JSON>, together with the typed path builder they all take and
+the SQLite version each group needs. They are not listed here, because the
+list would be longer than this page and would drift away from that one.
+
 ## Type conversion
 
 SwiftQL adopts Swift's conventions and requires expressions of different types 

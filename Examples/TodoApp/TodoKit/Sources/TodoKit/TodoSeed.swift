@@ -73,7 +73,12 @@ public struct TodoSeed: Sendable {
                 priority: .high,
                 isCompleted: false,
                 position: 0,
-                createdAt: createdAt
+                createdAt: createdAt,
+                checklist: TodoChecklist.json([
+                    TodoChecklistItem(title: "Find the old passport", isDone: true),
+                    TodoChecklistItem(title: "Book the appointment"),
+                    TodoChecklistItem(title: "Take a photograph"),
+                ])
             ),
             Todo(
                 id: Self.bookDentistID,
@@ -84,7 +89,8 @@ public struct TodoSeed: Sendable {
                 priority: .normal,
                 isCompleted: false,
                 position: 1,
-                createdAt: createdAt
+                createdAt: createdAt,
+                checklist: TodoChecklist.empty
             ),
             Todo(
                 id: Self.sharpenKnivesID,
@@ -95,7 +101,11 @@ public struct TodoSeed: Sendable {
                 priority: .low,
                 isCompleted: false,
                 position: 0,
-                createdAt: createdAt
+                createdAt: createdAt,
+                checklist: TodoChecklist.json([
+                    TodoChecklistItem(title: "Chef's knife"),
+                    TodoChecklistItem(title: "Paring knife"),
+                ])
             ),
             Todo(
                 id: Self.payRentID,
@@ -106,7 +116,8 @@ public struct TodoSeed: Sendable {
                 priority: .high,
                 isCompleted: true,
                 position: 1,
-                createdAt: createdAt
+                createdAt: createdAt,
+                checklist: TodoChecklist.empty
             ),
             Todo(
                 id: Self.returnLibraryBookID,
@@ -117,7 +128,8 @@ public struct TodoSeed: Sendable {
                 priority: .normal,
                 isCompleted: false,
                 position: 0,
-                createdAt: createdAt
+                createdAt: createdAt,
+                checklist: TodoChecklist.empty
             ),
             Todo(
                 id: Self.finishNovelID,
@@ -128,7 +140,8 @@ public struct TodoSeed: Sendable {
                 priority: .low,
                 isCompleted: true,
                 position: 1,
-                createdAt: createdAt
+                createdAt: createdAt,
+                checklist: TodoChecklist.empty
             ),
         ]
 

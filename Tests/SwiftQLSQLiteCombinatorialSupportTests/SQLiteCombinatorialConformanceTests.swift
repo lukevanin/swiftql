@@ -4,6 +4,7 @@ import SwiftQL
 import SwiftQLNorthwindFixtures
 import SwiftQLSQLiteCombinatorialSupport
 import SwiftQLSQLiteConformanceFixtures
+import SwiftQLTestSupport
 import XCTest
 
 
@@ -124,8 +125,8 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
 
         XCTAssertEqual(actualSuffixes, expectedSuffixes)
         XCTAssertEqual(issue286Cases.count, 27)
-        XCTAssertEqual(manifest.cases.count, 208)
-        XCTAssertEqual(manifest.hardBounds.maximumCaseCount, 224)
+        XCTAssertEqual(manifest.cases.count, 226)
+        XCTAssertEqual(manifest.hardBounds.maximumCaseCount, 256)
         XCTAssertFalse(issue286Cases.contains { $0.id.contains("unixepoch") })
         XCTAssertTrue(issue286Cases.allSatisfy { $0.mode == .semantic })
 
@@ -625,7 +626,24 @@ final class SQLiteCombinatorialConformanceTests: XCTestCase {
         XCTAssertTrue(signatures.contains("JSON_VALID/1"))
         XCTAssertTrue(signatures.contains("JSON_ARRAY_LENGTH/1"))
         XCTAssertTrue(signatures.contains("JSON_ARRAY_LENGTH/2"))
-        XCTAssertEqual(jsonCases.count, 3)
+        // Three original function cases, seven of the nine constructor and
+        // inspection cases from issue #590, the seven extraction and mutation
+        // cases from issue #591, and the two aggregate cases from issue #592.
+        // The two left out of #590 are json_pretty and the two-argument
+        // json_valid, which need a newer SQLite than the oldest runtime in the
+        // supported matrix, so they are covered by runtime-gated execution
+        // tests and have no combinatorial case.
+        //
+        // The two `->` and `->>` cases are counted under their own inventory
+        // feature, `syntax.expression.json-operators`, so they are not here.
+        XCTAssertEqual(jsonCases.count, 19)
+        // The operators are not functions, so the pinned runtime attests them
+        // by version rather than by signature.
+        XCTAssertTrue(
+            SQLiteVersion(runtime.sqliteVersion) >= SQLiteVersion("3.38.0"),
+            "the pinned runtime reports SQLite \(runtime.sqliteVersion), "
+                + "which predates the -> and ->> operators"
+        )
         XCTAssertNoThrow(try assertRequiredCapabilities(for: jsonCases, runtime: runtime))
     }
 
@@ -1107,7 +1125,22 @@ private extension SQLiteCombinatorialConformanceTests {
         })
         for testCase in cases {
             for capability in testCase.requiredCapabilities {
-                if capability.hasPrefix("function:") {
+                if capability.hasPrefix("function-signature:") {
+                    // A name plus an arity, for a function whose overloads
+                    // arrived in different SQLite versions. `pragma
+                    // function_list` reports one row per arity, so this is
+                    // stronger evidence than the name alone.
+                    let signature = String(
+                        capability.dropFirst("function-signature:".count)
+                    ).uppercased()
+                    guard functionSignatures.contains(signature) else {
+                        throw SQLiteCombinatorialConformanceError.missingCapability(
+                            caseID: testCase.id,
+                            capability: capability
+                        )
+                    }
+                }
+                else if capability.hasPrefix("function:") {
                     let name = String(capability.dropFirst("function:".count)).uppercased()
                     guard functionNames.contains(name) else {
                         throw SQLiteCombinatorialConformanceError.missingCapability(
@@ -1123,6 +1156,21 @@ private extension SQLiteCombinatorialConformanceTests {
                         "JSON_VALID/1",
                     ]
                     guard requiredSignatures.isSubset(of: functionSignatures) else {
+                        throw SQLiteCombinatorialConformanceError.missingCapability(
+                            caseID: testCase.id,
+                            capability: capability
+                        )
+                    }
+                }
+                else if capability == "sqlite-json-operators" {
+                    // `->` and `->>` arrived in SQLite 3.38.0. They are
+                    // operators, not functions, so they never appear in the
+                    // runtime function list. The reported version is the only
+                    // runtime evidence there is.
+                    guard
+                        SQLiteVersion(runtime.sqliteVersion)
+                            >= SQLiteVersion("3.38.0")
+                    else {
                         throw SQLiteCombinatorialConformanceError.missingCapability(
                             caseID: testCase.id,
                             capability: capability
@@ -1426,6 +1474,42 @@ private extension SQLiteCombinatorialConformanceTests {
             return "SELECT JSON_VALID(:text_value)"
         case "json-array-length":
             return "SELECT JSON_ARRAY_LENGTH(:text_value)"
+        case "json-group-array":
+            return "SELECT JSON_GROUP_ARRAY(:text_value)"
+        case "json-group-object":
+            return "SELECT JSON_GROUP_OBJECT(:text_value, 1)"
+        case "json-extract-one-path":
+            return "SELECT JSON_EXTRACT(:text_value, '$.a')"
+        case "json-extract-two-paths":
+            return "SELECT JSON_EXTRACT(:text_value, '$.a', '$.b')"
+        case "json-insert":
+            return "SELECT JSON_INSERT(:text_value, '$.b', 2)"
+        case "json-replace":
+            return "SELECT JSON_REPLACE(:text_value, '$.a', 9)"
+        case "json-set":
+            return "SELECT JSON_SET(:text_value, '$.a', 9)"
+        case "json-remove":
+            return "SELECT JSON_REMOVE(:text_value, '$.a')"
+        case "json-patch":
+            return "SELECT JSON_PATCH(:text_value, '{\"b\":null,\"c\":3}')"
+        case "json-minified":
+            return "SELECT JSON(:text_value)"
+        case "json-quote":
+            return "SELECT JSON_QUOTE(:text_value)"
+        case "json-type":
+            return "SELECT JSON_TYPE(:text_value)"
+        case "json-type-path":
+            return "SELECT JSON_TYPE(:text_value, '$.a')"
+        case "json-error-position":
+            return "SELECT JSON_ERROR_POSITION(:text_value)"
+        case "json-array-constructor":
+            return "SELECT JSON_ARRAY(:text_value)"
+        case "json-object-constructor":
+            return "SELECT JSON_OBJECT(:text_value, 1)"
+        case "json-arrow-element":
+            return "SELECT :text_value -> '$.name'"
+        case "json-arrow-value":
+            return "SELECT :text_value ->> '$.name'"
         case "json-array-length-path":
             return "SELECT JSON_ARRAY_LENGTH(:text_value, '$.items')"
         case "operator-arithmetic-precedence":

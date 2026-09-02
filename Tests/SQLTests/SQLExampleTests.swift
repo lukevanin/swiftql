@@ -3016,6 +3016,138 @@ extension XLDocumentationTests {
         )
     }
 
+    func testDocumentationJSON() throws {
+        // JSON.md, milestone v1.6. Every fenced snippet on that page is
+        // built here, and the ones that can run against the pinned runtime
+        // are executed, so a page that drifts away from the API stops
+        // compiling rather than going stale quietly.
+        try database.makeRequest(with: sqlCreate(Note.self)).execute()
+        try database.makeRequest(
+            with: sqlInsert(
+                Note(
+                    id: "note-1",
+                    title: "Fix the gate",
+                    metadata: #"{"tags":["home","urgent"],"priority":2,"due":null}"#
+                )
+            )
+        ).execute()
+
+        // Naming a value with a path.
+        let priority = XLJSONPath.root.key("priority")
+        let firstTag = XLJSONPath.root.key("tags").index(0)
+        let lastTag = XLJSONPath.root.key("tags").last
+        XCTAssertEqual(priority.path, "$.priority")
+        XCTAssertEqual(firstTag.path, "$.tags[0]")
+        XCTAssertEqual(lastTag.path, "$.tags[#-1]")
+        XCTAssertEqual(XLJSONPath.root.key("a.b").path, #"$."a.b""#)
+
+        // Reading a value.
+        let statement = sql { schema in
+            let note = schema.table(Note.self)
+            Select(
+                note.metadata.jsonValue(
+                    at: XLJSONPath.root.key("priority"),
+                    as: Int.self
+                )
+            )
+            From(note)
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: statement).fetchOne(),
+            2
+        )
+
+        let pair = sql { schema in
+            let note = schema.table(Note.self)
+            Select(
+                note.metadata.jsonExtract(
+                    at: XLJSONPath.root.key("priority"),
+                    XLJSONPath.root.key("tags")
+                )
+            )
+            From(note)
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: pair).fetchOne(),
+            #"[2,["home","urgent"]]"#
+        )
+
+        // Changing a document.
+        let promote = sql { schema in
+            let note = schema.into(Note.self)
+            Update(note)
+            Setting(note) { row in
+                row.metadata = note.metadata
+                    .jsonSetting((XLJSONPath.root.key("priority"), 1))
+                    .coalesce(note.metadata)
+            }
+            Where(note.id == "note-1")
+        }
+        try database.makeRequest(with: promote).execute()
+        XCTAssertEqual(
+            try database.makeRequest(with: statement).fetchOne(),
+            1
+        )
+
+        // Building JSON in a query.
+        let summary = sql { schema in
+            let note = schema.table(Note.self)
+            Select(jsonObject(("id", note.id), ("title", note.title)))
+            From(note)
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: summary).fetchOne(),
+            #"{"id":"note-1","title":"Fix the gate"}"#
+        )
+
+        let titles = sql { schema in
+            let note = schema.table(Note.self)
+            Select(note.title.jsonGroupArray())
+            From(note)
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: titles).fetchOne(),
+            #"["Fix the gate"]"#
+        )
+
+        // Inspecting a document. No row matches, because the one row holds
+        // valid JSON; the statement still has to prepare and run.
+        let malformed = sql { schema in
+            let note = schema.table(Note.self)
+            Select(note.metadata.jsonErrorPosition())
+            From(note)
+            Where(note.metadata.validJSONOrNull() == false)
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: malformed).fetchAll().count,
+            0
+        )
+
+        // JSONB. The page's own version table says this needs SQLite 3.45.0,
+        // and the supported matrix includes older runtimes, so build the
+        // statement everywhere and run it only where it can run.
+        let compact = sql { schema in
+            let note = schema.table(Note.self)
+            Select(note.metadata.minifiedJSONB())
+            From(note)
+        }
+        XCTAssertFalse(encoder.makeSQL(compact).sql.isEmpty)
+        try SQLiteRuntimeCapability.requireFunction(
+            "jsonb",
+            argumentCount: 1,
+            since: "SQLite 3.45.0",
+            in: databasePool
+        )
+        guard
+            let row = try database.makeRequest(with: compact).fetchOne(),
+            let blob = row
+        else {
+            XCTFail("the statement should return one document")
+            return
+        }
+        XCTAssertFalse(blob.isEmpty)
+    }
+
     func testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs() throws {
         try testExample_LeftJoin_Statement_NullRows()
         #if compiler(>=6.1)

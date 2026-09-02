@@ -1,0 +1,181 @@
+# Self-time by symbol, SwiftQL full fetch -- candidate arm
+#
+# Captured with `sample` on the main thread of the issue #250 comparison
+# harness running the `swiftql` implementation, for three seconds after one
+# second of run time. Self time is a node's sample count less the sum of its
+# immediate children. Percentages are of the 2518 main-thread samples.
+#
+# This pair of files replaces nothing: `self-time-by-symbol.tsv` remains the
+# original six-second profile that located the cost. These two were captured
+# with one tool, in one session, on one machine, so that the baseline and the
+# candidate can be compared to each other.
+#
+samples	percent	symbol
+139	5.52	_xzm_free
+100	3.97	_xzm_xzone_malloc_tiny
+79	3.14	swift::TargetContextDescriptor<swift::InProcess>::getGenericContext() const
+76	3.02	getCache(swift::TargetTypeContextDescriptor<swift::InProcess> const&)
+76	3.02	swift_bridgeObjectRelease
+75	2.98	sqlite3VdbeExec
+74	2.94	swift_retain
+71	2.82	swift_release
+68	2.70	DYLD-STUB$$swift_bridgeObjectRelease
+68	2.70	__bzero
+58	2.30	DYLD-STUB$$swift_bridgeObjectRetain
+57	2.26	swift_bridgeObjectRetain
+52	2.07	swift::RefCounts<swift::RefCountBitsT<(swift::RefCountInlinedness)1>>::doDecrementSlow<(swift::PerformDeinit)1>(swift::RefCountBitsT<(swift::RefCountInlinedness)1>, unsigned int)
+48	1.91	<deduplicated_symbol>
+48	1.91	swift::MetadataCacheKey::operator==(swift::MetadataCacheKey const&) const
+43	1.71	_platform_memmove
+43	1.71	swift::swift_slowAllocTyped(unsigned long, unsigned long, unsigned long long)
+41	1.63	swift::LockingConcurrentMap<swift::GenericCacheEntry, swift::LockingConcurrentMapStorage<swift::GenericCacheEntry, (unsigned short)14>>::getOrInsert<swift::MetadataCacheKey, swift::MetadataRequest&, swift::TargetTypeContextDescriptor<swift::InProcess> const*&, void const* const*&>(swift::MetadataCacheKey, swift::MetadataRequest&, swift::TargetTypeContextDescriptor<swift::InProcess> const*&, void const* const*&)
+39	1.55	_platform_memcmp
+38	1.51	malloc_type_malloc
+38	1.51	swift::StableAddressConcurrentReadableHashMap<swift::GenericCacheEntry, swift::TaggedMetadataAllocator<(unsigned short)14>, swift::Mutex>::getOrInsert<swift::MetadataCacheKey, swift::MetadataWaitQueue::Worker&, swift::MetadataRequest&, swift::TargetTypeContextDescriptor<swift::InProcess> const*&, void const* const*&>(swift::MetadataCacheKey, swift::MetadataWaitQueue::Worker&, swift::MetadataRequest&, swift::TargetTypeContextDescriptor<swift::InProcess> const*&, void const* const*&)
+35	1.39	outlined consume of XLSQLiteValue
+32	1.27	XLColumnValuesRowReader.readValue<A>()
+32	1.27	_allASCII(_:)
+31	1.23	_free
+30	1.19	_xzm_xzone_malloc
+30	1.19	outlined destroy of XLFieldReader
+29	1.15	initializeWithCopy for XLFieldReader
+27	1.07	__swift_project_boxed_opaque_existential_1
+27	1.07	initializeWithTake for ClosedRange<>.Index
+25	0.99	XLSQLiteValueReader.readText(at:)
+25	0.99	_platform_strlen
+24	0.95	__swift_destroy_boxed_opaque_existential_1Tm
+24	0.95	swift_allocBox
+23	0.91	closure #1 in static SwiftQLOrder.makeSQLNamedResult(namespace:dependency:)
+22	0.87	Optional<A>.init(reader:)
+22	0.87	swift::MetadataCacheEntryBase<swift::GenericCacheEntry, void const*>::awaitSatisfyingState(swift::ConcurrencyControl&, swift::MetadataRequest)
+22	0.87	swift_getCanonicalPrespecializedGenericMetadata
+21	0.83	mach_absolute_time
+21	0.83	specialized static String._uncheckedFromUTF8(_:isASCII:)
+19	0.75	GRDBDatabaseDriverConnection.forEachRow(_:_:)
+19	0.75	specialized DatabaseValue.init(sqliteStatement:index:)
+18	0.71	(anonymous namespace)::destroyGenericBox(swift::HeapObject*)
+18	0.71	???
+18	0.71	protocol witness for XLLiteral.init(reader:) in conformance String
+18	0.71	swift_allocObject
+17	0.68	_swift_release_dealloc
+17	0.68	sqlite3_column_type
+16	0.64	DYLD-STUB$$swift_release
+16	0.64	_swift_getGenericMetadata(swift::MetadataRequest, void const* const*, swift::TargetTypeContextDescriptor<swift::InProcess> const*)
+15	0.60	outlined init with copy of XLFieldReader
+14	0.56	outlined copy of DatabaseValue.Storage
+13	0.52	Row.subscript.getter
+13	0.52	sqlite3_column_text
+12	0.48	DYLD-STUB$$_platform_bzero
+12	0.48	__swift_project_boxed_opaque_existential_3Tm
+12	0.48	closure #1 in Row.databaseValues.getter
+12	0.48	protocol witness for XLLiteral.init(reader:) in conformance Int
+12	0.48	sqlite3VdbeSerialGet
+11	0.44	Statement.columnNames.getter
+11	0.44	__swift_destroy_boxed_opaque_existential_3Tm
+11	0.44	protocol witness for static Equatable.== infix(_:_:) in conformance XLRowStreamControl
+11	0.44	storeEnumTagSinglePayload for Character
+10	0.40	DYLD-STUB$$free
+10	0.40	DYLD-STUB$$sqlite3_column_type
+10	0.40	XLSQLiteValueReader.isNull(at:)
+10	0.40	outlined copy of XLSQLiteValue
+10	0.40	swift_arrayDestroy
+9	0.36	XLRowReader.staticColumn<A>(_:alias:)
+9	0.36	validateUTF8(_:)
+8	0.32	DYLD-STUB$$strlen
+8	0.32	DYLD-STUB$$swift_allocObject
+8	0.32	DYLD-STUB$$swift_retain
+8	0.32	___chkstk_darwin
+8	0.32	__swift_instantiateConcreteTypeFromMangledNameV2
+8	0.32	__swift_instantiateGenericMetadata
+7	0.28	DYLD-STUB$$memcmp
+7	0.28	DYLD-STUB$$swift_deallocObject
+7	0.28	initializeWithCopy for XLFromTableDependency
+7	0.28	protocol witness for XLColumnReader.isNull(at:) in conformance XLSQLiteValueReader
+7	0.28	swift::ConcurrentReadableHashMap<swift::HashMapElementWrapper<swift::GenericCacheEntry>, swift::Mutex>::find<swift::MetadataCacheKey>(swift::MetadataCacheKey const&, swift::ConcurrentReadableHashMap<swift::HashMapElementWrapper<swift::GenericCacheEntry>, swift::Mutex>::IndexStorage, unsigned long, swift::HashMapElementWrapper<swift::GenericCacheEntry>*)
+6	0.24	DYLD-STUB$$memcpy
+6	0.24	__swift_allocate_boxed_opaque_existential_1
+6	0.24	getEnumTagSinglePayload for Character
+6	0.24	initializeWithCopy for SwiftQLOrder
+6	0.24	specialized UnsafeMutablePointer.initialize(from:count:)
+6	0.24	swift_deallocObject
+5	0.20	DYLD-STUB$$swift_getGenericMetadata
+5	0.20	DYLD-STUB$$type metadata accessor for String.Encoding
+5	0.20	protocol witness for XLRowReader.staticColumn<A>(_:alias:) in conformance XLColumnValuesRowReader<A>
+5	0.20	sqlite3_stmt_busy
+4	0.16	DYLD-STUB$$String.init(cString:)
+4	0.16	DYLD-STUB$$type metadata accessor for Optional
+4	0.16	XLSQLiteValueReader.readReal(at:)
+4	0.16	dispatch thunk of static Equatable.== infix(_:_:)
+4	0.16	specialized static __StringStorage.create(initializingFrom:codeUnitCapacity:isASCII:)
+4	0.16	swift::metadataimpl::BufferValueWitnesses<swift::metadataimpl::ValueWitnesses<swift::metadataimpl::BridgeObjectBox>, true, 8ul, 8ul, (swift::metadataimpl::FixedPacking)1>::initializeBufferWithCopyOfBuffer(swift::TargetValueBuffer<swift::InProcess>*, swift::TargetValueBuffer<swift::InProcess>*, swift::TargetMetadata<swift::InProcess> const*)
+3	0.12	Array._makeUniqueAndReserveCapacityIfNotUnique()
+3	0.12	Array._reserveCapacityAssumingUniqueBuffer(oldCount:)
+3	0.12	DYLD-STUB$$malloc_type_malloc
+3	0.12	String.init(cString:)
+3	0.12	__swift_destroy_boxed_opaque_existential_1
+3	0.12	__swift_instantiateCanonicalPrespecializedGenericMetadata
+3	0.12	_platform_memset
+3	0.12	getCellInfo
+3	0.12	objectdestroy.2Tm
+3	0.12	protocol witness for RowImpl.columnName(atUncheckedIndex:) in conformance StatementRowImpl
+3	0.12	protocol witness for XLRowReader.column<A>(_:alias:) in conformance XLColumnValuesRowReader<A>
+3	0.12	sqlite3_column_int64
+3	0.12	sqlite3_step
+3	0.12	swift::metadataimpl::ValueWitnesses<swift::metadataimpl::NativeBox<unsigned long long, 8ul, 8ul, 8ul>>::initializeWithTake(swift::OpaqueValue*, swift::OpaqueValue*, swift::TargetMetadata<swift::InProcess> const*)
+3	0.12	withUnsafeMutablePointer<A, B, C>(to:_:)
+2	0.08	DYLD-STUB$$mach_absolute_time
+2	0.08	XLColumnValuesRowReader.column<A>(_:alias:)
+2	0.08	XLQueryStatement.readRow(reader:)
+2	0.08	XLSQLiteValueReader.readInteger(at:)
+2	0.08	__StringStorage.__deallocating_deinit
+2	0.08	_allocateStringStorage(codeUnitCapacity:)
+2	0.08	_kernelrpc_mach_vm_purgable_control_trap
+2	0.08	btreeParseCellPtr
+2	0.08	initializeWithCopy for XLQueryStatementComponents
+2	0.08	protocol witness for RowImpl.databaseValue(atUncheckedIndex:) in conformance StatementRowImpl
+2	0.08	protocol witness for XLLiteral.init(reader:) in conformance <A> A?
+2	0.08	protocol witness for XLLiteral.init(reader:) in conformance Double
+2	0.08	specialized _ArrayBufferProtocol.replaceSubrange<A>(_:with:elementsOf:)
+2	0.08	sqlite3_column_double
+2	0.08	swift::_getWitnessTable(swift::TargetProtocolConformanceDescriptor<swift::InProcess> const*, swift::TargetMetadata<swift::InProcess> const*, void const* const*)
+2	0.08	swift::metadataimpl::FixedSizeBufferValueWitnesses<swift::metadataimpl::ValueWitnesses<swift::metadataimpl::NativeBox<unsigned long long, 8ul, 8ul, 8ul>>, true, 8ul, 8ul, false>::getEnumTagSinglePayload(swift::OpaqueValue const*, unsigned int, swift::TargetMetadata<swift::InProcess> const*)
+2	0.08	swift_deallocClassInstance
+2	0.08	swift_getGenericMetadata
+1	0.04	Array.append(_:)
+1	0.04	DYLD-STUB$$dispatch thunk of static Equatable.== infix(_:_:)
+1	0.04	DYLD-STUB$$memmove
+1	0.04	DYLD-STUB$$sqlite3_column_int64
+1	0.04	DYLD-STUB$$sqlite3_step
+1	0.04	DYLD-STUB$$sqlite3_stmt_busy
+1	0.04	DYLD-STUB$$swift_isUniquelyReferenced_nonNull_native
+1	0.04	GRDBRowDecoder.decode(values:)
+1	0.04	Sequence.map<A, B>(_:)
+1	0.04	Statement.step<A>(_:)
+1	0.04	__fcntl
+1	0.04	__swift_memcpy16_8
+1	0.04	__swift_memcpy216_8
+1	0.04	__swift_noop_void_return
+1	0.04	_swift_isClassOrObjCExistentialType
+1	0.04	closure #1 in GRDBRequest.decodeRows(packet:in:)
+1	0.04	closure #1 in GRDBRowDecoder.decode(values:)
+1	0.04	closure #1 in static XLColumnValuesRowReader.withReader<A>(_:body:)
+1	0.04	destroy for SwiftQLOrder
+1	0.04	destroy for XLQueryStatementComponents
+1	0.04	getAndInitPage
+1	0.04	lazy protocol witness table accessor for type XLColumnResult<Int?> and conformance XLColumnResult<A>
+1	0.04	outlined init with copy of SwiftQLOrder
+1	0.04	outlined init with copy of XLColumnReader
+1	0.04	partial apply for closure #1 in static SwiftQLOrder.makeSQLNamedResult(namespace:dependency:)
+1	0.04	partial apply for specialized implicit closure #2 in implicit closure #1 in DatabaseCursor.next()
+1	0.04	protocol witness for XLColumnReader.readInteger(at:) in conformance XLSQLiteValueReader
+1	0.04	protocol witness for XLColumnReader.readText(at:) in conformance XLSQLiteValueReader
+1	0.04	purgeableCacheUnpin
+1	0.04	specialized OrderedDictionary.init(dictionaryLiteral:)
+1	0.04	sqlite3BtreeNext
+1	0.04	swift::TargetMetadata<swift::InProcess>::getTypeContextDescriptor() const
+1	0.04	swift::metadataimpl::FixedSizeBufferValueWitnesses<swift::metadataimpl::ValueWitnesses<swift::metadataimpl::NativeBox<unsigned long long, 8ul, 8ul, 8ul>>, true, 8ul, 8ul, false>::storeEnumTagSinglePayload(swift::OpaqueValue*, unsigned int, unsigned int, swift::TargetMetadata<swift::InProcess> const*)
+1	0.04	swift::storeEnumTagSinglePayloadImpl(swift::OpaqueValue*, unsigned int, unsigned int, swift::TargetMetadata<swift::InProcess> const*, unsigned long, unsigned int, void (swift::OpaqueValue*, unsigned int, unsigned int, swift::TargetMetadata<swift::InProcess> const*) swiftcall*)
+1	0.04	swift_getWitnessTable
+1	0.04	swift_isUniquelyReferenced_nonNull_native
+1	0.04	type metadata accessor for String.Encoding
+1	0.04	xzm_malloc_zone_try_free_default

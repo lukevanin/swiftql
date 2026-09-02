@@ -94,20 +94,20 @@ The report is evidence for SwiftQL's existing public SQLite subset; it is not a
 claim of complete SQLite grammar coverage. The inventory remains the source of
 truth, while the report is its readable generated view.
 
-The v1.4 inventory contains 114 feature records and 180 evidence records. Its
+The v1.6 inventory contains 117 feature records and 193 evidence records. Its
 support-status totals are exact and mutually exclusive:
 
 | Support status | Features |
 | --- | ---: |
-| Supported | 110 |
+| Supported | 113 |
 | Partial | 0 |
 | Capability-gated | 2 |
 | Intentionally unsupported | 1 |
 | Unimplemented | 1 |
 
-Of those 180 evidence records, 110 exercise real SQLite and
+Of those 193 evidence records, 117 exercise real SQLite and
 cite one captured environment, SQLite 3.51.0. An inventory entry is counted in
-the 110 supported features only when it links to successful preparation by a
+the 113 supported features only when it links to successful preparation by a
 real SQLite engine whose version and source ID are recorded. Partial,
 capability-gated, intentionally unsupported, and unimplemented entries remain
 visible with their evidence, requirements, or rationale, but are excluded
@@ -230,6 +230,21 @@ parameter) is unaffected and remains available on every pinned cell,
 including 5.9 and 6.0. This is the package's first source-level API
 divergence across compiler cells; see `Sources/SwiftQL/SQLRowMacro.swift` and
 `Sources/SwiftQL/SQLRowResult.swift` for the gated declarations.
+
+Using `sql { ... }` as a subquery (issue #69) requires `#if compiler(>=6.1)`
+for the same reason, and is unavailable on the Swift 5.9 support point or the
+pinned Swift 6.0 cell. The six `@_disfavoredOverload` overloads that give
+`sql` its subquery shapes crash `swift-frontend` on both, compiled together
+with the rest of the package -- reproduced in Docker and bisected to those
+declarations, since removing them alone removes the crash. `sql` is called at
+nearly every call site in the package, so disfavouring six more overloads
+under that name is enough overload-resolution load to trip a compiler bug of
+that generation. The work shipped once as pull request #416 and was reverted
+in #408 for this. Swift 6.1 (Xcode 16.4) fixes it. On 5.9 and 6.0 the
+overloads are not compiled, so nothing crashes and every subquery is spelled
+`subqueryExpression { ... }`, which is what every SwiftQL version so far has
+required and what the gated overloads forward to unchanged. See
+`Sources/SwiftQL/Expression Builder/SQLQueryExpressionBuilder.swift`.
 
 The `Sendable` conformance `@SQLTable` and `@SQLResult` declare for a `public`
 or `package` model (issue #531) requires Swift 6.0 or later. Swift 5.9 treats a

@@ -320,3 +320,75 @@ public func sql<Row>(@XLQueryExpressionBuilder builder: (XLSchema) -> any XLQuer
     let schema = XLSchema()
     return builder(schema)
 }
+
+
+// MARK: - SQL as subquery
+
+#if compiler(>=6.1)
+// `sql { ... }` also works as a subquery, inferring which shape from the
+// context expecting its result — a table row, a nullable table row, or a
+// scalar value — mirroring `subqueryExpression`'s overload set under the same
+// name, so a caller need not remember which name applies where.
+//
+// ## Why this needs Swift 6.1
+//
+// These overloads shipped once, in pull request #416, and were reverted in
+// #408. Compiled together with the rest of the package, they crash
+// swift-frontend on the pinned Swift 5.9.2 toolchain and on the pinned Swift
+// 6.0 cell. The crash was bisected to these declarations: removing them alone
+// removes it. `sql` is called at nearly every call site in the package, so
+// disfavouring six more overloads under that name is enough
+// overload-resolution load to trip a compiler bug of that generation.
+//
+// Swift 6.1 (Xcode 16.4) fixes it. The gate is therefore the compiler, not
+// the feature: on 6.1 and later these overloads exist and are exercised; on
+// 5.9 and 6.0 they are not compiled at all, so the crash cannot occur and
+// every other spelling keeps working. `#row`'s multi-column shapes are gated
+// the same way, for the same class of bug — see COMPATIBILITY.md.
+//
+// A caller on 5.9 or 6.0 writes `subqueryExpression { ... }`, which is what
+// every SwiftQL version so far has required and what these overloads forward
+// to unchanged.
+//
+// ## Why `@_disfavoredOverload` is required, not cosmetic
+//
+// Every shape below structurally overlaps a common top-level `sql { ... }`
+// statement: a plain `Select(person); From(person)` already returns
+// `any XLQueryStatement<Row>` where `Row: XLTable`, which is exactly the
+// table-subquery shape. Without the attribute, existing top-level call sites
+// with no surrounding contextual type become ambiguous and fail to compile.
+// Disfavouring these makes the plain top-level statement win that tie, while
+// still letting a caller reach one of these shapes when the surrounding
+// expression — `From(sql { ... })`, a scalar comparison — uniquely requires
+// it.
+
+@_disfavoredOverload
+public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable {
+    subqueryExpression(alias: alias, statement: statement)
+}
+
+@_disfavoredOverload
+public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableResult where T: XLMetaNullable, T.Basis: XLTable {
+    subqueryExpression(alias: alias, statement: statement)
+}
+
+@_disfavoredOverload
+public func sql<T>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
+    subqueryExpression(statement: statement)
+}
+
+@_disfavoredOverload
+public func sql<T>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
+    subqueryExpression(statement: statement)
+}
+
+@_disfavoredOverload
+public func sql<Wrapped>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+    subqueryExpression(statement: statement)
+}
+
+@_disfavoredOverload
+public func sql<Wrapped>(@XLQueryExpressionBuilder statement: () -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+    subqueryExpression(statement: statement)
+}
+#endif

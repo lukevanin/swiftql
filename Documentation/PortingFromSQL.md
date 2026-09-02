@@ -72,6 +72,16 @@ and a rename leads the compiler to every query affected.
 | `UPDATE t SET c = v` | `Update(person)` plus `Setting(person) { row in row.age = 42 }` |
 | `DELETE FROM t` | `Delete(person)` |
 | `:name` bind parameter | `XLNamedBindingReference<String>(name: "name")` |
+| `x -> '$.a'` | `note.metadata.jsonElement(at: .root.key("a"))` |
+| `x ->> '$.a'` | `note.metadata.jsonValue(at: .root.key("a"), as: String.self)` |
+| `JSON_EXTRACT(x, '$.a')` | `note.metadata.jsonExtract(at: .root.key("a"), as: String.self)` |
+| `JSON_ARRAY(a, b)` / `JSON_OBJECT('k', v)` | `jsonArray(a, b)` / `jsonObject(("k", v))` |
+| `JSON(x)` / `JSON_PRETTY(x)` / `JSON_QUOTE(x)` | `x.minifiedJSON()` / `x.prettyJSON()` / `x.jsonQuoted()` |
+| `JSON_TYPE(x)` / `JSON_VALID(x)` / `JSON_ARRAY_LENGTH(x)` | `x.jsonType()` / `x.validJSONOrNull()` / `x.jsonArrayLength()` |
+| `JSON_INSERT(x, p, v)` / `JSON_REPLACE` / `JSON_SET` | `x.jsonInserting((p, v))` / `x.jsonReplacing((p, v))` / `x.jsonSetting((p, v))` |
+| `JSON_REMOVE(x, p)` / `JSON_PATCH(x, y)` | `x.jsonRemoving(at: p)` / `x.jsonPatched(with: y)` |
+| `JSON_GROUP_ARRAY(x)` / `JSON_GROUP_OBJECT(k, v)` | `x.jsonGroupArray()` / `jsonGroupObject(name: k, value: v)` |
+| `JSONB_...` binary variants | the matching `jsonb`-prefixed member, for example `x.jsonbExtract(at:)` |
 
 Read statements take their table from `schema.table(_:)`. Write statements take
 theirs from `schema.into(_:)`.
@@ -280,8 +290,8 @@ checking:
 4. **Outer-joined tables are declared nullable at the source**, via
    `schema.nullableTable`, rather than only being nullable in the result.
 
-Beyond those, the current gaps are recorded rather than hidden. As of the v1.4
-conformance inventory, of 114 tracked features, 110 are supported with evidence
+Beyond those, the current gaps are recorded rather than hidden. As of the v1.6
+conformance inventory, of 117 tracked features, 113 are supported with evidence
 from a real SQLite engine, and the exceptions are:
 
 - A typed DDL model is not implemented. `sqlCreate` creates a basic table and
@@ -289,6 +299,9 @@ from a real SQLite engine, and the exceptions are:
   alongside SwiftQL for migrations.
 - Nested transactions and single-connection visibility are capability-gated,
   meaning they depend on the driver in use.
+- Fluent's soft-delete lifecycle is recorded as intentionally unsupported. It
+  is an ORM model behavior rather than SQLite syntax, so SwiftQL does not
+  provide it.
 
 The inventory is the source of truth and is versioned with the library. See the
 [conformance report](../Conformance/SQLite/REPORT.md) and
