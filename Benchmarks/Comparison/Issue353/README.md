@@ -228,6 +228,89 @@ for three seconds under a newer toolchain, not six seconds under the original
 one. Compare the two columns of this table with each other, not with the
 original profile.
 
+## A second per-row cost: the generated row closure
+
+The constrained requirement removed the dispatch cost. It did not touch two
+other costs, because it did not change the macros. Both live in the row
+closure that `@SQLTable` and `@SQLResult` generate, and that closure runs once
+per row.
+
+The generated factory used to read a column like this:
+
+```swift
+public static func makeSQLNamedResult(namespace: XLNamespace, dependency: XLNamedTableDeclaration) -> MetaNamedResult {
+    return MetaNamedResult(...) {
+        Order(
+            orderID: try $0.staticColumn(XLColumnResult<Int>(dependency: dependency, as: "orderID"), alias: "orderID"),
+            ...
+```
+
+Two things happen here on every row:
+
+1. The column expression is **built inside the closure**. For the 14-column
+   fetch that is 226,002 `XLColumnResult` values per fetch, not 14.
+2. The expression is built as its **concrete type**, so passing it to a read
+   that takes `any XLExpression` boxes it again. `XLColumnResult` is larger
+   than the existential's inline buffer, so each box is a heap allocation --
+   again 226,002 per fetch.
+
+Both are fixed by binding the expression once, before the metadata value is
+built, and by declaring the binding as the erased type the read already takes:
+
+```swift
+    let _swiftQLRowColumn0: any SwiftQL.XLExpression<Int> = XLColumnResult<Int>(dependency: dependency, as: "orderID")
+    ...
+    return MetaNamedResult(...) {
+        Order(
+            orderID: try $0.staticColumn(_swiftQLRowColumn0, alias: "orderID"),
+```
+
+The expression is a pure value over `dependency` and a constant alias, so
+building it once per factory call is equivalent. The binding keeps the
+column's concrete `T`, so a literal column still selects the constrained
+requirement -- `Tests/SQLTests/StaticColumnDispatchTests.swift` pins that for
+the factory readers as well as for `SQLReader`.
+
+A factory that binds locals must return explicitly, because its body is no
+longer a single expression. `makeSQLTable` and `makeSQLNamedResult` therefore
+gain a `return` they did not have.
+
+## Measured result of the row-closure change
+
+Method as above, and with the same `paired.py`. The baseline is the
+constrained-requirement fix alone, so this measures only what that fix left
+behind. The two trees differ only in
+`Sources/SQLMacros/MetaBuilder+ResultShape.swift`.
+
+| | Median | p95 | Process spread |
+| --- | ---: | ---: | ---: |
+| Constrained requirement | 42.74 ms | 44.08 ms | 4.19% |
+| Plus the hoisted binding | 30.63 ms | 31.32 ms | 4.86% |
+| Change | **-28.34%** | **-28.95%** | |
+
+| Pair | Baseline | Candidate | Change |
+| ---: | ---: | ---: | ---: |
+| 1 | 42.02 ms | 29.59 ms | -29.58% |
+| 2 | 42.06 ms | 30.32 ms | -27.89% |
+| 3 | 41.94 ms | 30.66 ms | -26.90% |
+| 4 | 43.57 ms | 31.08 ms | -28.66% |
+| 5 | 43.41 ms | 30.80 ms | -29.07% |
+| 6 | 43.73 ms | 30.59 ms | -30.06% |
+
+The smallest per-pair change is 26.9% and the largest is 30.1%. Process
+spread is 4.2% and 4.9%, so the change is about six times the spread.
+
+Raw samples: `Runs/paired-hoist-samples.tsv`. Per-pair medians:
+`Runs/paired-hoist-summary.tsv`.
+
+An in-process control, run separately, attributes the 28% to its two parts.
+Hoisting alone is about -9%, and erasing the binding alone is about -20%.
+Neither part reaches the other's size, and both are larger than the spread.
+
+The two changes together take the fetch from about 72 ms to about 31 ms.
+That combined figure spans two sessions, so treat it as approximate. Only the
+arms inside one paired run are comparable to each other.
+
 ## Reproduce the paired run
 
 `paired.py` builds one comparison graph per source tree and interleaves the

@@ -157,6 +157,26 @@
   reader that implements only `column(_:alias:)`, which is the documented
   shape, is unaffected.
 
+- Decoding a full result set is a further 28.3% faster (issue #353). The row
+  closure that `@SQLTable` and `@SQLResult` generate runs once per row, and it
+  built each column's expression inside itself. For a 16,143-row, 14-column
+  fetch that built 226,002 `XLColumnResult` values instead of 14. Each was
+  built as its concrete type, so passing it to a read that takes
+  `any XLExpression` boxed it again, and the value is larger than the
+  existential's inline buffer, so each box was a heap allocation. The
+  generated factory now binds every column expression once, before it builds
+  its metadata value, and declares the binding as the erased type the read
+  already takes. Measured over six interleaved pairs on one machine, against
+  the constrained-requirement fix alone: median 42.74 ms to 30.63 ms, p95
+  44.08 ms to 31.32 ms, with every pair between -26.9% and -30.1%. See
+  `Benchmarks/Comparison/Issue353/README.md`.
+
+  No source change is needed to get this, and the generated API does not
+  change. The binding keeps the column's concrete type, so a literal column
+  still selects the constrained `staticColumn(_:alias:)` requirement.
+  `makeSQLTable` and `makeSQLNamedResult` now return explicitly, because a
+  body that binds locals is no longer a single expression.
+
 ### Fixed
 
 - The `Benchmarks/Comparison` harness can build its SwiftQL graph again (issue

@@ -96,26 +96,59 @@ extension MetaBuilder {
     /// read from it -- `{ _ in` rather than `{` -- because an unused closure
     /// parameter is a warning in the generated code the author sees.
     ///
+    /// Each column expression is bound before the metadata value is built, and
+    /// the closure reads that binding. The closure runs once per row, so an
+    /// expression written inside it was rebuilt for every column of every row.
+    /// The expression is a pure value over `dependency` and a constant alias,
+    /// so building it once per factory call is equivalent.
+    ///
+    /// The binding is declared as the erased `any XLExpression` the read takes,
+    /// not as the concrete column type. A concrete binding is boxed into that
+    /// existential again at every read, which allocates once per column per
+    /// row. Erasing at the binding pays for the box once per factory call.
+    ///
+    /// Both are per-row costs that survived the `staticColumn` dispatch fix in
+    /// issue #353, and neither changes which requirement a column selects: the
+    /// binding keeps the column's concrete `T`, so a literal column still
+    /// selects the constrained requirement.
+    ///
+    /// A factory that binds locals must return explicitly, because its body is
+    /// then no longer a single expression.
+    ///
     func emitResultFactory(_ shape: ResultShape, into context: inout CodeWriter) {
         let signature = "public static func \(shape.functionName)"
             + "(namespace: XLNamespace, dependency: \(shape.dependencyType))"
             + " -> \(shape.metaType)"
+        var allocator = GeneratedIdentifierAllocator(
+            used: generatedIdentifierReservations
+        )
+        let columnBindings = shape.properties.indices.map { index in
+            allocator.allocate("_swiftQLRowColumn\(index)")
+        }
         context.block(signature) { context in
+            for (property, binding) in zip(shape.properties, columnBindings) {
+                context.line(
+                    "let \(binding): any SwiftQL.XLExpression<\(property.qualifiedType)>"
+                        + " = \(property.makeInstance(kind: shape.rowColumnKind, dependency: "dependency"))"
+                )
+            }
             let arguments = metaFactoryArguments(
                 shape.properties,
                 kind: shape.parameterColumnKind
             )
-            let construction = (shape.usesExplicitReturn ? "return " : "")
+            let usesExplicitReturn = shape.usesExplicitReturn
+                || !columnBindings.isEmpty
+            let construction = (usesExplicitReturn ? "return " : "")
                 + shape.metaType + "(" + arguments.joined(separator: ", ") + ")"
             context.block(
                 construction,
                 opening: shape.properties.isEmpty ? " { _ in" : " {"
             ) { context in
                 context.declaration(shape.rowType) { context in
-                    for property in shape.properties {
+                    for (property, binding) in zip(shape.properties, columnBindings) {
                         context.item { context in
                             context.line(
-                                "\(property.name): try $0.staticColumn(\(property.makeInstance(kind: shape.rowColumnKind, dependency: "dependency")), alias: \(quoted(property.alias)))"
+                                "\(property.name): try $0.staticColumn(\(binding), alias: \(quoted(property.alias)))"
                             )
                         }
                     }
