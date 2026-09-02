@@ -695,7 +695,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
 
         let requiredPhrasesByPath = [
             "README.md": [
-                "`1.5.7` is the latest published package",
+                "`1.6.0` is the latest published package",
             ],
             "COMPATIBILITY.md": [
                 "## v1.3 public products and runtime boundaries",
@@ -736,10 +736,10 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "not a claim of complete SQLite",
                 "v1.3 does not ship a public",
                 "validator, build plugin, query macro, schema system",
-                "Version 1.5.7 is the latest published package",
+                "Version 1.6.0 is the latest published package",
             ],
             "Sources/SwiftQL/SwiftQL.docc/GettingStarted.md": [
-                "Version 1.5.7 is the published package",
+                "Version 1.6.0 is the published package",
                 "This guide's basic request path remains",
                 "from version 1.2.0 or later",
             ],
@@ -764,7 +764,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 // This label tracks the inventory's own `inventory_version`,
                 // which the 1.4.5-1.5.4 fold bumped to 1.4.0. It is unrelated
                 // to the v1.3 source-tree milestone the phrases above pin.
-                "The v1.4 inventory contains \(inventory.features.count) feature records and \(inventory.evidence.count) evidence records",
+                "The v1.6 inventory contains \(inventory.features.count) feature records and \(inventory.evidence.count) evidence records",
                 "| Supported | \(supportedCount) |",
                 "| Partial | \(partialCount) |",
                 "| Capability-gated | \(capabilityGatedCount) |",
@@ -905,7 +905,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             // Package Manager version drifts silently; it was still on 1.5.4
             // two releases later when #230 found it.
             "Website/index.html": [
-                #".package(url: "https://github.com/lukevanin/swiftql.git", from: "1.5.7")"#,
+                #".package(url: "https://github.com/lukevanin/swiftql.git", from: "1.6.0")"#,
             ],
             "COMPATIBILITY.md": [
                 "`SwiftQLSQLiteBuildValidationManifest` and",

@@ -4,7 +4,7 @@ date: 2026-07-30
 description: "SwiftQL v1.5.5 adds async live-query streams, an @Observable wrapper for SwiftUI, and a lazy single-pass result set, and rebuilds Combine's publish() as an adapter over the new streams."
 ---
 
-SwiftQL v1.5.5 is the current latest release. It adds a `for try await`-based live-query API alongside the existing Combine one, an `@Observable` wrapper built on top of it for SwiftUI, and a lazy result set for stepping through large reads one row at a time. Combine's `publish()`/`publishOne()` keep their signatures but now run on top of the new streams instead of their own separate observation engine.
+SwiftQL v1.5.5 adds a `for try await`-based live-query API alongside the existing Combine one, an `@Observable` wrapper built on top of it for SwiftUI, and a lazy result set for stepping through large reads one row at a time. Combine's `publish()`/`publishOne()` keep their signatures but now run on top of the new streams instead of their own separate observation engine.
 
 ## Live queries through `for try await`
 

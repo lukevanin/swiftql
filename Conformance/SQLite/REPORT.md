@@ -2,7 +2,7 @@
 
 # SQLite conformance inventory
 
-- Inventory version: `1.4.0`
+- Inventory version: `1.6.0`
 - Coordination issue: [#190](https://github.com/lukevanin/swiftql/issues/190)
 
 This report is generated deterministically from [`SQLiteConformanceInventory.json`](../../Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json).

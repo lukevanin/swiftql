@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "inventory_version": "1.4.0",
+  "inventory_version": "1.6.0",
   "coordination_issue": 190,
   "scope": {
     "claim": "Evidence-backed conformance for SwiftQL's existing public SQLite syntax and adopted behavior surface; not complete SQLite grammar coverage.",

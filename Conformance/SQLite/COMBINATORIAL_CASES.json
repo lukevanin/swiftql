@@ -13340,7 +13340,7 @@
     "maximum_rendered_sql_bytes" : 4096,
     "maximum_reproduction_command_bytes" : 512
   },
-  "inventory_version" : "1.4.0",
+  "inventory_version" : "1.6.0",
   "issue" : 191,
   "schema_version" : 1
 }
