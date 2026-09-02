@@ -154,6 +154,10 @@ jobs:
             --output /dev/null
           curl --fail --silent --show-error \
             --retry 12 --retry-all-errors --retry-delay 5 \
+            "${site_url}blog/posts/whats-new-in-1-6-0/" \
+            --output /dev/null
+          curl --fail --silent --show-error \
+            --retry 12 --retry-all-errors --retry-delay 5 \
             "${site_url}documentation/swiftql/gettingstarted/" \
             --output /dev/null
           curl --fail --silent --show-error \

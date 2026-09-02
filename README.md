@@ -123,10 +123,10 @@ Add the following line to the `dependencies` section in your `Package.swift`
 file:
 
 ```text
-.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.5.7")
+.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.6.0")
 ```
 
-`1.5.7` is the latest published package. The examples above use APIs retained
+`1.6.0` is the latest published package. The examples above use APIs retained
 by v1.3; the static-query surface remains available from version 1.2.0. Pin a
 source revision only when intentionally testing later changes from `main`.
 
@@ -236,7 +236,7 @@ explicit list of the places the correspondence is not exact.
   would rather model an object graph than think about tables, and you can
   require recent Apple platforms.
 - **You are writing a server with a non-SQLite backend.** Fluent covers
-  PostgreSQL and MySQL today. SwiftQL is SQLite-only; other dialects are
+  PostgreSQL, MySQL, and MongoDB today. SwiftQL is SQLite-only; other dialects are
   [roadmap](ROADMAP.md) work, not shipped work.
 - **Your queries are already written and working.** The cost of SwiftQL is
   learning its expression surface. The benefit arrives when the schema
@@ -276,6 +276,13 @@ explicit list of the places the correspondence is not exact.
   `streamOne()`, the canonical live-query API. GRDB-backed Combine publishers
   track the same database region a query reads, and `XLObservableQuery` or
   `XLQueryObserver` adopt either one from SwiftUI.
+- **[JSON](https://lukevanin.github.io/swiftql/documentation/swiftql/json/).**
+  Read into a JSON document with the `->` and `->>` selection operators and
+  `jsonExtract`, build documents with `jsonArray` and `jsonObject`, change them
+  with the insert, replace, set, remove, and patch functions, collect rows with
+  `jsonGroupArray` and `jsonGroupObject`, and address any of it with
+  `XLJSONPath` instead of a path string. The JSONB variants read and write
+  SQLite's binary representation.
 - **Your domain.** Extend SQLite with Swift enums, custom value types, and
   type-safe custom SQL functions.
 

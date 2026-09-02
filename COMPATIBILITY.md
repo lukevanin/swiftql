@@ -94,7 +94,7 @@ The report is evidence for SwiftQL's existing public SQLite subset; it is not a
 claim of complete SQLite grammar coverage. The inventory remains the source of
 truth, while the report is its readable generated view.
 
-The v1.4 inventory contains 117 feature records and 193 evidence records. Its
+The v1.6 inventory contains 117 feature records and 193 evidence records. Its
 support-status totals are exact and mutually exclusive:
 
 | Support status | Features |

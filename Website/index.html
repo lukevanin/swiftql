@@ -419,7 +419,7 @@ footer {
       <a class="btn" href="https://github.com/lukevanin/swiftql/blob/main/Documentation/PortingFromSQL.md">Port a query</a>
       <a class="btn" href="https://github.com/lukevanin/swiftql">GitHub</a>
     </div>
-    <div class="install"><code>.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.5.7")</code></div>
+    <div class="install"><code>.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.6.0")</code></div>
   </div>
 </header>
 
@@ -535,6 +535,10 @@ footer {
         <p>Observe typed results with <code>for try await</code> over <code>stream()</code>, through GRDB-backed Combine publishers, or by adopting <code>XLObservableQuery</code> directly from SwiftUI.</p>
       </div>
       <div class="card">
+        <h3>JSON</h3>
+        <p>Read with <code>-&gt;</code>, <code>-&gt;&gt;</code>, and <code>json_extract</code>; build, change, and collect documents; address any of it with a typed <code>XLJSONPath</code>. JSONB variants included.</p>
+      </div>
+      <div class="card">
         <h3>Your domain</h3>
         <p>Extend SQLite with Swift enums, custom value types, and type-safe custom SQL functions.</p>
       </div>
@@ -626,7 +630,7 @@ footer {
       <li><strong>You need schema migrations.</strong> SwiftQL does not provide them. <code>sqlCreate</code> creates a table but does not migrate an existing schema. Use GRDB's <code>DatabaseMigrator</code> alongside SwiftQL - they compose, because SwiftQL sits on GRDB rather than replacing it.</li>
       <li><strong>You prefer a chained query builder.</strong> Several Swift libraries express typed queries as method chains. If <code>.select { }.where { }</code> reads better to you than <code>Select</code> / <code>From</code> / <code>Where</code>, that preference is the whole argument.</li>
       <li><strong>You want the database to disappear.</strong> SwiftData is a better fit if you would rather model an object graph than think about tables, and you can require recent Apple platforms.</li>
-      <li><strong>You are writing a server with a non-SQLite backend.</strong> Fluent covers PostgreSQL and MySQL today. SwiftQL is SQLite-only; other dialects are roadmap work, not shipped work.</li>
+      <li><strong>You are writing a server with a non-SQLite backend.</strong> Fluent covers PostgreSQL, MySQL, and MongoDB today. SwiftQL is SQLite-only; other dialects are roadmap work, not shipped work.</li>
       <li><strong>Your queries are already written and working.</strong> The cost of SwiftQL is learning its expression surface. The benefit arrives when the schema changes, so a stable schema you rarely touch may not repay it.</li>
     </ul>
   </div>

@@ -13,6 +13,67 @@ Almost every 1.x release has been purely additive. The one exception so far is
 `TimeInterval`. Each entry below ends with whether it affects code you already
 wrote.
 
+## 1.6.0 — JSON, and a much faster decode
+
+*Released 2 September 2026.*
+
+SQLite's JSON support is now a typed SwiftQL surface. A query can reach inside a
+JSON document — read one value, build a document, change it, or collect rows
+into one — without loading the text, decoding it in Swift, and writing the whole
+thing back. Separately, decoding a large result set is about 56% faster than in
+1.5.7, and you get that with no source change at all.
+
+- **Read a value out of a document.** `jsonElement(at:)` renders `->` and gives
+  you the element as JSON text. `jsonValue(at:as:)` renders `->>` and gives you
+  it as the SQL type you name. `jsonExtract(at:as:)` is the function form.
+  All three are optional results, because a path that matches nothing is SQL
+  `NULL`.
+- **Name a value without writing a path string.** `XLJSONPath.root.key("tags")
+  .index(0)` builds `$.tags[0]`. It quotes a key only where SQLite's grammar
+  needs one, so `key("a.b")` names the single key `a.b` rather than reading as
+  "b inside a". A path renders as a text operand, so it is never a raw-SQL
+  escape hatch.
+- **Build, inspect, and change documents.** `jsonArray` and `jsonObject`
+  construct them. `minifiedJSON()`, `prettyJSON()`, `jsonQuoted()`,
+  `jsonType()`, `validJSONOrNull()`, `jsonArrayLength()`, and
+  `jsonErrorPosition()` inspect them. `jsonInserting`, `jsonReplacing`,
+  `jsonSetting`, `jsonRemoving`, and `jsonPatched` write back into them.
+- **Collect rows into a document.** `jsonGroupArray()` and
+  `jsonGroupObject(name:value:)` are the two SQLite JSON aggregates. Neither
+  result is optional: an empty group gives `[]` and `{}`, not SQL `NULL`.
+- **JSONB, when the binary form is worth it.** Every function that returns JSON
+  has a `jsonb`-prefixed twin returning SQLite's binary representation. The
+  functions whose result is a SQL value rather than JSON have no twin, because
+  SQLite defines none.
+- **Decoding is 56% faster on a large fetch.** Two changes to how generated row
+  readers work: a literal column now selects a statically-constrained read
+  instead of finding its conformance at run time, and the generated row closure
+  builds each column's expression once rather than once per row. Each was
+  measured on its own against the state before it, on a 16,143-row, 14-column
+  fetch: 39.4% and then a further 28.3%, which compose to about 56%.
+- **`sql { ... }` works as a subquery**, on Swift 6.1 and later, inferring a
+  table row, a nullable table row, or a scalar from the surrounding
+  expression. On Swift 5.9 and 6.0 the overloads are not compiled, because they
+  crash those compilers, and `subqueryExpression { ... }` remains the spelling
+  there.
+
+Some of this needs a newer SQLite than the oldest one SwiftQL supports. The
+`->` and `->>` operators need 3.38.0, JSONB needs 3.45.0, `json_pretty` needs
+3.46.0, and `json_valid` with flags needs 3.45.0. SwiftQL renders the SQL
+either way; it is the engine that refuses.
+
+**Affects existing code?** Almost none of it. Everything above is additive, and
+the decode speed-up needs no source change — existing `@SQLTable` and
+`@SQLResult` models reach the faster path as they are. Two narrow cases change.
+`validJSON()` is deprecated in favour of `validJSONOrNull()`, because
+`json_valid(NULL)` returns SQL `NULL` rather than false and a non-optional
+`Bool` cannot represent that; the old spelling still compiles and renders the
+same SQL. And an `XLRowReader` conformance outside this package that overrides
+the unconstrained `staticColumn(_:alias:)` to give literal columns special
+behaviour will no longer see literal columns arrive there; implement the new
+constrained requirement as well to keep it. A reader that implements only
+`column(_:alias:)`, which is the documented shape, is unaffected.
+
 ## 1.5.7 — internal cleanup, and two fixes
 
 *Released 27 August 2026.*

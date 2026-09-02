@@ -271,7 +271,7 @@ final class OtherTests {
             )
         return {
             "schema_version": 1,
-            "inventory_version": "1.4.0",
+            "inventory_version": "1.6.0",
             "coordination_issue": 190,
             "scope": {
                 "claim": "Fixture-backed public SQLite conformance.",
