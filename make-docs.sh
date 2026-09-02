@@ -133,7 +133,7 @@ install_blog() {
     blog_output="$2"
     blog_base_path="$3"
     blog_website="$blog_source_root/Website/blog"
-    blog_expected_hugo_version="hugo v0.164.0"
+    blog_expected_hugo_version="hugo v0.165.0"
 
     if ! command -v hugo >/dev/null 2>&1; then
         printf 'error: hugo is required to build Website/blog and was not found\n' >&2
