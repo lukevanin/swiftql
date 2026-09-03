@@ -60,7 +60,13 @@ The cache belongs to one registered function on one connection, and is never sha
 
 A pattern string is a string. There is no compile-time check, no composition, and no way to build one from named pieces. `RegexBuilder` has all three:
 
+`Anchor`, `ZeroOrMore` and the rest come from `RegexBuilder`, so a file using
+them needs `import RegexBuilder` alongside `import SwiftQL`:
+
 ```swift
+import RegexBuilder
+import SwiftQL
+
 enum PersonPatterns {
     static let leadingA = XLRegexPattern {
         Anchor.startOfSubject

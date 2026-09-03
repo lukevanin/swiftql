@@ -581,6 +581,21 @@ extension GRDBDatabase {
 }
 
 
+/// The `static let` form `Expressions.md` recommends for an `XLRegexPattern`.
+/// The registry does not keep a pattern alive, so the documented example holds
+/// one here rather than in a local, and this test compiles what the page shows.
+enum DocumentationPersonPatterns {
+
+    static let leadingA = XLRegexPattern {
+        Anchor.startOfSubject
+        "A"
+        ZeroOrMore(.any)
+        "n"
+        Anchor.endOfSubject
+    }
+}
+
+
 final class XLDocumentationTests: XCTestCase {
     
     var encoder: XLiteEncoder!
@@ -1792,18 +1807,11 @@ extension XLDocumentationTests {
             encoder.makeSQL(regexpQuery).sql.contains("REGEXP '^A.*n$'")
         )
 
-        let leadingA = XLRegexPattern {
-            Anchor.startOfSubject
-            "A"
-            ZeroOrMore(.any)
-            "n"
-            Anchor.endOfSubject
-        }
         let swiftRegexQuery = sql { schema in
             let person = schema.table(Person.self)
             Select(person)
             From(person)
-            Where(person.name.regexp(leadingA))
+            Where(person.name.regexp(DocumentationPersonPatterns.leadingA))
         }
         XCTAssertTrue(
             encoder.makeSQL(swiftRegexQuery).sql.contains("REGEXP")

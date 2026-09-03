@@ -320,6 +320,9 @@ carries only text, integers, reals, blobs, and nulls, so `XLRegexPattern`
 registers the `Regex` and the statement carries an opaque key that SwiftQL
 resolves when SQLite calls the function.
 
+`Anchor`, `ZeroOrMore` and the rest come from `RegexBuilder`, so a file using
+them needs `import RegexBuilder` as well as `import SwiftQL`.
+
 <!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
 enum PersonPatterns {
