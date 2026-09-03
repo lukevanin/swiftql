@@ -13,7 +13,7 @@ Almost every 1.x release has been purely additive. The one exception so far is
 `TimeInterval`. Each entry below ends with whether it affects code you already
 wrote.
 
-## 1.7 — REGEXP that just works
+## 1.7.0 — REGEXP that just works
 
 *Unreleased.*
 
