@@ -35,7 +35,8 @@ extension XLStaticStatementDefinitionError: CustomStringConvertible {
             return "A static query descriptor cannot be built from a statement "
                 + "that matches an XLRegexPattern: the pattern's key names a "
                 + "registration in this process only, so the rendered SQL is "
-                + "not reproducible. Use a string pattern instead. SQL: \(sql)"
+                + "not reproducible. Use a string pattern instead. SQL: "
+                + sql.debugDescription
         }
     }
 }

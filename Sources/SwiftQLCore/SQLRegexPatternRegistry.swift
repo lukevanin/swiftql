@@ -137,14 +137,25 @@ final class XLRegexRegistration: @unchecked Sendable {
         XLRegexPatternRegistry.shared.remove(key: key)
     }
 
+    /// Whether `subject` matches, treating a thrown match as no match.
+    ///
+    /// A `Regex` the caller built is already compiled, so this never compiles
+    /// anything and never consults the pattern cache.
+    ///
+    /// `firstMatch(in:)` can still throw: a `RegexBuilder` pattern may carry a
+    /// capture transform that throws, and `REGEXP` has nowhere to put that
+    /// failure -- the operator answers a yes-or-no question about one row, and
+    /// captures are not exposed at all, so the transform's result is discarded
+    /// either way. A throw is therefore read as "this row does not match"
+    /// rather than failing the statement. Write the transform to be total, or
+    /// match in Swift, if a failing transform has to be visible.
     func matches(_ subject: String) -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        // A `Regex` the caller built is already compiled, so this never
-        // compiles anything and never consults the pattern cache. It also
-        // cannot fail for a reason the caller can act on, so a throw is treated
-        // as no match rather than surfaced as a SQL error.
-        return ((try? regex.firstMatch(in: subject)) ?? nil) != nil
+        guard let match = try? regex.firstMatch(in: subject) else {
+            return false
+        }
+        return match != nil
     }
 }
 
@@ -234,11 +245,13 @@ public enum XLRegexPatternRegistry {
         func remove(key: String) {
             lock.lock()
             defer { lock.unlock() }
-            // Only if it is still the released one. A key is never reused, so
-            // this is defensive rather than load-bearing.
-            if entries[key]?.registration == nil {
-                entries.removeValue(forKey: key)
-            }
+            // Unconditional. A key is never reused, so an entry under this key
+            // can only ever be the registration that is deinitializing. Making
+            // it conditional on the weak reference already reading `nil` would
+            // tie correctness to exactly when the runtime zeroes a weak
+            // reference during deallocation, and leave a dead entry behind for
+            // ever if that timing were not what it is assumed to be.
+            entries.removeValue(forKey: key)
         }
 
         /// The registrations this process can still resolve. Read by tests.
@@ -246,6 +259,14 @@ public enum XLRegexPatternRegistry {
             lock.lock()
             defer { lock.unlock() }
             return entries.values.filter { $0.registration != nil }.count
+        }
+
+        /// Every entry the table holds, resolvable or not. Read by the test
+        /// that pins that a released pattern leaves nothing behind.
+        var storedEntryCount: Int {
+            lock.lock()
+            defer { lock.unlock() }
+            return entries.count
         }
     }
 

@@ -83,7 +83,9 @@ public enum XLRegexpMatcher {
     ///     scan compiles one pattern once rather than once per row. A caller
     ///     that passes none compiles on every call.
     /// - Throws: ``XLRegexpFunctionError/invalidPattern(pattern:message:)`` if
-    ///   the pattern does not compile.
+    ///   the pattern does not compile, or
+    ///   ``XLRegexpFunctionError/unregisteredPattern(key:)`` if `pattern` is an
+    ///   ``XLRegexPattern`` key this process cannot resolve.
     public static func matches(
         pattern: String,
         in subject: String,

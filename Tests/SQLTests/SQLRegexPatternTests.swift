@@ -254,6 +254,18 @@ final class XLRegexPatternTests: XCTestCase {
 
     // MARK: - Ownership
 
+    /// A released pattern's entry is removed, not merely emptied, so a process
+    /// that builds patterns per request does not accumulate dead entries.
+    func testAReleasedPatternLeavesNoEntryBehind() {
+        let before = XLRegexPatternRegistry.shared.storedEntryCount
+        for _ in 0 ..< 50 {
+            let pattern = XLRegexPattern { OneOrMore(.digit) }
+            XCTAssertTrue(pattern.matches("a1"))
+        }
+
+        XCTAssertEqual(XLRegexPatternRegistry.shared.storedEntryCount, before)
+    }
+
     /// The registry does not keep a pattern alive, so a released one stops
     /// resolving. This is the ownership rule, tested rather than only written
     /// down.
@@ -341,6 +353,17 @@ final class XLRegexPatternTests: XCTestCase {
         }
 
         XCTAssertEqual(mismatches.value(), 0)
+    }
+
+    /// A `RegexBuilder` transform that throws has nowhere to report itself: the
+    /// operator answers a yes-or-no question about one row, and captures are
+    /// not exposed. The row does not match, and the statement is not failed.
+    func testAThrowingTransformIsReadAsNoMatch() throws {
+        let failing = XLRegexPattern {
+            TryCapture(OneOrMore(.digit)) { _ -> Int? in nil }
+        }
+
+        XCTAssertFalse(failing.matches("123"))
     }
 
     /// A registered pattern is compiled by the caller, so the function must
