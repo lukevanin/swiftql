@@ -28,6 +28,15 @@ public enum XLRegexpFunctionError: Error, Equatable {
     ///   - pattern: The pattern text SQLite passed to the function.
     ///   - message: The description Swift's regular-expression parser gave.
     case invalidPattern(pattern: String, message: String)
+
+    /// The operand names an ``XLRegexPattern`` this process cannot resolve.
+    ///
+    /// Almost always a pattern that was released before the statement carrying
+    /// it executed. Hold the ``XLRegexPattern`` for as long as statements using
+    /// it can run; see its ownership note.
+    ///
+    /// - Parameter key: The key SQLite passed to the function.
+    case unregisteredPattern(key: String)
 }
 
 
@@ -37,6 +46,13 @@ extension XLRegexpFunctionError: CustomStringConvertible {
         switch self {
         case .invalidPattern(let pattern, let message):
             return "Invalid REGEXP pattern '\(pattern)': \(message)"
+        case .unregisteredPattern(let key):
+            return """
+                REGEXP names an XLRegexPattern this process cannot resolve \
+                (key \(key.debugDescription)). The pattern was most likely \
+                released before the statement using it executed: hold the \
+                XLRegexPattern for as long as statements using it can run.
+                """
         }
     }
 }
@@ -73,6 +89,20 @@ public enum XLRegexpMatcher {
         in subject: String,
         cache: XLRegexpPatternCache? = nil
     ) throws -> Bool {
+        // A registered `XLRegexPattern` renders an opaque key rather than a
+        // pattern, because a compiled `Regex` cannot travel through SQLite.
+        // The key carries a marker no regular expression would, so an ordinary
+        // pattern never reaches this branch (issue #614).
+        if XLRegexPatternRegistry.isKey(pattern) {
+            guard
+                let registration = XLRegexPatternRegistry.registration(
+                    forKey: pattern
+                )
+            else {
+                throw XLRegexpFunctionError.unregisteredPattern(key: pattern)
+            }
+            return registration.matches(subject)
+        }
         let regex = try cache?.regex(for: pattern) ?? compile(pattern)
         return try regex.firstMatch(in: subject) != nil
     }

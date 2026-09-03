@@ -42,6 +42,32 @@
   `REGEXP` means for an application that already supplied one. Deciding that
   costs one `PRAGMA function_list` per database, not one per query.
 
+- `XLRegexPattern`, a Swift `Regex` usable as the right operand of `REGEXP`
+  (issue #614). A pattern written with `RegexBuilder` gets a compile-time check,
+  composition, and named pieces, none of which a pattern string has. A compiled
+  `Regex` cannot travel through SQLite, so the statement carries an opaque key
+  and SwiftQL's `regexp` resolves it:
+
+  ```swift
+  let leadingA = XLRegexPattern {
+      Anchor.startOfSubject
+      "A"
+      ZeroOrMore(.any)
+  }
+
+  Where(person.name.regexp(leadingA))
+  ```
+
+  A key carries a marker no regular expression contains, so a plain pattern is
+  never mistaken for one; a key naming no registration raises
+  `XLRegexpFunctionError.unregisteredPattern` rather than silently matching
+  nothing. The registry does not keep a pattern alive: hold the
+  `XLRegexPattern` for as long as statements using it can execute. A key names
+  a registration in one process, so `XLStaticStatementDefinition` refuses a
+  statement that carries one -- a descriptor's identity has to be reproducible.
+  Captures are not exposed, because `REGEXP` answers only whether a subject
+  matches.
+
 - A statement that uses `REGEXP` now runs as a static query descriptor, and
   passes the SQLite build validator, without any registration by the caller
   (issue #615). A descriptor cannot carry a registration closure, so

@@ -216,6 +216,34 @@ extension XLExpression {
     public func regexp(_ other: any XLExpression<Optional<String>>) -> some XLExpression<Optional<Bool>> where T == Optional<String> {
         XLRegexpExpression<Optional<Bool>>(lhs: self, rhs: other)
     }
+
+    ///
+    /// Matches a Swift `Regex` rather than a pattern string.
+    ///
+    /// ```swift
+    /// let leadingA = XLRegexPattern {
+    ///     Anchor.startOfSubject
+    ///     "A"
+    ///     ZeroOrMore(.any)
+    /// }
+    ///
+    /// Where(person.name.regexp(leadingA))
+    /// ```
+    ///
+    /// A compiled `Regex` cannot be sent to SQLite, so the statement carries
+    /// the pattern's key instead and the bundled `regexp` function resolves it.
+    /// The key names a registration in this process, so hold the
+    /// `XLRegexPattern` for as long as statements using it can execute, and
+    /// do not build a static query descriptor from such a statement. Both rules
+    /// are described on `XLRegexPattern`.
+    ///
+    public func regexp(_ pattern: XLRegexPattern) -> some XLExpression<Bool> where T == String {
+        regexp(pattern.key)
+    }
+
+    public func regexp(_ pattern: XLRegexPattern) -> some XLExpression<Optional<Bool>> where T == Optional<String> {
+        regexp(pattern.key)
+    }
 }
 
 
