@@ -806,7 +806,7 @@ struct GRDBDatabaseDriverConnection:
             if registration.defersToExistingRegistration,
                bundledFunctions.applicationProvides(
                    registration.definition,
-                   probe: { hasFunction(named: registration.definition.name) }
+                   probe: { hasFunction(matching: registration.definition) }
                ) {
                 continue
             }
@@ -814,23 +814,39 @@ struct GRDBDatabaseDriverConnection:
         }
     }
 
-    /// Whether this physical connection already has a SQLite function of this name.
+    /// Whether this physical connection already has a SQLite function this registration would
+    /// replace.
     ///
-    /// Name only, not arity. SQLite reports `-1` for a variadic function, so an arity test would
-    /// reject a variadic `regexp` that the operator can legitimately call. This mirrors the same
-    /// decision in the build validator's runtime capture.
+    /// SQLite keys a function on its name *and* its argument count, so a name test alone is
+    /// wrong in both directions. An application that registers an unrelated `regexp/1` would
+    /// block the bundled `regexp/2` the operator actually calls, and every statement using
+    /// `REGEXP` would then fail with `no such function: regexp`. A row therefore has to match the
+    /// name and either the exact argument count or `-1`, which is what `PRAGMA function_list`
+    /// reports for a variadic function -- a variadic `regexp` can serve the two-argument call, so
+    /// it counts as provided.
+    ///
+    /// Names are compared case-insensitively over ASCII, which is how SQLite itself compares
+    /// them, and how the build validator's runtime capture compares them.
     ///
     /// A connection whose SQLite build omits the introspection pragmas answers nothing, which is
     /// read as "the application provides no such function". That is the safe direction: SwiftQL
     /// registers its bundled implementation, and a caller who wanted their own can still reach it
     /// through ``GRDBDatabaseBuilder/addFunction(_:)`` on a build where the pragma works.
-    private func hasFunction(named name: String) -> Bool {
-        let folded = name.lowercased()
+    private func hasFunction(matching definition: XLCustomFunctionDefinition) -> Bool {
+        let folded = definition.name.lowercased()
         guard let rows = try? Row.fetchAll(database, sql: "PRAGMA function_list") else {
             return false
         }
         return rows.contains { row in
-            (row["name"] as String?)?.lowercased() == folded
+            guard (row["name"] as String?)?.lowercased() == folded else {
+                return false
+            }
+            guard let argumentCount = row["narg"] as Int? else {
+                // A build that reports no argument count cannot distinguish the overloads, so
+                // treat the name as the whole answer rather than registering over the caller.
+                return true
+            }
+            return argumentCount == definition.numberOfArguments || argumentCount == -1
         }
     }
 

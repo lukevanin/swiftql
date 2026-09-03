@@ -264,6 +264,75 @@ final class XLRegexpOperatorTests: XCTestCase {
         XCTAssertEqual(try matchingIdentifiers("[0-9]+$"), ["2"])
     }
 
+    /// An unrelated function that only shares the name must not block the
+    /// bundled one. SQLite keys a function on its name and its argument count,
+    /// so a `regexp/1` is a different function from the `regexp/2` the operator
+    /// calls; deferring to it would leave every `REGEXP` statement failing with
+    /// `no such function: regexp`.
+    func testAFunctionOfTheSameNameAndADifferentArityDoesNotBlockTheBundledOne() throws {
+        var configuration = Configuration()
+        configuration.prepareDatabase { db in
+            db.add(
+                function: DatabaseFunction("regexp", argumentCount: 1) { _ in
+                    "unrelated"
+                }
+            )
+        }
+        let builder = try GRDBDatabaseBuilder(
+            url: fileURL,
+            configuration: configuration,
+            logger: nil
+        )
+        database = try builder.build()
+        try database.makeRequest(with: sqlCreate(RegexpPhrase.self)).execute()
+        for phrase in [
+            RegexpPhrase(id: "1", text: "alpha-123"),
+            RegexpPhrase(id: "2", text: "beta"),
+            RegexpPhrase(id: "3", text: "gamma-456"),
+        ] {
+            try database.makeRequest(with: sqlInsert(phrase)).execute()
+        }
+
+        XCTAssertEqual(try matchingIdentifiers("[0-9]+$"), ["1", "3"])
+    }
+
+    /// A variadic `regexp` can serve the two-argument call the operator makes,
+    /// so it counts as provided and keeps its behaviour. This one inverts the
+    /// match, so replacing it would be visible in the rows.
+    func testAVariadicFunctionOfTheSameNameWinsOverTheBundledOne() throws {
+        var configuration = Configuration()
+        configuration.prepareDatabase { db in
+            db.add(
+                function: DatabaseFunction("regexp") { values in
+                    guard
+                        values.count == 2,
+                        let pattern = String.fromDatabaseValue(values[0]),
+                        let subject = String.fromDatabaseValue(values[1])
+                    else {
+                        return nil
+                    }
+                    return subject.range(of: pattern, options: .regularExpression) == nil
+                }
+            )
+        }
+        let builder = try GRDBDatabaseBuilder(
+            url: fileURL,
+            configuration: configuration,
+            logger: nil
+        )
+        database = try builder.build()
+        try database.makeRequest(with: sqlCreate(RegexpPhrase.self)).execute()
+        for phrase in [
+            RegexpPhrase(id: "1", text: "alpha-123"),
+            RegexpPhrase(id: "2", text: "beta"),
+            RegexpPhrase(id: "3", text: "gamma-456"),
+        ] {
+            try database.makeRequest(with: sqlInsert(phrase)).execute()
+        }
+
+        XCTAssertEqual(try matchingIdentifiers("[0-9]+$"), ["2"])
+    }
+
     /// The same rule for the upfront registration seam, which is the spelling
     /// the documentation recommends.
     func testAddFunctionRegistrationWinsOverTheBundledOne() throws {

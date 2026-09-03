@@ -120,7 +120,7 @@ public enum XLRegexpFunction {
         try compile(pattern).firstMatch(in: subject) != nil
     }
 
-    /// Compiles one pattern, reporting a parse failure as an SwiftQL error.
+    /// Compiles one pattern, reporting a parse failure as a SwiftQL error.
     static func compile(_ pattern: String) throws -> Regex<AnyRegexOutput> {
         do {
             return try Regex(pattern)
