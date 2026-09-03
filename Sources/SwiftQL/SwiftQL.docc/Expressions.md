@@ -322,21 +322,27 @@ resolves when SQLite calls the function.
 
 <!-- test: XLDocumentationTests.testDocumentationExpressions -->
 ```swift
-let leadingA = XLRegexPattern {
-    Anchor.startOfSubject
-    "A"
-    ZeroOrMore(.any)
-    "n"
-    Anchor.endOfSubject
+enum PersonPatterns {
+    static let leadingA = XLRegexPattern {
+        Anchor.startOfSubject
+        "A"
+        ZeroOrMore(.any)
+        "n"
+        Anchor.endOfSubject
+    }
 }
 
 let query = sql { schema in
     let person = schema.table(Person.self)
     Select(person)
     From(person)
-    Where(person.name.regexp(leadingA))
+    Where(person.name.regexp(PersonPatterns.leadingA))
 }
 ```
+
+The pattern is a `static let` rather than a local, which is the first of the
+two rules below: a local would be released when the function returns, while the
+statement it rendered is usually executed later.
 
 Two rules come with it.
 

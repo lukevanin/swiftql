@@ -61,21 +61,25 @@ The cache belongs to one registered function on one connection, and is never sha
 A pattern string is a string. There is no compile-time check, no composition, and no way to build one from named pieces. `RegexBuilder` has all three:
 
 ```swift
-let leadingA = XLRegexPattern {
-    Anchor.startOfSubject
-    "A"
-    ZeroOrMore(.any)
-    "n"
-    Anchor.endOfSubject
+enum PersonPatterns {
+    static let leadingA = XLRegexPattern {
+        Anchor.startOfSubject
+        "A"
+        ZeroOrMore(.any)
+        "n"
+        Anchor.endOfSubject
+    }
 }
 
 let query = sql { schema in
     let person = schema.table(Person.self)
     Select(person)
     From(person)
-    Where(person.name.regexp(leadingA))
+    Where(person.name.regexp(PersonPatterns.leadingA))
 }
 ```
+
+A `static let`, not a local — for the reason in the next paragraph.
 
 A compiled `Regex` cannot be sent to SQLite, which carries only text, integers, reals, blobs, and nulls. So `XLRegexPattern` registers the `Regex` and the statement carries an opaque key instead; SwiftQL resolves the key back when SQLite calls the function.
 
