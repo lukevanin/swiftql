@@ -116,10 +116,16 @@ enum SQLiteBuildValidationBundledFunctions {
         return rows.contains { row in
             guard
                 let name = row["name"] as String?,
-                sqliteASCIIFolded(name) == folded,
-                let argumentCount = row["narg"] as Int?
+                sqliteASCIIFolded(name) == folded
             else {
                 return false
+            }
+            guard let argumentCount = row["narg"] as Int? else {
+                // A build that reports no argument count cannot distinguish
+                // the overloads, so the name is the whole answer rather than
+                // registering over the caller. Same rule as the runtime probe
+                // in `GRDBDatabaseDriverConnection.hasFunction(matching:)`.
+                return true
             }
             return argumentCount == function.numberOfArguments
                 || argumentCount == -1

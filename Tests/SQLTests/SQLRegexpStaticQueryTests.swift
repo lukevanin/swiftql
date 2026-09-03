@@ -149,6 +149,19 @@ final class XLRegexpStaticQueryTests: XCTestCase {
         XCTAssertTrue(statement.bundledFunctions.isEmpty)
     }
 
+    /// An application function that reuses a bundled *signature* is still not
+    /// recorded. Keying on the signature alone would have the static path
+    /// register SwiftQL's `regexp` in place of the type the statement named.
+    func testADescriptorDoesNotRecordAnApplicationFunctionOnABundledSignature() throws {
+        let encoding = XLiteEncoder(formatter: XLiteFormatter()).makeSQL(
+            sql { _ in Select(ApplicationRegexpFunction()) }
+        )
+
+        XCTAssertNotNil(encoding.customFunctions[XLRegexpFunction.definition])
+        let statement = try XLStaticStatementDefinition(validating: encoding)
+        XCTAssertTrue(statement.bundledFunctions.isEmpty)
+    }
+
     /// A statement with no custom function records none, so an ordinary
     /// descriptor's identity is unchanged by issue #615.
     func testAStatementWithoutACustomFunctionRecordsNoSignature() throws {

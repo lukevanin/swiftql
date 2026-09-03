@@ -46,10 +46,15 @@ extension XLStaticStatementDefinition {
             dialectRequirement: encoding.dialectRequirement,
             entities: encoding.entities,
             parameterLayout: encoding.parameterLayout,
+            // Keyed on the registration, not on the signature. A signature
+            // SwiftQL bundles can also be the signature of an application's own
+            // `XLCustomFunction`, and recording that one would have the static
+            // path register SwiftQL's implementation in place of the type the
+            // statement actually referenced.
             bundledFunctions: Set(
-                encoding.customFunctions.keys.filter { definition in
-                    XLCustomFunctionRegistration.bundled[definition] != nil
-                }
+                encoding.customFunctions
+                    .filter { $1.defersToExistingRegistration }
+                    .keys
             )
         )
     }
