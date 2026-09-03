@@ -1810,9 +1810,9 @@ extension XLDocumentationTests {
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testInAndNotInWithNullElementSemantics
         let _: (XLRegexpOperatorTests) -> () throws -> Void =
-            XLRegexpOperatorTests.testRegexpMatchesUsingTheRegisteredFunction
+            XLRegexpOperatorTests.testRegexpMatchesWithoutAnyApplicationRegistration
         let _: (XLRegexpOperatorTests) -> () throws -> Void =
-            XLRegexpOperatorTests.testRegexpWithoutRegisteredFunctionFailsAtPreparation
+            XLRegexpOperatorTests.testApplicationRegisteredFunctionWinsOverTheBundledOne
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testBetweenExecutesWithLiteralBindingAndColumnBounds
         let _: (XLSyntaxExpressionTests) -> () -> Void =
