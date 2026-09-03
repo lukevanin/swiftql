@@ -82,7 +82,7 @@ extension XLRegexpFunctionError: LocalizedError {
 /// ## Cost
 ///
 /// SQLite calls the function once per candidate row and passes the pattern each
-/// time. Each registration keeps an ``XLRegexpPatternCache``, so a statement
+/// time. Each registration keeps an `XLRegexpPatternCache`, so a statement
 /// compiles its pattern once and then only matches, however many rows it tests.
 ///
 /// ## Replacing it
@@ -181,7 +181,7 @@ extension XLCustomFunctionRegistration {
         makeDatabaseFunction: {
             // One cache per registered function, created here so it belongs to
             // the one connection this registration is about to be added to.
-            // See ``XLRegexpPatternCache`` for why it is not process-wide.
+            // See `XLRegexpPatternCache` for why it is not process-wide.
             let cache = XLRegexpPatternCache()
             return DatabaseFunction(
                 XLRegexpFunction.definition.name,
