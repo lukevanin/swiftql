@@ -829,9 +829,12 @@ struct GRDBDatabaseDriverConnection:
     /// them, and how the build validator's runtime capture compares them.
     ///
     /// A connection whose SQLite build omits the introspection pragmas answers nothing, which is
-    /// read as "the application provides no such function". That is the safe direction: SwiftQL
-    /// registers its bundled implementation, and a caller who wanted their own can still reach it
-    /// through ``GRDBDatabaseBuilder/addFunction(_:)`` on a build where the pragma works.
+    /// read as "the application provides no such function". On such a build the bundled
+    /// implementation is registered and does replace a caller's own, because nothing can observe
+    /// that theirs is there. That is the better of the two failure modes: the alternative --
+    /// treating an unanswerable probe as "already provided" -- would leave `REGEXP` unusable on
+    /// every connection, including the overwhelming majority that registered nothing. SQLite has
+    /// reported `PRAGMA function_list` since 3.30, and the package's supported builds all do.
     private func hasFunction(matching definition: XLCustomFunctionDefinition) -> Bool {
         let folded = definition.name.lowercased()
         guard let rows = try? Row.fetchAll(database, sql: "PRAGMA function_list") else {
