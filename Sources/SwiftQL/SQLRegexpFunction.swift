@@ -11,41 +11,6 @@ import Foundation
 import GRDB
 
 
-/// A failure raised by the bundled `regexp` implementation.
-///
-/// SQLite reports the failure as an execution error on the statement that used
-/// the `REGEXP` operator. A pattern is only known to be invalid once SQLite
-/// hands it to the function, so this cannot be a preparation error.
-public enum XLRegexpFunctionError: Error, Equatable {
-
-    /// The pattern is not a valid Swift regular expression.
-    ///
-    /// - Parameters:
-    ///   - pattern: The pattern text SQLite passed to the function.
-    ///   - message: The description Swift's regular-expression parser gave.
-    case invalidPattern(pattern: String, message: String)
-}
-
-
-extension XLRegexpFunctionError: CustomStringConvertible {
-
-    public var description: String {
-        switch self {
-        case .invalidPattern(let pattern, let message):
-            return "Invalid REGEXP pattern '\(pattern)': \(message)"
-        }
-    }
-}
-
-
-extension XLRegexpFunctionError: LocalizedError {
-
-    public var errorDescription: String? {
-        description
-    }
-}
-
-
 ///
 /// The two-argument `regexp` function SwiftQL registers for the `REGEXP`
 /// operator.
@@ -71,7 +36,7 @@ extension XLRegexpFunctionError: LocalizedError {
 ///   extensions for SQLite, and PostgreSQL's `~` operator.
 /// - **A NULL argument yields NULL**, on either side of the operator, which is
 ///   what SQL three-valued logic requires of a comparison.
-/// - **An invalid pattern raises** ``XLRegexpFunctionError/invalidPattern(pattern:message:)``
+/// - **An invalid pattern raises** `XLRegexpFunctionError.invalidPattern`
 ///   rather than returning false, so a mistyped pattern is reported instead of
 ///   silently selecting no rows.
 /// - **A non-text argument raises** ``XLColumnReadError``. SQLite stores values
@@ -125,30 +90,35 @@ public enum XLRegexpFunction {
         }
         let pattern = try reader.readText(at: 0)
         let subject = try reader.readText(at: 1)
-        return try matches(pattern: pattern, in: subject, cache: cache)
+        return try XLRegexpMatcher.matches(
+            pattern: pattern,
+            in: subject,
+            cache: cache
+        )
     }
 
-    /// Whether `pattern` occurs anywhere in `subject`.
-    static func matches(
-        pattern: String,
-        in subject: String,
-        cache: XLRegexpPatternCache? = nil
-    ) throws -> Bool {
-        let regex = try cache?.regex(for: pattern) ?? compile(pattern)
-        return try regex.firstMatch(in: subject) != nil
-    }
-
-    /// Compiles one pattern, reporting a parse failure as a SwiftQL error.
-    static func compile(_ pattern: String) throws -> Regex<AnyRegexOutput> {
-        do {
-            return try Regex(pattern)
-        }
-        catch {
-            throw XLRegexpFunctionError.invalidPattern(
-                pattern: pattern,
-                message: String(describing: error)
-            )
-        }
+    /// The SQLite function registration for this implementation.
+    ///
+    /// Registered by the GRDB driver at runtime, and by the SQLite build
+    /// validator on its own snapshot connection so a statement that uses
+    /// `REGEXP` can be prepared there too.
+    ///
+    /// - Parameter cache: Compiled patterns for this registration. A fresh one
+    ///   per registration is the default; see `XLRegexpPatternCache`.
+    static func makeDatabaseFunction(
+        cache: XLRegexpPatternCache = XLRegexpPatternCache()
+    ) -> DatabaseFunction {
+        DatabaseFunction(
+            definition.name,
+            argumentCount: definition.numberOfArguments,
+            pure: true,
+            function: { values in
+                try evaluate(
+                    reader: GRDBValuesAdapter(values: values),
+                    cache: cache
+                )
+            }
+        )
     }
 }
 
@@ -163,12 +133,12 @@ extension XLCustomFunctionRegistration {
     /// executes that statement.
     ///
     /// `defersToExistingRegistration` is `true`: an application that already
-    /// provides `regexp` keeps it. Without that, registering here would replace
-    /// the caller's function, because `sqlite3_create_function` replaces any
-    /// earlier registration of the same name and argument count, and every
-    /// caller-supplied registration necessarily runs earlier — both
-    /// ``GRDBDatabaseBuilder/addFunction(_:)`` and
-    /// `Configuration.prepareDatabase(_:)` run when a connection opens, and
+    /// provides `regexp` keeps it. Without that,
+    /// registering here would replace the caller's function, because
+    /// `sqlite3_create_function` replaces any earlier registration of the same
+    /// name and argument count, and every caller-supplied registration
+    /// necessarily runs earlier — both ``GRDBDatabaseBuilder/addFunction(_:)``
+    /// and `Configuration.prepareDatabase(_:)` run when a connection opens, and
     /// this runs when a statement is prepared.
     ///
     /// The function is declared pure. Its result depends only on its two
@@ -179,21 +149,10 @@ extension XLCustomFunctionRegistration {
         definition: XLRegexpFunction.definition,
         defersToExistingRegistration: true,
         makeDatabaseFunction: {
-            // One cache per registered function, created here so it belongs to
-            // the one connection this registration is about to be added to.
-            // See `XLRegexpPatternCache` for why it is not process-wide.
-            let cache = XLRegexpPatternCache()
-            return DatabaseFunction(
-                XLRegexpFunction.definition.name,
-                argumentCount: XLRegexpFunction.definition.numberOfArguments,
-                pure: true,
-                function: { values in
-                    try XLRegexpFunction.evaluate(
-                        reader: GRDBValuesAdapter(values: values),
-                        cache: cache
-                    )
-                }
-            )
+            // A fresh cache per registered function, so it belongs to the one
+            // connection this registration is about to be added to. See
+            // `XLRegexpPatternCache` for why it is not process-wide.
+            XLRegexpFunction.makeDatabaseFunction()
         }
     )
 }

@@ -42,10 +42,26 @@
   `REGEXP` means for an application that already supplied one. Deciding that
   costs one `PRAGMA function_list` per database, not one per query.
 
-- Statements rendered as static query descriptors still require an upfront
-  `GRDBDatabaseBuilder.addFunction(_:)` call for `regexp`, because a
-  descriptor discards the expression graph the registration travels on. Issue
-  #615 covers that path.
+- A statement that uses `REGEXP` now runs as a static query descriptor, and
+  passes the SQLite build validator, without any registration by the caller
+  (issue #615). A descriptor cannot carry a registration closure, so
+  `XLStaticStatementDefinition` records the *signatures* of the functions
+  SwiftQL bundles, and the adapter rebuilds its own implementation from one
+  when the statement is prepared. The build validator registers the same
+  implementations on its snapshot connection, so a query the application can
+  run no longer fails the build.
+
+  An application's own custom function is unchanged: SwiftQL cannot rebuild an
+  implementation it did not write, so such a statement still needs an upfront
+  `GRDBDatabaseBuilder.addFunction(_:)` call to run as a static descriptor, and
+  a `function:` capability naming it is still proven from the validator
+  connection rather than from a declaration.
+
+- `XLCustomFunctionDefinition`, `XLRegexpFunctionError`, and the pattern matcher
+  behind `REGEXP` moved from `SwiftQL` to `SwiftQLCore` (issue #615). Nothing is
+  renamed and `SwiftQL` re-exports `SwiftQLCore`, so `import SwiftQL` is
+  unaffected. The move is what lets the build validator, which does not depend
+  on the GRDB adapter, register the same implementation the adapter registers.
 
 ## [1.6.0] - Unreleased
 

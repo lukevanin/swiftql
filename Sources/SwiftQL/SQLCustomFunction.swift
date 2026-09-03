@@ -9,27 +9,6 @@ import Foundation
 import GRDB
 
 
-/// The SQLite registration signature for a custom scalar function.
-public struct XLCustomFunctionDefinition: Hashable, Sendable {
-    
-    /// The function name emitted in SQL and registered with SQLite.
-    public var name: String
-    
-    /// The number of arguments SQLite passes to the function.
-    public var numberOfArguments: Int
-    
-    /// Creates a custom scalar-function signature.
-    ///
-    /// - Parameters:
-    ///   - name: The function name used in SQL.
-    ///   - numberOfArguments: The function's fixed argument count.
-    public init(name: String, numberOfArguments: Int) {
-        self.name = name
-        self.numberOfArguments = numberOfArguments
-    }
-}
-
-
 /// A SwiftQL expression whose implementation is registered as a SQLite scalar function.
 ///
 /// Supply ``definition`` for the SQL signature, emit a call to that signature from your
@@ -69,12 +48,21 @@ public struct XLCustomFunctionRegistration: Sendable {
     ///
     /// `false` for a registration made from an application's own
     /// ``XLCustomFunction``: the caller referenced that type in the statement, so
-    /// registering it is what the caller asked for.
+    /// registering it is what the caller asked for. That holds even when the
+    /// caller's function reuses a signature SwiftQL bundles -- an application
+    /// that writes its own `regexp/2` as an ``XLCustomFunction`` and calls it
+    /// from a statement gets *that* implementation, not SwiftQL's.
     ///
     /// `true` for a function SwiftQL bundles, such as its own `regexp`
     /// implementation for the `REGEXP` operator. A bundled function is a
-    /// default, not an instruction, so it must never replace an implementation the
-    /// application registered itself.
+    /// default, not an instruction, so it must never replace an implementation
+    /// the application registered itself.
+    ///
+    /// Stored rather than derived from ``bundled``, because the two questions
+    /// differ: ``bundled`` asks whether SwiftQL can build an implementation for
+    /// a signature, which it can even when the caller supplied their own type
+    /// for that signature. `XLCustomFunctionRegistrationInvariantTests` pins
+    /// that every entry in ``bundled`` sets this.
     let defersToExistingRegistration: Bool
 
     let makeDatabaseFunction: @Sendable () -> DatabaseFunction
@@ -88,6 +76,24 @@ public struct XLCustomFunctionRegistration: Sendable {
         self.defersToExistingRegistration = defersToExistingRegistration
         self.makeDatabaseFunction = makeDatabaseFunction
     }
+
+    /// Every function SwiftQL supplies itself, by its SQLite signature.
+    ///
+    /// Two things read this. The driver skips a bundled registration when the
+    /// application already provides that function. And a static query
+    /// descriptor, which cannot carry a registration closure, records the
+    /// signatures it needs and resolves them back through this table when the
+    /// statement is prepared -- see
+    /// `XLStaticStatementDefinition.bundledFunctions`.
+    ///
+    ///
+    /// A function belongs here only if SwiftQL can reconstruct it from its
+    /// signature alone. An application's own ``XLCustomFunction`` cannot be,
+    /// which is why implicit registration still does not reach the static path
+    /// for those.
+    static let bundled: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [
+        XLRegexpFunction.definition: .bundledRegexp,
+    ]
 
     /// Creates a registration for one custom function type.
     public static func make<F>(_ type: F.Type) -> XLCustomFunctionRegistration
@@ -108,7 +114,6 @@ public struct XLCustomFunctionRegistration: Sendable {
         )
         return XLCustomFunctionRegistration(
             definition: functionDefinition,
-            defersToExistingRegistration: false,
             makeDatabaseFunction: {
                 DatabaseFunction(
                     functionDefinition.name,

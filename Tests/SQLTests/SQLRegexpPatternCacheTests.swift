@@ -151,8 +151,8 @@ final class XLRegexpPatternCacheTests: XCTestCase {
         for pattern in patterns {
             for subject in subjects {
                 XCTAssertEqual(
-                    try XLRegexpFunction.matches(pattern: pattern, in: subject),
-                    try XLRegexpFunction.matches(
+                    try XLRegexpMatcher.matches(pattern: pattern, in: subject),
+                    try XLRegexpMatcher.matches(
                         pattern: pattern,
                         in: subject,
                         cache: cache
@@ -264,12 +264,12 @@ final class XLRegexpPatternCacheTests: XCTestCase {
         DispatchQueue.concurrentPerform(iterations: 400) { iteration in
             let pattern = "^p\(iteration)-[0-9]+$"
             do {
-                let matched = try XLRegexpFunction.matches(
+                let matched = try XLRegexpMatcher.matches(
                     pattern: pattern,
                     in: "p\(iteration)-42",
                     cache: cache
                 )
-                let missed = try XLRegexpFunction.matches(
+                let missed = try XLRegexpMatcher.matches(
                     pattern: pattern,
                     in: "p\(iteration)-x",
                     cache: cache
@@ -301,7 +301,7 @@ final class XLRegexpPatternCacheTests: XCTestCase {
         let cache = XLRegexpPatternCache()
         let cachedStart = Date()
         for subject in subjects {
-            _ = try XLRegexpFunction.matches(
+            _ = try XLRegexpMatcher.matches(
                 pattern: pattern,
                 in: subject,
                 cache: cache
@@ -311,7 +311,7 @@ final class XLRegexpPatternCacheTests: XCTestCase {
 
         let uncachedStart = Date()
         for subject in subjects {
-            _ = try XLRegexpFunction.matches(pattern: pattern, in: subject)
+            _ = try XLRegexpMatcher.matches(pattern: pattern, in: subject)
         }
         let uncachedSeconds = Date().timeIntervalSince(uncachedStart)
 

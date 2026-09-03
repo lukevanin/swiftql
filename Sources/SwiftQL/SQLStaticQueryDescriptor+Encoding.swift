@@ -20,15 +20,20 @@ extension XLStaticStatementDefinition {
     ///
     /// The SwiftQL expression graph is deliberately discarded here. Static
     /// descriptors retain only deterministic SQL, dialect requirements,
-    /// referenced entities, and immutable parameter metadata.
+    /// referenced entities, immutable parameter metadata, and the signatures of
+    /// the functions SwiftQL bundles.
     ///
-    /// `encoding.customFunctions` is discarded with the graph: a registration
-    /// is a live closure, not deterministic metadata, so it cannot survive into
-    /// a database-independent descriptor. A statement that calls a custom
-    /// function therefore has to have it registered upfront with
-    /// `GRDBDatabaseBuilder.addFunction(_:)` to be executed as a static
-    /// descriptor -- implicit registration covers only the request and
-    /// encodable-invocation paths, which still hold the encoding.
+    /// A registration in `encoding.customFunctions` is a live closure, not
+    /// deterministic metadata, so it cannot survive into a database-independent
+    /// descriptor. A *signature* can, and SwiftQL can rebuild its own
+    /// implementation from one, so the bundled functions the statement calls are
+    /// recorded in `XLStaticStatementDefinition.bundledFunctions` and
+    /// registered when the descriptor is prepared (issue #615).
+    ///
+    /// An application's own custom function is still dropped: SwiftQL cannot
+    /// rebuild an implementation it did not write. Such a statement has to have
+    /// it registered upfront with `GRDBDatabaseBuilder.addFunction(_:)` to be
+    /// executed as a static descriptor.
     public init(validating encoding: XLEncoding) throws {
         if let valueEncodingError = encoding.valueEncodingError {
             throw valueEncodingError
@@ -40,7 +45,17 @@ extension XLStaticStatementDefinition {
             sql: encoding.sql,
             dialectRequirement: encoding.dialectRequirement,
             entities: encoding.entities,
-            parameterLayout: encoding.parameterLayout
+            parameterLayout: encoding.parameterLayout,
+            // Keyed on the registration, not on the signature. A signature
+            // SwiftQL bundles can also be the signature of an application's own
+            // `XLCustomFunction`, and recording that one would have the static
+            // path register SwiftQL's implementation in place of the type the
+            // statement actually referenced.
+            bundledFunctions: Set(
+                encoding.customFunctions
+                    .filter { $1.defersToExistingRegistration }
+                    .keys
+            )
         )
     }
 }
