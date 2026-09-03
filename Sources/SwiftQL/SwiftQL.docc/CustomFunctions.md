@@ -136,7 +136,9 @@ implementation the `REGEXP` operator needs, described in
 <doc:Expressions>. Two rules apply to it and not to your functions.
 
 **Yours wins.** SwiftQL never registers a bundled function on a connection that
-already provides one of that name and argument count. An `addFunction(_:)` call
+already provides one of that signature -- the same name and either the same
+argument count or the `-1` SQLite reports for a variadic function, which can
+serve a fixed-arity call. An `addFunction(_:)` call
 or a `Configuration.prepareDatabase(_:)` registration of your own `regexp`
 therefore keeps deciding what `REGEXP` means, and upgrading SwiftQL does not
 change it.

@@ -44,7 +44,7 @@ An invalid pattern raising an error rather than returning false matters more tha
 
 ## Your own `regexp` still wins
 
-If you already register a `regexp` of your own, upgrading changes nothing. SwiftQL never registers its bundled function on a connection that already provides one of that name and argument count, whether yours arrived through `GRDBDatabaseBuilder.addFunction(_:)` or through `Configuration.prepareDatabase(_:)`.
+If you already register a `regexp` of your own, upgrading changes nothing. SwiftQL never registers its bundled function on a connection that already provides one of that signature — the same name and either the same argument count or the `-1` SQLite reports for a variadic function, which can serve a fixed-arity call — whether yours arrived through `GRDBDatabaseBuilder.addFunction(_:)` or through `Configuration.prepareDatabase(_:)`.
 
 That check costs one `PRAGMA function_list` per database — not one per query.
 
