@@ -61,7 +61,11 @@ public struct XLCustomFunctionRegistration: Sendable {
     /// same SQLite function and are interchangeable.
     public let definition: XLCustomFunctionDefinition
 
-    /// Whether a function of this name already on the connection wins.
+    /// Whether a function already on the connection wins over this one.
+    ///
+    /// "Already on the connection" is decided by signature, not by name alone:
+    /// the same name and either the same argument count or the `-1` SQLite
+    /// reports for a variadic function, which can serve a fixed-arity call.
     ///
     /// `false` for a registration made from an application's own
     /// ``XLCustomFunction``: the caller referenced that type in the statement, so

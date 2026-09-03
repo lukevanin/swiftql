@@ -162,7 +162,7 @@ extension XLExpression {
 /// A `REGEXP` comparison.
 ///
 /// Renders exactly what ``XLBinaryOperatorExpression`` renders for the same
-/// operands, and additionally records ``XLCustomFunctionRegistration/bundledRegexp``
+/// operands, and additionally records `XLCustomFunctionRegistration.bundledRegexp`
 /// so the driver registers SwiftQL's own `regexp` implementation on whichever
 /// connection executes the statement. Recording the registration is the only
 /// reason this is a distinct type: a plain binary-operator node records nothing,

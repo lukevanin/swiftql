@@ -795,10 +795,10 @@ struct GRDBDatabaseDriverConnection:
     /// connections `DatabasePool` hands out over the connection's lifetime.
     ///
     /// A registration that defers to an existing one -- a function SwiftQL bundles rather than one
-    /// the caller wrote, such as ``XLCustomFunctionRegistration/bundledRegexp`` -- is skipped when
+    /// the caller wrote, such as `XLCustomFunctionRegistration.bundledRegexp` -- is skipped when
     /// the application already provides that function. That test is the only reason this is not
     /// unconditional, and it costs one `PRAGMA function_list` per database rather than one per
-    /// execution; see ``GRDBBundledFunctionAvailability``.
+    /// execution; see `GRDBBundledFunctionAvailability`.
     func registerCustomFunctions(
         _ registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
     ) {
