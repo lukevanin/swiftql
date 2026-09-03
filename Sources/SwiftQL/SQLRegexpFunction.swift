@@ -132,9 +132,8 @@ extension XLCustomFunctionRegistration {
     /// renders, so the driver registers the function on whichever connection
     /// executes that statement.
     ///
-    /// Listed in ``XLCustomFunctionRegistration/bundled``, which makes
-    /// ``XLCustomFunctionRegistration/defersToExistingRegistration`` true: an
-    /// application that already provides `regexp` keeps it. Without that,
+    /// `defersToExistingRegistration` is `true`: an application that already
+    /// provides `regexp` keeps it. Without that,
     /// registering here would replace the caller's function, because
     /// `sqlite3_create_function` replaces any earlier registration of the same
     /// name and argument count, and every caller-supplied registration
@@ -148,6 +147,7 @@ extension XLCustomFunctionRegistration {
     ///
     static let bundledRegexp = XLCustomFunctionRegistration(
         definition: XLRegexpFunction.definition,
+        defersToExistingRegistration: true,
         makeDatabaseFunction: {
             // A fresh cache per registered function, so it belongs to the one
             // connection this registration is about to be added to. See

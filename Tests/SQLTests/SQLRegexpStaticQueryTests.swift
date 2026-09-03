@@ -317,3 +317,56 @@ final class XLRegexpStaticQueryTests: XCTestCase {
         XCTAssertEqual(rows, [[.text("2")]])
     }
 }
+
+
+///
+/// Invariants tying `XLCustomFunctionRegistration.bundled` to the precedence
+/// flag, so the table and the flag cannot drift apart.
+///
+final class XLCustomFunctionRegistrationInvariantTests: XCTestCase {
+
+    /// Everything SwiftQL supplies is a default rather than an instruction, so
+    /// every entry has to defer to an implementation already on the connection.
+    func testEveryBundledRegistrationDefersToAnExistingOne() {
+        for (definition, registration) in XLCustomFunctionRegistration.bundled {
+            XCTAssertTrue(
+                registration.defersToExistingRegistration,
+                "\(definition.name)/\(definition.numberOfArguments) does not defer"
+            )
+            XCTAssertEqual(registration.definition, definition)
+        }
+        XCTAssertFalse(XLCustomFunctionRegistration.bundled.isEmpty)
+    }
+
+    /// An application's own function is registered even when it reuses a
+    /// signature SwiftQL bundles. The caller named that type in the statement,
+    /// so registering it is what they asked for.
+    func testAnApplicationRegistrationNeverDefersEvenOnABundledSignature() {
+        let registration = XLCustomFunctionRegistration.make(
+            ApplicationRegexpFunction.self
+        )
+
+        XCTAssertEqual(registration.definition, XLRegexpFunction.definition)
+        XCTAssertNotNil(
+            XLCustomFunctionRegistration.bundled[registration.definition]
+        )
+        XCTAssertFalse(registration.defersToExistingRegistration)
+    }
+}
+
+
+/// An application function that deliberately reuses the bundled `regexp/2`
+/// signature.
+private struct ApplicationRegexpFunction: XLCustomFunction {
+    typealias T = Bool
+
+    static let definition = XLRegexpFunction.definition
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { _ in }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> Bool {
+        true
+    }
+}

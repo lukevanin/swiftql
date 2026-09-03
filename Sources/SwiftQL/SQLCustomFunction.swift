@@ -48,26 +48,32 @@ public struct XLCustomFunctionRegistration: Sendable {
     ///
     /// `false` for a registration made from an application's own
     /// ``XLCustomFunction``: the caller referenced that type in the statement, so
-    /// registering it is what the caller asked for.
+    /// registering it is what the caller asked for. That holds even when the
+    /// caller's function reuses a signature SwiftQL bundles -- an application
+    /// that writes its own `regexp/2` as an ``XLCustomFunction`` and calls it
+    /// from a statement gets *that* implementation, not SwiftQL's.
     ///
     /// `true` for a function SwiftQL bundles, such as its own `regexp`
     /// implementation for the `REGEXP` operator. A bundled function is a
     /// default, not an instruction, so it must never replace an implementation
     /// the application registered itself.
     ///
-    /// Derived from `bundled` rather than stored, so the two cannot disagree
-    /// about which functions SwiftQL supplies.
-    var defersToExistingRegistration: Bool {
-        Self.bundled[definition] != nil
-    }
+    /// Stored rather than derived from ``bundled``, because the two questions
+    /// differ: ``bundled`` asks whether SwiftQL can build an implementation for
+    /// a signature, which it can even when the caller supplied their own type
+    /// for that signature. `XLCustomFunctionRegistrationInvariantTests` pins
+    /// that every entry in ``bundled`` sets this.
+    let defersToExistingRegistration: Bool
 
     let makeDatabaseFunction: @Sendable () -> DatabaseFunction
 
     init(
         definition: XLCustomFunctionDefinition,
+        defersToExistingRegistration: Bool = false,
         makeDatabaseFunction: @escaping @Sendable () -> DatabaseFunction
     ) {
         self.definition = definition
+        self.defersToExistingRegistration = defersToExistingRegistration
         self.makeDatabaseFunction = makeDatabaseFunction
     }
 
