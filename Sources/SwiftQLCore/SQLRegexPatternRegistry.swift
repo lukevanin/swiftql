@@ -180,10 +180,9 @@ public enum XLRegexPatternRegistry {
     /// Both delimiters are U+0001, which is not a character anyone writes in a
     /// regular expression. That is what keeps a key apart from a pattern
     /// without a second argument or a second operator spelling: a plain pattern
-    /// is passed through untouched unless it carries the marker, and one that
-    /// carries the marker but names no registration is reported rather than
-    /// matched, because it can only have come from a pattern that no longer
-    /// exists.
+    /// is passed through untouched unless it has the whole key shape, and one
+    /// that has it but names no registration is reported rather than matched,
+    /// because it can only have come from a pattern that no longer exists.
     ///
     static let marker = "\u{1}swiftql.regex\u{1}"
 
@@ -193,8 +192,15 @@ public enum XLRegexPatternRegistry {
     }
 
     /// Whether `text` is a registry key rather than a pattern.
+    ///
+    /// A key is the whole of `text`: the marker, one or more ASCII digits, and
+    /// the closing U+0001. Text carrying the marker in any other shape did not
+    /// come from here, so it is a pattern.
     public static func isKey(_ text: String) -> Bool {
-        text.hasPrefix(marker) && text.hasSuffix("\u{1}")
+        guard text.hasPrefix(marker) else {
+            return false
+        }
+        return isKeyBody(text.dropFirst(marker.count))
     }
 
     /// Whether rendered SQL carries a registry key anywhere in it.
@@ -202,8 +208,32 @@ public enum XLRegexPatternRegistry {
     /// Used to refuse a static query descriptor built from a statement that
     /// uses an ``XLRegexPattern``: a key names a registration in one process,
     /// and a descriptor is meant to be reproducible build metadata.
+    ///
+    /// Matches the same shape ``isKey(_:)`` does rather than the marker alone.
+    /// A string pattern that happens to carry the marker is not a key, and
+    /// refusing a descriptor for one would be refusing a statement that is
+    /// perfectly reproducible.
     public static func textContainsKey(_ text: String) -> Bool {
-        text.contains(marker)
+        var remainder = Substring(text)
+        while let markerRange = remainder.range(of: marker) {
+            let afterMarker = remainder[markerRange.upperBound...]
+            let digits = afterMarker.prefix { $0.isASCII && $0.isNumber }
+            if !digits.isEmpty,
+               afterMarker.dropFirst(digits.count).first == "\u{1}" {
+                return true
+            }
+            remainder = afterMarker
+        }
+        return false
+    }
+
+    /// Whether what follows the marker completes a key.
+    private static func isKeyBody(_ body: Substring) -> Bool {
+        guard body.last == "\u{1}" else {
+            return false
+        }
+        let digits = body.dropLast()
+        return !digits.isEmpty && digits.allSatisfy { $0.isASCII && $0.isNumber }
     }
 
     /// The pattern `key` names, or `nil` if this process has none.

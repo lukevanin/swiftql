@@ -211,6 +211,24 @@ final class XLRegexPatternTests: XCTestCase {
         )
     }
 
+    /// Text carrying the marker in any shape other than a key's did not come
+    /// from the registry, so it is a pattern rather than a stale key. Refusing
+    /// it would also refuse a static descriptor for a statement that is
+    /// perfectly reproducible.
+    func testMarkerCarryingTextThatIsNotAKeyIsAPattern() throws {
+        let notAKey = "\u{1}swiftql.regex\u{1}notanumber\u{1}"
+
+        XCTAssertFalse(XLRegexPatternRegistry.isKey(notAKey))
+        XCTAssertFalse(XLRegexPatternRegistry.textContainsKey(notAKey))
+        // Evaluated as a pattern: it matches itself and nothing else.
+        XCTAssertTrue(
+            try XLRegexpMatcher.matches(pattern: notAKey, in: notAKey)
+        )
+        XCTAssertFalse(
+            try XLRegexpMatcher.matches(pattern: notAKey, in: "beta")
+        )
+    }
+
     /// A key naming no registration is a programmer error, not a match
     /// failure, and the message says what to check.
     func testAnUnregisteredKeyRaisesAClearError() throws {
@@ -318,6 +336,22 @@ final class XLRegexPatternTests: XCTestCase {
         }
     }
 
+    /// A string pattern that happens to carry the marker is not a key, so a
+    /// descriptor built from it is still allowed.
+    func testAStaticDescriptorAcceptsAMarkerCarryingStringPattern() throws {
+        let encoding = try XLiteEncoder(dialect: XLSQLiteDialect())
+            .makeValidatedSQL(
+                sql { schema in
+                    let phrase = schema.table(RegexPatternPhrase.self)
+                    Select(phrase.id)
+                    From(phrase)
+                    Where(phrase.text.regexp("\u{1}swiftql.regex\u{1}x\u{1}"))
+                }
+            )
+
+        XCTAssertNoThrow(try XLStaticStatementDefinition(validating: encoding))
+    }
+
     /// The same statement written with a string pattern is still allowed, so
     /// the refusal is about the key and not about `REGEXP`.
     func testAStaticDescriptorStillAcceptsAStringPattern() throws {
@@ -337,17 +371,28 @@ final class XLRegexPatternTests: XCTestCase {
     // MARK: - Concurrency and cost
 
     /// One registration is reachable from every pooled connection at once.
+    ///
+    /// Goes through `XLRegexpMatcher.matches(pattern:in:)` with the key, which
+    /// is the path the bundled SQLite function takes, so the registry lookup
+    /// and the per-registration lock are both under concurrent load rather
+    /// than only the matching.
     func testConcurrentMatchingAgainstOnePatternIsSafe() throws {
         let pattern = XLRegexPattern {
             OneOrMore(.digit)
             Anchor.endOfSubject
         }
+        let key = pattern.key
         let mismatches = LockedCount()
 
         DispatchQueue.concurrentPerform(iterations: 500) { iteration in
-            let subject = iteration.isMultiple(of: 2) ? "row-\(iteration)" : "beta"
             let expected = iteration.isMultiple(of: 2)
-            if pattern.matches(subject) != expected {
+            let subject = expected ? "row-\(iteration)" : "beta"
+            do {
+                if try XLRegexpMatcher.matches(pattern: key, in: subject) != expected {
+                    mismatches.record()
+                }
+            }
+            catch {
                 mismatches.record()
             }
         }
