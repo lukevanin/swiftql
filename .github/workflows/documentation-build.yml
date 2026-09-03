@@ -45,7 +45,17 @@ jobs:
       - name: Install Hugo
         run: |
           set -euo pipefail
-          brew install hugo
+          # The runner image ships a preinstalled hugo, and `brew install` is a
+          # no-op when the formula is already present, so it never upgrades and
+          # the version is whatever the assigned image happens to carry. Update
+          # the formula index and upgrade explicitly, so the pinned version in
+          # make-docs.sh is the version actually installed. Both commands
+          # tolerate failure -- already-installed and already-current are both
+          # non-fatal -- because make-docs.sh's exact-version gate is what
+          # decides, and it fails closed.
+          brew update
+          brew install hugo || true
+          brew upgrade hugo || true
           hugo version
 
       - name: Configure Pages metadata
