@@ -78,7 +78,7 @@ public enum TodoLinks {
         layout: XLParameterLayout
     ) throws -> XLInvocationBindings<XLSQLiteValue> {
         guard let slot = layout.slot(for: .named("listID")) else {
-            throw TodoFilteredReadError.unknownParameter("listID")
+            throw TodoLinksError.unknownParameter("listID")
         }
         return try XLInvocationBindings<XLSQLiteValue>(
             layout: layout,
@@ -86,5 +86,18 @@ public enum TodoLinks {
                 try XLInvocationBinding(slot: slot, value: listID.sqlValue),
             ]
         ).validatingComplete()
+    }
+}
+
+
+enum TodoLinksError: Error, LocalizedError {
+
+    case unknownParameter(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .unknownParameter(let name):
+            return "The linked-to-do query has no parameter named \(name)."
+        }
     }
 }

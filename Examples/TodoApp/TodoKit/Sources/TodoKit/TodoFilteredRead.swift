@@ -20,7 +20,8 @@ import SwiftQL
 ///
 /// Everything else about it is the point: the filter is three booleans the
 /// `Where` clause reads rather than a mode the query branches on, the search
-/// is always applied with `%` standing in for an empty box, and the sort
+/// is always applied with the empty pattern standing in for an empty box --
+/// every subject contains it -- and the sort
 /// selects which ordering keys have any effect. One statement, rendered once,
 /// serves all of it.
 ///
