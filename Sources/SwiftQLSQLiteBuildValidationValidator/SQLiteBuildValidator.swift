@@ -107,6 +107,12 @@ public enum SQLiteBuildValidator {
     ) throws -> SQLiteBuildValidationReport {
         let validatedManifest = try manifest.validating()
 
+        // Before the runtime capture, so the capture sees these the way it sees
+        // every other function on the connection. SQLite resolves a function
+        // name at preparation, so a query using `REGEXP` cannot be prepared on
+        // a connection that lacks the `regexp` SwiftQL supplies at runtime.
+        SQLiteBuildValidationBundledFunctions.register(on: database)
+
         var runtimeMetadata: SQLiteBuildValidationRuntimeMetadata?
         let reportDiagnostics = schemaAndRuntimeDiagnostics(
             manifest: validatedManifest,

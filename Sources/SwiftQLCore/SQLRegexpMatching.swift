@@ -1,13 +1,95 @@
 //
-//  SQLRegexpPatternCache.swift
-//  SwiftQL
+//  SQLRegexpMatching.swift
+//  SwiftQLCore
 //
-//  Compiling a REGEXP pattern once per statement instead of once per row.
+//  Matching a SQLite REGEXP pattern with Swift `Regex`, and compiling each
+//  pattern once per statement instead of once per row.
 //
-//  Issue #613.
+//  Adapter-neutral on purpose (issue #615). The SQLite function this backs is
+//  registered by the GRDB adapter at runtime and by the build validator on its
+//  own snapshot connection, and neither target can reach the other's module.
+//
+//  Issues #612 and #613.
 //
 
 import Foundation
+
+
+/// A failure raised by the bundled `regexp` implementation.
+///
+/// SQLite reports the failure as an execution error on the statement that used
+/// the `REGEXP` operator. A pattern is only known to be invalid once SQLite
+/// hands it to the function, so this cannot be a preparation error.
+public enum XLRegexpFunctionError: Error, Equatable {
+
+    /// The pattern is not a valid Swift regular expression.
+    ///
+    /// - Parameters:
+    ///   - pattern: The pattern text SQLite passed to the function.
+    ///   - message: The description Swift's regular-expression parser gave.
+    case invalidPattern(pattern: String, message: String)
+}
+
+
+extension XLRegexpFunctionError: CustomStringConvertible {
+
+    public var description: String {
+        switch self {
+        case .invalidPattern(let pattern, let message):
+            return "Invalid REGEXP pattern '\(pattern)': \(message)"
+        }
+    }
+}
+
+
+extension XLRegexpFunctionError: LocalizedError {
+
+    public var errorDescription: String? {
+        description
+    }
+}
+
+
+///
+/// Matches a subject against a `REGEXP` pattern.
+///
+/// The behaviour this defines is described on `XLRegexpFunction`, which is the
+/// SQLite function that calls it.
+///
+public enum XLRegexpMatcher {
+
+    /// Whether `pattern` occurs anywhere in `subject`.
+    ///
+    /// - Parameters:
+    ///   - pattern: The pattern text.
+    ///   - subject: The text searched.
+    ///   - cache: Holds the compiled form of each pattern already seen, so a
+    ///     scan compiles one pattern once rather than once per row. A caller
+    ///     that passes none compiles on every call.
+    /// - Throws: ``XLRegexpFunctionError/invalidPattern(pattern:message:)`` if
+    ///   the pattern does not compile.
+    public static func matches(
+        pattern: String,
+        in subject: String,
+        cache: XLRegexpPatternCache? = nil
+    ) throws -> Bool {
+        let regex = try cache?.regex(for: pattern) ?? compile(pattern)
+        return try regex.firstMatch(in: subject) != nil
+    }
+
+    /// Compiles one pattern, reporting a parse failure as a SwiftQL error.
+    public static func compile(_ pattern: String) throws -> Regex<AnyRegexOutput> {
+        do {
+            return try Regex(pattern)
+        }
+        catch {
+            throw XLRegexpFunctionError.invalidPattern(
+                pattern: pattern,
+                message: String(describing: error)
+            )
+        }
+    }
+}
 
 
 ///
@@ -23,7 +105,7 @@ import Foundation
 /// ## Scope
 ///
 /// One cache belongs to one registered SQLite function, created by
-/// ``XLCustomFunctionRegistration/bundledRegexp`` each time the driver
+/// `XLCustomFunctionRegistration.bundledRegexp` each time the driver
 /// registers the function on a connection. It is never shared between
 /// connections, and it is not a process-wide cache:
 ///
@@ -57,10 +139,10 @@ import Foundation
 /// statement with an invalid pattern reports the failure once per row without
 /// retrying the failing compile.
 ///
-final class XLRegexpPatternCache: @unchecked Sendable {
+public final class XLRegexpPatternCache: @unchecked Sendable {
 
     /// The most distinct patterns one registration keeps compiled.
-    static let capacity = 16
+    public static let capacity = 16
 
     /// Counts every compile, across every cache in this process.
     ///
@@ -76,7 +158,7 @@ final class XLRegexpPatternCache: @unchecked Sendable {
     /// pins the number of compiles a scan performs. Read it before and after
     /// the work being measured and take the difference; nothing resets it, and
     /// nothing in the library reads it.
-    static var compilesInProcess: Int {
+    public static var compilesInProcess: Int {
         statistics.total
     }
 
@@ -121,14 +203,14 @@ final class XLRegexpPatternCache: @unchecked Sendable {
     ///
     /// Read by the tests that pin the compile count for a scan. Nothing in the
     /// library reads it.
-    var numberOfCompiles: Int {
+    public var numberOfCompiles: Int {
         lock.lock()
         defer { lock.unlock() }
         return compiles
     }
 
     /// How many patterns this cache currently holds.
-    var count: Int {
+    public var count: Int {
         lock.lock()
         defer { lock.unlock() }
         return entries.count
@@ -141,7 +223,9 @@ final class XLRegexpPatternCache: @unchecked Sendable {
     /// - Throws: ``XLRegexpFunctionError/invalidPattern(pattern:message:)`` if
     ///   the pattern does not compile, on this call and on every later call for
     ///   the same pattern.
-    func regex(for pattern: String) throws -> Regex<AnyRegexOutput> {
+    public init() {}
+
+    public func regex(for pattern: String) throws -> Regex<AnyRegexOutput> {
         try entry(for: pattern).get()
     }
 

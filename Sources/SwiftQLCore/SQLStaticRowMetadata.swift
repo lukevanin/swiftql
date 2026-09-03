@@ -22,16 +22,32 @@ public struct XLStaticStatementDefinition: Hashable, Sendable {
 
     public let parameterLayout: XLParameterLayout
 
+    /// The functions SwiftQL supplies that this statement calls.
+    ///
+    /// A descriptor is database-independent, so it cannot carry the live
+    /// registration closure the request paths carry: only deterministic
+    /// metadata survives here. A signature is deterministic, and SwiftQL can
+    /// rebuild its own implementation from one, so a statement that uses
+    /// `REGEXP` records `regexp/2` here and the adapter registers the bundled
+    /// function when the statement is prepared (issue #615).
+    ///
+    /// An application's own custom function is not recorded. SwiftQL cannot
+    /// rebuild an implementation it did not write, so such a statement still
+    /// needs an upfront `addFunction(_:)` call to run as a static descriptor.
+    public let bundledFunctions: Set<XLCustomFunctionDefinition>
+
     public init(
         sql: String,
         dialectRequirement: XLDialectRequirement,
         entities: Set<String> = [],
-        parameterLayout: XLParameterLayout = .empty
+        parameterLayout: XLParameterLayout = .empty,
+        bundledFunctions: Set<XLCustomFunctionDefinition> = []
     ) {
         self.sql = sql
         self.dialectRequirement = dialectRequirement
         self.entities = entities
         self.parameterLayout = parameterLayout
+        self.bundledFunctions = bundledFunctions
     }
 
     public static func == (lhs: Self, rhs: Self) -> Bool {
@@ -39,6 +55,7 @@ public struct XLStaticStatementDefinition: Hashable, Sendable {
             && lhs.dialectRequirement == rhs.dialectRequirement
             && lhs.entities == rhs.entities
             && lhs.parameterLayout == rhs.parameterLayout
+            && lhs.bundledFunctions == rhs.bundledFunctions
     }
 
     public func hash(into hasher: inout Hasher) {
@@ -46,6 +63,7 @@ public struct XLStaticStatementDefinition: Hashable, Sendable {
         hasher.combine(dialectRequirement)
         hasher.combine(entities)
         hasher.combine(parameterLayout)
+        hasher.combine(bundledFunctions)
     }
 }
 

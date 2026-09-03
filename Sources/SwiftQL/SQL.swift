@@ -104,7 +104,7 @@ public macro SQLQueries() = #externalMacro(module: "SQLMacros", type: "SQLQuerie
 ///
 /// Attach to a struct which conforms to `XLCustomFunction` and declares one stored property per
 /// SQL argument, each typed as `any XLExpression<...>` (or `some XLExpression<...>`). The macro
-/// generates the ``XLCustomFunctionDefinition`` and `makeSQL(context:)` boilerplate from those
+/// generates the `XLCustomFunctionDefinition` and `makeSQL(context:)` boilerplate from those
 /// properties, in declaration order. Conformance to `XLCustomFunction` and `execute(reader:)` are
 /// still written by hand.
 ///

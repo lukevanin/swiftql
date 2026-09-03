@@ -63,18 +63,23 @@ extension GRDBDatabase {
     /// statements remain connection-owned and are created only while executing
     /// through the GRDB driver.
     ///
-    /// Unlike the encodable overloads, this path deliberately registers no
-    /// custom functions. A descriptor carries only deterministic SQL and
-    /// immutable parameter metadata -- `XLStaticStatementDefinition`'s
+    /// Only the functions SwiftQL bundles are registered here. A descriptor
+    /// carries deterministic metadata alone -- `XLStaticStatementDefinition`'s
     /// `init(validating:)` discards the expression graph, and with it the
     /// `XLCustomFunctionRegistration` closures that implicit registration
-    /// needs -- so there is nothing to register here. A statement that calls a
-    /// custom function must therefore have that function registered upfront
-    /// with `GRDBDatabaseBuilder.addFunction(_:)` before it is executed as a
-    /// static descriptor; implicit registration through
-    /// `XLBuilder.customFunctionCall(_:parameters:)` applies only to the
+    /// carries on the other paths. A *signature* survives that discard, and
+    /// SwiftQL can rebuild its own implementation from one, so a statement
+    /// using `REGEXP` runs here without any registration by the caller
+    /// (issue #615).
+    ///
+    /// An application's own custom function is still not carried: SwiftQL
+    /// cannot rebuild an implementation it did not write. Such a statement must
+    /// have that function registered upfront with
+    /// `GRDBDatabaseBuilder.addFunction(_:)` before it is executed as a static
+    /// descriptor. Implicit registration through
+    /// `XLBuilder.customFunctionCall(_:parameters:)` still reaches only the
     /// `makeRequest(with:)` and `prepareInvocation(with: any XLEncodable)`
-    /// paths, which still hold the rendered encoding.
+    /// paths, which hold the rendered encoding.
     public func prepareInvocation(
         with descriptor: XLStaticQueryDescriptor
     ) throws -> GRDBPreparedStaticQuery {
@@ -94,7 +99,10 @@ extension GRDBDatabase {
         let invocation = GRDBPreparedInvocation(
             executor: GRDBInvocationExecutor(
                 driver: driver,
-                logicalStatement: statement
+                logicalStatement: statement,
+                customFunctions: bundledRegistrations(
+                    for: descriptor.statement.bundledFunctions
+                )
             )
         )
         return GRDBPreparedStaticQuery(
@@ -105,6 +113,31 @@ extension GRDBDatabase {
         )
     }
     
+    /// Resolves the signatures a descriptor recorded back to the registrations
+    /// that supply them.
+    ///
+    /// A signature SwiftQL no longer bundles is dropped rather than failing the
+    /// prepare. A descriptor is a build artifact that can outlive the version
+    /// that produced it, and a dropped signature surfaces as SQLite's own "no
+    /// such function" at execution, which names the function; refusing to
+    /// prepare would report a SwiftQL-internal table instead.
+    private func bundledRegistrations(
+        for definitions: Set<XLCustomFunctionDefinition>
+    ) -> [XLCustomFunctionDefinition: XLCustomFunctionRegistration] {
+        definitions.reduce(into: [:]) { registrations, definition in
+            // Written as an explicit skip rather than assigning the optional
+            // through the subscript: both drop an unknown signature, but only
+            // this one says so where it is read.
+            guard
+                let registration = XLCustomFunctionRegistration
+                    .bundled[definition]
+            else {
+                return
+            }
+            registrations[definition] = registration
+        }
+    }
+
     public func makeRequest<Row>(with statement: any XLReturningStatement<Row>) -> any XLRequest<Row> {
         let encoding = encoder.makeSQL(statement)
         return GRDBRequest(
