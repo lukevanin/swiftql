@@ -382,11 +382,16 @@ final class XLRegexpOperatorTests: XCTestCase {
         let iterations = 8
         let outcomes = RegexpOutcomes()
         let completed = DispatchGroup()
+        // Captured once, so the worker closures hold the database rather than
+        // the test case. An `XCTestCase` is not `Sendable`, and capturing
+        // `self` in a `@Sendable` closure is an error in the Swift 6 language
+        // mode.
+        let database = self.database!
         for index in 0 ..< iterations {
             completed.enter()
             // Dedicated threads rather than `concurrentPerform`, which is free
             // to run its iterations on fewer threads than the barrier needs.
-            let worker = Thread { [self] in
+            let worker = Thread {
                 defer { completed.leave() }
                 let statement = sql { schema in
                     let phrase = schema.table(RegexpPhrase.self)
