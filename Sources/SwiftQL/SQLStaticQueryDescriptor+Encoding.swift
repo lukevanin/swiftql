@@ -41,6 +41,15 @@ extension XLStaticStatementDefinition {
         if let parameterLayoutError = encoding.parameterLayoutError {
             throw parameterLayoutError
         }
+        // An `XLRegexPattern` renders a key naming a registration in this
+        // process, so the SQL is not reproducible and the descriptor's identity
+        // would change between runs. Refuse it here rather than let a build
+        // artifact carry it (issue #614).
+        if XLRegexPatternRegistry.textContainsKey(encoding.sql) {
+            throw XLStaticStatementDefinitionError.processLocalRegexPattern(
+                sql: encoding.sql
+            )
+        }
         self.init(
             sql: encoding.sql,
             dialectRequirement: encoding.dialectRequirement,

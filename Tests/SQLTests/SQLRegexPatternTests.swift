@@ -1,0 +1,487 @@
+//
+//  SQLRegexPatternTests.swift
+//
+//  Issue #614: matching a Swift `Regex` as the right operand of REGEXP,
+//  through a registry with keyed dispatch.
+//
+
+import Foundation
+import GRDB
+import RegexBuilder
+@testable import SwiftQLCore
+import XCTest
+@testable import SwiftQL
+
+
+@SQLTable(name: "PatternPhrase")
+struct RegexPatternPhrase: Equatable {
+    let id: String
+    let text: String
+    let note: String?
+}
+
+
+///
+/// The patterns these tests match with, built once at file scope.
+///
+/// Two reasons, and both matter. It is the form `Expressions.md` tells a caller
+/// to use -- the registry does not keep a pattern alive, so one built inside a
+/// function is released when the function returns. And Swift 5.9.2 crashes in
+/// SILGen on a function body that holds a `RegexBuilder` closure alongside a
+/// `sql { }` one, which is the same class of failure COMPATIBILITY.md records
+/// for `#row` and for sql-as-subquery. Hoisting the builders out of the test
+/// bodies avoids it and reads better besides.
+///
+private enum Patterns {
+
+    static let trailingDigits = XLRegexPattern {
+        OneOrMore(.digit)
+        Anchor.endOfSubject
+    }
+
+    static let digits = XLRegexPattern {
+        OneOrMore(.digit)
+    }
+
+    static let otherDigits = XLRegexPattern {
+        OneOrMore(.digit)
+    }
+
+    static let wholeBeta = XLRegexPattern {
+        Anchor.startOfSubject
+        "beta"
+        Anchor.endOfSubject
+    }
+
+    static let leadingAlpha = XLRegexPattern {
+        Anchor.startOfSubject
+        "alpha"
+    }
+
+    static let compiledBeta = XLRegexPattern(try! Regex("^beta$"))
+}
+
+
+final class XLRegexPatternTests: XCTestCase {
+
+    private var database: GRDBDatabase!
+    private var fileURL: URL!
+
+    override func setUpWithError() throws {
+        fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("sqlite")
+    }
+
+    override func tearDownWithError() throws {
+        try? database?.databasePool.close()
+        database = nil
+        if let fileURL {
+            try? FileManager.default.removeItem(at: fileURL)
+        }
+        fileURL = nil
+    }
+
+    private func makeSeededDatabase() throws -> GRDBDatabase {
+        let builder = try GRDBDatabaseBuilder(
+            url: fileURL,
+            configuration: Configuration(),
+            logger: nil
+        )
+        let database = try builder.build()
+        try database.makeRequest(with: sqlCreate(RegexPatternPhrase.self)).execute()
+        for phrase in [
+            RegexPatternPhrase(id: "1", text: "alpha-123", note: "alpha-123"),
+            RegexPatternPhrase(id: "2", text: "beta", note: nil),
+            RegexPatternPhrase(id: "3", text: "gamma-456", note: "gamma-456"),
+        ] {
+            try database.makeRequest(with: sqlInsert(phrase)).execute()
+        }
+        return database
+    }
+
+    private func matchingIdentifiers(_ pattern: XLRegexPattern) throws -> [String] {
+        let statement = sql { schema in
+            let phrase = schema.table(RegexPatternPhrase.self)
+            Select(phrase.id)
+            From(phrase)
+            Where(phrase.text.regexp(pattern))
+            OrderBy(phrase.id.ascending())
+        }
+        return try database.makeRequest(with: statement).fetchAll()
+    }
+
+    // MARK: - Matching
+
+    /// The behaviour the issue asks for: a `RegexBuilder` pattern selects the
+    /// rows a string pattern would.
+    func testARegexBuilderPatternSelectsTheSameRowsAsTheEquivalentString() throws {
+        database = try makeSeededDatabase()
+        let byRegex = try matchingIdentifiers(Patterns.trailingDigits)
+
+        // The statement goes in a local rather than inline in the
+        // `makeRequest` call. Both pinned toolchains segfault on the inline
+        // form -- see COMPATIBILITY.md, "crashes on a statement built inline
+        // in a fetched request".
+        let stringStatement = sql { schema in
+            let phrase = schema.table(RegexPatternPhrase.self)
+            Select(phrase.id)
+            From(phrase)
+            Where(phrase.text.regexp("[0-9]+$"))
+            OrderBy(phrase.id.ascending())
+        }
+        let byString: [String] = try database.makeRequest(
+            with: stringStatement
+        ).fetchAll()
+
+        XCTAssertEqual(byRegex, ["1", "3"])
+        XCTAssertEqual(byRegex, byString)
+    }
+
+    /// A `Regex` value, rather than a builder closure.
+    func testACompiledRegexCanBeUsedDirectly() throws {
+        database = try makeSeededDatabase()
+        XCTAssertEqual(
+            try matchingIdentifiers(Patterns.compiledBeta),
+            ["2"]
+        )
+    }
+
+    /// The nullable overload, so a pattern works on an optional column too.
+    func testAPatternMatchesANullableColumn() throws {
+        database = try makeSeededDatabase()
+        let statement = sql { schema in
+            let phrase = schema.table(RegexPatternPhrase.self)
+            Select(phrase.id)
+            From(phrase)
+            Where(phrase.note.regexp(Patterns.trailingDigits))
+            OrderBy(phrase.id.ascending())
+        }
+
+        // Row 2's note is NULL, so its comparison is NULL and it is not
+        // selected -- the same rule a string pattern follows.
+        XCTAssertEqual(
+            try database.makeRequest(with: statement).fetchAll(),
+            ["1", "3"]
+        )
+    }
+
+    /// Anchors composed with `RegexBuilder` behave as they do in Swift.
+    func testAnAnchoredBuilderPatternMatchesTheWholeSubject() throws {
+        database = try makeSeededDatabase()
+        XCTAssertEqual(try matchingIdentifiers(Patterns.wholeBeta), ["2"])
+        XCTAssertEqual(
+            try matchingIdentifiers(Patterns.leadingAlpha),
+            ["1"]
+        )
+    }
+
+    // MARK: - Keys
+
+    /// The caller never names a key, and one pattern used in two statements is
+    /// one registration.
+    func testOnePatternUsedTwiceResolvesToOneRegistration() throws {
+        database = try makeSeededDatabase()
+        let pattern = Patterns.digits
+
+        XCTAssertEqual(try matchingIdentifiers(pattern), ["1", "3"])
+        XCTAssertEqual(try matchingIdentifiers(pattern), ["1", "3"])
+
+        let firstKey = pattern.key
+        XCTAssertEqual(pattern.key, firstKey)
+    }
+
+    /// Two patterns are two registrations, even when they match the same thing.
+    func testTwoPatternsTakeDistinctKeys() {
+        XCTAssertNotEqual(Patterns.digits.key, Patterns.otherDigits.key)
+    }
+
+    /// The rendered SQL carries the key, not a pattern.
+    func testTheRenderedSQLCarriesTheKey() {
+        let pattern = Patterns.digits
+        let encoding = XLiteEncoder(formatter: XLiteFormatter()).makeSQL(
+            sql { schema in
+                let phrase = schema.table(RegexPatternPhrase.self)
+                Select(phrase.id)
+                From(phrase)
+                Where(phrase.text.regexp(pattern))
+            }
+        )
+
+        XCTAssertTrue(
+            encoding.sql.contains(pattern.key),
+            encoding.sql.debugDescription
+        )
+        XCTAssertTrue(XLRegexPatternRegistry.isKey(pattern.key))
+        XCTAssertNotNil(encoding.customFunctions[XLRegexpFunction.definition])
+    }
+
+    /// A pattern deliberately shaped like a key is still a pattern. A key's
+    /// marker is a control character, which no regular expression a person
+    /// writes contains.
+    func testAPatternShapedLikeAKeyIsStillAPattern() throws {
+        database = try makeSeededDatabase()
+        let lookAlike = "swiftql.regex.0"
+
+        XCTAssertFalse(XLRegexPatternRegistry.isKey(lookAlike))
+
+        // `.` matches any character, so this pattern matches nothing in the
+        // seeded rows and is evaluated as a pattern rather than looked up.
+        let statement = sql { schema in
+            let phrase = schema.table(RegexPatternPhrase.self)
+            Select(phrase.id)
+            From(phrase)
+            Where(phrase.text.regexp(lookAlike))
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: statement).fetchAll() as [String],
+            []
+        )
+    }
+
+    /// Text carrying the marker in any shape other than a key's did not come
+    /// from the registry, so it is a pattern rather than a stale key. Refusing
+    /// it would also refuse a static descriptor for a statement that is
+    /// perfectly reproducible.
+    func testMarkerCarryingTextThatIsNotAKeyIsAPattern() throws {
+        let notAKey = "\u{1}swiftql.regex\u{1}notanumber\u{1}"
+
+        XCTAssertFalse(XLRegexPatternRegistry.isKey(notAKey))
+        XCTAssertFalse(XLRegexPatternRegistry.textContainsKey(notAKey))
+        // Evaluated as a pattern: it matches itself and nothing else.
+        XCTAssertTrue(
+            try XLRegexpMatcher.matches(pattern: notAKey, in: notAKey)
+        )
+        XCTAssertFalse(
+            try XLRegexpMatcher.matches(pattern: notAKey, in: "beta")
+        )
+    }
+
+    /// A key naming no registration is a programmer error, not a match
+    /// failure, and the message says what to check.
+    func testAnUnregisteredKeyRaisesAClearError() throws {
+        database = try makeSeededDatabase()
+        let strayKey = XLRegexPatternRegistry.key(forIdentifier: 999_999)
+        let statement = sql { schema in
+            let phrase = schema.table(RegexPatternPhrase.self)
+            Select(phrase.id)
+            From(phrase)
+            Where(phrase.text.regexp(strayKey))
+        }
+
+        XCTAssertThrowsError(
+            try database.makeRequest(with: statement).fetchAll() as [String]
+        ) { error in
+            let message = String(describing: error)
+            XCTAssertTrue(
+                message.contains("XLRegexPattern"),
+                "the error should name the type, got: \(message)"
+            )
+            XCTAssertTrue(
+                message.contains("released"),
+                "the error should say what to check, got: \(message)"
+            )
+        }
+    }
+
+    /// The same rule at the matcher level, so the error does not depend on how
+    /// SQLite reports it.
+    func testTheMatcherRejectsAnUnregisteredKey() {
+        let strayKey = XLRegexPatternRegistry.key(forIdentifier: 999_998)
+        XCTAssertThrowsError(
+            try XLRegexpMatcher.matches(pattern: strayKey, in: "anything")
+        ) { error in
+            XCTAssertEqual(
+                error as? XLRegexpFunctionError,
+                .unregisteredPattern(key: strayKey)
+            )
+        }
+    }
+
+    // MARK: - Ownership
+
+    /// A released pattern's entry is removed, not merely emptied, so a process
+    /// that builds patterns per request does not accumulate dead entries.
+    func testAReleasedPatternLeavesNoEntryBehind() {
+        let before = XLRegexPatternRegistry.shared.storedEntryCount
+        for _ in 0 ..< 50 {
+            let pattern = XLRegexPattern { OneOrMore(.digit) }
+            XCTAssertTrue(pattern.matches("a1"))
+        }
+
+        XCTAssertEqual(XLRegexPatternRegistry.shared.storedEntryCount, before)
+    }
+
+    /// The registry does not keep a pattern alive, so a released one stops
+    /// resolving. This is the ownership rule, tested rather than only written
+    /// down.
+    func testAReleasedPatternStopsResolving() {
+        var key: String?
+        do {
+            let pattern = XLRegexPattern { OneOrMore(.digit) }
+            key = pattern.key
+            XCTAssertTrue(
+                try XLRegexpMatcher.matches(pattern: pattern.key, in: "a1")
+            )
+        }
+
+        let releasedKey = key ?? ""
+        XCTAssertThrowsError(
+            try XLRegexpMatcher.matches(pattern: releasedKey, in: "a1")
+        ) { error in
+            XCTAssertEqual(
+                error as? XLRegexpFunctionError,
+                .unregisteredPattern(key: releasedKey)
+            )
+        }
+    }
+
+    // MARK: - Static descriptors
+
+    /// A key names a registration in one process, so a descriptor built from
+    /// such a statement would have an identity that changes between runs.
+    func testAStaticDescriptorRefusesAPatternKey() throws {
+        let pattern = Patterns.digits
+        let encoding = try XLiteEncoder(dialect: XLSQLiteDialect())
+            .makeValidatedSQL(
+                sql { schema in
+                    let phrase = schema.table(RegexPatternPhrase.self)
+                    Select(phrase.id)
+                    From(phrase)
+                    Where(phrase.text.regexp(pattern))
+                }
+            )
+
+        XCTAssertThrowsError(
+            try XLStaticStatementDefinition(validating: encoding)
+        ) { error in
+            guard
+                case .processLocalRegexPattern? =
+                    error as? XLStaticStatementDefinitionError
+            else {
+                return XCTFail("unexpected error: \(error)")
+            }
+        }
+    }
+
+    /// A string pattern that happens to carry the marker is not a key, so a
+    /// descriptor built from it is still allowed.
+    func testAStaticDescriptorAcceptsAMarkerCarryingStringPattern() throws {
+        let encoding = try XLiteEncoder(dialect: XLSQLiteDialect())
+            .makeValidatedSQL(
+                sql { schema in
+                    let phrase = schema.table(RegexPatternPhrase.self)
+                    Select(phrase.id)
+                    From(phrase)
+                    Where(phrase.text.regexp("\u{1}swiftql.regex\u{1}x\u{1}"))
+                }
+            )
+
+        XCTAssertNoThrow(try XLStaticStatementDefinition(validating: encoding))
+    }
+
+    /// The same statement written with a string pattern is still allowed, so
+    /// the refusal is about the key and not about `REGEXP`.
+    func testAStaticDescriptorStillAcceptsAStringPattern() throws {
+        let encoding = try XLiteEncoder(dialect: XLSQLiteDialect())
+            .makeValidatedSQL(
+                sql { schema in
+                    let phrase = schema.table(RegexPatternPhrase.self)
+                    Select(phrase.id)
+                    From(phrase)
+                    Where(phrase.text.regexp("[0-9]+$"))
+                }
+            )
+
+        XCTAssertNoThrow(try XLStaticStatementDefinition(validating: encoding))
+    }
+
+    // MARK: - Concurrency and cost
+
+    /// One registration is reachable from every pooled connection at once.
+    ///
+    /// Goes through `XLRegexpMatcher.matches(pattern:in:)` with the key, which
+    /// is the path the bundled SQLite function takes, so the registry lookup
+    /// and the per-registration lock are both under concurrent load rather
+    /// than only the matching.
+    func testConcurrentMatchingAgainstOnePatternIsSafe() throws {
+        let key = Patterns.trailingDigits.key
+        let mismatches = LockedCount()
+
+        DispatchQueue.concurrentPerform(iterations: 500) { iteration in
+            let expected = iteration.isMultiple(of: 2)
+            let subject = expected ? "row-\(iteration)" : "beta"
+            do {
+                if try XLRegexpMatcher.matches(pattern: key, in: subject) != expected {
+                    mismatches.record()
+                }
+            }
+            catch {
+                mismatches.record()
+            }
+        }
+
+        XCTAssertEqual(mismatches.value(), 0)
+    }
+
+    /// A `RegexBuilder` transform that throws has nowhere to report itself: the
+    /// operator answers a yes-or-no question about one row, and captures are
+    /// not exposed. The row does not match, and the statement is not failed.
+    ///
+    /// The transform throws rather than returning `nil`. Returning `nil` is
+    /// `TryCapture`'s own way of saying "no match" and never reaches the
+    /// throwing path this pins.
+    func testAThrowingTransformIsReadAsNoMatch() throws {
+        let throwingRegex = Regex {
+            TryCapture(OneOrMore(.digit)) { _ -> Int in
+                throw TransformFailure()
+            }
+        }
+        // Proven, not assumed: the transform reaches `firstMatch(in:)` and the
+        // error comes back out. Returning `nil` instead would be `TryCapture`'s
+        // own "no match" and would never take this path, so without this
+        // assertion the one below would pass either way.
+        XCTAssertThrowsError(try throwingRegex.firstMatch(in: "123")) { error in
+            XCTAssertTrue(error is TransformFailure, "\(error)")
+        }
+        // The same shape without the transform, so the subject is known to be
+        // one the pattern would otherwise match.
+        XCTAssertTrue(Patterns.digits.matches("123"))
+
+        XCTAssertFalse(XLRegexPattern(throwingRegex).matches("123"))
+    }
+
+    /// A registered pattern is compiled by the caller, so the function must
+    /// never recompile it -- the compile cache is not consulted at all.
+    func testAPatternIsNeverRecompiled() throws {
+        database = try makeSeededDatabase()
+        let pattern = Patterns.digits
+
+        let before = XLRegexpPatternCache.compilesInProcess
+        XCTAssertEqual(try matchingIdentifiers(pattern), ["1", "3"])
+        XCTAssertEqual(XLRegexpPatternCache.compilesInProcess - before, 0)
+    }
+}
+
+
+/// Raised by the capture transform in `testAThrowingTransformIsReadAsNoMatch`.
+private struct TransformFailure: Error {}
+
+
+/// Counts mismatches seen on worker threads.
+private final class LockedCount: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    func record() {
+        lock.lock()
+        defer { lock.unlock() }
+        count += 1
+    }
+
+    func value() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+}

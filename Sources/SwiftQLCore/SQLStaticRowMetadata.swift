@@ -12,6 +12,44 @@
 import Foundation
 
 
+/// A reason one rendered statement cannot become a static definition.
+public enum XLStaticStatementDefinitionError: Error, Equatable {
+
+    /// The SQL carries an ``XLRegexPattern`` key.
+    ///
+    /// A key names a registration in the process that rendered the statement,
+    /// so the SQL is not reproducible and the descriptor's identity would
+    /// change from one run to the next. Use a string pattern in a statement
+    /// that has to become a static descriptor.
+    ///
+    /// - Parameter sql: The rendered SQL that carries the key.
+    case processLocalRegexPattern(sql: String)
+}
+
+
+extension XLStaticStatementDefinitionError: CustomStringConvertible {
+
+    public var description: String {
+        switch self {
+        case .processLocalRegexPattern(let sql):
+            return "A static query descriptor cannot be built from a statement "
+                + "that matches an XLRegexPattern: the pattern's key names a "
+                + "registration in this process only, so the rendered SQL is "
+                + "not reproducible. Use a string pattern instead. SQL: "
+                + sql.debugDescription
+        }
+    }
+}
+
+
+extension XLStaticStatementDefinitionError: LocalizedError {
+
+    public var errorDescription: String? {
+        description
+    }
+}
+
+
 public struct XLStaticStatementDefinition: Hashable, Sendable {
 
     public let sql: String
