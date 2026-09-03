@@ -727,8 +727,9 @@ through the custom-function seam while a statement renders and registered on
 the connection that executes it. A pattern is compiled once per statement
 execution rather than once per row. `XLRegexPattern` matches a `RegexBuilder`
 pattern through a registry with keyed dispatch. Static query descriptors and
-the SQLite build validator both accept the operator, so a query using it no
-longer fails the build.
+the SQLite build validator both accept a string pattern, so a query using one no
+longer fails the build; a statement matching an `XLRegexPattern` cannot become a
+descriptor, because its key names a registration in one process.
 
 ### v1.8 — Query-Plan Analysis and Index Advice
 

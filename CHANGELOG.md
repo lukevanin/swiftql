@@ -68,9 +68,11 @@
   Captures are not exposed, because `REGEXP` answers only whether a subject
   matches.
 
-- A statement that uses `REGEXP` now runs as a static query descriptor, and
-  passes the SQLite build validator, without any registration by the caller
-  (issue #615). A descriptor cannot carry a registration closure, so
+- A statement that uses `REGEXP` with a string pattern now runs as a static
+  query descriptor, and passes the SQLite build validator, without any
+  registration by the caller (issue #615). One matching an `XLRegexPattern`
+  does not: its key names a registration in one process, so
+  `XLStaticStatementDefinition` refuses it. A descriptor cannot carry a registration closure, so
   `XLStaticStatementDefinition` records the *signatures* of the functions
   SwiftQL bundles, and the adapter rebuilds its own implementation from one
   when the statement is prepared. The build validator registers the same
@@ -1056,7 +1058,8 @@ The legacy `unixepoch(date:modifiers:)`, `toUnixTimestamp()`, and
 - Added the `REGEXP` operator across the same four optionality shapes as `glob`.
   SQLite parses `X REGEXP Y` as a call to `regexp(Y, X)` and ships no
   implementation, so the operator prepares only once the application registers a
-  two-argument `regexp` function.
+  two-argument `regexp` function. (As of 1.7.0 SwiftQL supplies that function,
+  and the operator needs no registration by the caller.)
 - Completed the generated real-SQLite operator conformance matrix. Every public
   operator overload now carries both prepare and semantic execution evidence,
   packed by operator family and optionality shape, and the corresponding
@@ -1112,7 +1115,8 @@ OrderBy(person.name.collate(XLCollation(rawValue: "localized")).ascending())
 
 `REGEXP` requires the application to register a two-argument `regexp` function
 on the connection. Without it, a statement using the operator fails to prepare
-with `no such function: regexp`.
+with `no such function: regexp`. (No longer true as of 1.7.0, which ships the
+implementation.)
 
 Select a scalar subquery on the nullable side of a join with
 `nullableSubquery(alias:_:)`; the deprecated `XLMetaNullable` overload of

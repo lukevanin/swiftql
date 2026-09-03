@@ -28,8 +28,10 @@ wrote.
   so a scan over a large table pays one compile and then only matches.
 - `XLRegexPattern` matches a `Regex` written with `RegexBuilder`, so a pattern
   can be composed and checked at compile time instead of spelled as a string.
-- A statement using `REGEXP` runs as a static query descriptor and passes the
-  SQLite build validator.
+- A statement using `REGEXP` with a string pattern runs as a static query
+  descriptor and passes the SQLite build validator. One using an
+  `XLRegexPattern` does not, because its key means something only in the process
+  that rendered it.
 
 **Affects existing code?** Only if you already registered your own `regexp`. If
 you did, it still wins: SwiftQL never replaces a `regexp` already on the
@@ -371,7 +373,8 @@ return a fractional value. `toUnixTimestamp()` still returns `Int`.
   common table expressions — with the negation carried by the `IN` node itself
   so composing a predicate cannot accidentally move it.
 - `in` and `notIn` now accept optional operands and `NULL` candidates.
-- Collations, `REGEXP`, and `MATCH`.
+- Collations, `REGEXP`, and `MATCH`. (`REGEXP` needed a function you
+  registered yourself until 1.7.0, which ships one.)
 
 **Affects existing code?** No; all additive.
 
