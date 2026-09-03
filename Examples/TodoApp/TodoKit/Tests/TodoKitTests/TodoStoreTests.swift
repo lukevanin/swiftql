@@ -144,8 +144,10 @@ final class TodoStoreTests: XCTestCase {
             now: TodoDate(referenceDate)
         )
 
-        // Each of these is a LIKE wildcard. Escaped, they match the one row
-        // that literally contains the character, not every row.
+        // `%` and `_` were LIKE wildcards before v1.7 and are ordinary
+        // characters to a regular expression, so both now match only the row
+        // that literally contains them -- the quoting in `searchPattern` is
+        // what keeps `%` from being read as a pattern at all.
         XCTAssertEqual(
             try titles(query(TodoSeed.todayListID, search: "%")),
             ["Claim the 50% refund"]
@@ -167,12 +169,80 @@ final class TodoStoreTests: XCTestCase {
             now: TodoDate(referenceDate)
         )
 
-        // The escape is applied to the user's text, not to the surrounding
-        // wildcards, so a substring search still works.
+        // The whole search term is quoted, so a substring search spanning a
+        // character that used to need escaping still works.
         XCTAssertEqual(
             try titles(query(TodoSeed.todayListID, search: "the 50% ref")),
             ["Claim the 50% refund"]
         )
+    }
+
+    /// A search box takes text, not a pattern. Every character Swift's
+    /// regular-expression syntax reads as an operator has to come back as
+    /// itself, or a user typing an ordinary punctuation mark would get either
+    /// the wrong rows or an invalid-pattern error.
+    func testSearchTreatsRegularExpressionOperatorsAsText() throws {
+        try database.createTodo(
+            listID: TodoSeed.todayListID,
+            title: "Read a.b notes",
+            now: TodoDate(referenceDate)
+        )
+        try database.createTodo(
+            listID: TodoSeed.todayListID,
+            title: "Read axb notes",
+            now: TodoDate(referenceDate)
+        )
+        try database.createTodo(
+            listID: TodoSeed.todayListID,
+            title: "File the (draft) plan",
+            now: TodoDate(referenceDate)
+        )
+
+        // `.` matches any character in a pattern. Quoted, it matches a dot.
+        XCTAssertEqual(
+            try titles(query(TodoSeed.todayListID, search: "a.b")),
+            ["Read a.b notes"]
+        )
+        // An unquoted `(` is an unterminated group, which does not compile.
+        XCTAssertEqual(
+            try titles(query(TodoSeed.todayListID, search: "(draft)")),
+            ["File the (draft) plan"]
+        )
+    }
+
+    /// `LIKE` was case-insensitive for ASCII, and a search box is expected to
+    /// be. SwiftQL's `REGEXP` is case-sensitive, so the pattern asks for
+    /// insensitivity rather than inheriting it.
+    func testSearchIsCaseInsensitive() throws {
+        XCTAssertEqual(
+            try titles(query(TodoSeed.todayListID, search: "PASSPORT")),
+            try titles(query(TodoSeed.todayListID, search: "passport"))
+        )
+        XCTAssertFalse(
+            try titles(query(TodoSeed.todayListID, search: "PASSPORT")).isEmpty
+        )
+    }
+
+    /// The demo's other regular expression: a fixed `RegexBuilder` pattern,
+    /// matched in SQLite rather than over note text pulled back into Swift.
+    func testLinkedTodoIDsFindsNotesHoldingAURL() throws {
+        let plain = try database.createTodo(
+            listID: TodoSeed.todayListID,
+            title: "No link here",
+            notes: "Mentions http but not a URL",
+            now: TodoDate(referenceDate)
+        )
+        let linked = try database.createTodo(
+            listID: TodoSeed.todayListID,
+            title: "Has a link",
+            notes: "Booking at https://example.com/x?y=1 tomorrow",
+            now: TodoDate(referenceDate)
+        )
+
+        let matched = try database.linkedTodoIDs(inList: TodoSeed.todayListID)
+
+        XCTAssertTrue(matched.contains(linked.id))
+        XCTAssertFalse(matched.contains(plain.id))
     }
 
     func testSearchComposesWithAFilter() throws {

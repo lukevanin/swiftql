@@ -49,7 +49,8 @@ public struct TodoQuery: Equatable, Sendable {
     public var filter: TodoFilter
     public var sort: TodoSort
 
-    /// Matched against title and notes. Empty matches everything.
+    /// Matched against title and notes as a regular expression. Empty
+    /// matches everything.
     public var searchText: String
 
     /// What "overdue" is measured against. The app passes the current time;
@@ -70,32 +71,44 @@ public struct TodoQuery: Equatable, Sendable {
         self.referenceDate = referenceDate
     }
 
-    /// The character that turns a `LIKE` wildcard back into a literal.
+    /// Every character Swift's regular-expression syntax reads as an
+    /// operator. A search box takes text, not a pattern, so each of these has
+    /// to be quoted before the text becomes one.
     ///
-    /// SQLite has no default: without an explicit `ESCAPE`, a backslash in a
-    /// pattern is just a backslash and `%` still matches anything. The query
-    /// passes this to `like(_:escape:)`, which is what makes the escaping in
-    /// ``searchPattern`` mean something.
-    static let searchEscape = "\\"
+    /// Listed rather than wrapped in `\Q…\E`, because that quoting ends at
+    /// the first `\E` — which is two characters a user can type.
+    private static let regexMetacharacters = Set(#"\^$.|?*+()[]{}/-"#)
 
-    /// The `LIKE` pattern for ``searchText``.
+    /// The `REGEXP` pattern for ``searchText``.
     ///
-    /// Empty search becomes `%`, which every row matches, so the search
-    /// clause never has to be added or removed — it is always present and
-    /// sometimes vacuous. That is what keeps this one query rather than two.
+    /// Empty search becomes the empty pattern, which is found in every
+    /// subject, so the search clause never has to be added or removed — it is
+    /// always present and sometimes vacuous. That is what keeps this one query
+    /// rather than two.
     ///
-    /// A user typing `%`, `_`, or `\` means those characters literally, so
-    /// each is escaped. Searching for `50%` finds the row that says `50%`,
-    /// not every row.
+    /// The text is quoted character by character, so a user typing `50%` or
+    /// `a.b` searches for those characters and not for a pattern. `(?i)` makes
+    /// the match case-insensitive, which is what `LIKE` did before v1.7 and
+    /// what a search box is expected to do; SwiftQL's `REGEXP` is
+    /// case-sensitive otherwise.
+    ///
+    /// A plain string pattern, deliberately. SwiftQL compiles one of these
+    /// once per statement execution rather than once per row, and the pattern
+    /// travels as a bound parameter, so the rendered SQL is the same for every
+    /// search and the request is still rendered once. An `XLRegexPattern`
+    /// would give up both: its key changes with every keystroke.
     var searchPattern: String {
         guard !searchText.isEmpty else {
-            return "%"
+            return ""
         }
-        let escaped = searchText
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "%", with: "\\%")
-            .replacingOccurrences(of: "_", with: "\\_")
-        return "%\(escaped)%"
+        var pattern = "(?i)"
+        for character in searchText {
+            if Self.regexMetacharacters.contains(character) {
+                pattern.append("\\")
+            }
+            pattern.append(character)
+        }
+        return pattern
     }
 }
 

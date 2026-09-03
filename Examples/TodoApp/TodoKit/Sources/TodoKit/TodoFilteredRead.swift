@@ -6,17 +6,17 @@ import SwiftQL
 /// search the app offers.
 ///
 /// This is the only read in the demo that is not an `@SQLQuery` declaration,
-/// and the reason is `LIKE`. A declared query's frozen-literal guard rejects
-/// a parameter passed as an argument to a call, and `like(_:)` is a method —
-/// `todo.title.like(searchPattern)` fails to compile with
+/// and the reason is the search term. A declared query's frozen-literal guard
+/// rejects a parameter passed as an argument to a call, and matching is a
+/// method — `todo.title.regexp(searchPattern)` fails to compile with
 ///
 ///     'searchPattern' is passed as an argument to a function call in the
 ///     '@SQLQueries' body.
 ///
-/// SwiftQL offers no operator spelling of `LIKE` that would satisfy the
-/// guard. Splitting search into a second declared query would mean two
-/// copies of the same filter and sort logic drifting apart, so the whole read
-/// uses named bindings instead. Recorded on #469.
+/// SwiftQL offers no operator spelling of `REGEXP`, and none of `LIKE`, which
+/// this read used before v1.7. Splitting search into a second declared query
+/// would mean two copies of the same filter and sort logic drifting apart, so
+/// the whole read uses named bindings instead. Recorded on #469.
 ///
 /// Everything else about it is the point: the filter is three booleans the
 /// `Where` clause reads rather than a mode the query branches on, the search
@@ -37,6 +37,13 @@ public enum TodoFilteredRead {
     static let searchPattern = XLNamedBindingReference<String>(name: "searchPattern")
     static let sortOrder = XLNamedBindingReference<Int>(name: "sortOrder")
 
+    /// Search is `REGEXP`, which v1.7 made usable without the application
+    /// registering anything: SwiftQL supplies the `regexp` implementation and
+    /// registers it on the connection that runs the statement. The pattern
+    /// arrives as a bound parameter, so one rendered statement serves every
+    /// search, and SwiftQL compiles that pattern once per execution rather
+    /// than once for each row it tests.
+    ///
     /// The highest `OrderBy` term wins. A term whose condition is false
     /// collapses to a constant, which orders every row equally and so
     /// contributes nothing — the next term decides. `title` last makes the
@@ -57,8 +64,8 @@ public enum TodoFilteredRead {
                 && (overdueOnly == false
                     || (todo.dueAt < referenceDate
                         && todo.isCompleted == false))
-                && (todo.title.like(searchPattern, escape: TodoQuery.searchEscape)
-                    || todo.notes.like(searchPattern, escape: TodoQuery.searchEscape))
+                && (todo.title.regexp(searchPattern)
+                    || todo.notes.regexp(searchPattern))
             )
             OrderBy(
                 (sortOrder == TodoSort.dueDate.rawValue).iif(

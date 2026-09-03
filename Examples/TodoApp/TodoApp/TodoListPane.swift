@@ -74,7 +74,8 @@ struct TodoListPane: View {
             TodoRow(
                 todo: todo,
                 tags: model.tags(for: todo),
-                checklistItemCount: model.checklistItemCount(for: todo)
+                checklistItemCount: model.checklistItemCount(for: todo),
+                hasLink: model.hasLink(todo)
             ) {
                 toggle(todo)
             }
@@ -179,6 +180,11 @@ private struct TodoRow: View {
     let todo: Todo
     let tags: [Tag]
     let checklistItemCount: Int
+
+    /// Whether the note holds a web link, as SQLite decided with the compiled
+    /// `Regex` in `TodoLinks.pattern`.
+    let hasLink: Bool
+
     let toggle: () -> Void
 
     var body: some View {
@@ -204,6 +210,13 @@ private struct TodoRow: View {
             }
 
             Spacer()
+
+            if hasLink {
+                Image(systemName: "link")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Notes contain a link")
+            }
 
             if checklistItemCount > 0 {
                 Label("\(checklistItemCount)", systemImage: "checklist")
