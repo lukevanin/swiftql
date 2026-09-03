@@ -79,6 +79,12 @@ extension XLRegexpFunctionError: LocalizedError {
 ///   and UTF-8 BLOB are both read as text, and any other storage class is an
 ///   error rather than a silent conversion.
 ///
+/// ## Cost
+///
+/// SQLite calls the function once per candidate row and passes the pattern each
+/// time. Each registration keeps an `XLRegexpPatternCache`, so a statement
+/// compiles its pattern once and then only matches, however many rows it tests.
+///
 /// ## Replacing it
 ///
 /// An application that registers its own two-argument `regexp` keeps it. The
@@ -97,10 +103,17 @@ public enum XLRegexpFunction {
 
     /// Evaluates one `regexp(pattern, subject)` call.
     ///
-    /// - Parameter reader: A reader positioned over the two function arguments.
+    /// - Parameters:
+    ///   - reader: A reader positioned over the two function arguments.
+    ///   - cache: Holds the compiled form of each pattern this registration has
+    ///     already seen, so a scan compiles one pattern once rather than once
+    ///     per row. A caller that passes none compiles on every call.
     /// - Returns: Whether the pattern occurs in the subject, or `nil` when
     ///   either argument is NULL.
-    static func evaluate(reader: some XLColumnReader) throws -> Bool? {
+    static func evaluate(
+        reader: some XLColumnReader,
+        cache: XLRegexpPatternCache? = nil
+    ) throws -> Bool? {
         // Argument 0 is the pattern and argument 1 is the subject: SQLite
         // rewrites `X REGEXP Y` to `regexp(Y, X)`, so the operator's right
         // operand arrives first.
@@ -112,12 +125,17 @@ public enum XLRegexpFunction {
         }
         let pattern = try reader.readText(at: 0)
         let subject = try reader.readText(at: 1)
-        return try matches(pattern: pattern, in: subject)
+        return try matches(pattern: pattern, in: subject, cache: cache)
     }
 
     /// Whether `pattern` occurs anywhere in `subject`.
-    static func matches(pattern: String, in subject: String) throws -> Bool {
-        try compile(pattern).firstMatch(in: subject) != nil
+    static func matches(
+        pattern: String,
+        in subject: String,
+        cache: XLRegexpPatternCache? = nil
+    ) throws -> Bool {
+        let regex = try cache?.regex(for: pattern) ?? compile(pattern)
+        return try regex.firstMatch(in: subject) != nil
     }
 
     /// Compiles one pattern, reporting a parse failure as a SwiftQL error.
@@ -161,13 +179,18 @@ extension XLCustomFunctionRegistration {
         definition: XLRegexpFunction.definition,
         defersToExistingRegistration: true,
         makeDatabaseFunction: {
-            DatabaseFunction(
+            // One cache per registered function, created here so it belongs to
+            // the one connection this registration is about to be added to.
+            // See `XLRegexpPatternCache` for why it is not process-wide.
+            let cache = XLRegexpPatternCache()
+            return DatabaseFunction(
                 XLRegexpFunction.definition.name,
                 argumentCount: XLRegexpFunction.definition.numberOfArguments,
                 pure: true,
                 function: { values in
                     try XLRegexpFunction.evaluate(
-                        reader: GRDBValuesAdapter(values: values)
+                        reader: GRDBValuesAdapter(values: values),
+                        cache: cache
                     )
                 }
             )
