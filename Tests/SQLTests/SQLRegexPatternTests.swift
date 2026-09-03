@@ -21,6 +21,47 @@ struct RegexPatternPhrase: Equatable {
 }
 
 
+///
+/// The patterns these tests match with, built once at file scope.
+///
+/// Two reasons, and both matter. It is the form `Expressions.md` tells a caller
+/// to use -- the registry does not keep a pattern alive, so one built inside a
+/// function is released when the function returns. And Swift 5.9.2 crashes in
+/// SILGen on a function body that holds a `RegexBuilder` closure alongside a
+/// `sql { }` one, which is the same class of failure COMPATIBILITY.md records
+/// for `#row` and for sql-as-subquery. Hoisting the builders out of the test
+/// bodies avoids it and reads better besides.
+///
+private enum Patterns {
+
+    static let trailingDigits = XLRegexPattern {
+        OneOrMore(.digit)
+        Anchor.endOfSubject
+    }
+
+    static let digits = XLRegexPattern {
+        OneOrMore(.digit)
+    }
+
+    static let otherDigits = XLRegexPattern {
+        OneOrMore(.digit)
+    }
+
+    static let wholeBeta = XLRegexPattern {
+        Anchor.startOfSubject
+        "beta"
+        Anchor.endOfSubject
+    }
+
+    static let leadingAlpha = XLRegexPattern {
+        Anchor.startOfSubject
+        "alpha"
+    }
+
+    static let compiledBeta = XLRegexPattern(try! Regex("^beta$"))
+}
+
+
 final class XLRegexPatternTests: XCTestCase {
 
     private var database: GRDBDatabase!
@@ -76,12 +117,7 @@ final class XLRegexPatternTests: XCTestCase {
     /// rows a string pattern would.
     func testARegexBuilderPatternSelectsTheSameRowsAsTheEquivalentString() throws {
         database = try makeSeededDatabase()
-        let built = XLRegexPattern {
-            OneOrMore(.digit)
-            Anchor.endOfSubject
-        }
-
-        let byRegex = try matchingIdentifiers(built)
+        let byRegex = try matchingIdentifiers(Patterns.trailingDigits)
 
         let byString: [String] = try database.makeRequest(
             with: sql { schema in
@@ -100,23 +136,20 @@ final class XLRegexPatternTests: XCTestCase {
     /// A `Regex` value, rather than a builder closure.
     func testACompiledRegexCanBeUsedDirectly() throws {
         database = try makeSeededDatabase()
-        let pattern = XLRegexPattern(try Regex("^beta$"))
-
-        XCTAssertEqual(try matchingIdentifiers(pattern), ["2"])
+        XCTAssertEqual(
+            try matchingIdentifiers(Patterns.compiledBeta),
+            ["2"]
+        )
     }
 
     /// The nullable overload, so a pattern works on an optional column too.
     func testAPatternMatchesANullableColumn() throws {
         database = try makeSeededDatabase()
-        let pattern = XLRegexPattern {
-            OneOrMore(.digit)
-            Anchor.endOfSubject
-        }
         let statement = sql { schema in
             let phrase = schema.table(RegexPatternPhrase.self)
             Select(phrase.id)
             From(phrase)
-            Where(phrase.note.regexp(pattern))
+            Where(phrase.note.regexp(Patterns.trailingDigits))
             OrderBy(phrase.id.ascending())
         }
 
@@ -131,18 +164,11 @@ final class XLRegexPatternTests: XCTestCase {
     /// Anchors composed with `RegexBuilder` behave as they do in Swift.
     func testAnAnchoredBuilderPatternMatchesTheWholeSubject() throws {
         database = try makeSeededDatabase()
-        let whole = XLRegexPattern {
-            Anchor.startOfSubject
-            "beta"
-            Anchor.endOfSubject
-        }
-        let leading = XLRegexPattern {
-            Anchor.startOfSubject
-            "alpha"
-        }
-
-        XCTAssertEqual(try matchingIdentifiers(whole), ["2"])
-        XCTAssertEqual(try matchingIdentifiers(leading), ["1"])
+        XCTAssertEqual(try matchingIdentifiers(Patterns.wholeBeta), ["2"])
+        XCTAssertEqual(
+            try matchingIdentifiers(Patterns.leadingAlpha),
+            ["1"]
+        )
     }
 
     // MARK: - Keys
@@ -151,7 +177,7 @@ final class XLRegexPatternTests: XCTestCase {
     /// one registration.
     func testOnePatternUsedTwiceResolvesToOneRegistration() throws {
         database = try makeSeededDatabase()
-        let pattern = XLRegexPattern { OneOrMore(.digit) }
+        let pattern = Patterns.digits
 
         XCTAssertEqual(try matchingIdentifiers(pattern), ["1", "3"])
         XCTAssertEqual(try matchingIdentifiers(pattern), ["1", "3"])
@@ -162,15 +188,12 @@ final class XLRegexPatternTests: XCTestCase {
 
     /// Two patterns are two registrations, even when they match the same thing.
     func testTwoPatternsTakeDistinctKeys() {
-        let first = XLRegexPattern { OneOrMore(.digit) }
-        let second = XLRegexPattern { OneOrMore(.digit) }
-
-        XCTAssertNotEqual(first.key, second.key)
+        XCTAssertNotEqual(Patterns.digits.key, Patterns.otherDigits.key)
     }
 
     /// The rendered SQL carries the key, not a pattern.
     func testTheRenderedSQLCarriesTheKey() {
-        let pattern = XLRegexPattern { OneOrMore(.digit) }
+        let pattern = Patterns.digits
         let encoding = XLiteEncoder(formatter: XLiteFormatter()).makeSQL(
             sql { schema in
                 let phrase = schema.table(RegexPatternPhrase.self)
@@ -313,7 +336,7 @@ final class XLRegexPatternTests: XCTestCase {
     /// A key names a registration in one process, so a descriptor built from
     /// such a statement would have an identity that changes between runs.
     func testAStaticDescriptorRefusesAPatternKey() throws {
-        let pattern = XLRegexPattern { OneOrMore(.digit) }
+        let pattern = Patterns.digits
         let encoding = try XLiteEncoder(dialect: XLSQLiteDialect())
             .makeValidatedSQL(
                 sql { schema in
@@ -377,11 +400,7 @@ final class XLRegexPatternTests: XCTestCase {
     /// and the per-registration lock are both under concurrent load rather
     /// than only the matching.
     func testConcurrentMatchingAgainstOnePatternIsSafe() throws {
-        let pattern = XLRegexPattern {
-            OneOrMore(.digit)
-            Anchor.endOfSubject
-        }
-        let key = pattern.key
+        let key = Patterns.trailingDigits.key
         let mismatches = LockedCount()
 
         DispatchQueue.concurrentPerform(iterations: 500) { iteration in
@@ -422,8 +441,7 @@ final class XLRegexPatternTests: XCTestCase {
         }
         // The same shape without the transform, so the subject is known to be
         // one the pattern would otherwise match.
-        let matching = XLRegexPattern { OneOrMore(.digit) }
-        XCTAssertTrue(matching.matches("123"))
+        XCTAssertTrue(Patterns.digits.matches("123"))
 
         XCTAssertFalse(XLRegexPattern(throwingRegex).matches("123"))
     }
@@ -432,7 +450,7 @@ final class XLRegexPatternTests: XCTestCase {
     /// never recompile it -- the compile cache is not consulted at all.
     func testAPatternIsNeverRecompiled() throws {
         database = try makeSeededDatabase()
-        let pattern = XLRegexPattern { OneOrMore(.digit) }
+        let pattern = Patterns.digits
 
         let before = XLRegexpPatternCache.compilesInProcess
         XCTAssertEqual(try matchingIdentifiers(pattern), ["1", "3"])
