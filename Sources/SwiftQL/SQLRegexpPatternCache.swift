@@ -62,10 +62,11 @@ final class XLRegexpPatternCache: @unchecked Sendable {
     /// The most distinct patterns one registration keeps compiled.
     static let capacity = 16
 
-    /// Guards ``compilesInProcess``.
-    private static let statisticsLock = NSLock()
-
-    private static var totalCompiles = 0
+    /// Counts every compile, across every cache in this process.
+    ///
+    /// A `let` holding a class rather than a `static var`: a mutable global is
+    /// not concurrency-safe, and is an error in the Swift 6 language mode.
+    private static let statistics = Statistics()
 
     /// How many patterns every cache in this process has compiled between them.
     ///
@@ -76,15 +77,27 @@ final class XLRegexpPatternCache: @unchecked Sendable {
     /// the work being measured and take the difference; nothing resets it, and
     /// nothing in the library reads it.
     static var compilesInProcess: Int {
-        statisticsLock.lock()
-        defer { statisticsLock.unlock() }
-        return totalCompiles
+        statistics.total
     }
 
-    private static func recordCompile() {
-        statisticsLock.lock()
-        defer { statisticsLock.unlock() }
-        totalCompiles += 1
+    /// The process-wide compile count.
+    private final class Statistics: @unchecked Sendable {
+
+        private let lock = NSLock()
+
+        private var compiles = 0
+
+        var total: Int {
+            lock.lock()
+            defer { lock.unlock() }
+            return compiles
+        }
+
+        func record() {
+            lock.lock()
+            defer { lock.unlock() }
+            compiles += 1
+        }
     }
 
     /// A compiled pattern, or the failure compiling it produced.
@@ -149,7 +162,7 @@ final class XLRegexpPatternCache: @unchecked Sendable {
         // compile would instead block every other pattern's lookup behind it.
         lock.unlock()
 
-        Self.recordCompile()
+        Self.statistics.record()
         let compiled: Entry
         do {
             compiled = .success(try Regex(pattern))
