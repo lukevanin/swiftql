@@ -15,7 +15,7 @@ wrote.
 
 ## 1.6.0 — JSON, and a much faster decode
 
-*Released 2 September 2026.*
+*Released 3 September 2026.*
 
 SQLite's JSON support is now a typed SwiftQL surface. A query can reach inside a
 JSON document — read one value, build a document, change it, or collect rows
