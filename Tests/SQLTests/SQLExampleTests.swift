@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import RegexBuilder
 #if canImport(Combine)
 import Combine
 #else
@@ -1790,6 +1791,25 @@ extension XLDocumentationTests {
         XCTAssertTrue(
             encoder.makeSQL(regexpQuery).sql.contains("REGEXP '^A.*n$'")
         )
+
+        let leadingA = XLRegexPattern {
+            Anchor.startOfSubject
+            "A"
+            ZeroOrMore(.any)
+            "n"
+            Anchor.endOfSubject
+        }
+        let swiftRegexQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.name.regexp(leadingA))
+        }
+        XCTAssertTrue(
+            encoder.makeSQL(swiftRegexQuery).sql.contains("REGEXP")
+        )
+        let _: (XLRegexPatternTests) -> () throws -> Void =
+            XLRegexPatternTests.testARegexBuilderPatternSelectsTheSameRowsAsTheEquivalentString
 
         let firstOfNextMonth = sql { _ in
             Select("2026-07-19 12:30:45".datetime(.months(1), .startOfMonth))

@@ -764,7 +764,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 // This label tracks the inventory's own `inventory_version`,
                 // which the 1.4.5-1.5.4 fold bumped to 1.4.0. It is unrelated
                 // to the v1.3 source-tree milestone the phrases above pin.
-                "The v1.6 inventory contains \(inventory.features.count) feature records and \(inventory.evidence.count) evidence records",
+                "The v1.7 inventory contains \(inventory.features.count) feature records and \(inventory.evidence.count) evidence records",
                 "| Supported | \(supportedCount) |",
                 "| Partial | \(partialCount) |",
                 "| Capability-gated | \(capabilityGatedCount) |",

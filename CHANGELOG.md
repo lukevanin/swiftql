@@ -83,6 +83,13 @@
   a `function:` capability naming it is still proven from the validator
   connection rather than from a declaration.
 
+- Recorded the bundled `REGEXP` surface in the #190 canonical SQLite
+  conformance inventory, and dropped the schema requirement the operator used
+  to carry (issue #616). The inventory version is now 1.7.0. It records 117 public-surface feature records: 113
+  supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
+  1 unimplemented. Of the 197 evidence records, 121 exercise real SQLite and
+  cite one captured SQLite 3.51.0 environment.
+
 - `XLCustomFunctionDefinition`, `XLRegexpFunctionError`, and the pattern matcher
   behind `REGEXP` moved from `SwiftQL` to `SwiftQLCore` (issue #615). Nothing is
   renamed and `SwiftQL` re-exports `SwiftQLCore`, so `import SwiftQL` is

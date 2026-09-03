@@ -104,7 +104,7 @@ Key planning and foundation issues:
 | v1.4 | [SQLite coverage index](https://github.com/lukevanin/swiftql/issues/115), [direct scalar CTE rows](https://github.com/lukevanin/swiftql/issues/43) |
 | v1.5.1-v1.5.7 | [ergonomics index](https://github.com/lukevanin/swiftql/issues/116), [macro index](https://github.com/lukevanin/swiftql/issues/117), [prepared handles](https://github.com/lukevanin/swiftql/issues/18), [lazy typed result set](https://github.com/lukevanin/swiftql/issues/249), [@SQLQuery prototype](https://github.com/lukevanin/swiftql/issues/26), [Date text](https://github.com/lukevanin/swiftql/issues/61) and [numeric codecs](https://github.com/lukevanin/swiftql/issues/62), [UUID codecs](https://github.com/lukevanin/swiftql/issues/192), [interactive DocC tutorial](https://github.com/lukevanin/swiftql/issues/27), [macro regression corpus](https://github.com/lukevanin/swiftql/issues/256), [compile scalability benchmarks](https://github.com/lukevanin/swiftql/issues/257), [runtime workload research](https://github.com/lukevanin/swiftql/issues/259) |
 | v1.6 | [typed JSON path builder](https://github.com/lukevanin/swiftql/issues/588), the foundation the other JSON issues build on |
-| v1.7 | no live index issue yet. The milestone description is the plan, and its only open issue is [demo adoption](https://github.com/lukevanin/swiftql/issues/482) |
+| v1.7 | [bundled `regexp()` implementation](https://github.com/lukevanin/swiftql/issues/612), the foundation the pattern cache, the `Regex` registry, and the static-descriptor and validator support build on |
 | v1.8 | [query-plan capture](https://github.com/lukevanin/swiftql/issues/394), [plan-shape diagnostics](https://github.com/lukevanin/swiftql/issues/395), [index candidates](https://github.com/lukevanin/swiftql/issues/396), all accepted by the [query-plan research](https://github.com/lukevanin/swiftql/milestone/29) |
 | v2 | [generated database catalogs and fluent table references](https://github.com/lukevanin/swiftql/issues/217), [Swift 6 mode](https://github.com/lukevanin/swiftql/issues/133), [typed DDL](https://github.com/lukevanin/swiftql/issues/139), [FluentQL and DynamicQL extraction](https://github.com/lukevanin/swiftql/issues/326), [GRDB adapter boundary](https://github.com/lukevanin/swiftql/issues/113), [XL migration](https://github.com/lukevanin/swiftql/issues/33), [catalog stress fixtures](https://github.com/lukevanin/swiftql/issues/258) |
 | v2.1 | [native SQLite adapter](https://github.com/lukevanin/swiftql/issues/136), [Linux CI](https://github.com/lukevanin/swiftql/issues/135), [VDBE research](https://github.com/lukevanin/swiftql/issues/138), [shared-corpus adapter parity](https://github.com/lukevanin/swiftql/issues/260) |
@@ -721,10 +721,14 @@ rather than on a separate JSON subsystem:
 
 ### v1.7 — REGEXP Backed by Swift Regex
 
-Make the `REGEXP` operator from v1.4.2 usable without the application first
-registering a `regexp()` function. Bundle an implementation registered through
-the custom-function seam, keep a fast path for a plain string pattern, and
-support `RegexBuilder` patterns through a registry with keyed dispatch.
+The `REGEXP` operator from v1.4.2 works without the application registering a
+`regexp()` function. SwiftQL supplies one, backed by Swift `Regex`, recorded
+through the custom-function seam while a statement renders and registered on
+the connection that executes it. A pattern is compiled once per statement
+execution rather than once per row. `XLRegexPattern` matches a `RegexBuilder`
+pattern through a registry with keyed dispatch. Static query descriptors and
+the SQLite build validator both accept the operator, so a query using it no
+longer fails the build.
 
 ### v1.8 — Query-Plan Analysis and Index Advice
 
