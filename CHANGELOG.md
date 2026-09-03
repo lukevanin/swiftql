@@ -23,6 +23,16 @@
   that is neither TEXT nor a UTF-8 BLOB raises `XLColumnReadError` instead of
   being converted silently.
 
+- A `REGEXP` pattern is compiled once per statement execution rather than once
+  per row (issue #613). SQLite calls a scalar function once for every candidate
+  row and passes the pattern again on each call, so the compile dominated the
+  cost of a scan. Each registration of the bundled function keeps a bounded
+  cache of compiled patterns, holding at most 16 and caching a compile failure
+  with the same rules as a success. A measured 2000-row scan against one pattern
+  compiles once instead of 2000 times, about 46x less wall-clock time in the
+  recorded run. A cache belongs to one registration and is never shared between
+  connections, because Swift's `Regex` is not `Sendable`.
+
 ### Changed
 
 - An application that registers its own two-argument `regexp` keeps it (issue
