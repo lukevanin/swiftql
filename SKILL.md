@@ -384,7 +384,7 @@ changing product, platform, dependency, or concurrency claims.
 - Keep those five statuses distinct. Bind every claim to the feature's recorded
   SQLite version, source ID, compile options, capabilities, evidence, and
   rationale before claiming support.
-- Of the 193 evidence records, 117 exercise real SQLite against one captured
+- Of the 197 evidence records, 121 exercise real SQLite against one captured
   environment, SQLite 3.51.0. Evidence is reusable, so evidence and feature
   counts do not map one to one; never turn this into an exhaustive-SQL claim.
 - The generated corpus holds 226 positives plus one broken-renderer control:

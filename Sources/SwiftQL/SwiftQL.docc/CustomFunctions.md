@@ -123,6 +123,32 @@ that use `simpleFunction` directly or for callers who prefer to register everyth
 The two approaches are independent: implicit registration via `customFunctionCall` is an
 additional option, not a replacement for `addFunction`.
 
+Implicit registration reaches the `makeRequest(with:)` and
+`prepareInvocation(with: any XLEncodable)` paths, which still hold the rendered
+encoding. A static query descriptor discards the expression graph, and with it
+the registration, so a statement that calls **your** custom function still needs
+`builder.addFunction(_:)` before it runs as a static descriptor.
+
+## Functions SwiftQL supplies
+
+SwiftQL registers one function of its own through the same seam: the `regexp`
+implementation the `REGEXP` operator needs, described in
+<doc:Expressions>. Two rules apply to it and not to your functions.
+
+**Yours wins.** SwiftQL never registers a bundled function on a connection that
+already provides one of that signature -- the same name and either the same
+argument count or the `-1` SQLite reports for a variadic function, which can
+serve a fixed-arity call. An `addFunction(_:)` call
+or a `Configuration.prepareDatabase(_:)` registration of your own `regexp`
+therefore keeps deciding what `REGEXP` means, and upgrading SwiftQL does not
+change it.
+
+**It reaches the static path.** SwiftQL can rebuild a function it wrote from its
+signature alone, so a static query descriptor records the signature and the
+adapter registers the implementation when it prepares the statement. That is
+what a live registration closure cannot survive, and it is why the gap above
+stays open for your own functions.
+
 ## Generating the boilerplate with `@SQLFunction`
 
 `definition` and `makeSQL(context:)` follow the same shape for every custom
