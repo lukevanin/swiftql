@@ -144,10 +144,12 @@ final class TodoStoreTests: XCTestCase {
             now: TodoDate(referenceDate)
         )
 
-        // `%` and `_` were LIKE wildcards before v1.7 and are ordinary
-        // characters to a regular expression, so both now match only the row
-        // that literally contains them -- the quoting in `searchPattern` is
-        // what keeps `%` from being read as a pattern at all.
+        // `%` and `_` were LIKE wildcards before v1.7. Neither means anything
+        // to a regular expression, so both now match the row that literally
+        // contains them for a simpler reason than the escaping that used to be
+        // needed: they are ordinary characters. The quoting in `searchPattern`
+        // is what covers the characters that *are* operators, which
+        // `testSearchTreatsRegularExpressionOperatorsAsText` pins.
         XCTAssertEqual(
             try titles(query(TodoSeed.todayListID, search: "%")),
             ["Claim the 50% refund"]

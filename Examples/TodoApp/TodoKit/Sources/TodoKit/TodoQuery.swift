@@ -49,8 +49,11 @@ public struct TodoQuery: Equatable, Sendable {
     public var filter: TodoFilter
     public var sort: TodoSort
 
-    /// Matched against title and notes as a regular expression. Empty
-    /// matches everything.
+    /// What the user typed in the search box, matched against title and notes.
+    ///
+    /// Literal text, not a pattern: ``searchPattern`` quotes it before it
+    /// reaches SQLite, so a search for `a.b` finds a dot rather than any
+    /// character. Empty matches everything.
     public var searchText: String
 
     /// What "overdue" is measured against. The app passes the current time;
