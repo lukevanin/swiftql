@@ -527,15 +527,23 @@ final class XLRegexpOperatorTests: XCTestCase {
 
 
 /// An application-supplied `regexp` that inverts the match, registered through
-/// ``GRDBDatabaseBuilder/addFunction(_:)``. Inverting makes the precedence rule
+/// `GRDBDatabaseBuilder.addFunction(_:)`. Inverting makes the precedence rule
 /// observable from the rows a query returns.
+///
+/// Registered, never rendered. `addFunction(_:)` reads only `definition` and
+/// `execute(reader:)`; the operator emits the `REGEXP` spelling rather than a
+/// call to this type. `makeSQL` therefore traps instead of emitting a
+/// zero-argument call for a two-argument definition, which is SQL SQLite would
+/// refuse.
 private struct InvertedRegexpFunction: XLCustomFunction {
     typealias T = Bool
 
     static let definition = XLRegexpFunction.definition
 
     func makeSQL(context: inout XLBuilder) {
-        context.customFunctionCall(Self.self) { _ in }
+        fatalError(
+            "InvertedRegexpFunction is registered with addFunction(_:), never rendered."
+        )
     }
 
     static func execute(reader: XLColumnReader) throws -> Bool {
