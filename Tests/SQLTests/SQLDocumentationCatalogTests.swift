@@ -817,7 +817,14 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         // RELEASING.md step 4 dates this heading during release preparation,
         // replacing `Unreleased` with the release date; update this pin in the
         // same change.
-        XCTAssertEqual(firstReleaseHeading, "## [1.6.0] - Unreleased")
+        //
+        // Two sections can be `Unreleased` at once while two release trains
+        // overlap: 1.7 is developed on `version/1.7` before 1.6 is tagged. The
+        // pin names the newest, and the release gate
+        // (`scripts/ci/check-release-changelog.sh`) reads the heading for the
+        // version being tagged rather than the first heading, so dating 1.6.0
+        // does not depend on this pin.
+        XCTAssertEqual(firstReleaseHeading, "## [1.7.0] - Unreleased")
     }
 
     /// `check-docc-output.sh` proves one built page per catalog article. An

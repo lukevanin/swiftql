@@ -1,5 +1,42 @@
 # Changelog
 
+## [1.7.0] - Unreleased
+
+### Added
+
+- SwiftQL now ships the `regexp` implementation the `REGEXP` operator needs
+  (issue #612). SQLite parses `X REGEXP Y` as a call to `regexp(Y, X)` and
+  ships no such function, so before this release every query that used the
+  operator failed with `no such function: regexp` unless the application
+  registered a two-argument `regexp` itself. `XLExpression.regexp(_:)` now
+  records SwiftQL's own implementation while the statement renders, and the
+  driver registers it on whichever pooled connection executes the statement.
+  The rendered SQL is unchanged.
+
+  `XLRegexpFunction` is backed by Swift `Regex`, so the pattern syntax is
+  Swift's. A pattern matches anywhere in the subject rather than having to
+  match all of it, which is what the widely used `regexp` extensions for
+  SQLite and PostgreSQL's `~` operator do; anchor a pattern with `^` and `$`
+  to require a whole-subject match. A NULL on either side yields NULL. An
+  invalid pattern raises `XLRegexpFunctionError.invalidPattern`, rather than
+  returning false and reading like a pattern that matched nothing. An argument
+  that is neither TEXT nor a UTF-8 BLOB raises `XLColumnReadError` instead of
+  being converted silently.
+
+### Changed
+
+- An application that registers its own two-argument `regexp` keeps it (issue
+  #612). SwiftQL never replaces a `regexp` already on the connection, whether
+  it was registered with `GRDBDatabaseBuilder.addFunction(_:)` or with
+  `Configuration.prepareDatabase(_:)`, so upgrading does not change what
+  `REGEXP` means for an application that already supplied one. Deciding that
+  costs one `PRAGMA function_list` per database, not one per query.
+
+- Statements rendered as static query descriptors still require an upfront
+  `GRDBDatabaseBuilder.addFunction(_:)` call for `regexp`, because a
+  descriptor discards the expression graph the registration travels on. Issue
+  #615 covers that path.
+
 ## [1.6.0] - Unreleased
 
 ### Added

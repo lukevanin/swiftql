@@ -61,7 +61,33 @@ public struct XLCustomFunctionRegistration: Sendable {
     /// same SQLite function and are interchangeable.
     public let definition: XLCustomFunctionDefinition
 
+    /// Whether a function already on the connection wins over this one.
+    ///
+    /// "Already on the connection" is decided by signature, not by name alone:
+    /// the same name and either the same argument count or the `-1` SQLite
+    /// reports for a variadic function, which can serve a fixed-arity call.
+    ///
+    /// `false` for a registration made from an application's own
+    /// ``XLCustomFunction``: the caller referenced that type in the statement, so
+    /// registering it is what the caller asked for.
+    ///
+    /// `true` for a function SwiftQL bundles, such as its own `regexp`
+    /// implementation for the `REGEXP` operator. A bundled function is a
+    /// default, not an instruction, so it must never replace an implementation the
+    /// application registered itself.
+    let defersToExistingRegistration: Bool
+
     let makeDatabaseFunction: @Sendable () -> DatabaseFunction
+
+    init(
+        definition: XLCustomFunctionDefinition,
+        defersToExistingRegistration: Bool = false,
+        makeDatabaseFunction: @escaping @Sendable () -> DatabaseFunction
+    ) {
+        self.definition = definition
+        self.defersToExistingRegistration = defersToExistingRegistration
+        self.makeDatabaseFunction = makeDatabaseFunction
+    }
 
     /// Creates a registration for one custom function type.
     public static func make<F>(_ type: F.Type) -> XLCustomFunctionRegistration
@@ -82,6 +108,7 @@ public struct XLCustomFunctionRegistration: Sendable {
         )
         return XLCustomFunctionRegistration(
             definition: functionDefinition,
+            defersToExistingRegistration: false,
             makeDatabaseFunction: {
                 DatabaseFunction(
                     functionDefinition.name,

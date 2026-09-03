@@ -37,6 +37,12 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
 
     private let access: Access
 
+    /// Remembers, per database, whether the application already provides a
+    /// SQLite function that a bundled SwiftQL implementation would otherwise
+    /// register. Shared by reference with every driver copy, including the
+    /// pinned copies `pinned(to:)` makes, so one database probes once.
+    private let bundledFunctions: GRDBBundledFunctionAvailability
+
     /// The pool backing this driver, or `nil` when pinned to one transaction
     /// scope's connection. `ValueObservation`-backed live queries need a
     /// stable pool to track, so a pinned-mode caller must fail explicitly
@@ -66,16 +72,19 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
         self.access = .pool(databasePool)
         self.dialect = dialect
         self.databaseIdentifier = databaseIdentifier
+        self.bundledFunctions = GRDBBundledFunctionAvailability()
     }
 
     private init(
         access: Access,
         dialect: XLSQLiteDialect,
-        databaseIdentifier: XLDatabaseIdentifier
+        databaseIdentifier: XLDatabaseIdentifier,
+        bundledFunctions: GRDBBundledFunctionAvailability
     ) {
         self.access = access
         self.dialect = dialect
         self.databaseIdentifier = databaseIdentifier
+        self.bundledFunctions = bundledFunctions
     }
 
     ///
@@ -103,7 +112,8 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
         GRDBDatabaseDriver(
             access: .pinned(box),
             dialect: dialect,
-            databaseIdentifier: XLDatabaseIdentifier(rawValue: UUID())
+            databaseIdentifier: XLDatabaseIdentifier(rawValue: UUID()),
+            bundledFunctions: bundledFunctions
         )
     }
 
@@ -189,7 +199,8 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
             database: database,
             databaseIdentifier: databaseIdentifier,
             driverIdentifier: driverIdentifier,
-            dialect: dialect
+            dialect: dialect,
+            bundledFunctions: bundledFunctions
         )
     }
 }
@@ -595,16 +606,20 @@ struct GRDBDatabaseDriverConnection:
 
     private let database: Database
 
+    private let bundledFunctions: GRDBBundledFunctionAvailability
+
     init(
         database: Database,
         databaseIdentifier: XLDatabaseIdentifier,
         driverIdentifier: XLDriverIdentifier,
-        dialect: XLSQLiteDialect
+        dialect: XLSQLiteDialect,
+        bundledFunctions: GRDBBundledFunctionAvailability = GRDBBundledFunctionAvailability()
     ) {
         self.database = database
         self.databaseIdentifier = databaseIdentifier
         self.driverIdentifier = driverIdentifier
         self.dialect = dialect
+        self.bundledFunctions = bundledFunctions
     }
 
     mutating func preparePhysical(
@@ -774,15 +789,67 @@ struct GRDBDatabaseDriverConnection:
     /// Registers custom SQLite functions referenced by the statement about to execute on this
     /// connection's underlying physical connection.
     ///
-    /// Unconditional and idempotent: SQLite's `sqlite3_create_function` simply replaces any
+    /// Idempotent: SQLite's `sqlite3_create_function` simply replaces any
     /// existing registration for the same name and argument count, so calling this before every
     /// execution is correct however many times it runs, on however many distinct physical
     /// connections `DatabasePool` hands out over the connection's lifetime.
+    ///
+    /// A registration that defers to an existing one -- a function SwiftQL bundles rather than one
+    /// the caller wrote, such as `XLCustomFunctionRegistration.bundledRegexp` -- is skipped when
+    /// the application already provides that function. That test is the only reason this is not
+    /// unconditional, and it costs one `PRAGMA function_list` per database rather than one per
+    /// execution; see `GRDBBundledFunctionAvailability`.
     func registerCustomFunctions(
         _ registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
     ) {
         for registration in registrations.values {
+            if registration.defersToExistingRegistration,
+               bundledFunctions.applicationProvides(
+                   registration.definition,
+                   probe: { hasFunction(matching: registration.definition) }
+               ) {
+                continue
+            }
             database.add(function: registration.makeDatabaseFunction())
+        }
+    }
+
+    /// Whether this physical connection already has a SQLite function this registration would
+    /// replace.
+    ///
+    /// SQLite keys a function on its name *and* its argument count, so a name test alone is
+    /// wrong in both directions. An application that registers an unrelated `regexp/1` would
+    /// block the bundled `regexp/2` the operator actually calls, and every statement using
+    /// `REGEXP` would then fail with `no such function: regexp`. A row therefore has to match the
+    /// name and either the exact argument count or `-1`, which is what `PRAGMA function_list`
+    /// reports for a variadic function -- a variadic `regexp` can serve the two-argument call, so
+    /// it counts as provided.
+    ///
+    /// Names are compared case-insensitively over ASCII, which is how SQLite itself compares
+    /// them, and how the build validator's runtime capture compares them.
+    ///
+    /// A connection whose SQLite build omits the introspection pragmas answers nothing, which is
+    /// read as "the application provides no such function". On such a build the bundled
+    /// implementation is registered and does replace a caller's own, because nothing can observe
+    /// that theirs is there. That is the better of the two failure modes: the alternative --
+    /// treating an unanswerable probe as "already provided" -- would leave `REGEXP` unusable on
+    /// every connection, including the overwhelming majority that registered nothing. SQLite has
+    /// reported `PRAGMA function_list` since 3.30, and the package's supported builds all do.
+    private func hasFunction(matching definition: XLCustomFunctionDefinition) -> Bool {
+        let folded = definition.name.lowercased()
+        guard let rows = try? Row.fetchAll(database, sql: "PRAGMA function_list") else {
+            return false
+        }
+        return rows.contains { row in
+            guard (row["name"] as String?)?.lowercased() == folded else {
+                return false
+            }
+            guard let argumentCount = row["narg"] as Int? else {
+                // A build that reports no argument count cannot distinguish the overloads, so
+                // treat the name as the whole answer rather than registering over the caller.
+                return true
+            }
+            return argumentCount == definition.numberOfArguments || argumentCount == -1
         }
     }
 
@@ -1002,5 +1069,55 @@ final class GRDBTransactionScopeTracker: @unchecked Sendable {
         set {
             Thread.current.threadDictionary[key] = newValue
         }
+    }
+}
+
+
+///
+/// Remembers, for one database, whether the application already provides a SQLite function that a
+/// bundled SwiftQL implementation would otherwise register.
+///
+/// The answer is cached per database rather than per physical connection. Every caller-supplied
+/// registration reaches a connection through `Configuration.prepareDatabase(_:)` -- both
+/// ``GRDBDatabaseBuilder/addFunction(_:)`` and a caller's own hook -- and GRDB runs those setups
+/// on every connection it opens, so what one connection has, they all have. Probing once keeps
+/// the cost at one `PRAGMA function_list` per database instead of one per statement execution.
+///
+/// The probe must run before the bundled function is ever registered, otherwise it would find
+/// SwiftQL's own registration and defer to it forever. It does: the first execution that needs
+/// the function asks this box first.
+///
+final class GRDBBundledFunctionAvailability: @unchecked Sendable {
+
+    private let lock = NSLock()
+
+    private var answers: [XLCustomFunctionDefinition: Bool] = [:]
+
+    /// Whether the application provides this function, probing the connection once per database.
+    ///
+    /// - Parameters:
+    ///   - definition: The registration signature being considered.
+    ///   - probe: Reads the connection for a function of that name. Called at most once per
+    ///     definition, except in the harmless race where two connections probe at the same time
+    ///     and both observe the same pre-registration state.
+    func applicationProvides(
+        _ definition: XLCustomFunctionDefinition,
+        probe: () -> Bool
+    ) -> Bool {
+        lock.lock()
+        let cached = answers[definition]
+        lock.unlock()
+        if let cached {
+            return cached
+        }
+        let observed = probe()
+        lock.lock()
+        defer { lock.unlock() }
+        // First answer wins, so two concurrent probes cannot disagree later.
+        if let raced = answers[definition] {
+            return raced
+        }
+        answers[definition] = observed
+        return observed
     }
 }

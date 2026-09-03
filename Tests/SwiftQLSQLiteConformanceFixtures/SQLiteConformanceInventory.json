@@ -2335,7 +2335,7 @@
     {
       "id": "evidence.syntax.expression.sqlite-regexp",
       "source_path": "Tests/SQLTests/SQLRegexpOperatorTests.swift",
-      "test_case": "XLRegexpOperatorTests.testRegexpMatchesUsingTheRegisteredFunction",
+      "test_case": "XLRegexpOperatorTests.testRegexpMatchesWithoutAnyApplicationRegistration",
       "runner_path": null,
       "layers": [
         "execution",
@@ -2366,7 +2366,7 @@
     {
       "id": "evidence.syntax.expression.sqlite-regexp-unregistered",
       "source_path": "Tests/SQLTests/SQLRegexpOperatorTests.swift",
-      "test_case": "XLRegexpOperatorTests.testRegexpWithoutRegisteredFunctionFailsAtPreparation",
+      "test_case": "XLRegexpOperatorTests.testApplicationRegisteredFunctionWinsOverTheBundledOne",
       "runner_path": null,
       "layers": [
         "prepare",
@@ -9010,7 +9010,7 @@
       "id": "syntax.expression.regexp",
       "kind": "syntax",
       "family": "expression",
-      "title": "REGEXP operator over an application-registered function",
+      "title": "REGEXP operator backed by SwiftQL's bundled Swift Regex function",
       "status": "supported",
       "adoption_status": "already-covered",
       "public_api": [
@@ -9032,9 +9032,7 @@
       "required_capabilities": [
         "sqlite-core-parser"
       ],
-      "schema_requirements": [
-        "A two-argument regexp function is registered on every connection the query executes against."
-      ],
+      "schema_requirements": [],
       "evidence_ids": [
         "evidence.syntax.expression.render-regexp",
         "evidence.syntax.expression.render-regexp-composition",
@@ -9043,7 +9041,7 @@
         "evidence.syntax.expression.sqlite-regexp-unregistered"
       ],
       "deviations": [
-        "SQLite ships no regexp implementation, so the operator prepares only when the application has registered a two-argument regexp function. This is a schema requirement rather than a required capability: capabilities describe what the pinned SQLite build provides, and no build provides regexp. It is also not a deferral, because nothing in SwiftQL is blocking. An unregistered statement fails with `no such function: regexp`, which is asserted rather than only documented.",
+        "SQLite ships no regexp implementation. SwiftQL supplies one, backed by Swift Regex, and registers it on the connection that executes the statement, so the operator no longer carries a schema requirement (issue #612). An application that registers its own two-argument regexp keeps it, matched on name and on either the exact argument count or a variadic -1.",
         "SQLite parses `X REGEXP Y` as `regexp(Y, X)`, passing the pattern first. The registered function observes that order directly in the evidence rather than it being inferred from a match result, which a symmetric pattern would not distinguish.",
         "SQLite defines no regular-expression dialect. Pattern syntax is entirely determined by the registered function, so SwiftQL makes no portability claim about patterns.",
         "MATCH is not included. It is meaningful only against an FTS virtual table, which requires virtual-table DDL owned by issue #139 and an FTS5 build that is not enabled by default; it is tracked separately by issue #329."
