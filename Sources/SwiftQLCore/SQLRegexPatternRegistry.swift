@@ -149,13 +149,16 @@ final class XLRegexRegistration: @unchecked Sendable {
     /// either way. A throw is therefore read as "this row does not match"
     /// rather than failing the statement. Write the transform to be total, or
     /// match in Swift, if a failing transform has to be visible.
+    ///
+    /// `try?` flattens the optional it wraps, so one `guard let` covers both
+    /// answers that mean no match: the call threw, or it found nothing.
     func matches(_ subject: String) -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        guard let match = try? regex.firstMatch(in: subject) else {
+        guard (try? regex.firstMatch(in: subject)) != nil else {
             return false
         }
-        return match != nil
+        return true
     }
 }
 
