@@ -86,6 +86,23 @@ extension TodoDatabase {
         }
     }
 
+    /// The to-dos in one list whose notes hold a web link.
+    ///
+    /// One query for the whole list rather than one per row, and the matching
+    /// happens in SQLite against the compiled `Regex` in ``TodoLinks/pattern``
+    /// rather than over note text pulled back into Swift.
+    public func linkedTodoIDs(inList listID: TodoUUID) throws -> Set<TodoUUID> {
+        let request = linkedTodoIDsRequest
+        return Set(
+            try request.fetchAll(
+                bindings: TodoLinks.bindings(
+                    for: listID,
+                    layout: request.parameterLayout
+                )
+            )
+        )
+    }
+
     /// Open and total counts for every list, including the empty ones the
     /// aggregate has nothing to group for.
     public func listCounts() throws -> [TodoUUID: TodoListCounts] {

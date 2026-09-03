@@ -60,6 +60,9 @@ public final class TodoListModel {
     /// just to draw a badge.
     public private(set) var checklistsByTodo: [TodoUUID: TodoChecklistSummary] = [:]
 
+    /// The rows whose notes hold a link, as SQLite matched them.
+    public private(set) var linkedTodoIDs: Set<TodoUUID> = []
+
     private let database: TodoDatabase
 
     public init(database: TodoDatabase, query: TodoQuery) throws {
@@ -103,6 +106,7 @@ public final class TodoListModel {
         tagsByTodo = (try? database.tagsByTodo(inList: query.listID)) ?? [:]
         checklistsByTodo =
             (try? database.checklistSummaries(inList: query.listID)) ?? [:]
+        linkedTodoIDs = (try? database.linkedTodoIDs(inList: query.listID)) ?? []
     }
 
     public func tags(for todo: Todo) -> [Tag] {
@@ -113,6 +117,12 @@ public final class TodoListModel {
     /// to-do has none, which is also what an unsummarised row reads as.
     public func checklistItemCount(for todo: Todo) -> Int {
         checklistsByTodo[todo.id]?.itemCount ?? 0
+    }
+
+    /// Whether a row's notes hold a web link. A row with no link, and an
+    /// unexamined row, both read as `false`.
+    public func hasLink(_ todo: Todo) -> Bool {
+        linkedTodoIDs.contains(todo.id)
     }
 
     private func rebind(_ change: (inout TodoQuery) -> Void) {
