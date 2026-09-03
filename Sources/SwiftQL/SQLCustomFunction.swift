@@ -67,8 +67,8 @@ public struct XLCustomFunctionRegistration: Sendable {
     /// ``XLCustomFunction``: the caller referenced that type in the statement, so
     /// registering it is what the caller asked for.
     ///
-    /// `true` for a function SwiftQL bundles, such as
-    /// ``XLCustomFunctionRegistration/bundledRegexp``. A bundled function is a
+    /// `true` for a function SwiftQL bundles, such as its own `regexp`
+    /// implementation for the `REGEXP` operator. A bundled function is a
     /// default, not an instruction, so it must never replace an implementation the
     /// application registered itself.
     let defersToExistingRegistration: Bool

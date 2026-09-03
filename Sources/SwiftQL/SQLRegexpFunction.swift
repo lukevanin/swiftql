@@ -54,7 +54,7 @@ extension XLRegexpFunctionError: LocalizedError {
 /// implementation of that function, so before issue #612 every query that used
 /// the operator failed with `no such function: regexp` unless the application
 /// registered a function itself. SwiftQL now supplies one, and
-/// ``XLExpression/regexp(_:)`` records it while the statement renders, so a
+/// `XLExpression.regexp(_:)` records it while the statement renders, so a
 /// query executes without any registration by the caller.
 ///
 /// ## Behaviour
@@ -83,9 +83,9 @@ extension XLRegexpFunctionError: LocalizedError {
 ///
 /// An application that registers its own two-argument `regexp` keeps it. The
 /// bundled function is never registered on a connection that already provides
-/// one, so an existing `GRDBDatabaseBuilder/addFunction(_:)` call or
+/// one, so an existing ``GRDBDatabaseBuilder/addFunction(_:)`` call or
 /// `Configuration.prepareDatabase(_:)` registration continues to decide what
-/// `REGEXP` means. See ``XLCustomFunctionRegistration/bundledRegexp``.
+/// `REGEXP` means.
 ///
 public enum XLRegexpFunction {
 
@@ -140,7 +140,7 @@ extension XLCustomFunctionRegistration {
     ///
     /// Registration for the bundled ``XLRegexpFunction``.
     ///
-    /// Recorded by every ``XLExpression/regexp(_:)`` overload while a statement
+    /// Recorded by every `XLExpression.regexp(_:)` overload while a statement
     /// renders, so the driver registers the function on whichever connection
     /// executes that statement.
     ///
