@@ -358,12 +358,29 @@ final class XLRegexPatternTests: XCTestCase {
     /// A `RegexBuilder` transform that throws has nowhere to report itself: the
     /// operator answers a yes-or-no question about one row, and captures are
     /// not exposed. The row does not match, and the statement is not failed.
+    ///
+    /// The transform throws rather than returning `nil`. Returning `nil` is
+    /// `TryCapture`'s own way of saying "no match" and never reaches the
+    /// throwing path this pins.
     func testAThrowingTransformIsReadAsNoMatch() throws {
-        let failing = XLRegexPattern {
-            TryCapture(OneOrMore(.digit)) { _ -> Int? in nil }
+        let throwingRegex = Regex {
+            TryCapture(OneOrMore(.digit)) { _ -> Int in
+                throw TransformFailure()
+            }
         }
+        // Proven, not assumed: the transform reaches `firstMatch(in:)` and the
+        // error comes back out. Returning `nil` instead would be `TryCapture`'s
+        // own "no match" and would never take this path, so without this
+        // assertion the one below would pass either way.
+        XCTAssertThrowsError(try throwingRegex.firstMatch(in: "123")) { error in
+            XCTAssertTrue(error is TransformFailure, "\(error)")
+        }
+        // The same shape without the transform, so the subject is known to be
+        // one the pattern would otherwise match.
+        let matching = XLRegexPattern { OneOrMore(.digit) }
+        XCTAssertTrue(matching.matches("123"))
 
-        XCTAssertFalse(failing.matches("123"))
+        XCTAssertFalse(XLRegexPattern(throwingRegex).matches("123"))
     }
 
     /// A registered pattern is compiled by the caller, so the function must
@@ -377,6 +394,10 @@ final class XLRegexPatternTests: XCTestCase {
         XCTAssertEqual(XLRegexpPatternCache.compilesInProcess - before, 0)
     }
 }
+
+
+/// Raised by the capture transform in `testAThrowingTransformIsReadAsNoMatch`.
+private struct TransformFailure: Error {}
 
 
 /// Counts mismatches seen on worker threads.
