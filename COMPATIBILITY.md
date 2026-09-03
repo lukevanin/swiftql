@@ -264,48 +264,12 @@ than per plugin build. The macro-expansion tests in
 `Tests/SQLMacrosTests/SQLTests.swift` and the conformance tests in
 `Tests/SQLTests/SQLModelSendableConformanceTests.swift` carry the same gate.
 
-### Swift 5.9 crashes on a RegexBuilder and a `sql` builder in one function
+### Swift 5.9 and Swift 6.0 crash on a statement built inline in a fetched request
 
-On the pinned Swift 5.9.2 toolchain, `swift-frontend` segfaults during SILGen
-(`ASTLoweringRequest`) on a function body that holds a `RegexBuilder` closure
-alongside a `sql { ... }` one:
-
-```swift
-// Crashes swift-frontend on Swift 5.9.2 with signal 11.
-func example() throws {
-    let pattern = XLRegexPattern {
-        OneOrMore(.digit)
-        Anchor.endOfSubject
-    }
-    let statement = sql { schema in
-        let phrase = schema.table(Phrase.self)
-        Select(phrase.id)
-        From(phrase)
-        Where(phrase.text.regexp(pattern))
-    }
-    _ = try database.makeRequest(with: statement).fetchAll()
-}
-```
-
-Two result builders in one body is the trigger; either alone compiles. This is
-the same class of failure as the `#row` and sql-as-subquery crashes above, and
-like those it is a compiler memory-safety bug rather than a clean type error,
-so the crash site is not stable.
-
-No API is gated for it, because none needs to be. ``XLRegexPattern`` is meant
-to be held in a `static let` or a stored property anyway -- the registry does
-not keep a pattern alive, so one built inside a function is released when the
-function returns -- and building it outside the function that queries with it
-avoids the crash. `Sources/SwiftQL/SwiftQL.docc/Expressions.md`,
-`Examples/TodoApp/TodoKit/Sources/TodoKit/TodoLinks.swift`, and
-`Tests/SQLTests/SQLRegexPatternTests.swift` all use that form, and the last
-says why in a comment so the shape is not reintroduced.
-
-### Swift 6.0 crashes on a statement built inline in a fetched request
-
-On the pinned Swift 6.0 cell (Xcode 16.2, Apple Swift 6.0.3), `swift-frontend`
-segfaults while compiling a single expression that builds a statement inline
-and then fetches from the request that statement produces:
+On the pinned Swift 6.0 cell (Xcode 16.2, Apple Swift 6.0.3) and on the pinned
+Swift 5.9.2 toolchain, `swift-frontend` segfaults while compiling a single
+expression that builds a statement inline and then fetches from the request
+that statement produces:
 
 ```swift
 // Crashes swift-frontend on Xcode 16.2 with signal 11.
@@ -341,7 +305,7 @@ the two you get is not stable across runs of the same source.
 Reaching for a local is the whole workaround, and it does not matter which
 local:
 
-| Written as | Xcode 16.2 |
+| Written as | Swift 5.9.2 and Xcode 16.2 |
 | --- | --- |
 | `makeRequest(with: sql { … }).fetchAll()` | crashes |
 | `makeRequest(with: insert(t).values(…).returning(t)).fetchAll()` | crashes |
@@ -550,7 +514,8 @@ what a reader on the oldest supported compiler will hit. It earned that in
 segfaulted the compiler. Moving the job to a newer Xcode would have made the
 red square go away and left the crash in front of the next person to write that
 line. The demo is written around the crash instead, and
-"Swift 6.0 crashes on a statement built inline in a fetched request" above says
+"Swift 5.9 and Swift 6.0 crash on a statement built inline in a fetched
+request" above says
 what the shape is.
 
 The iOS runtime is whichever the pinned Xcode ships, resolved through a generic

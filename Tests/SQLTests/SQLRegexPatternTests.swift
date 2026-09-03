@@ -119,14 +119,19 @@ final class XLRegexPatternTests: XCTestCase {
         database = try makeSeededDatabase()
         let byRegex = try matchingIdentifiers(Patterns.trailingDigits)
 
+        // The statement goes in a local rather than inline in the
+        // `makeRequest` call. Both pinned toolchains segfault on the inline
+        // form -- see COMPATIBILITY.md, "crashes on a statement built inline
+        // in a fetched request".
+        let stringStatement = sql { schema in
+            let phrase = schema.table(RegexPatternPhrase.self)
+            Select(phrase.id)
+            From(phrase)
+            Where(phrase.text.regexp("[0-9]+$"))
+            OrderBy(phrase.id.ascending())
+        }
         let byString: [String] = try database.makeRequest(
-            with: sql { schema in
-                let phrase = schema.table(RegexPatternPhrase.self)
-                Select(phrase.id)
-                From(phrase)
-                Where(phrase.text.regexp("[0-9]+$"))
-                OrderBy(phrase.id.ascending())
-            }
+            with: stringStatement
         ).fetchAll()
 
         XCTAssertEqual(byRegex, ["1", "3"])
