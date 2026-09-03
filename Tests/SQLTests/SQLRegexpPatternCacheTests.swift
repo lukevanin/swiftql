@@ -95,9 +95,14 @@ final class XLRegexpPatternCacheTests: XCTestCase {
         )
     }
 
-    /// A pattern that does not compile must not be retried once per row. The
-    /// failure is cached exactly as a success is.
-    func testAnInvalidPatternIsCompiledOnceAndReportedOnEveryRow() throws {
+    /// An invalid pattern is reported, and the report names the pattern.
+    ///
+    /// This says nothing about caching the failure: SQLite abandons the
+    /// statement on the function's first error, so only one row is ever
+    /// evaluated and the compile count would be one either way. Caching a
+    /// failure is proven at the cache level, by
+    /// `testAnInvalidPatternIsCompiledOnceAndThrownEveryTime`.
+    func testAnInvalidPatternIsReportedFromAStatement() throws {
         database = try makeSeededDatabase()
         let statement = sql { schema in
             let phrase = schema.table(RegexpCachedPhrase.self)
@@ -106,7 +111,6 @@ final class XLRegexpPatternCacheTests: XCTestCase {
             Where(phrase.text.regexp("[unterminated"))
         }
 
-        let before = XLRegexpPatternCache.compilesInProcess
         XCTAssertThrowsError(
             try database.makeRequest(with: statement).fetchAll() as [Int]
         ) { error in
@@ -115,7 +119,6 @@ final class XLRegexpPatternCacheTests: XCTestCase {
                 "unexpected error: \(error)"
             )
         }
-        XCTAssertEqual(XLRegexpPatternCache.compilesInProcess - before, 1)
     }
 
     /// A pattern read from a column can differ on every row. That is the case
@@ -248,25 +251,30 @@ final class XLRegexpPatternCacheTests: XCTestCase {
 
     /// The lock has to hold under genuine concurrency, even though production
     /// never shares one cache between connections.
+    ///
+    /// Every iteration uses a pattern of its own. Sharing one would have two
+    /// threads matching against a single compiled `Regex`, which is exactly the
+    /// sharing this type exists to avoid -- `Regex` is not `Sendable`. What is
+    /// exercised here is the cache's own state: concurrent insertion, lookup,
+    /// and eviction, with far more distinct patterns than the bound allows.
     func testConcurrentLookupsReturnCorrectResults() throws {
         let cache = XLRegexpPatternCache()
-        let patterns = ["^a", "^b", "^c", "[0-9]$"]
-        let subjects = ["abc", "bcd", "cde", "x9"]
         let failures = LockedFailureCount()
 
         DispatchQueue.concurrentPerform(iterations: 400) { iteration in
-            let index = iteration % patterns.count
+            let pattern = "^p\(iteration)-[0-9]+$"
             do {
-                let cached = try XLRegexpFunction.matches(
-                    pattern: patterns[index],
-                    in: subjects[index],
+                let matched = try XLRegexpFunction.matches(
+                    pattern: pattern,
+                    in: "p\(iteration)-42",
                     cache: cache
                 )
-                let uncached = try XLRegexpFunction.matches(
-                    pattern: patterns[index],
-                    in: subjects[index]
+                let missed = try XLRegexpFunction.matches(
+                    pattern: pattern,
+                    in: "p\(iteration)-x",
+                    cache: cache
                 )
-                if cached != uncached {
+                if !matched || missed {
                     failures.record()
                 }
             }
@@ -276,7 +284,9 @@ final class XLRegexpPatternCacheTests: XCTestCase {
         }
 
         XCTAssertEqual(failures.value(), 0)
-        XCTAssertEqual(cache.count, patterns.count)
+        // Far more distinct patterns than the bound, so the cache ends at its
+        // capacity rather than holding one entry per iteration.
+        XCTAssertEqual(cache.count, XLRegexpPatternCache.capacity)
     }
 
     // MARK: - Measurement
