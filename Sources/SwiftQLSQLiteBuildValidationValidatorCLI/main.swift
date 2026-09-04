@@ -30,6 +30,12 @@ do {
         if !summary.isEmpty {
             writeStandardError(summary)
         }
+        // Advisory findings print alongside, and never touch the exit code:
+        // it is `result.exitCode`, which reads the correctness verdict alone.
+        let advisorySummary = result.planReport?.humanReadableSummary() ?? ""
+        if !advisorySummary.isEmpty {
+            writeStandardError(advisorySummary)
+        }
         exit(result.exitCode)
     }
 } catch {
