@@ -836,12 +836,14 @@ struct GRDBDatabaseDriverConnection:
     /// every connection, including the overwhelming majority that registered nothing. SQLite has
     /// reported `PRAGMA function_list` since 3.30, and the package's supported builds all do.
     private func hasFunction(matching definition: XLCustomFunctionDefinition) -> Bool {
-        let folded = definition.name.lowercased()
+        let folded = sqliteASCIIFoldedFunctionName(definition.name)
         guard let rows = try? Row.fetchAll(database, sql: "PRAGMA function_list") else {
             return false
         }
         return rows.contains { row in
-            guard (row["name"] as String?)?.lowercased() == folded else {
+            guard let name = row["name"] as String?,
+                  sqliteASCIIFoldedFunctionName(name) == folded
+            else {
                 return false
             }
             guard let argumentCount = row["narg"] as Int? else {
@@ -1120,4 +1122,21 @@ final class GRDBBundledFunctionAvailability: @unchecked Sendable {
         answers[definition] = observed
         return observed
     }
+}
+
+
+/// Folds a SQLite function name the way SQLite folds one when it looks a
+/// function up: over ASCII only.
+///
+/// Swift's `lowercased()` folds the whole of Unicode, so it would call two
+/// names equal that SQLite keeps apart. The build validator's runtime capture
+/// folds the same way, and the two have to agree: a name the validator treats
+/// as a distinct function must not be read here as the application's own.
+func sqliteASCIIFoldedFunctionName(_ value: String) -> String {
+    String(decoding: value.utf8.map { byte in
+        if byte >= 0x41, byte <= 0x5A {
+            return byte + 0x20
+        }
+        return byte
+    }, as: UTF8.self)
 }

@@ -251,6 +251,25 @@ final class XLRegexpOperatorTests: XCTestCase {
     /// An application that already registers `regexp` keeps its own
     /// implementation. This one inverts the match, so a bundled function that
     /// replaced it would return the opposite rows.
+    /// SQLite folds a function name over ASCII only when it looks the function
+    /// up, so the probe that decides whether the application already provides
+    /// `regexp` has to fold the same way. Swift's `lowercased()` folds the
+    /// whole of Unicode and would call two names equal that SQLite keeps
+    /// apart, which would read an unrelated function as the application's own
+    /// and leave `REGEXP` unregistered.
+    func testFunctionNamesFoldOverASCIIOnly() {
+        XCTAssertEqual(sqliteASCIIFoldedFunctionName("REGEXP"), "regexp")
+        XCTAssertEqual(sqliteASCIIFoldedFunctionName("ReGeXp"), "regexp")
+        XCTAssertEqual(sqliteASCIIFoldedFunctionName("regexp"), "regexp")
+
+        // U+212A KELVIN SIGN lowercases to "k" under Unicode and is left alone
+        // by SQLite, so the two names stay distinct.
+        let kelvin = "regexp\u{212A}"
+        XCTAssertEqual(sqliteASCIIFoldedFunctionName(kelvin), kelvin)
+        XCTAssertNotEqual(sqliteASCIIFoldedFunctionName(kelvin), "regexpk")
+        XCTAssertEqual(kelvin.lowercased(), "regexpk")
+    }
+
     func testApplicationRegisteredFunctionWinsOverTheBundledOne() throws {
         database = try makeDatabase(applicationRegexp: { values in
             guard

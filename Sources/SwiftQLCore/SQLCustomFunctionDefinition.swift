@@ -16,10 +16,10 @@ import Foundation
 public struct XLCustomFunctionDefinition: Hashable, Sendable {
 
     /// The function name emitted in SQL and registered with SQLite.
-    public var name: String
+    public let name: String
 
     /// The number of arguments SQLite passes to the function.
-    public var numberOfArguments: Int
+    public let numberOfArguments: Int
 
     /// Creates a custom scalar-function signature.
     ///
