@@ -8,10 +8,51 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
     public let databaseURL: URL?
     public let manifestURL: URL?
     public let outputURL: URL?
+    /// Where to write the advisory plan sidecar (#394), or `nil` when plan
+    /// capture was not requested. Opt-in, so a run that does not ask for
+    /// plans pays nothing for them.
+    public let planOutputURL: URL?
+    /// A checked-in plan-suppression file (#395), or `nil` for none.
+    public let planSuppressionsURL: URL?
+    /// The row count above which a full table scan is diagnosed. `nil` uses
+    /// the documented default.
+    public let planScanRowThreshold: Int?
+    /// Whether to verify index candidates on a scratch copy of the snapshot
+    /// (#397). Opt-in: verification copies the snapshot once per candidate.
+    public let verifiesIndexCandidates: Bool
     public let codecIdentifiers: [String]
     public let extensionNames: [String]
     public let capabilityIDs: [String]
     public let showsHelp: Bool
+
+    /// Spelled out rather than left to the synthesized memberwise
+    /// initializer, so `planOutputURL` can default to "no plan capture" and a
+    /// caller that never asks for plans need not mention them.
+    public init(
+        databaseURL: URL?,
+        manifestURL: URL?,
+        outputURL: URL?,
+        planOutputURL: URL? = nil,
+        planSuppressionsURL: URL? = nil,
+        planScanRowThreshold: Int? = nil,
+        verifiesIndexCandidates: Bool = false,
+        codecIdentifiers: [String] = [],
+        extensionNames: [String] = [],
+        capabilityIDs: [String] = [],
+        showsHelp: Bool = false
+    ) {
+        self.databaseURL = databaseURL
+        self.manifestURL = manifestURL
+        self.outputURL = outputURL
+        self.planOutputURL = planOutputURL
+        self.planSuppressionsURL = planSuppressionsURL
+        self.planScanRowThreshold = planScanRowThreshold
+        self.verifiesIndexCandidates = verifiesIndexCandidates
+        self.codecIdentifiers = codecIdentifiers
+        self.extensionNames = extensionNames
+        self.capabilityIDs = capabilityIDs
+        self.showsHelp = showsHelp
+    }
 
     public static func parse(
         arguments: [String],
@@ -23,6 +64,10 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         var databasePath: String?
         var manifestPath: String?
         var outputPath: String?
+        var planOutputPath: String?
+        var planSuppressionsPath: String?
+        var planScanRowThresholdText: String?
+        var verifiesIndexCandidates = false
         var codecIdentifiers: [String] = []
         var extensionNames: [String] = []
         var capabilityIDs: [String] = []
@@ -61,6 +106,14 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
                 try assignOnce(&manifestPath, option: argument)
             case "--output":
                 try assignOnce(&outputPath, option: argument)
+            case "--plan-output":
+                try assignOnce(&planOutputPath, option: argument)
+            case "--plan-suppressions":
+                try assignOnce(&planSuppressionsPath, option: argument)
+            case "--plan-scan-row-threshold":
+                try assignOnce(&planScanRowThresholdText, option: argument)
+            case "--verify-index-candidates":
+                verifiesIndexCandidates = true
             case "--codec":
                 codecIdentifiers.append(try value(after: argument))
             case "--extension":
@@ -95,6 +148,20 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
             outputURL: outputPath.map {
                 resolvedURL(path: $0, currentDirectory: currentDirectory)
             },
+            planOutputURL: planOutputPath.map {
+                resolvedURL(path: $0, currentDirectory: currentDirectory)
+            },
+            planSuppressionsURL: planSuppressionsPath.map {
+                resolvedURL(path: $0, currentDirectory: currentDirectory)
+            },
+            planScanRowThreshold: try planScanRowThresholdText.map {
+                guard let value = Int($0), value >= 0 else {
+                    throw SQLiteBuildValidationValidatorCLIError
+                        .invalidValue("--plan-scan-row-threshold", $0)
+                }
+                return value
+            },
+            verifiesIndexCandidates: verifiesIndexCandidates,
             codecIdentifiers: sqliteBuildValidationSortedUnique(codecIdentifiers),
             extensionNames: sqliteBuildValidationSortedUnique(extensionNames),
             capabilityIDs: sqliteBuildValidationSortedUnique(capabilityIDs),
@@ -123,19 +190,48 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         public let databaseURL: URL
         public let manifestURL: URL
         public let outputURL: URL
+        /// Present exactly when the run captures plans.
+        public let planOutputURL: URL?
+        public let planSuppressionsURL: URL?
+        public let planScanRowThreshold: Int?
+        public let verifiesIndexCandidates: Bool
         public let environment: SQLiteBuildValidationEnvironment
 
         public init(
             databaseURL: URL,
             manifestURL: URL,
             outputURL: URL,
+            planOutputURL: URL? = nil,
+            planSuppressionsURL: URL? = nil,
+            planScanRowThreshold: Int? = nil,
+            verifiesIndexCandidates: Bool = false,
             environment: SQLiteBuildValidationEnvironment
         ) {
             self.databaseURL = databaseURL
             self.manifestURL = manifestURL
             self.outputURL = outputURL
+            self.planOutputURL = planOutputURL
+            self.planSuppressionsURL = planSuppressionsURL
+            self.planScanRowThreshold = planScanRowThreshold
+            self.verifiesIndexCandidates = verifiesIndexCandidates
             self.environment = environment
         }
+
+        /// The plan-diagnostic settings this run diagnoses under, reading the
+        /// checked-in suppression file when one was named.
+        public func planDiagnosticSettings() throws -> SQLiteBuildValidationPlanDiagnosticSettings {
+            let suppressions = try planSuppressionsURL.map {
+                try SQLiteBuildValidationPlanSuppressions.decode(contentsOf: $0)
+            }
+            return SQLiteBuildValidationPlanDiagnosticSettings(
+                fullTableScanRowThreshold: planScanRowThreshold
+                    ?? SQLiteBuildValidationPlanDiagnosticSettings
+                        .defaultFullTableScanRowThreshold,
+                suppressions: suppressions?.suppressions ?? []
+            )
+        }
+
+        public var capturesPlans: Bool { planOutputURL != nil }
     }
 
     /// Settles these options into help or a run.
@@ -161,6 +257,10 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
             databaseURL: databaseURL,
             manifestURL: manifestURL,
             outputURL: outputURL,
+            planOutputURL: planOutputURL,
+            planSuppressionsURL: planSuppressionsURL,
+            planScanRowThreshold: planScanRowThreshold,
+            verifiesIndexCandidates: verifiesIndexCandidates,
             environment: SQLiteBuildValidationEnvironment(
                 codecIdentifiers: codecIdentifiers,
                 extensionNames: extensionNames,
@@ -175,6 +275,16 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
           --database <path>      Checked-in SQLite snapshot to open read-only
           --manifest <path>      Codable build-validation manifest (#292)
           --output <path>        Deterministic JSON report destination
+          --plan-output <path>   Advisory query-plan sidecar destination
+                                 (omit to skip plan capture entirely)
+          --plan-suppressions <path>
+                                 Checked-in advisory suppression rules
+          --plan-scan-row-threshold <rows>
+                                 Diagnose a full table scan only above this
+                                 many rows (default 500)
+          --verify-index-candidates
+                                 Verify each index candidate by re-planning on
+                                 a disposable copy of the snapshot
           --codec <identity>     Available codec identity (repeatable)
           --extension <name>     Registered extension name (repeatable)
           --capability <id>      Explicit caller-owned capability (repeatable)
@@ -192,12 +302,14 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         databaseURL: URL,
         manifestURL: URL,
         outputURL: URL,
+        planOutputURL: URL? = nil,
         fileManager: FileManager = .default
     ) throws {
         try SQLiteBuildValidationOutputSafetyPreflight.check(
             databaseURL: databaseURL,
             manifestURL: manifestURL,
             outputURL: outputURL,
+            planOutputURL: planOutputURL,
             fileManager: fileManager
         )
     }
@@ -222,8 +334,12 @@ public enum SQLiteBuildValidationValidatorCLIError:
     case duplicateOption(String)
     case requiredOption(String)
     case unknownOption(String)
+    case invalidValue(String, String)
     case outputConflictsWithInput(String)
     case outputConflictsWithDatabaseSidecar
+    case planOutputConflictsWithInput(String)
+    case planOutputConflictsWithDatabaseSidecar
+    case planOutputConflictsWithReportOutput
 
     public var description: String {
         switch self {
@@ -235,10 +351,18 @@ public enum SQLiteBuildValidationValidatorCLIError:
             return "\(option) is required."
         case .unknownOption(let option):
             return "Unknown option \(option)."
+        case .invalidValue(let option, let value):
+            return "\(option) requires a nonnegative integer; got \(value)."
         case .outputConflictsWithInput(let option):
             return "--output must not identify the same file as \(option)."
         case .outputConflictsWithDatabaseSidecar:
             return "--output must not use a SQLite sidecar path adjacent to --database."
+        case .planOutputConflictsWithInput(let option):
+            return "--plan-output must not identify the same file as \(option)."
+        case .planOutputConflictsWithDatabaseSidecar:
+            return "--plan-output must not use a SQLite sidecar path adjacent to --database."
+        case .planOutputConflictsWithReportOutput:
+            return "--plan-output must not identify the same file as --output."
         }
     }
 }
