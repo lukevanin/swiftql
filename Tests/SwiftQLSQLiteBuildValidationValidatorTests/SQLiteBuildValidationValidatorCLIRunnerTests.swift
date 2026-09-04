@@ -48,6 +48,106 @@ final class SQLiteBuildValidationValidatorCLIRunnerTests: XCTestCase {
         }
     }
 
+    /// `--plan-output` is the whole opt-in: without it the run captures no
+    /// plans and writes no sidecar, and with it the sidecar is a second file
+    /// beside the report rather than a change to it.
+    func testPlanOutputIsOptInAndWritesASecondArtifact() throws {
+        try Support.withValidatorOwnedNorthwindURL { databaseURL in
+            let workingDirectory = databaseURL.deletingLastPathComponent()
+            let manifestURL = workingDirectory.appendingPathComponent("manifest.json")
+            try Support.manifest(queries: [
+                Support.query(id: "trivial", sql: "SELECT 1 AS value"),
+            ]).canonicalJSONData().write(to: manifestURL)
+
+            let reportOnlyURL = workingDirectory.appendingPathComponent("report-only.json")
+            let withoutPlans = try SQLiteBuildValidationValidatorCLIRunner.run(
+                options: try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [
+                    "--database", databaseURL.path,
+                    "--manifest", manifestURL.path,
+                    "--output", reportOnlyURL.path,
+                ])
+            )
+            XCTAssertNil(withoutPlans.planReport)
+
+            let reportURL = workingDirectory.appendingPathComponent("report.json")
+            let planURL = workingDirectory.appendingPathComponent("plans.json")
+            let withPlans = try SQLiteBuildValidationValidatorCLIRunner.run(
+                options: try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [
+                    "--database", databaseURL.path,
+                    "--manifest", manifestURL.path,
+                    "--output", reportURL.path,
+                    "--plan-output", planURL.path,
+                ])
+            )
+            let planReport = try XCTUnwrap(withPlans.planReport)
+
+            XCTAssertEqual(withPlans.exitCode, 0)
+            XCTAssertEqual(
+                try Data(contentsOf: planURL),
+                try planReport.canonicalJSONData()
+            )
+            // The correctness artifact is unchanged by the presence of plans.
+            XCTAssertEqual(
+                try Data(contentsOf: reportURL),
+                try Data(contentsOf: reportOnlyURL)
+            )
+            XCTAssertEqual(planReport.records.count, 1)
+        }
+    }
+
+    /// Two artifacts, two files. One path for both would silently keep only
+    /// whichever was written last.
+    func testPlanOutputMayNotAliasTheReportOrTheInputs() throws {
+        try Support.withValidatorOwnedNorthwindURL { databaseURL in
+            let workingDirectory = databaseURL.deletingLastPathComponent()
+            let manifestURL = workingDirectory.appendingPathComponent("manifest.json")
+            try Support.manifest().canonicalJSONData().write(to: manifestURL)
+            let reportURL = workingDirectory.appendingPathComponent("report.json")
+
+            XCTAssertThrowsError(
+                try SQLiteBuildValidationValidatorCLIOptions.preflightOutputSafety(
+                    databaseURL: databaseURL,
+                    manifestURL: manifestURL,
+                    outputURL: reportURL,
+                    planOutputURL: reportURL
+                )
+            ) { error in
+                XCTAssertEqual(
+                    error as? SQLiteBuildValidationValidatorCLIError,
+                    .planOutputConflictsWithReportOutput
+                )
+            }
+
+            XCTAssertThrowsError(
+                try SQLiteBuildValidationValidatorCLIOptions.preflightOutputSafety(
+                    databaseURL: databaseURL,
+                    manifestURL: manifestURL,
+                    outputURL: reportURL,
+                    planOutputURL: manifestURL
+                )
+            ) { error in
+                XCTAssertEqual(
+                    error as? SQLiteBuildValidationValidatorCLIError,
+                    .planOutputConflictsWithInput("--manifest")
+                )
+            }
+
+            XCTAssertThrowsError(
+                try SQLiteBuildValidationValidatorCLIOptions.preflightOutputSafety(
+                    databaseURL: databaseURL,
+                    manifestURL: manifestURL,
+                    outputURL: reportURL,
+                    planOutputURL: URL(fileURLWithPath: databaseURL.path + "-wal")
+                )
+            ) { error in
+                XCTAssertEqual(
+                    error as? SQLiteBuildValidationValidatorCLIError,
+                    .planOutputConflictsWithDatabaseSidecar
+                )
+            }
+        }
+    }
+
     func testOptionsParsingRequiresDatabaseManifestAndOutput() {
         XCTAssertThrowsError(
             try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [
