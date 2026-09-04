@@ -221,3 +221,59 @@ validator, invoked identically regardless of the manifest's origin.
 - No macro, typed DDL, migration runner, catalog validator, or
   prepared-statement persistence.
 - Does not raise the package's Swift 5.9 tools-version floor.
+
+
+## Plan analysis (#398)
+
+Advisory query-plan analysis is a **separate opt-in**, off by default and
+independent of the correctness validation this plugin already performs. A
+target enables it by adding one more file to its own directory:
+
+- `swiftql-plan-analysis.json` — a plan-suppression document. To opt in with
+  no suppressions, that is `{"format_version": 1, "suppressions": []}`.
+
+With that file present, the plugin adds three arguments to the same build
+command — `--plan-output`, `--plan-suppressions`, `--verify-index-candidates`
+— and declares the plan sidecar as a second output. The opt-in file is
+declared as an input too, so editing it invalidates the command like any other
+input. Without the file, nothing about the invocation changes and the build
+pays nothing for plan analysis.
+
+There is no second command and no prebuild phase: one build command, with its
+inputs and outputs declared, exactly as before.
+
+### Warnings, not fixits
+
+Advisory findings reach the build log and Xcode's issue navigator because the
+validator prints them in the `<path>: warning: <message>` form every Swift
+build system already parses, attributed to the manifest and carrying the
+verified `CREATE INDEX` DDL in the message text.
+
+They are warnings rather than fixits because a fixit is unreachable here. A
+SwiftPM build-tool plugin emits diagnostics, not fixits. A Swift fixit would
+have to come from a macro, and a macro cannot open a database without breaking
+hermetic, incremental builds. Applying the advice is therefore owned by the
+`swiftql-index-advisor` command (#399), which a developer runs deliberately
+and whose diff they approve.
+
+### Advisory output never fails the build
+
+The validator's exit code reads the correctness verdict alone. A build whose
+only findings are advisory succeeds; a correctness failure still fails it,
+exactly as before.
+
+### Build host versus device
+
+A plan captured on the build host is not a promise about the SQLite the
+application will run against. #390 measured a materialization strategy
+changing between two ordinary SQLite point releases. Treat the advice as a
+guide worth checking, not a guarantee about production behaviour.
+
+### The plugin owns none of this
+
+No validation, plan analysis, candidate generation, verification, or
+diagnostic reinterpretation happens inside the plugin. It checks for a file,
+passes flags, and declares inputs and outputs. Every judgement lives in the
+validator, and
+[`IntegrationTests/BuildValidationPluginFixture/verify.sh`](../../IntegrationTests/BuildValidationPluginFixture/verify.sh)
+verifies the exact invocation contract by running real builds.

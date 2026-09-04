@@ -4,7 +4,20 @@ import SwiftQLSQLiteBuildValidationManifest
 
 public struct SQLiteBuildValidationValidatorCLIRunResult: Equatable, Sendable {
     public let report: SQLiteBuildValidationReport
+    /// The advisory plan sidecar, when `--plan-output` asked for one.
+    public let planReport: SQLiteBuildValidationPlanReport?
 
+    public init(
+        report: SQLiteBuildValidationReport,
+        planReport: SQLiteBuildValidationPlanReport? = nil
+    ) {
+        self.report = report
+        self.planReport = planReport
+    }
+
+    /// Decided by the correctness verdict alone. Plan capture adds data, not
+    /// judgement: a run whose every plan is unsupported still exits zero if
+    /// the manifest validated.
     public var exitCode: Int32 {
         report.overallVerdict == .passed ? 0 : 1
     }
@@ -35,9 +48,15 @@ public enum SQLiteBuildValidationValidatorCLIRunner {
     public static func run(
         _ resolved: SQLiteBuildValidationValidatorCLIOptions.Resolved
     ) throws -> SQLiteBuildValidationValidatorCLIRunResult {
-        let report = try validate(resolved)
-        try write(report, to: resolved.outputURL)
-        return SQLiteBuildValidationValidatorCLIRunResult(report: report)
+        let result = try validateCapturingPlans(resolved)
+        try write(result.report, to: resolved.outputURL)
+        if let planReport = result.planReport, let planOutputURL = resolved.planOutputURL {
+            try write(planReport, to: planOutputURL)
+        }
+        return SQLiteBuildValidationValidatorCLIRunResult(
+            report: result.report,
+            planReport: result.planReport
+        )
     }
 
     /// Protects the inputs, decodes the manifest, and validates -- everything
@@ -49,18 +68,50 @@ public enum SQLiteBuildValidationValidatorCLIRunner {
     public static func validate(
         _ resolved: SQLiteBuildValidationValidatorCLIOptions.Resolved
     ) throws -> SQLiteBuildValidationReport {
+        try validateCapturingPlans(resolved).report
+    }
+
+    /// The same, keeping the advisory plan sidecar when `--plan-output` asked
+    /// for one.
+    ///
+    /// A second entry point rather than a changed return type on
+    /// ``validate(_:)``, so a caller that only wants the correctness report
+    /// keeps the signature it already compiles against.
+    public static func validateCapturingPlans(
+        _ resolved: SQLiteBuildValidationValidatorCLIOptions.Resolved
+    ) throws -> SQLiteBuildValidationRunResult {
         try SQLiteBuildValidationValidatorCLIOptions.preflightOutputSafety(
             databaseURL: resolved.databaseURL,
             manifestURL: resolved.manifestURL,
-            outputURL: resolved.outputURL
+            outputURL: resolved.outputURL,
+            planOutputURL: resolved.planOutputURL
         )
         let manifest = try SQLiteBuildValidationManifest.decode(
             contentsOf: resolved.manifestURL
         )
-        return try SQLiteBuildValidator.validate(
+        let result = try SQLiteBuildValidator.run(
             manifest: manifest,
             againstDatabaseAt: resolved.databaseURL,
-            environment: resolved.environment
+            environment: resolved.environment,
+            capturesPlans: resolved.capturesPlans,
+            planDiagnosticSettings: try resolved.planDiagnosticSettings()
+        )
+        guard resolved.verifiesIndexCandidates,
+              let planReport = result.planReport else {
+            return result
+        }
+        // Deliberately after the read-only run has finished and closed its
+        // connection: verification needs a writable scratch copy, and the one
+        // database it may never write to is the snapshot the run validated
+        // against.
+        let recommendations = try SQLiteBuildValidationIndexCandidateVerifier.verify(
+            candidates: planReport.indexCandidates.candidates,
+            queries: manifest.queries,
+            snapshotURL: resolved.databaseURL
+        )
+        return SQLiteBuildValidationRunResult(
+            report: result.report,
+            planReport: planReport.withIndexRecommendations(recommendations)
         )
     }
 
@@ -73,10 +124,22 @@ public enum SQLiteBuildValidationValidatorCLIRunner {
         _ report: SQLiteBuildValidationReport,
         to outputURL: URL
     ) throws {
+        try write(canonicalJSONData: try report.canonicalJSONData(), to: outputURL)
+    }
+
+    /// Writes the canonical plan sidecar, on the same terms.
+    public static func write(
+        _ planReport: SQLiteBuildValidationPlanReport,
+        to outputURL: URL
+    ) throws {
+        try write(canonicalJSONData: try planReport.canonicalJSONData(), to: outputURL)
+    }
+
+    private static func write(canonicalJSONData: Data, to outputURL: URL) throws {
         try FileManager.default.createDirectory(
             at: outputURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        try report.canonicalJSONData().write(to: outputURL, options: .atomic)
+        try canonicalJSONData.write(to: outputURL, options: .atomic)
     }
 }
