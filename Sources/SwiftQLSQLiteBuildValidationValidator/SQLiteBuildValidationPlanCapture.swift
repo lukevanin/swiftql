@@ -88,8 +88,14 @@ public enum SQLiteBuildValidationPlanCapture {
         } catch let error as SQLiteExplainQueryPlanProbeError {
             return .unsupported(reason: error.description)
         } catch {
+            // The type only. An arbitrary `Error`'s description can carry
+            // localized or host-dependent text, and this artifact's bytes are
+            // a determinism gate — a reason that differs between two hosts
+            // running the same inputs would break it. Every failure this
+            // probe raises itself is a `SQLiteExplainQueryPlanProbeError`,
+            // caught above with its full stable message.
             return .unsupported(
-                reason: "EXPLAIN QUERY PLAN failed: \(String(describing: error))"
+                reason: "EXPLAIN QUERY PLAN failed with an error of type \(type(of: error))."
             )
         }
     }
