@@ -17,6 +17,9 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
     /// The row count above which a full table scan is diagnosed. `nil` uses
     /// the documented default.
     public let planScanRowThreshold: Int?
+    /// Whether to verify index candidates on a scratch copy of the snapshot
+    /// (#397). Opt-in: verification copies the snapshot once per candidate.
+    public let verifiesIndexCandidates: Bool
     public let codecIdentifiers: [String]
     public let extensionNames: [String]
     public let capabilityIDs: [String]
@@ -32,6 +35,7 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         planOutputURL: URL? = nil,
         planSuppressionsURL: URL? = nil,
         planScanRowThreshold: Int? = nil,
+        verifiesIndexCandidates: Bool = false,
         codecIdentifiers: [String] = [],
         extensionNames: [String] = [],
         capabilityIDs: [String] = [],
@@ -43,6 +47,7 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         self.planOutputURL = planOutputURL
         self.planSuppressionsURL = planSuppressionsURL
         self.planScanRowThreshold = planScanRowThreshold
+        self.verifiesIndexCandidates = verifiesIndexCandidates
         self.codecIdentifiers = codecIdentifiers
         self.extensionNames = extensionNames
         self.capabilityIDs = capabilityIDs
@@ -62,6 +67,7 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         var planOutputPath: String?
         var planSuppressionsPath: String?
         var planScanRowThresholdText: String?
+        var verifiesIndexCandidates = false
         var codecIdentifiers: [String] = []
         var extensionNames: [String] = []
         var capabilityIDs: [String] = []
@@ -106,6 +112,8 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
                 try assignOnce(&planSuppressionsPath, option: argument)
             case "--plan-scan-row-threshold":
                 try assignOnce(&planScanRowThresholdText, option: argument)
+            case "--verify-index-candidates":
+                verifiesIndexCandidates = true
             case "--codec":
                 codecIdentifiers.append(try value(after: argument))
             case "--extension":
@@ -153,6 +161,7 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
                 }
                 return value
             },
+            verifiesIndexCandidates: verifiesIndexCandidates,
             codecIdentifiers: sqliteBuildValidationSortedUnique(codecIdentifiers),
             extensionNames: sqliteBuildValidationSortedUnique(extensionNames),
             capabilityIDs: sqliteBuildValidationSortedUnique(capabilityIDs),
@@ -185,6 +194,7 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         public let planOutputURL: URL?
         public let planSuppressionsURL: URL?
         public let planScanRowThreshold: Int?
+        public let verifiesIndexCandidates: Bool
         public let environment: SQLiteBuildValidationEnvironment
 
         public init(
@@ -194,6 +204,7 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
             planOutputURL: URL? = nil,
             planSuppressionsURL: URL? = nil,
             planScanRowThreshold: Int? = nil,
+            verifiesIndexCandidates: Bool = false,
             environment: SQLiteBuildValidationEnvironment
         ) {
             self.databaseURL = databaseURL
@@ -202,6 +213,7 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
             self.planOutputURL = planOutputURL
             self.planSuppressionsURL = planSuppressionsURL
             self.planScanRowThreshold = planScanRowThreshold
+            self.verifiesIndexCandidates = verifiesIndexCandidates
             self.environment = environment
         }
 
@@ -248,6 +260,7 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
             planOutputURL: planOutputURL,
             planSuppressionsURL: planSuppressionsURL,
             planScanRowThreshold: planScanRowThreshold,
+            verifiesIndexCandidates: verifiesIndexCandidates,
             environment: SQLiteBuildValidationEnvironment(
                 codecIdentifiers: codecIdentifiers,
                 extensionNames: extensionNames,
@@ -269,6 +282,9 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
           --plan-scan-row-threshold <rows>
                                  Diagnose a full table scan only above this
                                  many rows (default 500)
+          --verify-index-candidates
+                                 Verify each index candidate by re-planning on
+                                 a disposable copy of the snapshot
           --codec <identity>     Available codec identity (repeatable)
           --extension <name>     Registered extension name (repeatable)
           --capability <id>      Explicit caller-owned capability (repeatable)

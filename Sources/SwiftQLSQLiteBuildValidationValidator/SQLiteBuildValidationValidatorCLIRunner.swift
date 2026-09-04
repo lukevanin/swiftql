@@ -89,12 +89,29 @@ public enum SQLiteBuildValidationValidatorCLIRunner {
         let manifest = try SQLiteBuildValidationManifest.decode(
             contentsOf: resolved.manifestURL
         )
-        return try SQLiteBuildValidator.run(
+        let result = try SQLiteBuildValidator.run(
             manifest: manifest,
             againstDatabaseAt: resolved.databaseURL,
             environment: resolved.environment,
             capturesPlans: resolved.capturesPlans,
             planDiagnosticSettings: try resolved.planDiagnosticSettings()
+        )
+        guard resolved.verifiesIndexCandidates,
+              let planReport = result.planReport else {
+            return result
+        }
+        // Deliberately after the read-only run has finished and closed its
+        // connection: verification needs a writable scratch copy, and the one
+        // database it may never write to is the snapshot the run validated
+        // against.
+        let recommendations = try SQLiteBuildValidationIndexCandidateVerifier.verify(
+            candidates: planReport.indexCandidates.candidates,
+            queries: manifest.queries,
+            snapshotURL: resolved.databaseURL
+        )
+        return SQLiteBuildValidationRunResult(
+            report: result.report,
+            planReport: planReport.withIndexRecommendations(recommendations)
         )
     }
 

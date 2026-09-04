@@ -51,6 +51,17 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
     /// database. Verification is #397's, and only a verified candidate may be
     /// reported as recommended.
     public let indexCandidates: SQLiteBuildValidationIndexCandidateSet
+    /// Verified recommendations (#397), or `nil` when verification was not
+    /// requested.
+    ///
+    /// `nil` and "no recommendations" are different answers, and a reader has
+    /// to be able to tell them apart: one means nothing was tried, the other
+    /// means everything was tried and nothing survived.
+    ///
+    /// Set after the fact by ``withIndexRecommendations(_:)``, because
+    /// verification needs a writable scratch copy and therefore cannot run
+    /// inside the read-only connection that produced the rest of this report.
+    public private(set) var indexRecommendations: SQLiteBuildValidationIndexRecommendationSet?
 
     public init(
         manifest: SQLiteBuildValidationManifest,
@@ -61,7 +72,8 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
         diagnostics: [SQLiteBuildValidationPlanDiagnostic] = [],
         suppressedDiagnostics: [SQLiteBuildValidationSuppressedPlanDiagnostic] = [],
         unusedSuppressions: [SQLiteBuildValidationPlanSuppression] = [],
-        indexCandidates: SQLiteBuildValidationIndexCandidateSet = .init()
+        indexCandidates: SQLiteBuildValidationIndexCandidateSet = .init(),
+        indexRecommendations: SQLiteBuildValidationIndexRecommendationSet? = nil
     ) {
         self.formatVersion = 1
         self.manifestFormatVersion = manifest.formatVersion.rawValue
@@ -83,6 +95,16 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
             by: SQLiteBuildValidationPlanSuppression.canonicalOrder
         )
         self.indexCandidates = indexCandidates
+        self.indexRecommendations = indexRecommendations
+    }
+
+    /// The same report, carrying the verification pass's result.
+    public func withIndexRecommendations(
+        _ recommendations: SQLiteBuildValidationIndexRecommendationSet
+    ) -> Self {
+        var copy = self
+        copy.indexRecommendations = recommendations
+        return copy
     }
 
     /// The records whose plan SQLite actually produced.
@@ -105,7 +127,15 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
             return ""
         }
         return diagnostics.map { diagnostic in
-            "swiftql-build-validate: advisory \(diagnostic.code.rawValue) in \(diagnostic.queryID): \(diagnostic.message)"
+            var line = "swiftql-build-validate: advisory \(diagnostic.code.rawValue) in \(diagnostic.queryID): \(diagnostic.message)"
+            // A verified recommendation for the same statement carries the
+            // copy-pasteable fix, which is the actionable half of the advice.
+            let recommendations = indexRecommendations?.recommendations ?? []
+            for recommendation in recommendations
+            where recommendation.candidate.sourceQueryIDs.contains(diagnostic.queryID) {
+                line += " Verified index: \(recommendation.candidate.ddl);"
+            }
+            return line
         }.joined(separator: "\n")
     }
 
@@ -132,5 +162,6 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
         case suppressedDiagnostics = "suppressed_diagnostics"
         case unusedSuppressions = "unused_suppressions"
         case indexCandidates = "index_candidates"
+        case indexRecommendations = "index_recommendations"
     }
 }
