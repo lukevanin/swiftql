@@ -122,12 +122,21 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
     /// The canonical JSON is the artifact of record; this is what a run
     /// prints so an author sees the advice without opening the sidecar.
     /// Empty when there is nothing to advise.
-    public func humanReadableSummary() -> String {
+    ///
+    /// `origin`, when given, is the path each line is attributed to, and the
+    /// lines take the `<path>: warning: <message>` form every Swift build
+    /// system already parses. That is how these findings reach a build log
+    /// and Xcode's issue navigator — the build-tool plugin passes the
+    /// manifest's path and forwards nothing itself. There is no second report
+    /// format: this is a rendering of the same sidecar.
+    public func humanReadableSummary(origin: String? = nil) -> String {
         guard !diagnostics.isEmpty else {
             return ""
         }
         return diagnostics.map { diagnostic in
-            var line = "swiftql-build-validate: advisory \(diagnostic.code.rawValue) in \(diagnostic.queryID): \(diagnostic.message)"
+            let prefix = origin.map { "\($0): warning: " }
+                ?? "swiftql-build-validate: advisory "
+            var line = "\(prefix)\(diagnostic.code.rawValue) in \(diagnostic.queryID): \(diagnostic.message)"
             // A verified recommendation for the same statement carries the
             // copy-pasteable fix, which is the actionable half of the advice.
             let recommendations = indexRecommendations?.recommendations ?? []

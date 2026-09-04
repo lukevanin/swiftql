@@ -15,10 +15,16 @@
 #      reuse).
 #   5. Touching the manifest (content unchanged) does re-run validation, and
 #      the resulting report is byte-identical to the prior run.
+#   6. Plan analysis is per-target and opt-in: the target carrying
+#      swiftql-plan-analysis.json gets a plan sidecar and advisory warnings
+#      with copy-pasteable DDL; the target without it gets neither.
+#   7. Advisory findings do not fail the build.
+#   8. Touching the plan-analysis opt-in re-runs the command.
 set -eu
 cd "$(dirname "$0")"
 
 MANIFEST="Sources/ValidatedLibrary/swiftql-build-validation-manifest.json"
+PLAN_ANALYSIS="Sources/SecondValidatedLibrary/swiftql-plan-analysis.json"
 # Explicit template so this works identically across BSD (macOS) and GNU
 # mktemp implementations, which differ on bare invocations.
 VALID_MANIFEST_BACKUP=$(mktemp "${TMPDIR:-/tmp}/swiftql-plugin-verify.XXXXXX")
@@ -120,6 +126,74 @@ fi
 SECOND_HASH=$(shasum -a 256 "$REPORT" | awk '{print $1}')
 if [ "$FIRST_HASH" != "$SECOND_HASH" ]; then
     echo "FAIL: expected byte-identical reports across the rerun ($FIRST_HASH != $SECOND_HASH)"
+    exit 1
+fi
+echo "OK"
+
+echo "== 6. Plan analysis is opt-in and per target =="
+PLAN_REPORTS=$(find .build/plugins/outputs -name swiftql-plan-analysis-report.json 2>/dev/null | sort)
+PLAN_COUNT=$(printf '%s\n' "$PLAN_REPORTS" | grep -c . || true)
+if [ "$PLAN_COUNT" -ne 1 ]; then
+    echo "FAIL: expected exactly 1 plan sidecar (only SecondValidatedLibrary opts in), found $PLAN_COUNT"
+    printf '%s\n' "$PLAN_REPORTS"
+    exit 1
+fi
+PLAN_REPORT=$(printf '%s\n' "$PLAN_REPORTS" | head -1)
+case "$PLAN_REPORT" in
+    *SecondValidatedLibrary*) ;;
+    *)
+        echo "FAIL: the plan sidecar belongs to the target that opted in, got $PLAN_REPORT"
+        exit 1
+        ;;
+esac
+if ! grep -q '"index_recommendations"' "$PLAN_REPORT"; then
+    echo "FAIL: expected verified index recommendations in $PLAN_REPORT"
+    exit 1
+fi
+if ! grep -q 'CREATE INDEX' "$PLAN_REPORT"; then
+    echo "FAIL: expected copy-pasteable CREATE INDEX DDL in $PLAN_REPORT"
+    exit 1
+fi
+echo "OK"
+
+echo "== 7. Advisory findings are warnings, and do not fail the build =="
+rm -rf .build
+if ! swift build > /tmp/swiftql-plugin-verify-7.log 2>&1; then
+    echo "FAIL: expected advisory findings to leave the build succeeding"
+    cat /tmp/swiftql-plugin-verify-7.log
+    exit 1
+fi
+if ! grep -q "warning: plan.full-table-scan" /tmp/swiftql-plugin-verify-7.log; then
+    echo "FAIL: expected an advisory warning in the build log"
+    cat /tmp/swiftql-plugin-verify-7.log
+    exit 1
+fi
+if ! grep -q "Verified index: CREATE INDEX" /tmp/swiftql-plugin-verify-7.log; then
+    echo "FAIL: expected the verified DDL in the warning message"
+    cat /tmp/swiftql-plugin-verify-7.log
+    exit 1
+fi
+echo "OK"
+
+echo "== 8. Touching the plan-analysis opt-in re-runs the command =="
+if ! swift build > /tmp/swiftql-plugin-verify-8a.log 2>&1; then
+    echo "FAIL: expected unchanged rebuild to succeed"
+    exit 1
+fi
+if grep -q "SwiftQL SQLite build validation (SecondValidatedLibrary)" /tmp/swiftql-plugin-verify-8a.log; then
+    echo "FAIL: expected an unchanged rebuild to reuse the previous run"
+    cat /tmp/swiftql-plugin-verify-8a.log
+    exit 1
+fi
+sleep 1
+touch "$PLAN_ANALYSIS"
+if ! swift build > /tmp/swiftql-plugin-verify-8b.log 2>&1; then
+    echo "FAIL: expected rebuild after touching the opt-in to succeed"
+    exit 1
+fi
+if ! grep -q "SwiftQL SQLite build validation (SecondValidatedLibrary)" /tmp/swiftql-plugin-verify-8b.log; then
+    echo "FAIL: expected the opt-in file's mtime change to invalidate the command"
+    cat /tmp/swiftql-plugin-verify-8b.log
     exit 1
 fi
 echo "OK"

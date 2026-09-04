@@ -32,7 +32,13 @@ do {
         }
         // Advisory findings print alongside, and never touch the exit code:
         // it is `result.exitCode`, which reads the correctness verdict alone.
-        let advisorySummary = result.planReport?.humanReadableSummary() ?? ""
+        // Attributed to the manifest, so the advisory lines take the
+        // `<path>: warning: <message>` form a build log and Xcode's issue
+        // navigator already parse. The manifest is the honest origin: it is
+        // where the statement this advice is about is recorded.
+        let advisorySummary = result.planReport?.humanReadableSummary(
+            origin: resolved.manifestURL.path
+        ) ?? ""
         if !advisorySummary.isEmpty {
             writeStandardError(advisorySummary)
         }
