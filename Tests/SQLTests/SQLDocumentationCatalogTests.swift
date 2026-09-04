@@ -695,7 +695,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
 
         let requiredPhrasesByPath = [
             "README.md": [
-                "`1.6.0` is the latest published package",
+                "`1.7.0` is the latest published package",
             ],
             "COMPATIBILITY.md": [
                 "## v1.3 public products and runtime boundaries",
@@ -736,10 +736,10 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "not a claim of complete SQLite",
                 "v1.3 does not ship a public",
                 "validator, build plugin, query macro, schema system",
-                "Version 1.6.0 is the latest published package",
+                "Version 1.7.0 is the latest published package",
             ],
             "Sources/SwiftQL/SwiftQL.docc/GettingStarted.md": [
-                "Version 1.6.0 is the published package",
+                "Version 1.7.0 is the published package",
                 "This guide's basic request path remains",
                 "from version 1.2.0 or later",
             ],
@@ -912,7 +912,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             // Package Manager version drifts silently; it was still on 1.5.4
             // two releases later when #230 found it.
             "Website/index.html": [
-                #".package(url: "https://github.com/lukevanin/swiftql.git", from: "1.6.0")"#,
+                #".package(url: "https://github.com/lukevanin/swiftql.git", from: "1.7.0")"#,
             ],
             "COMPATIBILITY.md": [
                 "`SwiftQLSQLiteBuildValidationManifest` and",

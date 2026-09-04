@@ -55,6 +55,10 @@ import PackageDescription
 
 let package = Package(
     name: "SwiftQLCoreBoundaryBuild",
+    // Mirrors the real package's floor. Without it the isolated build defaults
+    // to macOS 10.13 and rejects `Regex`, which is macOS 13 or newer, so the
+    // check passes only on Linux where the annotation does not apply.
+    platforms: [.iOS(.v16), .macOS(.v13)],
     products: [
         .library(name: "SwiftQLCore", targets: ["SwiftQLCore"]),
     ],
