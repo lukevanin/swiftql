@@ -57,6 +57,81 @@ final class SQLiteBuildValidatorIntegrationTests: XCTestCase {
         }
     }
 
+    // MARK: - Functions SwiftQL supplies (issue #615)
+
+    /// SQLite resolves a function name at preparation and ships no `regexp`,
+    /// so before issue #615 a query using the operator failed the build even
+    /// though SwiftQL registers `regexp` on the connection that runs it.
+    func testAQueryUsingRegexpPreparesAgainstTheSnapshot() throws {
+        let manifest = Support.manifest(queries: [
+            Support.query(
+                id: "regexp-operator",
+                sql: "SELECT CompanyName AS value FROM Customers WHERE CompanyName REGEXP '^A'",
+                results: [
+                    Support.result(
+                        declaredAlias: "value",
+                        valueTypeIdentifier: "swift.string",
+                        valueTypeName: "Swift.String",
+                        storageIdentifier: "text"
+                    ),
+                ]
+            ),
+        ])
+
+        try Support.withValidatorOwnedNorthwindURL { url in
+            let report = try SQLiteBuildValidator.validate(
+                manifest: manifest,
+                againstDatabaseAt: url
+            )
+            XCTAssertEqual(report.overallVerdict, .passed)
+            let outcome = try XCTUnwrap(report.outcomes.first)
+            XCTAssertEqual(outcome.verdict, .passed)
+            XCTAssertTrue(outcome.diagnostics.isEmpty, "\(outcome.diagnostics)")
+        }
+    }
+
+    /// A `function:` capability is still proven from the connection. `regexp`
+    /// is genuinely there after registration; a function SwiftQL does not
+    /// supply is not, and declaring it must not make it so.
+    func testOnlySuppliedFunctionsSatisfyAFunctionCapability() throws {
+        let supplied = Support.manifest(queries: [
+            Support.query(
+                id: "regexp-capability",
+                sql: "SELECT 1 AS value",
+                requiredCapabilities: ["function:regexp"]
+            ),
+        ])
+        let unsupplied = Support.manifest(queries: [
+            Support.query(
+                id: "unrelated-capability",
+                sql: "SELECT 1 AS value",
+                requiredCapabilities: ["function:tests_not_supplied_by_swiftql"]
+            ),
+        ])
+
+        try Support.withValidatorOwnedNorthwindURL { url in
+            let suppliedReport = try SQLiteBuildValidator.validate(
+                manifest: supplied,
+                againstDatabaseAt: url
+            )
+            XCTAssertEqual(suppliedReport.overallVerdict, .passed)
+
+            let unsuppliedReport = try SQLiteBuildValidator.validate(
+                manifest: unsupplied,
+                againstDatabaseAt: url,
+                environment: SQLiteBuildValidationEnvironment(
+                    capabilityIDs: ["function:tests_not_supplied_by_swiftql"]
+                )
+            )
+            XCTAssertNotEqual(unsuppliedReport.overallVerdict, .passed)
+            let outcome = try XCTUnwrap(unsuppliedReport.outcomes.first)
+            XCTAssertTrue(
+                outcome.diagnostics.contains { $0.code == "capability.function" },
+                "\(outcome.diagnostics)"
+            )
+        }
+    }
+
     // MARK: - Fail-closed: statement/schema-resolution failures
 
     func testMissingTableFailsClosed() throws {

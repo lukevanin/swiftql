@@ -1,5 +1,103 @@
 # Changelog
 
+## [1.7.0] - Unreleased
+
+### Added
+
+- SwiftQL now ships the `regexp` implementation the `REGEXP` operator needs
+  (issue #612). SQLite parses `X REGEXP Y` as a call to `regexp(Y, X)` and
+  ships no such function, so before this release every query that used the
+  operator failed with `no such function: regexp` unless the application
+  registered a two-argument `regexp` itself. `XLExpression.regexp(_:)` now
+  records SwiftQL's own implementation while the statement renders, and the
+  driver registers it on whichever pooled connection executes the statement.
+  The rendered SQL is unchanged.
+
+  `XLRegexpFunction` is backed by Swift `Regex`, so the pattern syntax is
+  Swift's. A pattern matches anywhere in the subject rather than having to
+  match all of it, which is what the widely used `regexp` extensions for
+  SQLite and PostgreSQL's `~` operator do; anchor a pattern with `^` and `$`
+  to require a whole-subject match. A NULL on either side yields NULL. An
+  invalid pattern raises `XLRegexpFunctionError.invalidPattern`, rather than
+  returning false and reading like a pattern that matched nothing. An argument
+  that is neither TEXT nor a UTF-8 BLOB raises `XLColumnReadError` instead of
+  being converted silently.
+
+- A `REGEXP` pattern is compiled once per statement execution rather than once
+  per row (issue #613). SQLite calls a scalar function once for every candidate
+  row and passes the pattern again on each call, so the compile dominated the
+  cost of a scan. Each registration of the bundled function keeps a bounded
+  cache of compiled patterns, holding at most 16 and caching a compile failure
+  with the same rules as a success. A measured 2000-row scan against one pattern
+  compiles once instead of 2000 times, about 46x less wall-clock time in the
+  recorded run. A cache belongs to one registration and is never shared between
+  connections, because Swift's `Regex` is not `Sendable`.
+
+### Changed
+
+- An application that registers its own two-argument `regexp` keeps it (issue
+  #612). SwiftQL never replaces a `regexp` already on the connection, whether
+  it was registered with `GRDBDatabaseBuilder.addFunction(_:)` or with
+  `Configuration.prepareDatabase(_:)`, so upgrading does not change what
+  `REGEXP` means for an application that already supplied one. Deciding that
+  costs one `PRAGMA function_list` per database, not one per query.
+
+- `XLRegexPattern`, a Swift `Regex` usable as the right operand of `REGEXP`
+  (issue #614). A pattern written with `RegexBuilder` gets a compile-time check,
+  composition, and named pieces, none of which a pattern string has. A compiled
+  `Regex` cannot travel through SQLite, so the statement carries an opaque key
+  and SwiftQL's `regexp` resolves it:
+
+  ```swift
+  let leadingA = XLRegexPattern {
+      Anchor.startOfSubject
+      "A"
+      ZeroOrMore(.any)
+  }
+
+  Where(person.name.regexp(leadingA))
+  ```
+
+  A key carries a marker no regular expression contains, so a plain pattern is
+  never mistaken for one; a key naming no registration raises
+  `XLRegexpFunctionError.unregisteredPattern` rather than silently matching
+  nothing. The registry does not keep a pattern alive: hold the
+  `XLRegexPattern` for as long as statements using it can execute. A key names
+  a registration in one process, so `XLStaticStatementDefinition` refuses a
+  statement that carries one -- a descriptor's identity has to be reproducible.
+  Captures are not exposed, because `REGEXP` answers only whether a subject
+  matches.
+
+- A statement that uses `REGEXP` with a string pattern now runs as a static
+  query descriptor, and passes the SQLite build validator, without any
+  registration by the caller (issue #615). One matching an `XLRegexPattern`
+  does not: its key names a registration in one process, so
+  `XLStaticStatementDefinition` refuses it. A descriptor cannot carry a registration closure, so
+  `XLStaticStatementDefinition` records the *signatures* of the functions
+  SwiftQL bundles, and the adapter rebuilds its own implementation from one
+  when the statement is prepared. The build validator registers the same
+  implementations on its snapshot connection, so a query the application can
+  run no longer fails the build.
+
+  An application's own custom function is unchanged: SwiftQL cannot rebuild an
+  implementation it did not write, so such a statement still needs an upfront
+  `GRDBDatabaseBuilder.addFunction(_:)` call to run as a static descriptor, and
+  a `function:` capability naming it is still proven from the validator
+  connection rather than from a declaration.
+
+- Recorded the bundled `REGEXP` surface in the #190 canonical SQLite
+  conformance inventory, and dropped the schema requirement the operator used
+  to carry (issue #616). The inventory version is now 1.7.0. It records 117 public-surface feature records: 113
+  supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
+  1 unimplemented. Of the 197 evidence records, 121 exercise real SQLite and
+  cite one captured SQLite 3.51.0 environment.
+
+- `XLCustomFunctionDefinition`, `XLRegexpFunctionError`, and the pattern matcher
+  behind `REGEXP` moved from `SwiftQL` to `SwiftQLCore` (issue #615). Nothing is
+  renamed and `SwiftQL` re-exports `SwiftQLCore`, so `import SwiftQL` is
+  unaffected. The move is what lets the build validator, which does not depend
+  on the GRDB adapter, register the same implementation the adapter registers.
+
 ## [1.6.0] - 2026-09-03
 
 ### Added
@@ -960,7 +1058,8 @@ The legacy `unixepoch(date:modifiers:)`, `toUnixTimestamp()`, and
 - Added the `REGEXP` operator across the same four optionality shapes as `glob`.
   SQLite parses `X REGEXP Y` as a call to `regexp(Y, X)` and ships no
   implementation, so the operator prepares only once the application registers a
-  two-argument `regexp` function.
+  two-argument `regexp` function. (As of 1.7.0 SwiftQL supplies that function,
+  and the operator needs no registration by the caller.)
 - Completed the generated real-SQLite operator conformance matrix. Every public
   operator overload now carries both prepare and semantic execution evidence,
   packed by operator family and optionality shape, and the corresponding
@@ -1016,7 +1115,8 @@ OrderBy(person.name.collate(XLCollation(rawValue: "localized")).ascending())
 
 `REGEXP` requires the application to register a two-argument `regexp` function
 on the connection. Without it, a statement using the operator fails to prepare
-with `no such function: regexp`.
+with `no such function: regexp`. (No longer true as of 1.7.0, which ships the
+implementation.)
 
 Select a scalar subquery on the nullable side of a join with
 `nullableSubquery(alias:_:)`; the deprecated `XLMetaNullable` overload of

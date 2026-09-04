@@ -158,33 +158,91 @@ extension XLExpression {
 // MARK: - REGEXP
 
 
+///
+/// A `REGEXP` comparison.
+///
+/// Renders exactly what ``XLBinaryOperatorExpression`` renders for the same
+/// operands, and additionally records `XLCustomFunctionRegistration.bundledRegexp`
+/// so the driver registers SwiftQL's own `regexp` implementation on whichever
+/// connection executes the statement. Recording the registration is the only
+/// reason this is a distinct type: a plain binary-operator node records nothing,
+/// so before issue #612 the operator rendered SQL that SQLite could not prepare.
+///
+struct XLRegexpExpression<T>: XLExpression {
+
+    let lhs: any XLExpression
+
+    let rhs: any XLExpression
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunction(.bundledRegexp)
+        context.parenthesis { context in
+            context.binaryOperator("REGEXP", left: lhs.makeSQL, right: rhs.makeSQL)
+        }
+    }
+}
+
+
 extension XLExpression {
 
     ///
     /// Matches `other` as a regular expression.
     ///
-    /// SQLite parses `X REGEXP Y` as a call to `regexp(Y, X)` and ships **no**
-    /// implementation of that function. The application must register a
-    /// two-argument `regexp` function on the connection, otherwise preparation
-    /// fails with `no such function: regexp`.
+    /// SwiftQL supplies the implementation. SQLite parses `X REGEXP Y` as a
+    /// call to `regexp(Y, X)` and ships no such function, so SwiftQL registers
+    /// ``XLRegexpFunction`` on the connection that executes the statement. The
+    /// pattern syntax, the match rule, and the NULL and error behaviour are
+    /// described there.
     ///
-    /// SQLite therefore defines no regular-expression dialect of its own: the
-    /// pattern syntax is whatever the registered function implements.
+    /// ```swift
+    /// Where(person.name.regexp("^A.*n$"))
+    /// ```
+    ///
+    /// An application that registers its own two-argument `regexp` keeps it;
+    /// the bundled function never replaces one already on the connection.
     ///
     public func regexp(_ other: any XLExpression<String>) -> some XLExpression<Bool> where T == String {
-        XLBinaryOperatorExpression(op: "REGEXP", lhs: self, rhs: other)
+        XLRegexpExpression<Bool>(lhs: self, rhs: other)
     }
 
     public func regexp(_ other: any XLExpression<Optional<String>>) -> some XLExpression<Optional<Bool>> where T == String {
-        XLBinaryOperatorExpression(op: "REGEXP", lhs: self, rhs: other)
+        XLRegexpExpression<Optional<Bool>>(lhs: self, rhs: other)
     }
 
     public func regexp(_ other: any XLExpression<String>) -> some XLExpression<Optional<Bool>> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "REGEXP", lhs: self, rhs: other)
+        XLRegexpExpression<Optional<Bool>>(lhs: self, rhs: other)
     }
 
     public func regexp(_ other: any XLExpression<Optional<String>>) -> some XLExpression<Optional<Bool>> where T == Optional<String> {
-        XLBinaryOperatorExpression(op: "REGEXP", lhs: self, rhs: other)
+        XLRegexpExpression<Optional<Bool>>(lhs: self, rhs: other)
+    }
+
+    ///
+    /// Matches a Swift `Regex` rather than a pattern string.
+    ///
+    /// ```swift
+    /// let leadingA = XLRegexPattern {
+    ///     Anchor.startOfSubject
+    ///     "A"
+    ///     ZeroOrMore(.any)
+    /// }
+    ///
+    /// Where(person.name.regexp(leadingA))
+    /// ```
+    ///
+    /// A compiled `Regex` cannot be sent to SQLite, so the statement carries
+    /// the pattern's key instead and the bundled `regexp` function resolves it.
+    /// The key names a registration in this process, so hold the
+    /// `XLRegexPattern` for as long as statements using it can execute, and
+    /// do not build a static query descriptor from such a statement. Both rules
+    /// are described on `XLRegexPattern`.
+    ///
+    public func regexp(_ pattern: XLRegexPattern) -> some XLExpression<Bool> where T == String {
+        regexp(pattern.key)
+    }
+
+    public func regexp(_ pattern: XLRegexPattern) -> some XLExpression<Optional<Bool>> where T == Optional<String> {
+        regexp(pattern.key)
     }
 }
 

@@ -22,6 +22,7 @@ public final class TodoDatabase {
     let listsRequest: any XLRequest<TodoList>
     let listCountsRequest: any XLRequest<TodoListCounts>
     let todoByIDRequest: any XLRequest<Todo>
+    let linkedTodoIDsRequest: any XLRequest<TodoUUID>
 
     /// Opens the database, creating and seeding it the first time only.
     ///
@@ -47,6 +48,7 @@ public final class TodoDatabase {
         listsRequest = database.makeRequest(with: TodoLiveReads.lists)
         listCountsRequest = database.makeRequest(with: TodoLiveReads.listCounts)
         todoByIDRequest = database.makeRequest(with: TodoLiveReads.todoByID)
+        linkedTodoIDsRequest = database.makeRequest(with: TodoLinks.statement)
         didSeed = try database.withTransaction { scope in
             try Self.createSchema(in: scope)
             guard try Self.isUnseeded(scope) else {

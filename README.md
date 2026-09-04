@@ -123,10 +123,10 @@ Add the following line to the `dependencies` section in your `Package.swift`
 file:
 
 ```text
-.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.6.0")
+.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.7.0")
 ```
 
-`1.6.0` is the latest published package. The examples above use APIs retained
+`1.7.0` is the latest published package. The examples above use APIs retained
 by v1.3; the static-query surface remains available from version 1.2.0. Pin a
 source revision only when intentionally testing later changes from `main`.
 
@@ -283,6 +283,11 @@ explicit list of the places the correspondence is not exact.
   `jsonGroupArray` and `jsonGroupObject`, and address any of it with
   `XLJSONPath` instead of a path string. The JSONB variants read and write
   SQLite's binary representation.
+- **[Text matching](https://lukevanin.github.io/swiftql/documentation/swiftql/expressions/).**
+  Match with `like`, `glob`, and `regexp`. `REGEXP` needs no setup: SQLite ships
+  no `regexp` function, so SwiftQL supplies one backed by Swift `Regex`,
+  compiles each pattern once per statement execution rather than once per row,
+  and matches a `RegexBuilder` pattern through `XLRegexPattern`.
 - **Your domain.** Extend SQLite with Swift enums, custom value types, and
   type-safe custom SQL functions.
 

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import RegexBuilder
 #if canImport(Combine)
 import Combine
 #else
@@ -576,6 +577,21 @@ extension GRDBDatabase {
             From(person)
             Where(person.name == name)
         }
+    }
+}
+
+
+/// The `static let` form `Expressions.md` recommends for an `XLRegexPattern`.
+/// The registry does not keep a pattern alive, so the documented example holds
+/// one here rather than in a local, and this test compiles what the page shows.
+enum DocumentationPersonPatterns {
+
+    static let leadingA = XLRegexPattern {
+        Anchor.startOfSubject
+        "A"
+        ZeroOrMore(.any)
+        "n"
+        Anchor.endOfSubject
     }
 }
 
@@ -1791,6 +1807,18 @@ extension XLDocumentationTests {
             encoder.makeSQL(regexpQuery).sql.contains("REGEXP '^A.*n$'")
         )
 
+        let swiftRegexQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.name.regexp(DocumentationPersonPatterns.leadingA))
+        }
+        XCTAssertTrue(
+            encoder.makeSQL(swiftRegexQuery).sql.contains("REGEXP")
+        )
+        let _: (XLRegexPatternTests) -> () throws -> Void =
+            XLRegexPatternTests.testARegexBuilderPatternSelectsTheSameRowsAsTheEquivalentString
+
         let firstOfNextMonth = sql { _ in
             Select("2026-07-19 12:30:45".datetime(.months(1), .startOfMonth))
         }
@@ -1810,9 +1838,9 @@ extension XLDocumentationTests {
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testInAndNotInWithNullElementSemantics
         let _: (XLRegexpOperatorTests) -> () throws -> Void =
-            XLRegexpOperatorTests.testRegexpMatchesUsingTheRegisteredFunction
+            XLRegexpOperatorTests.testRegexpMatchesWithoutAnyApplicationRegistration
         let _: (XLRegexpOperatorTests) -> () throws -> Void =
-            XLRegexpOperatorTests.testRegexpWithoutRegisteredFunctionFailsAtPreparation
+            XLRegexpOperatorTests.testApplicationRegisteredFunctionWinsOverTheBundledOne
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testBetweenExecutesWithLiteralBindingAndColumnBounds
         let _: (XLSyntaxExpressionTests) -> () -> Void =

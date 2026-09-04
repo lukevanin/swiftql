@@ -23,10 +23,10 @@ introduction to SQL, see the
 Add the latest published SwiftQL package to your dependencies:
 
 ```text
-.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.6.0")
+.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.7.0")
 ```
 
-Version 1.6.0 is the published package. This guide's basic request path remains
+Version 1.7.0 is the published package. This guide's basic request path remains
 supported in v1.3, and its static-query and contextual-codec APIs remain
 available from version 1.2.0 or later. Pin a source revision only when
 intentionally testing later changes from `main`.
