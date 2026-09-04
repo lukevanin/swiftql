@@ -818,12 +818,11 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         // replacing `Unreleased` with the release date; update this pin in the
         // same change.
         //
-        // Two sections can be `Unreleased` at once while two release trains
-        // overlap: 1.7 is developed on `version/1.7` before 1.6 is tagged. The
-        // pin names the newest, and the release gate
+        // 1.6.0 is tagged and dated, so 1.7.0 is the only `Unreleased` heading
+        // and it is also the first. The release gate
         // (`scripts/ci/check-release-changelog.sh`) reads the heading for the
-        // version being tagged rather than the first heading, so dating 1.6.0
-        // does not depend on this pin.
+        // version being tagged rather than the first heading, so this pin
+        // records the changelog's shape rather than gating the release.
         XCTAssertEqual(firstReleaseHeading, "## [1.7.0] - Unreleased")
     }
 

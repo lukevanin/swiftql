@@ -98,7 +98,7 @@
   unaffected. The move is what lets the build validator, which does not depend
   on the GRDB adapter, register the same implementation the adapter registers.
 
-## [1.6.0] - Unreleased
+## [1.6.0] - 2026-09-03
 
 ### Added
 

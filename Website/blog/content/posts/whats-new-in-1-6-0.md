@@ -1,6 +1,6 @@
 ---
 title: "What's new in v1.6"
-date: 2026-09-02
+date: 2026-09-03
 description: "SwiftQL v1.6 makes SQLite's JSON surface typed Swift: the -> and ->> operators, json_extract, the constructor, inspection, mutation, and aggregate functions, JSONB variants, and a typed path builder. Decoding a large result set also got about 56% faster."
 ---
 
