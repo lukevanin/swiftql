@@ -19,11 +19,59 @@ import Foundation
 /// filesystem work, not argument parsing, and it is worth reading on its own.
 enum SQLiteBuildValidationOutputSafetyPreflight {
 
+    /// The errors to raise for one output path, so the same checks can guard
+    /// both the correctness report and the plan sidecar while each names the
+    /// option the caller actually spelled.
+    struct OutputErrors {
+        let sidecarConflict: SQLiteBuildValidationValidatorCLIError
+        let inputConflict: (String) -> SQLiteBuildValidationValidatorCLIError
+    }
+
     static func check(
         databaseURL: URL,
         manifestURL: URL,
         outputURL: URL,
+        planOutputURL: URL? = nil,
         fileManager: FileManager = .default
+    ) throws {
+        try check(
+            databaseURL: databaseURL,
+            manifestURL: manifestURL,
+            outputURL: outputURL,
+            errors: OutputErrors(
+                sidecarConflict: .outputConflictsWithDatabaseSidecar,
+                inputConflict: SQLiteBuildValidationValidatorCLIError.outputConflictsWithInput
+            ),
+            fileManager: fileManager
+        )
+        guard let planOutputURL else {
+            return
+        }
+        try check(
+            databaseURL: databaseURL,
+            manifestURL: manifestURL,
+            outputURL: planOutputURL,
+            errors: OutputErrors(
+                sidecarConflict: .planOutputConflictsWithDatabaseSidecar,
+                inputConflict: SQLiteBuildValidationValidatorCLIError.planOutputConflictsWithInput
+            ),
+            fileManager: fileManager
+        )
+        // Two artifacts, two files. Writing both to one path leaves whichever
+        // was written last, which reads as a complete run that silently lost
+        // half its output.
+        guard identityURL(for: outputURL, fileManager: fileManager).path
+            != identityURL(for: planOutputURL, fileManager: fileManager).path else {
+            throw SQLiteBuildValidationValidatorCLIError.planOutputConflictsWithReportOutput
+        }
+    }
+
+    private static func check(
+        databaseURL: URL,
+        manifestURL: URL,
+        outputURL: URL,
+        errors: OutputErrors,
+        fileManager: FileManager
     ) throws {
         let outputIdentityURL = identityURL(
             for: outputURL,
@@ -47,7 +95,7 @@ enum SQLiteBuildValidationOutputSafetyPreflight {
             outputIdentityURL.path,
         ])
         if !protectedDatabaseSidecarPaths.isDisjoint(with: outputPaths) {
-            throw SQLiteBuildValidationValidatorCLIError.outputConflictsWithDatabaseSidecar
+            throw errors.sidecarConflict
         }
 
         for (option, inputURL) in [
@@ -59,7 +107,7 @@ enum SQLiteBuildValidationOutputSafetyPreflight {
                 fileManager: fileManager
             )
             if outputIdentityURL.path == inputIdentityURL.path {
-                throw SQLiteBuildValidationValidatorCLIError.outputConflictsWithInput(option)
+                throw errors.inputConflict(option)
             }
 
             if let outputFileIdentity,
@@ -68,7 +116,7 @@ enum SQLiteBuildValidationOutputSafetyPreflight {
                    fileManager: fileManager
                ),
                outputFileIdentity == inputFileIdentity {
-                throw SQLiteBuildValidationValidatorCLIError.outputConflictsWithInput(option)
+                throw errors.inputConflict(option)
             }
         }
     }
