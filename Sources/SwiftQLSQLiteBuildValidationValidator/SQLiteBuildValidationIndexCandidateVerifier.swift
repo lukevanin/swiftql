@@ -87,13 +87,23 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
                 case .rejected(let rejection):
                     unverified.append(rejection)
                 }
-            } catch {
+            } catch let error as CustomStringConvertible & Error {
                 // A candidate that could not be verified is reported
                 // unverified, never recommended.
                 unverified.append(SQLiteBuildValidationUnverifiedIndexCandidate(
                     candidate: candidate,
                     statementID: query.id,
-                    reason: "Verification could not be completed: \(String(describing: error))"
+                    reason: "Verification could not be completed: \(error.description)"
+                ))
+            } catch {
+                // The type only, for an error that does not state its own
+                // stable description. An arbitrary `Error`'s description can
+                // carry localized or host-dependent text, and this artifact's
+                // bytes are a determinism gate.
+                unverified.append(SQLiteBuildValidationUnverifiedIndexCandidate(
+                    candidate: candidate,
+                    statementID: query.id,
+                    reason: "Verification could not be completed: an error of type \(type(of: error))."
                 ))
             }
         }
