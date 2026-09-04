@@ -74,7 +74,8 @@ public enum SQLiteBuildValidator {
         manifest: SQLiteBuildValidationManifest,
         againstDatabaseAt databaseURL: URL,
         environment: SQLiteBuildValidationEnvironment = .init(),
-        capturesPlans: Bool
+        capturesPlans: Bool,
+        planDiagnosticSettings: SQLiteBuildValidationPlanDiagnosticSettings = .init()
     ) throws -> SQLiteBuildValidationRunResult {
         let databaseURL = databaseURL.standardizedFileURL
             .resolvingSymlinksInPath()
@@ -117,7 +118,8 @@ public enum SQLiteBuildValidator {
                 observedDatabaseByteCount: databaseData.count,
                 observedDatabaseSHA256: observedDatabaseSHA256,
                 environment: environment,
-                capturesPlans: capturesPlans
+                capturesPlans: capturesPlans,
+                planDiagnosticSettings: planDiagnosticSettings
             )
         }
 
@@ -172,7 +174,8 @@ public enum SQLiteBuildValidator {
         observedDatabaseByteCount: Int? = nil,
         observedDatabaseSHA256: String? = nil,
         environment: SQLiteBuildValidationEnvironment = .init(),
-        capturesPlans: Bool
+        capturesPlans: Bool,
+        planDiagnosticSettings: SQLiteBuildValidationPlanDiagnosticSettings = .init()
     ) throws -> SQLiteBuildValidationRunResult {
         let validatedManifest = try manifest.validating()
 
@@ -258,6 +261,7 @@ public enum SQLiteBuildValidator {
             runtimeMetadata: runtimeMetadata,
             observedDatabaseByteCount: observedDatabaseByteCount,
             observedDatabaseSHA256: observedDatabaseSHA256,
+            settings: planDiagnosticSettings,
             skippedReason: hasSchemaIdentityMismatch
                 ? "Plan capture was skipped because the database snapshot's schema identity does not match the manifest."
                 : nil
