@@ -32,6 +32,8 @@ swiftql-build-validate \
   --manifest    build-validation-manifest.json \
   --output      report.json \
   --plan-output plans.json          # opt-in; omit to skip plan capture
+  [--plan-suppressions plan-suppressions.json]
+  [--plan-scan-row-threshold 500]
 ```
 
 `--plan-output` is the whole opt-in. Without it the validator captures no
@@ -103,3 +105,113 @@ A plan captured on the build host is not a promise about the SQLite an
 application will run against. #390 measured a materialization strategy
 changing between two ordinary SQLite point releases. The sidecar states this
 caveat in every report rather than leaving a reader to infer it.
+
+
+## Advisory shape diagnostics (#395)
+
+### What is diagnosed
+
+Four plan shapes, each one the #390 measurement found identical across two
+real SQLite builds for every statement that exercised it:
+
+| Code | Fires on | What it means |
+| --- | --- | --- |
+| `plan.full-table-scan` | `full_table_scan` above the row threshold | SQLite reads every row of the table to answer the query. |
+| `plan.temp-b-tree-order-by` | `temp_b_tree_for_order_by` | SQLite materializes a temporary B-tree because no index returns the rows in `ORDER BY` order. |
+| `plan.temp-b-tree-group-by` | `temp_b_tree_for_group_by` | The same, for `GROUP BY` order. |
+| `plan.correlated-scalar-subquery` | `correlated_scalar_subquery` | A scalar subquery is re-evaluated once per outer row. |
+
+A diagnostic is keyed on the classified **shape**, never on the raw
+`EXPLAIN QUERY PLAN` wording that produced it — wording is the classifier's
+input, not the diagnostic's. A shape the classifier did not recognise carries
+no advice, and the diagnostic type refuses to be constructed with one.
+
+### Severity
+
+`advisory` is its own type, `SQLiteBuildValidationPlanDiagnosticSeverity`,
+rather than a fourth case on `SQLiteBuildValidationVerdict`. A verdict decides
+the validator's exit status; no arrangement of the advisory type can reach
+that decision. Making `advisory` a verdict case would have put "never affects
+exit status" behind a convention every future `switch` has to keep. This way
+it is behind the type system.
+
+### The row threshold
+
+A full scan is diagnosed only above `--plan-scan-row-threshold` rows, default
+500. Below a few hundred rows a scan is typically a handful of page reads, and
+advice about it is noise that trains a reader to ignore the findings that
+matter. The row count is taken from the snapshot and recorded in the
+diagnostic, so the finding can be read without re-deriving it.
+
+The rule needs a real table, so it needs the plan node's spelling resolved.
+EQP prints whichever spelling the statement used, and SwiftQL renders
+`FROM "Orders" AS "t0"`, so `SCAN t0` has to become `Orders` before either a
+reader or `CREATE INDEX` can use it. `SQLiteBuildValidationPlanTableResolver`
+does that from the statement's own `FROM`/`JOIN` clauses, and resolves nothing
+it is not confident about: a CTE name is excluded, and an alias rebound to a
+different table in a nested scope resolves to neither. An unresolved alias
+produces no scan diagnostic rather than one resting on an assumed table size.
+
+### The correlated-subquery fixture, and what it changed
+
+#395 required a **real** correlated-scalar-subquery fixture before that
+diagnostic could ship, because the spike's 214-statement corpus contained
+none and only a synthetic case exercised the classifier's heuristic. The
+fixture this repository now carries —
+
+```sql
+SELECT p.ProductName,
+       (SELECT c.CategoryName FROM Categories c WHERE c.CategoryID = p.CategoryID)
+FROM Products p
+```
+
+— found that the heuristic was wrong. The spike classified a subquery as
+correlated when it was *nested under a row-looping node*. On the SQLite this
+repository tests against, that real correlated subquery is emitted as a
+**top-level sibling** (`parent == 0`) of `SCAN p`, carrying SQLite's own
+explicit `CORRELATED SCALAR SUBQUERY` detail. The heuristic alone would have
+called it uncorrelated.
+
+The classifier now reads SQLite's own word first and keeps the structural test
+only as a fallback for a build that does not print it. This is exactly the
+outcome the issue's extra Done-When bullet was written to force.
+
+### Suppression
+
+Suppression is an explicit, checked-in file, never an inference:
+
+```json
+{
+  "format_version": 1,
+  "suppressions": [
+    {
+      "code": "plan.full-table-scan",
+      "table": "Categories",
+      "reason": "A lookup table of eight rows; a scan is the right plan."
+    },
+    {
+      "code": "plan.temp-b-tree-order-by",
+      "query_id": "reports.monthly-export",
+      "reason": "Sorted once, offline, for a report nobody waits on."
+    }
+  ]
+}
+```
+
+Every rule names a code and at least one of a query or a table, and must state
+a reason. A rule that silences every occurrence of a code is not expressible,
+and neither is a silent one. A rule naming both a query and a table is
+narrower than either alone, never broader.
+
+Silenced findings are **kept** in the sidecar, under `suppressed_diagnostics`,
+with the reason the repository gave. Silencing a finding is a decision, and a
+decision that leaves no trace is indistinguishable from a finding that never
+happened. Rules that silenced nothing are listed under `unused_suppressions`,
+so a stale instruction to ignore something can be found and deleted.
+
+### Advice is not a verdict
+
+Advisory diagnostics are in the sidecar, and the exit code reads the
+correctness verdict alone. A run with findings on every statement still exits
+zero if the manifest validated. The CLI prints the advice to stderr beside the
+correctness summary, and printing it changes nothing about the exit status.
