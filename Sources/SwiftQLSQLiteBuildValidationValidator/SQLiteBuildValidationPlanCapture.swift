@@ -62,6 +62,16 @@ public enum SQLiteBuildValidationPlanCapture {
             ))
         }
 
+        var planRoots: [String: [SQLiteBuildValidationPlanNode]] = [:]
+        for record in records {
+            planRoots[record.queryID] = record.outcome.capturedRoots
+        }
+        let candidates = SQLiteBuildValidationIndexCandidateGenerator.generate(
+            queries: manifest.queries,
+            planRoots: planRoots.compactMapValues { $0 },
+            limits: settings.candidateLimits
+        )
+
         let partitioned = SQLiteBuildValidationPlanDiagnoser.applying(
             suppressions: settings.suppressions,
             to: diagnostics
@@ -77,7 +87,8 @@ public enum SQLiteBuildValidationPlanCapture {
             unusedSuppressions: SQLiteBuildValidationPlanDiagnoser.unusedSuppressions(
                 settings.suppressions,
                 against: diagnostics
-            )
+            ),
+            indexCandidates: candidates
         )
     }
 
