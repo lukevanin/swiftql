@@ -419,7 +419,7 @@ footer {
       <a class="btn" href="https://github.com/lukevanin/swiftql/blob/main/Documentation/PortingFromSQL.md">Port a query</a>
       <a class="btn" href="https://github.com/lukevanin/swiftql">GitHub</a>
     </div>
-    <div class="install"><code>.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.6.0")</code></div>
+    <div class="install"><code>.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.7.0")</code></div>
   </div>
 </header>
 
@@ -537,6 +537,10 @@ footer {
       <div class="card">
         <h3>JSON</h3>
         <p>Read with <code>-&gt;</code>, <code>-&gt;&gt;</code>, and <code>json_extract</code>; build, change, and collect documents; address any of it with a typed <code>XLJSONPath</code>. JSONB variants included.</p>
+      </div>
+      <div class="card">
+        <h3>Text matching</h3>
+        <p>Match with <code>like</code>, <code>glob</code>, and <code>regexp</code>. SQLite ships no <code>regexp</code> function, so SwiftQL supplies one backed by Swift <code>Regex</code>, and a <code>RegexBuilder</code> pattern matches through <code>XLRegexPattern</code>.</p>
       </div>
       <div class="card">
         <h3>Your domain</h3>

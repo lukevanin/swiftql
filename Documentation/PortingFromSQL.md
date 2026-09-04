@@ -66,6 +66,9 @@ and a rename leads the compiler to every query affected.
 | `MIN(x)` / `MAX(x)` / `SUM(x)` | `person.age.minOrNull()` / `.maxOrNull()` / `.sumOrNull()` |
 | `COALESCE(x, 0)` | `person.age.sumOrNull().coalesce(0)` |
 | `x IS NULL` / `x IS NOT NULL` | `family.died.isNull()` / `person.occupationId.notNull()` |
+| `x LIKE y` | `person.name.like("F%")`, or `like(_:escape:)` for an explicit `ESCAPE` |
+| `x GLOB y` | `person.name.glob("F*")` |
+| `x REGEXP y` | `person.name.regexp("^F")`, or `regexp(_:)` with an `XLRegexPattern` built from `RegexBuilder` |
 | `AND` / `OR` / `NOT` | `&&` / `\|\|` / `!` |
 | `CREATE TABLE` | `sqlCreate(Person.self)` |
 | `INSERT INTO t VALUES (...)` | `sqlInsert(person)` |
@@ -290,7 +293,7 @@ checking:
 4. **Outer-joined tables are declared nullable at the source**, via
    `schema.nullableTable`, rather than only being nullable in the result.
 
-Beyond those, the current gaps are recorded rather than hidden. As of the v1.6
+Beyond those, the current gaps are recorded rather than hidden. As of the v1.7
 conformance inventory, of 117 tracked features, 113 are supported with evidence
 from a real SQLite engine, and the exceptions are:
 
