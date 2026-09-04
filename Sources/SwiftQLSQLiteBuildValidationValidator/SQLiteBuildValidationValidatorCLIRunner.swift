@@ -93,7 +93,8 @@ public enum SQLiteBuildValidationValidatorCLIRunner {
             manifest: manifest,
             againstDatabaseAt: resolved.databaseURL,
             environment: resolved.environment,
-            capturesPlans: resolved.capturesPlans
+            capturesPlans: resolved.capturesPlans,
+            planDiagnosticSettings: try resolved.planDiagnosticSettings()
         )
     }
 

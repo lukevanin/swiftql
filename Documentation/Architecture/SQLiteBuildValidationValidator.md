@@ -39,6 +39,8 @@ swiftql-build-validate \
   --manifest  build-validation-manifest.json \
   --output    report.json \
   [--plan-output plans.json]  # advisory query-plan sidecar (#394), opt-in
+  [--plan-suppressions <path>]     # checked-in advisory suppressions (#395)
+  [--plan-scan-row-threshold <n>]  # default 500
   [--codec <identity>]     # repeatable
   [--extension <name>]     # repeatable
   [--capability <id>]      # repeatable
