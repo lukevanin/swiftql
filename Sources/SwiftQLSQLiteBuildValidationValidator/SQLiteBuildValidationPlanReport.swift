@@ -33,13 +33,28 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
     public let observedDatabaseByteCount: Int?
     public let observedDatabaseSHA256: String?
     public let caveats: [String]
+    /// The thresholds and suppression rules this run diagnosed under.
+    public let settings: SQLiteBuildValidationPlanDiagnosticSettings
     public let records: [SQLiteBuildValidationPlanRecord]
+    /// Advisory findings that survived the checked-in suppressions.
+    public let diagnostics: [SQLiteBuildValidationPlanDiagnostic]
+    /// Findings a suppression silenced, kept with the reason the repository
+    /// gave, so silencing a diagnostic leaves a trace.
+    public let suppressedDiagnostics: [SQLiteBuildValidationSuppressedPlanDiagnostic]
+    /// Suppression rules that silenced nothing, so a stale one can be found
+    /// and deleted rather than quietly outliving the finding it was written
+    /// for.
+    public let unusedSuppressions: [SQLiteBuildValidationPlanSuppression]
 
     public init(
         manifest: SQLiteBuildValidationManifest,
         observedDatabaseByteCount: Int?,
         observedDatabaseSHA256: String?,
-        records: [SQLiteBuildValidationPlanRecord]
+        settings: SQLiteBuildValidationPlanDiagnosticSettings = .init(),
+        records: [SQLiteBuildValidationPlanRecord],
+        diagnostics: [SQLiteBuildValidationPlanDiagnostic] = [],
+        suppressedDiagnostics: [SQLiteBuildValidationSuppressedPlanDiagnostic] = [],
+        unusedSuppressions: [SQLiteBuildValidationPlanSuppression] = []
     ) {
         self.formatVersion = 1
         self.manifestFormatVersion = manifest.formatVersion.rawValue
@@ -49,7 +64,17 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
         self.observedDatabaseByteCount = observedDatabaseByteCount
         self.observedDatabaseSHA256 = observedDatabaseSHA256?.lowercased()
         self.caveats = Self.caveats
+        self.settings = settings
         self.records = records.sorted { $0.queryID < $1.queryID }
+        self.diagnostics = diagnostics.sorted(
+            by: SQLiteBuildValidationPlanDiagnostic.canonicalOrder
+        )
+        self.suppressedDiagnostics = suppressedDiagnostics.sorted {
+            SQLiteBuildValidationPlanDiagnostic.canonicalOrder($0.diagnostic, $1.diagnostic)
+        }
+        self.unusedSuppressions = unusedSuppressions.sorted(
+            by: SQLiteBuildValidationPlanSuppression.canonicalOrder
+        )
     }
 
     /// The records whose plan SQLite actually produced.
@@ -60,6 +85,20 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
     /// The records that name why no plan is available.
     public var unsupportedRecords: [SQLiteBuildValidationPlanRecord] {
         records.filter { $0.outcome.unsupportedReason != nil }
+    }
+
+    /// A plain-text rendering of the advisory findings, one per line.
+    ///
+    /// The canonical JSON is the artifact of record; this is what a run
+    /// prints so an author sees the advice without opening the sidecar.
+    /// Empty when there is nothing to advise.
+    public func humanReadableSummary() -> String {
+        guard !diagnostics.isEmpty else {
+            return ""
+        }
+        return diagnostics.map { diagnostic in
+            "swiftql-build-validate: advisory \(diagnostic.code.rawValue) in \(diagnostic.queryID): \(diagnostic.message)"
+        }.joined(separator: "\n")
     }
 
     public func canonicalJSONData() throws -> Data {
@@ -79,6 +118,10 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
         case observedDatabaseByteCount = "observed_database_byte_count"
         case observedDatabaseSHA256 = "observed_database_sha256"
         case caveats
+        case settings
         case records
+        case diagnostics
+        case suppressedDiagnostics = "suppressed_diagnostics"
+        case unusedSuppressions = "unused_suppressions"
     }
 }

@@ -3,15 +3,16 @@ import GRDB
 import SwiftQLSQLiteBuildValidationManifest
 
 
-/// Captures one normalised query plan per manifest entry.
+/// Captures one normalised query plan per manifest entry, and diagnoses the
+/// plan shapes that indicate avoidable work.
 ///
 /// Runs on the same read-only/query-only connection that produced the run's
 /// correctness evidence, after that evidence is complete. It adds data and
-/// makes no judgement: nothing here reads, writes, or reinterprets a
-/// correctness verdict, and no plan can fail a build.
+/// advice: nothing here reads, writes, or reinterprets a correctness verdict,
+/// and no plan or diagnostic can fail a build.
 public enum SQLiteBuildValidationPlanCapture {
 
-    /// Captures plans for every entry in `manifest`.
+    /// Captures plans, and diagnoses them, for every entry in `manifest`.
     ///
     /// `skippedReason`, when present, is the single explicit reason every
     /// entry is unsupported — the caller has already established that
@@ -24,6 +25,7 @@ public enum SQLiteBuildValidationPlanCapture {
         runtimeMetadata: SQLiteBuildValidationRuntimeMetadata?,
         observedDatabaseByteCount: Int?,
         observedDatabaseSHA256: String?,
+        settings: SQLiteBuildValidationPlanDiagnosticSettings = .init(),
         skippedReason: String? = nil
     ) -> SQLiteBuildValidationPlanReport {
         let provenance = runtimeMetadata.map(SQLiteBuildValidationPlanProvenance.init)
@@ -35,12 +37,59 @@ public enum SQLiteBuildValidationPlanCapture {
                 skippedReason: skippedReason
             )
         }
+
+        var rowCounts: [String: Int] = [:]
+        var diagnostics: [SQLiteBuildValidationPlanDiagnostic] = []
+        for (query, record) in zip(manifest.queries, records) {
+            guard let roots = record.outcome.capturedRoots else {
+                continue
+            }
+            for table in SQLiteBuildValidationPlanDiagnoser.tablesNeedingRowCounts(
+                for: query,
+                roots: roots
+            ) where rowCounts[table] == nil {
+                // A table this validator cannot count produces no scan
+                // finding, rather than one resting on an assumed size.
+                if let rowCount = rowCount(of: table, in: database) {
+                    rowCounts[table] = rowCount
+                }
+            }
+            diagnostics.append(contentsOf: SQLiteBuildValidationPlanDiagnoser.diagnostics(
+                for: query,
+                roots: roots,
+                tableRowCounts: rowCounts,
+                settings: settings
+            ))
+        }
+
+        let partitioned = SQLiteBuildValidationPlanDiagnoser.applying(
+            suppressions: settings.suppressions,
+            to: diagnostics
+        )
         return SQLiteBuildValidationPlanReport(
             manifest: manifest,
             observedDatabaseByteCount: observedDatabaseByteCount,
             observedDatabaseSHA256: observedDatabaseSHA256,
-            records: records
+            settings: settings,
+            records: records,
+            diagnostics: partitioned.reported,
+            suppressedDiagnostics: partitioned.suppressed,
+            unusedSuppressions: SQLiteBuildValidationPlanDiagnoser.unusedSuppressions(
+                settings.suppressions,
+                against: diagnostics
+            )
         )
+    }
+
+    /// Rows in `table`, or `nil` when the count cannot be taken.
+    ///
+    /// The identifier is quoted with SQLite's own doubling rule. Every name
+    /// reaching this function came from the statement's own `FROM`/`JOIN`
+    /// clauses, but the connection is the validator's and the quoting cost is
+    /// nothing, so it is not left to the caller's provenance.
+    private static func rowCount(of table: String, in database: Database) -> Int? {
+        let quoted = "\"\(table.replacingOccurrences(of: "\"", with: "\"\""))\""
+        return try? Int.fetchOne(database, sql: "SELECT COUNT(*) FROM \(quoted)")
     }
 
     private static func record(
