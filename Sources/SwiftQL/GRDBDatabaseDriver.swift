@@ -10,7 +10,15 @@ import GRDB
 ///
 /// The driver is internal to the v1 compatibility facade. Public code depends
 /// on the adapter-neutral contracts from `SwiftQLCore`.
-struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
+///
+/// A driver is either pool-backed (the default: every connection access
+/// leases from the `DatabasePool`, exactly as before issue #284) or pinned to
+/// one already-open connection for the duration of one
+/// ``XLTransactionalDatabase/withTransaction(_:)`` scope. Pinned-mode
+/// connection access never touches the pool, so it cannot re-enter it and
+/// cannot deadlock waiting on a writer access the enclosing scope already
+/// holds.
+struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
 
     typealias Dialect = XLSQLiteDialect
 
@@ -22,23 +30,95 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
 
     let dialect: XLSQLiteDialect
 
-    let databasePool: DatabasePool
+    private enum Access {
+        case pool(DatabasePool)
+        case pinned(GRDBPinnedConnectionBox)
+    }
+
+    private let access: Access
+
+    /// The pool backing this driver, or `nil` when pinned to one transaction
+    /// scope's connection. `ValueObservation`-backed live queries need a
+    /// stable pool to track, so a pinned-mode caller must fail explicitly
+    /// instead of observing a connection that is about to be invalidated.
+    var databasePool: DatabasePool? {
+        if case .pool(let pool) = access {
+            return pool
+        }
+        return nil
+    }
+
+    /// `true` once this driver has been pinned to one transaction scope's
+    /// connection. Used to reject a nested `withTransaction(_:)` call before
+    /// it touches the pool, instead of silently opening a second scope.
+    var isPinned: Bool {
+        if case .pinned = access {
+            return true
+        }
+        return false
+    }
 
     init(
         databasePool: DatabasePool,
         dialect: XLSQLiteDialect,
         databaseIdentifier: XLDatabaseIdentifier = XLDatabaseIdentifier(rawValue: UUID())
     ) {
-        self.databasePool = databasePool
+        self.access = .pool(databasePool)
         self.dialect = dialect
         self.databaseIdentifier = databaseIdentifier
+    }
+
+    private init(
+        access: Access,
+        dialect: XLSQLiteDialect,
+        databaseIdentifier: XLDatabaseIdentifier
+    ) {
+        self.access = access
+        self.dialect = dialect
+        self.databaseIdentifier = databaseIdentifier
+    }
+
+    ///
+    /// Produces a driver pinned to `box`'s connection for the duration of one
+    /// transaction scope. Every connection access on the returned driver
+    /// reuses that connection directly instead of leasing one from the pool.
+    ///
+    /// Deliberately assigns a **fresh** `databaseIdentifier` rather than
+    /// reusing this driver's own: a `@SQLQuery`/`@SQLQueries` render-once
+    /// cache entry (``XLPreparedQueryCacheKey``) caches a fully-built
+    /// `GRDBRequest`/`GRDBWriteRequest` — which closes over one specific
+    /// driver — not just the rendered SQL text. Sharing the pool-backed
+    /// database's identifier would let a declared query first populated
+    /// outside a transaction permanently bind that entry to the pool driver
+    /// (silently re-entering the pool from inside every later transaction
+    /// instead of using the pinned connection), or let a declared query first
+    /// populated *inside* one transaction hand a later, unrelated call a
+    /// `GRDBRequest` bound to that transaction's already-invalidated pinned
+    /// box. A fresh identifier per scope gives every transaction its own
+    /// cache entry instead: one extra render the first time a declared query
+    /// is used inside a given transaction, in exchange for never reusing a
+    /// request built for a different connection.
+    ///
+    func pinned(to box: GRDBPinnedConnectionBox) -> GRDBDatabaseDriver {
+        GRDBDatabaseDriver(
+            access: .pinned(box),
+            dialect: dialect,
+            databaseIdentifier: XLDatabaseIdentifier(rawValue: UUID())
+        )
     }
 
     mutating func withReadConnection<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
-        try databasePool.read { database in
-            var connection = makeConnection(database)
+        switch access {
+        case .pool(let pool):
+            try preconditionNotRootReentrant()
+            return try pool.read { database in
+                var connection = makeConnection(database)
+                return try operation(&connection)
+            }
+        case .pinned(let box):
+            var connection = try box.connection(makeConnection: makeConnection)
             return try operation(&connection)
         }
     }
@@ -46,8 +126,15 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     mutating func withWriteConnection<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
-        try databasePool.writeWithoutTransaction { database in
-            var connection = makeConnection(database)
+        switch access {
+        case .pool(let pool):
+            try preconditionNotRootReentrant()
+            return try pool.writeWithoutTransaction { database in
+                var connection = makeConnection(database)
+                return try operation(&connection)
+            }
+        case .pinned(let box):
+            var connection = try box.connection(makeConnection: makeConnection)
             return try operation(&connection)
         }
     }
@@ -55,9 +142,45 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     mutating func withTransaction<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
-        try databasePool.write { database in
-            var connection = makeConnection(database)
+        switch access {
+        case .pool(let pool):
+            try preconditionNotRootReentrant()
+            return try pool.write { database in
+                var connection = makeConnection(database)
+                return try operation(&connection)
+            }
+        case .pinned(let box):
+            // Already running inside the one real transaction that the
+            // owning `XLTransactionalDatabase.withTransaction(_:)` scope
+            // opened with `databasePool.write`. A write statement executed
+            // through the ordinary v1 request path calls this method once
+            // per statement, so reuse the pinned connection directly instead
+            // of asking GRDB for a second write access — GRDB's own writer
+            // queue is not reentrant, and a second `databasePool.write` here
+            // would deadlock instead of composing as a nested transaction.
+            var connection = try box.connection(makeConnection: makeConnection)
             return try operation(&connection)
+        }
+    }
+
+    ///
+    /// Rejects "root-executor re-entry" (issue #284): any pool-mode
+    /// connection access — read *or* write — issued through this driver's
+    /// `databaseIdentifier` while a ``XLTransactionalDatabase/withTransaction(_:)``
+    /// scope for that same identifier is already active on the calling
+    /// thread. This is what protects a plain `SELECT` issued through the
+    /// captured root database from inside an active transaction body, not
+    /// just a second `withTransaction(_:)` call: GRDB's reader pool is not
+    /// reentrant-locked with its writer, so a stray read like that would not
+    /// crash or deadlock — it would just silently lease a different
+    /// connection and return the database's last *committed* state, missing
+    /// the transaction's own uncommitted writes, exactly the "lease another
+    /// connection... and break the transaction boundary" hazard the hard
+    /// constraints call out. See ``GRDBTransactionScopeTracker``.
+    ///
+    private func preconditionNotRootReentrant() throws {
+        guard !GRDBTransactionScopeTracker.shared.isActive(databaseIdentifier) else {
+            throw XLTransactionScopeError.nestedTransactionUnsupported
         }
     }
 
@@ -68,6 +191,62 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
             driverIdentifier: driverIdentifier,
             dialect: dialect
         )
+    }
+}
+
+
+///
+/// Holds the one physical connection lent to a
+/// ``XLTransactionalDatabase/withTransaction(_:)`` scope for its entire
+/// duration, and invalidates it the instant that scope's body returns.
+///
+/// GRDB's `Database` is explicitly *not* `Sendable` — it must only be used
+/// from the serialized writer access that owns it (see
+/// `GRDB/Core/Database.swift`'s `@available(*, unavailable) extension
+/// Database: Sendable`). This box is created inside that writer access,
+/// read only synchronously from the same dynamic extent by the transaction
+/// body, and invalidated before that access returns; `@unchecked Sendable`
+/// documents and contains that invariant instead of ever exposing `Database`
+/// through public API.
+///
+/// Invalidation is what turns an escaped transaction-scoped value into a
+/// predictable ``XLTransactionScopeError/scopeEscaped`` instead of a data
+/// race or a crash: once `invalidate()` runs, every later `connection(...)`
+/// call throws rather than touching a connection GRDB may already have
+/// reused for unrelated work.
+final class GRDBPinnedConnectionBox: @unchecked Sendable {
+
+    private let lock = NSLock()
+    private var database: Database?
+
+    init(_ database: Database) {
+        self.database = database
+    }
+
+    /// Invalidates the box. Called once, when the owning
+    /// `databasePool.write` access is about to return (commit or rollback).
+    ///
+    /// Synchronized against `connection(makeConnection:)` so a scope value
+    /// that escapes to another thread reads a consistent, already-invalidated
+    /// `database` instead of racing this write -- a scope value used after
+    /// its body returns must reliably throw `.scopeEscaped`, never trip a
+    /// data race.
+    func invalidate() {
+        lock.lock()
+        defer { lock.unlock() }
+        database = nil
+    }
+
+    func connection(
+        makeConnection: (Database) -> GRDBDatabaseDriverConnection
+    ) throws -> GRDBDatabaseDriverConnection {
+        lock.lock()
+        let database = self.database
+        lock.unlock()
+        guard let database else {
+            throw XLTransactionScopeError.scopeEscaped
+        }
+        return makeConnection(database)
     }
 }
 
@@ -85,16 +264,30 @@ struct GRDBInvocationExecutor: Sendable {
 
     let valueEncodingError: XLSQLValueEncodingError?
 
+    /// Custom scalar functions referenced by `logicalStatement`, keyed by their SQLite
+    /// registration signature.
+    ///
+    /// Registered unconditionally on whatever physical connection is checked out immediately
+    /// before every execution (see `boundStatement`), rather than once upfront. `DatabasePool`
+    /// hands out any of several persistent reader connections, and a `Database.add(function:)`
+    /// call only affects the one physical connection it runs on -- so there is no single "first
+    /// use" moment this could register at once and be done. Re-registering on every execution
+    /// costs one cheap `sqlite3_create_function` call and guarantees correctness regardless of
+    /// which pooled connection served the request.
+    let customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
+
     init(
         driver: GRDBDatabaseDriver,
         logicalStatement: XLLogicalPreparedStatement,
         parameterLayoutError: XLInvocationBindingError? = nil,
-        valueEncodingError: XLSQLValueEncodingError? = nil
+        valueEncodingError: XLSQLValueEncodingError? = nil,
+        customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
     ) {
         self.driver = driver
         self.logicalStatement = logicalStatement
         self.parameterLayoutError = parameterLayoutError
         self.valueEncodingError = valueEncodingError
+        self.customFunctions = customFunctions
     }
 
     var parameterLayout: XLParameterLayout {
@@ -112,7 +305,7 @@ struct GRDBInvocationExecutor: Sendable {
     }
 
     func fetchAll(
-        packet: XLInvocationBindings<XLSQLiteValue>,
+        packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws -> [[XLSQLiteValue]] {
         try connection.fetchAll(boundStatement(packet: packet, in: &connection))
@@ -137,7 +330,7 @@ struct GRDBInvocationExecutor: Sendable {
     }
 
     func forEachRow(
-        packet: XLInvocationBindings<XLSQLiteValue>,
+        packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection,
         _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
     ) throws {
@@ -145,6 +338,36 @@ struct GRDBInvocationExecutor: Sendable {
             boundStatement(packet: packet, in: &connection),
             body
         )
+    }
+
+    ///
+    /// Prepares and binds one statement for `packet`, then lends a
+    /// value-level row stepper scoped to the connection access that owns it.
+    ///
+    /// `operation` runs synchronously inside the same read (or, when
+    /// `requiresWriteConnection` is `true`, write/transaction) connection
+    /// access that creates the stepper, so the GRDB cursor the stepper
+    /// closes over never escapes its owning database access -- the stepper
+    /// closure is only valid for the duration of `operation`. `XLResultSet`
+    /// is built directly on top of this seam.
+    ///
+    func withValuesStepper<Result>(
+        packet: XLValidatedSQLitePacket,
+        requiresWriteConnection: Bool,
+        _ operation: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
+    ) throws -> Result {
+        var driver = driver
+        let accessor: (inout GRDBDatabaseDriverConnection) throws -> Result = { connection in
+            let statement = try self.boundStatement(packet: packet, in: &connection)
+            let stepper = try connection.makeValuesStepper(statement)
+            return try operation(stepper)
+        }
+        if requiresWriteConnection {
+            return try driver.withTransaction(accessor)
+        }
+        else {
+            return try driver.withReadConnection(accessor)
+        }
     }
 
     func fetchOne(
@@ -157,8 +380,18 @@ struct GRDBInvocationExecutor: Sendable {
         }
     }
 
+    /// Reads on a connection this executor takes for the call.
     func fetchOne(
-        packet: XLInvocationBindings<XLSQLiteValue>,
+        packet: XLValidatedSQLitePacket
+    ) throws -> [XLSQLiteValue]? {
+        var driver = driver
+        return try driver.withReadConnection { connection in
+            try fetchOne(packet: packet, in: &connection)
+        }
+    }
+
+    func fetchOne(
+        packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws -> [XLSQLiteValue]? {
         try connection.fetchOne(boundStatement(packet: packet, in: &connection))
@@ -174,37 +407,44 @@ struct GRDBInvocationExecutor: Sendable {
         }
     }
 
+    /// Executes inside a transaction this executor opens for the call.
     func execute(
-        packet: XLInvocationBindings<XLSQLiteValue>,
+        packet: XLValidatedSQLitePacket
+    ) throws {
+        var driver = driver
+        try driver.withTransaction { connection in
+            try execute(packet: packet, in: &connection)
+        }
+    }
+
+    func execute(
+        packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws {
         try connection.execute(boundStatement(packet: packet, in: &connection))
     }
 
+    /// Checks an invocation packet against this statement's parameter layout,
+    /// and returns the evidence that it passed.
+    ///
+    /// Execution takes an ``XLValidatedSQLitePacket``, which cannot be built
+    /// without the structural checks running, and this is the only place the
+    /// semantic ones are applied -- so validation happens once per execution
+    /// rather than the two or three times it used to (issue #561).
     func sqlitePacket(
         _ bindings: any XLInvocationBindingPacket
-    ) throws -> XLInvocationBindings<XLSQLiteValue> {
+    ) throws -> XLValidatedSQLitePacket {
         if let valueEncodingError {
             throw valueEncodingError
         }
         if let parameterLayoutError {
             throw parameterLayoutError
         }
-        guard let packet = bindings as? XLInvocationBindings<XLSQLiteValue> else {
-            throw XLRequestBindingError.incompatibleInvocationPacket(
-                requestType: String(reflecting: Self.self),
-                expectedDialect: XLSQLiteDialect.identity,
-                expectedValueType: String(reflecting: XLSQLiteValue.self),
-                actualPacketType: String(reflecting: type(of: bindings))
-            )
-        }
-        guard packet.layout == parameterLayout else {
-            throw XLInvocationBindingError.packetLayoutMismatch(
-                expected: parameterLayout,
-                actual: packet.layout
-            )
-        }
-        let validatedPacket = try packet.validatingComplete()
+        let validatedPacket = try XLValidatedSQLitePacket(
+            validating: bindings,
+            matching: parameterLayout,
+            requestType: Self.self
+        )
         for binding in validatedPacket.bindings {
             if case .real(let value) = binding.value,
                let error = XLSQLValueEncodingError.bindingFailure(
@@ -247,10 +487,10 @@ struct GRDBInvocationExecutor: Sendable {
     }
 
     private func boundStatement(
-        packet: XLInvocationBindings<XLSQLiteValue>,
+        packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws -> GRDBPhysicalStatement {
-        let packet = try sqlitePacket(packet)
+        connection.registerCustomFunctions(customFunctions)
         var statement = try connection.prepare(logicalStatement)
         for binding in packet.bindings {
             do {
@@ -464,11 +704,86 @@ struct GRDBDatabaseDriverConnection:
         }
     }
 
+    ///
+    /// Implements ``XLStreamingDatabaseDriverConnection/makeValuesStepper(_:)``
+    /// for GRDB: takes one already-prepared physical statement and returns a
+    /// value-level stepper that performs at most one additional SQLite step
+    /// and value-normalization per call, returning `nil` once the underlying
+    /// cursor is exhausted.
+    ///
+    /// This is the pull-based counterpart to `forEachRow(_:_:)`'s push-based
+    /// callback: `XLResultSet.next()` needs to step exactly one row per call
+    /// from outside code that already ran and returned, which a callback
+    /// invoked once per row cannot express. The returned closure remains
+    /// valid only for the lifetime of this connection's database access: it
+    /// captures a GRDB row cursor bound to `database`, which must not survive
+    /// the access that produced this connection. The caller must stop
+    /// invoking the closure -- and release every reference to it -- no later
+    /// than when that access returns.
+    ///
+    mutating func makeValuesStepper(
+        _ statement: GRDBPhysicalStatement
+    ) throws -> () throws -> [XLSQLiteValue]? {
+        try validateOwnership(of: statement)
+        let cursor = try Row.fetchCursor(
+            statement.statement,
+            arguments: statementArguments(statement)
+        )
+        // Same reusable normalization buffer as forEachRow(_:_:) above, for
+        // the same reason: the streaming contract requires the caller to
+        // consume (decode or copy) each row's values before requesting the
+        // next one.
+        var values: [XLSQLiteValue] = []
+        // Exhaustion and a thrown step error are both terminal: GRDB does not
+        // document `Cursor.next()` as safe to call again after it throws, so
+        // once this closure has returned `nil` or thrown once, every later
+        // call keeps returning `nil` instead of stepping the cursor again.
+        var isTerminal = false
+        return {
+            guard !isTerminal else {
+                return nil
+            }
+            let row: Row?
+            do {
+                row = try cursor.next()
+            }
+            catch {
+                isTerminal = true
+                throw error
+            }
+            guard let row else {
+                isTerminal = true
+                return nil
+            }
+            values.removeAll(keepingCapacity: true)
+            values.reserveCapacity(row.count)
+            for databaseValue in row.databaseValues {
+                values.append(databaseValue.sqliteDialectValue)
+            }
+            return values
+        }
+    }
+
     mutating func execute(_ statement: GRDBPhysicalStatement) throws {
         try validateOwnership(of: statement)
         try statement.statement.execute(
             arguments: statementArguments(statement)
         )
+    }
+
+    /// Registers custom SQLite functions referenced by the statement about to execute on this
+    /// connection's underlying physical connection.
+    ///
+    /// Unconditional and idempotent: SQLite's `sqlite3_create_function` simply replaces any
+    /// existing registration for the same name and argument count, so calling this before every
+    /// execution is correct however many times it runs, on however many distinct physical
+    /// connections `DatabasePool` hands out over the connection's lifetime.
+    func registerCustomFunctions(
+        _ registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
+    ) {
+        for registration in registrations.values {
+            database.add(function: registration.makeDatabaseFunction())
+        }
     }
 
     private func validateOwnership(of statement: GRDBPhysicalStatement) throws {
@@ -616,6 +931,76 @@ private extension XLBindingKey {
             return name
         case .indexed(let index):
             return String(index)
+        }
+    }
+}
+
+
+///
+/// Detects "root-executor re-entry" (issue #284): a second
+/// `withTransaction(_:)` call, reached from inside an already-active body,
+/// on the *original, unpinned* database value rather than the pinned scope
+/// `body` was given.
+///
+/// `GRDBDatabaseDriver.isPinned` alone cannot catch this, because the
+/// captured root database's own driver was never marked pinned — only the
+/// scope handed to `body` was. And the crash this guards against cannot be
+/// caught after the fact: GRDB's writer access is not reentrant, and a
+/// reentrant `DatabasePool.write`/`writeWithoutTransaction` call traps with
+/// an unconditional `fatalError` ("Database methods are not reentrant.")
+/// before a single line of SwiftQL runs. This tracker must reject the call
+/// *before* it reaches `databasePool.write` at all.
+///
+/// Scoped per-`Thread` rather than per-pool: `body` runs synchronously to
+/// completion, so a call nested inside it is necessarily on the same thread
+/// as the active scope. Two independent, concurrent `withTransaction(_:)`
+/// calls from different threads are unrelated activations — each has its own
+/// thread dictionary — and both must succeed, serialized safely by GRDB's own
+/// writer queue.
+///
+/// Callers must enter `withActive(_:_:)` on the same thread that will run
+/// `body` -- for the GRDB adapter, that means *inside* the
+/// `databasePool.write(_:)` closure, not around it. GRDB dispatches that
+/// closure onto its own writer thread, which is not necessarily the caller's
+/// thread; marking active before calling `databasePool.write` would leave a
+/// reentrant call made from inside `body` unable to see the marker, silently
+/// defeating this guard.
+final class GRDBTransactionScopeTracker: @unchecked Sendable {
+
+    static let shared = GRDBTransactionScopeTracker()
+
+    private let key = "swiftql.grdb.activeTransactionScopeDatabaseIdentifiers"
+
+    private init() {}
+
+    func isActive(_ databaseIdentifier: XLDatabaseIdentifier) -> Bool {
+        activeIdentifiers.contains(databaseIdentifier)
+    }
+
+    /// Marks `databaseIdentifier` active on the calling thread for the
+    /// duration of `body`, and always clears it again afterward — including
+    /// when `body` throws.
+    func withActive<Result>(
+        _ databaseIdentifier: XLDatabaseIdentifier,
+        _ body: () throws -> Result
+    ) throws -> Result {
+        var identifiers = activeIdentifiers
+        identifiers.insert(databaseIdentifier)
+        activeIdentifiers = identifiers
+        defer {
+            var identifiers = activeIdentifiers
+            identifiers.remove(databaseIdentifier)
+            activeIdentifiers = identifiers
+        }
+        return try body()
+    }
+
+    private var activeIdentifiers: Set<XLDatabaseIdentifier> {
+        get {
+            Thread.current.threadDictionary[key] as? Set<XLDatabaseIdentifier> ?? []
+        }
+        set {
+            Thread.current.threadDictionary[key] = newValue
         }
     }
 }

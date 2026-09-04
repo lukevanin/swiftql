@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 import GRDB
 import XCTest
 
@@ -573,13 +574,19 @@ private enum QueryCaptureFixtureError: Error {
 }
 
 
+/// A temporary database with a `GRDBDatabase` already built over it.
+///
+/// The directory, the pool, and their cleanup are
+/// ``TemporaryDatabaseFixture``'s (issue #557); this adds only the database
+/// these tests actually work through.
 private struct QueryCaptureDatabaseFixture {
-    let directory: URL
+    let temporary: TemporaryDatabaseFixture
     let database: GRDBDatabase
 
+    var directory: URL { temporary.directoryURL }
+
     func tearDown() {
-        try? database.databasePool.close()
-        try? FileManager.default.removeItem(at: directory)
+        temporary.tearDown()
     }
 }
 
@@ -587,21 +594,14 @@ private struct QueryCaptureDatabaseFixture {
 private func makeQueryCaptureDatabase(
     configuration: XLValueCodingConfiguration? = nil
 ) throws -> QueryCaptureDatabaseFixture {
-    let directory = FileManager.default.temporaryDirectory
-        .appendingPathComponent("swiftql-query-capture-\(UUID().uuidString)")
-    try FileManager.default.createDirectory(
-        at: directory,
-        withIntermediateDirectories: false
-    )
+    let temporary = try TemporaryDatabaseFixture.make(named: "query-capture")
     let database = try GRDBDatabase(
-        databasePool: DatabasePool(
-            path: directory.appendingPathComponent("database.sqlite").path
-        ),
+        databasePool: temporary.pool,
         codingConfiguration: try configuration ?? XLValueCodingConfiguration(),
         formatter: XLiteFormatter(),
         logger: nil
     )
-    return QueryCaptureDatabaseFixture(directory: directory, database: database)
+    return QueryCaptureDatabaseFixture(temporary: temporary, database: database)
 }
 
 

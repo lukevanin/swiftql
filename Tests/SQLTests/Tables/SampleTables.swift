@@ -66,3 +66,20 @@ var dad: String?
 var born: Date?
 var died: Date?
 }
+
+
+///
+/// A table with a column that holds a JSON document, used by the JSON
+/// documentation page.
+///
+@SQLTable
+struct Note: Identifiable {
+
+    let id: String
+
+    let title: String
+
+    /// A JSON object, for example:
+    /// `{"tags":["home","urgent"],"priority":2,"due":null}`
+    let metadata: String
+}

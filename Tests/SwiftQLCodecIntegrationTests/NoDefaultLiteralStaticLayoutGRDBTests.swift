@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 import GRDB
 import XCTest
 @testable import SwiftQL
@@ -83,7 +84,7 @@ private struct NoDefaultLiteralRecord: Equatable {
 final class NoDefaultLiteralStaticLayoutGRDBTests: XCTestCase {
 
     func testNoDefaultCustomLiteralAndEnumRoundTripThroughStaticLayout() throws {
-        let fixture = try NoDefaultLiteralFixture()
+        let fixture = try TemporaryDatabaseFixture.make(named: "no-default-literal")
         defer { fixture.tearDown() }
 
         let customAdapter = XLV1LiteralCodec<NoDefaultCustomLiteral>(
@@ -219,24 +220,6 @@ final class NoDefaultLiteralStaticLayoutGRDBTests: XCTestCase {
 
 private enum NoDefaultLiteralTestError: Error {
     case invalidCustomLiteral(String)
-}
-
-
-private struct NoDefaultLiteralFixture {
-    let url: URL
-    let pool: DatabasePool
-
-    init() throws {
-        url = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("sqlite")
-        pool = try DatabasePool(path: url.path)
-    }
-
-    func tearDown() {
-        try? pool.close()
-        try? FileManager.default.removeItem(at: url)
-    }
 }
 
 

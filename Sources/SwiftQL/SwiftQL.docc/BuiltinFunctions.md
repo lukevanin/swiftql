@@ -29,9 +29,8 @@ let statement = sql { schema in
     let occupation = schema.nullableTable(Occupation.self)
     let result = EmploymentStatus.columns(
         person: person.name,
-        occupation: iif(
-            occupation.name.isNull(), 
-            then: "Unemployed", 
+        occupation: occupation.name.isNull().iif(
+            then: "Unemployed",
             else: "Employed"
         )
     )
@@ -44,6 +43,12 @@ let statement = sql { schema in
 This statement returns the person's name in the `person` column, and the word
 `Unemployed` in the `occupation` column if the person's occupation is `NULL`,
 or `Employed` if the person's occupation is not `NULL`.
+
+> Note: `condition.iif(then:else:)` is the method-style spelling v1.5.4
+> introduced. The free function `iif(_:then:else:)` still compiles with a
+> deprecation warning and will be removed in SwiftQL 2. Migrate by moving the
+> condition in front of the call: `iif(c, then: a, else: b)` becomes
+> `c.iif(then: a, else: b)`.
 
 ### switchCase(), when(), and else()
 
@@ -151,6 +156,28 @@ Returns a `Double` expression rounded to the provided number of decimal places.
 Returns a `Double` expression rounded to the largest integral value less than or
 equal to it.
 
+### min(), max()
+
+Returns the smallest or largest value among two or more expressions, rendered
+as SQLite's scalar `MIN`/`MAX`. This is distinct from the `minOrNull()`/
+`maxOrNull()` aggregate functions, which operate over rows in a group rather
+than a fixed list of expressions.
+
+<!-- test: XLDocumentationTests.testDocumentationConditionalAndScalarFunctions -->
+```swift
+let x = XLNamedBindingReference<Int>(name: "x")
+let smallest = x.min(0, 10)
+let largest = x.max(0, 10)
+```
+
+> Note: these method-style spellings arrived in v1.5.4 and require at least one
+> further expression, because SQLite's scalar `MIN`/`MAX` is meaningless with
+> fewer. The free functions `min(_:)` and `max(_:)` still compile with a
+> deprecation warning and will be removed in SwiftQL 2. A multi-argument
+> `min(x, 0, 10)` becomes `x.min(0, 10)`. A *single*-argument `min(x)` was
+> never the scalar function — SQLite parses `MIN(expr)` as the aggregate — so
+> migrate that spelling to `minOrNull()` or `maxOrNull()` instead.
+
 ## String functions
 
 ### collate()
@@ -210,11 +237,30 @@ sequence`, rather than silently comparing as `BINARY`.
 
 ### printf()
 
-Returns a formatted string. In SwiftQL `printf()` is similar to the same 
-function provided by the standard C library. 
+Returns a formatted string, called on the format expression. In SwiftQL
+`printf()` is similar to the same function provided by the standard C library.
+
+<!-- test: XLDocumentationTests.testDocumentationConditionalAndScalarFunctions -->
+```swift
+let name = XLNamedBindingReference<String>(name: "name")
+let age = XLNamedBindingReference<Int>(name: "age")
+let formatted = "%s is %d years old".printf(name, age)
+```
 
 Refer to the [SQLite printf](https://sqlite.org/printf.html) documentation for
 more information.
+
+> Note: calling `printf` on the format expression is the v1.5.4 spelling. The
+> free function `printf(format:_:)` still compiles with a deprecation warning
+> and will be removed in SwiftQL 2. Migrate by moving the format string in
+> front of the call: `printf(format: f, a, b)` becomes `f.printf(a, b)`.
+
+## JSON functions
+
+SQLite's JSON functions and its `->` and `->>` operators are covered on their
+own page, <doc:JSON>, together with the typed path builder they all take and
+the SQLite version each group needs. They are not listed here, because the
+list would be longer than this page and would drift away from that one.
 
 ## Type conversion
 

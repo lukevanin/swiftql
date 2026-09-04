@@ -1,0 +1,913 @@
+{
+  "combinatorial_manifest_version" : "c191-v2",
+  "conformance_inventory_version" : "190.1.0",
+  "format_version" : 1,
+  "queries" : [
+    {
+      "cardinality" : 3,
+      "conformance_case_ids" : [
+
+      ],
+      "conformance_feature_ids" : [
+
+      ],
+      "definition_identity" : "todo-demo/checklist-summaries@1",
+      "descriptor_identity" : "swiftql-query-v1-todo-demo",
+      "dialect_capabilities_raw_value" : 0,
+      "dialect_identifier" : "sqlite",
+      "id" : "todo-demo.checklist-summaries",
+      "northwind_anchor_case_ids" : [
+
+      ],
+      "parameters" : [
+        {
+          "identity" : "parameter/listID",
+          "key_kind" : "named",
+          "key_name" : "listID",
+          "logical_index" : 0,
+          "nullability" : "required",
+          "physical_index" : 1,
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "required_capabilities" : [
+
+      ],
+      "results" : [
+        {
+          "declared_alias" : "todoID",
+          "identity" : "result/todoID",
+          "index" : 0,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "itemCount",
+          "identity" : "result/itemCount",
+          "index" : 1,
+          "nullability" : "nullable",
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        },
+        {
+          "declared_alias" : "firstItemTitle",
+          "identity" : "result/firstItemTitle",
+          "index" : 2,
+          "nullability" : "nullable",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "sql" : "SELECT \"t0\".\"id\" AS \"todoID\", json_array_length(\"t0\".\"checklist\") AS \"itemCount\", (\"t0\".\"checklist\" ->> '$[0].title') AS \"firstItemTitle\" FROM \"Todo\" AS \"t0\" WHERE (\"t0\".\"listID\" == :listID) ORDER BY \"t0\".\"position\" ASC"
+    },
+    {
+      "cardinality" : 3,
+      "conformance_case_ids" : [
+
+      ],
+      "conformance_feature_ids" : [
+
+      ],
+      "definition_identity" : "todo-demo/filtered-todos@1",
+      "descriptor_identity" : "swiftql-query-v1-todo-demo",
+      "dialect_capabilities_raw_value" : 0,
+      "dialect_identifier" : "sqlite",
+      "id" : "todo-demo.filtered-todos",
+      "northwind_anchor_case_ids" : [
+
+      ],
+      "parameters" : [
+        {
+          "identity" : "parameter/listID",
+          "key_kind" : "named",
+          "key_name" : "listID",
+          "logical_index" : 0,
+          "nullability" : "required",
+          "physical_index" : 1,
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "identity" : "parameter/includesCompleted",
+          "key_kind" : "named",
+          "key_name" : "includesCompleted",
+          "logical_index" : 1,
+          "nullability" : "required",
+          "physical_index" : 2,
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        },
+        {
+          "identity" : "parameter/includesActive",
+          "key_kind" : "named",
+          "key_name" : "includesActive",
+          "logical_index" : 2,
+          "nullability" : "required",
+          "physical_index" : 3,
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        },
+        {
+          "identity" : "parameter/overdueOnly",
+          "key_kind" : "named",
+          "key_name" : "overdueOnly",
+          "logical_index" : 3,
+          "nullability" : "required",
+          "physical_index" : 4,
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        },
+        {
+          "identity" : "parameter/referenceDate",
+          "key_kind" : "named",
+          "key_name" : "referenceDate",
+          "logical_index" : 4,
+          "nullability" : "required",
+          "physical_index" : 5,
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "identity" : "parameter/searchPattern",
+          "key_kind" : "named",
+          "key_name" : "searchPattern",
+          "logical_index" : 5,
+          "nullability" : "required",
+          "physical_index" : 6,
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "identity" : "parameter/sortOrder",
+          "key_kind" : "named",
+          "key_name" : "sortOrder",
+          "logical_index" : 6,
+          "nullability" : "required",
+          "physical_index" : 7,
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        }
+      ],
+      "required_capabilities" : [
+
+      ],
+      "results" : [
+        {
+          "declared_alias" : "id",
+          "identity" : "result/id",
+          "index" : 0,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "listID",
+          "identity" : "result/listID",
+          "index" : 1,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "title",
+          "identity" : "result/title",
+          "index" : 2,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "notes",
+          "identity" : "result/notes",
+          "index" : 3,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "dueAt",
+          "identity" : "result/dueAt",
+          "index" : 4,
+          "nullability" : "nullable",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "priority",
+          "identity" : "result/priority",
+          "index" : 5,
+          "nullability" : "required",
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        },
+        {
+          "declared_alias" : "isCompleted",
+          "identity" : "result/isCompleted",
+          "index" : 6,
+          "nullability" : "required",
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.bool",
+          "value_type_name" : "Swift.Bool"
+        },
+        {
+          "declared_alias" : "position",
+          "identity" : "result/position",
+          "index" : 7,
+          "nullability" : "required",
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        },
+        {
+          "declared_alias" : "createdAt",
+          "identity" : "result/createdAt",
+          "index" : 8,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "checklist",
+          "identity" : "result/checklist",
+          "index" : 9,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "sql" : "SELECT \"t0\".\"id\" AS \"id\", \"t0\".\"listID\" AS \"listID\", \"t0\".\"title\" AS \"title\", \"t0\".\"notes\" AS \"notes\", \"t0\".\"dueAt\" AS \"dueAt\", \"t0\".\"priority\" AS \"priority\", \"t0\".\"isCompleted\" AS \"isCompleted\", \"t0\".\"position\" AS \"position\", \"t0\".\"createdAt\" AS \"createdAt\", \"t0\".\"checklist\" AS \"checklist\" FROM \"Todo\" AS \"t0\" WHERE ((((\"t0\".\"listID\" == :listID) AND ((\"t0\".\"isCompleted\" == :includesCompleted) OR (\"t0\".\"isCompleted\" != :includesActive))) AND ((:overdueOnly == 0) OR ((\"t0\".\"dueAt\" < :referenceDate) AND (\"t0\".\"isCompleted\" == 0)))) AND ((\"t0\".\"title\" LIKE :searchPattern ESCAPE '\\') OR (\"t0\".\"notes\" LIKE :searchPattern ESCAPE '\\'))) ORDER BY IIF((:sortOrder == 1), COALESCE(\"t0\".\"dueAt\", '2100-01-01T00:00:00.000Z'), '2100-01-01T00:00:00.000Z') ASC, IIF((:sortOrder == 2), \"t0\".\"priority\", 0) DESC, IIF((:sortOrder == 0), \"t0\".\"position\", 0) ASC, \"t0\".\"title\" ASC"
+    },
+    {
+      "cardinality" : 3,
+      "conformance_case_ids" : [
+
+      ],
+      "conformance_feature_ids" : [
+
+      ],
+      "definition_identity" : "todo-demo/list-counts@1",
+      "descriptor_identity" : "swiftql-query-v1-todo-demo",
+      "dialect_capabilities_raw_value" : 0,
+      "dialect_identifier" : "sqlite",
+      "id" : "todo-demo.list-counts",
+      "northwind_anchor_case_ids" : [
+
+      ],
+      "parameters" : [
+
+      ],
+      "required_capabilities" : [
+
+      ],
+      "results" : [
+        {
+          "declared_alias" : "listID",
+          "identity" : "result/listID",
+          "index" : 0,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "openCount",
+          "identity" : "result/openCount",
+          "index" : 1,
+          "nullability" : "required",
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        },
+        {
+          "declared_alias" : "totalCount",
+          "identity" : "result/totalCount",
+          "index" : 2,
+          "nullability" : "required",
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        }
+      ],
+      "sql" : "SELECT \"t0\".\"listID\" AS \"listID\", COALESCE(SUM((CASE WHEN (\"t0\".\"isCompleted\" == 0) THEN 1 ELSE 0 END)), 0) AS \"openCount\", COUNT(*) AS \"totalCount\" FROM \"Todo\" AS \"t0\" GROUP BY \"t0\".\"listID\""
+    },
+    {
+      "cardinality" : 3,
+      "conformance_case_ids" : [
+
+      ],
+      "conformance_feature_ids" : [
+
+      ],
+      "definition_identity" : "todo-demo/tags@1",
+      "descriptor_identity" : "swiftql-query-v1-todo-demo",
+      "dialect_capabilities_raw_value" : 0,
+      "dialect_identifier" : "sqlite",
+      "id" : "todo-demo.tags",
+      "northwind_anchor_case_ids" : [
+
+      ],
+      "parameters" : [
+
+      ],
+      "required_capabilities" : [
+
+      ],
+      "results" : [
+        {
+          "declared_alias" : "id",
+          "identity" : "result/id",
+          "index" : 0,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "name",
+          "identity" : "result/name",
+          "index" : 1,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "sql" : "SELECT \"t0\".\"id\" AS \"id\", \"t0\".\"name\" AS \"name\" FROM \"Tag\" AS \"t0\" ORDER BY \"t0\".\"name\" ASC"
+    },
+    {
+      "cardinality" : 3,
+      "conformance_case_ids" : [
+
+      ],
+      "conformance_feature_ids" : [
+
+      ],
+      "definition_identity" : "todo-demo/tags-for-list@1",
+      "descriptor_identity" : "swiftql-query-v1-todo-demo",
+      "dialect_capabilities_raw_value" : 0,
+      "dialect_identifier" : "sqlite",
+      "id" : "todo-demo.tags-for-list",
+      "northwind_anchor_case_ids" : [
+
+      ],
+      "parameters" : [
+        {
+          "identity" : "parameter/listID",
+          "key_kind" : "named",
+          "key_name" : "listID",
+          "logical_index" : 0,
+          "nullability" : "required",
+          "physical_index" : 1,
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "required_capabilities" : [
+
+      ],
+      "results" : [
+        {
+          "declared_alias" : "todoID",
+          "identity" : "result/todoID",
+          "index" : 0,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "tagID",
+          "identity" : "result/tagID",
+          "index" : 1,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "tagName",
+          "identity" : "result/tagName",
+          "index" : 2,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "sql" : "SELECT \"t1\".\"todoID\" AS \"todoID\", \"t2\".\"id\" AS \"tagID\", \"t2\".\"name\" AS \"tagName\" FROM \"TodoTag\" AS \"t1\" INNER JOIN \"Todo\" AS \"t0\" ON (\"t0\".\"id\" == \"t1\".\"todoID\") INNER JOIN \"Tag\" AS \"t2\" ON (\"t2\".\"id\" == \"t1\".\"tagID\") WHERE (\"t0\".\"listID\" == :listID) ORDER BY \"t2\".\"name\" ASC"
+    },
+    {
+      "cardinality" : 3,
+      "conformance_case_ids" : [
+
+      ],
+      "conformance_feature_ids" : [
+
+      ],
+      "definition_identity" : "todo-demo/tags-for-todo@1",
+      "descriptor_identity" : "swiftql-query-v1-todo-demo",
+      "dialect_capabilities_raw_value" : 0,
+      "dialect_identifier" : "sqlite",
+      "id" : "todo-demo.tags-for-todo",
+      "northwind_anchor_case_ids" : [
+
+      ],
+      "parameters" : [
+        {
+          "identity" : "parameter/todoID",
+          "key_kind" : "named",
+          "key_name" : "todoID",
+          "logical_index" : 0,
+          "nullability" : "required",
+          "physical_index" : 1,
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "required_capabilities" : [
+
+      ],
+      "results" : [
+        {
+          "declared_alias" : "todoID",
+          "identity" : "result/todoID",
+          "index" : 0,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "tagID",
+          "identity" : "result/tagID",
+          "index" : 1,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "tagName",
+          "identity" : "result/tagName",
+          "index" : 2,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "sql" : "SELECT \"t0\".\"todoID\" AS \"todoID\", \"t1\".\"id\" AS \"tagID\", \"t1\".\"name\" AS \"tagName\" FROM \"TodoTag\" AS \"t0\" INNER JOIN \"Tag\" AS \"t1\" ON (\"t1\".\"id\" == \"t0\".\"tagID\") WHERE (\"t0\".\"todoID\" == :todoID) ORDER BY \"t1\".\"name\" ASC"
+    },
+    {
+      "cardinality" : 2,
+      "conformance_case_ids" : [
+
+      ],
+      "conformance_feature_ids" : [
+
+      ],
+      "definition_identity" : "todo-demo/todo-by-id@1",
+      "descriptor_identity" : "swiftql-query-v1-todo-demo",
+      "dialect_capabilities_raw_value" : 0,
+      "dialect_identifier" : "sqlite",
+      "id" : "todo-demo.todo-by-id",
+      "northwind_anchor_case_ids" : [
+
+      ],
+      "parameters" : [
+        {
+          "identity" : "parameter/id",
+          "key_kind" : "named",
+          "key_name" : "id",
+          "logical_index" : 0,
+          "nullability" : "required",
+          "physical_index" : 1,
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "required_capabilities" : [
+
+      ],
+      "results" : [
+        {
+          "declared_alias" : "id",
+          "identity" : "result/id",
+          "index" : 0,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "listID",
+          "identity" : "result/listID",
+          "index" : 1,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "title",
+          "identity" : "result/title",
+          "index" : 2,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "notes",
+          "identity" : "result/notes",
+          "index" : 3,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "dueAt",
+          "identity" : "result/dueAt",
+          "index" : 4,
+          "nullability" : "nullable",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "priority",
+          "identity" : "result/priority",
+          "index" : 5,
+          "nullability" : "required",
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        },
+        {
+          "declared_alias" : "isCompleted",
+          "identity" : "result/isCompleted",
+          "index" : 6,
+          "nullability" : "required",
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.bool",
+          "value_type_name" : "Swift.Bool"
+        },
+        {
+          "declared_alias" : "position",
+          "identity" : "result/position",
+          "index" : 7,
+          "nullability" : "required",
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        },
+        {
+          "declared_alias" : "createdAt",
+          "identity" : "result/createdAt",
+          "index" : 8,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "checklist",
+          "identity" : "result/checklist",
+          "index" : 9,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "sql" : "SELECT \"t0\".\"id\" AS \"id\", \"t0\".\"listID\" AS \"listID\", \"t0\".\"title\" AS \"title\", \"t0\".\"notes\" AS \"notes\", \"t0\".\"dueAt\" AS \"dueAt\", \"t0\".\"priority\" AS \"priority\", \"t0\".\"isCompleted\" AS \"isCompleted\", \"t0\".\"position\" AS \"position\", \"t0\".\"createdAt\" AS \"createdAt\", \"t0\".\"checklist\" AS \"checklist\" FROM \"Todo\" AS \"t0\" WHERE (\"t0\".\"id\" == :id)"
+    },
+    {
+      "cardinality" : 2,
+      "conformance_case_ids" : [
+
+      ],
+      "conformance_feature_ids" : [
+
+      ],
+      "definition_identity" : "todo-demo/todo-list-by-id@1",
+      "descriptor_identity" : "swiftql-query-v1-todo-demo",
+      "dialect_capabilities_raw_value" : 0,
+      "dialect_identifier" : "sqlite",
+      "id" : "todo-demo.todo-list-by-id",
+      "northwind_anchor_case_ids" : [
+
+      ],
+      "parameters" : [
+        {
+          "identity" : "parameter/id",
+          "key_kind" : "named",
+          "key_name" : "id",
+          "logical_index" : 0,
+          "nullability" : "required",
+          "physical_index" : 1,
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "required_capabilities" : [
+
+      ],
+      "results" : [
+        {
+          "declared_alias" : "id",
+          "identity" : "result/id",
+          "index" : 0,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "name",
+          "identity" : "result/name",
+          "index" : 1,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "position",
+          "identity" : "result/position",
+          "index" : 2,
+          "nullability" : "required",
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        },
+        {
+          "declared_alias" : "createdAt",
+          "identity" : "result/createdAt",
+          "index" : 3,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "sql" : "SELECT \"t0\".\"id\" AS \"id\", \"t0\".\"name\" AS \"name\", \"t0\".\"position\" AS \"position\", \"t0\".\"createdAt\" AS \"createdAt\" FROM \"TodoList\" AS \"t0\" WHERE (\"t0\".\"id\" == :id)"
+    },
+    {
+      "cardinality" : 3,
+      "conformance_case_ids" : [
+
+      ],
+      "conformance_feature_ids" : [
+
+      ],
+      "definition_identity" : "todo-demo/todo-lists@1",
+      "descriptor_identity" : "swiftql-query-v1-todo-demo",
+      "dialect_capabilities_raw_value" : 0,
+      "dialect_identifier" : "sqlite",
+      "id" : "todo-demo.todo-lists",
+      "northwind_anchor_case_ids" : [
+
+      ],
+      "parameters" : [
+
+      ],
+      "required_capabilities" : [
+
+      ],
+      "results" : [
+        {
+          "declared_alias" : "id",
+          "identity" : "result/id",
+          "index" : 0,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "name",
+          "identity" : "result/name",
+          "index" : 1,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "position",
+          "identity" : "result/position",
+          "index" : 2,
+          "nullability" : "required",
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        },
+        {
+          "declared_alias" : "createdAt",
+          "identity" : "result/createdAt",
+          "index" : 3,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "sql" : "SELECT \"t0\".\"id\" AS \"id\", \"t0\".\"name\" AS \"name\", \"t0\".\"position\" AS \"position\", \"t0\".\"createdAt\" AS \"createdAt\" FROM \"TodoList\" AS \"t0\" ORDER BY \"t0\".\"position\" ASC, \"t0\".\"name\" ASC"
+    },
+    {
+      "cardinality" : 3,
+      "conformance_case_ids" : [
+
+      ],
+      "conformance_feature_ids" : [
+
+      ],
+      "definition_identity" : "todo-demo/todo-tags@1",
+      "descriptor_identity" : "swiftql-query-v1-todo-demo",
+      "dialect_capabilities_raw_value" : 0,
+      "dialect_identifier" : "sqlite",
+      "id" : "todo-demo.todo-tags",
+      "northwind_anchor_case_ids" : [
+
+      ],
+      "parameters" : [
+
+      ],
+      "required_capabilities" : [
+
+      ],
+      "results" : [
+        {
+          "declared_alias" : "todoID",
+          "identity" : "result/todoID",
+          "index" : 0,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "tagID",
+          "identity" : "result/tagID",
+          "index" : 1,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "sql" : "SELECT \"t0\".\"todoID\" AS \"todoID\", \"t0\".\"tagID\" AS \"tagID\" FROM \"TodoTag\" AS \"t0\""
+    },
+    {
+      "cardinality" : 3,
+      "conformance_case_ids" : [
+
+      ],
+      "conformance_feature_ids" : [
+
+      ],
+      "definition_identity" : "todo-demo/todos@1",
+      "descriptor_identity" : "swiftql-query-v1-todo-demo",
+      "dialect_capabilities_raw_value" : 0,
+      "dialect_identifier" : "sqlite",
+      "id" : "todo-demo.todos",
+      "northwind_anchor_case_ids" : [
+
+      ],
+      "parameters" : [
+
+      ],
+      "required_capabilities" : [
+
+      ],
+      "results" : [
+        {
+          "declared_alias" : "id",
+          "identity" : "result/id",
+          "index" : 0,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "listID",
+          "identity" : "result/listID",
+          "index" : 1,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "title",
+          "identity" : "result/title",
+          "index" : 2,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "notes",
+          "identity" : "result/notes",
+          "index" : 3,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "dueAt",
+          "identity" : "result/dueAt",
+          "index" : 4,
+          "nullability" : "nullable",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "priority",
+          "identity" : "result/priority",
+          "index" : 5,
+          "nullability" : "required",
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        },
+        {
+          "declared_alias" : "isCompleted",
+          "identity" : "result/isCompleted",
+          "index" : 6,
+          "nullability" : "required",
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.bool",
+          "value_type_name" : "Swift.Bool"
+        },
+        {
+          "declared_alias" : "position",
+          "identity" : "result/position",
+          "index" : 7,
+          "nullability" : "required",
+          "storage_identifier" : "integer",
+          "value_type_identifier" : "swift.int",
+          "value_type_name" : "Swift.Int"
+        },
+        {
+          "declared_alias" : "createdAt",
+          "identity" : "result/createdAt",
+          "index" : 8,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        },
+        {
+          "declared_alias" : "checklist",
+          "identity" : "result/checklist",
+          "index" : 9,
+          "nullability" : "required",
+          "storage_identifier" : "text",
+          "value_type_identifier" : "swift.string",
+          "value_type_name" : "Swift.String"
+        }
+      ],
+      "sql" : "SELECT \"t0\".\"id\" AS \"id\", \"t0\".\"listID\" AS \"listID\", \"t0\".\"title\" AS \"title\", \"t0\".\"notes\" AS \"notes\", \"t0\".\"dueAt\" AS \"dueAt\", \"t0\".\"priority\" AS \"priority\", \"t0\".\"isCompleted\" AS \"isCompleted\", \"t0\".\"position\" AS \"position\", \"t0\".\"createdAt\" AS \"createdAt\", \"t0\".\"checklist\" AS \"checklist\" FROM \"Todo\" AS \"t0\" ORDER BY \"t0\".\"createdAt\" ASC, \"t0\".\"position\" ASC"
+    }
+  ],
+  "schema_snapshot" : {
+    "database_byte_count" : 20480,
+    "database_sha256" : "00cbd167e3ae632887677fcd9a571d3e8a199e4e4dee3f36226bfdcb959de070",
+    "identifier" : "todo-demo.schema",
+    "kind" : "checked-in-snapshot",
+    "schema_fingerprint" : "ede0b16a69350221",
+    "schema_row_count" : 4
+  }
+}

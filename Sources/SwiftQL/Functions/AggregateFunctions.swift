@@ -35,11 +35,20 @@ public func all() -> XLAllColumns {
 }
 
 
-/// Counts every input row by rendering `COUNT(*)`.
+@available(*, deprecated, message: "Use all().count() instead. count(_:) will be removed in SwiftQL 2.")
 public func count(
     _ expression: any XLExpression<XLAllColumns>
 ) -> some XLExpression<Int> {
     XLFunction<Int>(name: "COUNT", parameters: [expression])
+}
+
+
+extension XLExpression where T == XLAllColumns {
+
+    /// Counts every input row by rendering `COUNT(*)`.
+    public func count() -> some XLExpression<Int> {
+        XLFunction<Int>(name: "COUNT", parameters: [self])
+    }
 }
 
 
@@ -148,4 +157,65 @@ extension XLExpression {
     public func groupConcat(separator: String) -> some XLExpression<T> where T == String, T: XLLiteral {
         XLFunction(name: "GROUP_CONCAT", parameters: [self, separator])
     }
+}
+
+
+// MARK: - JSON aggregates
+
+
+/// SQLite's two JSON aggregates.
+///
+/// See: https://www.sqlite.org/json1.html#jgrouparray
+///
+extension XLExpression {
+
+    ///
+    /// Collects every input row into a JSON array, rendering SQLite's
+    /// `json_group_array(X)`.
+    ///
+    /// An empty group gives `[]`, not SQL `NULL`, so the result is not
+    /// optional. A row whose value is SQL `NULL` contributes JSON `null`, so
+    /// the array always has one entry per row.
+    ///
+    /// A value that is already JSON text is collected as a quoted string, not
+    /// as a nested structure. Pass it through ``XLExpression/minifiedJSON()``
+    /// first to nest it.
+    ///
+    public func jsonGroupArray(
+        distinct: Bool = false
+    ) -> some XLExpression<String> where T: XLLiteral {
+        XLFunction<String>(
+            name: "json_group_array",
+            distinct: distinct,
+            parameters: [self]
+        )
+    }
+}
+
+
+///
+/// Collects `name`/`value` pairs into a JSON object, rendering SQLite's
+/// `json_group_object(N, V)`.
+///
+/// An empty group gives `{}`, not SQL `NULL`, so the result is not optional.
+///
+/// SQLite does not deduplicate names: two rows with the same name give an
+/// object with that name twice.
+///
+/// A row whose name is SQL `NULL` contributes nothing at all, so the object
+/// can have fewer members than the group has rows. `name` is a non-optional
+/// text expression, so a nullable column cannot be passed here; that case
+/// arises only when a column SQLite does not constrain holds `NULL` at run
+/// time, which is why the behaviour is documented rather than pinned by a
+/// test this signature cannot express.
+///
+/// There is no `distinct` parameter. SQLite reports
+/// `DISTINCT aggregates must have exactly one argument`, and this aggregate
+/// takes two.
+///
+public func jsonGroupObject(
+    name: any XLExpression<String>,
+    value: any XLExpression
+) -> some XLExpression<String> {
+    XLFunction<String>(name: "json_group_object", parameters: [name, value])
 }

@@ -1,6 +1,9 @@
 import Foundation
+import GRDB
 import SwiftQL
 import SwiftQLCore
+import SwiftQLSQLiteBuildValidationManifest
+import SwiftQLSQLiteBuildValidationValidator
 
 #if compiler(<6.0)
 #error("The downstream compatibility fixture must use the supported Swift 6 compiler.")
@@ -36,6 +39,8 @@ enum FixtureError: Error {
     case unexpectedPacketResult(Int?)
     case unexpectedStaticQueryResult(Int64)
     case unexpectedSkillQueryResult([SkillPerson])
+    case unexpectedDeclaredQueryResult(SkillPerson?)
+    case unexpectedDeclaredQueriesResult([SkillPerson])
     case unexpectedResult(PersonSummary?)
 }
 
@@ -227,14 +232,19 @@ private func executeFixture(
     try database.makeRequest(
         with: sqlInsert(Person(id: "grace", name: "Grace Hopper", age: 85))
     ).execute()
-    try database.makeRequest(with: sqlCreate(SkillPerson.self)).execute()
-    try database.makeRequest(
-        with: sqlInsert(SkillPerson(id: "ada", name: "Ada Lovelace"))
-    ).execute()
-    let skillPeople = try fetchSkillPeople(named: "Ada Lovelace", from: database)
+    // Creates the table, inserts inside a transaction, reads through the
+    // declared query, then updates and deletes with named bindings.
+    let skillPeople = try runSkillLifecycle(in: database)
     guard skillPeople == [SkillPerson(id: "ada", name: "Ada Lovelace")] else {
         throw FixtureError.unexpectedSkillQueryResult(skillPeople)
     }
+    try validateDeclaredQueryMacros(database: database)
+
+    // Issue #256's downstream `@SQLTable`/`@SQLResult` regression corpus:
+    // reserved/escaped/Unicode identifiers, BLOBs, optionals, enum-backed
+    // columns, a wide row, and composite/nested result selection, all
+    // compiled and executed from this real separate package.
+    try runMacroRegressionFixtures(database: database)
 
     let token = try database.contextualBinding(
         DownstreamToken.self,
@@ -350,10 +360,168 @@ private func executeFixture(
     return try request.fetchOne()
 }
 
+private func validateBuildValidationManifestFixture() throws {
+    let statement = XLStaticStatementDefinition(
+        sql: "SELECT :id AS id",
+        dialectRequirement: XLDialectRequirement(
+            identity: XLSQLiteDialect.identity,
+            capabilities: [.namedBindings]
+        ),
+        parameterLayout: try XLParameterLayout(slots: [
+            XLParameterSlot(
+                index: XLLogicalParameterIndex(0),
+                key: .named("id"),
+                valueTypeIdentifier: XLValueTypeIdentifier(rawValue: "swift.string"),
+                valueTypeName: "Swift.String",
+                nullability: .required,
+                codecIdentity: nil,
+                codingContext: XLValueCodingContext(
+                    site: .parameter,
+                    path: XLValueCodingPath(["parameter", "id"])
+                )
+            )
+        ])
+    )
+    guard let idParameterSlot = statement.parameterLayout.slot(
+        at: XLLogicalParameterIndex(0)
+    ) else {
+        throw FixtureError.invalidCoreContract
+    }
+    let descriptor = try XLStaticQueryDescriptor(
+        definitionIdentity: XLQueryDefinitionIdentity(
+            path: ["downstream", "manifest-fixture"],
+            version: 1
+        ),
+        statement: statement,
+        parameters: [
+            XLStaticQueryParameterMetadata(
+                identity: try XLQuerySlotIdentity(path: ["parameter", "id"]),
+                slot: idParameterSlot,
+                storageIdentifier: XLValueStorageIdentifier(rawValue: "text")
+            )
+        ],
+        results: try XLStaticQueryResultMetadata(slots: [
+            XLStaticQueryResultSlot(
+                index: XLLogicalResultIndex(0),
+                identity: try XLQuerySlotIdentity(path: ["result", "id"]),
+                valueTypeIdentifier: XLValueTypeIdentifier(rawValue: "swift.string"),
+                valueTypeName: "Swift.String",
+                nullability: .required,
+                codecIdentity: nil,
+                storageIdentifier: XLValueStorageIdentifier(rawValue: "text"),
+                codingContext: XLValueCodingContext(
+                    site: .result,
+                    path: XLValueCodingPath(["result", "id"])
+                )
+            )
+        ]),
+        cardinality: .exactlyOne
+    )
+
+    let query = try SQLiteBuildValidationQueryEntry(
+        id: "downstream.manifest-fixture",
+        descriptor: descriptor,
+        declaredAliases: ["id"]
+    )
+    let manifest = SQLiteBuildValidationManifest(
+        conformanceInventoryVersion: "downstream-fixture",
+        combinatorialManifestVersion: "downstream-fixture",
+        schemaSnapshot: SQLiteBuildValidationSchemaSnapshot(
+            identifier: "downstream-fixture",
+            databaseSHA256: String(repeating: "a", count: 64),
+            databaseByteCount: 1,
+            schemaRowCount: 1,
+            schemaFingerprint: String(repeating: "b", count: 16)
+        ),
+        queries: [query]
+    )
+
+    let validated = try manifest.validating()
+    let data = try validated.canonicalJSONData()
+    let roundTripped = try SQLiteBuildValidationManifest.decode(data)
+    guard roundTripped == validated,
+          try roundTripped.canonicalJSONData() == data
+    else {
+        throw FixtureError.invalidCoreContract
+    }
+}
+
+private func validateBuildValidationValidatorFixture() throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("swiftql-build-validator-fixture-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(
+        at: directory,
+        withIntermediateDirectories: false
+    )
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let databaseURL = directory.appendingPathComponent("fixture.sqlite")
+
+    let writeQueue = try DatabaseQueue(path: databaseURL.path)
+    try writeQueue.write { database in
+        try database.execute(sql: "CREATE TABLE t (id INTEGER)")
+    }
+    try writeQueue.close()
+
+    let databaseData = try Data(contentsOf: databaseURL, options: .mappedIfSafe)
+    let databaseSHA256 = SQLiteBuildValidationSHA256.hexDigest(of: databaseData)
+
+    var readConfiguration = Configuration()
+    readConfiguration.readonly = true
+    let readQueue = try DatabaseQueue(path: databaseURL.path, configuration: readConfiguration)
+    let runtimeMetadata = try readQueue.read { database in
+        try SQLiteBuildValidationRuntime.capture(from: database)
+    }
+    try readQueue.close()
+
+    let manifest = SQLiteBuildValidationManifest(
+        conformanceInventoryVersion: "downstream-fixture",
+        combinatorialManifestVersion: "downstream-fixture",
+        schemaSnapshot: SQLiteBuildValidationSchemaSnapshot(
+            identifier: "downstream-fixture",
+            databaseSHA256: databaseSHA256,
+            databaseByteCount: databaseData.count,
+            schemaRowCount: runtimeMetadata.schemaRowCount,
+            schemaFingerprint: runtimeMetadata.schemaFNV1A64
+        ),
+        queries: [
+            SQLiteBuildValidationQueryEntry(
+                id: "downstream.validator-fixture",
+                definitionIdentity: "downstream/validator-fixture@1",
+                descriptorIdentity: "swiftql-query-v1-downstream-validator-fixture",
+                sql: "SELECT 1 AS value",
+                dialectIdentifier: XLSQLiteDialect.identity.rawValue,
+                cardinality: XLQueryCardinality.exactlyOne.rawValue,
+                results: [
+                    SQLiteBuildValidationResultEntry(
+                        index: 0,
+                        identity: "result/value",
+                        declaredAlias: "value",
+                        valueTypeIdentifier: "swift.int",
+                        valueTypeName: "Swift.Int",
+                        nullability: "required",
+                        codec: nil,
+                        storageIdentifier: "integer"
+                    ),
+                ]
+            ),
+        ]
+    )
+
+    let report = try SQLiteBuildValidator.validate(
+        manifest: manifest,
+        againstDatabaseAt: databaseURL
+    )
+    guard report.overallVerdict == .passed, report.diagnostics.isEmpty else {
+        throw FixtureError.invalidCoreContract
+    }
+}
+
 private func runFixture() throws {
     try validateLiteralReaderCompatibility()
     try validateRowReaderCompatibility()
     try validateSeparatorCompatibility()
+    try validateBuildValidationManifestFixture()
+    try validateBuildValidationValidatorFixture()
     let codingConfiguration = try validateCoreContractProduct()
 
     let directory = FileManager.default.temporaryDirectory

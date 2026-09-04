@@ -33,8 +33,11 @@ jobs:
       }}
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Headroom for a patient deploy poll (15m) plus the independent
+    # verification sweep below, which retries for a further 5m.
+    timeout-minutes: 35
     permissions:
+      contents: read
       pages: write
       id-token: write
     concurrency:
@@ -45,13 +48,52 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
+      # This action publishes the deployment and then polls the Pages status
+      # API until it reports success. Those are separate failures: on
+      # 2026-08-06 two consecutive runs published correctly and then aborted
+      # at the poll's 600000ms default ("Timeout reached, aborting!"), turning
+      # a live, correct deployment into a red badge.
+      #
+      # Be more patient with the poll, and -- because the verification step
+      # below proves deployment from the live site far more strongly than the
+      # status API does -- do not let a poll timeout alone fail the job. A
+      # deployment that genuinely did not land still fails, in that step, with
+      # a far more useful diagnostic.
       - name: Deploy Pages artifact
         id: deployment
+        continue-on-error: true
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5
+        with:
+          timeout: 900000
+          error_count: 20
+
+      # page_url is empty when the poll aborted, so fall back to the Pages
+      # API rather than losing the ability to verify.
+      - name: Resolve Pages site URL
+        id: site
+        env:
+          DEPLOYMENT_OUTCOME: ${{ steps.deployment.outcome }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          page_url="$PAGE_URL"
+          if [[ -z "$page_url" ]]; then
+            page_url="$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.html_url')"
+          fi
+          if [[ -z "$page_url" ]]; then
+            echo "error: could not determine the Pages site URL" >&2
+            exit 1
+          fi
+          printf 'page_url=%s\n' "$page_url" >> "$GITHUB_OUTPUT"
+          if [[ "$DEPLOYMENT_OUTCOME" != success ]]; then
+            printf '::warning::Pages deploy step reported `%s`; verifying the live site directly.\n' \
+              "$DEPLOYMENT_OUTCOME"
+          fi
 
       - name: Verify deployed commit and catalog pages
         env:
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          PAGE_URL: ${{ steps.site.outputs.page_url }}
         run: |
           set -euo pipefail
           site_url="${PAGE_URL%/}/"
@@ -80,9 +122,39 @@ jobs:
             echo "error: deployed provenance did not match this commit and run" >&2
             exit 1
           fi
+          landing="$RUNNER_TEMP/swiftql-landing.html"
+          curl --fail --silent --show-error \
+            --retry 12 --retry-all-errors --retry-delay 5 \
+            "$site_url" \
+            --output "$landing"
+          grep -qF \
+            '<title>SwiftQL - SQL, as a first-class language in Swift</title>' \
+            "$landing"
+          curl --fail --silent --show-error \
+            --retry 12 --retry-all-errors --retry-delay 5 \
+            "${site_url}swiftql-logo.png" \
+            --output /dev/null
           curl --fail --silent --show-error \
             --retry 12 --retry-all-errors --retry-delay 5 \
             "${site_url}documentation/swiftql/" \
+            --output /dev/null
+          blog="$RUNNER_TEMP/swiftql-blog.html"
+          curl --fail --silent --show-error \
+            --retry 12 --retry-all-errors --retry-delay 5 \
+            "${site_url}blog/" \
+            --output "$blog"
+          grep -qF '<title>SwiftQL Blog</title>' "$blog"
+          curl --fail --silent --show-error \
+            --retry 12 --retry-all-errors --retry-delay 5 \
+            "${site_url}blog/posts/why-i-taught-the-swift-compiler-to-read-sql/" \
+            --output /dev/null
+          curl --fail --silent --show-error \
+            --retry 12 --retry-all-errors --retry-delay 5 \
+            "${site_url}blog/posts/whats-new-in-1-5-5/" \
+            --output /dev/null
+          curl --fail --silent --show-error \
+            --retry 12 --retry-all-errors --retry-delay 5 \
+            "${site_url}blog/posts/whats-new-in-1-6-0/" \
             --output /dev/null
           curl --fail --silent --show-error \
             --retry 12 --retry-all-errors --retry-delay 5 \
@@ -102,7 +174,8 @@ jobs:
       - name: Record deployment summary
         env:
           ARTIFACT_ID: ${{ needs.build.outputs.artifact_id }}
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          PAGE_URL: ${{ steps.site.outputs.page_url }}
+          DEPLOYMENT_OUTCOME: ${{ steps.deployment.outcome }}
         run: |
           {
             printf '### SwiftQL documentation deployment\n\n'
@@ -111,4 +184,5 @@ jobs:
             printf -- '- Run: https://github.com/%s/actions/runs/%s\n' \
               "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
             printf -- '- Site: %s\n' "$PAGE_URL"
+            printf -- '- Deploy step outcome: `%s`\n' "$DEPLOYMENT_OUTCOME"
           } >> "$GITHUB_STEP_SUMMARY"

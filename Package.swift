@@ -17,6 +17,21 @@ let package = Package(
             name: "SwiftQL",
             targets: ["SwiftQL"]
         ),
+        // Pre-expanded example schema and queries for the Getting Started
+        // playground. A classic Xcode playground cannot expand SwiftQL's
+        // macros itself, so it imports this compiled module instead.
+        .library(
+            name: "SwiftQLExamples",
+            targets: ["SwiftQLExamples"]
+        ),
+        .library(
+            name: "SwiftQLSQLiteBuildValidationManifest",
+            targets: ["SwiftQLSQLiteBuildValidationManifest"]
+        ),
+        .library(
+            name: "SwiftQLSQLiteBuildValidationValidator",
+            targets: ["SwiftQLSQLiteBuildValidationValidator"]
+        ),
         .executable(
             name: "swiftql-benchmark",
             targets: ["SwiftQLBenchmarkCLI"]
@@ -24,6 +39,14 @@ let package = Package(
         .executable(
             name: "swiftql-construction-profile",
             targets: ["SwiftQLConstructionProfile"]
+        ),
+        .executable(
+            name: "swiftql-build-validate",
+            targets: ["swiftql-build-validate"]
+        ),
+        .plugin(
+            name: "SwiftQLSQLiteBuildValidationPlugin",
+            targets: ["SwiftQLSQLiteBuildValidationPlugin"]
         ),
     ],
     dependencies: [
@@ -61,6 +84,19 @@ let package = Package(
             resources: [.copy("Resources/Northwind")]
         ),
 
+        // Test-only scaffolding shared across test targets: scoped temporary
+        // databases, numeric SQLite version comparison, and repository-root
+        // lookup. Deliberately free of XCTest so it can be a regular target --
+        // a library target has no XCTest search paths, and importing it here
+        // would break `swift build` (issue #557).
+        .target(
+            name: "SwiftQLTestSupport",
+            dependencies: [
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            path: "Tests/SwiftQLTestSupport"
+        ),
+
         // Test-only, constraint-aware syntax generator and real-SQLite replay
         // support. The target consumes the canonical inventory and Northwind
         // fixture without taking ownership of either artifact.
@@ -80,7 +116,11 @@ let package = Package(
             name: "SQLMacros",
             dependencies: [
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
-                .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
+                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+                // `StringLiteralExprSyntax.representedLiteralValue`, which
+                // `MacroNameArgument` reads a `name:` argument through, lives
+                // in SwiftParser rather than SwiftSyntax.
+                .product(name: "SwiftParser", package: "swift-syntax"),
             ]
         ),
 
@@ -95,6 +135,18 @@ let package = Package(
                 .product(name: "OpenCombineDispatch", package: "OpenCombine"),
                 .product(name: "OpenCombineFoundation", package: "OpenCombine"),
             ]
+        ),
+
+        // Example schema and declared queries for the Getting Started
+        // playground (#480). SwiftQL's macros are expanded here, during the
+        // ordinary package build, because a classic Xcode playground has no
+        // Package.swift of its own and cannot reliably load a Swift macro
+        // compiler plugin. The playground imports this module and calls
+        // already-expanded API.
+        .target(
+            name: "SwiftQLExamples",
+            dependencies: ["SwiftQL"],
+            path: "Examples/Sources/SwiftQLExamples"
         ),
 
         // Reusable benchmark implementation. Keeping this separate from the executable makes
@@ -122,29 +174,63 @@ let package = Package(
             path: "Benchmarks/Sources/SwiftQLConstructionProfile"
         ),
 
-        // Package-private research engine for issue #132. This deliberately
-        // remains outside the package's public products while the descriptor
-        // sidecar and build lifecycle are being evaluated.
+        // Versioned, deterministic sidecar manifest for static SwiftQL query
+        // descriptors (#292). No SQLite I/O, no macro/plugin logic. #190/#191/
+        // #254 reference resolution is injected via
+        // SQLiteBuildValidationReferenceRegistry rather than depending on
+        // their test-only targets.
         .target(
-            name: "SwiftQLSQLiteBuildValidationPrototype",
-            dependencies: [
-                "SwiftQLCore",
-                .product(name: "GRDB", package: "GRDB.swift"),
-                .product(name: "CSQLite", package: "GRDB.swift"),
-            ],
-            path: "Research/SQLiteBuildValidation/Sources/SwiftQLSQLiteBuildValidationPrototype"
+            name: "SwiftQLSQLiteBuildValidationManifest",
+            dependencies: ["SwiftQLCore"]
         ),
 
+        // Standalone SQLite static-query build validator (#293). Consumes
+        // the #292 manifest and an explicit checked-in SQLite snapshot, owns
+        // one dedicated read-only/query-only connection per run, and
+        // prepares each manifest entry with sqlite3_prepare_v3. No prepared
+        // statement escapes this target: SQLitePrepareV3Probe returns copied
+        // Swift values only.
+        .target(
+            name: "SwiftQLSQLiteBuildValidationValidator",
+            dependencies: [
+                "SwiftQLCore",
+                "SwiftQLSQLiteBuildValidationManifest",
+                .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "CSQLite", package: "GRDB.swift"),
+            ]
+        ),
+
+        // The target name has to match the `swiftql-build-validate` product
+        // name above, because this executable is a build-tool plugin's tool
+        // (#492). `context.tool(named:)` resolves to
+        // `$BUILD_DIR/$CONFIGURATION/<target name>`, while Xcode's build
+        // system names a package executable after its *product*. When the two
+        // names differ, Xcode drops the executable from the plugin-adopting
+        // target's dependency graph entirely and the build fails with "Build
+        // input file cannot be found" before validation ever runs. `swift
+        // build` tolerates the mismatch; Xcode does not. The source directory
+        // keeps its descriptive name via `path:`.
         .executableTarget(
-            name: "SwiftQLSQLiteBuildValidationPrototypeCLI",
-            dependencies: ["SwiftQLSQLiteBuildValidationPrototype"],
-            path: "Research/SQLiteBuildValidation/Sources/SwiftQLSQLiteBuildValidationPrototypeCLI"
+            name: "swiftql-build-validate",
+            dependencies: ["SwiftQLSQLiteBuildValidationValidator"],
+            path: "Sources/SwiftQLSQLiteBuildValidationValidatorCLI"
+        ),
+
+        // Thin SwiftPM build-tool plugin wrapper around the standalone
+        // validator (#294). Declares the manifest/snapshot as explicit
+        // command inputs and the report as an explicit output; owns no
+        // validation logic, schema inference, or second report format.
+        .plugin(
+            name: "SwiftQLSQLiteBuildValidationPlugin",
+            capability: .buildTool(),
+            dependencies: ["swiftql-build-validate"]
         ),
 
         // A test target used to develop the macro implementation.
         .testTarget(
             name: "SwiftQLCoreTests",
             dependencies: [
+                "SwiftQLTestSupport",
                 "SwiftQLCore",
                 "SwiftQLSQLiteConformanceFixtures",
             ]
@@ -160,13 +246,15 @@ let package = Package(
                 .product(name: "SwiftParser", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
-            ]
+            ],
+            resources: [.process("MacroRegressionCorpus.json")]
         ),
         
         //
         .testTarget(
             name: "SQLTests",
             dependencies: [
+                "SwiftQLTestSupport",
                 "SwiftQL",
                 "SwiftQLNorthwindFixtures",
                 "SwiftQLSQLiteConformanceFixtures",
@@ -182,6 +270,7 @@ let package = Package(
         .testTarget(
             name: "SwiftQLCodecIntegrationTests",
             dependencies: [
+                "SwiftQLTestSupport",
                 "SwiftQL",
                 "SwiftQLSQLiteConformanceFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),
@@ -204,6 +293,7 @@ let package = Package(
                 "SwiftQLSQLiteCombinatorialSupport",
                 "SwiftQLNorthwindFixtures",
                 "SwiftQLSQLiteConformanceFixtures",
+                "SwiftQLTestSupport",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
@@ -215,17 +305,30 @@ let package = Package(
         ),
 
         .testTarget(
-            name: "SwiftQLSQLiteBuildValidationPrototypeTests",
+            name: "SwiftQLSQLiteBuildValidationManifestTests",
             dependencies: [
                 "SwiftQLCore",
                 "SwiftQL",
-                "SwiftQLSQLiteBuildValidationPrototype",
+                "SwiftQLSQLiteBuildValidationManifest",
+                "SwiftQLSQLiteConformanceFixtures",
+                "SwiftQLSQLiteCombinatorialSupport",
+                "SwiftQLNorthwindFixtures",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ]
+        ),
+
+        .testTarget(
+            name: "SwiftQLSQLiteBuildValidationValidatorTests",
+            dependencies: [
+                "SwiftQLCore",
+                "SwiftQL",
+                "SwiftQLSQLiteBuildValidationManifest",
+                "SwiftQLSQLiteBuildValidationValidator",
                 "SwiftQLNorthwindFixtures",
                 "SwiftQLSQLiteConformanceFixtures",
                 "SwiftQLSQLiteCombinatorialSupport",
                 .product(name: "GRDB", package: "GRDB.swift"),
-            ],
-            path: "Research/SQLiteBuildValidation/Tests/SwiftQLSQLiteBuildValidationPrototypeTests"
+            ]
         ),
     ]
 )

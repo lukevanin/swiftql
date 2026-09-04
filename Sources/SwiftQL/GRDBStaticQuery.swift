@@ -564,21 +564,11 @@ public struct GRDBPreparedStaticQuery: Sendable {
     private func validatedBindings(
         _ bindings: any XLInvocationBindingPacket
     ) throws -> XLInvocationBindings<XLSQLiteValue> {
-        guard let packet = bindings as? XLInvocationBindings<XLSQLiteValue> else {
-            throw XLRequestBindingError.incompatibleInvocationPacket(
-                requestType: String(reflecting: Self.self),
-                expectedDialect: XLSQLiteDialect.identity,
-                expectedValueType: String(reflecting: XLSQLiteValue.self),
-                actualPacketType: String(reflecting: type(of: bindings))
-            )
-        }
-        guard packet.layout == parameterLayout else {
-            throw XLInvocationBindingError.packetLayoutMismatch(
-                expected: parameterLayout,
-                actual: packet.layout
-            )
-        }
-        let validatedPacket = try packet.validatingComplete()
+        let validatedPacket = try _xlSQLiteInvocationPacket(
+            bindings,
+            matching: parameterLayout,
+            requestType: Self.self
+        )
 
         for binding in validatedPacket.bindings {
             guard let parameter = descriptor.parameter(

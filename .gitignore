@@ -10,3 +10,15 @@ DerivedData/
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
 *.orig
+
+# Local `hugo build`/`hugo server` runs from Website/blog/. make-docs.sh
+# always builds from a temporary copy with an explicit --destination, so
+# these never appear from a real build.
+/Website/blog/public/
+/Website/blog/resources/
+/Website/blog/.hugo_build.lock
+
+# Codecov CLI artifacts
+codecov*
+.codecov*
+

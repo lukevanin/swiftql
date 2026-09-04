@@ -28,8 +28,8 @@ final class XLScalarFunctionTests: XCTestCase {
         assertSQL(optionalReal.rounded(), "ROUND(:optionalReal)")
         assertSQL(real.rounded(to: 2), "ROUND(:real, 2)")
         assertSQL(real.floor(), "FLOOR(:real)")
-        assertSQL(min(integer, 0, 10), "MIN(:integer, 0, 10)")
-        assertSQL(max(integer, 0, 10), "MAX(:integer, 0, 10)")
+        assertSQL(integer.min(0, 10), "MIN(:integer, 0, 10)")
+        assertSQL(integer.max(0, 10), "MAX(:integer, 0, 10)")
 
         assertExpressionType(integer.abs(), Int.self)
         assertExpressionType(real.rounded(), Double.self)
@@ -42,10 +42,10 @@ final class XLScalarFunctionTests: XCTestCase {
         let optionalThen = XLNamedBindingReference<String?>(name: "optionalThen")
         let optionalElse = XLNamedBindingReference<String?>(name: "optionalElse")
 
-        let required = iif(condition, then: "yes", else: "no")
-        let optionalTrue = iif(condition, then: optionalThen, else: "no")
-        let optionalFalse = iif(condition, then: "yes", else: optionalElse)
-        let optionalBoth = iif(condition, then: optionalThen, else: optionalElse)
+        let required = condition.iif(then: "yes", else: "no")
+        let optionalTrue = condition.iif(then: optionalThen, else: "no")
+        let optionalFalse = condition.iif(then: "yes", else: optionalElse)
+        let optionalBoth = condition.iif(then: optionalThen, else: optionalElse)
 
         assertSQL(required, "IIF(:condition, 'yes', 'no')")
         assertSQL(optionalTrue, "IIF(:condition, :optionalThen, 'no')")
@@ -71,12 +71,12 @@ final class XLScalarFunctionTests: XCTestCase {
         assertSQL(optionalDate.toUnixTimestamp(), "unixepoch(:optionalDate)")
         assertSQL(json.jsonArrayLength(), "json_array_length(:json)")
         assertSQL(json.jsonArrayLength(path: "$.items"), "json_array_length(:json, '$.items')")
-        assertSQL(json.validJSON(), "json_valid(:json)")
+        assertSQL(json.validJSONOrNull(), "json_valid(:json)")
 
         assertExpressionType(date.toUnixTimestamp(), Int.self)
         assertExpressionType(optionalDate.toUnixTimestamp(), Int?.self)
         assertExpressionType(json.jsonArrayLength(), Int?.self)
-        assertExpressionType(json.validJSON(), Bool.self)
+        assertExpressionType(json.validJSONOrNull(), Bool?.self)
     }
 
     func testDateConstructorsModifiersAndComponents() {
@@ -173,9 +173,9 @@ final class XLScalarFunctionTests: XCTestCase {
             canonicalEncoder.makeSQL(optionalText.collate(.rtrim)).sql,
             "(:optionalText COLLATE RTRIM)"
         )
-        assertSQL(printf(format: "%s:%d", text, 7), "printf('%s:%d', :text, 7)")
+        assertSQL("%s:%d".printf(text, 7), "printf('%s:%d', :text, 7)")
         assertSQL(
-            printf(format: "%s:%d", [text, 7]),
+            "%s:%d".printf([text, 7]),
             "printf('%s:%d', :text, 7)"
         )
 

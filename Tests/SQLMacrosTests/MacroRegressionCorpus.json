@@ -1,0 +1,351 @@
+{
+  "schema_version": 1,
+  "corpus_version": "1.0.0",
+  "coordination_issue": 256,
+  "scope": {
+    "claim": "Provenance and disposition record for the @SQLTable/@SQLResult macro code-generation edge-case regression corpus added for issue #256: expansion, diagnostics, downstream compilation, and representative real-SQLite execution for awkward but currently-expressible declarations, plus the currently-unsupported shapes worth keeping visible.",
+    "relationship_to_190": "Issue #190's Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json is scoped to SQL *syntax* conformance (its required_families are select/expression/join/subquery/compound/cte/dml/ddl -- SwiftQL's rendered SQL surface against a real SQLite engine). Issue #256 is a different concern: the *Swift* API surface the @SQLTable/@SQLResult macros generate for a client to compile against (initializers, projections, static row layouts, diagnostics). Forcing macro-codegen cases into the SQL-syntax inventory's schema would misrepresent them as SQL-dialect claims. This file is therefore a deliberate sibling record, not an extension of the #190 inventory, following the same case-ID/provenance/disposition convention it established.",
+    "disposition_meaning": {
+      "supported": "The macro's current behavior for this case (successful expansion, or a correct rejection with an actionable diagnostic) is intentional and covered by the evidence listed.",
+      "gated": "The case names a capability gap. No fabricated evidence is attached; 'gating' names the reason and the issue/milestone tracking the remaining work."
+    },
+    "provenance_policy": "Case shapes are inspired by the kind of awkward declarations mature Swift code-generation test suites commonly exercise (reserved/keyword-like identifiers, Unicode names, doubly-wrapped optionals, wide rows, enum-backed columns -- patterns familiar from Codable/@Observable synthesis and SQLite/ORM macro test suites in general). No upstream test harness or generated source was copied verbatim; each case's 'provenance.inspiration' says so honestly instead of citing a fabricated upstream repository/commit."
+  },
+  "cases": [
+    {
+      "id": "macro.unicode-property-name",
+      "category": "unicode-names",
+      "title": "Non-ASCII Unicode property names",
+      "description": "Property names using accented Latin and CJK letters are legal Swift identifiers and must be copied verbatim into the generated initializer, columns() factory, and SQL alias.",
+      "provenance": {
+        "inspiration": "Unicode-identifier edge cases are a standard probe in mature Swift codegen test suites; no upstream code copied.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "SQLMacroExpansionTests.test_memberwiseInitializer_unicodePropertyName"
+        },
+        {
+          "layer": "downstream-build",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "OddlyNamedRow / validateOddlyNamedIdentifiers"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "validateOddlyNamedIdentifiers"
+        }
+      ]
+    },
+    {
+      "id": "macro.sql-keyword-like-property-names",
+      "category": "keyword-like-properties",
+      "title": "SQL-reserved but Swift-legal property names",
+      "description": "`order`, `group`, and `select` are reserved in SQL but ordinary identifiers in Swift, so they need no backtick escaping as property names. SwiftQL always double-quotes rendered SQL identifiers, so these are not actually ambiguous at the SQL level either.",
+      "provenance": {
+        "inspiration": "SQL-keyword-as-identifier collisions are a classic ORM/SQL-codegen edge case; no upstream code copied.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "SQLMacroExpansionTests.test_memberwiseInitializer_sqlKeywordLikePropertyNames"
+        },
+        {
+          "layer": "downstream-build",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "OddlyNamedRow.order / validateOddlyNamedIdentifiers"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "validateOddlyNamedIdentifiers"
+        }
+      ]
+    },
+    {
+      "id": "macro.reserved-swift-keyword-backticked-identifier",
+      "category": "reserved-and-escaped-identifiers",
+      "title": "Backticked Swift-reserved-keyword property name across every generated member",
+      "description": "A property escaped with backticks because it collides with a Swift keyword (e.g. `class`) must have its backticks stripped consistently from every independently-generated SQL alias site: MetaInsert, MetaUpdate, MetaCreate, and the static row layout, not only the memberwise initializer.",
+      "provenance": {
+        "inspiration": "Reserved-keyword-as-identifier is a standard Codable/macro-codegen probe; no upstream code copied.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "SQLMacroExpansionTests.test_memberwiseInitializer_backtickedName"
+        },
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "MetaBuilderTests.test_metaTableExtension_backtickedReservedKeywordStripsBackticksAcrossEveryGeneratedMember"
+        },
+        {
+          "layer": "downstream-build",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "OddlyNamedRow.`class` / validateOddlyNamedIdentifiers"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "validateOddlyNamedIdentifiers"
+        }
+      ]
+    },
+    {
+      "id": "macro.malformed.double-optional-column-type",
+      "category": "malformed-property-shapes",
+      "title": "Doubly-wrapped optional column type is rejected with an actionable diagnostic",
+      "description": "`Int??` is a shape a plain `T?` property could plausibly be mistyped as. `resolveColumnType` only unwraps one level of Optional, so it is rejected with the same actionable message as any other unresolvable type, at the correct source location, rather than compiling into a confusing generic-substitution failure downstream.",
+      "provenance": {
+        "inspiration": "Nested-optional handling is a common Codable-synthesis edge case; no upstream code copied.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "diagnostic",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "SQLMacroDiagnosticTests.test_doublyWrappedOptionalColumnType_emitsError"
+        }
+      ]
+    },
+    {
+      "id": "macro.reserved-generated-member-names",
+      "category": "duplicate-or-conflicting-generated-names",
+      "title": "Every reserved generated-member name is diagnosed, not only one",
+      "description": "MetaBuilder.reservedPropertyNames lists several names (_table, _namespace, _dependency, _iterator, Row, RowIterator, Dependency, Basis, Nullable) that would collide with a member the macro itself generates. This proves each of the nominal-type names is actually enforced, not only the underscored ones a narrower regression test might have covered.",
+      "provenance": {
+        "inspiration": "Generated-member-name collision is a routine macro/codegen hazard; no upstream code copied.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "diagnostic",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "SQLMacroDiagnosticTests.test_everyReservedPropertyName_emitsErrorForEach"
+        },
+        {
+          "layer": "diagnostic",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "SQLMacroDiagnosticTests.test_reservedPropertyName_emitsError"
+        }
+      ]
+    },
+    {
+      "id": "macro.non-property-members-ignored",
+      "category": "malformed-property-shapes",
+      "title": "Subscripts, nested types, and methods are ignored, not diagnosed or collected",
+      "description": "A struct member that can never be a column (subscript, nested type declaration, ordinary method) is silently skipped by collectProperties, which only iterates VariableDeclSyntax members, alongside one genuine stored property.",
+      "provenance": {
+        "inspiration": "Non-stored-property member filtering is a routine reflection/codegen edge case; no upstream code copied.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "MetaBuilderTests.test_nonPropertyMembersAreIgnoredNotCollectedAsColumns"
+        }
+      ]
+    },
+    {
+      "id": "macro.explicit-access-control-modifiers",
+      "category": "access-control",
+      "title": "Mixed explicit access-control modifiers do not affect column classification",
+      "description": "public/private/fileprivate stored properties on a public struct are not among the modifiers MetaBuilder inspects (only static/class, lazy, and weak/unowned affect classification), so each keeps its declared visibility and still becomes a column with no false-positive diagnostic.",
+      "provenance": {
+        "inspiration": "Access-level variation alongside code generation is a common Swift-macro probe; no upstream code copied.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "SQLMacroExpansionTests.test_memberwiseInitializer_explicitAccessControlModifiersAreIgnored"
+        }
+      ]
+    },
+    {
+      "id": "macro.many-stored-properties",
+      "category": "many-stored-properties",
+      "title": "A wide row accumulates sequential static-row-layout offsets correctly",
+      "description": "A struct with more stored properties than any single-purpose fixture nearby (12 in the expansion case, 11 in the downstream fixture) exercises makeStaticRowLayoutFunction's running-offset accumulation at a scale closer to a real denormalized table, pinning that every property -- not just the first and last -- is threaded through fields/decode/encode.",
+      "provenance": {
+        "inspiration": "Wide-row/high-property-count stress cases are a standard codegen scale probe; no upstream code copied.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "MetaBuilderTests.test_staticRowLayoutGeneration_manyStoredPropertiesAccumulateSequentialOffsets"
+        },
+        {
+          "layer": "downstream-build",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "WideDownstreamRow / validateManyStoredProperties"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "validateManyStoredProperties"
+        }
+      ]
+    },
+    {
+      "id": "macro.blobs-optionals-and-enum-backed-columns",
+      "category": "enums-and-supported-custom-values",
+      "title": "BLOB, optional, and XLEnum (Int- and String-backed) columns round-trip together",
+      "description": "One table mixes a Data (BLOB) column, a required Int-backed XLEnum, an optional String-backed XLEnum, and an optional String, inserted with both present and all-nil rows, and read back through the ordinary (non-static) table-selection path against real SQLite.",
+      "provenance": {
+        "inspiration": "Mixed BLOB/optional/enum-backed columns follow the pattern documented in Sources/SwiftQL/SwiftQL.docc/Enums.md; no upstream code copied.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "downstream-build",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "RichlyTypedRow / validateBlobOptionalAndEnumColumns"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "validateBlobOptionalAndEnumColumns"
+        }
+      ]
+    },
+    {
+      "id": "macro.composite-nested-result-selection",
+      "category": "generic-nested-contexts",
+      "title": "Composite (nested @SQLTable/@SQLResult) result selection, real downstream execution",
+      "description": "Issue #6 / PR #382's composite-property feature (a stored property whose type is itself an @SQLTable/@SQLResult type, flattened into the enclosing static row layout) already has expansion coverage in MetaBuilderTests and @testable real-SQLite coverage in StaticRowLayoutGRDBTests. Issue #256 adds the missing downstream-consumer proof: the same generated staticRowLayout(using:...) API compiles and executes a real join against SQLite from a separate SwiftPM package, without @testable.",
+      "provenance": {
+        "inspiration": "Feature-native; adapted from this repository's own pre-existing StaticRowLayoutGRDBTests composite test for the downstream-visibility layer only. No external upstream source.",
+        "upstream_reference": null,
+        "license_note": "n/a -- adapted from this repository's own code, not an external source"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "MetaBuilderTests.test_staticRowLayoutGeneration_singleCompositeProperty"
+        },
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "MetaBuilderTests.test_staticRowLayoutGeneration_nestedInsideNestedComposite"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "Tests/SwiftQLCodecIntegrationTests/StaticRowLayoutGRDBTests.swift",
+          "test_case": "StaticRowLayoutGRDBTests.testGeneratedCompositeLayoutFlattensNestedTablesAndReconstructsSubObjects"
+        },
+        {
+          "layer": "downstream-build",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "DownstreamEmployeeCompany / validateCompositeResultSelection"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "validateCompositeResultSelection"
+        }
+      ]
+    },
+    {
+      "id": "macro.unresolvable-scalar-or-composite-diagnostic",
+      "category": "source-located-diagnostics",
+      "title": "A property type resolvable as neither scalar nor composite is rejected at its source location",
+      "description": "A property type MetaBuilder cannot resolve as either a scalar XLLiteral column or a nested @SQLTable/@SQLResult composite (e.g. a tuple type) is rejected with a message naming both supported shapes, at the exact column of the offending type annotation.",
+      "provenance": {
+        "inspiration": "Feature-native diagnostic added by PR #382 for issue #6; retained here as part of the #256 corpus because it is exactly the kind of actionable, source-located diagnostic issue #256 asks the corpus to cover.",
+        "upstream_reference": null,
+        "license_note": "n/a -- this repository's own code"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "diagnostic",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "SQLMacroDiagnosticTests.test_unresolvableAsScalarOrComposite_emitsActionableDiagnostic"
+        }
+      ]
+    },
+    {
+      "id": "macro.empty-minimal-declarations",
+      "category": "empty-minimal-declarations",
+      "title": "Zero-property @SQLTable/@SQLResult declarations expand validly",
+      "description": "A struct with no stored properties still generates a valid parameterless initializer, columns() factory, and static row layout (an empty fields array, decode closure that only ever constructs Self, and an encode closure returning []).",
+      "provenance": {
+        "inspiration": "Feature-native; empty/minimal declarations are called out explicitly by issue #256. Evidence is pre-existing coverage from the MetaBuilder test suite predating this corpus, cross-referenced here rather than duplicated.",
+        "upstream_reference": null,
+        "license_note": "n/a -- this repository's own code"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "MetaBuilderTests.test_emptyStruct_generatesSingleParameterlessInitializerPerType"
+        },
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "MetaBuilderTests.test_emptyResultColumnsGenerationIsValid"
+        },
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "MetaBuilderTests.test_emptyStaticRowLayoutGenerationDefersInitializerToDecodeClosure"
+        }
+      ]
+    },
+    {
+      "id": "macro.optional-composite-property",
+      "category": "optionals",
+      "title": "Optional composite (nested @SQLTable/@SQLResult) properties are not yet supported",
+      "description": "A composite property (a stored property whose type is itself an @SQLTable/@SQLResult type) must currently be non-optional. The macro cannot tell a scalar XLLiteral property from a nested composite one at expansion time, so Optional<NestedType> is accepted syntactically (it generates an XLStaticRowFieldSource<NestedType?, Dialect> parameter), but there is no XLStaticRowFieldSource producer for an optional nested layout anywhere in SwiftQL, so the property is unusable in practice -- and, notably, this is not caught by an expansion-time diagnostic. Representing 'this whole nested value is absent' (e.g. from an outer join) is documented as tracked follow-up work.",
+      "provenance": {
+        "inspiration": "n/a -- documents an existing, already-acknowledged gap in this repository rather than adapting an external case.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "gated",
+      "gating": {
+        "reason": "No XLStaticRowFieldSource producer exists for Optional<NestedType>; there is also no expansion-time diagnostic warning that the property is unusable. Building either requires new public API (an optional-composite field-group producer with defined NULL-row semantics) that is explicitly out of scope for issue #256's regression-corpus work.",
+        "blocking_issue": 6,
+        "milestone": "v1.5.1",
+        "documented_at": [
+          "Sources/SwiftQL/SwiftQL.docc/StaticQueries.md (composite property must be non-optional; tracked as follow-up work)",
+          "CHANGELOG.md ([1.5.1] Unreleased, Migration section)"
+        ]
+      },
+      "evidence": []
+    }
+  ]
+}

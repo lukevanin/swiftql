@@ -1,0 +1,17 @@
+# Paired-control summary, issue #353 row-closure hoist
+#
+# Per-pair medians in milliseconds and the candidate's change against
+# the baseline measured in the same pair. The baseline is the
+# constrained-requirement fix alone.
+#
+pair	baseline_median_ms	candidate_median_ms	change_pct
+1	42.02	29.59	-29.58
+2	42.06	30.32	-27.89
+3	41.94	30.66	-26.90
+4	43.57	31.08	-28.66
+5	43.41	30.80	-29.07
+6	43.73	30.59	-30.06
+
+# headline median	baseline 42.74 ms	candidate 30.63 ms	-28.34%
+# headline p95	baseline 44.08 ms	candidate 31.32 ms	-28.95%
+# process spread	baseline 4.19%	candidate 4.86%

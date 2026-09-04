@@ -1,5 +1,16 @@
 # Build-Time SQLite Query Preparation and Schema Validation
 
+> **The prototype this document describes no longer exists in the repository.**
+> `Research/SQLiteBuildValidation/` was removed in v1.5.7 ([#565]) once every
+> test it had that the shipped targets lacked was ported across. What shipped
+> from it is [`SwiftQLSQLiteBuildValidationManifest`](SQLiteBuildValidationManifest.md),
+> [`SwiftQLSQLiteBuildValidationValidator`](SQLiteBuildValidationValidator.md),
+> and the [build-tool plugin](SQLiteBuildValidationPlugin.md). This document is
+> kept as the record of the research decision, so the prototype file and type
+> names below name code that has been superseded rather than code you can read.
+
+[#565]: https://github.com/lukevanin/swiftql/issues/565
+
 ## 1. Executive decision and v1.3 boundary
 
 Issue [#132](https://github.com/lukevanin/swiftql/issues/132) is a research-only
@@ -406,17 +417,24 @@ Three atomic v1.5 follow-ups are recommended:
    query descriptors.**](https://github.com/lukevanin/swiftql/issues/292)
    Specify versioned canonical JSON, query/descriptor identity,
    parameter/result/codec layout, schema identity, capabilities, and #190/#191
-   references. No database I/O, macro implementation, or query-identity change.
+   references. No database I/O, macro implementation, or query-identity
+   change. Delivered as `SwiftQLSQLiteBuildValidationManifest`; see
+   [SQLiteBuildValidationManifest.md](SQLiteBuildValidationManifest.md) for
+   the schema, determinism, and registry-resolution contract.
 2. [**#293: Ship a standalone SQLite static-query build
    validator.**](https://github.com/lukevanin/swiftql/issues/293) Consume the
    manifest and snapshot, own a read-only connection, call
    `sqlite3_prepare_v3`, produce stable fail-closed diagnostics, and validate a
    real downstream fixture. No plugin, macro, DDL, migrations, or statement
-   persistence.
+   persistence. Delivered as `SwiftQLSQLiteBuildValidationValidator` and the
+   `swiftql-build-validate` CLI; see
+   [SQLiteBuildValidationValidator.md](SQLiteBuildValidationValidator.md).
 3. [**#294: Add a SwiftPM build-tool plugin wrapper for SQLite query
    validation.**](https://github.com/lukevanin/swiftql/issues/294) Use declared
    inputs/outputs and invoke the standalone tool. No validation logic, schema
-   inference, or second report format in the plugin.
+   inference, or second report format in the plugin. Delivered as
+   `SwiftQLSQLiteBuildValidationPlugin`; see
+   [SQLiteBuildValidationPlugin.md](SQLiteBuildValidationPlugin.md).
 
 A separate macro-integration follow-up would duplicate #26 and is not proposed.
 

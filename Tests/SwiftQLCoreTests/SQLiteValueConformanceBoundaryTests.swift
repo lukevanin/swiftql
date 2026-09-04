@@ -20,7 +20,7 @@ final class SQLiteValueConformanceBoundaryTests: XCTestCase {
         }
         let valueFeatureCount = featuresByID.values.reduce(0) { $0 + $1.count }
         XCTAssertEqual(inventory.schemaVersion, 1)
-        XCTAssertEqual(inventory.inventoryVersion, "1.3.0")
+        XCTAssertEqual(inventory.inventoryVersion, "1.6.0")
         XCTAssertEqual(inventory.coordinationIssue, 190)
         XCTAssertEqual(valueFeatureCount, 24)
         XCTAssertEqual(
@@ -197,15 +197,12 @@ final class SQLiteValueConformanceBoundaryTests: XCTestCase {
         // `syntax.expression.like-escape-gap` is deliberately absent: issue #21
         // shipped the ESCAPE clause, so it is supported rather than gated.
         let gatedBlockers = [
-            "syntax.compound.direct-scalar-gap": 43,
-            "syntax.cte.materialization-hints-gap": 10,
             "syntax.ddl.typed-model-gap": 139,
-            "syntax.join.natural-using-gap": 45,
         ]
         let featuresByID = Dictionary(
             uniqueKeysWithValues: inventory.features.map { ($0.id, $0) }
         )
-        XCTAssertEqual(gatedBlockers.count, 4)
+        XCTAssertEqual(gatedBlockers.count, 1)
 
         // Issues #57, #53, and #58 shipped INSERT, DELETE, and UPDATE RETURNING,
         // so this record is supported rather than gated. Its id keeps the -gap
@@ -235,6 +232,39 @@ final class SQLiteValueConformanceBoundaryTests: XCTestCase {
         XCTAssertEqual(likeEscape.adoptionStatus, .alreadyCovered)
         XCTAssertNil(likeEscape.deferral)
         XCTAssertFalse(likeEscape.evidenceIDs.isEmpty)
+
+        // Issue #45 shipped NATURAL JOIN and JOIN USING, so this record is
+        // supported rather than gated. Its id keeps the -gap suffix for
+        // stable suite references.
+        let naturalUsingJoin = try XCTUnwrap(
+            featuresByID["syntax.join.natural-using-gap"]
+        )
+        XCTAssertEqual(naturalUsingJoin.status, .supported)
+        XCTAssertEqual(naturalUsingJoin.adoptionStatus, .alreadyCovered)
+        XCTAssertNil(naturalUsingJoin.deferral)
+        XCTAssertFalse(naturalUsingJoin.evidenceIDs.isEmpty)
+
+        // Issue #10 shipped MATERIALIZED / NOT MATERIALIZED CTE hints, so
+        // this record is supported rather than gated. Its id keeps the -gap
+        // suffix for stable suite references.
+        let cteMaterialization = try XCTUnwrap(
+            featuresByID["syntax.cte.materialization-hints-gap"]
+        )
+        XCTAssertEqual(cteMaterialization.status, .supported)
+        XCTAssertEqual(cteMaterialization.adoptionStatus, .alreadyCovered)
+        XCTAssertNil(cteMaterialization.deferral)
+        XCTAssertFalse(cteMaterialization.evidenceIDs.isEmpty)
+
+        // Issue #43 shipped direct scalar compound and CTE rows without
+        // SQLScalarResult wrappers, so this record is supported rather than
+        // gated. Its id keeps the -gap suffix for stable suite references.
+        let directScalarCompound = try XCTUnwrap(
+            featuresByID["syntax.compound.direct-scalar-gap"]
+        )
+        XCTAssertEqual(directScalarCompound.status, .supported)
+        XCTAssertEqual(directScalarCompound.adoptionStatus, .alreadyCovered)
+        XCTAssertNil(directScalarCompound.deferral)
+        XCTAssertFalse(directScalarCompound.evidenceIDs.isEmpty)
         for (featureID, blockingIssue) in gatedBlockers {
             let feature = try XCTUnwrap(featuresByID[featureID], featureID)
             XCTAssertEqual(feature.status, .unimplemented, featureID)

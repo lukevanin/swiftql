@@ -1,5 +1,761 @@
 # Changelog
 
+## [1.6.0] - 2026-09-03
+
+### Added
+
+- `XLJSONPath`, a typed SQLite JSON path built from segments rather than
+  written as a string literal (issue #588). `XLJSONPath.root` is the document
+  root, `key(_:)` adds an object member, `index(_:)` adds an array element
+  counted from the start, and `last` and `index(fromEnd:)` count back from the
+  end. A key is quoted only where SQLite's path grammar needs it -- when the
+  key is empty, or holds a `.` or a `[` -- so a key that holds either names
+  that key instead of changing the shape of the path. A key holding a `"`, a
+  `\`, or a control character resolves only on a SQLite that unescapes JSON
+  labels: JSON stores such a key escaped, older engines match a path label
+  against that raw escaped text, and newer engines unescape both sides first,
+  so no single spelling suits both. SwiftQL renders for the newer behaviour,
+  which is what SQLite documents. A path renders through the same text
+  formatter as any other text operand, so it cannot carry raw SQL. SQLite has
+  no negative array index, so `index(_:)` stops with a diagnostic message when
+  it is given one, and names `last` and `index(fromEnd:)` as the remedy.
+  `appended` names the position one past the last element, rendered `[#]`,
+  which is SQLite's idiom for appending to an array.
+
+- `jsonArrayLength(path:)` gains an `XLJSONPath` overload (issue #588). The
+  existing `String` overload is unchanged.
+
+- SQLite's two JSON selection operators, added in SQLite 3.38.0 (issue #589).
+  `jsonElement(at:)` renders `->` and returns the selected element as JSON
+  text, so a selected string keeps its quotes and a JSON `null` reads back as
+  the four characters `null`. `jsonValue(at:as:)` renders `->>` and returns
+  the element as a SQL value of the requested type, so a selected string loses
+  its quotes and a JSON `null` reads back as SQL `NULL`. Both results are
+  optional, because a path that matches nothing yields SQL `NULL`. Both are
+  methods rather than Swift operators: the compiler reserves `->` and refuses
+  to declare it. SQLite's bare-name form on the right of the operator is not
+  exposed, because `XLJSONPath.key(_:)` already names any single key and also
+  composes.
+
+- The SQLite JSON constructor and inspection functions (issue #590).
+  `jsonArray(_:)` and `jsonObject(_:)` build a JSON array and object.
+  `jsonObject` takes its members as name/value pairs, so an incomplete member
+  cannot be written and SQLite's "requires an even number of arguments" error
+  cannot be reached from Swift. On an expression: `minifiedJSON()` renders
+  `json(X)`, `prettyJSON()` renders `json_pretty(X)`, `jsonQuoted()` renders
+  `json_quote(X)`, `jsonType()` and `jsonType(at:)` render `json_type`, and
+  `jsonErrorPosition()` renders `json_error_position(X)`.
+
+  Three of these need a SQLite newer than 3.9.0, and SwiftQL renders the SQL
+  either way -- it is the engine that refuses. `json_error_position` needs
+  **3.42.0**, `json_valid(X, F)` with flags needs **3.45.0**, and
+  `json_pretty` needs **3.46.0**. The macOS cells in this repository's
+  supported matrix run SQLite 3.43.2, so the last two are covered by tests
+  that ask the connection what it defines and skip with a message naming the
+  runtime, rather than by combinatorial cases, where a missing capability is
+  a failure rather than a skip.
+
+- `XLJSONValidationFlags`, a typed option set for the second argument of
+  `json_valid` (issue #590), with one member per SQLite flag bit: `json`,
+  `json5`, `jsonbShallow`, and `jsonbStrict`. An empty set renders as `json`,
+  which is what SQLite uses when the argument is left out, because SQLite
+  rejects a zero mask.
+
+- `json_extract` and the five JSON mutation functions (issue #591).
+  `jsonExtract(at:as:)` reads one path as a SQL value in the type the caller
+  states. `jsonExtract(at:_:_:)` reads two or more paths and returns the JSON
+  array SQLite builds from them; it requires two paths by its signature, so
+  the two result types cannot be confused at the call site.
+
+- `jsonInserting(_:_:)`, `jsonReplacing(_:_:)`, `jsonSetting(_:_:)`,
+  `jsonRemoving(at:_:)`, and `jsonPatched(with:)` write values back into a
+  document (issue #591). Each takes its path/value pairs as pairs, and each
+  requires at least one, so an incomplete or empty argument list cannot be
+  written. Every result is optional, because a `NULL` document gives `NULL`.
+
+- SQLite's two JSON aggregates (issue #592). `jsonGroupArray(distinct:)`
+  renders `json_group_array(X)` and collects every input row into a JSON
+  array. `jsonGroupObject(name:value:)` renders `json_group_object(N, V)` and
+  collects name/value pairs into a JSON object. Neither result is optional:
+  an empty group gives `[]` and `{}`, not SQL `NULL`. `jsonGroupObject` has no
+  `distinct` parameter, because SQLite allows `DISTINCT` only on an aggregate
+  with exactly one argument.
+
+- The JSONB function variants, which need SQLite 3.45.0 or later (issue #593).
+  Eleven SQLite functions return the binary JSON representation instead of
+  JSON text, reached through twelve Swift entry points because
+  `jsonbExtract` has a single-path and a multiple-path form: `minifiedJSONB()`, `jsonbArray(_:)`, `jsonbObject(_:)`,
+  `jsonbExtract(at:as:)` and `jsonbExtract(at:_:_:)`, `jsonbInserting(_:_:)`,
+  `jsonbReplacing(_:_:)`, `jsonbSetting(_:_:)`, `jsonbRemoving(at:_:)`,
+  `jsonbPatched(with:)`, `jsonbGroupArray(distinct:)`, and
+  `jsonbGroupObject(name:value:)`. The functions whose result is a SQL value
+  rather than JSON have no JSONB twin, because SQLite defines none: they read
+  a JSONB input directly and keep their own result types.
+
+- A JSON documentation page, `JSON.md`, covering the whole v1.6 surface: the
+  path builder, the two operators, extraction, mutation, the constructors, the
+  aggregates, when JSONB is worth using, and the SQLite version each group
+  needs (issue #594). Every snippet on the page is built and executed by
+  `XLDocumentationTests.testDocumentationJSON`. `BuiltinFunctions.md` links to
+  it rather than repeating the list.
+
+- Conformance inventory records for the whole JSON surface (issue #594). The
+  `syntax.expression.json-functions` entry no longer names only
+  `JSON_ARRAY_LENGTH` and `JSON_VALID`; it covers the constructors,
+  inspection, extraction, mutation, and aggregates. Two new entries join it:
+  `syntax.expression.json-path` for the typed path builder and
+  `syntax.expression.json-operators` for `->` and `->>`, which record their
+  own SQLite 3.38.0 minimum. `syntax.expression.jsonb-functions` records the
+  JSONB surface and its 3.45.0 minimum. Thirteen evidence records cite the new
+  test suites, and `Conformance/SQLite/REPORT.md` is regenerated.
+
+- The to-do demo adopts the JSON surface (issue #479). A to-do's sub-tasks
+  live in a `checklist` JSON column: adding, ticking, and deleting one are
+  each a single `UPDATE` through `json_insert`, `json_set`, and
+  `json_remove`, and the list rows show a count from `json_array_length` and
+  a first title from `->>`, so no checklist array crosses the boundary to
+  draw a row. `Examples/TodoApp/README.md` and the `TodoDemo` page explain
+  why a JSON column is the honest choice for that one field.
+
+- `sql { ... }` works as a subquery on Swift 6.1 and later, inferring a table
+  row, a nullable table row, or a scalar value from the context expecting its
+  result (issue #69). The six overloads are behind `#if compiler(>=6.1)`,
+  because they crash the Swift 5.9 and 6.0 compilers when compiled with the
+  rest of the package -- the reason this work was reverted once already, in
+  pull request #408. On those toolchains nothing changes:
+  `subqueryExpression { ... }` remains the spelling, and it is what the gated
+  overloads forward to. Recorded in COMPATIBILITY.md beside `#row`'s
+  multi-column shapes, which are gated for the same class of compiler bug.
+
+### Changed
+
+- Decoding a full result set is 39.4% faster (issue #353). `XLRowReader` gains
+  a second `staticColumn(_:alias:)` requirement, constrained to a value type
+  that conforms to `XLLiteral`. Generated row readers name one concrete Swift
+  type per column, so the compiler selects the constrained requirement for
+  every literal column, and the unconstrained requirement only for a
+  contextual one. The unconstrained requirement has to find the literal
+  conformance at run time and reopen the expression as a parameterised
+  existential; a profile attributed about 54% of main-thread samples to that
+  work, which ran 226,002 times for one 16,143-row, 14-column fetch. The
+  constrained requirement receives the conformance statically and reads the
+  value directly. Measured over six interleaved pairs on one machine: median
+  72.38 ms to 43.88 ms, p95 74.67 ms to 45.32 ms, with every pair between
+  -38.4% and -40.0%. See `Benchmarks/Comparison/Issue353/README.md`.
+
+  No source change is needed to get this. Nothing in the macros changes, so
+  every existing `@SQLTable` and `@SQLResult` reaches the faster path as it
+  is. The new requirement has a default implementation that forwards to
+  `column(_:alias:)`, so an `XLRowReader` conformance outside this package
+  keeps compiling.
+
+  One conformance is affected. A row reader that overrides the unconstrained
+  `staticColumn(_:alias:)` to give literal columns behaviour that
+  `column(_:alias:)` does not give will no longer see literal columns arrive
+  there, because those columns now select the constrained requirement.
+  Implement the constrained requirement as well to keep that behaviour. A
+  reader that implements only `column(_:alias:)`, which is the documented
+  shape, is unaffected.
+
+- Decoding a full result set is a further 28.3% faster (issue #353). The row
+  closure that `@SQLTable` and `@SQLResult` generate runs once per row, and it
+  built each column's expression inside itself. For a 16,143-row, 14-column
+  fetch that built 226,002 `XLColumnResult` values instead of 14. Each was
+  built as its concrete type, so passing it to a read that takes
+  `any XLExpression` boxed it again, and the value is larger than the
+  existential's inline buffer, so each box was a heap allocation. The
+  generated factory now binds every column expression once, before it builds
+  its metadata value, and declares the binding as the erased type the read
+  already takes. Measured over six interleaved pairs on one machine, against
+  the constrained-requirement fix alone: median 42.74 ms to 30.63 ms, p95
+  44.08 ms to 31.32 ms, with every pair between -26.9% and -30.1%. See
+  `Benchmarks/Comparison/Issue353/README.md`.
+
+  No source change is needed to get this, and the generated API does not
+  change. The binding keeps the column's concrete type, so a literal column
+  still selects the constrained `staticColumn(_:alias:)` requirement.
+  `makeSQLTable` and `makeSQLNamedResult` now return explicitly, because a
+  body that binds locals is no longer a single expression.
+
+### Fixed
+
+- The `Benchmarks/Comparison` harness can build its SwiftQL graph again (issue
+  #353). The graph's pinned `Package.resolved` was captured before SwiftQL
+  took its OpenCombine dependency, so SwiftPM added an OpenCombine pin during
+  every build and the harness stopped, as it should, rather than measure
+  dependency versions other than the pinned ones. The missing pin is now
+  recorded at the version and revision SwiftPM resolves. No other pin changes.
+
+### Deprecated
+
+- `validJSON()`, in favour of `validJSONOrNull()` and
+  `validJSONOrNull(flags:)` (issue #590). `json_valid(NULL)` returns SQL
+  `NULL`, not false, so a non-optional `Bool` result cannot represent what
+  SQLite returns. `validJSON()` still compiles and renders the same SQL; it
+  will return an optional expression in SwiftQL 2.
+
+## [1.5.7] - 2026-08-27
+
+### Removed
+
+- Four public types that nothing referenced, in SwiftQL or anywhere in this
+  repository (issue #555): `XLDatabaseMetadata` and its only conformer
+  `XLDatabaseMetadataObject`, `XLTableName`, and `XLUnionDependency`. Each was
+  declared and never used -- no call site, no conformance, no mention outside
+  its own declaration.
+
+- Six unreferenced members of `SQLiteBuildValidationRuntimeMetadata` (issue
+  #555). Five computed capability sets --  `compileOptionCapabilities`,
+  `functionCapabilities`, `collationCapabilities`, `moduleCapabilities`, and
+  `extensionCapabilities` -- which nothing read; the `has…(named:)` predicates
+  beside them are how capabilities are actually resolved. And
+  `hasFunction(named:argumentCount:)` loses its `argumentCount` parameter: no
+  caller ever passed one, and arity was the wrong question to ask anyway, since
+  SQLite reports `-1` for a variadic function.
+
+### Changed
+
+- `Select(_ meta:)` now traps with a diagnostic message when a dynamic
+  projection cannot enumerate its columns against the definition reader, in
+  place of the bare `try!` it used before (pull request #584). The message
+  names the projection type, the underlying error, and the
+  `XLStaticRowReadable` overload that skips the replay, which is the remedy
+  when a static row layout was erased to `any XLRowReadable`. The same input
+  trapped before this change, so no working code is affected; only the
+  diagnostic is.
+
+### Fixed
+
+- A NaN `Double` bound through a `@SQLQuery` macro parameter is now rejected
+  where the value is captured, rather than further down at the driver boundary
+  (issue #554). SwiftQL's documented policy is that binding a NaN throws
+  `XLSQLValueEncodingError.realBindingWouldBecomeNull` instead of letting SQLite silently store SQL `NULL` in its place, and
+  `_xlQueryParameterBinding` -- the capture behind every macro parameter --
+  was the one capture path missing that check. **Nothing was ever stored as
+  `NULL` through it**: `GRDBDatabaseDriver` rejects a NaN `REAL` before the
+  value reaches SQLite, so executing such a query already threw. It now throws
+  from the capture, with the same error the driver produced, so every capture
+  path agrees. A caller who invokes `_xlQueryParameterBinding` directly and
+  inspects its result, rather than executing, sees the throw where they
+  previously saw `.real(nan)`. Infinities are unaffected: they survive
+  SQLite's binding round trip and remain valid bound values.
+
+- A `RETURNING` request now registers custom functions that opt into implicit
+  registration, so a data-changing statement whose clauses call one executes
+  instead of failing with SQLite's "no such function" error (issue #553).
+  `GRDBDatabase.makeRequest(with: any XLReturningStatement<Row>)` built its
+  request without passing the rendered encoding's registrations, so the
+  registration table reaching the connection was empty -- a predicate that
+  worked in a plain `SELECT` failed once the same statement was written as
+  `UPDATE ... RETURNING` or `DELETE ... RETURNING`. Functions registered
+  upfront with `GRDBDatabaseBuilder.addFunction(_:)` were never affected.
+  Static query descriptors still register nothing, which is deliberate and now
+  documented: a descriptor keeps only deterministic SQL and parameter
+  metadata, and a registration is a live closure that cannot survive into it.
+
+## [1.5.6] - 2026-08-04
+
+### Added
+
+- `@SQLTable` and `@SQLResult` now declare a `Sendable` conformance for the
+  models they expand, so a value built entirely from column values can be
+  shared across isolation domains without the conformance being written out at
+  every declaration (issue #531). Swift already infers `Sendable` for a struct
+  whose stored properties are all `Sendable`, but withholds that inference from
+  a type other modules can see, which is why a `public` model used to warn
+  under complete strict-concurrency checking and left callers reaching for
+  `nonisolated(unsafe)` to silence it. The macros fill in exactly that gap:
+  a `public` or `package` model gets the conformance, and a model that is
+  `internal` or narrower keeps the compiler's own inferred one and gets nothing
+  generated. This is a public API addition. A model that already states
+  `Sendable`, or `@unchecked Sendable`, keeps its own declaration and gets no
+  second one, so existing declarations such as the `TodoKit` schema still
+  compile unchanged. The generated conformance is checked rather than asserted,
+  so a `public` model holding a non-`Sendable` stored property is now diagnosed
+  on the generated extension where it previously compiled silently; declaring
+  `@unchecked Sendable` on such a model takes responsibility for it and turns
+  the generation off. Generic models are left alone, because the conditional
+  conformance they need cannot be written by an extension macro without the
+  compiler reporting `circular reference expanding extension macros`;
+  `SQLScalarResult` and `SQLRow2`...`SQLRow6`, the shapes behind `#row`, are
+  the affected types and they were not `Sendable` before this either. The
+  conformance requires Swift 6.0 or later, since Swift 5.9 treats a
+  macro-expanded extension as a separate source file for the rule that a
+  `Sendable` conformance must be declared alongside its type and warns on every
+  model; the 5.9 support point keeps the behaviour it had. See COMPATIBILITY.md.
+- Added a `SwiftQLExamples` library product (issue #480), holding the
+  pre-expanded schema and declared queries the Getting Started playground
+  imports. A classic Xcode playground has no `Package.swift` of its own and
+  cannot reliably load a Swift macro compiler plugin, so the example schema is
+  built during the ordinary package build and the playground calls
+  already-expanded API. It is example code rather than a supported API, and
+  nothing in `SwiftQL` or `SwiftQLCore` depends on it.
+
+### Changed
+
+- `SQLiteBuildValidator` now reports the schema checks it could not run, and
+  stops preparing queries once the snapshot's schema identity is already known
+  not to match the manifest (issue #440). When
+  `SQLiteBuildValidationRuntime.capture` fails, the row-count and fingerprint
+  checks used to vanish from the report; they now appear as `.unsupported`
+  `schema.row-count` and `schema.fingerprint` diagnostics, so a reader can tell
+  a check that could not run apart from one that was never in the report. When
+  a schema identity mismatch is already recorded, every manifest entry gets one
+  deterministic `schema.mismatch-skipped` outcome instead of a preparation
+  whose result is already meaningless. `overallVerdict` resolution, the
+  manifest format, the CLI surface, and every existing pass/fail outcome are
+  unchanged, and canonical reports remain byte-identical across repeated runs.
+
+### Fixed
+
+- Nullable columns can now be assigned in a `Setting` closure the way any
+  Swift optional is: `row.occupationId = "occ-1"` sets the column,
+  `row.occupationId = nil` sets it to SQL `NULL`, and an optional-typed
+  expression — a `XLNamedBindingReference<String?>` whose bound value may be
+  `NULL` at runtime, or another nullable column — assigns with the same
+  spelling. Previously the generated setter's type was
+  `Optional<any XLExpression<T?>>`, where the outer `Optional` meant "leave
+  this column out of the `SET` clause"; that collided with the column's own
+  optionality, and no assignment of a plain value or of `nil` compiled at
+  all. Generated `MetaUpdate` types now route column assignment through
+  key-path member lookup over typed per-column slots (`XLColumnUpdate` /
+  `XLNullableColumnUpdate`), so participation in the `SET` clause is tracked
+  separately from the value's own optionality and one column name resolves
+  against every assignment shape. A column the closure never assigns still
+  stays out of the statement, non-optional columns behave as before, and
+  `MetaUpdate`'s memberwise initializer keeps its v1 shape, where a `nil`
+  argument still means "omit this column".
+
+- Fixed `SwiftQLSQLiteBuildValidationPlugin` failing every Xcode build of a
+  plugin-adopting target (issue #492). `context.tool(named:)` resolves a
+  build-tool plugin's tool to `$BUILD_DIR/$CONFIGURATION/<target name>`, while
+  Xcode's build system names a package executable after its *product*. The
+  validator's target (`SwiftQLSQLiteBuildValidationValidatorCLI`) and product
+  (`swiftql-build-validate`) had different names, so Xcode built the
+  validator's library dependencies, left the executable out of the adopting
+  target's dependency graph, and failed with `Build input file cannot be found`
+  before validation ran — on a valid manifest as much as an invalid one.
+  `swift build` resolved the same graph correctly, which is why only Xcode was
+  affected. The executable target is now named `swiftql-build-validate`,
+  matching its product; its source directory is unchanged. Both build systems
+  now agree: a valid manifest builds, and an invalid one fails with the
+  validator's own diagnostic.
+  `IntegrationTests/BuildValidationPluginFixture/verify-xcode.sh` drives that
+  agreement through `xcodebuild` so the two names cannot drift apart again. No
+  public API changed, and the `swiftql-build-validate` product and its CLI
+  contract are unchanged.
+
+## [1.5.5] - 2026-07-30
+
+### Added
+
+- Added canonical async live-query streams, `stream()`/`stream(bindings:)` and
+  `streamOne()`/`streamOne(bindings:)`, to `XLRequest` (issue #308): a
+  `for try await` loop is now the single source of truth for SwiftQL
+  live-query observation — immutable-packet capture, retry, decoding, and
+  buffering all live in one GRDB-native `AsyncThrowingStream` source
+  (`GRDBLiveQueryAsyncBridge`, built directly on `ValueObservation.start`),
+  rather than being duplicated per adapter.
+- Defined the buffering, snapshot-lifecycle, and cancellation contract that
+  the async streams and their adapters follow (issue #291): at most one
+  undelivered snapshot is ever held per stream ("bound-1 newest wins"), and
+  resuming or replenishing demand never forces a fresh fetch — it only
+  surfaces whatever GRDB already produced. Recorded in
+  <doc:LiveQueries>, "Buffering and Resumed-Demand Semantics", alongside the
+  rejected alternatives.
+- Added `XLObservableQuery`/`XLObservableQueryRow` (issue #97): `@Observable`
+  (`iOS 17`/`macOS 14`+) wrappers over `stream()`/`streamOne()` exposing
+  `rows`/`row`, `isLoading`, and `error` as `@MainActor` state, for SwiftUI
+  clients on platforms that ship the `Observation` framework. Package's
+  existing iOS 16/macOS 13 floor is unchanged.
+- Added `XLResultSet` (issue #249): a connection-scoped, lazy, single-pass
+  typed result set whose `next() throws -> Row?` steps and decodes exactly
+  one row at a time, via new `withResultSet(_:)`/`withResultSet(bindings:_:)`
+  methods on `XLRequest` and a driver-neutral pull-based streaming seam
+  (`makeValuesStepper(_:)`) in `SwiftQLCore`.
+
+### Changed
+
+- Rebuilt `publish()`/`publish(bindings:)`/`publishOne()`/`publishOne(bindings:)`
+  as Combine adapters over `stream()`/`streamOne()` (issue #309): Combine is
+  now a leaf adapter mapping `Subscribers.Demand` onto a pull loop over a
+  fresh async stream per subscriber, rather than an independent
+  `ValueObservation`-backed observation engine. Public signatures are
+  unchanged; a real demand-accounting over-delivery bug found during the
+  rebuild is fixed as part of this change.
+
+## [1.5.4] - 2026-07-28
+
+### Added
+
+- Added method-style scalar expression functions matching the existing
+  majority style (issue #3): `all().count()`, `a.min(b, ...)`/`a.max(b, ...)`
+  (at least one further expression, both because SQLite's scalar `MIN`/`MAX`
+  is meaningless with fewer and to stay unambiguous against the deprecated
+  zero-argument aggregate `min(distinct:)`/`max(distinct:)` methods of the
+  same name), `condition.iif(then:else:)`, and `"...".printf(...)`. The
+  previous free functions (`count(_:)`, `min(_:)`/`max(_:)`, `iif(_:then:else:)`,
+  `printf(format:_:)`) are deprecated in favor of the new methods, matching
+  the existing `sum()`/`average()` → `sumOrNull()`/`averageOrNull()`
+  deprecation precedent.
+- Added a `Setting(_:_:)` initializer that infers `Setting`'s row type from
+  the same table reference already passed to the preceding `Update(_:)`,
+  instead of requiring an explicit generic parameter (issue #96):
+  `Update(person); Setting(person) { row in row.age = 42 }`. The existing
+  `Setting { ... }` and `Setting(metaInstance)` initializers are unchanged.
+- Restored the `#row` ad hoc row projection macro (issue #408, follow-up to
+  #20; originally shipped in #383, then reverted after a Swift 5.9.2 IRGen
+  compiler crash). The single-column shape (`SQLScalarResult`) is available
+  on every compatibility cell; the two-to-six column shapes (`SQLRow2`
+  through `SQLRow6`) are gated to Swift 6.1+ — SwiftQL's first source-level
+  API divergence across compiler cells, documented in COMPATIBILITY.md's new
+  "Swift 5.9 and Swift 6.0 API surface gaps" section. The underlying IRGen
+  crash reproduces on both the pinned Swift 5.9.2 toolchain (Docker-verified)
+  and the pinned Swift 6.0 cell (Xcode 16.2, observed directly in this
+  release's CI), and isn't confined to one crossing point: `fetchAll()`,
+  `publish()`, and `publishOne()` each hit it independently for a
+  2+-generic-parameter row type. Swift 6.1 (Xcode 16.4) is the first cell
+  confirmed free of the crash.
+- Added `XLQueryObserver` and `XLQueryRowObserver` (issue #28):
+  `ObservableObject` wrappers around `publish()`/`publishOne()` that expose
+  `@Published rows`/`row` and `@Published error`, so a SwiftUI view model
+  can adopt a live query directly without hand-writing a Combine sink. No
+  new package dependency — the package conforms to `Combine.ObservableObject`
+  (or `OpenCombine`'s equivalent on Linux) without importing SwiftUI itself.
+
+### Changed
+
+- `GRDBRequest.decodeRows(packet:)` accumulates into an outer array and
+  returns `Void` from its `withReadConnection`/`withTransaction` closures,
+  instead of returning `[Row]` directly. This protects every
+  multi-generic-parameter `Row` type from the IRGen crash described above at
+  zero cost on other `Row` types — motivated by, but not exclusive to,
+  `#row`'s new shapes.
+
+### Deprecated
+
+- Deprecated the free functions `count(_:)`, `min(_:)`/`max(_:)`,
+  `iif(_:then:else:)`, and `printf(format:_:)` in favor of their method-style
+  equivalents (issue #3). Each keeps a source-compatible signature, including
+  a deprecated single-argument `min(_:)`/`max(_:)` overload that preserves
+  the prior variadic form's single-argument behavior (SQLite parses
+  `MIN(expr)`/`MAX(expr)` as its aggregate function, not a scalar comparison)
+  rather than changing it.
+
+### Migration
+
+No migration is required for v1.5.4. Every change is additive or a
+source-compatible deprecation; `#row`'s two-to-six column shapes are the
+package's first API surface unavailable on Swift 5.9 rather than a removal.
+
+Confirmed and closed out two investigations opened as issues, with no
+production code changes: chaining multiple optional fallbacks through
+`coalesce`/`??` already composed correctly into SQLite's variadic
+`COALESCE` (issue #7 — a footgun where `??` applied to a plain Swift
+`Optional` silently falls back to the standard library's operator instead
+of rendering `COALESCE` is now called out as a `> Warning` in
+`Expressions.md`), and an already-optional scalar-subquery result already
+flattened to a single-layer `T?` rather than `T??` (issue #162 — the three
+observable NULL states now have direct real-SQLite test coverage).
+
+## [1.5.3] - 2026-07-28
+
+### Added
+
+- Added `@SQLCodec(key)` (issue #66), a zero-storage property attribute
+  macro that selects a named contextual value codec (from the v1.2 #188
+  registry) on an individual `@SQLTable`/`@SQLResult` stored property,
+  without wrapping the property, changing its Swift type, or altering the
+  type's memberwise initializer, mutability, `Equatable`, or `Codable`
+  behavior. Two properties of the same Swift type can now use two different
+  storage conventions on one table. The macro emits the codec key as stable
+  metadata (a `_swiftQLPropertyCodecKeys` dictionary keyed by column name)
+  and generates a `staticResultField(...)` convenience per annotated
+  property that already supplies `selection: .explicit(key)`, so callers
+  never repeat the key by hand. Selection still resolves through the
+  existing explicit-property/query-override/database-default precedence
+  from #188; the attribute only supplies the "explicit" input.
+- Added `XLJSONValueCodec` (issue #65), a codec factory that stores any
+  application `Codable` value as SQLite `TEXT` or `BLOB`, with an immutable,
+  `Sendable` snapshot of the relevant `JSONEncoder`/`JSONDecoder` strategies
+  (key/date/data strategy, key sorting) captured at codec construction — no
+  live shared encoder/decoder instance and no process-global JSON
+  configuration. `TEXT` and `BLOB` are distinct, non-interchangeable storage
+  identities. Malformed or incompatible data fails with a structured,
+  catchable `XLValueCodecError` that wraps the underlying `EncodingError`/
+  `DecodingError`, never a default value.
+- Added three named SQLite numeric `Date` codec presets (issue #62):
+  `UnixMilliseconds` (`INTEGER`, rounded to the nearest millisecond,
+  rejecting `Int64` overflow), `UnixSeconds` (`REAL`,
+  `Date.timeIntervalSince1970` stored as-is), and `JulianDay` (`REAL`,
+  matching SQLite's own `julianday()` linear relationship). None is an
+  implicit default — encoding without an explicit selector or a registered
+  database default throws `.ambiguousCodec`. Every preset rejects a
+  non-finite `Date` at encode time and a non-finite stored `REAL` at decode
+  time with a structured error.
+- Added `XLDateTextCodec` (issue #61): a versioned, SQLite-compatible
+  standard `Date`-as-`TEXT` preset (fixed proleptic-Gregorian calendar, UTC
+  offset, millisecond fractional precision, `Z`-suffixed
+  `YYYY-MM-DDTHH:MM:SS.SSSZ` text, directly usable by SQLite's `date`/
+  `time`/`datetime`/`julianday`/`strftime` and comparison operators without
+  a dialect conversion expression), plus `XLDateTextCodec.custom(key:format:)`
+  for applications that need a different fixed UTC offset or fractional
+  precision via an explicit, immutable `XLDateTextFormat` — no process-global
+  or shared mutable `DateFormatter`. The standard preset's supported
+  proleptic-Gregorian year range is `0001...9999`; dates outside it fail to
+  encode with a structured error rather than being silently clamped.
+- Added `XLUUIDValueCodec.text` and `.blob` (issue #192): named, versioned
+  presets that persist Foundation `UUID` as canonical lowercase hyphenated
+  `TEXT` or the canonical 16-byte RFC 4122 `BLOB`, using only the existing
+  #188 registry — no retroactive `UUID` conformance and no wrapper struct.
+  Both target the same `(UUID, sqlite)` value/dialect pair, so they always
+  agree on equality (case-insensitive text decode, canonicalized lowercase
+  encode) but can never both be installed as the database default at once.
+  Malformed input (invalid text, wrong `BLOB` length) surfaces as a
+  structured `XLUUIDValueCodecError` carrying codec and property context.
+
+### Migration
+
+No migration is required for v1.5.3. Every codec preset and `@SQLCodec` are
+new, additive surfaces built entirely on the existing v1.2 contextual
+value-codec registry (#188) and v1.2 static query descriptors (#129); no
+existing public API, persisted representation, or codec precedence rule
+changed. Applying a new preset or `@SQLCodec` to an existing property is a
+schema/data migration for that property alone, exactly like changing any
+codec's key or version — the same rule the v1.2 registry already documents.
+
+### Known limitations
+
+- `@SQLCodec` selects among codecs already registered with the
+  configuration passed to `staticResultField`; it does not register one
+  itself. An unregistered key, or a key registered for a different Swift
+  value type or dialect, fails the same way an explicit
+  `XLValueCodecSelection` fails elsewhere — with the same `XLValueCodecError`
+  cases, at the same "explicit" precedence tier, before any row is touched.
+- The numeric and text `Date` codecs stay in SwiftQL's value-coding layer;
+  none of them adds a SQL-level `julianday`/`strftime` expression-builder
+  helper — value coding stays separate from SQLite's date/time operators
+  and functions, which remain other issues' scope.
+- PostgreSQL's native `UUID`/`JSONB`/timestamp mappings (tracked separately
+  as issue #137) are untouched by this release; these presets are SQLite-
+  specific, and a future PostgreSQL dialect module supplies its own mapping
+  for the same Swift domain types without changing any codec added here.
+
+## [1.5.2] - 2026-07-27
+
+### Added
+
+- Added a versioned, deterministic SQLite build-validation manifest
+  (issue #292): `SwiftQLSQLiteBuildValidationManifest` projects static
+  `XLStaticQueryDescriptor`s — SQL text, parameters, result columns, required
+  capabilities, and a checked-in schema snapshot's identity/hash/fingerprint —
+  into a canonical JSON sidecar. The manifest cross-checks declared
+  parameters against the raw SQL text before any consumer runs, and resolves
+  #190/#191/#254 conformance references through an injected
+  `SQLiteBuildValidationReferenceRegistry` rather than depending on their
+  test-only fixture targets. Same input always produces byte-identical
+  output: sorted keys, no escaped slashes, sorted/deduplicated arrays.
+- Added the standalone SQLite static-query build validator (issue #293): the
+  `swiftql-build-validate` executable and its `SwiftQLSQLiteBuildValidationValidator`
+  library consume a #292 manifest and its checked-in SQLite snapshot, open one
+  dedicated read-only, query-only connection, and prepare every manifest entry
+  with `sqlite3_prepare_v3` — proving the SQL parses, referenced
+  tables/columns/functions/collations resolve, bind/result metadata matches
+  the manifest, and declared capabilities are present in captured runtime
+  evidence. Verdicts are fail-closed (`passed`/`failed`/`unsupported`, only
+  `passed` succeeds) and the canonical JSON report is deterministic across
+  repeated runs against the same inputs. It does not prove result values, row
+  counts, or runtime behavior — those stay #214's responsibility, and every
+  report names them explicitly under `delegated_checks`.
+- Added `SwiftQLSQLiteBuildValidationPlugin` (issue #294), a SwiftPM
+  `.buildTool()` plugin that wraps the #293 validator into an ordinary `swift
+  build`. A target opts in by listing the plugin and placing a manifest and
+  snapshot directly in its own source directory; the plugin declares them as
+  explicit build-command inputs and the canonical report as an explicit
+  output (never a `.prebuildCommand`), so SwiftPM's own incremental planner —
+  not the plugin — decides when to re-run validation. A `failed` or
+  `unsupported` verdict fails the build and forwards the validator's
+  diagnostic to `swift build`'s output.
+
+### Migration
+
+No migration is required for v1.5.2. The manifest, validator, and plugin are
+new, additive surfaces with no changes to any existing public API.
+
+### Known limitations
+
+- The validator proves schema/parameter/capability agreement with the real
+  SQLite parser, not result values, row counts, or application behavior.
+- Manifest entries can be generated in-process:
+  `SQLiteBuildValidationQueryEntry(id:descriptor:declaredAliases:)` projects an
+  existing `XLStaticQueryDescriptor` into sidecar form, deriving the SQL,
+  parameter layout, and result columns, and recovering each parameter's
+  physical placeholder index by scanning the rendered SQL. What no macro or
+  tool in this release does is emit a manifest from a `@SQLQuery` declaration:
+  the v1.5.1 declaration macro builds on the transitional `sql { }` statement
+  path and does not lower to a descriptor, so that route stays a future #26
+  boundary gated on the v2 catalog work (#212, #214). A target's snapshot is
+  still supplied by you.
+- The plugin is verified under `swift build`. Building a plugin-adopting
+  package in Xcode 26.5 fails before validation runs, reporting `Build input
+  file cannot be found` for the validator executable, on a valid manifest as
+  well as an invalid one (#492). Fixed in v1.5.6; on v1.5.2 through v1.5.5 the
+  plugin is usable from `swift build` and CI only.
+
+## [1.5.1] - 2026-07-26
+
+### Added
+
+- Added `@SQLQuery` (issues #18/#26), an attached peer macro that lowers a
+  query-specification function — an instance method on a database extension
+  whose body builds a `sql { }` statement from its own parameters — into a
+  value-free statement builder and a cached, cardinality-dispatched executor.
+  Labeled parameters and result cardinality are derived from the function's
+  own signature: `[Row]` fetches all rows, `Row?` fetches zero-or-one, a bare
+  `Row` fetches exactly one (throwing `XLQueryCardinalityError.noRowsMatched`
+  or `.moreThanOneRowMatched`), and the legacy `any/some
+  XLQueryStatement<Row>` spelling fetches all rows. Every invocation
+  constructs a fresh, immutable binding packet; callers never construct or
+  mutate a binding themselves and never bind by textual SQL substitution.
+- Added `@SQLQueries` (issues #18/#26, the recommended packaging), an
+  attached member macro that reads every specification out of a nested
+  `private struct Query` container inside one `@SQLQueries`-attached database
+  extension, and generates the executors as members of the database itself —
+  carrying the specification's own name (`personByName(name:)`, not
+  `fetchPersonByName`) because they land in a different scope. Generates a
+  connection-scoped `Context`, an `execute(_:)` entry point for running
+  several declared queries in one scope, and one database-level convenience
+  executor per specification.
+- Added the frozen-literal guard: both macros reject, at the declaration
+  site, every parameter-reference shape their signature-driven rewrite cannot
+  turn into a named placeholder — a string interpolation, a nested-closure
+  capture, a direct call argument, a local-binding initializer, a
+  hand-constructed binding, a shadowing declaration, member access on a
+  parameter, a collection-typed parameter, and an unreferenced parameter.
+  Every remaining reference shape the rewrite reaches is rewritten to a named
+  placeholder, so the encoding has no path that silently freezes a stale
+  argument value into the cached SQL.
+- Added `XLRenderOnceCache` and `XLPreparedQueryCacheKey`: each declaration
+  renders its value-free statement to SQL at most once per
+  `(databaseIdentifier, dialectIdentifier)` and reuses the resulting request
+  on every later call, so the underlying GRDB connection reuses one physical
+  prepared statement across calls with different argument values.
+  `GRDBDatabase.preparedQueryCacheKey` opts the GRDB adapter into this
+  reuse; `XLDatabase.preparedQueryCacheKey` defaults to `nil` (render on every
+  call) so existing third-party adapters keep compiling.
+- Added the `DeclaredQueries` DocC article covering the `@SQLQuery` and
+  `@SQLQueries` forms, the frozen-literal guard, render-once caching and its
+  concurrency/`Sendable` story, and the v1.5 transitional-syntax note.
+- Added typed multi-statement transaction scopes (issue #284):
+  `XLTransactionalDatabase.withTransaction(_:)` runs an ordered sequence of
+  typed `XLRequest`/`XLWriteRequest` invocations — reads and writes alike —
+  on one pinned GRDB connection as a single atomic unit, committing only
+  after the whole body succeeds and rolling back every write on a
+  preparation, binding, execution, decoding, or user-thrown failure, with no
+  GRDB type anywhere in the contract. `@SQLQueries`'s generated `execute(_:)`
+  is now sugar over this same primitive, so declared-query calls and
+  `makeRequest(with:)` calls in one `execute(_:)` closure commit or roll back
+  together. Calling `withTransaction(_:)` again from inside an active body —
+  whether on the scope it was given or on the original database captured
+  from the enclosing closure — is rejected with a catchable
+  `XLTransactionScopeError.nestedTransactionUnsupported` before any pool
+  access, instead of the uncatchable crash GRDB's own reentrant-write guard
+  would otherwise raise. A scope value used after its body returns throws
+  `.scopeEscaped`; `publish()`/`publishOne()` inside a transaction throws
+  `.liveQueriesUnsupportedInTransaction`; an already-cancelled task throws
+  `CancellationError` before the transaction opens. Documented in
+  `GettingStarted`'s "Typed multi-statement transaction scopes".
+- Added composite/nested result selection (issue #6): a stored property on an
+  `@SQLTable`/`@SQLResult` type can now itself be another `@SQLTable`/
+  `@SQLResult` type. The generated `staticRowLayout(using:...)` factory
+  flattens every one of the nested type's own columns into the enclosing
+  type's flat SQL result (re-aliased with the property name as a prefix, e.g.
+  `employee_id`, `employee_name`), and reconstructs the nested value before
+  building the enclosing type. Nesting composes to any depth, since a
+  composite property's argument is itself the nested type's own
+  `staticRowLayout(using:...)` result.
+- Added the `XLStaticRowFieldSource` protocol and `XLStaticFieldGroup` type to
+  `SwiftQL`. Every generated `staticRowLayout(using:...)` parameter now takes
+  an `XLStaticRowFieldSource` value; both an ordinary `XLStaticSelectField`
+  (through a default implementation, so no scalar call site changes) and an
+  `XLStaticRowLayout` (for a nested composite property) conform to it. The
+  macro has no semantic access to a property's type declaration, so it never
+  has to detect which case applies -- Swift's own conformance checking
+  resolves it from whichever value the caller passes to a given property.
+- Extended the unsupported-column-type diagnostic to name both supported
+  property shapes (a scalar `XLLiteral` column, or a nested `@SQLTable`/
+  `@SQLResult` composite), so a property type the macro cannot resolve as
+  either is rejected with an actionable message instead of only failing
+  downstream with an opaque protocol-conformance error.
+- Added the issue #256 `@SQLTable`/`@SQLResult` macro regression corpus:
+  expansion and diagnostic tests for reserved/escaped and Unicode
+  identifiers, SQL-keyword-like property names, doubly-wrapped optionals,
+  every reserved generated-member name, mixed access-control modifiers, and
+  a wide (12-property) row; and a checked-in downstream consumer fixture
+  (`IntegrationTests/Swift5Client`) that compiles and executes BLOBs,
+  optionals, `XLEnum` columns, a wide row, and composite/nested result
+  selection against real SQLite without `@testable`. Each case's provenance
+  and disposition (including the still-unsupported optional composite
+  property, gated on issue #6) is recorded in
+  `Tests/SQLMacrosTests/MacroRegressionCorpus.json`, a sibling to the #190
+  SQL-syntax conformance inventory scoped to macro code-generation instead.
+- Added the `@SQLFunction` macro (#25), which generates the `XLCustomFunctionDefinition`
+  and `makeSQL(context:)` boilerplate for a custom `XLCustomFunction` conformer
+  from its stored properties — one positional SQL argument per property, in
+  declaration order. `execute(reader:)`, the actual computation, is still
+  written by hand. The macro is opt-in sugar: hand-written `XLCustomFunction`
+  conformances that implement `definition` and `makeSQL` themselves keep
+  working unchanged.
+- Added implicit custom-function registration. A custom function conforming to
+  `XLCustomFunction` can opt in by calling the new
+  `XLBuilder.customFunctionCall(_:parameters:)` from `makeSQL(context:)`
+  instead of `simpleFunction(name:parameters:)`. `GRDBDatabase` then registers
+  the function with SQLite automatically the first time a rendered statement
+  referencing it executes, without requiring a `GRDBDatabaseBuilder.addFunction`
+  call beforehand. Because `GRDB.DatabasePool` maintains several persistent
+  reader connections and a registration only affects the one physical
+  connection it runs on, the function is (cheaply) re-registered on every
+  execution rather than tracked as "already registered" once, so it works
+  correctly no matter which pooled connection services a given call.
+  `GRDBDatabaseBuilder.addFunction` is unchanged and continues to work exactly
+  as before for functions that keep calling `simpleFunction` directly, or for
+  callers who prefer registering everything upfront.
+
+### Migration
+
+No migration is required for v1.5.1. `@SQLQuery` and `@SQLQueries` are new,
+additive macros; the one new `XLDatabase.preparedQueryCacheKey` protocol
+requirement has a default (`nil`) that keeps every existing conformer,
+including third-party `XLDatabase` adapters, source-compatible.
+
+### Known limitations
+
+- Only `SELECT`-shaped specifications are supported; a write statement
+  (`INSERT`/`UPDATE`/`DELETE`, with or without `RETURNING`) is not yet an
+  accepted return shape. A `.command` cardinality dispatching to
+  `XLWriteRequest.execute` remains future work.
+- Collection-typed parameters (`[T]`, `Set`, `Dictionary`) are rejected,
+  because a variable-length `IN` list would change the rendered SQL text with
+  the element count.
+- The generated executor is synchronous and throwing; an `async` variant is
+  additive future work.
+- Peer and member names are derived from the specification's base name only,
+  so two `@SQLQuery` functions sharing a base name but differing in
+  parameter list generate colliding peer declarations — a loud
+  duplicate-declaration compile error, not a silent one.
+- Only one `@SQLQueries`-attached extension is supported per database type; a
+  second would redeclare `Context` and `execute(_:)`.
+- A composite/nested `@SQLTable`/`@SQLResult` property must be
+  non-optional; an optional nested composite (representing an absent
+  value from an outer join, for example) is not yet supported.
+- `withTransaction(_:)` does not support nested transactions or savepoints —
+  a nested call is rejected outright rather than silently composed — and
+  cancellation is checked only once, before the transaction opens; the
+  synchronous body has no cooperative mid-transaction cancellation point.
+  Both remain tracked by v2 issue #113, matching the disposition the shared
+  `SQLiteTransactionConformanceFixtures` capability table (issue #253)
+  already recorded for the driver-level contract.
+
 ## [1.4.6] - 2026-07-25
 
 ### Changed
@@ -122,9 +878,9 @@ render unchanged.
   conformance inventory.
 - Recorded the new conflict-resolution, replace, upsert, update-with-CTE,
   RETURNING (insert, delete, update), and INSERT/UPDATE SELECT surfaces in the
-  #190 canonical SQLite conformance inventory. It records 111 public-surface feature records: 104
+  #190 canonical SQLite conformance inventory. It records 117 public-surface feature records: 113
   supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
-  4 unimplemented. Of the 164 evidence records, 101 exercise real SQLite and
+  1 unimplemented. Of the 193 evidence records, 117 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
 ### Migration
@@ -519,14 +1275,13 @@ strict-concurrency checking may require captured mutable state to gain explicit
 isolation.
 
 Scalar subqueries already add an optional layer because they may return no row.
-Until the nullable-subquery flattening API tracked by #162 is available, selecting
-an `OrNull` aggregate inside `subquery` or `subqueryExpression` requires an
-explicit type-affinity wrapper so Swift models SQLite's single NULL state:
+Selecting an `OrNull` aggregate — or any other already-optional expression —
+inside `subquery` or `subqueryExpression` composes directly into a single
+`Int?`, not `Int??`, so Swift models SQLite's single NULL state without an
+explicit type-affinity wrapper:
 
 ```swift
-let total: any XLExpression<Int?> = XLTypeAffinityExpression<Int?>(
-    expression: subquery {
-        select(invoice.amount.sumOrNull()).from(invoice)
-    }
-)
+let total = subquery {
+    select(invoice.amount.sumOrNull()).from(invoice)
+}
 ```

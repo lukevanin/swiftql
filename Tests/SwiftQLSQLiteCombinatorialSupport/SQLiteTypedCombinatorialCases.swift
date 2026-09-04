@@ -1566,13 +1566,13 @@ public enum SQLiteTypedCombinatorialCases {
             expressionCase(
                 id: "comparable-min",
                 featureID: "syntax.expression.numeric-comparable-functions",
-                statement: select(min(namedInteger, 191)),
+                statement: select(namedInteger.min(191)),
                 bindings: [.init(key: .named("integer_value"), value: .integer(254))]
             ),
             expressionCase(
                 id: "string-printf",
                 featureID: "syntax.expression.string-functions",
-                statement: select(printf(format: "%s-%d", namedText, namedInteger)),
+                statement: select("%s-%d".printf(namedText, namedInteger)),
                 bindings: [
                     .init(key: .named("text_value"), value: .text("case")),
                     .init(key: .named("integer_value"), value: .integer(191)),
@@ -1605,7 +1605,7 @@ public enum SQLiteTypedCombinatorialCases {
             expressionCase(
                 id: "json-valid",
                 featureID: "syntax.expression.json-functions",
-                statement: select(namedText.validJSON()),
+                statement: select(namedText.validJSONOrNull()),
                 bindings: [
                     .init(key: .named("text_value"), value: .text("{\"ok\":true}")),
                 ],
@@ -1619,6 +1619,212 @@ public enum SQLiteTypedCombinatorialCases {
                     .init(key: .named("text_value"), value: .text("[1,2,3]")),
                 ],
                 requiredCapabilities: ["sqlite-json-functions"]
+            ),
+            expressionCase(
+                id: "json-group-array",
+                featureID: "syntax.expression.json-functions",
+                statement: select(namedText.jsonGroupArray()),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("x")),
+                ],
+                requiredCapabilities: ["function-signature:JSON_GROUP_ARRAY/1"]
+            ),
+            expressionCase(
+                id: "json-group-object",
+                featureID: "syntax.expression.json-functions",
+                statement: select(jsonGroupObject(name: namedText, value: 1)),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("x")),
+                ],
+                requiredCapabilities: ["function-signature:JSON_GROUP_OBJECT/2"]
+            ),
+            expressionCase(
+                id: "json-extract-one-path",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonExtract(
+                        at: XLJSONPath.root.key("a"),
+                        as: Int.self
+                    )
+                ),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("{\"a\":1}")),
+                ],
+                requiredCapabilities: ["function:JSON_EXTRACT"]
+            ),
+            expressionCase(
+                id: "json-extract-two-paths",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonExtract(
+                        at: XLJSONPath.root.key("a"),
+                        XLJSONPath.root.key("b")
+                    )
+                ),
+                bindings: [
+                    .init(
+                        key: .named("text_value"),
+                        value: .text("{\"a\":1,\"b\":2}")
+                    ),
+                ],
+                requiredCapabilities: ["function:JSON_EXTRACT"]
+            ),
+            expressionCase(
+                id: "json-insert",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonInserting((XLJSONPath.root.key("b"), 2))
+                ),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("{\"a\":1}")),
+                ],
+                requiredCapabilities: ["function:JSON_INSERT"]
+            ),
+            expressionCase(
+                id: "json-replace",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonReplacing((XLJSONPath.root.key("a"), 9))
+                ),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("{\"a\":1}")),
+                ],
+                requiredCapabilities: ["function:JSON_REPLACE"]
+            ),
+            expressionCase(
+                id: "json-set",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonSetting((XLJSONPath.root.key("a"), 9))
+                ),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("{\"a\":1}")),
+                ],
+                requiredCapabilities: ["function:JSON_SET"]
+            ),
+            expressionCase(
+                id: "json-remove",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonRemoving(at: XLJSONPath.root.key("a"))
+                ),
+                bindings: [
+                    .init(
+                        key: .named("text_value"),
+                        value: .text("{\"a\":1,\"b\":2}")
+                    ),
+                ],
+                requiredCapabilities: ["function:JSON_REMOVE"]
+            ),
+            expressionCase(
+                id: "json-patch",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonPatched(with: "{\"b\":null,\"c\":3}")
+                ),
+                bindings: [
+                    .init(
+                        key: .named("text_value"),
+                        value: .text("{\"a\":1,\"b\":2}")
+                    ),
+                ],
+                requiredCapabilities: ["function-signature:JSON_PATCH/2"]
+            ),
+            expressionCase(
+                id: "json-minified",
+                featureID: "syntax.expression.json-functions",
+                statement: select(namedText.minifiedJSON()),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text(" { \"a\" : 1 } ")),
+                ],
+                requiredCapabilities: ["function-signature:JSON/1"]
+            ),
+            expressionCase(
+                id: "json-quote",
+                featureID: "syntax.expression.json-functions",
+                statement: select(namedText.jsonQuoted()),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("a\"b")),
+                ],
+                requiredCapabilities: ["function-signature:JSON_QUOTE/1"]
+            ),
+            expressionCase(
+                id: "json-type",
+                featureID: "syntax.expression.json-functions",
+                statement: select(namedText.jsonType()),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("{\"a\":[1]}")),
+                ],
+                requiredCapabilities: ["function-signature:JSON_TYPE/1"]
+            ),
+            expressionCase(
+                id: "json-type-path",
+                featureID: "syntax.expression.json-functions",
+                statement: select(
+                    namedText.jsonType(at: XLJSONPath.root.key("a"))
+                ),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("{\"a\":[1]}")),
+                ],
+                requiredCapabilities: ["function-signature:JSON_TYPE/2"]
+            ),
+            expressionCase(
+                id: "json-error-position",
+                featureID: "syntax.expression.json-functions",
+                statement: select(namedText.jsonErrorPosition()),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("{\"a\":")),
+                ],
+                requiredCapabilities: ["function-signature:JSON_ERROR_POSITION/1"]
+            ),
+            expressionCase(
+                id: "json-array-constructor",
+                featureID: "syntax.expression.json-functions",
+                statement: select(jsonArray(namedText)),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("x")),
+                ],
+                requiredCapabilities: ["function:JSON_ARRAY"]
+            ),
+            expressionCase(
+                id: "json-object-constructor",
+                featureID: "syntax.expression.json-functions",
+                statement: select(jsonObject((namedText, 1))),
+                bindings: [
+                    .init(key: .named("text_value"), value: .text("a")),
+                ],
+                requiredCapabilities: ["function:JSON_OBJECT"]
+            ),
+            expressionCase(
+                id: "json-arrow-element",
+                featureID: "syntax.expression.json-operators",
+                statement: select(
+                    namedText.jsonElement(at: XLJSONPath.root.key("name"))
+                ),
+                bindings: [
+                    .init(
+                        key: .named("text_value"),
+                        value: .text("{\"name\":\"Alice\"}")
+                    ),
+                ],
+                requiredCapabilities: ["sqlite-json-operators"]
+            ),
+            expressionCase(
+                id: "json-arrow-value",
+                featureID: "syntax.expression.json-operators",
+                statement: select(
+                    namedText.jsonValue(
+                        at: XLJSONPath.root.key("name"),
+                        as: String.self
+                    )
+                ),
+                bindings: [
+                    .init(
+                        key: .named("text_value"),
+                        value: .text("{\"name\":\"Alice\"}")
+                    ),
+                ],
+                requiredCapabilities: ["sqlite-json-operators"]
             ),
             expressionCase(
                 id: "operator-arithmetic-precedence",
@@ -1676,17 +1882,14 @@ public enum SQLiteTypedCombinatorialCases {
             issue286ExpressionCase(
                 id: "comparable-max",
                 featureID: "syntax.expression.numeric-comparable-functions",
-                statement: select(max(namedInteger, 191)),
+                statement: select(namedInteger.max(191)),
                 bindings: [.init(key: .named("integer_value"), value: .integer(254))]
             ),
             issue286ExpressionCase(
                 id: "string-printf-array",
                 featureID: "syntax.expression.string-functions",
                 statement: select(
-                    printf(
-                        format: "%s-%d",
-                        [namedText, namedInteger]
-                    )
+                    "%s-%d".printf([namedText, namedInteger])
                 ),
                 bindings: [
                     .init(key: .named("text_value"), value: .text("case")),

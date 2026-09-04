@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 import GRDB
 import XCTest
 @testable import SwiftQL
@@ -27,7 +28,7 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
             registry: registry
         )
         let database = try GRDBDatabase(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             codingConfiguration: codingConfiguration,
             formatter: XLiteFormatter(),
             logger: nil
@@ -161,7 +162,7 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [codecs.text.identity.key]
         )
         let database = try GRDBDatabase(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             codingConfiguration: originalConfiguration,
             formatter: XLiteFormatter(),
             logger: nil
@@ -299,7 +300,7 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
         // The original pool initializer remains available and keeps the v1
         // empty-configuration behavior for existing consumers.
         let legacyDatabase = try GRDBDatabase(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             formatter: XLiteFormatter(),
             logger: nil
         )
@@ -411,7 +412,7 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
         )
 
         var driver = GRDBDatabaseDriver(
-            databasePool: fixture.databasePool,
+            databasePool: fixture.pool,
             dialect: dialect
         )
         let create = logicalStatement(
@@ -637,14 +638,8 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
         )
     }
 
-    private func makeFixture() throws -> CodecFixture {
-        let directoryURL = try makeDirectory()
-        return CodecFixture(
-            directoryURL: directoryURL,
-            databasePool: try DatabasePool(
-                path: directoryURL.appendingPathComponent("database.sqlite").path
-            )
-        )
+    private func makeFixture() throws -> TemporaryDatabaseFixture {
+        try TemporaryDatabaseFixture.make(named: "contextual-codec")
     }
 
     private func makeDirectory() throws -> URL {
@@ -742,17 +737,6 @@ private struct LegacyEpoch: Equatable, XLLiteral, Sendable {
 
     init(reader: XLFieldReader) throws {
         self.value = try reader.readInteger()
-    }
-}
-
-
-private struct CodecFixture {
-    let directoryURL: URL
-    let databasePool: DatabasePool
-
-    func tearDown() {
-        try? databasePool.close()
-        try? FileManager.default.removeItem(at: directoryURL)
     }
 }
 

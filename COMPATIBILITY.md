@@ -18,8 +18,21 @@ have separate responsibilities:
 - `SwiftQL` is the application-facing library. It includes `SwiftQLCore`, the
   macros and typed SQL DSL, contextual value codecs, and the current
   GRDB-backed SQLite driver.
-- `swiftql-benchmark` is a repository performance diagnostic executable, not an
-  application runtime dependency or a database adapter.
+- `SwiftQLSQLiteBuildValidationManifest` and
+  `SwiftQLSQLiteBuildValidationValidator` are the build-time query validator's
+  manifest format and validation engine, added in v1.5.2. The
+  `swiftql-build-validate` executable and the
+  `SwiftQLSQLiteBuildValidationPlugin` build-tool plugin drive them from a
+  build; see "Build-validation plugin build systems" below for the build
+  systems they are verified under. None of them is required to use `SwiftQL`
+  at runtime.
+- `SwiftQLExamples` holds the pre-expanded schema and declared queries the
+  Getting Started playground imports, added in v1.5.6. A classic Xcode
+  playground cannot expand SwiftQL's macros itself, so the module is built as
+  part of the package instead. It is example code, not a supported API.
+- `swiftql-benchmark` and `swiftql-construction-profile` are repository
+  performance diagnostic executables, not application runtime dependencies or
+  database adapters.
 
 The manifest's dependency bounds are SwiftSyntax 509.0.0, GRDB 6.29.3 or later,
 Swift-DocC plugin 1.0.0 or later, and exact OpenCombine 0.14.0. SwiftSyntax also
@@ -46,6 +59,32 @@ surface. The core protocols are extension seams, not claims that another
 dialect, driver, nested transaction/savepoint API, asynchronous cursor, or
 Swift 6 language mode is supported.
 
+## Build-validation plugin build systems
+
+`SwiftQLSQLiteBuildValidationPlugin` is supported under both SwiftPM's build
+system (`swift build`) and Xcode's, from v1.5.6 onwards. Both are verified
+against `IntegrationTests/BuildValidationPluginFixture`: `verify.sh` drives
+`swift build` and `verify-xcode.sh` drives `xcodebuild -destination
+'platform=macOS'`, and both assert the same outcomes — a valid manifest builds,
+and an invalid one fails with the validator's own diagnostic.
+
+`verify.sh` runs in CI on every cell of the pinned compatibility matrix, so the
+`swift build` contract is gated on each supported Swift series and platform.
+`verify-xcode.sh` remains a manual check: Xcode is not part of that matrix.
+
+On v1.5.2 through v1.5.5 the plugin is `swift build`-only. Adopting it in a
+target that Xcode builds fails that build with `Build input file cannot be
+found` naming the validator executable, before validation runs, on a valid
+manifest as much as an invalid one. The cause was a name mismatch between the
+validator's executable target and its product, which Xcode's build system does
+not tolerate (#492); v1.5.6 renames the target to match. On those versions, run
+the validator from CI or a `swift build` step rather than from an Xcode target.
+
+Verified on Xcode 26.5 (17F42), macOS 26.5 arm64. Xcode is not part of the
+pinned compatibility matrix below, so this is a verified support point rather
+than a per-commit CI gate. `verify-xcode.sh` is the check to run whenever the
+plugin's declaration or its tool resolution changes.
+
 ## SQLite conformance inventory
 
 The [SQLite conformance report](Conformance/SQLite/REPORT.md) summarizes the
@@ -55,27 +94,27 @@ The report is evidence for SwiftQL's existing public SQLite subset; it is not a
 claim of complete SQLite grammar coverage. The inventory remains the source of
 truth, while the report is its readable generated view.
 
-The v1.3 inventory contains 111 feature records and 164 evidence records. Its
+The v1.6 inventory contains 117 feature records and 193 evidence records. Its
 support-status totals are exact and mutually exclusive:
 
 | Support status | Features |
 | --- | ---: |
-| Supported | 104 |
+| Supported | 113 |
 | Partial | 0 |
 | Capability-gated | 2 |
 | Intentionally unsupported | 1 |
-| Unimplemented | 4 |
+| Unimplemented | 1 |
 
-Of those 164 evidence records, 101 exercise real SQLite and
+Of those 193 evidence records, 117 exercise real SQLite and
 cite one captured environment, SQLite 3.51.0. An inventory entry is counted in
-the 104 supported features only when it links to successful preparation by a
+the 113 supported features only when it links to successful preparation by a
 real SQLite engine whose version and source ID are recorded. Partial,
 capability-gated, intentionally unsupported, and unimplemented entries remain
 visible with their evidence, requirements, or rationale, but are excluded
 from the supported total. Evidence records are reusable proofs, so their count
 is not intended to match the feature count one for one.
 
-The v1.3 work has distinct ownership and claims:
+The original v1.3 work has distinct ownership and claims:
 
 - [#190](https://github.com/lukevanin/swiftql/issues/190) owns the canonical
   feature taxonomy, status decisions, evidence references, generated report,
@@ -142,15 +181,152 @@ and the `x86_64-unknown-linux-gnu` target. macOS additionally verifies the exact
 Xcode version, build, and SDK. Toolchain or image drift therefore fails instead
 of silently redefining support.
 
-GRDB 6.29.3's Swift 5.9 Linux condition assumes the linked SQLite exports its
-optional snapshot symbols. The pinned amalgamation intentionally leaves that
-optional API disabled, so the Linux cells consistently define GRDB's documented
-`GRDBCUSTOMSQLITE` build path through SwiftPM's compiler override. This removes
-only the unavailable snapshot API branch. The override delegates SwiftPM's
-module-wrapping phase directly to the matching `swift-frontend` and remains next
-to the selected compiler so SwiftPM loads that toolchain's index-store runtime.
-The exact-version runtime probe, capability report, and full tests remain
-authoritative for the pinned SQLite surface.
+The Linux cells compile the pinned amalgamation with `-DSQLITE_ENABLE_SNAPSHOT`
+and fail unless `nm -D --defined-only` lists `sqlite3_snapshot_get` among the
+resulting library's exported definitions, so the optional snapshot API is
+enabled rather than disabled. Because the cells link that private build instead
+of the distribution's `libsqlite3-dev` package that GRDB's SwiftPM
+system-library target otherwise expects, they follow GRDB's documented
+custom-SQLite recipe through SwiftPM's compiler override: the override passes
+`-DGRDBCUSTOMSQLITE` to `swiftc` and points compilation and linking at the
+pinned headers and library. GRDB 6.29.3 compiles its `WALSnapshot` support
+whenever the Swift-side `SQLITE_ENABLE_SNAPSHOT` condition is defined, and
+otherwise only through a fallback that additionally requires both
+`GRDBCUSTOMSQLITE` and `GRDBCIPHER` to be undefined and a compiler-version and
+platform condition to hold. `-DGRDBCUSTOMSQLITE` closes that fallback, so on
+its own it would compile the support out. The override therefore passes
+`-DSQLITE_ENABLE_SNAPSHOT` to `swiftc` alongside it, which satisfies the first
+condition directly and keeps the snapshot path in the build; `DatabasePool`
+observations use it to avoid an unconditional second startup fetch when the
+database has not changed. The override delegates SwiftPM's module-wrapping
+phase directly to the matching
+`swift-frontend` and remains next to the selected compiler so SwiftPM loads
+that toolchain's index-store runtime. The exact-version runtime probe,
+capability report, and full tests remain authoritative for the pinned SQLite
+surface.
+
+### Swift 5.9 and Swift 6.0 API surface gaps
+
+The `#row(...)` freestanding macro's two-to-six column shapes (`SQLRow2`
+through `SQLRow6`) require `#if compiler(>=6.1)` and are unavailable on the
+Swift 5.9 support point or the pinned Swift 6.0 cell. Decoding a result type
+with 2 or more generic parameters through `fetchAll()` or `publish()` crashes
+`swift-frontend` during IR generation (`NativeConventionSchema::mapIntoNative`
+and other, seemingly unrelated internal symbols — this is a compiler
+memory-safety bug, not a clean type error, so its crash site is not stable)
+on both the pinned Swift 5.9.2 toolchain and the pinned Swift 6.0 cell (Xcode
+16.2) — reproduced for 5.9.2 with a minimal case in Docker (`swift:5.9.2-jammy`
+plus the pinned SQLite 3.53.3 amalgamation and the
+`GRDBCUSTOMSQLITE`/`SQLITE_ENABLE_SNAPSHOT` compiler override above), and
+observed directly on the pinned Swift 6.0 cell in this release's CI run,
+independent of restructuring the decode boundary to avoid returning the
+multi-generic-parameter type directly from `pool.read`, `withTransaction`,
+`ValueObservation`, or a Combine operator closure — every one of those
+crossings independently triggers the same crash for such a type. The bug is
+fixed by Swift 6.1 (Xcode 16.4): the compatibility matrix's `Swift 6.1 / Apple
+clean resolution` cell compiles and runs `#row`'s multi-column shapes without
+incident. `#row`'s one-column shape (`SQLScalarResult`, a single generic
+parameter) is unaffected and remains available on every pinned cell,
+including 5.9 and 6.0. This is the package's first source-level API
+divergence across compiler cells; see `Sources/SwiftQL/SQLRowMacro.swift` and
+`Sources/SwiftQL/SQLRowResult.swift` for the gated declarations.
+
+Using `sql { ... }` as a subquery (issue #69) requires `#if compiler(>=6.1)`
+for the same reason, and is unavailable on the Swift 5.9 support point or the
+pinned Swift 6.0 cell. The six `@_disfavoredOverload` overloads that give
+`sql` its subquery shapes crash `swift-frontend` on both, compiled together
+with the rest of the package -- reproduced in Docker and bisected to those
+declarations, since removing them alone removes the crash. `sql` is called at
+nearly every call site in the package, so disfavouring six more overloads
+under that name is enough overload-resolution load to trip a compiler bug of
+that generation. The work shipped once as pull request #416 and was reverted
+in #408 for this. Swift 6.1 (Xcode 16.4) fixes it. On 5.9 and 6.0 the
+overloads are not compiled, so nothing crashes and every subquery is spelled
+`subqueryExpression { ... }`, which is what every SwiftQL version so far has
+required and what the gated overloads forward to unchanged. See
+`Sources/SwiftQL/Expression Builder/SQLQueryExpressionBuilder.swift`.
+
+The `Sendable` conformance `@SQLTable` and `@SQLResult` declare for a `public`
+or `package` model (issue #531) requires Swift 6.0 or later. Swift 5.9 treats a
+macro-expanded extension as a separate source file for the rule that a
+`Sendable` conformance must be declared alongside its type, so every model there
+draws `conformance to 'Sendable' must occur in the same source file as struct
+'X'; use '@unchecked Sendable' for retroactive conformance`, which the
+first-party warnings-as-errors gate turns into a build failure. The spelling the
+compiler suggests is the one the conformance exists to avoid, so the 5.9 support
+point keeps the behaviour it had: nothing is generated, and a model that should
+be `Sendable` states it on the declaration. Swift 6.0 accepts the generated
+conformance without a diagnostic, verified on the pinned 6.0 cell. The gate is
+`#if compiler(>=6.0)` in `makeSendableExtension` in
+`Sources/SQLMacros/SQLMacro.swift`; because SwiftPM builds a macro plugin with
+the same toolchain that compiles the client, it resolves per compilation rather
+than per plugin build. The macro-expansion tests in
+`Tests/SQLMacrosTests/SQLTests.swift` and the conformance tests in
+`Tests/SQLTests/SQLModelSendableConformanceTests.swift` carry the same gate.
+
+### Swift 6.0 crashes on a statement built inline in a fetched request
+
+On the pinned Swift 6.0 cell (Xcode 16.2, Apple Swift 6.0.3), `swift-frontend`
+segfaults while compiling a single expression that builds a statement inline
+and then fetches from the request that statement produces:
+
+```swift
+// Crashes swift-frontend on Xcode 16.2 with signal 11.
+let everyone = try database.makeRequest(with: sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+}).fetchAll()
+```
+
+Give either half a name and the same query compiles:
+
+```swift
+let everyoneQuery = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+}
+let everyone = try database.makeRequest(with: everyoneQuery).fetchAll()
+```
+
+Both halves have to be in one expression for the crash to happen. What breaks
+is the combination of erasing a concrete statement type to the
+`any XLQueryStatement<Row>` or `any XLReturningStatement<Row>` parameter and
+opening the `any XLRequest<Row>` that comes back, in the same expression. The
+crash is in SILGen rather than IR generation, at
+`Callee::forWitnessMethod` by way of `GenericFunctionType::substGenericArgs`
+and `BoundGenericType::get`, so it is a different bug from the multi-generic
+IRGen crash above and it has a different trigger. Some spellings abort inside
+`SILGenModule::useConformancesFromType` instead of segfaulting, and which of
+the two you get is not stable across runs of the same source.
+
+Reaching for a local is the whole workaround, and it does not matter which
+local:
+
+| Written as | Xcode 16.2 |
+| --- | --- |
+| `makeRequest(with: sql { … }).fetchAll()` | crashes |
+| `makeRequest(with: insert(t).values(…).returning(t)).fetchAll()` | crashes |
+| the same, with `fetchOne()` or `stream()` | crashes |
+| `let s = sql { … }` then `makeRequest(with: s).fetchAll()` | compiles |
+| `let r = makeRequest(with: sql { … })` then `r.fetchAll()` | compiles |
+| `makeRequest(with: aFunctionReturningTheExistential()).fetchAll()` | compiles |
+| `makeRequest(with: sqlInsert(row)).execute()` | compiles |
+
+The last two rows say what the trigger is not. An argument that is already the
+existential the parameter takes is fine however it is spelled, so this is not
+about writing a call rather than a name in the argument. `execute()` is fine
+because `any XLWriteRequest` carries no primary associated type, so nothing
+gets opened.
+
+Swift 6.1 (Xcode 16.4) compiles every one of those spellings, verified by
+running the same set of cases on both toolchains while diagnosing #530. The
+library needs no `#if` for this, because the workaround is source that
+compiles on every supported cell. The to-do demo and the Getting Started
+playground are both written in the two-step form, and CI builds both on the
+pinned Swift 6.0 cell, so a reintroduced one-liner fails there rather than in
+a user's project.
 
 ## Swift 6 series coverage
 
@@ -288,6 +464,91 @@ marker, and keeps build products outside the source tree. The compatibility
 matrix runs both fixture resolution paths only in its pinned Swift 6.0 cells;
 the ordinary package matrix continues to prove Swift 5.9 compiler support.
 
+## To-do demo application
+
+[`Examples/TodoApp`](Examples/TodoApp/README.md) is a SwiftUI application whose
+whole data layer is SwiftQL. It lives in this repository so that a library
+change breaks it immediately rather than silently, which only holds if CI
+builds it.
+
+The `To-do demo app` job runs on `macos-15` at the same pinned support point
+the Swift 6.0 macOS cells use, and it is macOS-only: the demo builds for iOS
+and macOS destinations, neither of which exists on the Linux cells, so it is a
+separate job rather than a matrix entry.
+
+| Pinned | Value |
+| --- | --- |
+| Runner image | `macos-15` |
+| Xcode | 16.2 (build 16C5032a) |
+| Swift series | 6.0 |
+| macOS SDK | 15.2 |
+| `DEVELOPER_DIR` | `/Applications/Xcode_16.2.app/Contents/Developer` |
+| `SWIFTQL_DEMO_IOS_DEVELOPER_DIR` | `/Applications/Xcode_16.4.app/Contents/Developer` |
+| iOS simulator destination | `generic/platform=iOS Simulator` |
+| Demo deployment floor | iOS 17.0, macOS 14.0 |
+
+The iOS app build is the one step that does not run on the pinned Xcode.
+Xcode 16.2's iOS SDK is 18.2, the `macos-15` image installs no iOS 18.2
+simulator runtime, and Xcode will not substitute a newer one, so under Xcode
+16.2 the demo's scheme offers no iOS destination at all: not a simulator, not
+a generic device. Xcode 16.4 is the next pinned cell up, its iOS SDK is 18.5,
+and an 18.5 runtime is installed, so the iOS build uses that and nothing else
+moves.
+
+What the pinned cell is covering is steps 1 to 4, which build and test
+TodoKit, whose whole data layer is SwiftQL, against the oldest compiler the
+package supports. Step 7 builds the SwiftUI app shell for a second platform.
+Splitting it off costs nothing the pin was buying, and the alternative was
+downloading a multi-gigabyte simulator runtime on every run of a
+release-blocking job.
+
+The demo's floor is above the library's iOS 16 / macOS 13 floor because it uses
+`@Observable`. That does not change the library's floor.
+
+The job stays on the Swift 6.0 cell even though the demo's own floor is higher
+than the library's, because the point of building the demo in CI is to find out
+what a reader on the oldest supported compiler will hit. It earned that in
+#530: the demo was the first thing in the repository to compile
+`makeRequest(with:)` and a fetch in one expression on Xcode 16.2, and it
+segfaulted the compiler. Moving the job to a newer Xcode would have made the
+red square go away and left the crash in front of the next person to write that
+line. The demo is written around the crash instead, and
+"Swift 6.0 crashes on a statement built inline in a fetched request" above says
+what the shape is.
+
+The iOS runtime is whichever the pinned Xcode ships, resolved through a generic
+simulator destination rather than a named device, so the job does not break
+when the runner image's device list changes. The job records
+`xcrun simctl list runtimes` on every run, so the runtime a given result was
+produced against is recoverable from the retained artifact rather than inferred
+from the image version.
+
+Reproduce the job with:
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
+scripts/ci/check-todo-demo.sh
+```
+
+The checker builds the demo package from clean (which is what forces SwiftQL's
+build-time query validator to run over every declared query), runs its tests,
+regenerates the validation manifest and schema snapshot into a scratch
+directory and fails if they no longer reproduce what is checked in, asserts
+that `SWIFT_TREAT_WARNINGS_AS_ERRORS` and `GCC_TREAT_WARNINGS_AS_ERRORS` are
+still `YES` rather than trusting them, and then builds the app for macOS and
+for an iOS simulator.
+
+That comparison skips the snapshot's raw bytes. SQLite writes its own
+`SQLITE_VERSION_NUMBER` into the header of every database file it touches, so
+the checked-in `.sqlite` and its `database_sha256` depend on which SQLite the
+generator linked, and the pinned Xcode 16.2 cell does not link the same one a
+current Xcode does. The manifest is compared with `database_sha256` excluded
+and the snapshot by the schema SQLite reads back out of it, which is what the
+gate is about: an edited query changes its manifest entry, and an edited
+schema changes both the dumped schema and the manifest's `schema_fingerprint`.
+`database_sha256` still binds the two checked-in files together for the build
+plugin, which reads both from the same checkout, and step 1 runs that plugin.
+
 ## First-party warnings as errors
 
 Every supported compiler and dependency-resolution cell performs a clean build
@@ -325,10 +586,20 @@ single non-mutating command:
 ```
 
 The command treats first-party DocC diagnostics as errors, writes the static
-site to the ignored `docs/` directory, and validates the SwiftQL landing page
-and all twelve source articles. Pass an existing external destination when a
-separate output is useful, for example `./make-docs.sh /tmp/swiftql-docs`.
-The command never stages or commits files.
+site to the ignored `docs/` directory, and validates the SwiftQL landing page,
+all sixteen source articles, and the tutorial routes together with every code
+snapshot and image the tutorial catalog names. Pass an existing external
+destination when a separate output is useful, for example
+`./make-docs.sh /tmp/swiftql-docs`. The command never stages or commits files.
+
+The site also carries the blog under `Website/blog`, generated with
+[Hugo](https://gohugo.io). `make-docs.sh` requires Hugo 0.164.x on `PATH` and
+stops with an explicit error when it is absent or a different version, so
+install it first:
+
+```sh
+brew install hugo
+```
 
 Every Swift fence carries a marker for a named `XLDocumentationTests` scenario.
 `SQLDocumentationCatalogTests` verifies the complete source file set, marker

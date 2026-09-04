@@ -15,6 +15,25 @@ import XCTest
 import GRDB
 import SwiftQL
 
+/// Converts a public `XLSQLiteValue` into a GRDB bind argument using only public API. This file
+/// uses a plain `import SwiftQL` (not `@testable`), so it cannot reach the internal
+/// `XLSQLiteValue.databaseValue` conversion `@testable`-importing integration tests use.
+private func documentationDatabaseValue(_ value: XLSQLiteValue) -> DatabaseValueConvertible? {
+    switch value {
+    case .null:
+        return nil
+    case .integer(let rawValue):
+        return rawValue
+    case .real(let rawValue):
+        return rawValue
+    case .text(let rawValue):
+        return rawValue
+    case .blob(let rawValue):
+        return rawValue
+    }
+}
+
+
 private enum DocumentationDateCodecError: Error {
     case invalidText(String)
     case unexpectedValue(XLSQLiteValue)
@@ -72,6 +91,21 @@ private let integerDateCodec = XLValueCodec<Date, XLSQLiteDialect>(
         return Date(timeIntervalSince1970: TimeInterval(seconds))
     }
 )
+
+
+// Issue #66: `filedAt` and `reviewedAt` are both `Date`, but each selects a
+// different one of the two codecs registered above -- no wrapper type, and no
+// `selection: .explicit(...)` written anywhere a caller uses this type.
+@SQLTable
+struct InvoiceRecord: Equatable {
+    let id: Int
+
+    @SQLCodec(decimalDateCodecKey)
+    let filedAt: Date
+
+    @SQLCodec(integerDateCodecKey)
+    let reviewedAt: Date
+}
 
 
 struct MyUUID: XLCustomType, XLComparable, Equatable, Sendable {
@@ -529,6 +563,23 @@ public struct HaversineDistance: XLCustomFunction {
 }
 
 
+// Compiled scenario for <doc:DeclaredQueries> (issues #18/#26): a `@SQLQuery`
+// declaration lowers the signature-driven specification into a value-free
+// statement builder and a cached, cardinality-dispatched executor.
+extension GRDBDatabase {
+
+    @SQLQuery
+    func personByExactName(name: String) -> Person? {
+        sqlResult { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.name == name)
+        }
+    }
+}
+
+
 final class XLDocumentationTests: XCTestCase {
     
     var encoder: XLiteEncoder!
@@ -581,6 +632,7 @@ final class XLDocumentationTests: XCTestCase {
         var builder = try! GRDBDatabaseBuilder(url: fileURL, configuration: config, logger: nil)
 
         builder.addFunction(HaversineDistance.self)
+        builder.addFunction(MacroHaversineDistance.self)
 
         database = try! builder.build()
         
@@ -793,6 +845,41 @@ final class XLDocumentationTests: XCTestCase {
         ])
     }
 
+    // #row's 2+-column shapes require Swift 6.1+; see SQLRowMacro.swift and
+    // COMPATIBILITY.md for why (#408).
+    #if compiler(>=6.1)
+    func testExample_RowMacro() throws {
+        let statement = sql { schema in
+            let person = schema.table(Person.self)
+            let occupation = schema.nullableTable(Occupation.self)
+            Select(#row(person.name, occupation.name))
+            From(person)
+            Join.Left(occupation, on: occupation.id == person.occupationId)
+        }
+        let sql = encoder.makeSQL(statement).sql
+        XCTAssertEqual(sql, "SELECT t0.name AS _0, t1.name AS _1 FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId)")
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows.map { $0._0 }, ["John Doe", "Jane Doe", "Yogi Bear"])
+        XCTAssertEqual(rows.map { $0._1 }, ["Engineer", "Scientist", nil])
+    }
+
+    func testExample_RowMacro_ReferencedInWhereClause() throws {
+        let statement = sql { schema in
+            let person = schema.table(Person.self)
+            let occupation = schema.nullableTable(Occupation.self)
+            let row = #row(person.name, occupation.name)
+            Select(row)
+            From(person)
+            Join.Left(occupation, on: occupation.id == person.occupationId)
+            Where(row._0 != "Fred")
+        }
+        let sql = encoder.makeSQL(statement).sql
+        XCTAssertEqual(sql, "SELECT t0.name AS _0, t1.name AS _1 FROM Person AS t0 LEFT JOIN Occupation AS t1 ON (t1.id IS t0.occupationId) WHERE (_0 != 'Fred')")
+        let rows = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows.map { $0._0 }, ["John Doe", "Jane Doe", "Yogi Bear"])
+    }
+    #endif
+
     func testExample_LeftJoin_Functional_NullRows() throws {
         let statement = sqlQuery { schema in
             let person = schema.table(Person.self)
@@ -819,7 +906,7 @@ final class XLDocumentationTests: XCTestCase {
             let occupation = schema.nullableTable(Occupation.self)
             let result = PersonOccupation.columns(
                 person: person.name,
-                occupation: iif(occupation.name.isNull(), then: "Unemployed", else: "Employed")
+                occupation: occupation.name.isNull().iif(then: "Unemployed", else: "Employed")
             )
             return select(result).from(person).leftJoin(occupation, on: occupation.id == person.occupationId)
         }
@@ -1060,7 +1147,51 @@ final class XLDocumentationTests: XCTestCase {
         XCTAssertEqual(sql, "SELECT t0.name AS name, ROUND(haversineDistance(:myLatitude, :myLongitude, t0.latitude, t0.longitude), 2) AS distance FROM Restaurant AS t0 ORDER BY distance ASC")
         XCTAssertEqual(rows, [NearbyRestaurant(name: "Magica Roma", distance: 6.95)])
     }
-    
+
+    // Same scenario as `testExample_CustomFunction`, but using `MacroHaversineDistance` (defined in
+    // `SQLFunctionMacroExecutionTests.swift`), whose `definition` and `makeSQL(context:)` are
+    // generated by `@SQLFunction` instead of hand-written.
+    func testExample_SQLFunctionMacro() throws {
+        let myLatitude = XLNamedBindingReference<Double>(name: "myLatitude")
+        let myLongitude = XLNamedBindingReference<Double>(name: "myLongitude")
+        let statement = sqlQuery { schema in
+            let restaurant = schema.table(Restaurant.self)
+            let result = NearbyRestaurant.columns(
+                name: restaurant.name,
+                distance: MacroHaversineDistance(
+                    fromLatitude: myLatitude,
+                    fromLongitude: myLongitude,
+                    toLatitude: restaurant.latitude,
+                    toLongitude: restaurant.longitude
+                ).rounded(to: 2)
+            )
+            return select(result).from(restaurant).orderBy(result.distance.ascending())
+        }
+        let sql = encoder.makeSQL(statement).sql
+        let request = database.makeRequest(with: statement)
+        let layout = request.parameterLayout
+        let coordinates = try XLInvocationBindings<XLSQLiteValue>(
+            layout: layout,
+            bindings: [
+                try XLInvocationBinding(
+                    slot: try XCTUnwrap(
+                        layout.slot(for: .named("myLatitude"))
+                    ),
+                    value: .real(-33.877873677687894)
+                ),
+                try XLInvocationBinding(
+                    slot: try XCTUnwrap(
+                        layout.slot(for: .named("myLongitude"))
+                    ),
+                    value: .real(18.488075015723)
+                ),
+            ]
+        ).validatingComplete()
+        let rows = try request.fetchAll(bindings: coordinates)
+        XCTAssertEqual(sql, "SELECT t0.name AS name, ROUND(macroHaversineDistance(:myLatitude, :myLongitude, t0.latitude, t0.longitude), 2) AS distance FROM Restaurant AS t0 ORDER BY distance ASC")
+        XCTAssertEqual(rows, [NearbyRestaurant(name: "Magica Roma", distance: 6.95)])
+    }
+
     func testExample_CustomOperator() throws {
         let statement = sqlQuery { schema in
             let event = schema.table(Event.self)
@@ -1165,6 +1296,14 @@ extension XLDocumentationTests {
             fredPerson
         )
 
+        var lazilyFetchedNames: [String] = []
+        try database.makeRequest(with: peopleNamedFredQuery).withResultSet { results in
+            while let person = try results.next() {
+                lazilyFetchedNames.append(person.name)
+            }
+        }
+        XCTAssertEqual(lazilyFetchedNames, [fredPerson.name])
+
         let peopleNamedFredShorthandQuery = sql {
             let person = $0.table(Person.self)
             Select(person)
@@ -1184,6 +1323,18 @@ extension XLDocumentationTests {
         }
         let workingAgeRequest = database.makeRequest(with: workingAgeQuery)
         XCTAssertEqual(try workingAgeRequest.fetchAll().count, 3)
+
+        let (workingAgeCount, insertedID) = try database.withTransaction { scope in
+            let newHire = Person(id: "txn-scope-a", occupationId: nil, name: "Grace", age: 29)
+            try scope.makeRequest(with: sqlInsert(newHire)).execute()
+            let promoted = Person(id: "txn-scope-b", occupationId: nil, name: "Harold", age: 45)
+            try scope.makeRequest(with: sqlInsert(promoted)).execute()
+            let matches = try scope.makeRequest(with: workingAgeQuery).fetchAll()
+            return (matches.count, newHire.id)
+        }
+        XCTAssertEqual(workingAgeCount, 5)
+        XCTAssertEqual(insertedID, "txn-scope-a")
+        XCTAssertEqual(try workingAgeRequest.fetchAll().count, 5)
 
         let nameParameter = XLNamedBindingReference<String>(name: "name")
         let peopleByNameQuery = sql { schema in
@@ -1214,7 +1365,7 @@ extension XLDocumentationTests {
         let updateFredStatement = sql { schema in
             let person = schema.into(Person.self)
             Update(person)
-            Setting<Person> { row in
+            Setting(person) { row in
                 row.age = 42
             }
             Where(person.id == "fred")
@@ -1226,7 +1377,7 @@ extension XLDocumentationTests {
         let updateAgeStatement = sql { schema in
             let person = schema.into(Person.self)
             Update(person)
-            Setting<Person> { row in
+            Setting(person) { row in
                 row.age = ageParameter
             }
             Where(person.id == personIDParameter)
@@ -1250,6 +1401,50 @@ extension XLDocumentationTests {
             ]
         ).validatingComplete()
         try updateAgeRequest.execute(bindings: updateBindings)
+
+        XCTAssertEqual(
+            try peopleByNameRequest.fetchOne(bindings: fredBindings),
+            Person(id: "fred", occupationId: nil, name: "Fred", age: 42)
+        )
+
+        let setOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = "occ-1"
+            }
+            Where(person.id == "fred")
+        }
+        try database.makeRequest(with: setOccupationStatement).execute()
+
+        XCTAssertEqual(
+            try peopleByNameRequest.fetchOne(bindings: fredBindings),
+            Person(id: "fred", occupationId: "occ-1", name: "Fred", age: 42)
+        )
+
+        let clearOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = nil
+            }
+            Where(person.id == "fred")
+        }
+        try database.makeRequest(with: clearOccupationStatement).execute()
+
+        let occupationParameter = XLNamedBindingReference<String?>(name: "occupationId")
+        let bindOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = occupationParameter
+            }
+            Where(person.id == "fred")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(bindOccupationStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = :occupationId WHERE (t0.id == 'fred')"
+        )
 
         XCTAssertEqual(
             try peopleByNameRequest.fetchOne(bindings: fredBindings),
@@ -1281,9 +1476,229 @@ extension XLDocumentationTests {
         )
     }
 
+    func testDocumentationAdvancedUsage() throws {
+        let minimumAgeParameter = XLNamedBindingReference<Int>(name: "minimumAge")
+        let namedAdultsQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.age >= minimumAgeParameter)
+        }
+        let preparedInvocation = database.prepareInvocation(with: namedAdultsQuery)
+
+        let minimumAgeSlot = try XCTUnwrap(
+            preparedInvocation.parameterLayout.slot(for: .named("minimumAge"))
+        )
+        let invocationBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: preparedInvocation.parameterLayout,
+            bindings: [
+                try XLInvocationBinding(slot: minimumAgeSlot, value: .integer(21))
+            ]
+        ).validatingComplete()
+
+        let rows: [[XLSQLiteValue]] = try preparedInvocation.fetchAllValues(
+            bindings: invocationBindings
+        )
+        XCTAssertEqual(rows.count, 3)
+
+        var rejection: XLTransactionScopeError?
+        do {
+            try database.withTransaction { scope in
+                let candidate = Person(id: "nested", occupationId: nil, name: "Ida", age: 33)
+                try scope.makeRequest(with: sqlInsert(candidate)).execute()
+                try scope.withTransaction { _ in }
+            }
+        } catch let error as XLTransactionScopeError {
+            rejection = error
+        }
+        XCTAssertEqual(rejection, .nestedTransactionUnsupported)
+        XCTAssertEqual(
+            try preparedInvocation.fetchAllValues(bindings: invocationBindings).count,
+            3,
+            "The outer body's insert must roll back with the rejected transaction."
+        )
+    }
+
+    /// A nullable column is assigned in a `Setting` closure the same way an
+    /// ordinary Swift optional is: a value sets the column, and `nil` sets it
+    /// to SQL `NULL`. The two are distinct from leaving the column out of the
+    /// statement altogether, which is what an unassigned column does.
+    func testExample_Setting_NullableColumn() throws {
+        try database.makeRequest(with: sqlCreate(Person.self)).execute()
+
+        let yogiBear = Person(id: "per-3", occupationId: nil, name: "Yogi Bear", age: 68)
+        try database.makeRequest(with: sqlInsert(yogiBear)).execute()
+
+        let setOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = "occ-1"
+            }
+            Where(person.id == "per-3")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(setOccupationStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = 'occ-1' WHERE (t0.id == 'per-3')"
+        )
+        try database.makeRequest(with: setOccupationStatement).execute()
+
+        let personByIDQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.id == "per-3")
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-3", occupationId: "occ-1", name: "Yogi Bear", age: 68)
+        )
+
+        let clearOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = nil
+            }
+            Where(person.id == "per-3")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(clearOccupationStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = NULL WHERE (t0.id == 'per-3')"
+        )
+        try database.makeRequest(with: clearOccupationStatement).execute()
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-3", occupationId: nil, name: "Yogi Bear", age: 68)
+        )
+
+        // A plain optional value also assigns directly: a wrapped value
+        // renders the value, `nil` renders NULL.
+        let maybeOccupation: String? = "occ-4"
+        let setFromOptionalValueStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = maybeOccupation
+            }
+            Where(person.id == "per-3")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(setFromOptionalValueStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = 'occ-4' WHERE (t0.id == 'per-3')"
+        )
+        try database.makeRequest(with: setFromOptionalValueStatement).execute()
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-3", occupationId: "occ-4", name: "Yogi Bear", age: 68)
+        )
+    }
+
+    /// A column that is never assigned stays out of the `SET` clause, so an
+    /// update that touches one column leaves every other column alone --
+    /// including a nullable one holding a value.
+    func testExample_Setting_UnassignedNullableColumnIsNotCleared() throws {
+        try database.makeRequest(with: sqlCreate(Person.self)).execute()
+
+        let johnDoe = Person(id: "per-1", occupationId: "occ-1", name: "John Doe", age: 31)
+        try database.makeRequest(with: sqlInsert(johnDoe)).execute()
+
+        let updateAgeStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.age = 32
+            }
+            Where(person.id == "per-1")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(updateAgeStatement).sql,
+            "UPDATE Person AS t0 SET age = 32 WHERE (t0.id == 'per-1')"
+        )
+        try database.makeRequest(with: updateAgeStatement).execute()
+
+        let personByIDQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.id == "per-1")
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-1", occupationId: "occ-1", name: "John Doe", age: 32)
+        )
+    }
+
+    /// An expression whose own type is already optional -- a binding reference
+    /// whose bound value may be `NULL` at runtime, or another nullable column
+    /// -- assigns with the same spelling as a wrapped-type expression.
+    func testExample_Setting_NullableColumnFromOptionalExpression() throws {
+        try database.makeRequest(with: sqlCreate(Person.self)).execute()
+
+        let johnDoe = Person(id: "per-1", occupationId: "occ-1", name: "John Doe", age: 31)
+        try database.makeRequest(with: sqlInsert(johnDoe)).execute()
+
+        let occupationParameter = XLNamedBindingReference<String?>(name: "occupationId")
+        let setOccupationStatement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                row.occupationId = occupationParameter
+            }
+            Where(person.id == "per-1")
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(setOccupationStatement).sql,
+            "UPDATE Person AS t0 SET occupationId = :occupationId WHERE (t0.id == 'per-1')"
+        )
+
+        let request = database.makeRequest(with: setOccupationStatement)
+        let occupationSlot = try XCTUnwrap(
+            request.parameterLayout.slot(for: .named("occupationId"))
+        )
+
+        // The slot is nullable, so the same statement can bind a value or NULL.
+        try request.execute(
+            bindings: try XLInvocationBindings<XLSQLiteValue>(
+                layout: request.parameterLayout,
+                bindings: [try XLInvocationBinding(slot: occupationSlot, value: .text("occ-2"))]
+            ).validatingComplete()
+        )
+
+        let personByIDQuery = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(person.id == "per-1")
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-1", occupationId: "occ-2", name: "John Doe", age: 31)
+        )
+
+        try request.execute(
+            bindings: try XLInvocationBindings<XLSQLiteValue>(
+                layout: request.parameterLayout,
+                bindings: [try XLInvocationBinding(slot: occupationSlot, value: .null)]
+            ).validatingComplete()
+        )
+        XCTAssertEqual(
+            try database.makeRequest(with: personByIDQuery).fetchOne(),
+            Person(id: "per-1", occupationId: nil, name: "John Doe", age: 31)
+        )
+    }
+
     func testDocumentationExpressions() throws {
         try testExample_Coalesce()
         try testExample_IfCaseWhenThenElse()
+
+        let preferredName = XLNamedBindingReference<String?>(name: "preferredName")
+        let nickname = XLNamedBindingReference<String?>(name: "nickname")
+        let expression = preferredName ?? nickname ?? "Anonymous"
+        XCTAssertEqual(
+            encoder.makeSQL(expression).sql,
+            "COALESCE(:preferredName, COALESCE(:nickname, 'Anonymous'))"
+        )
 
         let literalBounds = sql { schema in
             let person = schema.table(Person.self)
@@ -1400,9 +1815,10 @@ extension XLDocumentationTests {
             XLRegexpOperatorTests.testRegexpWithoutRegisteredFunctionFailsAtPreparation
         let _: (XLExecutionTests) -> () throws -> Void =
             XLExecutionTests.testBetweenExecutesWithLiteralBindingAndColumnBounds
-        let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.test_TextBinding_In_Subquery
-        let _: (XLSyntaxTests) -> () -> Void =
-            XLSyntaxTests.testBetweenOperatorPreservesNestedBooleanAndComparisonPrecedence
+        let _: (XLSyntaxExpressionTests) -> () -> Void =
+            XLSyntaxExpressionTests.test_TextBinding_In_Subquery
+        let _: (XLSyntaxExpressionTests) -> () -> Void =
+            XLSyntaxExpressionTests.testBetweenOperatorPreservesNestedBooleanAndComparisonPrecedence
     }
 
     func testDocumentationRealValues() throws {
@@ -1653,8 +2069,10 @@ extension XLDocumentationTests {
             ExampleValue(id: "example-id", value: 42)
         )
 
-        let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.testUpdateWhere
-        let _: (XLSyntaxTests) -> () -> Void = XLSyntaxTests.testCreateTableUsingSelect
+        let _: (XLSyntaxWriteStatementTests) -> () -> Void =
+            XLSyntaxWriteStatementTests.testUpdateWhere
+        let _: (XLSyntaxWriteStatementTests) -> () -> Void =
+            XLSyntaxWriteStatementTests.testCreateTableUsingSelect
     }
 
     func testDocumentationGenericTableParameters() throws {
@@ -1699,6 +2117,61 @@ extension XLDocumentationTests {
         let resultContext = XLValueCodingContext(
             site: .result,
             path: XLValueCodingPath("invoice.dueDate")
+        )
+
+        let standardDateRegistry = try XLValueCodecRegistry()
+            .registering(XLDateTextCodec.standard)
+        let standardDateCoding = try XLValueCodingConfiguration(
+            registry: standardDateRegistry,
+            defaultCodecKeys: [XLDateTextCodec.standardKey]
+        )
+        let standardEncoded = try standardDateCoding.encode(
+            Date(timeIntervalSince1970: 1_700_000_000.123),
+            using: dialect,
+            context: XLValueCodingContext(
+                site: .parameter,
+                path: XLValueCodingPath("event.occurredAt")
+            )
+        )
+        XCTAssertEqual(standardEncoded, .text("2023-11-14T22:13:20.123Z"))
+        XCTAssertThrowsError(
+            try standardDateCoding.encode(
+                XLDateTextCodec.minimumSupportedDate.addingTimeInterval(-1),
+                using: dialect,
+                context: parameterContext
+            )
+        ) { error in
+            guard case .encodingFailed? = error as? XLValueCodecError else {
+                return XCTFail("Expected an encodingFailed wrapper, received \(error).")
+            }
+        }
+
+        let secondsOnlyFormat = try XLDateTextFormat(
+            fractionalSecondDigits: 0,
+            utcOffsetSeconds: 0
+        )
+        let secondsOnlyDateCodec = XLDateTextCodec.custom(
+            key: XLValueCodecKey(id: "com.example.date.seconds-only", version: 1),
+            format: secondsOnlyFormat
+        )
+        let coexistingDateRegistry = try XLValueCodecRegistry()
+            .registering(XLDateTextCodec.standard)
+            .registering(secondsOnlyDateCodec)
+        // Neither is a default here: both target the same stable value-type
+        // identifier, so each call selects its codec explicitly instead.
+        let coexistingDateCoding = try XLValueCodingConfiguration(
+            registry: coexistingDateRegistry
+        )
+        XCTAssertEqual(
+            try coexistingDateCoding.encode(
+                Date(timeIntervalSince1970: 1_700_000_000),
+                using: dialect,
+                context: parameterContext,
+                selection: XLValueCodecSelection(
+                    explicitCodecKey: secondsOnlyDateCodec.identity.key
+                )
+            ),
+            .text("2023-11-14T22:13:20Z")
         )
 
         XCTAssertEqual(
@@ -1803,6 +2276,444 @@ extension XLDocumentationTests {
             try XLInvocationBindings<XLSQLiteValue>(
                 layout: nullRequest.parameterLayout
             ).validatingComplete()
+        )
+
+        // Issue #66: `@SQLCodec` property-level selection round trips through
+        // insert and projection using the generated `staticResultField(_:...)`
+        // convenience -- neither call site below writes `.explicit(...)`.
+        XCTAssertEqual(
+            InvoiceRecord._swiftQLPropertyCodecKeys,
+            ["filedAt": decimalDateCodecKey, "reviewedAt": integerDateCodecKey]
+        )
+        try codecDatabase.databasePool.write { db in
+            try db.execute(
+                sql: """
+                    CREATE TABLE InvoiceRecord (
+                        id INTEGER NOT NULL,
+                        filedAt TEXT NOT NULL,
+                        reviewedAt INTEGER NOT NULL
+                    )
+                    """
+            )
+        }
+        let invoiceTable = XLSchema().table(InvoiceRecord.self, as: "invoice")
+        let invoiceLayout = try InvoiceRecord.staticRowLayout(
+            using: XLSQLiteDialect.self,
+            id: XLStaticSelectField<Int, Int, XLSQLiteDialect>.intrinsic(
+                selecting: invoiceTable.id,
+                identifiedBy: XLQuerySlotIdentity(path: ["invoice", "id"])
+            ),
+            filedAt: InvoiceRecord.staticResultField(
+                filedAt: invoiceTable.filedAt,
+                storedAs: String.self,
+                identifiedBy: XLQuerySlotIdentity(path: ["invoice", "filed-at"]),
+                using: codecDatabase.dialect,
+                configuration: codingConfiguration
+            ),
+            reviewedAt: InvoiceRecord.staticResultField(
+                reviewedAt: invoiceTable.reviewedAt,
+                storedAs: Int.self,
+                identifiedBy: XLQuerySlotIdentity(path: ["invoice", "reviewed-at"]),
+                using: codecDatabase.dialect,
+                configuration: codingConfiguration
+            )
+        )
+        let invoiceRecord = InvoiceRecord(
+            id: 1,
+            filedAt: Date(timeIntervalSince1970: 172_800),
+            reviewedAt: Date(timeIntervalSince1970: 259_200)
+        )
+        let invoiceValues = try invoiceLayout.encode(invoiceRecord)
+        XCTAssertEqual(
+            invoiceValues,
+            [.integer(1), .text("172800.0"), .integer(259_200)]
+        )
+        try codecDatabase.databasePool.write { db in
+            try db.execute(
+                sql: """
+                    INSERT INTO InvoiceRecord (id, filedAt, reviewedAt)
+                    VALUES (?, ?, ?)
+                    """,
+                arguments: StatementArguments(
+                    invoiceValues.map(documentationDatabaseValue)
+                )
+            )
+        }
+        let invoiceSelect = sql { _ in
+            Select(invoiceLayout)
+            From(invoiceTable)
+        }
+        let invoiceEncoding = try XLiteEncoder(dialect: codecDatabase.dialect)
+            .makeValidatedSQL(invoiceSelect)
+        let invoiceDescriptor = try XLStaticQueryDescriptor(
+            definitionIdentity: XLQueryDefinitionIdentity(
+                path: ["docs", "custom-types", "invoice-record"],
+                version: 1
+            ),
+            statement: XLStaticStatementDefinition(validating: invoiceEncoding),
+            parameters: [],
+            results: invoiceLayout.metadata.results,
+            cardinality: .exactlyOne
+        )
+        let preparedInvoice = try codecDatabase.prepareInvocation(
+            with: XLTypedStaticQueryDescriptor(
+                descriptor: invoiceDescriptor,
+                layout: invoiceLayout
+            )
+        )
+        XCTAssertEqual(
+            try preparedInvoice.fetchExactlyOne(
+                bindings: preparedInvoice.makeInvocationBindings()
+            ),
+            invoiceRecord
+        )
+
+        // JSON `Codable` columns (mirrors CustomTypes.md's "JSON `Codable`
+        // columns" section).
+        struct ContactAddress: Codable, Equatable {
+            var street: String
+            var city: String
+        }
+
+        enum ContactMethod: Codable, Equatable {
+            case email(String)
+            case phone(String)
+        }
+
+        struct CustomerProfile: Codable, Equatable {
+            var name: String
+            var tags: [String]
+            var address: ContactAddress?
+            var contact: ContactMethod
+            var loyaltyPoints: Int
+
+            enum CodingKeys: String, CodingKey {
+                case name, tags, address, contact, loyaltyPoints
+            }
+
+            init(
+                name: String,
+                tags: [String],
+                address: ContactAddress?,
+                contact: ContactMethod,
+                loyaltyPoints: Int = 0
+            ) {
+                self.name = name
+                self.tags = tags
+                self.address = address
+                self.contact = contact
+                self.loyaltyPoints = loyaltyPoints
+            }
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                name = try container.decode(String.self, forKey: .name)
+                tags = try container.decode([String].self, forKey: .tags)
+                address = try container.decodeIfPresent(ContactAddress.self, forKey: .address)
+                contact = try container.decode(ContactMethod.self, forKey: .contact)
+                loyaltyPoints = try container.decodeIfPresent(Int.self, forKey: .loyaltyPoints) ?? 0
+            }
+        }
+
+        let profileType = XLValueTypeIdentifier(rawValue: "com.example.customer-profile")
+        let profileTextKey = XLValueCodecKey(id: "com.example.customer-profile.text", version: 1)
+        let profileBlobKey = XLValueCodecKey(id: "com.example.customer-profile.blob", version: 1)
+
+        let profileTextCodec = XLJSONValueCodec.text(
+            key: profileTextKey,
+            valueTypeIdentifier: profileType
+        ) as XLValueCodec<CustomerProfile, XLSQLiteDialect>
+        let profileBlobCodec = XLJSONValueCodec.blob(
+            key: profileBlobKey,
+            valueTypeIdentifier: profileType
+        ) as XLValueCodec<CustomerProfile, XLSQLiteDialect>
+
+        let profileRegistry = try XLValueCodecRegistry()
+            .registering(profileTextCodec)
+            .registering(profileBlobCodec)
+        let profileCoding = try XLValueCodingConfiguration(
+            registry: profileRegistry,
+            defaultCodecKeys: [profileTextKey]
+        )
+
+        let profile = CustomerProfile(
+            name: "Ada Lovelace",
+            tags: ["engineer", "mathematician"],
+            address: ContactAddress(street: "12 Analytical Ave", city: "London"),
+            contact: .email("ada@example.com"),
+            loyaltyPoints: 42
+        )
+        let profileParameterContext = XLValueCodingContext(
+            site: .parameter,
+            path: XLValueCodingPath("customer.profile")
+        )
+
+        let textValue = try profileCoding.encode(
+            profile,
+            using: dialect,
+            context: profileParameterContext,
+            selection: XLValueCodecSelection(explicitCodecKey: profileTextKey)
+        )
+        let blobValue = try profileCoding.encode(
+            profile,
+            using: dialect,
+            context: profileParameterContext,
+            selection: XLValueCodecSelection(explicitCodecKey: profileBlobKey)
+        )
+
+        let decodedFromText = try profileCoding.decode(
+            CustomerProfile.self,
+            from: textValue,
+            using: dialect,
+            context: resultContext,
+            selection: XLValueCodecSelection(explicitCodecKey: profileTextKey)
+        )
+        let decodedFromBlob = try profileCoding.decode(
+            CustomerProfile.self,
+            from: blobValue,
+            using: dialect,
+            context: resultContext,
+            selection: XLValueCodecSelection(explicitCodecKey: profileBlobKey)
+        )
+        XCTAssertEqual(decodedFromText, profile)
+        XCTAssertEqual(decodedFromBlob, profile)
+
+        do {
+            _ = try profileCoding.decode(
+                CustomerProfile.self,
+                from: .text("{this is not valid json"),
+                using: dialect,
+                context: resultContext,
+                selection: XLValueCodecSelection(explicitCodecKey: profileTextKey)
+            )
+            XCTFail("Expected a structured decoding failure.")
+        }
+        catch let XLValueCodecError.decodingFailed(codec, _, message) {
+            XCTAssertEqual(codec, profileTextKey)
+            XCTAssertTrue(message.contains("JSON decoding"))
+        }
+
+        struct JSONMetric: Codable, Equatable {
+            let sampleCount: Int
+            let averageValue: Double
+        }
+
+        let metricType = XLValueTypeIdentifier(rawValue: "com.example.json-metric")
+        let metricDefaultKeysKey = XLValueCodecKey(id: "com.example.json-metric.default-keys", version: 1)
+        let metricSnakeCaseKey = XLValueCodecKey(id: "com.example.json-metric.snake-case", version: 1)
+
+        let metricDefaultKeysCodec = XLJSONValueCodec.text(
+            key: metricDefaultKeysKey,
+            valueTypeIdentifier: metricType
+        ) as XLValueCodec<JSONMetric, XLSQLiteDialect>
+        let metricSnakeCaseCodec = XLJSONValueCodec.text(
+            key: metricSnakeCaseKey,
+            valueTypeIdentifier: metricType,
+            configuration: XLJSONCodecConfiguration(
+                keyEncodingStrategy: .convertToSnakeCase,
+                keyDecodingStrategy: .convertFromSnakeCase
+            )
+        ) as XLValueCodec<JSONMetric, XLSQLiteDialect>
+
+        let metricRegistry = try XLValueCodecRegistry()
+            .registering(metricDefaultKeysCodec)
+            .registering(metricSnakeCaseCodec)
+        let metricCoding = try XLValueCodingConfiguration(registry: metricRegistry)
+        let metric = JSONMetric(sampleCount: 12, averageValue: 3.5)
+        XCTAssertEqual(
+            try metricCoding.decode(
+                JSONMetric.self,
+                from: try metricCoding.encode(
+                    metric,
+                    using: dialect,
+                    context: profileParameterContext,
+                    selection: XLValueCodecSelection(explicitCodecKey: metricSnakeCaseKey)
+                ),
+                using: dialect,
+                context: resultContext,
+                selection: XLValueCodecSelection(explicitCodecKey: metricSnakeCaseKey)
+            ),
+            metric
+        )
+
+        let jsonCodecDatabase = try GRDBDatabase(
+            url: contextualDirectory.appendingPathComponent("json-fixture.sqlite"),
+            codingConfiguration: profileCoding,
+            logger: nil
+        )
+        let profileTextParameter = try jsonCodecDatabase.contextualBinding(
+            CustomerProfile.self,
+            expressedAs: String.self,
+            named: "profileText",
+            selection: XLValueCodecSelection(explicitCodecKey: profileTextKey)
+        )
+        let profileTextQuery = sql { _ in
+            Select(profileTextParameter)
+        }
+        let profileTextRequest = jsonCodecDatabase.makeRequest(with: profileTextQuery)
+        let profileTextBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: profileTextRequest.parameterLayout,
+            bindings: [
+                try profileTextParameter.encode(profile, in: profileTextRequest.parameterLayout)
+            ]
+        ).validatingComplete()
+        let storedProfileJSON = try profileTextRequest.fetchOne(bindings: profileTextBindings)
+        guard case .text(let expectedProfileJSON) = textValue else {
+            return XCTFail("Expected TEXT storage")
+        }
+        XCTAssertEqual(storedProfileJSON, expectedProfileJSON)
+
+        struct InvoiceToken {
+            let rawValue: Int64
+        }
+
+        enum InvoiceTokenCodecError: Error {
+            case unexpectedValue(XLSQLiteValue)
+        }
+
+        let invoiceTokenCodec = XLValueCodec<InvoiceToken, XLSQLiteDialect>(
+            key: XLValueCodecKey(id: "com.example.invoice-token", version: 1),
+            valueTypeIdentifier: XLValueTypeIdentifier(
+                rawValue: "com.example.invoice-token"
+            ),
+            dialectIdentifier: XLSQLiteDialect.identity,
+            storageIdentifier: XLValueStorageIdentifier(
+                rawValue: XLSQLiteStorageClass.integer.rawValue
+            ),
+            encode: { value, _, _ in .integer(value.rawValue) },
+            decode: { value, _, _ in
+                guard case .integer(let rawValue) = value else {
+                    throw InvoiceTokenCodecError.unexpectedValue(value)
+                }
+                return InvoiceToken(rawValue: rawValue)
+            }
+        )
+        let applicationCodecDatabase = try GRDBDatabase(
+            url: contextualDirectory.appendingPathComponent("invoice-token.sqlite"),
+            codingConfiguration: try XLValueCodingConfiguration(
+                registry: XLValueCodecRegistry().registering(invoiceTokenCodec),
+                defaultCodecKeys: [invoiceTokenCodec.identity.key]
+            ),
+            logger: nil
+        )
+
+        let tokenParameter = try applicationCodecDatabase.contextualBinding(
+            InvoiceToken.self,
+            expressedAs: Int.self,
+            named: "token"
+        )
+        let tokenQuery = sql { _ in Select(tokenParameter) }
+        let tokenRequest = applicationCodecDatabase.makeRequest(with: tokenQuery)
+        let tokenBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: tokenRequest.parameterLayout,
+            bindings: [
+                try tokenParameter.encode(
+                    InvoiceToken(rawValue: 42),
+                    in: tokenRequest.parameterLayout
+                )
+            ]
+        ).validatingComplete()
+        XCTAssertEqual(try tokenRequest.fetchOne(bindings: tokenBindings), 42)
+
+        let uuidRegistry = try XLValueCodecRegistry()
+            .registering(XLUUIDValueCodec.text)
+            .registering(XLUUIDValueCodec.blob)
+        let uuidCoding = try XLValueCodingConfiguration(registry: uuidRegistry)
+        let uuidDatabaseURL = contextualDirectory
+            .appendingPathComponent("uuid-fixture.sqlite")
+        let uuidCodecDatabase = try GRDBDatabase(
+            url: uuidDatabaseURL,
+            codingConfiguration: uuidCoding,
+            logger: nil
+        )
+        let publicID = try uuidCodecDatabase.contextualBinding(
+            UUID.self,
+            expressedAs: String.self,
+            named: "publicID",
+            selection: XLValueCodecSelection(
+                explicitCodecKey: XLUUIDValueCodec.text.identity.key
+            )
+        )
+        let legacyBadgeID = try uuidCodecDatabase.contextualBinding(
+            UUID.self,
+            expressedAs: Data.self,
+            named: "legacyBadgeID",
+            selection: XLValueCodecSelection(
+                explicitCodecKey: XLUUIDValueCodec.blob.identity.key
+            )
+        )
+        let publicIDQuery = sql { _ in Select(publicID) }
+        let publicIDRequest = uuidCodecDatabase.makeRequest(with: publicIDQuery)
+        let sampleUUID = UUID(
+            uuidString: "E02F7C60-8C7F-4C68-8B62-6F0F1A2B3C4D"
+        )!
+        let publicIDBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: publicIDRequest.parameterLayout,
+            bindings: [
+                try publicID.encode(sampleUUID, in: publicIDRequest.parameterLayout)
+            ]
+        ).validatingComplete()
+        XCTAssertEqual(
+            try publicIDRequest.fetchOne(bindings: publicIDBindings),
+            "e02f7c60-8c7f-4c68-8b62-6f0f1a2b3c4d"
+        )
+        let legacyBadgeIDQuery = sql { _ in Select(legacyBadgeID) }
+        let legacyBadgeIDRequest = uuidCodecDatabase.makeRequest(with: legacyBadgeIDQuery)
+        let legacyBadgeIDBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: legacyBadgeIDRequest.parameterLayout,
+            bindings: [
+                try legacyBadgeID.encode(
+                    sampleUUID,
+                    in: legacyBadgeIDRequest.parameterLayout
+                )
+            ]
+        ).validatingComplete()
+        var expectedBadgeBytes = sampleUUID.uuid
+        let expectedBadgeData = withUnsafeBytes(of: &expectedBadgeBytes) { Data($0) }
+        XCTAssertEqual(
+            try legacyBadgeIDRequest.fetchOne(bindings: legacyBadgeIDBindings),
+            expectedBadgeData
+        )
+
+        enum InvoiceUUIDCodecError: Error {
+            case invalidText(String)
+        }
+
+        let invoiceUUIDCodec = XLValueCodec<UUID, XLSQLiteDialect>(
+            key: XLValueCodecKey(id: "com.example.invoice-uuid.urn", version: 1),
+            valueTypeIdentifier: XLValueTypeIdentifier(rawValue: "foundation.UUID"),
+            dialectIdentifier: XLSQLiteDialect.identity,
+            storageIdentifier: XLValueStorageIdentifier(
+                rawValue: XLSQLiteStorageClass.text.rawValue
+            ),
+            encode: { value, _, _ in
+                .text("urn:uuid:\(value.uuidString.lowercased())")
+            },
+            decode: { value, _, _ in
+                guard case .text(let text) = value,
+                      text.hasPrefix("urn:uuid:"),
+                      let uuid = UUID(uuidString: String(text.dropFirst("urn:uuid:".count))) else {
+                    throw InvoiceUUIDCodecError.invalidText("\(value)")
+                }
+                return uuid
+            }
+        )
+        let invoiceUUIDEncoded = try invoiceUUIDCodec.encode(
+            sampleUUID,
+            using: dialect,
+            context: parameterContext
+        )
+        XCTAssertEqual(
+            invoiceUUIDEncoded,
+            .text("urn:uuid:e02f7c60-8c7f-4c68-8b62-6f0f1a2b3c4d")
+        )
+        XCTAssertEqual(
+            try invoiceUUIDCodec.decode(
+                invoiceUUIDEncoded,
+                using: dialect,
+                context: resultContext
+            ),
+            sampleUUID
         )
 
         try testExample_Date()
@@ -2074,6 +2985,7 @@ extension XLDocumentationTests {
 
     func testDocumentationCustomFunctionRegistrationAndExecution() throws {
         try testExample_CustomFunction()
+        try testExample_SQLFunctionMacro()
     }
 
     func testDocumentationConditionalAndScalarFunctions() throws {
@@ -2088,10 +3000,160 @@ extension XLDocumentationTests {
             XLCustomCollationTests.testCustomCollationOrdersByRegisteredSequence
         let _: (XLCustomCollationTests) -> () throws -> Void =
             XLCustomCollationTests.testUnregisteredCollationFailsAtPreparation
+
+        let x = XLNamedBindingReference<Int>(name: "x")
+        let smallest = x.min(0, 10)
+        let largest = x.max(0, 10)
+        XCTAssertEqual(encoder.makeSQL(smallest).sql, "MIN(:x, 0, 10)")
+        XCTAssertEqual(encoder.makeSQL(largest).sql, "MAX(:x, 0, 10)")
+
+        let name = XLNamedBindingReference<String>(name: "name")
+        let age = XLNamedBindingReference<Int>(name: "age")
+        let formatted = "%s is %d years old".printf(name, age)
+        XCTAssertEqual(
+            encoder.makeSQL(formatted).sql,
+            "printf('%s is %d years old', :name, :age)"
+        )
+    }
+
+    func testDocumentationJSON() throws {
+        // JSON.md, milestone v1.6. Every fenced snippet on that page is
+        // built here, and the ones that can run against the pinned runtime
+        // are executed, so a page that drifts away from the API stops
+        // compiling rather than going stale quietly.
+        try database.makeRequest(with: sqlCreate(Note.self)).execute()
+        try database.makeRequest(
+            with: sqlInsert(
+                Note(
+                    id: "note-1",
+                    title: "Fix the gate",
+                    metadata: #"{"tags":["home","urgent"],"priority":2,"due":null}"#
+                )
+            )
+        ).execute()
+
+        // Naming a value with a path.
+        let priority = XLJSONPath.root.key("priority")
+        let firstTag = XLJSONPath.root.key("tags").index(0)
+        let lastTag = XLJSONPath.root.key("tags").last
+        XCTAssertEqual(priority.path, "$.priority")
+        XCTAssertEqual(firstTag.path, "$.tags[0]")
+        XCTAssertEqual(lastTag.path, "$.tags[#-1]")
+        XCTAssertEqual(XLJSONPath.root.key("a.b").path, #"$."a.b""#)
+
+        // Reading a value.
+        let statement = sql { schema in
+            let note = schema.table(Note.self)
+            Select(
+                note.metadata.jsonValue(
+                    at: XLJSONPath.root.key("priority"),
+                    as: Int.self
+                )
+            )
+            From(note)
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: statement).fetchOne(),
+            2
+        )
+
+        let pair = sql { schema in
+            let note = schema.table(Note.self)
+            Select(
+                note.metadata.jsonExtract(
+                    at: XLJSONPath.root.key("priority"),
+                    XLJSONPath.root.key("tags")
+                )
+            )
+            From(note)
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: pair).fetchOne(),
+            #"[2,["home","urgent"]]"#
+        )
+
+        // Changing a document.
+        let promote = sql { schema in
+            let note = schema.into(Note.self)
+            Update(note)
+            Setting(note) { row in
+                row.metadata = note.metadata
+                    .jsonSetting((XLJSONPath.root.key("priority"), 1))
+                    .coalesce(note.metadata)
+            }
+            Where(note.id == "note-1")
+        }
+        try database.makeRequest(with: promote).execute()
+        XCTAssertEqual(
+            try database.makeRequest(with: statement).fetchOne(),
+            1
+        )
+
+        // Building JSON in a query.
+        let summary = sql { schema in
+            let note = schema.table(Note.self)
+            Select(jsonObject(("id", note.id), ("title", note.title)))
+            From(note)
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: summary).fetchOne(),
+            #"{"id":"note-1","title":"Fix the gate"}"#
+        )
+
+        let titles = sql { schema in
+            let note = schema.table(Note.self)
+            Select(note.title.jsonGroupArray())
+            From(note)
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: titles).fetchOne(),
+            #"["Fix the gate"]"#
+        )
+
+        // Inspecting a document. No row matches, because the one row holds
+        // valid JSON; the statement still has to prepare and run.
+        let malformed = sql { schema in
+            let note = schema.table(Note.self)
+            Select(note.metadata.jsonErrorPosition())
+            From(note)
+            Where(note.metadata.validJSONOrNull() == false)
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: malformed).fetchAll().count,
+            0
+        )
+
+        // JSONB. The page's own version table says this needs SQLite 3.45.0,
+        // and the supported matrix includes older runtimes, so build the
+        // statement everywhere and run it only where it can run.
+        let compact = sql { schema in
+            let note = schema.table(Note.self)
+            Select(note.metadata.minifiedJSONB())
+            From(note)
+        }
+        XCTAssertFalse(encoder.makeSQL(compact).sql.isEmpty)
+        try SQLiteRuntimeCapability.requireFunction(
+            "jsonb",
+            argumentCount: 1,
+            since: "SQLite 3.45.0",
+            in: databasePool
+        )
+        guard
+            let row = try database.makeRequest(with: compact).fetchOne(),
+            let blob = row
+        else {
+            XCTFail("the statement should return one document")
+            return
+        }
+        XCTAssertFalse(blob.isEmpty)
     }
 
     func testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs() throws {
         try testExample_LeftJoin_Statement_NullRows()
+        #if compiler(>=6.1)
+        try testExample_RowMacro()
+        try testExample_RowMacro_ReferencedInWhereClause()
+        #endif
         try testExample_Subquery()
 
         let _: (XLExecutionTests) -> () throws -> Void = XLExecutionTests.testGroupConcatVariants
@@ -2165,8 +3227,352 @@ extension XLDocumentationTests {
         let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testPublishExistingEntities
         let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testPublishOneObservesDirectWrites
         let _: (XLPublisherTests) -> () throws -> Void = XLPublisherTests.testCancellationStopsObservationFetchesAndValues
+        let _: (XLPublisherTests) -> () throws -> Void =
+            XLPublisherTests.testQueryObserverRepublishesRowsAndObservesDirectWrites
+        let _: (XLPublisherTests) -> () throws -> Void =
+            XLPublisherTests.testQueryRowObserverRepublishesRowAndObservesDirectWrites
         let _: (XLGRDBLiveQueryRetryTests) -> () throws -> Void =
             XLGRDBLiveQueryRetryTests
                 .testRealGRDBObservationRecoversFromInjectedBusyAndKeepsObserving
+
+        // #308: `stream()`/`streamOne()`/`stream(bindings:)` async live-query examples above are
+        // exercised by real-GRDB-database tests, mirroring how the publish()/publishOne() examples
+        // above are exercised by XLPublisherTests rather than inline here.
+        let _: (GRDBLiveQueryAsyncStreamTests) -> () async throws -> Void =
+            GRDBLiveQueryAsyncStreamTests.testStreamEmitsFreshInitialSnapshotAndRelevantWriteRefresh
+        let _: (GRDBLiveQueryAsyncStreamTests) -> () async throws -> Void =
+            GRDBLiveQueryAsyncStreamTests.testStreamOneEmitsFreshInitialSnapshotAndRelevantWriteRefresh
+        let _: (GRDBLiveQueryAsyncStreamTests) -> () async throws -> Void =
+            GRDBLiveQueryAsyncStreamTests.testStreamBindingsCapturesPacketOnceAcrossInitialFetchAndRefresh
+        let _: (GRDBLiveQueryAsyncStreamTests) -> () async throws -> Void =
+            GRDBLiveQueryAsyncStreamTests.testCancellingConsumingTaskTearsDownObservationAndStopsFurtherFetches
+        let _: (SQLRequestCompatibilityTests) -> () async throws -> Void =
+            SQLRequestCompatibilityTests.testLegacyReadConformerStreamBridgesFromPublishLazily
+
+        // #309: `publish()`/`publishOne()` are now Combine convenience adapters over `stream()`/
+        // `streamOne()`. The real-GRDB demand/cancellation/retry/main-queue contract above is
+        // exercised by `XLPublisherTests`/`XLGRDBLiveQueryRetryTests` (already referenced above);
+        // `XLAsyncStreamPublisherTests` separately proves the adapter's demand-mapping and
+        // cancellation-vs-completion contract deterministically, against hand-controlled streams
+        // rather than a real database.
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testOneAtATimeDemandDeliversExactlyRequestedCountWithoutEagerDraining
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testAdditionalDemandGrantedFromReceiveResumesAStalledPull
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testSelfInflictedCancellationDoesNotDeliverASpuriousCompletion
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testValueDeliveredConcurrentlyWithCancellationIsNeverForwarded
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testNormalCompletionNotCausedByCancellationIsForwarded
+        let _: (XLAsyncStreamPublisherTests) -> () async throws -> Void =
+            XLAsyncStreamPublisherTests.testXlLiveQueryPublisherDeliversOnTheMainQueueByDefault
+
+        // #97: `XLObservableQuery`/`XLObservableQueryRow` are a third, `@Observable`-based convenience
+        // adapter over `stream()`/`streamOne()`, availability-gated to platforms shipping the
+        // `Observation` framework. `XLObservableLiveQueryTests` exercises them against real, temporary
+        // GRDB databases -- this reference (guarded exactly like the gated production types
+        // themselves) keeps the example above compile-time-checked without lowering this file's own
+        // availability floor.
+        #if canImport(Observation) && canImport(Darwin)
+        if #available(iOS 17, macOS 14, *) {
+            // `XLObservableLiveQueryTests` is `@MainActor`-isolated, so an *unapplied* curried
+            // reference to one of its methods (`XLObservableLiveQueryTests.testFoo`) warns under
+            // complete strict-concurrency checking: forming that curried value captures a
+            // not-yet-actor-isolated `self` inside a main-actor-isolated inner closure, which the
+            // compiler flags regardless of this being a discarded, never-invoked compile-time check.
+            // A single `@MainActor` closure taking `instance` as a plain parameter (rather than an
+            // outer nonisolated function returning an isolated one) has no such boundary to cross.
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testInitialSnapshotClearsLoadingAndPopulatesRows()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testRelevantWriteRefreshesRows()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testTerminalErrorSetsErrorAndClearsLoadingWithoutMutatingRows()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testCancellationBeforeInitialValuePreventsAnyFetch()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testReleasedModelPerformsNoFurtherWorkAfterRelease()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testPacketBackedModelCapturesBindingsAcrossRefresh()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testNewModelWithADifferentBindingPacketObservesIndependently()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testTwoModelsObservingIndependentDatabasesDoNotCrossTrigger()
+            }
+            let _: @MainActor (XLObservableLiveQueryTests) async throws -> Void = { instance in
+                try await instance.testObservableQueryRowDeliversInitialAndRefreshedFirstRow()
+            }
+        }
+        #endif
+    }
+
+    func testDocumentationDeclaredQueries() throws {
+        XCTAssertEqual(try database.fetchPersonByExactName(name: "John Doe"), johnDoe)
+        XCTAssertNil(try database.fetchPersonByExactName(name: "Nobody"))
+
+        let _: (XLQueryPeerMacroTests) -> () throws -> Void =
+            XLQueryPeerMacroTests.testDirectResultOptionalExecutorFetchesSingleRow
+        let _: (XLQueryPeerMacroTests) -> () throws -> Void =
+            XLQueryPeerMacroTests.testBareRowExecutorThrowsWhenMultipleRowsMatch
+        let _: (XLQueriesContainerTests) -> () throws -> Void =
+            XLQueriesContainerTests.testExecuteClosureRunsMultipleQueriesInOneScope
+        let _: (XLQueryRenderOnceCacheTests) -> () throws -> Void =
+            XLQueryRenderOnceCacheTests.testCachedExecutorServesDifferentArgumentsWithStablePlaceholderSQL
+    }
+
+    func testDocumentationNumericDateCodecs() throws {
+        let numericDialect = XLSQLiteDialect()
+        let numericDateContext = XLValueCodingContext(
+            site: .parameter,
+            path: XLValueCodingPath("event.loggedAt")
+        )
+        let numericDateRegistry = try XLValueCodecRegistry()
+            .registeringSQLiteNumericDateCodecs()
+        let numericDateCoding = try XLValueCodingConfiguration(
+            registry: numericDateRegistry
+        )
+
+        XCTAssertThrowsError(
+            try numericDateCoding.encode(
+                Date(timeIntervalSince1970: 0),
+                using: numericDialect,
+                context: numericDateContext
+            )
+        ) { error in
+            guard case .ambiguousCodec(_, _, _, _)? = error as? XLValueCodecError else {
+                return XCTFail("Expected an ambiguous-codec error, received \(error).")
+            }
+        }
+
+        let loggedAt = Date(timeIntervalSince1970: 1_700_000_000.25)
+        XCTAssertEqual(
+            try numericDateCoding.encode(
+                loggedAt,
+                using: numericDialect,
+                context: numericDateContext,
+                selection: XLValueCodecSelection(
+                    explicitCodecKey: XLSQLiteNumericDateCodec.UnixMilliseconds.key
+                )
+            ),
+            .integer(1_700_000_000_250)
+        )
+        XCTAssertEqual(
+            try numericDateCoding.encode(
+                loggedAt,
+                using: numericDialect,
+                context: numericDateContext,
+                selection: XLValueCodecSelection(
+                    explicitCodecKey: XLSQLiteNumericDateCodec.UnixSeconds.key
+                )
+            ),
+            .real(1_700_000_000.25)
+        )
+        XCTAssertEqual(
+            try numericDateCoding.encode(
+                loggedAt,
+                using: numericDialect,
+                context: numericDateContext,
+                selection: XLValueCodecSelection(
+                    explicitCodecKey: XLSQLiteNumericDateCodec.JulianDay.key
+                )
+            ),
+            .real(1_700_000_000.25 / 86_400 + 2_440_587.5)
+        )
+
+        let secondsOnlyRegistry = try XLValueCodecRegistry()
+            .registering(XLSQLiteNumericDateCodec.UnixSeconds.codec)
+        let secondsOnlyCoding = try XLValueCodingConfiguration(
+            registry: secondsOnlyRegistry,
+            defaultCodecKeys: [XLSQLiteNumericDateCodec.UnixSeconds.key]
+        )
+        let defaultEncodedSeconds = try secondsOnlyCoding.encode(
+            loggedAt,
+            using: numericDialect,
+            context: numericDateContext
+        )
+        XCTAssertEqual(defaultEncodedSeconds, .real(1_700_000_000.25))
+
+        XCTAssertThrowsError(
+            try numericDateCoding.encode(
+                Date(timeIntervalSince1970: .nan),
+                using: numericDialect,
+                context: numericDateContext,
+                selection: XLValueCodecSelection(
+                    explicitCodecKey: XLSQLiteNumericDateCodec.UnixSeconds.key
+                )
+            )
+        ) { error in
+            guard case .encodingFailed(_, _, _)? = error as? XLValueCodecError else {
+                return XCTFail("Expected an encoding-failed error, received \(error).")
+            }
+        }
+
+        let numericDateDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swiftql-numeric-date-docs-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: numericDateDirectory,
+            withIntermediateDirectories: false
+        )
+        defer { try? FileManager.default.removeItem(at: numericDateDirectory) }
+
+        let numericDateDatabase = try GRDBDatabase(
+            url: numericDateDirectory.appendingPathComponent("fixture.sqlite"),
+            codingConfiguration: numericDateCoding,
+            logger: nil
+        )
+
+        // A round trip through real SQLite for one preset, mirroring the
+        // `cutoffDate` example in <doc:CustomTypes>.
+        let loggedAtSeconds = try numericDateDatabase.contextualBinding(
+            Date.self,
+            expressedAs: Double.self,
+            named: "loggedAtSeconds",
+            selection: XLValueCodecSelection(
+                explicitCodecKey: XLSQLiteNumericDateCodec.UnixSeconds.key
+            )
+        )
+        let loggedAtQuery = sql { _ in Select(loggedAtSeconds) }
+        let loggedAtRequest = numericDateDatabase.makeRequest(with: loggedAtQuery)
+        let loggedAtBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: loggedAtRequest.parameterLayout,
+            bindings: [
+                try loggedAtSeconds.encode(loggedAt, in: loggedAtRequest.parameterLayout)
+            ]
+        ).validatingComplete()
+        XCTAssertEqual(
+            try loggedAtRequest.fetchOne(bindings: loggedAtBindings),
+            1_700_000_000.25
+        )
+
+        // Two presets coexist in one database: independent parameters,
+        // independent codec metadata.
+        let createdAtMilliseconds = try numericDateDatabase.contextualBinding(
+            Date.self,
+            expressedAs: Int.self,
+            named: "createdAtMilliseconds",
+            selection: XLValueCodecSelection(
+                explicitCodecKey: XLSQLiteNumericDateCodec.UnixMilliseconds.key
+            )
+        )
+        let updatedAtJulianDay = try numericDateDatabase.contextualBinding(
+            Date.self,
+            expressedAs: Double.self,
+            named: "updatedAtJulianDay",
+            selection: XLValueCodecSelection(
+                explicitCodecKey: XLSQLiteNumericDateCodec.JulianDay.key
+            )
+        )
+        let createdAtQuery = sql { _ in Select(createdAtMilliseconds) }
+        let createdAtRequest = numericDateDatabase.makeRequest(with: createdAtQuery)
+        let createdAtBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: createdAtRequest.parameterLayout,
+            bindings: [
+                try createdAtMilliseconds.encode(loggedAt, in: createdAtRequest.parameterLayout)
+            ]
+        ).validatingComplete()
+        XCTAssertEqual(
+            try createdAtRequest.fetchOne(bindings: createdAtBindings),
+            1_700_000_000_250
+        )
+
+        let updatedAtQuery = sql { _ in Select(updatedAtJulianDay) }
+        let updatedAtRequest = numericDateDatabase.makeRequest(with: updatedAtQuery)
+        let updatedAtBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: updatedAtRequest.parameterLayout,
+            bindings: [
+                try updatedAtJulianDay.encode(loggedAt, in: updatedAtRequest.parameterLayout)
+            ]
+        ).validatingComplete()
+        let updatedAtResult = try XCTUnwrap(
+            try updatedAtRequest.fetchOne(bindings: updatedAtBindings)
+        )
+        XCTAssertEqual(updatedAtResult, 1_700_000_000.25 / 86_400 + 2_440_587.5, accuracy: 1e-6)
+
+        // SQLite date/time-function interoperability: a bare REAL julian-day
+        // value needs no modifier, while unix-seconds and unix-milliseconds
+        // values need an explicit 'unixepoch' modifier (and, for
+        // milliseconds, a conversion to seconds first).
+        let interoperabilityRow = try numericDateDatabase.databasePool.read { db in
+            try Row.fetchOne(
+                db,
+                sql: """
+                    SELECT
+                        datetime(?),
+                        datetime(?, 'unixepoch'),
+                        datetime(? / 1000.0, 'unixepoch')
+                    """,
+                arguments: [
+                    1_700_000_000.25 / 86_400 + 2_440_587.5,
+                    1_700_000_000.25,
+                    1_700_000_000_250,
+                ]
+            )
+        }
+        let interoperabilityRowValue = try XCTUnwrap(interoperabilityRow)
+        let interoperabilityDates: [String] = [
+            interoperabilityRowValue[0],
+            interoperabilityRowValue[1],
+            interoperabilityRowValue[2],
+        ]
+        XCTAssertEqual(interoperabilityDates, Array(repeating: "2023-11-14 22:13:20", count: 3))
+    }
+
+    /// Runs the finished program from the DocC tutorial at
+    /// `Sources/SwiftQL/SwiftQL.docc/Tutorials/EndToEndQuery.tutorial` against
+    /// a temporary SQLite file, so the last code snapshot the tutorial shows is
+    /// executed rather than only compiled. `SQLDocumentationCatalogTests` ties
+    /// the earlier snapshots back to the same compiled source.
+    func testDocumentationTutorialEndToEndQuery() throws {
+        let tutorialDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: tutorialDirectory,
+            withIntermediateDirectories: false
+        )
+        defer { try? FileManager.default.removeItem(at: tutorialDirectory) }
+
+        // Each call builds its own database, because the walkthrough creates
+        // the tables and inserts the rows itself.
+        XCTAssertEqual(
+            try albumCredits(
+                recordedIn: "GB",
+                databaseURL: tutorialDirectory
+                    .appendingPathComponent("british-credits.sqlite")
+            ),
+            [
+                AlbumCredit(title: "Revolver", year: 1966, studioName: "Abbey Road"),
+                AlbumCredit(title: "Abbey Road", year: 1969, studioName: "Abbey Road"),
+            ]
+        )
+        XCTAssertEqual(
+            try albumCredits(
+                recordedIn: "US",
+                databaseURL: tutorialDirectory
+                    .appendingPathComponent("american-credits.sqlite")
+            ),
+            [
+                AlbumCredit(
+                    title: "The Sun Sessions",
+                    year: 1976,
+                    studioName: "Sun"
+                ),
+            ]
+        )
+        XCTAssertEqual(
+            try albumCredits(
+                recordedIn: "ZA",
+                databaseURL: tutorialDirectory
+                    .appendingPathComponent("unmatched-credits.sqlite")
+            ),
+            []
+        )
     }
 }

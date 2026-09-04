@@ -168,6 +168,56 @@ let query = sql { schema in
 > Tip: Use `Join.Cross` or `Join.Inner` to perform a cross or inner 
 join respectively.
 
+### Ad hoc rows with `#row`
+
+Declaring a `@SQLResult` type is the right choice when a projection is reused
+or its columns deserve real names. For a quick, one-off projection that is
+used in a single query, the `#row(...)` macro builds the same kind of column
+set without declaring a type first:
+
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
+```swift
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    let occupation = schema.nullableTable(Occupation.self)
+    Select(#row(person.name, occupation.name))
+    From(person)
+    Join.Left(occupation, on: occupation.id == person.occupationId)
+}
+```
+
+`#row` accepts between one and six column expressions. A single column
+decodes into ``SQLScalarResult``; two to six columns decode into the matching
+`SQLRow2`...`SQLRow6` type, whose fields are named positionally (`_0`, `_1`,
+...) since the columns have no caller-chosen name:
+
+<!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
+```swift
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    let occupation = schema.nullableTable(Occupation.self)
+    let row = #row(person.name, occupation.name)
+    Select(row)
+    From(person)
+    Join.Left(occupation, on: occupation.id == person.occupationId)
+    Where(row._0 != "Fred")
+}
+```
+
+> Tip: Reach for a named `@SQLResult` type once a projection's columns need
+> descriptive names, or once the projection is reused across more than one
+> query.
+
+> Important: `#row`'s two-to-six column shapes (`SQLRow2`...`SQLRow6`) require
+> Swift 6.1 or later. On the pinned Swift 5.9.2 and Swift 6.0 compatibility
+> cells, decoding a result type with 2 or more generic parameters through
+> `fetchAll()` or `publish()` crashes the compiler's IR generation — a
+> confirmed `swift-frontend` bug, not a SwiftQL limitation. `#row` with
+> exactly one column (`SQLScalarResult`) is unaffected and available
+> everywhere. See
+> [Compatibility](https://github.com/lukevanin/swiftql/blob/main/COMPATIBILITY.md)
+> for the supported-compiler matrix.
+
 ## Group By
 
 Use the group by clause to return aggregate results, or results where a single
@@ -210,7 +260,7 @@ SwiftQL currently supports the following aggregate functions:
 API                               | Input             | Result    | Behavior
 ----------------------------------|-------------------|-----------|-------------------------------------------
 `count()`                         | Any               | `Int`     | Number of non-NULL values; zero for empty input.
-`count(all())`                    | All rows          | `Int`     | Number of input rows, rendered as `COUNT(*)`.
+`all().count()`                   | All rows          | `Int`     | Number of input rows, rendered as `COUNT(*)`.
 `minOrNull()`                     | Any comparable    | `T?`      | Minimum non-NULL value.
 `maxOrNull()`                     | Any comparable    | `T?`      | Maximum non-NULL value.
 `averageOrNull()`                 | `Int`, `Double`, or either nullable form | `Double?` | Average (arithmetic mean) of non-NULL values.
@@ -232,7 +282,10 @@ It always returns a `Double`, ignores individual NULL values, and returns `0.0`
 for empty or all-NULL input. Existing `sum()` and `sumOrNull()` behavior is
 unchanged.
 
-Use `count(all())` when NULL values must still contribute to the row count.
+Use `all().count()` when NULL values must still contribute to the row count. It
+is the method-style spelling v1.5.4 introduced, and it replaces the free
+function `count(_:)`: `count(all())` becomes `all().count()`. The free function
+still compiles with a deprecation warning and will be removed in SwiftQL 2.
 
 <!-- test: XLDocumentationTests.testDocumentationQueriesJoinsAggregatesPaginationSubqueriesCompoundsAndCTEs -->
 ```swift
@@ -405,6 +458,19 @@ let query = sql { schema in
     Where(person.age < 65)
 }
 ```
+
+On Swift 6.1 and later, `sql` works in both positions above: it infers
+whether it is building a top-level statement, a table subquery, or a scalar
+subquery from the context expecting its result, so `sql { ... }` and
+`subqueryExpression { ... }` are interchangeable here. Use whichever reads
+better -- `subqueryExpression` makes the intent explicit, while reusing `sql`
+everywhere means one name to remember.
+
+> Important: the subquery spellings of `sql` need Swift 6.1. The overloads
+> that provide them crash the Swift 5.9 and 6.0 compilers, so they are not
+> compiled there, and `subqueryExpression { ... }` is the spelling that works
+> on every supported toolchain. See COMPATIBILITY.md, "Swift 5.9 and Swift 6.0
+> API surface gaps".
 
 See the <doc:Expressions/In-operator> documentation for an example of using a
 subquery with the `in` operator.

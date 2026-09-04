@@ -1,4 +1,6 @@
 import Foundation
+import SwiftQLTestSupport
+import SwiftQLSQLiteConformanceFixtures
 import XCTest
 
 
@@ -24,7 +26,7 @@ final class SQLSkillDocumentationTests: XCTestCase {
             2,
             "Codex skill metadata must contain only name and description."
         )
-        XCTAssertLessThan(lines.count, 220, "Keep the repository skill concise.")
+        XCTAssertLessThan(lines.count, 440, "Keep the repository skill concise.")
 
         for forbidden in [
             "/Users/",
@@ -41,23 +43,32 @@ final class SQLSkillDocumentationTests: XCTestCase {
         for required in [
             "https://github.com/lukevanin/swiftql.git",
             "`SwiftQLCore` only when implementing a dialect or database adapter",
-            "fresh immutable `XLInvocationBindings<XLSQLiteValue>` packet",
+            "fresh immutable `XLInvocationBindings<XLSQLiteValue>` packet per call",
             "`XLStaticQueryDescriptor`",
             "runtime Swift values are not inferred from bare variables",
             "`XLValueCodec`",
             "`XLInvocationBindingError` and `XLRequestBindingError`",
-            "Do not invent a high-level `GRDBDatabase.transaction` API",
+            "`withTransaction(_:)` is the shipped typed transaction contract",
             "`sqlCreate` is not a migration engine",
             "SwiftQL exposes no general raw-fragment API",
             "`XLRequest` across tasks; it is not `Sendable`",
             "checked-out public v1 contract",
-            "1.4.3 is the latest published package and adds typed SQLite date-and-time functions on the retained v1 surface",
-            "`1.4.3` is the latest published package",
+            "1.6.0 is the latest published package, which adds SQLite JSON support -- the `->` and `->>` selection operators, a typed `XLJSONPath`, the JSON constructor, inspection, extraction, mutation, and aggregate functions, and their JSONB variants -- on top of v1.5.6 nullable-column assignment in `Setting` closures, v1.5.5 async live-query streams, `@Observable` query wrappers, and lazy result sets, v1.5.4 method-style scalar functions and observers, v1.5.3 contextual codec presets and `@SQLCodec`, v1.5.2 build-time query validation, and v1.5.1 declared-query macros (`@SQLQuery`/`@SQLQueries`) and typed transaction scopes",
+            "`1.6.0` is the latest published package",
             "Keep those five statuses distinct",
             "recorded SQLite version, source ID, compile options, capabilities",
-            "#132 remains package-private research",
-            "neither persists prepared statements nor removes runtime preparation",
             "Swift 5.9 and Swift 6.0-6.3 evidence",
+            // v1.5 surfaces the skill must present as the preferred path.
+            "`@SQLQueries` (the recommended packaging)",
+            "Only one `@SQLQueries` extension is supported per database type",
+            "`stream()` and `streamOne()` are the canonical live-query API",
+            // Version-specific limitations and deprecations.
+            "Only `SELECT`-shaped specifications are supported",
+            "The frozen-literal guard rejects, at the declaration site",
+            "v1.5.4 deprecated them in favor of `all().count()`",
+            "`XLObservableQueryRow` require iOS 17 or macOS 14",
+            "`SQLRow6`) require Swift 6.1 or later",
+            "fails to build under Xcode 26.5 before validation runs",
         ] {
             XCTAssertTrue(
                 normalizedContents.contains(required),
@@ -66,19 +77,19 @@ final class SQLSkillDocumentationTests: XCTestCase {
         }
     }
 
-    func testV13GuidanceMatchesCanonicalConformanceInventory() throws {
+    func testConformanceCensusGuidanceMatchesCanonicalInventory() throws {
         let inventory = try JSONDecoder().decode(
             SkillConformanceInventory.self,
             from: Data(
-                contentsOf: repositoryRootURL().appendingPathComponent(
-                    "Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json"
+                contentsOf: SQLiteConformanceInventory.url(
+                    inRepositoryRoot: try repositoryRootURL()
                 )
             )
         )
         let combinatorialManifest = try JSONDecoder().decode(
             SkillCombinatorialManifest.self,
             from: Data(
-                contentsOf: repositoryRootURL().appendingPathComponent(
+                contentsOf: try repositoryRootURL().appendingPathComponent(
                     "Conformance/SQLite/COMBINATORIAL_CASES.json"
                 )
             )
@@ -146,10 +157,22 @@ final class SQLSkillDocumentationTests: XCTestCase {
         let issue288CaseCount = combinatorialManifest.cases.filter {
             $0.id.hasPrefix("c288.v1.subquery.")
         }.count
+        // The `c191` JSON expression cases are counted on their own. They
+        // were two when #191 was written, and the v1.6 milestone adds one per
+        // JSON function and operator, so folding them into #191's remainder
+        // would make that number drift away from what #191 delivered.
+        //
+        // This is by case-id prefix, so it covers only the `c191` family.
+        // `c286.v1.expression.json-array-length-path` is a JSON case too, but
+        // it belongs to #286's overload matrix and stays counted there.
+        let jsonCaseCount = combinatorialManifest.cases.filter {
+            $0.id.hasPrefix("c191.v1.expression.json-")
+        }.count
         let issue191CaseCount = combinatorialManifest.cases.count
             - issue286CaseCount
             - issue287CaseCount
             - issue288CaseCount
+            - jsonCaseCount
         XCTAssertTrue(
             combinatorialSuite.evidenceIDs.contains(
                 "evidence.combinatorial.broken-renderer.sqlite"
@@ -169,11 +192,11 @@ final class SQLSkillDocumentationTests: XCTestCase {
             "The generated corpus holds \(combinatorialManifest.cases.count) "
                 + "positives plus one broken-renderer control: "
                 + "\(issue191CaseCount) from #191, \(issue286CaseCount) from #286, "
-                + "\(issue287CaseCount) from #287, and \(issue288CaseCount) from "
-                + "#288. #254 adds \(northwindSuite.caseIDs.count) Northwind and "
+                + "\(issue287CaseCount) from #287, \(issue288CaseCount) from "
+                + "#288, and \(jsonCaseCount) JSON expression cases. "
+                + "#254 adds \(northwindSuite.caseIDs.count) Northwind and "
                 + "#255 adds \(observationSuite.caseIDs.count) "
                 + "observation-stress cases",
-            "It ships no public validator, build plugin, query macro, schema system, or new v1.3 API. It neither persists prepared statements nor removes runtime preparation on a physical connection.",
         ] {
             XCTAssertTrue(
                 normalizedContents.contains(required),
@@ -184,32 +207,50 @@ final class SQLSkillDocumentationTests: XCTestCase {
 
     func testEverySwiftSnippetIsTheCompiledConsumerFixture() throws {
         let skill = try skillContents()
-        let sourceURL = repositoryRootURL().appendingPathComponent(
+        let fixturePath =
             "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/SkillQuickStart.swift"
+        let source = try String(
+            contentsOf: try repositoryRootURL().appendingPathComponent(fixturePath),
+            encoding: .utf8
         )
-        let source = try String(contentsOf: sourceURL, encoding: .utf8)
-        let expected = try text(
-            between: "// swiftql-skill-example-begin\n",
-            and: "\n// swiftql-skill-example-end",
-            in: source
-        )
+        let regions = ["schema", "lifecycle", "live"]
 
         XCTAssertEqual(
             skill.components(separatedBy: "```swift\n").count - 1,
-            1,
-            "Every added Swift fence needs an explicit compiled fixture."
+            regions.count,
+            "Every Swift fence needs an explicit compiled fixture region."
         )
-        let actual = try text(between: "```swift\n", and: "\n```", in: skill)
-        XCTAssertEqual(actual, expected)
-        XCTAssertTrue(
-            skill.contains(
-                "<!-- compile-test: IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/SkillQuickStart.swift -->"
+
+        var remainder = Substring(skill)
+        for region in regions {
+            let marker = "<!-- compile-test: \(fixturePath)#\(region) -->\n```swift\n"
+            guard
+                let start = remainder.range(of: marker)?.upperBound,
+                let end = remainder.range(
+                    of: "\n```",
+                    range: start ..< remainder.endIndex
+                )?.lowerBound
+            else {
+                return XCTFail(
+                    "SKILL.md must embed the compiled '\(region)' fixture region."
+                )
+            }
+            let expected = try text(
+                between: "// swiftql-skill-example-begin: \(region)\n",
+                and: "\n// swiftql-skill-example-end: \(region)",
+                in: source
             )
-        )
+            XCTAssertEqual(
+                String(remainder[start ..< end]),
+                expected,
+                "SKILL.md's '\(region)' snippet drifted from the compiled fixture."
+            )
+            remainder = remainder[end...]
+        }
     }
 
     func testSkillLinksResolveAndCommandsStayRepositoryRelative() throws {
-        let root = repositoryRootURL()
+        let root = try repositoryRootURL()
         let contents = try skillContents()
 
         for path in [
@@ -217,7 +258,7 @@ final class SQLSkillDocumentationTests: XCTestCase {
             "CHANGELOG.md",
             "COMPATIBILITY.md",
             "Conformance/SQLite/REPORT.md",
-            "Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json",
+            SQLiteConformanceInventory.repositoryRelativePath,
         ] {
             XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent(path).path))
             XCTAssertTrue(contents.contains("](\(path))"), "SKILL.md must link \(path).")
@@ -226,8 +267,33 @@ final class SQLSkillDocumentationTests: XCTestCase {
             "https://lukevanin.github.io/swiftql/documentation/swiftql/staticqueries/",
             "https://lukevanin.github.io/swiftql/documentation/swiftql/customtypes/",
             "https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/",
+            "https://lukevanin.github.io/swiftql/documentation/swiftql/advancedusage/",
+            "https://lukevanin.github.io/swiftql/documentation/swiftql/declaredqueries/",
+            "https://lukevanin.github.io/swiftql/documentation/swiftql/livequeries/",
+            "https://lukevanin.github.io/swiftql/documentation/swiftql/queries/",
+            "https://lukevanin.github.io/swiftql/documentation/swiftql/expressions/",
         ] {
-            XCTAssertTrue(contents.contains(canonicalURL))
+            XCTAssertTrue(contents.contains(canonicalURL), "SKILL.md must link \(canonicalURL).")
+        }
+        // Each linked DocC page must still exist in the catalog.
+        for article in [
+            "StaticQueries",
+            "CustomTypes",
+            "GettingStarted",
+            "AdvancedUsage",
+            "DeclaredQueries",
+            "LiveQueries",
+            "Queries",
+            "Expressions",
+        ] {
+            XCTAssertTrue(
+                FileManager.default.fileExists(
+                    atPath: root.appendingPathComponent(
+                        "Sources/SwiftQL/SwiftQL.docc/\(article).md"
+                    ).path
+                ),
+                "SKILL.md links a missing DocC article: \(article)."
+            )
         }
         XCTAssertTrue(
             contents.contains(
@@ -239,10 +305,12 @@ final class SQLSkillDocumentationTests: XCTestCase {
         XCTAssertEqual(
             shell.components(separatedBy: .newlines),
             [
+                "swift build",
                 "swift test --filter SQLSkillDocumentationTests",
+                "swift test --filter SQLDocumentationCatalogTests",
+                "swift test",
                 "python3 scripts/ci/sqlite-conformance-inventory.py check",
                 "scripts/ci/check-downstream-swift5-client.sh committed",
-                "swift test",
                 "./make-docs.sh docs",
                 "scripts/ci/check-first-party-warnings.sh",
                 "scripts/ci/check-strict-concurrency.sh",
@@ -252,7 +320,7 @@ final class SQLSkillDocumentationTests: XCTestCase {
 
     private func skillContents() throws -> String {
         try String(
-            contentsOf: repositoryRootURL().appendingPathComponent("SKILL.md"),
+            contentsOf: try repositoryRootURL().appendingPathComponent("SKILL.md"),
             encoding: .utf8
         )
     }
@@ -278,11 +346,12 @@ final class SQLSkillDocumentationTests: XCTestCase {
             .joined(separator: " ")
     }
 
-    private func repositoryRootURL() -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+    /// The repository root, found by walking up to the `Package.swift` rather
+    /// than by counting directories from this file. A fixed-depth ladder is a
+    /// silent dependency on where this file sits, and moving it makes the tests
+    /// read whatever happens to be at the resulting path (issue #557).
+    private func repositoryRootURL() throws -> URL {
+        try swiftQLRepositoryRootURL()
     }
 }
 

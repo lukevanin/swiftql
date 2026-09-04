@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLTestSupport
 import GRDB
 import XCTest
 @testable import SwiftQL
@@ -140,6 +141,35 @@ private struct TrappingDefaultRow: Equatable {
 }
 
 
+// MARK: - Composite (nested `@SQLTable`) result selection (issue #6)
+
+
+@SQLTable(name: "CompositeEmployee")
+private struct CompositeEmployeeRecord: Equatable {
+    let id: Int
+    let name: String
+    let companyId: Int
+}
+
+
+@SQLTable(name: "CompositeCompany")
+private struct CompositeCompanyRecord: Equatable {
+    let id: Int
+    let title: String
+}
+
+
+/// Selects whole nested tables in one result, per issue #6: every one of
+/// `CompositeEmployeeRecord`'s columns and every one of
+/// `CompositeCompanyRecord`'s columns are flattened at the SQL level, then
+/// reconstructed into their own nested values before building this type.
+@SQLResult
+private struct CompositeEmployeeCompanyRow: Equatable {
+    let employee: CompositeEmployeeRecord
+    let company: CompositeCompanyRecord
+}
+
+
 final class StaticRowLayoutGRDBTests: XCTestCase {
 
     func testGeneratedLayoutPreservesConcretePropertyTypeIdentifiers() throws {
@@ -272,7 +302,7 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
     }
 
     func testGeneratedResultLayoutProjectsComputedAliasesWithCapturedInvocation() throws {
-        let fixture = try StaticRowLayoutFixture()
+        let fixture = try TemporaryDatabaseFixture.make(named: "static-row-layout")
         defer { fixture.tearDown() }
 
         let markerCodec = makeStaticLayoutCodecs().left
@@ -408,7 +438,7 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
     }
 
     func testGeneratedLayoutRoundTripsPlainValuesWithDistinctPerFieldCodecs() throws {
-        let fixture = try StaticRowLayoutFixture()
+        let fixture = try TemporaryDatabaseFixture.make(named: "static-row-layout")
         defer { fixture.tearDown() }
 
         let codecs = makeStaticLayoutCodecs()
@@ -570,6 +600,172 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
         XCTAssertEqual(try prepared.fetchAll(bindings: bindings), [expected])
     }
 
+    func testGeneratedCompositeLayoutFlattensNestedTablesAndReconstructsSubObjects() throws {
+        let fixture = try TemporaryDatabaseFixture.make(named: "static-row-layout")
+        defer { fixture.tearDown() }
+
+        let database = try GRDBDatabase(
+            databasePool: fixture.pool,
+            codingConfiguration: XLValueCodingConfiguration(),
+            formatter: XLiteFormatter(),
+            logger: nil
+        )
+
+        try fixture.pool.write { db in
+            try db.execute(
+                sql: """
+                    CREATE TABLE CompositeCompany (
+                        id INTEGER NOT NULL,
+                        title TEXT NOT NULL
+                    )
+                    """
+            )
+            try db.execute(
+                sql: """
+                    CREATE TABLE CompositeEmployee (
+                        id INTEGER NOT NULL,
+                        name TEXT NOT NULL,
+                        companyId INTEGER NOT NULL
+                    )
+                    """
+            )
+            try db.execute(
+                sql: """
+                    INSERT INTO CompositeCompany (id, title)
+                    VALUES (1, 'Acme'), (2, 'Globex')
+                    """
+            )
+            try db.execute(
+                sql: """
+                    INSERT INTO CompositeEmployee (id, name, companyId)
+                    VALUES (10, 'Alice', 1), (11, 'Bob', 2)
+                    """
+            )
+        }
+
+        let schema = XLSchema()
+        let employeeTable = schema.table(CompositeEmployeeRecord.self, as: "employee")
+        let companyTable = schema.table(CompositeCompanyRecord.self, as: "company")
+
+        // Each nested table builds its own layout exactly as it would as a
+        // top-level result -- nesting requires no different call shape.
+        let employeeLayout = try CompositeEmployeeRecord.staticRowLayout(
+            using: XLSQLiteDialect.self,
+            id: XLStaticSelectField<Int, Int, XLSQLiteDialect>.intrinsic(
+                selecting: employeeTable.id,
+                identifiedBy: XLQuerySlotIdentity(
+                    path: ["composite", "employee", "id"]
+                )
+            ),
+            name: XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
+                selecting: employeeTable.name,
+                identifiedBy: XLQuerySlotIdentity(
+                    path: ["composite", "employee", "name"]
+                )
+            ),
+            companyId: XLStaticSelectField<Int, Int, XLSQLiteDialect>.intrinsic(
+                selecting: employeeTable.companyId,
+                identifiedBy: XLQuerySlotIdentity(
+                    path: ["composite", "employee", "companyId"]
+                )
+            )
+        )
+        let companyLayout = try CompositeCompanyRecord.staticRowLayout(
+            using: XLSQLiteDialect.self,
+            id: XLStaticSelectField<Int, Int, XLSQLiteDialect>.intrinsic(
+                selecting: companyTable.id,
+                identifiedBy: XLQuerySlotIdentity(
+                    path: ["composite", "company", "id"]
+                )
+            ),
+            title: XLStaticSelectField<String, String, XLSQLiteDialect>.intrinsic(
+                selecting: companyTable.title,
+                identifiedBy: XLQuerySlotIdentity(
+                    path: ["composite", "company", "title"]
+                )
+            )
+        )
+
+        // Nesting: pass each nested table's own layout as the composite
+        // property's field source. `grouped(at:alias:)` flattens its three
+        // (then two) slots in place and re-aliases them with the property
+        // name as a prefix.
+        let combinedLayout = try CompositeEmployeeCompanyRow.staticRowLayout(
+            using: XLSQLiteDialect.self,
+            employee: employeeLayout,
+            company: companyLayout
+        )
+
+        XCTAssertEqual(
+            combinedLayout.metadata.fields.map(\.alias),
+            [
+                "employee_id", "employee_name", "employee_companyId",
+                "company_id", "company_title",
+            ]
+        )
+
+        let statement = sql { _ in
+            Select(combinedLayout)
+            From(employeeTable)
+            Join(companyTable, on: employeeTable.companyId == companyTable.id)
+            OrderBy(employeeTable.id.ascending())
+        }
+        let encoding = try XLiteEncoder(dialect: database.dialect)
+            .makeValidatedSQL(statement)
+        XCTAssertTrue(
+            encoding.sql.contains(
+                "\"employee\".\"id\" AS \"employee_id\""
+            )
+        )
+        XCTAssertTrue(
+            encoding.sql.contains(
+                "\"company\".\"id\" AS \"company_id\""
+            )
+        )
+
+        let descriptor = try XLStaticQueryDescriptor(
+            definitionIdentity: XLQueryDefinitionIdentity(
+                path: ["tests", "static-layout", "composite-employee-company"],
+                version: 1
+            ),
+            statement: XLStaticStatementDefinition(validating: encoding),
+            parameters: [],
+            results: combinedLayout.metadata.results,
+            cardinality: .many
+        )
+        let prepared = try database.prepareInvocation(
+            with: XLTypedStaticQueryDescriptor(
+                descriptor: descriptor,
+                layout: combinedLayout
+            )
+        )
+        let rows = try prepared.fetchAll(
+            bindings: prepared.makeInvocationBindings()
+        )
+
+        XCTAssertEqual(
+            rows,
+            [
+                CompositeEmployeeCompanyRow(
+                    employee: CompositeEmployeeRecord(
+                        id: 10,
+                        name: "Alice",
+                        companyId: 1
+                    ),
+                    company: CompositeCompanyRecord(id: 1, title: "Acme")
+                ),
+                CompositeEmployeeCompanyRow(
+                    employee: CompositeEmployeeRecord(
+                        id: 11,
+                        name: "Bob",
+                        companyId: 2
+                    ),
+                    company: CompositeCompanyRecord(id: 2, title: "Globex")
+                ),
+            ]
+        )
+    }
+
     func testTypedStaticFetchAllStopsSteppingAtMiddleRowDecodeFailure() throws {
         let probe = StaticRowLayoutStepProbe()
         var poolConfiguration = Configuration()
@@ -583,7 +779,8 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
                 }
             )
         }
-        let fixture = try StaticRowLayoutFixture(
+        let fixture = try TemporaryDatabaseFixture.make(
+            named: "static-row-layout",
             configuration: poolConfiguration
         )
         defer { fixture.tearDown() }
@@ -807,27 +1004,6 @@ final class StaticRowLayoutGRDBTests: XCTestCase {
 private enum StaticRowLayoutTestError: Error, Equatable {
     case invalidValue
     case decodeRejected
-}
-
-
-private struct StaticRowLayoutFixture {
-    let url: URL
-    let pool: DatabasePool
-
-    init(configuration: Configuration = Configuration()) throws {
-        url = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("sqlite")
-        pool = try DatabasePool(
-            path: url.path,
-            configuration: configuration
-        )
-    }
-
-    func tearDown() {
-        try? pool.close()
-        try? FileManager.default.removeItem(at: url)
-    }
 }
 
 

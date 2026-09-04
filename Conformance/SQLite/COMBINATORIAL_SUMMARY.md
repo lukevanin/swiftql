@@ -3,14 +3,14 @@
 - Schema version: `1`
 - Generator version: `c191-v2`
 - Coordination issue: `#191`
-- Inventory version: `1.3.0`
-- Cases: `208`
+- Inventory version: `1.6.0`
+- Cases: `226`
 
 ## Hard bounds
 
 | Bound | Maximum |
 | --- | ---: |
-| Cases | 224 |
+| Cases | 256 |
 | Dimensions per case | 9 |
 | Bindings per case | 8 |
 | Rendered SQL bytes | 4096 |
@@ -32,11 +32,11 @@
 | offset | OFFSET shape | none: none, two: two |
 | cte-shape | CTE shape | ordinary-required: ordinary-required, ordinary-nullable: ordinary-nullable, recursive-required: recursive-required |
 | compound-operator | Compound operator | union: union, union-all: union-all, intersect: intersect, except: except |
-| expression-case | Adopted expression case | indexed-binding: indexed-binding, numeric-abs: numeric-abs, numeric-round: numeric-round, numeric-floor: numeric-floor, comparable-min: comparable-min, string-printf: string-printf, cast-text-integer: cast-text-integer, cast-text-blob: cast-text-blob, date-unixepoch: date-unixepoch, json-valid: json-valid, json-array-length: json-array-length, operator-arithmetic-precedence: operator-arithmetic-precedence, operator-glob: operator-glob, aggregate-count-distinct: aggregate-count-distinct, aggregate-min-distinct: aggregate-min-distinct, aggregate-max-distinct: aggregate-max-distinct, aggregate-average-distinct: aggregate-average-distinct, aggregate-sum-distinct: aggregate-sum-distinct, aggregate-group-concat-distinct: aggregate-group-concat-distinct, numeric-round-no-places: numeric-round-no-places, numeric-round-optional: numeric-round-optional, comparable-max: comparable-max, string-printf-array: string-printf-array, json-array-length-path: json-array-length-path, cast-bool-integer: cast-bool-integer, cast-optional-bool-integer: cast-optional-bool-integer, cast-integer-real: cast-integer-real, cast-integer-text: cast-integer-text, cast-optional-integer-real: cast-optional-integer-real, cast-optional-integer-text: cast-optional-integer-text, cast-real-integer: cast-real-integer, cast-real-text: cast-real-text, cast-optional-real-integer: cast-optional-real-integer, cast-optional-real-text: cast-optional-real-text, cast-text-real: cast-text-real, cast-optional-text-integer: cast-optional-text-integer, cast-optional-text-real: cast-optional-text-real, cast-optional-text-blob: cast-optional-text-blob, cast-blob-text: cast-blob-text, cast-optional-blob-text: cast-optional-blob-text |
+| expression-case | Adopted expression case | indexed-binding: indexed-binding, numeric-abs: numeric-abs, numeric-round: numeric-round, numeric-floor: numeric-floor, comparable-min: comparable-min, string-printf: string-printf, cast-text-integer: cast-text-integer, cast-text-blob: cast-text-blob, date-unixepoch: date-unixepoch, json-valid: json-valid, json-array-length: json-array-length, json-group-array: json-group-array, json-group-object: json-group-object, json-extract-one-path: json-extract-one-path, json-extract-two-paths: json-extract-two-paths, json-insert: json-insert, json-replace: json-replace, json-set: json-set, json-remove: json-remove, json-patch: json-patch, json-minified: json-minified, json-quote: json-quote, json-type: json-type, json-type-path: json-type-path, json-error-position: json-error-position, json-array-constructor: json-array-constructor, json-object-constructor: json-object-constructor, json-arrow-element: json-arrow-element, json-arrow-value: json-arrow-value, operator-arithmetic-precedence: operator-arithmetic-precedence, operator-glob: operator-glob, aggregate-count-distinct: aggregate-count-distinct, aggregate-min-distinct: aggregate-min-distinct, aggregate-max-distinct: aggregate-max-distinct, aggregate-average-distinct: aggregate-average-distinct, aggregate-sum-distinct: aggregate-sum-distinct, aggregate-group-concat-distinct: aggregate-group-concat-distinct, numeric-round-no-places: numeric-round-no-places, numeric-round-optional: numeric-round-optional, comparable-max: comparable-max, string-printf-array: string-printf-array, json-array-length-path: json-array-length-path, cast-bool-integer: cast-bool-integer, cast-optional-bool-integer: cast-optional-bool-integer, cast-integer-real: cast-integer-real, cast-integer-text: cast-integer-text, cast-optional-integer-real: cast-optional-integer-real, cast-optional-integer-text: cast-optional-integer-text, cast-real-integer: cast-real-integer, cast-real-text: cast-real-text, cast-optional-real-integer: cast-optional-real-integer, cast-optional-real-text: cast-optional-real-text, cast-text-real: cast-text-real, cast-optional-text-integer: cast-optional-text-integer, cast-optional-text-real: cast-optional-text-real, cast-optional-text-blob: cast-optional-text-blob, cast-blob-text: cast-blob-text, cast-optional-blob-text: cast-optional-blob-text |
 | northwind-adaptation | Pinned Northwind adaptation | compound-customer-supplier-cities: compound-customer-supplier-cities, cte-order-subtotals: cte-order-subtotals |
 | in-subquery-case | Query-backed IN entry point | in-query-builder-nonempty: in-query-builder-nonempty, in-query-builder-empty: in-query-builder-empty, in-query-functional-nonempty: in-query-functional-nonempty, in-table-nonempty: in-table-nonempty, in-table-empty: in-table-empty |
 | operator-case | Packed operator overload family | boolean-not-shapes: boolean-not-shapes, boolean-and-shapes: boolean-and-shapes, boolean-or-shapes: boolean-or-shapes, comparison-required: comparison-required, comparison-right-optional: comparison-right-optional, comparison-left-optional: comparison-left-optional, comparison-both-optional: comparison-both-optional, equality-required: equality-required, equality-optional-shapes: equality-optional-shapes, inequality-optional-shapes: inequality-optional-shapes, integer-arithmetic-required: integer-arithmetic-required, integer-arithmetic-right-optional: integer-arithmetic-right-optional, integer-arithmetic-left-optional: integer-arithmetic-left-optional, integer-arithmetic-both-optional: integer-arithmetic-both-optional, integer-arithmetic-null-propagation: integer-arithmetic-null-propagation, integer-division-boundaries: integer-division-boundaries, real-arithmetic-required: real-arithmetic-required, real-arithmetic-right-optional: real-arithmetic-right-optional, real-arithmetic-left-optional: real-arithmetic-left-optional, real-arithmetic-both-optional: real-arithmetic-both-optional, real-arithmetic-null-propagation: real-arithmetic-null-propagation, real-division-boundaries: real-division-boundaries, unary-shapes: unary-shapes, unary-nesting: unary-nesting, coalesce-storage-classes: coalesce-storage-classes, coalescing-operator: coalescing-operator, optional-predicates: optional-predicates, text-concatenation-shapes: text-concatenation-shapes, text-concatenation-null: text-concatenation-null, text-like-shapes: text-like-shapes, text-like-ascii-case-folding: text-like-ascii-case-folding, text-like-null-propagation: text-like-null-propagation, text-glob-shapes: text-glob-shapes, text-glob-null-propagation: text-glob-null-propagation, text-glob-case-sensitivity: text-glob-case-sensitivity |
-| gated-prerequisite | Explicitly gated typed prerequisite | issue-43-direct-scalar-compounds: #43 direct scalar compounds, issue-10-cte-materialization-hints: #10 CTE materialization hints, issue-139-typed-ddl: #139 typed DDL, issue-45-natural-using-joins: #45 NATURAL and USING joins, issue-70-nullable-subquery-shapes: #70 nullable subquery shapes |
+| gated-prerequisite | Explicitly gated typed prerequisite | issue-139-typed-ddl: #139 typed DDL, issue-70-nullable-subquery-shapes: #70 nullable subquery shapes |
 
 ## Constraints
 
@@ -51,10 +51,7 @@
 | --- | --- | --- | --- |
 | pair.grouping-none.having-count-greater-than-one | select.having-requires-grouping | grouping=none, having=count-greater-than-one | select.having-requires-grouping: A non-empty HAVING clause requires a non-empty GROUP BY clause. |
 | pair.limit-none.offset-two | select.offset-requires-limit | limit=none, offset=two | select.offset-requires-limit: A non-empty OFFSET clause requires a non-empty LIMIT clause. |
-| gated.issue-43.direct-scalar-compounds | - | gated-prerequisite=issue-43-direct-scalar-compounds | Not executable in issue #191: typed prerequisite #43 (direct scalar compounds) is not implemented. |
-| gated.issue-10.cte-materialization-hints | - | gated-prerequisite=issue-10-cte-materialization-hints | Not executable in issue #191: typed prerequisite #10 (CTE materialization hints) is not implemented. |
 | gated.issue-139.typed-ddl | - | gated-prerequisite=issue-139-typed-ddl | Not executable in issue #191: typed prerequisite #139 (typed DDL) is not implemented. |
-| gated.issue-45.natural-using-joins | - | gated-prerequisite=issue-45-natural-using-joins | Not executable in issue #191: typed prerequisite #45 (NATURAL and USING joins) is not implemented. |
 | gated.issue-70.nullable-subquery-shapes | - | gated-prerequisite=issue-70-nullable-subquery-shapes | Not executable in issue #191: typed prerequisite #70 (nullable subquery shapes) is not implemented. |
 
 ## Coverage
@@ -63,7 +60,7 @@
 | ---: | --- | ---: | ---: | ---: |
 | 2 | projection, source, join, predicate, grouping, having, ordering, limit, offset | 405 | 405 | 2 |
 | 2 | cte-shape, compound-operator | 12 | 12 | 0 |
-| 1 | expression-case | 40 | 40 | 0 |
+| 1 | expression-case | 58 | 58 | 0 |
 | 1 | northwind-adaptation | 2 | 2 | 0 |
 | 3 | predicate, grouping, having | 1 | 1 | 0 |
 | 6 | predicate, grouping, having, ordering, limit, offset | 1 | 1 | 0 |
@@ -90,7 +87,25 @@
 | c191.v1.expression.comparable-min | expression.comparable-min | targeted | semantic | expression-case=comparable-min | syntax.expression.numeric-comparable-functions |  | 1 |
 | c191.v1.expression.date-unixepoch | expression.date-unixepoch | targeted | semantic | expression-case=date-unixepoch | syntax.expression.date-functions |  | 1 |
 | c191.v1.expression.indexed-binding | expression.indexed-binding | targeted | semantic | expression-case=indexed-binding | binding.indexed |  | 1 |
+| c191.v1.expression.json-array-constructor | expression.json-array-constructor | targeted | semantic | expression-case=json-array-constructor | syntax.expression.json-functions |  | 1 |
 | c191.v1.expression.json-array-length | expression.json-array-length | targeted | semantic | expression-case=json-array-length | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-arrow-element | expression.json-arrow-element | targeted | semantic | expression-case=json-arrow-element | syntax.expression.json-operators |  | 1 |
+| c191.v1.expression.json-arrow-value | expression.json-arrow-value | targeted | semantic | expression-case=json-arrow-value | syntax.expression.json-operators |  | 1 |
+| c191.v1.expression.json-error-position | expression.json-error-position | targeted | semantic | expression-case=json-error-position | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-extract-one-path | expression.json-extract-one-path | targeted | semantic | expression-case=json-extract-one-path | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-extract-two-paths | expression.json-extract-two-paths | targeted | semantic | expression-case=json-extract-two-paths | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-group-array | expression.json-group-array | targeted | semantic | expression-case=json-group-array | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-group-object | expression.json-group-object | targeted | semantic | expression-case=json-group-object | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-insert | expression.json-insert | targeted | semantic | expression-case=json-insert | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-minified | expression.json-minified | targeted | semantic | expression-case=json-minified | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-object-constructor | expression.json-object-constructor | targeted | semantic | expression-case=json-object-constructor | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-patch | expression.json-patch | targeted | semantic | expression-case=json-patch | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-quote | expression.json-quote | targeted | semantic | expression-case=json-quote | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-remove | expression.json-remove | targeted | semantic | expression-case=json-remove | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-replace | expression.json-replace | targeted | semantic | expression-case=json-replace | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-set | expression.json-set | targeted | semantic | expression-case=json-set | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-type | expression.json-type | targeted | semantic | expression-case=json-type | syntax.expression.json-functions |  | 1 |
+| c191.v1.expression.json-type-path | expression.json-type-path | targeted | semantic | expression-case=json-type-path | syntax.expression.json-functions |  | 1 |
 | c191.v1.expression.json-valid | expression.json-valid | targeted | semantic | expression-case=json-valid | syntax.expression.json-functions |  | 1 |
 | c191.v1.expression.numeric-abs | expression.numeric-abs | targeted | semantic | expression-case=numeric-abs | syntax.expression.numeric-comparable-functions |  | 1 |
 | c191.v1.expression.numeric-floor | expression.numeric-floor | targeted | semantic | expression-case=numeric-floor | syntax.expression.numeric-comparable-functions |  | 1 |

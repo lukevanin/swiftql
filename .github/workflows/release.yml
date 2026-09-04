@@ -84,6 +84,8 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/swift.yml
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   documentation:
     name: Build exact documentation artifact
