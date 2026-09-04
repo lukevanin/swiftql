@@ -335,20 +335,25 @@ public struct SQLiteBuildValidationPlanDiagnosticSettings:
 
     public let fullTableScanRowThreshold: Int
     public let suppressions: [SQLiteBuildValidationPlanSuppression]
+    /// The stated bounds on index-candidate generation (#396).
+    public let candidateLimits: SQLiteBuildValidationIndexCandidateLimits
 
     public init(
         fullTableScanRowThreshold: Int = SQLiteBuildValidationPlanDiagnosticSettings
             .defaultFullTableScanRowThreshold,
-        suppressions: [SQLiteBuildValidationPlanSuppression] = []
+        suppressions: [SQLiteBuildValidationPlanSuppression] = [],
+        candidateLimits: SQLiteBuildValidationIndexCandidateLimits = .init()
     ) {
         self.fullTableScanRowThreshold = fullTableScanRowThreshold
         self.suppressions = suppressions.sorted(
             by: SQLiteBuildValidationPlanSuppression.canonicalOrder
         )
+        self.candidateLimits = candidateLimits
     }
 
     private enum CodingKeys: String, CodingKey {
         case fullTableScanRowThreshold = "full_table_scan_row_threshold"
         case suppressions
+        case candidateLimits = "candidate_limits"
     }
 }
