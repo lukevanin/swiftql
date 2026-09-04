@@ -44,6 +44,14 @@ let package = Package(
             name: "swiftql-build-validate",
             targets: ["swiftql-build-validate"]
         ),
+        .library(
+            name: "SwiftQLSQLiteIndexAdvisor",
+            targets: ["SwiftQLSQLiteIndexAdvisor"]
+        ),
+        .executable(
+            name: "swiftql-index-advisor",
+            targets: ["swiftql-index-advisor"]
+        ),
         .plugin(
             name: "SwiftQLSQLiteBuildValidationPlugin",
             targets: ["SwiftQLSQLiteBuildValidationPlugin"]
@@ -216,6 +224,27 @@ let package = Package(
             path: "Sources/SwiftQLSQLiteBuildValidationValidatorCLI"
         ),
 
+        // The swiftql-index-advisor codemod (#399). Reads the verified
+        // recommendations the validator wrote and either reports them or
+        // renders them as a generated, checked-in SQL artifact. Consumes the
+        // artifact only: no plan analysis, candidate generation, or
+        // verification logic lives here.
+        .target(
+            name: "SwiftQLSQLiteIndexAdvisor",
+            dependencies: ["SwiftQLSQLiteBuildValidationValidator"]
+        ),
+
+        // Target and product share a name for the same reason
+        // `swiftql-build-validate` does (#492), so a build-tool plugin could
+        // resolve this executable through `context.tool(named:)` under both
+        // build systems if one ever needed to. This command is deliberately
+        // not wired into any plugin: a build never rewrites source.
+        .executableTarget(
+            name: "swiftql-index-advisor",
+            dependencies: ["SwiftQLSQLiteIndexAdvisor"],
+            path: "Sources/SwiftQLSQLiteIndexAdvisorCLI"
+        ),
+
         // Thin SwiftPM build-tool plugin wrapper around the standalone
         // validator (#294). Declares the manifest/snapshot as explicit
         // command inputs and the report as an explicit output; owns no
@@ -312,6 +341,18 @@ let package = Package(
                 "SwiftQLSQLiteBuildValidationManifest",
                 "SwiftQLSQLiteConformanceFixtures",
                 "SwiftQLSQLiteCombinatorialSupport",
+                "SwiftQLNorthwindFixtures",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ]
+        ),
+
+        .testTarget(
+            name: "SwiftQLSQLiteIndexAdvisorTests",
+            dependencies: [
+                "SwiftQLSQLiteBuildValidationManifest",
+                "SwiftQLSQLiteBuildValidationValidator",
+                "SwiftQLSQLiteIndexAdvisor",
+                "SwiftQLCore",
                 "SwiftQLNorthwindFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]

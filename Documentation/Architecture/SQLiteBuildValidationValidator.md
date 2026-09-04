@@ -46,6 +46,10 @@ swiftql-build-validate \
   [--capability <id>]      # repeatable
 ```
 
+`swiftql-index-advisor` reads the sidecar this writes and turns its verified
+recommendations into a checked-in artifact; see
+[Query-Plan Analysis and Index Advice](SQLiteQueryPlanAnalysis.md).
+
 `--plan-output` adds the advisory query-plan sidecar described in
 [Query-Plan Analysis and Index Advice](SQLiteQueryPlanAnalysis.md). It is
 opt-in, writes a second file, and never changes the report or the exit code.

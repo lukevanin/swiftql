@@ -388,3 +388,72 @@ It is never recommended.
 first means verification was not requested, the second that everything was
 tried and nothing survived. Neither affects the exit status, which reads the
 correctness verdict alone.
+
+## The swiftql-index-advisor codemod (#399)
+
+### The review-then-apply workflow
+
+1. A build with plan analysis opted in prints advisory warnings carrying the
+   verified `CREATE INDEX` statement (#398).
+2. `swiftql-index-advisor --plan-report <sidecar>` prints every verified
+   recommendation with its evidence — before-plan, after-plan, the reason the
+   rule accepted it, and the write cost — plus every candidate verification
+   rejected, with the reason. This is the default mode and it **changes
+   nothing**.
+3. When the advice looks right, `--apply --output <path>` writes it as a
+   generated SQL artifact, and the developer reviews that diff like any other.
+
+```
+swiftql-index-advisor --plan-report plans.json                      # report
+swiftql-index-advisor --plan-report plans.json \
+                      --apply --output Sources/App/AdvisedIndices.sql
+```
+
+`--apply` requires `--output`, so the command can only ever write to a path
+the invocation named. No flag, no write.
+
+### Why this is not an Xcode fixit
+
+A fixit would be better, and it is unreachable. A SwiftPM build-tool plugin
+emits diagnostics, not fixits. A Swift fixit would have to come from a macro,
+and a macro cannot open a database without breaking hermetic, incremental
+builds — the very properties the build validator exists to preserve. So the
+honest equivalent is one explicit invocation that a developer runs and whose
+diff they approve. A build never rewrites source.
+
+### Why SQL rather than a rewritten declaration
+
+The issue asks for a SwiftSyntax rewrite of the declaration site *where a
+typed index declaration surface exists*. It does not exist yet — typed DDL is
+v2 work (#139) — and there is nothing for SwiftSyntax to edit without
+inventing API here. So the command generates a standalone SQL artifact and
+says so, in the artifact's own header. When the typed surface lands, the
+rewrite replaces the renderer; the command's contract does not change.
+
+The generated statements use `CREATE INDEX IF NOT EXISTS`, because the
+artifact is meant to run against a real database repeatedly and the second run
+must do nothing. Verification uses the plain form on purpose: an index that
+already exists on a scratch copy means the copy was not clean, and that must
+fail rather than pass quietly.
+
+### Idempotence
+
+Apply mode is a pure function of the recommendations — no clock, no host, no
+path in the output — and it compares bytes before writing. Re-running on
+unchanged advice reports "already up to date" and does not touch the file, so
+nothing downstream of it rebuilds.
+
+### Refusals
+
+- A sidecar that never ran verification is **refused**. Nothing in it has been
+  tried, so nothing in it may be applied, and the message names
+  `--verify-index-candidates`.
+- Verification that ran and accepted nothing is not a failure — it is an
+  answer. The command says so and writes nothing.
+- An unreadable sidecar is refused with its path and the reason.
+
+### It consumes the artifact only
+
+No plan analysis, candidate generation, or verification logic lives in this
+command. It cannot decide that an index is a good idea; it can only relay a
+decision the validator already recorded, with the evidence attached.
