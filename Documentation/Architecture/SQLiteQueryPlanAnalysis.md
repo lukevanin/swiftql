@@ -303,3 +303,88 @@ Recording the decline keeps "no candidate" distinguishable from "no problem".
 Nothing in this stage opens a database, creates an index, or decides that a
 candidate is worth taking. A candidate is a proposal. Verification is #397's,
 and only a verified candidate may be reported as recommended.
+
+## Candidate verification (#397)
+
+A candidate is a guess until something tries it. Verification is what turns it
+into evidence, and it is opt-in:
+
+```
+swiftql-build-validate … --plan-output plans.json --verify-index-candidates
+```
+
+### The scratch copy
+
+Verification has to create indices, and the one database it may never create
+them in is the snapshot the build is validated against. Each candidate
+therefore gets its own disposable copy:
+
+- The copy lives in the **system temporary directory**. A scratch parent
+  beside the snapshot, or inside the working directory, is refused explicitly
+  — a stray `.sqlite` next to a checked-in snapshot is confusing, and one
+  inside a source tree ends up committed.
+- The copy is removed on every exit path. `defer` covers a normal return and a
+  thrown error; a `SIGINT`/`SIGTERM` handler `unlink`s the registered paths and
+  re-raises the signal with its default disposition. The handler reads a
+  preallocated C-string table and calls `unlink`, both async-signal-safe;
+  `FileManager` would not be. `SIGKILL` cannot be caught by anything, and what
+  it leaves behind is in the system temporary directory the OS reclaims, never
+  in the source tree.
+- Afterwards, the pinned snapshot's byte count and SHA-256 are compared to
+  what they were before. A difference is an error, not a warning.
+- **One copy per candidate**, so one candidate's index can never change the
+  plan another is judged by.
+
+The connection is a `DatabaseQueue` this pass opens and closes. Verification
+never runs against an application connection or a long-lived pool.
+
+### The improvement rule
+
+Stated once, applied uniformly, and recorded in the report by version
+(`swiftql-index-improvement-rule-v1`) so a recommendation stays readable after
+the rule changes.
+
+A candidate is kept only when **all** of the following hold for the plan node
+of the candidate's representative alias:
+
+1. the before-plan shape is `full_table_scan` or `automatic_covering_index`;
+2. the after-plan shape is `index_search` or `covering_index_scan`;
+3. the after-plan node reports at least one constrained column — proving the
+   index narrows the scan rather than merely existing;
+4. the index SQLite names in the after-plan is **this candidate's own**.
+
+The fourth clause is what stops a candidate being credited for an improvement
+some other index produced.
+
+No cost estimate or row-count comparison enters the rule. The pinned snapshot
+is deliberately unanalyzed, so a structural shape change is the only signal
+available that is not itself a guess.
+
+### What a recommendation carries
+
+A before-plan, the DDL, and an after-plan, bound to the statement's `query_id`
+and `descriptor_identity`. A recommendation that only said "add this index"
+would ask a developer to take it on trust; the triple is a reviewable artifact
+they can judge without re-deriving the reasoning.
+
+Each one also carries a **write-cost note**. An index is not free, and advice
+that shows only the read side invites adding one to a table whose writes matter
+more than the scan it removes.
+
+### Rejections are reported
+
+A candidate the rule declined appears under `unverified` with its reason, and —
+when the plans were captured and the rule simply rejected them — with the
+before and after plans that led to the decision. A candidate that vanishes
+silently is indistinguishable from one that was never generated, and the reason
+it failed is often the more useful half of the answer.
+
+A candidate that could not be verified at all is likewise reported unverified.
+It is never recommended.
+
+### Still advisory
+
+`index_recommendations` being absent and being empty are different answers: the
+first means verification was not requested, the second that everything was
+tried and nothing survived. Neither affects the exit status, which reads the
+correctness verdict alone.
