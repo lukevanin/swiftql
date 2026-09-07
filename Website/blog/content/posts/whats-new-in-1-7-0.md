@@ -1,6 +1,6 @@
 ---
 title: "What's new in v1.7"
-date: 2026-09-03
+date: 2026-09-07
 description: "SwiftQL v1.7 makes the REGEXP operator work. SQLite ships no regexp function, so the operator used to fail before it ran; SwiftQL now supplies one backed by Swift Regex, compiles each pattern once per statement instead of once per row, and lets you match a RegexBuilder pattern directly."
 ---
 

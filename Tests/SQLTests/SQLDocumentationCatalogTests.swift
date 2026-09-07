@@ -823,7 +823,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         // (`scripts/ci/check-release-changelog.sh`) reads the heading for the
         // version being tagged rather than the first heading, so this pin
         // records the changelog's shape rather than gating the release.
-        XCTAssertEqual(firstReleaseHeading, "## [1.7.0] - Unreleased")
+        XCTAssertEqual(firstReleaseHeading, "## [1.7.0] - 2026-09-07")
     }
 
     /// `check-docc-output.sh` proves one built page per catalog article. An
