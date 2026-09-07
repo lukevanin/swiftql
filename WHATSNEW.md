@@ -15,7 +15,7 @@ wrote.
 
 ## 1.7.0 — REGEXP that just works
 
-*Unreleased. Dated when the version is tagged.*
+*Released 7 September 2026.*
 
 - The `REGEXP` operator no longer needs the application to register anything.
   SQLite ships no `regexp` function, so every query that used the operator
