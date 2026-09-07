@@ -3,7 +3,7 @@
 - Schema version: `1`
 - Generator version: `c191-v2`
 - Coordination issue: `#191`
-- Inventory version: `1.6.0`
+- Inventory version: `1.7.0`
 - Cases: `226`
 
 ## Hard bounds

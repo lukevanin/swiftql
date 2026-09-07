@@ -152,17 +152,65 @@ mode the query branches on:
     }
 ```
 
-Search is always applied, with `%` standing in for an empty box, so the clause
-is never added or removed — only sometimes vacuous. Sort works the same way:
-each `OrderBy` term is a conditional on the sort parameter, and a term whose
-condition is false collapses to a constant that orders every row equally, so it
-contributes nothing and the next term decides.
+Search is always applied, with the empty pattern standing in for an empty box,
+so the clause is never added or removed — only sometimes vacuous. Sort works
+the same way: each `OrderBy` term is a conditional on the sort parameter, and a
+term whose condition is false collapses to a constant that orders every row
+equally, so it contributes nothing and the next term decides.
 
 This is the one read in the demo that is not a declared query. A declared
 query's frozen-literal guard rejects a parameter passed as an argument to a
-call, and `like(_:)` is a method — so text search cannot appear in a
-declaration. The demo uses named bindings for that statement instead, and says
-so where it does.
+call, and matching is a method — so text search cannot appear in a declaration.
+The demo uses named bindings for that statement instead, and says so where it
+does.
+
+## Two regular expressions, for two different reasons
+
+The search clause is `REGEXP`, which v1.7 made usable without the application
+registering anything. The user's text is quoted character by character, so a
+search for `50%` or `a.b` finds those characters rather than being read as a
+pattern, and `(?i)` keeps the match case-insensitive the way `LIKE` was:
+
+<!-- source: Examples/TodoApp/TodoKit/Sources/TodoKit/TodoQuery.swift -->
+```swift
+    var searchPattern: String {
+        guard !searchText.isEmpty else {
+            return ""
+        }
+        var pattern = "(?i)"
+        for character in searchText {
+            if Self.regexMetacharacters.contains(character) {
+                pattern.append("\\")
+            }
+            pattern.append(character)
+        }
+        return pattern
+    }
+```
+
+That one is a **string** pattern on purpose. It changes with every keystroke
+and travels as a bound parameter, so one rendered statement serves every search
+and SwiftQL compiles the pattern once per execution rather than once per row.
+
+The demo's other regular expression is the opposite case. Finding the to-dos
+whose notes hold a web link is a fixed question, so it is written in Swift with
+its pieces named, and matched in SQLite as a compiled `Regex`:
+
+<!-- source: Examples/TodoApp/TodoKit/Sources/TodoKit/TodoLinks.swift -->
+```swift
+    public static let pattern = XLRegexPattern {
+        "http"
+        Optionally("s")
+        "://"
+        OneOrMore(.whitespace.inverted)
+    }
+```
+
+An `XLRegexPattern` registers the compiled `Regex` and sends SQLite a key that
+names it. A key names a registration in one process, so a statement carrying
+one cannot become a static query descriptor — which is why the search pattern,
+whose statement *is* validated at build time, has to be a string. The demo does
+both, and `TodoLinks.swift` says why.
 
 ## Writes that return their row
 

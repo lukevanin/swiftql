@@ -282,18 +282,87 @@ let query = sql { schema in
 }
 ```
 
-> Important: SQLite ships no `regexp` implementation. `X REGEXP Y` is parsed as
-a call to `regexp(Y, X)`, and preparing the statement fails with `no such
-function: regexp` until the application registers a two-argument `regexp`
-function on the connection.
+SwiftQL supplies the implementation. SQLite parses `X REGEXP Y` as a call to
+`regexp(Y, X)` and ships no such function, so before v1.7 the statement failed
+with `no such function: regexp` unless the application registered one. SwiftQL
+now registers its own on the connection that executes the statement.
 
-Because the implementation is supplied by the application, SQLite defines no
-regular-expression dialect here. The pattern syntax is whatever the registered
-function understands, so patterns are not portable between applications the way
-`like` and `glob` patterns are.
+SQLite defines no regular-expression dialect, so the bundled function defines
+SwiftQL's:
 
-Register the function on a `GRDBDatabaseBuilder`'s configuration before
-building the database, in the same way as any other custom SQL function.
+| Case | Result |
+| --- | --- |
+| Pattern syntax | Swift's, as accepted by `Regex.init(_:)` |
+| Match rule | The pattern is searched for **anywhere** in the subject |
+| `NULL` on either side | `NULL` |
+| Invalid pattern | An error naming the pattern |
+| An argument that is neither TEXT nor a UTF-8 BLOB | An error |
+
+Searching rather than matching the whole subject is what the widely used
+`regexp` extensions for SQLite do, and what PostgreSQL's `~` operator does.
+`"alpha-123" REGEXP '[0-9]+$'` is therefore true. Anchor a pattern with `^` and
+`$` when you want the whole subject to match.
+
+A pattern is compiled once per statement execution, not once per row, so a
+scan over a large table pays one compile and then only matches.
+
+> Note: An application that registers its own two-argument `regexp` keeps it.
+SwiftQL never replaces a `regexp` already on the connection, whether it was
+registered with `GRDBDatabaseBuilder.addFunction(_:)` or with
+`Configuration.prepareDatabase(_:)`, so upgrading does not change what `REGEXP`
+means for an application that already supplied one.
+
+#### Matching a Swift Regex
+
+A pattern string has no compile-time check and cannot be composed. `Regex` and
+`RegexBuilder` have both. A compiled `Regex` cannot be sent to SQLite, which
+carries only text, integers, reals, blobs, and nulls, so `XLRegexPattern`
+registers the `Regex` and the statement carries an opaque key that SwiftQL
+resolves when SQLite calls the function.
+
+`Anchor`, `ZeroOrMore` and the rest come from `RegexBuilder`, so a file using
+them needs `import RegexBuilder` as well as `import SwiftQL`.
+
+<!-- test: XLDocumentationTests.testDocumentationExpressions -->
+```swift
+enum PersonPatterns {
+    static let leadingA = XLRegexPattern {
+        Anchor.startOfSubject
+        "A"
+        ZeroOrMore(.any)
+        "n"
+        Anchor.endOfSubject
+    }
+}
+
+let query = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    Where(person.name.regexp(PersonPatterns.leadingA))
+}
+```
+
+The pattern is a `static let` rather than a local, which is the first of the
+two rules below: a local would be released when the function returns, while the
+statement it rendered is usually executed later.
+
+Two rules come with it.
+
+**Hold the pattern.** The registry does not keep an `XLRegexPattern` alive.
+Store it — in a `static let`, or a property — for as long as statements using
+it can execute. A released pattern leaves its key unresolvable, and executing a
+statement that carries it reports that rather than silently matching nothing.
+
+**A key is local to one process.** The rendered SQL names a registration in the
+process that rendered it, so a statement matching an `XLRegexPattern` cannot
+become a static query descriptor; building one from it fails with a message
+saying so. Use a pattern string in a statement that has to be validated at
+build time.
+
+Captures are not exposed. `REGEXP` answers only whether a subject matches, so
+an output type would have nowhere to go; use the `Regex` directly in Swift when
+you need its captures.
 
 ### glob operator
 

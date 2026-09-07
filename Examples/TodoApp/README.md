@@ -67,9 +67,22 @@ single grouped aggregate rather than a count per list.
 **One query serves every combination.** `TodoFilteredRead.swift` is the list
 view's read. Four filters, three sort orders, and any search text, in one
 statement: the filter arrives as three booleans the `Where` clause reads, the
-search is always applied with `%` standing in for an empty box, and the sort
-decides which `OrderBy` terms have any effect. It is the one read that is not
-a declared query, and the file says why.
+search is always applied with the empty pattern standing in for an empty box,
+and the sort decides which `OrderBy` terms have any effect. It is the one read
+that is not a declared query, and the file says why.
+
+**Search is a regular expression, matched in SQLite.** v1.7 ships the `regexp`
+implementation SQLite lacks, so the list view's search is `REGEXP` rather than
+`LIKE`. The user's text is quoted character by character and travels as a bound
+parameter, so one rendered statement serves every search and SwiftQL compiles
+that pattern once per execution instead of once per row.
+
+**A fixed pattern is written in Swift, not spelled as a string.**
+`TodoLinks.swift` finds the to-dos whose notes hold a web link with an
+`XLRegexPattern` built by `RegexBuilder`. The pattern never changes, so it can
+be a compiled `Regex` that SQLite matches through a registry key — and the file
+explains why that read stays out of the validation manifest while the search
+pattern stays a string.
 
 **Writes return what they wrote.** `TodoStore.swift` creates, updates,
 toggles, and deletes with `RETURNING`, so a caller gets the row the database
@@ -122,9 +135,10 @@ Building a whole application on v1.5 and v1.6 surfaced four places where the
 API resists, all recorded on
 [#469](https://github.com/lukevanin/swiftql/issues/469):
 
-- **`LIKE` cannot appear in a declared query.** The frozen-literal guard
-  rejects a parameter passed to a call, and `like(_:)` is a method with no
-  operator spelling. That is why the list view's read uses named bindings.
+- **Text search cannot appear in a declared query.** The frozen-literal guard
+  rejects a parameter passed to a call, and both `regexp(_:)` and `like(_:)`
+  are methods with no operator spelling. That is why the list view's read uses
+  named bindings.
 - **Live queries and declared queries do not compose.** `XLObservableQuery`
   observes an `XLRequest`, and `@SQLQueries` does not produce one, so the three
   reads a view observes exist twice — once as a declaration, once as a
