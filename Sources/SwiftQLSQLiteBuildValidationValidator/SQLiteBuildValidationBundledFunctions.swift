@@ -43,7 +43,12 @@ enum SQLiteBuildValidationBundledFunctions {
     /// A function already on the connection is left alone, matching the
     /// runtime rule that an application's own implementation wins.
     static func register(on database: Database) {
-        for function in all where !hasFunction(matching: function, in: database) {
+        // One pragma for the whole set, not one per function. A build that
+        // cannot answer it reports nothing, which reads as "the connection
+        // provides none of these" and registers all of them -- the same
+        // reading the runtime probe gives an unanswerable pragma.
+        let rows = (try? Row.fetchAll(database, sql: "PRAGMA function_list")) ?? []
+        for function in all where !hasFunction(matching: function, in: rows) {
             database.add(function: function.databaseFunction())
         }
     }
@@ -102,16 +107,13 @@ enum SQLiteBuildValidationBundledFunctions {
     /// Name and arity, because SQLite keys a function on both. `-1` is what
     /// `PRAGMA function_list` reports for a variadic function, which can serve
     /// a fixed-arity call.
+    ///
+    /// `rows` is one `PRAGMA function_list` capture, read once by the caller
+    /// and tested against every supplied function.
     private static func hasFunction(
         matching function: Supplied,
-        in database: Database
+        in rows: [Row]
     ) -> Bool {
-        guard let rows = try? Row.fetchAll(
-            database,
-            sql: "PRAGMA function_list"
-        ) else {
-            return false
-        }
         let folded = sqliteASCIIFolded(function.name)
         return rows.contains { row in
             guard
