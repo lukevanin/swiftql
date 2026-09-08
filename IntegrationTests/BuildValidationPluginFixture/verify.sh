@@ -176,15 +176,17 @@ fi
 echo "OK"
 
 echo "== 8. Touching the plan-analysis opt-in re-runs the command =="
+# Settle the tree first. Check 7 rebuilt from scratch, and whether an
+# unchanged rebuild reuses is check 4's subject, not this one — asserting it
+# again here only made this check depend on how quickly the previous build
+# finished.
 if ! swift build > /tmp/swiftql-plugin-verify-8a.log 2>&1; then
     echo "FAIL: expected unchanged rebuild to succeed"
-    exit 1
-fi
-if grep -q "SwiftQL SQLite build validation (SecondValidatedLibrary)" /tmp/swiftql-plugin-verify-8a.log; then
-    echo "FAIL: expected an unchanged rebuild to reuse the previous run"
     cat /tmp/swiftql-plugin-verify-8a.log
     exit 1
 fi
+# As in check 5: a short delay before touching, so filesystem mtime
+# granularity cannot mask the change on a fast rerun.
 sleep 1
 touch "$PLAN_ANALYSIS"
 if ! swift build > /tmp/swiftql-plugin-verify-8b.log 2>&1; then
