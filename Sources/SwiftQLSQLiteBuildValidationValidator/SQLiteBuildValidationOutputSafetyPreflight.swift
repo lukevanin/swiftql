@@ -60,8 +60,24 @@ enum SQLiteBuildValidationOutputSafetyPreflight {
         // Two artifacts, two files. Writing both to one path leaves whichever
         // was written last, which reads as a complete run that silently lost
         // half its output.
-        guard identityURL(for: outputURL, fileManager: fileManager).path
-            != identityURL(for: planOutputURL, fileManager: fileManager).path else {
+        //
+        // Checked the same way the input checks above are: by path, and then
+        // by device and inode, because two different paths hard-linked to one
+        // file are the same file and only identity catches that.
+        let reportIdentityURL = identityURL(for: outputURL, fileManager: fileManager)
+        let planIdentityURL = identityURL(for: planOutputURL, fileManager: fileManager)
+        guard reportIdentityURL.path != planIdentityURL.path else {
+            throw SQLiteBuildValidationValidatorCLIError.planOutputConflictsWithReportOutput
+        }
+        if let reportFileIdentity = existingFileIdentity(
+               at: reportIdentityURL,
+               fileManager: fileManager
+           ),
+           let planFileIdentity = existingFileIdentity(
+               at: planIdentityURL,
+               fileManager: fileManager
+           ),
+           reportFileIdentity == planFileIdentity {
             throw SQLiteBuildValidationValidatorCLIError.planOutputConflictsWithReportOutput
         }
     }

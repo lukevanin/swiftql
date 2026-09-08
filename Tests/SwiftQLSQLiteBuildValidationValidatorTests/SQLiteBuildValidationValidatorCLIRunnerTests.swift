@@ -118,6 +118,27 @@ final class SQLiteBuildValidationValidatorCLIRunnerTests: XCTestCase {
                 )
             }
 
+            // Two different paths hard-linked to one file are one file, and
+            // only device/inode identity catches that.
+            let reportTwinURL = workingDirectory.appendingPathComponent("report-twin.json")
+            try Data("{}".utf8).write(to: reportURL)
+            try FileManager.default.linkItem(at: reportURL, to: reportTwinURL)
+            XCTAssertThrowsError(
+                try SQLiteBuildValidationValidatorCLIOptions.preflightOutputSafety(
+                    databaseURL: databaseURL,
+                    manifestURL: manifestURL,
+                    outputURL: reportURL,
+                    planOutputURL: reportTwinURL
+                )
+            ) { error in
+                XCTAssertEqual(
+                    error as? SQLiteBuildValidationValidatorCLIError,
+                    .planOutputConflictsWithReportOutput
+                )
+            }
+            try FileManager.default.removeItem(at: reportTwinURL)
+            try FileManager.default.removeItem(at: reportURL)
+
             XCTAssertThrowsError(
                 try SQLiteBuildValidationValidatorCLIOptions.preflightOutputSafety(
                     databaseURL: databaseURL,
