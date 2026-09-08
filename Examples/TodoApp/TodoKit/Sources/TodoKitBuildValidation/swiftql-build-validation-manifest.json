@@ -903,11 +903,11 @@
     }
   ],
   "schema_snapshot" : {
-    "database_byte_count" : 20480,
-    "database_sha256" : "00cbd167e3ae632887677fcd9a571d3e8a199e4e4dee3f36226bfdcb959de070",
+    "database_byte_count" : 57344,
+    "database_sha256" : "7ec4f6eecca30c9e4ebafc4e4ce8d70d160ff275b32e22e8f327b8fbb66cf3dd",
     "identifier" : "todo-demo.schema",
     "kind" : "checked-in-snapshot",
-    "schema_fingerprint" : "ede0b16a69350221",
-    "schema_row_count" : 4
+    "schema_fingerprint" : "3e08fbb7add3584b",
+    "schema_row_count" : 13
   }
 }

@@ -63,7 +63,7 @@ Version numbers express the intended order of work, not release dates.
 | [v1.5.7](https://github.com/lukevanin/swiftql/milestone/32) | Internal refactoring | The August 2026 audit applied, with no public API change |
 | [v1.6](https://github.com/lukevanin/swiftql/milestone/17) | SQLite JSON support | The SQLite JSON surface reachable from typed Swift |
 | [v1.7](https://github.com/lukevanin/swiftql/milestone/18) | REGEXP backed by Swift Regex | The REGEXP operator usable without an application-supplied `regexp()` function |
-| [v1.8](https://github.com/lukevanin/swiftql/milestone/30) | Query-plan analysis and index advice | Advisory plan capture and index recommendations from the build validator |
+| [v1.8](https://github.com/lukevanin/swiftql/milestone/30) | Query-plan analysis and index advice | Advisory `EXPLAIN QUERY PLAN` diagnostics and verified index recommendations layered onto the v1.5.2 build validator, never affecting build exit status |
 | [v2](https://github.com/lukevanin/swiftql/milestone/10) | Generated database catalogs, Swift 6, and a stable dialect-aware API | Fluent catalog-scoped queries plus intentional naming, package, DDL, and adapter cleanup |
 | [v2.1](https://github.com/lukevanin/swiftql/milestone/2) | Native SQLite adapter | Direct SQLite C execution as an alternative to GRDB |
 | [v2.2](https://github.com/lukevanin/swiftql/milestone/5) | PostgreSQL | Native PostgreSQL syntax and adapter |
@@ -105,7 +105,7 @@ Key planning and foundation issues:
 | v1.5.1-v1.5.7 | [ergonomics index](https://github.com/lukevanin/swiftql/issues/116), [macro index](https://github.com/lukevanin/swiftql/issues/117), [prepared handles](https://github.com/lukevanin/swiftql/issues/18), [lazy typed result set](https://github.com/lukevanin/swiftql/issues/249), [@SQLQuery prototype](https://github.com/lukevanin/swiftql/issues/26), [Date text](https://github.com/lukevanin/swiftql/issues/61) and [numeric codecs](https://github.com/lukevanin/swiftql/issues/62), [UUID codecs](https://github.com/lukevanin/swiftql/issues/192), [interactive DocC tutorial](https://github.com/lukevanin/swiftql/issues/27), [macro regression corpus](https://github.com/lukevanin/swiftql/issues/256), [compile scalability benchmarks](https://github.com/lukevanin/swiftql/issues/257), [runtime workload research](https://github.com/lukevanin/swiftql/issues/259) |
 | v1.6 | [typed JSON path builder](https://github.com/lukevanin/swiftql/issues/588), the foundation the other JSON issues build on |
 | v1.7 | [bundled `regexp()` implementation](https://github.com/lukevanin/swiftql/issues/612), the foundation the pattern cache, the `Regex` registry, and the static-descriptor and validator support build on |
-| v1.8 | [query-plan capture](https://github.com/lukevanin/swiftql/issues/394), [plan-shape diagnostics](https://github.com/lukevanin/swiftql/issues/395), [index candidates](https://github.com/lukevanin/swiftql/issues/396), all accepted by the [query-plan research](https://github.com/lukevanin/swiftql/milestone/29) |
+| v1.8 | [query-plan capture](https://github.com/lukevanin/swiftql/issues/394), [advisory shape diagnostics](https://github.com/lukevanin/swiftql/issues/395), [index-candidate generation](https://github.com/lukevanin/swiftql/issues/396), [scratch-copy verification](https://github.com/lukevanin/swiftql/issues/397), [SwiftPM plugin surface](https://github.com/lukevanin/swiftql/issues/398), [swiftql-index-advisor codemod](https://github.com/lukevanin/swiftql/issues/399), [spike go/no-go](https://github.com/lukevanin/swiftql/issues/393) |
 | v2 | [generated database catalogs and fluent table references](https://github.com/lukevanin/swiftql/issues/217), [Swift 6 mode](https://github.com/lukevanin/swiftql/issues/133), [typed DDL](https://github.com/lukevanin/swiftql/issues/139), [FluentQL and DynamicQL extraction](https://github.com/lukevanin/swiftql/issues/326), [GRDB adapter boundary](https://github.com/lukevanin/swiftql/issues/113), [XL migration](https://github.com/lukevanin/swiftql/issues/33), [catalog stress fixtures](https://github.com/lukevanin/swiftql/issues/258) |
 | v2.1 | [native SQLite adapter](https://github.com/lukevanin/swiftql/issues/136), [Linux CI](https://github.com/lukevanin/swiftql/issues/135), [VDBE research](https://github.com/lukevanin/swiftql/issues/138), [shared-corpus adapter parity](https://github.com/lukevanin/swiftql/issues/260) |
 | v2.2 | [PostgreSQL vertical slice](https://github.com/lukevanin/swiftql/issues/137) |
@@ -446,6 +446,36 @@ remains a research track until benchmarks show material value and a prototype
 demonstrates correctness, portability, invalidation, and a safe fallback.
 SwiftQL must not claim persisted or zero-parse preparation until that evidence
 exists.
+
+### Query-Plan Analysis and Index Advice
+
+Milestone 29 spiked whether `EXPLAIN QUERY PLAN` output can be captured
+deterministically enough to build advisory diagnostics and index
+recommendations on top of the build validator above, and concluded **go**:
+[measured EQP variance](https://github.com/lukevanin/swiftql/pull/412), a
+[normalised plan-shape classifier proven against a real 214-statement
+corpus](https://github.com/lukevanin/swiftql/pull/422), and
+[scratch-copy-verified index candidates that caught their own false
+positives structurally](https://github.com/lukevanin/swiftql/pull/427) are
+checked in as evidence, synthesized in the closing
+[go/no-go write-up](Documentation/Architecture/SQLiteQueryPlanIndexAdviceGoNoGo.md).
+
+Two findings shape everything v1.8 builds on this foundation: SQLite's own
+`id`/`parent` row numbering is not a stable diagnostic key even when a plan
+is otherwise unchanged across versions, and a build-host plan is not a
+device plan - Apple ships a different SQLite per OS release, so plan
+analysis is advisory only and must never affect build exit status. Plan
+records live in a sidecar, not the correctness report this section
+describes, to keep that advisory noise out of the pass/fail contract.
+
+v1.8 ("Query-plan analysis and index advice", tracked
+[here](https://github.com/lukevanin/swiftql/milestone/30)) carries this
+forward once the v1.5.2 build validator above ships: normalised plan
+capture, advisory shape diagnostics, index-candidate generation and
+scratch-copy verification, a SwiftPM plugin surface, and a
+`swiftql-index-advisor` codemod as the fixit-equivalent - build-tool
+plugins cannot emit Swift fixits, and a macro cannot open a database
+without breaking hermetic, incremental builds.
 
 ## Conformance and Documentation Strategy
 

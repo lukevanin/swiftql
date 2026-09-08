@@ -26,6 +26,13 @@ have separate responsibilities:
   build; see "Build-validation plugin build systems" below for the build
   systems they are verified under. None of them is required to use `SwiftQL`
   at runtime.
+- `SwiftQLSQLiteIndexAdvisor` and the `swiftql-index-advisor` executable read
+  the advisory plan sidecar the validator writes and turn its verified index
+  recommendations into a checked-in SQL artifact, added in v1.8. Report mode is
+  the default and writes nothing; applying is a separate flag that additionally
+  requires an output path. The command consumes the sidecar only — it performs
+  no plan analysis of its own — and no build ever invokes it, because a build
+  never rewrites source. Not required to use `SwiftQL` at runtime.
 - `SwiftQLExamples` holds the pre-expanded schema and declared queries the
   Getting Started playground imports, added in v1.5.6. A classic Xcode
   playground cannot expand SwiftQL's macros itself, so the module is built as

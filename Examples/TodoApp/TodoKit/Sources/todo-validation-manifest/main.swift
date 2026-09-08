@@ -468,6 +468,12 @@ try snapshotQueue.write { database in
     for statement in schemaStatements {
         try database.execute(sql: encoder.makeValidatedSQL(statement).sql)
     }
+    // The same indices the app creates at launch. The snapshot has to carry
+    // them, or the plan analysis the validator runs over this manifest would
+    // describe a database the app never opens.
+    for statement in TodoIndices.statements {
+        try database.execute(sql: statement)
+    }
 }
 try snapshotQueue.close()
 

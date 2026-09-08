@@ -695,7 +695,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
 
         let requiredPhrasesByPath = [
             "README.md": [
-                "`1.7.0` is the latest published package",
+                "`1.8.0` is the latest published package",
             ],
             "COMPATIBILITY.md": [
                 "## v1.3 public products and runtime boundaries",
@@ -736,10 +736,10 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "not a claim of complete SQLite",
                 "v1.3 does not ship a public",
                 "validator, build plugin, query macro, schema system",
-                "Version 1.7.0 is the latest published package",
+                "Version 1.8.0 is the latest published package",
             ],
             "Sources/SwiftQL/SwiftQL.docc/GettingStarted.md": [
-                "Version 1.7.0 is the published package",
+                "Version 1.8.0 is the published package",
                 "This guide's basic request path remains",
                 "from version 1.2.0 or later",
             ],
@@ -818,14 +818,14 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         // replacing `Unreleased` with the release date; update this pin in the
         // same change.
         //
-        // 1.7.0 is the newest version, so its heading is the first one in the
+        // 1.8.0 is the newest version, so its heading is the first one in the
         // file. The release gate (`scripts/ci/check-release-changelog.sh`)
         // reads the heading for the version being tagged rather than the first
         // heading, so this pin records the changelog's shape rather than
         // gating the release. While a later line is developed on its own
         // branch, that branch's heading is the first one and this pin names it
         // there.
-        XCTAssertEqual(firstReleaseHeading, "## [1.7.0] - 2026-09-07")
+        XCTAssertEqual(firstReleaseHeading, "## [1.8.0] - Unreleased")
     }
 
     /// `check-docc-output.sh` proves one built page per catalog article. An
@@ -913,7 +913,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             // Package Manager version drifts silently; it was still on 1.5.4
             // two releases later when #230 found it.
             "Website/index.html": [
-                #".package(url: "https://github.com/lukevanin/swiftql.git", from: "1.7.0")"#,
+                #".package(url: "https://github.com/lukevanin/swiftql.git", from: "1.8.0")"#,
             ],
             "COMPATIBILITY.md": [
                 "`SwiftQLSQLiteBuildValidationManifest` and",

@@ -1,5 +1,133 @@
 # Changelog
 
+## [1.8.0] - Unreleased
+
+### Added
+
+- The standalone build validator can capture a normalised `EXPLAIN QUERY PLAN`
+  record for every manifest entry (issue #394). A run opts in with
+  `--plan-output <path>`; without it the validator captures nothing and does no
+  extra work. Capture runs on the same read-only, query-only connection that
+  produced the run's correctness evidence, after that evidence is complete, and
+  writes a second canonical JSON file. Plans never enter the correctness
+  report, whose schema, verdict semantics, and bytes are unchanged either way.
+
+  Each `SQLiteBuildValidationPlanRecord` carries the entry's identity, the
+  SQLite build that planned it — version, source ID, and the compile options
+  that can change a plan — and exactly one of two outcomes: a normalised plan
+  tree, or an explicit unsupported reason. There is no third state and no
+  absent entry. The tree is built from each row's own `parent` id, and SQLite's
+  `id` and `parent` numbers are then discarded, because the research measured
+  them as the one field that differs between two SQLite builds planning the
+  same statement. Every node keeps its raw detail text beside its
+  classification, and text the classifier does not recognise stays
+  `unclassified` rather than being coerced into a neighbouring shape.
+
+  Statement parameters are left unbound. On a snapshot without `ANALYZE`
+  statistics, which the pinned snapshot deliberately is, SQLite's plan choice
+  never reads the bound value. The sidecar names that caveat, and the
+  `ENABLE_STAT4` compile option, in every report.
+
+- Advisory diagnostics for the plan shapes that indicate avoidable work (issue
+  #395): a full table scan above a stated row threshold, a temporary B-tree for
+  `ORDER BY`, a temporary B-tree for `GROUP BY`, and a correlated scalar
+  subquery. Each finding names the query, its descriptor identity, the plan
+  node that produced it, and — for the scan rule — the real table and its row
+  count. A finding is keyed on the classified shape, never on raw
+  `EXPLAIN QUERY PLAN` wording, and the diagnostic type refuses to be
+  constructed with an unclassified shape.
+
+  `SQLiteBuildValidationPlanDiagnosticSeverity.advisory` is its own type rather
+  than a fourth `SQLiteBuildValidationVerdict` case. A verdict decides the exit
+  status, and no arrangement of the advisory type can reach that decision.
+
+  Suppression is a checked-in file, passed with `--plan-suppressions <path>`.
+  Every rule names a diagnostic code and at least one of a query or a table,
+  and must state a reason, so a rule that silences everything is not
+  expressible and neither is a silent one. A silenced finding stays in the
+  sidecar with that reason, and a rule that silenced nothing is reported, so a
+  stale instruction to ignore a finding can be found and deleted.
+  `--plan-scan-row-threshold <rows>` moves the scan rule's threshold, which
+  defaults to 500.
+
+- Deterministic index candidates derived from the statements behind remediable
+  plan shapes (issue #396). Columns follow the rule the research settled with a
+  real re-plan: equality-constrained columns lead, and a join key is an
+  equality constraint too, so it shares that tier; then at most one range
+  column, because SQLite stops narrowing at the first range term; then the
+  `ORDER BY` terms, with their direction and collation.
+
+  An `ORDER BY` term the extractor cannot read as a plain qualified column ends
+  that tier rather than being skipped, because skipping it would claim an
+  ordering the index does not provide. Candidates merge across statements, so a
+  shared index is visibly shared, and a candidate whose columns are an exact
+  prefix of a wider one on the same table folds into it with its attribution
+  intact. Three stated bounds — six columns, four candidates per statement,
+  four per table — are reported when hit rather than applied silently, and a
+  remediable node the generator cannot read confidently is recorded as a
+  decline with its reason.
+
+- Verification of index candidates against a disposable copy of the snapshot
+  (issue #397), opted into with `--verify-index-candidates`. Each candidate is
+  created on its own scratch copy, the motivating statement is re-planned with
+  the same classifier, and the recommendation carries the before-plan, the DDL,
+  the after-plan, and a note of the write cost the index implies.
+
+  The copy lives in the system temporary directory; a scratch parent beside the
+  snapshot, or inside the working directory, is refused. It is removed on a
+  normal return, on a thrown error, and on `SIGINT` or `SIGTERM` through a
+  handler that unlinks a preallocated path table and then restores whichever
+  disposition was in place before. The pinned snapshot's byte count and SHA-256
+  must match what they were before the pass, or it fails closed.
+
+  The improvement rule is recorded by version. A candidate is kept only when
+  the index SQLite names in the after-plan is that candidate's own, and either
+  the alias's node moves from a full table scan or an automatic covering index
+  to a narrowed index search, or a temporary B-tree the before-plan had is gone
+  from the after-plan. A candidate the rule declined is reported with its
+  reason, and one that could not be verified is reported unverified rather than
+  recommended.
+
+- The SwiftPM build-tool plugin can surface all of this as build warnings
+  (issue #398). A target opts in by placing `swiftql-plan-analysis.json` in its
+  own directory, beside the manifest and snapshot the plugin already reads. The
+  plugin then adds the three plan-analysis arguments to the same build command
+  and declares the plan sidecar as a second output; the opt-in file is declared
+  as an input, so editing it invalidates the command. A target that does not
+  opt in sees an unchanged invocation and pays nothing.
+
+  Findings reach the build log and Xcode's issue navigator because the
+  validator prints them in the `<path>: warning: <message>` form every Swift
+  build system already parses, attributed to the manifest. There are two kinds
+  of line: a diagnostic says what SQLite is doing that costs avoidable work,
+  and a `plan.verified-index` recommendation says what to do about it and
+  carries the `CREATE INDEX` statement to paste.
+
+- `swiftql-index-advisor`, a command that turns verified recommendations into a
+  checked-in artifact (issue #399), with `SwiftQLSQLiteIndexAdvisor` as its
+  library. Report mode is the default: it prints every recommendation with its
+  evidence and every rejected candidate with its reason, and changes nothing.
+  `--apply` writes the statements as generated SQL and additionally requires
+  `--output`, so the command can only ever write to a path the invocation
+  names. The artifact's bytes are a pure function of the recommendations, and
+  apply compares bytes before writing, so a second run on unchanged advice does
+  not touch the file.
+
+  A build never invokes it. A build-tool plugin emits diagnostics rather than
+  fixits, and a macro cannot open a database without breaking hermetic,
+  incremental builds, so applying the advice is one explicit invocation whose
+  diff a developer approves.
+
+### Changed
+
+- The to-do demo carries nine indices, every one of them proposed and verified
+  by the new advisor (issue #484). The demo had none before, because SwiftQL's
+  generated `CREATE TABLE` declares no primary key: every lookup by identifier
+  was a full table scan and every `ORDER BY` built a temporary B-tree. Every
+  table access in the demo is now an index search. Three advisory warnings
+  remain, each recorded with its reason in the demo's checked-in suppression
+  file; all three are sorts no index can supply.
+
 ## [1.7.0] - 2026-09-07
 
 ### Added

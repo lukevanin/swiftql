@@ -38,10 +38,21 @@ swiftql-build-validate \
   --database  Northwind.sqlite \
   --manifest  build-validation-manifest.json \
   --output    report.json \
+  [--plan-output plans.json]  # advisory query-plan sidecar (#394), opt-in
+  [--plan-suppressions <path>]     # checked-in advisory suppressions (#395)
+  [--plan-scan-row-threshold <n>]  # default 500
   [--codec <identity>]     # repeatable
   [--extension <name>]     # repeatable
   [--capability <id>]      # repeatable
 ```
+
+`swiftql-index-advisor` reads the sidecar this writes and turns its verified
+recommendations into a checked-in artifact; see
+[Query-Plan Analysis and Index Advice](SQLiteQueryPlanAnalysis.md).
+
+`--plan-output` adds the advisory query-plan sidecar described in
+[Query-Plan Analysis and Index Advice](SQLiteQueryPlanAnalysis.md). It is
+opt-in, writes a second file, and never changes the report or the exit code.
 
 Exit code `0` only for an overall `passed` report; `1` for a report
 containing `failed`/`unsupported`; `2` for anything that prevented producing

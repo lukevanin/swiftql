@@ -419,7 +419,7 @@ footer {
       <a class="btn" href="https://github.com/lukevanin/swiftql/blob/main/Documentation/PortingFromSQL.md">Port a query</a>
       <a class="btn" href="https://github.com/lukevanin/swiftql">GitHub</a>
     </div>
-    <div class="install"><code>.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.7.0")</code></div>
+    <div class="install"><code>.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.8.0")</code></div>
   </div>
 </header>
 
@@ -537,6 +537,10 @@ footer {
       <div class="card">
         <h3>JSON</h3>
         <p>Read with <code>-&gt;</code>, <code>-&gt;&gt;</code>, and <code>json_extract</code>; build, change, and collect documents; address any of it with a typed <code>XLJSONPath</code>. JSONB variants included.</p>
+      </div>
+      <div class="card">
+        <h3>Query plans and index advice</h3>
+        <p>The build plugin can show what SQLite plans to do with each query, warn about full scans and materialized sorts, and name the index that removes them &mdash; proved by creating it on a disposable snapshot copy and re-planning. It is advice: it never fails a build.</p>
       </div>
       <div class="card">
         <h3>Text matching</h3>

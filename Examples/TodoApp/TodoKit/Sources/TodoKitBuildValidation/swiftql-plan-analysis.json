@@ -1,0 +1,20 @@
+{
+  "format_version" : 1,
+  "suppressions" : [
+    {
+      "code" : "plan.temp-b-tree-order-by",
+      "query_id" : "todo-demo.filtered-todos",
+      "reason" : "This read serves three sort orders from one statement, so its ORDER BY is a set of conditional expressions rather than columns. No index can order rows by an expression that switches on a bound parameter, and the advisor correctly declines to propose one. Splitting it into three statements to make each one index-ordered would trade a sort of one list's to-dos for three copies of the same filter logic."
+    },
+    {
+      "code" : "plan.temp-b-tree-order-by",
+      "query_id" : "todo-demo.tags-for-list",
+      "reason" : "The sort is over the result of a two-join fan-out, not over a single table, so no index on Tag can supply the order. Both joined tables are already index searches, and the sorted set is the tags of one list."
+    },
+    {
+      "code" : "plan.temp-b-tree-order-by",
+      "query_id" : "todo-demo.tags-for-todo",
+      "reason" : "The same shape as tags-for-list, for one to-do rather than one list. Both joined tables are already index searches, and a to-do carries a handful of tags."
+    }
+  ]
+}
