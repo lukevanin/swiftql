@@ -169,6 +169,121 @@ final class SQLiteBuildValidationValidatorCLIRunnerTests: XCTestCase {
         }
     }
 
+    /// The advisory options are read from the command line and the
+    /// checked-in file, and neither can reach the exit code.
+    func testPlanDiagnosticOptionsAreReadFromTheCommandLineAndTheSuppressionFile() throws {
+        try Support.withValidatorOwnedNorthwindURL { databaseURL in
+            let workingDirectory = databaseURL.deletingLastPathComponent()
+            let manifestURL = workingDirectory.appendingPathComponent("manifest.json")
+            try Support.manifest(queries: [
+                Support.query(
+                    id: "scan-orders",
+                    sql: "SELECT ShipCity AS ship_city FROM Orders",
+                    results: [
+                        Support.result(
+                            identity: "result/ship_city",
+                            declaredAlias: "ship_city",
+                            valueTypeIdentifier: "swift.string",
+                            valueTypeName: "Swift.String",
+                            nullability: "nullable",
+                            storageIdentifier: "text"
+                        ),
+                    ]
+                ),
+            ]).canonicalJSONData().write(to: manifestURL)
+
+            let suppressionsURL = workingDirectory.appendingPathComponent("suppressions.json")
+            try JSONEncoder().encode(
+                SQLiteBuildValidationPlanSuppressions(suppressions: [
+                    SQLiteBuildValidationPlanSuppression(
+                        code: .fullTableScan,
+                        table: "Orders",
+                        reason: "The reporting query reads the whole table by design."
+                    ),
+                ])
+            ).write(to: suppressionsURL)
+
+            let unsuppressed = try SQLiteBuildValidationValidatorCLIRunner.run(
+                options: try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [
+                    "--database", databaseURL.path,
+                    "--manifest", manifestURL.path,
+                    "--output", workingDirectory.appendingPathComponent("r1.json").path,
+                    "--plan-output", workingDirectory.appendingPathComponent("p1.json").path,
+                ])
+            )
+            XCTAssertEqual(unsuppressed.planReport?.diagnostics.map(\.code), [.fullTableScan])
+            XCTAssertEqual(unsuppressed.exitCode, 0)
+
+            let suppressed = try SQLiteBuildValidationValidatorCLIRunner.run(
+                options: try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [
+                    "--database", databaseURL.path,
+                    "--manifest", manifestURL.path,
+                    "--output", workingDirectory.appendingPathComponent("r2.json").path,
+                    "--plan-output", workingDirectory.appendingPathComponent("p2.json").path,
+                    "--plan-suppressions", suppressionsURL.path,
+                ])
+            )
+            XCTAssertTrue(try XCTUnwrap(suppressed.planReport).diagnostics.isEmpty)
+            XCTAssertEqual(suppressed.planReport?.suppressedDiagnostics.count, 1)
+
+            let lenient = try SQLiteBuildValidationValidatorCLIRunner.run(
+                options: try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [
+                    "--database", databaseURL.path,
+                    "--manifest", manifestURL.path,
+                    "--output", workingDirectory.appendingPathComponent("r3.json").path,
+                    "--plan-output", workingDirectory.appendingPathComponent("p3.json").path,
+                    "--plan-scan-row-threshold", "100000",
+                ])
+            )
+            XCTAssertTrue(try XCTUnwrap(lenient.planReport).diagnostics.isEmpty)
+            XCTAssertEqual(
+                try XCTUnwrap(lenient.planReport).settings.fullTableScanRowThreshold,
+                100_000
+            )
+        }
+    }
+
+    func testANonNumericScanThresholdIsRejected() {
+        XCTAssertThrowsError(
+            try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [
+                "--database", "/tmp/a.sqlite",
+                "--manifest", "/tmp/m.json",
+                "--output", "/tmp/r.json",
+                "--plan-output", "/tmp/p.json",
+                "--plan-scan-row-threshold", "lots",
+            ])
+        ) { error in
+            XCTAssertEqual(
+                error as? SQLiteBuildValidationValidatorCLIError,
+                .invalidValue("--plan-scan-row-threshold", "lots")
+            )
+        }
+    }
+
+    /// A plan-analysis flag without `--plan-output` would look configured and
+    /// do nothing, which reads exactly like "plan analysis ran and found
+    /// nothing".
+    func testPlanAnalysisFlagsAreRefusedWithoutPlanOutput() {
+        for option in ["--plan-suppressions", "--plan-scan-row-threshold"] {
+            let value = option == "--plan-scan-row-threshold" ? "10" : "/tmp/s.json"
+            XCTAssertThrowsError(
+                try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [
+                    "--database", "/tmp/a.sqlite",
+                    "--manifest", "/tmp/m.json",
+                    "--output", "/tmp/r.json",
+                    option, value,
+                ]),
+                option
+            ) { error in
+                XCTAssertEqual(
+                    error as? SQLiteBuildValidationValidatorCLIError,
+                    .optionRequiresPlanOutput(option),
+                    option
+                )
+            }
+        }
+    }
+
     func testOptionsParsingRequiresDatabaseManifestAndOutput() {
         XCTAssertThrowsError(
             try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [

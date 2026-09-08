@@ -12,6 +12,11 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
     /// capture was not requested. Opt-in, so a run that does not ask for
     /// plans pays nothing for them.
     public let planOutputURL: URL?
+    /// A checked-in plan-suppression file (#395), or `nil` for none.
+    public let planSuppressionsURL: URL?
+    /// The row count above which a full table scan is diagnosed. `nil` uses
+    /// the documented default.
+    public let planScanRowThreshold: Int?
     public let codecIdentifiers: [String]
     public let extensionNames: [String]
     public let capabilityIDs: [String]
@@ -25,6 +30,8 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         manifestURL: URL?,
         outputURL: URL?,
         planOutputURL: URL? = nil,
+        planSuppressionsURL: URL? = nil,
+        planScanRowThreshold: Int? = nil,
         codecIdentifiers: [String] = [],
         extensionNames: [String] = [],
         capabilityIDs: [String] = [],
@@ -34,6 +41,8 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         self.manifestURL = manifestURL
         self.outputURL = outputURL
         self.planOutputURL = planOutputURL
+        self.planSuppressionsURL = planSuppressionsURL
+        self.planScanRowThreshold = planScanRowThreshold
         self.codecIdentifiers = codecIdentifiers
         self.extensionNames = extensionNames
         self.capabilityIDs = capabilityIDs
@@ -51,6 +60,8 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         var manifestPath: String?
         var outputPath: String?
         var planOutputPath: String?
+        var planSuppressionsPath: String?
+        var planScanRowThresholdText: String?
         var codecIdentifiers: [String] = []
         var extensionNames: [String] = []
         var capabilityIDs: [String] = []
@@ -91,6 +102,10 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
                 try assignOnce(&outputPath, option: argument)
             case "--plan-output":
                 try assignOnce(&planOutputPath, option: argument)
+            case "--plan-suppressions":
+                try assignOnce(&planSuppressionsPath, option: argument)
+            case "--plan-scan-row-threshold":
+                try assignOnce(&planScanRowThresholdText, option: argument)
             case "--codec":
                 codecIdentifiers.append(try value(after: argument))
             case "--extension":
@@ -113,6 +128,19 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
             ] where value == nil {
                 throw SQLiteBuildValidationValidatorCLIError.requiredOption(option)
             }
+            // `--plan-output` is the whole opt-in, so a flag that only tunes
+            // plan analysis is meaningless without it. Accepting one silently
+            // would let a run look configured and do nothing, which reads
+            // exactly like "plan analysis ran and found nothing".
+            if planOutputPath == nil {
+                for (option, value) in [
+                    ("--plan-suppressions", planSuppressionsPath),
+                    ("--plan-scan-row-threshold", planScanRowThresholdText),
+                ] where value != nil {
+                    throw SQLiteBuildValidationValidatorCLIError
+                        .optionRequiresPlanOutput(option)
+                }
+            }
         }
 
         return Self(
@@ -127,6 +155,16 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
             },
             planOutputURL: planOutputPath.map {
                 resolvedURL(path: $0, currentDirectory: currentDirectory)
+            },
+            planSuppressionsURL: planSuppressionsPath.map {
+                resolvedURL(path: $0, currentDirectory: currentDirectory)
+            },
+            planScanRowThreshold: try planScanRowThresholdText.map {
+                guard let value = Int($0), value >= 0 else {
+                    throw SQLiteBuildValidationValidatorCLIError
+                        .invalidValue("--plan-scan-row-threshold", $0)
+                }
+                return value
             },
             codecIdentifiers: sqliteBuildValidationSortedUnique(codecIdentifiers),
             extensionNames: sqliteBuildValidationSortedUnique(extensionNames),
@@ -158,6 +196,8 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         public let outputURL: URL
         /// Present exactly when the run captures plans.
         public let planOutputURL: URL?
+        public let planSuppressionsURL: URL?
+        public let planScanRowThreshold: Int?
         public let environment: SQLiteBuildValidationEnvironment
 
         public init(
@@ -165,13 +205,31 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
             manifestURL: URL,
             outputURL: URL,
             planOutputURL: URL? = nil,
+            planSuppressionsURL: URL? = nil,
+            planScanRowThreshold: Int? = nil,
             environment: SQLiteBuildValidationEnvironment
         ) {
             self.databaseURL = databaseURL
             self.manifestURL = manifestURL
             self.outputURL = outputURL
             self.planOutputURL = planOutputURL
+            self.planSuppressionsURL = planSuppressionsURL
+            self.planScanRowThreshold = planScanRowThreshold
             self.environment = environment
+        }
+
+        /// The plan-diagnostic settings this run diagnoses under, reading the
+        /// checked-in suppression file when one was named.
+        public func planDiagnosticSettings() throws -> SQLiteBuildValidationPlanDiagnosticSettings {
+            let suppressions = try planSuppressionsURL.map {
+                try SQLiteBuildValidationPlanSuppressions.decode(contentsOf: $0)
+            }
+            return SQLiteBuildValidationPlanDiagnosticSettings(
+                fullTableScanRowThreshold: planScanRowThreshold
+                    ?? SQLiteBuildValidationPlanDiagnosticSettings
+                        .defaultFullTableScanRowThreshold,
+                suppressions: suppressions?.suppressions ?? []
+            )
         }
 
         public var capturesPlans: Bool { planOutputURL != nil }
@@ -201,6 +259,8 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
             manifestURL: manifestURL,
             outputURL: outputURL,
             planOutputURL: planOutputURL,
+            planSuppressionsURL: planSuppressionsURL,
+            planScanRowThreshold: planScanRowThreshold,
             environment: SQLiteBuildValidationEnvironment(
                 codecIdentifiers: codecIdentifiers,
                 extensionNames: extensionNames,
@@ -217,6 +277,11 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
           --output <path>        Deterministic JSON report destination
           --plan-output <path>   Advisory query-plan sidecar destination
                                  (omit to skip plan capture entirely)
+          --plan-suppressions <path>
+                                 Checked-in advisory suppression rules
+          --plan-scan-row-threshold <rows>
+                                 Diagnose a full table scan only above this
+                                 many rows (default 500)
           --codec <identity>     Available codec identity (repeatable)
           --extension <name>     Registered extension name (repeatable)
           --capability <id>      Explicit caller-owned capability (repeatable)
@@ -266,6 +331,8 @@ public enum SQLiteBuildValidationValidatorCLIError:
     case duplicateOption(String)
     case requiredOption(String)
     case unknownOption(String)
+    case invalidValue(String, String)
+    case optionRequiresPlanOutput(String)
     case outputConflictsWithInput(String)
     case outputConflictsWithDatabaseSidecar
     case planOutputConflictsWithInput(String)
@@ -282,6 +349,10 @@ public enum SQLiteBuildValidationValidatorCLIError:
             return "\(option) is required."
         case .unknownOption(let option):
             return "Unknown option \(option)."
+        case .invalidValue(let option, let value):
+            return "\(option) requires a nonnegative integer; got \(value)."
+        case .optionRequiresPlanOutput(let option):
+            return "\(option) only affects plan analysis, which --plan-output turns on; supply --plan-output or drop \(option)."
         case .outputConflictsWithInput(let option):
             return "--output must not identify the same file as \(option)."
         case .outputConflictsWithDatabaseSidecar:

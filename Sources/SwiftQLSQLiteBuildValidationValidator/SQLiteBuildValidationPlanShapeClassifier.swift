@@ -108,6 +108,12 @@ public enum SQLiteBuildValidationPlanShapeClassifier {
         if detail.hasPrefix("MATERIALIZE ") {
             return (.materializedSubqueryOrCTE, .none)
         }
+        // SQLite says so itself on every build this repo tests against. Its
+        // own word is the signal; the structural fallback below exists only
+        // for a build that does not print it.
+        if detail.hasPrefix("CORRELATED SCALAR SUBQUERY") {
+            return (.correlatedScalarSubquery, .none)
+        }
         if detail.hasPrefix("SCALAR SUBQUERY") {
             let shape: SQLiteBuildValidationPlanShape = isRowLoopingShape(parentShape)
                 ? .correlatedScalarSubquery
@@ -123,15 +129,19 @@ public enum SQLiteBuildValidationPlanShapeClassifier {
         return (.unclassified, .none)
     }
 
-    /// A scalar subquery SQLite can evaluate once (uncorrelated) is hoisted
-    /// as a sibling of the driving row source, with `parent == 0`. One it
-    /// must re-evaluate per outer row (correlated) is nested under whichever
-    /// row-producing node supplies the correlation — a table scan, an index
-    /// search, or another per-row loop.
+    /// Structural fallback for a SQLite build that does not label a
+    /// correlated scalar subquery in its own detail text: a subquery SQLite
+    /// can evaluate once is hoisted as a sibling of the driving row source,
+    /// while one it must re-evaluate per outer row is nested under whichever
+    /// row-producing node supplies the correlation.
     ///
-    /// This reads EQP's tree structure; it is not a guarantee from SQLite.
-    /// The advisory diagnostic built on it (#395) therefore ships with its
-    /// own real-corpus fixture rather than on this heuristic alone.
+    /// It is a fallback, not the primary signal, and #395's real fixture is
+    /// why. On the SQLite this repo tests against, a genuinely correlated
+    /// scalar subquery is emitted as a **top-level sibling** (`parent == 0`)
+    /// carrying the explicit `CORRELATED SCALAR SUBQUERY` detail — so this
+    /// heuristic alone would have called that real correlated subquery
+    /// uncorrelated. The spike (#391) had no real corpus statement to catch
+    /// that; the fixture this issue required did.
     private static func isRowLoopingShape(
         _ shape: SQLiteBuildValidationPlanShape?
     ) -> Bool {
