@@ -59,11 +59,20 @@ public enum SQLiteBuildValidationScratchError:
 ///
 /// `defer` covers a normal return and a thrown error. It does not cover a
 /// signal, so the copy's paths are also registered with a `SIGINT`/`SIGTERM`
-/// handler that `unlink`s them and then re-raises the signal with the default
-/// disposition. The handler touches only a preallocated C-string table and
-/// calls `unlink`, both async-signal-safe; `FileManager` would not be. A
-/// `SIGKILL` cannot be caught by anything, and the copy is left in the system
-/// temporary directory the OS reclaims — never in the source tree.
+/// handler that `unlink`s them, restores whatever disposition was in place
+/// before, and re-raises. The handler calls only `unlink`, `signal` and
+/// `raise`, all of which POSIX lists as async-signal-safe; `FileManager`
+/// would not be.
+///
+/// Restoring rather than defaulting matters because this is a library. A host
+/// process that embeds the validator and installs its own `SIGINT` handler
+/// gets that handler back and sees it run: the re-raise dispatches to it, so
+/// the process still dies — or does not — the way its own author decided. The
+/// handlers are installed lazily, the first time a scratch copy is actually
+/// made, so a run that never verifies an index never touches them.
+///
+/// A `SIGKILL` cannot be caught by anything, and what it leaves behind is in
+/// the system temporary directory the OS reclaims — never in the source tree.
 public enum SQLiteBuildValidationScratchSnapshot {
 
     /// Copies the snapshot at `snapshotURL` to a fresh scratch directory,
@@ -193,6 +202,24 @@ final class SQLiteBuildValidationScratchRegistry: @unchecked Sendable {
             .allocate(capacity: capacity)
     )
 
+    /// A signal disposition, as `signal(2)` hands one back.
+    typealias Disposition = @convention(c) (Int32) -> Void
+
+    /// The signals this registry handles, and the slot each one's previous
+    /// disposition is remembered in.
+    static let handledSignals: [Int32] = [SIGINT, SIGTERM]
+
+    /// Wrapped for the same reason ``paths`` is: a global raw pointer is not
+    /// `Sendable`, and the signal handler is the one reader that cannot take
+    /// a lock.
+    struct DispositionTable: @unchecked Sendable {
+        let base: UnsafeMutablePointer<Disposition?>
+    }
+
+    static let previousDispositions = DispositionTable(
+        base: UnsafeMutablePointer<Disposition?>.allocate(capacity: handledSignals.count)
+    )
+
     struct Registration {
         let slots: [Int]
     }
@@ -239,27 +266,53 @@ final class SQLiteBuildValidationScratchRegistry: @unchecked Sendable {
         }
     }
 
+    /// Restores the disposition that was in place before this registry
+    /// installed its own. Called from a signal handler, so it does no more
+    /// than index a preallocated table and call `signal`.
+    static func restorePreviousDisposition(for signalNumber: Int32) {
+        for (slot, handled) in handledSignals.enumerated() where handled == signalNumber {
+            if let previous = previousDispositions.base[slot] {
+                signal(signalNumber, previous)
+            } else {
+                signal(signalNumber, SIG_DFL)
+            }
+            return
+        }
+        signal(signalNumber, SIG_DFL)
+    }
+
     private func prepareLocked() {
         guard !isPrepared else {
             return
         }
         isPrepared = true
         Self.paths.base.initialize(repeating: nil, count: Self.capacity)
-        for signalNumber in [SIGINT, SIGTERM] {
-            signal(signalNumber, { received in
-                // Async-signal-safe: reads a preallocated table and calls
-                // `unlink`. No allocation, no locking, no Foundation.
+        Self.previousDispositions.base.initialize(
+            repeating: nil,
+            count: Self.handledSignals.count
+        )
+        for (slot, signalNumber) in Self.handledSignals.enumerated() {
+            let previous = signal(signalNumber, { received in
+                // Async-signal-safe throughout: a preallocated table, then
+                // `unlink`, `signal` and `raise`. No allocation, no locking,
+                // no Foundation.
                 let table = SQLiteBuildValidationScratchRegistry.paths.base
                 for slot in 0..<SQLiteBuildValidationScratchRegistry.capacity {
                     if let path = table[slot] {
                         unlink(path)
                     }
                 }
-                // Restore the default disposition and re-raise, so the process
-                // still dies the way the sender asked it to.
-                signal(received, SIG_DFL)
+                // Put back whatever disposition was in place before this
+                // registry replaced it, then re-raise, so an embedding
+                // process's own handler still runs and the process ends the
+                // way its author decided rather than the way this library
+                // would have.
+                SQLiteBuildValidationScratchRegistry.restorePreviousDisposition(
+                    for: received
+                )
                 raise(received)
             })
+            Self.previousDispositions.base[slot] = previous
         }
     }
 }

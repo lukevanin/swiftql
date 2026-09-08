@@ -324,12 +324,16 @@ therefore gets its own disposable copy:
   — a stray `.sqlite` next to a checked-in snapshot is confusing, and one
   inside a source tree ends up committed.
 - The copy is removed on every exit path. `defer` covers a normal return and a
-  thrown error; a `SIGINT`/`SIGTERM` handler `unlink`s the registered paths and
-  re-raises the signal with its default disposition. The handler reads a
-  preallocated C-string table and calls `unlink`, both async-signal-safe;
-  `FileManager` would not be. `SIGKILL` cannot be caught by anything, and what
-  it leaves behind is in the system temporary directory the OS reclaims, never
-  in the source tree.
+  thrown error; a `SIGINT`/`SIGTERM` handler `unlink`s the registered paths,
+  restores whatever disposition was in place before, and re-raises. The
+  handler calls only `unlink`, `signal` and `raise`, all async-signal-safe;
+  `FileManager` would not be. Restoring rather than defaulting matters because
+  this is a library: a host process that installed its own handler gets it
+  back and sees it run. The handlers are installed lazily, the first time a
+  scratch copy is made, so a run that never verifies an index never touches
+  them. `SIGKILL` cannot be caught by anything, and what it leaves behind is
+  in the system temporary directory the OS reclaims, never in the source
+  tree.
 - Afterwards, the pinned snapshot's byte count and SHA-256 are compared to
   what they were before. A difference is an error, not a warning.
 - **One copy per candidate**, so one candidate's index can never change the
