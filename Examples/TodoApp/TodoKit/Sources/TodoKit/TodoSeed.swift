@@ -68,7 +68,7 @@ public struct TodoSeed: Sendable {
                 id: Self.renewPassportID,
                 listID: Self.todayListID,
                 title: "Renew passport",
-                notes: "The appointment queue is long, book early.",
+                notes: "The appointment queue is long, book early. https://example.com/booking",
                 dueAt: TodoDate(referenceDate.addingTimeInterval(-.day)),
                 priority: .high,
                 isCompleted: false,
