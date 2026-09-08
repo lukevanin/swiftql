@@ -97,7 +97,12 @@ public enum SQLiteBuildValidationIndexPredicateExtractor {
         ) else {
             return []
         }
-        guard !clause.contains(" OR ") else {
+        // Case-insensitively throughout: SQL keywords are, and a manifest
+        // entry written by hand rather than rendered by SwiftQL can say
+        // `where` and `or`. Reading `or` as ordinary text would turn a
+        // disjunction into a list of conjuncts and propose an index for
+        // constraints the statement never applies together.
+        guard clause.range(of: " OR ", options: [.caseInsensitive]) == nil else {
             return []
         }
         return splitTopLevel(unwrapOuterParens(clause), on: " AND ")
@@ -172,7 +177,10 @@ public enum SQLiteBuildValidationIndexPredicateExtractor {
             .trimmingCharacters(in: CharacterSet(charactersIn: " )"))
 
         var collation: String?
-        if let collateRange = remainder.range(of: "COLLATE ") {
+        if let collateRange = remainder.range(
+            of: "COLLATE ",
+            options: [.caseInsensitive]
+        ) {
             var collateScanner = SQLiteBuildValidationIdentifierScanner(
                 String(remainder[collateRange.upperBound...])
             )
@@ -242,12 +250,18 @@ public enum SQLiteBuildValidationIndexPredicateExtractor {
         after keyword: String,
         stoppingAt stopKeywords: [String]
     ) -> String? {
-        guard let keywordRange = sql.range(of: " \(keyword) ") else {
+        guard let keywordRange = sql.range(
+            of: " \(keyword) ",
+            options: [.caseInsensitive]
+        ) else {
             return nil
         }
         var clause = String(sql[keywordRange.upperBound...])
         for stopKeyword in stopKeywords {
-            if let stopRange = clause.range(of: " \(stopKeyword) ") {
+            if let stopRange = clause.range(
+                of: " \(stopKeyword) ",
+                options: [.caseInsensitive]
+            ) {
                 clause = String(clause[clause.startIndex..<stopRange.lowerBound])
             }
         }
@@ -262,7 +276,11 @@ public enum SQLiteBuildValidationIndexPredicateExtractor {
             SQLiteBuildValidationIdentifierScanner.Pair
         )] = []
         var searchStart = sql.startIndex
-        while let onRange = sql.range(of: " ON ", range: searchStart..<sql.endIndex) {
+        while let onRange = sql.range(
+            of: " ON ",
+            options: [.caseInsensitive],
+            range: searchStart..<sql.endIndex
+        ) {
             var remainder = String(sql[onRange.upperBound...])
             var trimmedLeadingParen = false
             if remainder.hasPrefix("(") {
@@ -271,7 +289,10 @@ public enum SQLiteBuildValidationIndexPredicateExtractor {
             }
             var condition = remainder
             for stopKeyword in stopKeywordsAfterOn {
-                if let stopRange = condition.range(of: " \(stopKeyword)") {
+                if let stopRange = condition.range(
+                    of: " \(stopKeyword)",
+                    options: [.caseInsensitive]
+                ) {
                     condition = String(condition[condition.startIndex..<stopRange.lowerBound])
                 }
             }
@@ -301,7 +322,9 @@ public enum SQLiteBuildValidationIndexPredicateExtractor {
             return nil
         }
         scanner.skipWhitespace()
-        guard let operatorToken = joinOperators.first(where: { scanner.peekMatches($0) }) else {
+        guard let operatorToken = joinOperators.first(where: {
+            scanner.peekMatches($0, caseInsensitive: true)
+        }) else {
             return nil
         }
         scanner.advance(by: operatorToken.count)
@@ -321,7 +344,9 @@ public enum SQLiteBuildValidationIndexPredicateExtractor {
             .joined(separator: " ") + " "
     }
 
-    /// Splits `text` on `separator` wherever it occurs at paren depth zero.
+    /// Splits `text` on `separator` wherever it occurs at paren depth zero,
+    /// matching the separator without regard to case so a lowercase `and`
+    /// splits the same conjuncts an uppercase one does.
     ///
     /// Unbalanced parentheses never produce a guessed split: the whole string
     /// comes back as one piece, which downstream reads as "unparseable"
@@ -340,7 +365,7 @@ public enum SQLiteBuildValidationIndexPredicateExtractor {
                     return [text.trimmingCharacters(in: .whitespaces)]
                 }
             }
-            if depth == 0, text[index...].hasPrefix(separator) {
+            if depth == 0, matchesSeparator(text, at: index, separator) {
                 pieces.append(current)
                 current = ""
                 index = text.index(index, offsetBy: separator.count)
@@ -354,6 +379,26 @@ public enum SQLiteBuildValidationIndexPredicateExtractor {
             return [text.trimmingCharacters(in: .whitespaces)]
         }
         return pieces.map { $0.trimmingCharacters(in: .whitespaces) }
+    }
+
+    /// Whether `separator` starts at `index`, ignoring case.
+    ///
+    /// Compares only the separator's own length rather than lowercasing the
+    /// rest of the string at every position, which would make splitting a
+    /// long clause quadratic.
+    private static func matchesSeparator(
+        _ text: String,
+        at index: String.Index,
+        _ separator: String
+    ) -> Bool {
+        guard let end = text.index(
+            index,
+            offsetBy: separator.count,
+            limitedBy: text.endIndex
+        ) else {
+            return false
+        }
+        return text[index..<end].caseInsensitiveCompare(separator) == .orderedSame
     }
 
     private static func unwrapOuterParens(_ text: String) -> String {
@@ -422,12 +467,17 @@ struct SQLiteBuildValidationIdentifierScanner {
         }
     }
 
-    func peekMatches(_ token: String) -> Bool {
-        let tokenCharacters = Array(token)
-        guard position + tokenCharacters.count <= characters.count else {
+    func peekMatches(_ token: String, caseInsensitive: Bool = false) -> Bool {
+        let tokenCharacters = Array(caseInsensitive ? token.uppercased() : token)
+        let end = position + tokenCharacters.count
+        guard end <= characters.count else {
             return false
         }
-        return Array(characters[position..<(position + tokenCharacters.count)]) == tokenCharacters
+        let window = Array(characters[position..<end])
+        guard caseInsensitive else {
+            return window == tokenCharacters
+        }
+        return window.map { Character($0.uppercased()) } == tokenCharacters
     }
 
     mutating func advance(by count: Int) {

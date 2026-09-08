@@ -52,6 +52,42 @@ final class SQLiteBuildValidationIndexPredicateExtractorTests: XCTestCase {
         )
     }
 
+    /// A manifest entry written by hand rather than rendered by SwiftQL can
+    /// spell every keyword in lower case, and reading `or` as ordinary text
+    /// would turn a disjunction into conjuncts and propose an index for
+    /// constraints the statement never applies together.
+    func testLowercaseKeywordsAreReadTheSameAsUppercaseOnes() {
+        let comparisons = Extractor.whereComparisons(
+            for: "o",
+            in: "select o.ShipCity from Orders o where o.CustomerID = 'ALFKI' and o.Freight > 10"
+        )
+        XCTAssertEqual(comparisons.map(\.column), ["CustomerID", "Freight"])
+        XCTAssertEqual(comparisons.map(\.kind), [.equality, .range])
+
+        XCTAssertTrue(
+            Extractor.whereComparisons(
+                for: "o",
+                in: "select o.ShipCity from Orders o where o.CustomerID = 'A' or o.ShipVia = 1"
+            ).isEmpty
+        )
+
+        XCTAssertEqual(
+            Extractor.joinKeys(
+                for: "p",
+                in: "select 1 from Categories c left join Products p on p.CategoryID = c.CategoryID"
+            ).map(\.column),
+            ["CategoryID"]
+        )
+
+        let ordering = Extractor.orderByTerms(
+            for: "o",
+            in: "select o.ShipCity from Orders o order by o.ShipCity collate NOCASE desc"
+        )
+        XCTAssertTrue(ordering.isComplete)
+        XCTAssertEqual(ordering.terms.map(\.collation), ["NOCASE"])
+        XCTAssertEqual(ordering.terms.map(\.direction), [.descending])
+    }
+
     func testJoinKeysAreReadFromBothSidesOfTheCondition() {
         let sql = "SELECT c.CategoryName FROM Categories c LEFT JOIN Products p ON p.CategoryID = c.CategoryID"
 
