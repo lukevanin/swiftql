@@ -351,6 +351,46 @@ final class SQLiteBuildValidationIndexVerificationTests: XCTestCase {
         XCTAssertTrue(outcome.reason.contains("not narrowing"), outcome.reason)
     }
 
+    /// A reason that reads differently on two machines would break the
+    /// sidecar's byte-identical guarantee, and a filesystem error's
+    /// per-run temporary path is exactly that.
+    func testAFailureReasonNamesOnlyHostIndependentDetail() {
+        let hostSpecific = SQLiteBuildValidationScratchError
+            .scratchInsideWorkingDirectory("/Users/somebody/checkout")
+        let described = Verifier.deterministicDescription(of: hostSpecific)
+
+        XCTAssertFalse(described.contains("/Users/somebody"), described)
+        XCTAssertTrue(described.contains("SQLiteBuildValidationScratchError"), described)
+
+        // A failure this validator raises and knows to be host-independent
+        // keeps its message, which is the useful half.
+        XCTAssertTrue(
+            Verifier.deterministicDescription(
+                of: SQLiteExplainQueryPlanProbeError.embeddedNUL
+            ).contains("embedded NUL"),
+            "the probe's own errors stay readable"
+        )
+    }
+
+    /// `--verify-index-candidates` without `--plan-output` would be a silent
+    /// no-op, which reads exactly like verification running and accepting
+    /// nothing.
+    func testVerifyingIsRefusedWithoutPlanOutput() {
+        XCTAssertThrowsError(
+            try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [
+                "--database", "/tmp/a.sqlite",
+                "--manifest", "/tmp/m.json",
+                "--output", "/tmp/r.json",
+                "--verify-index-candidates",
+            ])
+        ) { error in
+            XCTAssertEqual(
+                error as? SQLiteBuildValidationValidatorCLIError,
+                .optionRequiresPlanOutput("--verify-index-candidates")
+            )
+        }
+    }
+
     // MARK: - The pinned snapshot, and determinism
 
     func testVerificationLeavesTheSnapshotByteIdentical() throws {

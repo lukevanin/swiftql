@@ -87,23 +87,13 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
                 case .rejected(let rejection):
                     unverified.append(rejection)
                 }
-            } catch let error as CustomStringConvertible & Error {
+            } catch {
                 // A candidate that could not be verified is reported
                 // unverified, never recommended.
                 unverified.append(SQLiteBuildValidationUnverifiedIndexCandidate(
                     candidate: candidate,
                     statementID: query.id,
-                    reason: "Verification could not be completed: \(error.description)"
-                ))
-            } catch {
-                // The type only, for an error that does not state its own
-                // stable description. An arbitrary `Error`'s description can
-                // carry localized or host-dependent text, and this artifact's
-                // bytes are a determinism gate.
-                unverified.append(SQLiteBuildValidationUnverifiedIndexCandidate(
-                    candidate: candidate,
-                    statementID: query.id,
-                    reason: "Verification could not be completed: an error of type \(type(of: error))."
+                    reason: "Verification could not be completed: \(deterministicDescription(of: error))"
                 ))
             }
         }
@@ -112,6 +102,21 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
             recommendations: recommendations,
             unverified: unverified
         )
+    }
+
+    /// How a failure is described in the sidecar.
+    ///
+    /// Only errors this validator raises *and* knows to be
+    /// host-independent are described in full. Everything else is named by
+    /// type. Two failures that read differently on two machines would break
+    /// the artifact's byte-identical guarantee, and the paths a filesystem
+    /// error embeds — a per-run temporary directory, most of all — are
+    /// exactly that.
+    static func deterministicDescription(of error: Error) -> String {
+        guard let probeError = error as? SQLiteExplainQueryPlanProbeError else {
+            return "an error of type \(type(of: error))."
+        }
+        return probeError.description
     }
 
     private enum Evaluation {

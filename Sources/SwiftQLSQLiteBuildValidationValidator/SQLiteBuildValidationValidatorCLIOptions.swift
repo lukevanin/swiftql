@@ -148,6 +148,10 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
                     throw SQLiteBuildValidationValidatorCLIError
                         .optionRequiresPlanOutput(option)
                 }
+                guard !verifiesIndexCandidates else {
+                    throw SQLiteBuildValidationValidatorCLIError
+                        .optionRequiresPlanOutput("--verify-index-candidates")
+                }
             }
         }
 
