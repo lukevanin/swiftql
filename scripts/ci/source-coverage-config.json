@@ -31,6 +31,11 @@
       "name": "SwiftQLSQLiteBuildValidationValidator",
       "source_root": "Sources/SwiftQLSQLiteBuildValidationValidator",
       "allowed_uninstrumented_sources": []
+    },
+    {
+      "name": "SwiftQLSQLiteIndexAdvisor",
+      "source_root": "Sources/SwiftQLSQLiteIndexAdvisor",
+      "allowed_uninstrumented_sources": []
     }
   ]
 }
