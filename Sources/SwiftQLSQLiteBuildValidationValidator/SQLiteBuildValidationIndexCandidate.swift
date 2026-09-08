@@ -150,6 +150,53 @@ public struct SQLiteBuildValidationIndexCandidate:
             .lexicographicallyPrecedes(rhs.columns.map(\.canonicalKey))
     }
 
+    /// Encodes the derived ``indexName`` and ``ddl`` alongside the stored
+    /// fields, and ignores them when decoding.
+    ///
+    /// They are redundant to a Swift reader, which can recompute both. They
+    /// are not redundant to anything else: the plan sidecar is read by a build
+    /// log, by the `swiftql-index-advisor` command, and by whoever opens the
+    /// JSON, and a candidate that does not carry its own `CREATE INDEX`
+    /// statement makes every one of those re-derive SQLite's quoting rules.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(table, forKey: .table)
+        try container.encode(columns, forKey: .columns)
+        try container.encode(sourceQueryIDs, forKey: .sourceQueryIDs)
+        try container.encode(
+            sourceDescriptorIdentities,
+            forKey: .sourceDescriptorIdentities
+        )
+        try container.encode(representativeQueryID, forKey: .representativeQueryID)
+        try container.encode(representativeAlias, forKey: .representativeAlias)
+        try container.encode(indexName, forKey: .indexName)
+        try container.encode(ddl, forKey: .ddl)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            table: try container.decode(String.self, forKey: .table),
+            columns: try container.decode(
+                [SQLiteBuildValidationIndexCandidateColumn].self,
+                forKey: .columns
+            ),
+            sourceQueryIDs: try container.decode([String].self, forKey: .sourceQueryIDs),
+            sourceDescriptorIdentities: try container.decode(
+                [String].self,
+                forKey: .sourceDescriptorIdentities
+            ),
+            representativeQueryID: try container.decode(
+                String.self,
+                forKey: .representativeQueryID
+            ),
+            representativeAlias: try container.decode(
+                String.self,
+                forKey: .representativeAlias
+            )
+        )
+    }
+
     private enum CodingKeys: String, CodingKey {
         case table
         case columns
@@ -157,6 +204,8 @@ public struct SQLiteBuildValidationIndexCandidate:
         case sourceDescriptorIdentities = "source_descriptor_identities"
         case representativeQueryID = "representative_query_id"
         case representativeAlias = "representative_alias"
+        case indexName = "index_name"
+        case ddl
     }
 }
 
