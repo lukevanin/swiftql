@@ -232,8 +232,11 @@ final class SQLiteBuildValidationIndexVerificationTests: XCTestCase {
             XCTAssertTrue(set.recommendations.isEmpty)
             XCTAssertEqual(set.unverified.count, 1)
             let rejection = try XCTUnwrap(set.unverified.first)
+            // The rule checks attribution first: this statement already
+            // seeks on the rowid, so the index SQLite names is not the
+            // candidate's, and nothing after that clause can rescue it.
             XCTAssertTrue(
-                rejection.reason.contains("not a full table scan"),
+                rejection.reason.contains("rather than this candidate"),
                 rejection.reason
             )
             // A rejection that reached the rule keeps its plans, so the reader
@@ -312,9 +315,9 @@ final class SQLiteBuildValidationIndexVerificationTests: XCTestCase {
         XCTAssertTrue(outcome.reason.contains("some_other_index"), outcome.reason)
     }
 
-    /// An index SQLite creates but never narrows the scan with is not an
-    /// improvement.
-    func testAnIndexThatNarrowsNothingIsNotAnImprovement() {
+    /// An index SQLite adopts but that neither narrows a scan nor removes a
+    /// sort is not an improvement. Being used is not the same as helping.
+    func testAnIndexThatNarrowsNothingAndRemovesNoSortIsNotAnImprovement() {
         let candidate = SQLiteBuildValidationIndexCandidate(
             table: "Orders",
             columns: [SQLiteBuildValidationIndexCandidateColumn(name: "CustomerID")],
@@ -348,7 +351,64 @@ final class SQLiteBuildValidationIndexVerificationTests: XCTestCase {
         )
 
         XCTAssertFalse(outcome.isImprovement)
-        XCTAssertTrue(outcome.reason.contains("not narrowing"), outcome.reason)
+        XCTAssertTrue(
+            outcome.reason.contains("narrows no column and removes no sort"),
+            outcome.reason
+        )
+    }
+
+    /// The evidence v1 could not accept: an index that constrains nothing,
+    /// because SQLite walks it in order, but removes the temporary B-tree the
+    /// sort needed. Two of the three shapes #395 diagnoses are remedied only
+    /// this way.
+    func testRemovingASortIsAnImprovementEvenWithNoConstrainedColumns() {
+        let candidate = SQLiteBuildValidationIndexCandidate(
+            table: "Orders",
+            columns: [
+                SQLiteBuildValidationIndexCandidateColumn(
+                    name: "ShipCity",
+                    direction: .ascending
+                ),
+            ],
+            sourceQueryIDs: ["q"],
+            sourceDescriptorIdentities: ["d"],
+            representativeQueryID: "q",
+            representativeAlias: "o"
+        )
+        let outcome = Verifier.applyImprovementRule(
+            candidate: candidate,
+            before: [
+                SQLiteBuildValidationPlanNode(
+                    detail: "SCAN o",
+                    shape: .fullTableScan,
+                    attributes: SQLiteBuildValidationPlanAttributes(table: "o"),
+                    children: []
+                ),
+                SQLiteBuildValidationPlanNode(
+                    detail: "USE TEMP B-TREE FOR ORDER BY",
+                    shape: .tempBTreeForOrderBy,
+                    attributes: .none,
+                    children: []
+                ),
+            ],
+            after: [
+                SQLiteBuildValidationPlanNode(
+                    detail: "SCAN o USING INDEX \(candidate.indexName)",
+                    shape: .indexScan,
+                    attributes: SQLiteBuildValidationPlanAttributes(
+                        table: "o",
+                        indexName: candidate.indexName
+                    ),
+                    children: []
+                ),
+            ]
+        )
+
+        XCTAssertTrue(outcome.isImprovement, outcome.reason)
+        XCTAssertTrue(
+            outcome.reason.contains("temp_b_tree_for_order_by"),
+            outcome.reason
+        )
     }
 
     /// A reason that reads differently on two machines would break the
@@ -422,6 +482,61 @@ final class SQLiteBuildValidationIndexVerificationTests: XCTestCase {
             try JSONEncoder.canonical.encode(first),
             try JSONEncoder.canonical.encode(second)
         )
+    }
+
+    /// A recommendation can come from an `automatic_covering_index` before
+    /// shape, which is remediable but not diagnosed. Rendering advice from
+    /// diagnostics alone made those invisible; six of the to-do demo's nine
+    /// verified indices were in exactly that position.
+    func testARecommendationWithNoDiagnosticStillReachesTheSummary() throws {
+        let candidate = SQLiteBuildValidationIndexCandidate(
+            table: "Orders",
+            columns: [SQLiteBuildValidationIndexCandidateColumn(name: "CustomerID")],
+            sourceQueryIDs: ["undiagnosed"],
+            sourceDescriptorIdentities: ["d"],
+            representativeQueryID: "undiagnosed",
+            representativeAlias: "o"
+        )
+        let report = SQLiteBuildValidationPlanReport(
+            manifest: Support.manifest(queries: [Self.remediable]),
+            observedDatabaseByteCount: nil,
+            observedDatabaseSHA256: nil,
+            records: [],
+            diagnostics: []
+        )
+        .withIndexRecommendations(SQLiteBuildValidationIndexRecommendationSet(
+            recommendations: [
+                SQLiteBuildValidationIndexRecommendation(
+                    candidate: candidate,
+                    statementID: "undiagnosed",
+                    descriptorIdentity: "d",
+                    beforePlan: [],
+                    afterPlan: [],
+                    improvementRuleVersion: Verifier.improvementRuleVersion,
+                    improvementReason: "it helps",
+                    writeCostNote: "it costs"
+                ),
+            ]
+        ))
+
+        let summary = report.humanReadableSummary(origin: "/manifest.json")
+
+        XCTAssertTrue(report.diagnostics.isEmpty)
+        XCTAssertTrue(summary.contains("plan.verified-index"), summary)
+        XCTAssertTrue(summary.contains("Apply with: \(candidate.ddl);"), summary)
+        XCTAssertTrue(summary.hasPrefix("/manifest.json: warning: "), summary)
+    }
+
+    /// Nothing to advise prints nothing.
+    func testAnEmptySidecarPrintsNoSummary() {
+        let report = SQLiteBuildValidationPlanReport(
+            manifest: Support.manifest(queries: [Self.remediable]),
+            observedDatabaseByteCount: nil,
+            observedDatabaseSHA256: nil,
+            records: []
+        )
+
+        XCTAssertEqual(report.humanReadableSummary(origin: "/manifest.json"), "")
     }
 
     // MARK: - Through the CLI

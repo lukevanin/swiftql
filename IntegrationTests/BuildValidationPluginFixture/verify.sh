@@ -168,7 +168,12 @@ if ! grep -q "warning: plan.full-table-scan" /tmp/swiftql-plugin-verify-7.log; t
     cat /tmp/swiftql-plugin-verify-7.log
     exit 1
 fi
-if ! grep -q "Verified index: CREATE INDEX" /tmp/swiftql-plugin-verify-7.log; then
+if ! grep -q "warning: plan.verified-index" /tmp/swiftql-plugin-verify-7.log; then
+    echo "FAIL: expected a verified-index warning in the build log"
+    cat /tmp/swiftql-plugin-verify-7.log
+    exit 1
+fi
+if ! grep -q "Apply with: CREATE INDEX" /tmp/swiftql-plugin-verify-7.log; then
     echo "FAIL: expected the verified DDL in the warning message"
     cat /tmp/swiftql-plugin-verify-7.log
     exit 1

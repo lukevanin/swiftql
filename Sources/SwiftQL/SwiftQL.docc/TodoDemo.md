@@ -258,6 +258,40 @@ Examples/TodoApp/Tools/regenerate-validation-manifest.sh
 CI regenerates them and fails on any diff, so a query edited without
 regenerating cannot keep validating the old shape.
 
+## Every index the schema has, the advisor found
+
+The same target opts into v1.8's query-plan analysis by carrying one more
+file, `swiftql-plan-analysis.json`. Every build then captures each query's
+`EXPLAIN QUERY PLAN`, diagnoses the shapes that cost avoidable work, proposes
+indices for them, and verifies each proposal on a disposable copy of the
+snapshot before recommending it. The advice is warnings; it never fails the
+build.
+
+The first run reported eight warnings and nine verified indices. The demo had
+no indices at all, because SwiftQL's generated `CREATE TABLE` declares no
+primary key: every lookup by identifier was a full table scan, and every
+`ORDER BY` built a temporary B-tree. `TodoIndices.swift` holds the nine
+statements the advisor produced, each beside the plan change that justified
+it. None of them was written by hand.
+
+With those applied, every table access in the demo is an index search. Three
+warnings remain, and each carries its reason in `swiftql-plan-analysis.json`
+rather than being silenced: all three are sorts no index can supply — one over
+conditional expressions that switch on a bound parameter, two over the result
+of a join fan-out — and the advisor proposes nothing for any of them, which is
+the right answer.
+
+To read the advice outside a build log, `swiftql-index-advisor` prints every
+recommendation with its before-plan, after-plan, and write cost and changes
+nothing; `--apply --output <path>` writes them as a checked-in `.sql` file,
+and running it again is a no-op.
+
+Two limits are worth knowing. The demo's snapshot is schema-only, so the write
+cost each recommendation quotes reads "0 rows at verification time" — the
+advisor measures the snapshot it is given. And SwiftQL has no index DDL yet,
+so `TodoIndices.swift` is the one file in the demo that reaches past SwiftQL
+to GRDB to run the statements the advisor verified.
+
 ## Where to go next
 
 - The demo's own

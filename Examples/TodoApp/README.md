@@ -42,11 +42,12 @@ in `TodoKit`, a local package beside it.
 | `TodoKit/Sources/TodoKit/Schema.swift` | The four tables |
 | `TodoKit/Sources/TodoKit/TodoSeed.swift` | The rows a fresh database starts with |
 | `TodoKit/Sources/TodoKit/TodoDatabase.swift` | Opening, creating, seeding, resetting |
+| `TodoKit/Sources/TodoKit/TodoIndices.swift` | The nine indices the v1.8 advisor verified |
 | `TodoKit/Sources/TodoKit/TodoReads.swift` | The declared queries |
 | `TodoKit/Sources/TodoKit/TodoFilteredRead.swift` | The list view's one composable read |
 | `TodoKit/Sources/TodoKit/TodoStore.swift` | Writes and the move transaction |
 | `TodoKit/Sources/TodoKit/TodoModels.swift` | The `@Observable` live-query models |
-| `TodoKit/Tests/` | 62 tests over the query layer |
+| `TodoKit/Tests/` | 77 tests over the query layer |
 
 ## What each part shows
 
@@ -107,6 +108,41 @@ build. Regenerate both after changing the schema or a query:
 Examples/TodoApp/Tools/regenerate-validation-manifest.sh
 ```
 
+**Every index in the schema was proposed and proved by v1.8's advisor.** The
+same target opts into query-plan analysis by carrying a third file,
+`swiftql-plan-analysis.json`, so every build also captures each query's
+`EXPLAIN QUERY PLAN`, diagnoses the shapes that cost avoidable work, proposes
+indices, and verifies each one on a disposable copy of the snapshot before
+recommending it.
+
+The first run found eight advisory warnings and nine verified indices — the
+demo had none at all, because SwiftQL's generated `CREATE TABLE` declares no
+primary key, so every lookup by identifier was a full table scan and every
+`ORDER BY` built a temporary B-tree. `TodoIndices.swift` holds the nine
+statements it produced, each with the plan change that justified it. None was
+written by hand.
+
+After applying them, every table access in the demo is an index search, and
+three warnings remain. Each is recorded with its reason in
+`swiftql-plan-analysis.json` rather than silenced: all three are `ORDER BY`
+sorts no index can supply — one over a set of conditional expressions that
+switch on a bound parameter, two over the result of a join fan-out — and the
+advisor correctly proposes nothing for any of them.
+
+The advice is also applicable by hand. `swiftql-index-advisor` reads the
+sidecar the build writes and prints every recommendation with its before-plan,
+after-plan, and write cost, changing nothing; `--apply --output <path>` writes
+them as a checked-in `.sql` file, and a second run is a no-op. On this demo it
+reported nine before the indices existed and reports none after — which is
+what "the diagnosed shapes are resolved" looks like from the outside.
+
+Two limits are worth knowing. The demo's snapshot is schema-only, so the write
+cost each recommendation quotes reads "0 rows at verification time": the
+advisor can only measure the snapshot it is given. And SwiftQL has no index
+DDL yet ([#139](https://github.com/lukevanin/swiftql/issues/139)), so
+`TodoIndices.swift` is the one file in the demo that reaches past SwiftQL to
+GRDB in order to run the statements the advisor produced.
+
 ## What it does not do
 
 No sync, no accounts, no notifications, no widgets, and no distribution — no
@@ -114,7 +150,9 @@ signing, no TestFlight, no App Store. It is a code demo.
 
 Schema migrations are out of scope too. `sqlCreate` creates a table but does
 not migrate one, so changing the schema means deleting the database file (or
-using the debug **Reset to seeded state** action).
+using the debug **Reset to seeded state** action). An existing database picks
+up the v1.8 indices on its next launch regardless, because they are
+`CREATE INDEX IF NOT EXISTS` and run on every open.
 
 ## Known rough edges
 
@@ -122,6 +160,13 @@ Building a whole application on v1.5 and v1.6 surfaced four places where the
 API resists, all recorded on
 [#469](https://github.com/lukevanin/swiftql/issues/469):
 
+- **Indices have no SwiftQL spelling.** `@SQLTable` declares a table and
+  `sqlCreate` builds one, but nothing declares an index, so the statements
+  v1.8's advisor verified are raw SQL run through GRDB in
+  `TodoIndices.swift`. Typed DDL is v2 work
+  ([#139](https://github.com/lukevanin/swiftql/issues/139)); the advisor can
+  tell you exactly which index to add and prove the plan improves, and the
+  library still cannot run it for you.
 - **`LIKE` cannot appear in a declared query.** The frozen-literal guard
   rejects a parameter passed to a call, and `like(_:)` is a method with no
   operator spelling. That is why the list view's read uses named bindings.

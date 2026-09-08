@@ -163,7 +163,12 @@ final class SQLiteIndexAdvisorTests: XCTestCase {
                 contents
             )
             XCTAssertTrue(contents.contains("-- Motivated by: advisor.orders-by-customer-and-employee"))
-            XCTAssertTrue(contents.contains("swiftql-index-improvement-rule-v1"))
+            XCTAssertTrue(
+                contents.contains(
+                    SQLiteBuildValidationIndexCandidateVerifier.improvementRuleVersion
+                ),
+                "the artifact records the rule that accepted its statements"
+            )
 
             let writtenData = try Data(contentsOf: outputURL)
             let modifiedBefore = try FileManager.default
