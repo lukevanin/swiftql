@@ -343,6 +343,13 @@ opened, or a raw-value handle that can cross tasks.
   v1.5.5 packages a plugin-adopting target also fails to build under Xcode 26.5
   before validation runs, which is issue #492; drive it with `swift build`
   there. v1.5.6 fixes that and builds under both.
+- v1.8 adds advisory query-plan analysis to the same run, opted into by placing
+  `swiftql-plan-analysis.json` beside the manifest and snapshot. It captures
+  each statement's `EXPLAIN QUERY PLAN`, warns about shapes that cost avoidable
+  work, and verifies index candidates on a disposable copy of the snapshot.
+  Nothing it produces changes a correctness verdict or the exit status.
+  `swiftql-index-advisor` turns the verified recommendations into a checked-in
+  SQL artifact when a developer runs it; no build applies them.
 
 Read the [static-query guide](https://lukevanin.github.io/swiftql/documentation/swiftql/staticqueries/)
 for descriptor construction, captures, cardinality, preparation, and typed
