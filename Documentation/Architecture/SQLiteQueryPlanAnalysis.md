@@ -215,3 +215,91 @@ Advisory diagnostics are in the sidecar, and the exit code reads the
 correctness verdict alone. A run with findings on every statement still exits
 zero if the manifest validated. The CLI prints the advice to stderr beside the
 correctness summary, and printing it changes nothing about the exit status.
+
+## Index-candidate generation (#396)
+
+### What motivates a candidate
+
+Two plan shapes. A `full_table_scan` is the obvious one: nothing indexes the
+table yet. `automatic_covering_index` belongs beside it because it is SQLite's
+own ephemeral workaround for the same situation — it builds and throws away a
+covering index on every execution, which is exactly what a persistent index
+replaces. The spike's re-plan evidence found the second shape necessary;
+without it, the one real improvement it measured would never have been
+proposed.
+
+Only **root** plan nodes are considered. Remediating a scan nested inside a
+subquery needs that subquery's own `FROM` scope, which the extractor does not
+track, so it is out of scope rather than guessed at.
+
+### Column order
+
+The settled rule, in one line:
+
+> equality-and-join-key columns → at most one range column → `ORDER BY` columns
+
+A **join key is an equality constraint too**. SQLite seeds a seek on it once
+per outer row exactly as it would from a `WHERE` equality; it just supplies the
+bound value at run time instead of from the statement text. So the two share
+the leading tier.
+
+At most one range column, because SQLite stops narrowing at the first range
+term — a second range column adds width without adding selectivity.
+
+This is measured, not assumed. On `Categories LEFT JOIN Products ON
+p.CategoryID = c.CategoryID WHERE p.UnitPrice > 20`, with `Products` on the
+looked-up side and no index on either column:
+
+- `Products(CategoryID, UnitPrice)` — join key first — is the index SQLite
+  adopts, replacing its own ephemeral automatic index.
+- `Products(UnitPrice, CategoryID)` — range first — is **silently ignored**;
+  the after-plan comes back byte-for-byte identical to the baseline.
+
+A composite index can only be seeded by an equality prefix.
+
+### Direction and collation
+
+`ORDER BY` terms carry their `ASC`/`DESC` and `COLLATE` into the candidate,
+because both decide whether the index can satisfy the sort, and both are
+rendered into the DDL.
+
+Ordering is positional: an index satisfies a sort only from the first term
+onwards. So a term the extractor cannot read as a plain qualified column — an
+expression, a bare unqualified column, a term belonging to another table —
+**ends** the tier rather than being skipped. Skipping it would produce a column
+list that claims to satisfy an ordering it does not.
+
+### Deduplication and prefix collapse
+
+Candidates with the same table and the same columns merge, recording every
+contributing statement so a shared index is visibly shared. A candidate whose
+columns are an exact prefix of a wider one on the same table is then dropped —
+the wider index already serves every query the prefix would. Before it goes,
+its source statements fold into every wider candidate it prefixes, so a
+statement that only ever produced the narrow index is still attributed to the
+one that now serves it.
+
+### Determinism
+
+Candidates sort by table then columns, source lists are sorted and
+deduplicated, and the representative statement is the **lexicographically
+first** source rather than whichever was discovered first. Discovery order
+follows manifest order; this artifact's bytes must not.
+
+### Bounds, declines, and what is never silent
+
+Three stated bounds, each reported when hit rather than applied quietly: at
+most 6 columns per candidate, 4 candidates per statement, and 4 per table. A
+truncated set that says nothing about being truncated reads as a complete
+answer, which is the one thing it is not.
+
+A remediable node this generator cannot read confidently produces a **decline**
+with its reason — an alias the `FROM`/`JOIN` clauses do not resolve, a
+statement with nothing to index, an `ORDER BY` whose terms could not be read.
+Recording the decline keeps "no candidate" distinguishable from "no problem".
+
+### Proposals, not recommendations
+
+Nothing in this stage opens a database, creates an index, or decides that a
+candidate is worth taking. A candidate is a proposal. Verification is #397's,
+and only a verified candidate may be reported as recommended.

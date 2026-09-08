@@ -45,6 +45,12 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
     /// and deleted rather than quietly outliving the finding it was written
     /// for.
     public let unusedSuppressions: [SQLiteBuildValidationPlanSuppression]
+    /// Proposed indices derived from the captured plans (#396).
+    ///
+    /// Proposals, not recommendations: nothing here has been tried against a
+    /// database. Verification is #397's, and only a verified candidate may be
+    /// reported as recommended.
+    public let indexCandidates: SQLiteBuildValidationIndexCandidateSet
 
     public init(
         manifest: SQLiteBuildValidationManifest,
@@ -54,7 +60,8 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
         records: [SQLiteBuildValidationPlanRecord],
         diagnostics: [SQLiteBuildValidationPlanDiagnostic] = [],
         suppressedDiagnostics: [SQLiteBuildValidationSuppressedPlanDiagnostic] = [],
-        unusedSuppressions: [SQLiteBuildValidationPlanSuppression] = []
+        unusedSuppressions: [SQLiteBuildValidationPlanSuppression] = [],
+        indexCandidates: SQLiteBuildValidationIndexCandidateSet = .init()
     ) {
         self.formatVersion = 1
         self.manifestFormatVersion = manifest.formatVersion.rawValue
@@ -75,6 +82,7 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
         self.unusedSuppressions = unusedSuppressions.sorted(
             by: SQLiteBuildValidationPlanSuppression.canonicalOrder
         )
+        self.indexCandidates = indexCandidates
     }
 
     /// The records whose plan SQLite actually produced.
@@ -123,5 +131,6 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
         case diagnostics
         case suppressedDiagnostics = "suppressed_diagnostics"
         case unusedSuppressions = "unused_suppressions"
+        case indexCandidates = "index_candidates"
     }
 }
