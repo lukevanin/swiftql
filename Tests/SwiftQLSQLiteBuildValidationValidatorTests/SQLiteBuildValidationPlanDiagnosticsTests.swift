@@ -37,6 +37,37 @@ final class SQLiteBuildValidationPlanTableResolverTests: XCTestCase {
         XCTAssertEqual(aliases["c"], "Categories")
     }
 
+    /// SQL keywords are case-insensitive, and a manifest entry written by
+    /// hand rather than rendered by SwiftQL can say `from`.
+    func testKeywordsAreMatchedWithoutRegardToCase() {
+        let aliases = Resolver.tableAliases(
+            in: "select o.ShipCity from Orders as o join Customers c on c.CustomerID = o.CustomerID"
+        )
+
+        XCTAssertEqual(aliases["o"], "Orders")
+        XCTAssertEqual(aliases["c"], "Customers")
+    }
+
+    /// `AS` is a keyword, so it has to end at a token boundary. Without that,
+    /// `FROM Orders ASDF` reads `ASDF` as `AS` and loses the alias.
+    func testAnAliasBeginningWithASIsNotReadAsTheKeyword() {
+        XCTAssertEqual(
+            Resolver.tableAliases(in: "SELECT ASDF.ShipCity FROM Orders ASDF")["ASDF"],
+            "Orders"
+        )
+    }
+
+    /// SQLite doubles a quote inside a quoted identifier, so stopping at the
+    /// first one truncates the name.
+    func testAQuotedIdentifierMayContainADoubledQuote() {
+        XCTAssertEqual(
+            Resolver.tableAliases(
+                in: #"SELECT "t0"."x" FROM "Say ""Hi""" AS "t0""#
+            )["t0"],
+            #"Say "Hi""#
+        )
+    }
+
     /// EQP prints the table name when the statement declared no alias, so a
     /// table has to resolve to itself for a lookup to succeed.
     func testAnUnaliasedTableResolvesToItself() {

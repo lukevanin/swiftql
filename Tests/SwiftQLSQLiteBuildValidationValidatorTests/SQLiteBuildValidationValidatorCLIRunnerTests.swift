@@ -249,6 +249,7 @@ final class SQLiteBuildValidationValidatorCLIRunnerTests: XCTestCase {
                 "--database", "/tmp/a.sqlite",
                 "--manifest", "/tmp/m.json",
                 "--output", "/tmp/r.json",
+                "--plan-output", "/tmp/p.json",
                 "--plan-scan-row-threshold", "lots",
             ])
         ) { error in
@@ -256,6 +257,30 @@ final class SQLiteBuildValidationValidatorCLIRunnerTests: XCTestCase {
                 error as? SQLiteBuildValidationValidatorCLIError,
                 .invalidValue("--plan-scan-row-threshold", "lots")
             )
+        }
+    }
+
+    /// A plan-analysis flag without `--plan-output` would look configured and
+    /// do nothing, which reads exactly like "plan analysis ran and found
+    /// nothing".
+    func testPlanAnalysisFlagsAreRefusedWithoutPlanOutput() {
+        for option in ["--plan-suppressions", "--plan-scan-row-threshold"] {
+            let value = option == "--plan-scan-row-threshold" ? "10" : "/tmp/s.json"
+            XCTAssertThrowsError(
+                try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [
+                    "--database", "/tmp/a.sqlite",
+                    "--manifest", "/tmp/m.json",
+                    "--output", "/tmp/r.json",
+                    option, value,
+                ]),
+                option
+            ) { error in
+                XCTAssertEqual(
+                    error as? SQLiteBuildValidationValidatorCLIError,
+                    .optionRequiresPlanOutput(option),
+                    option
+                )
+            }
         }
     }
 

@@ -128,6 +128,19 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
             ] where value == nil {
                 throw SQLiteBuildValidationValidatorCLIError.requiredOption(option)
             }
+            // `--plan-output` is the whole opt-in, so a flag that only tunes
+            // plan analysis is meaningless without it. Accepting one silently
+            // would let a run look configured and do nothing, which reads
+            // exactly like "plan analysis ran and found nothing".
+            if planOutputPath == nil {
+                for (option, value) in [
+                    ("--plan-suppressions", planSuppressionsPath),
+                    ("--plan-scan-row-threshold", planScanRowThresholdText),
+                ] where value != nil {
+                    throw SQLiteBuildValidationValidatorCLIError
+                        .optionRequiresPlanOutput(option)
+                }
+            }
         }
 
         return Self(
@@ -319,6 +332,7 @@ public enum SQLiteBuildValidationValidatorCLIError:
     case requiredOption(String)
     case unknownOption(String)
     case invalidValue(String, String)
+    case optionRequiresPlanOutput(String)
     case outputConflictsWithInput(String)
     case outputConflictsWithDatabaseSidecar
     case planOutputConflictsWithInput(String)
@@ -337,6 +351,8 @@ public enum SQLiteBuildValidationValidatorCLIError:
             return "Unknown option \(option)."
         case .invalidValue(let option, let value):
             return "\(option) requires a nonnegative integer; got \(value)."
+        case .optionRequiresPlanOutput(let option):
+            return "\(option) only affects plan analysis, which --plan-output turns on; supply --plan-output or drop \(option)."
         case .outputConflictsWithInput(let option):
             return "--output must not identify the same file as \(option)."
         case .outputConflictsWithDatabaseSidecar:

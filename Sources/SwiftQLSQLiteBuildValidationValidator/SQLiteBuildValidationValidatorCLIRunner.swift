@@ -94,7 +94,13 @@ public enum SQLiteBuildValidationValidatorCLIRunner {
             againstDatabaseAt: resolved.databaseURL,
             environment: resolved.environment,
             capturesPlans: resolved.capturesPlans,
-            planDiagnosticSettings: try resolved.planDiagnosticSettings()
+            // Only read when plans are captured. Argument parsing already
+            // refuses a plan-analysis flag without `--plan-output`, and this
+            // keeps a correctness-only run from touching a suppression file
+            // even if a caller built `Resolved` by hand.
+            planDiagnosticSettings: resolved.capturesPlans
+                ? try resolved.planDiagnosticSettings()
+                : .init()
         )
     }
 

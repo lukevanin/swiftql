@@ -42,7 +42,16 @@ public enum SQLiteBuildValidationPlanTableResolver {
         var ambiguousAliases: Set<String> = []
         for keyword in [" FROM ", " JOIN "] {
             var searchStart = sql.startIndex
-            while let range = sql.range(of: keyword, range: searchStart..<sql.endIndex) {
+            // Case-insensitively, because SQL keywords are, and a manifest
+            // entry written by hand rather than rendered by SwiftQL can say
+            // `from`. Searched rather than folded, so the ranges still index
+            // into the original text and the identifiers come back with the
+            // case the statement wrote them in.
+            while let range = sql.range(
+                of: keyword,
+                options: [.caseInsensitive],
+                range: searchStart..<sql.endIndex
+            ) {
                 let remainder = String(sql[range.upperBound...])
                 if let (table, alias) = parseTableAlias(remainder) {
                     if let existing = bindings[alias], existing != table {
@@ -63,7 +72,10 @@ public enum SQLiteBuildValidationPlanTableResolver {
         for alias in ambiguousAliases {
             bindings.removeValue(forKey: alias)
         }
-        for (alias, table) in bindings where cteNames.contains(table) {
+        // Collected first, then removed: mutating a dictionary while
+        // enumerating it traps.
+        let cteAliases = bindings.filter { cteNames.contains($0.value) }.map(\.key)
+        for alias in cteAliases {
             bindings.removeValue(forKey: alias)
         }
         return bindings
@@ -85,7 +97,11 @@ public enum SQLiteBuildValidationPlanTableResolver {
     private static func cteNames(in sql: String) -> Set<String> {
         var names: Set<String> = []
         var searchRange = sql.startIndex..<sql.endIndex
-        while let asParenRange = sql.range(of: " AS (", range: searchRange) {
+        while let asParenRange = sql.range(
+            of: " AS (",
+            options: [.caseInsensitive],
+            range: searchRange
+        ) {
             if let name = name(precedingEndIndex: asParenRange.lowerBound, in: sql) {
                 names.insert(name)
             }
@@ -149,7 +165,10 @@ public enum SQLiteBuildValidationPlanTableResolver {
             return nil
         }
         scanner.skipWhitespace()
-        if scanner.consume("AS") {
+        // A keyword, so it must end at a token boundary: without that,
+        // `FROM Orders ASDF` reads `ASDF` as the `AS` keyword followed by
+        // nothing, and the alias is lost.
+        if scanner.consumeKeyword("AS") {
             scanner.skipWhitespace()
             guard let alias = scanner.nextName() else {
                 return nil
@@ -198,13 +217,23 @@ private struct NameScanner {
         }
     }
 
-    mutating func consume(_ token: String) -> Bool {
-        let tokenCharacters = Array(token)
-        guard position + tokenCharacters.count <= characters.count,
-              Array(characters[position..<(position + tokenCharacters.count)]) == tokenCharacters else {
+    /// Consumes a SQL keyword: matched without regard to case, and only when
+    /// it ends at a token boundary.
+    mutating func consumeKeyword(_ keyword: String) -> Bool {
+        let keywordCharacters = Array(keyword.uppercased())
+        let end = position + keywordCharacters.count
+        guard end <= characters.count,
+              Array(characters[position..<end]).map({ Character($0.uppercased()) })
+                  == keywordCharacters else {
             return false
         }
-        position += tokenCharacters.count
+        if end < characters.count {
+            let next = characters[end]
+            guard !next.isLetter, !next.isNumber, next != "_" else {
+                return false
+            }
+        }
+        position = end
         return true
     }
 
@@ -214,17 +243,28 @@ private struct NameScanner {
             return nil
         }
         if characters[position] == "\"" {
+            // SQLite escapes a quote inside a quoted identifier by doubling
+            // it, so `"say ""hi"""` is one name. Stopping at the first quote
+            // would truncate it and resolve the alias to something that is
+            // not a table.
             var name = ""
             var index = position + 1
-            while index < characters.count, characters[index] != "\"" {
+            while index < characters.count {
+                if characters[index] == "\"" {
+                    guard index + 1 < characters.count,
+                          characters[index + 1] == "\"" else {
+                        position = index + 1
+                        return name
+                    }
+                    name.append("\"")
+                    index += 2
+                    continue
+                }
                 name.append(characters[index])
                 index += 1
             }
-            guard index < characters.count else {
-                return nil
-            }
-            position = index + 1
-            return name
+            // An unterminated quoted identifier: never guessed at.
+            return nil
         }
 
         guard characters[position].isLetter || characters[position] == "_" else {
