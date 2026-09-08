@@ -45,7 +45,8 @@ main() {
         posts/whats-new-in-1-5-4/index.html \
         posts/whats-new-in-1-5-5/index.html \
         posts/whats-new-in-1-6-0/index.html \
-        posts/whats-new-in-1-7-0/index.html
+        posts/whats-new-in-1-7-0/index.html \
+        posts/whats-new-in-1-8-0/index.html
     do
         require_file "$blog/$post"
         # Every template token was substituted, in every page Hugo generated.
