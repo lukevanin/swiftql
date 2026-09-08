@@ -15,7 +15,7 @@ wrote.
 
 ## 1.8.0 — The build tells you which index to add
 
-*Released DATE_PLACEHOLDER.*
+*Released 8 September 2026.*
 
 - The build validator can now show you what SQLite actually plans to do with
   each of your queries, and warn about the shapes that cost avoidable work: a

@@ -825,7 +825,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         // gating the release. While a later line is developed on its own
         // branch, that branch's heading is the first one and this pin names it
         // there.
-        XCTAssertEqual(firstReleaseHeading, "## [1.8.0] - Unreleased")
+        XCTAssertEqual(firstReleaseHeading, "## [1.8.0] - 2026-09-08")
     }
 
     /// `check-docc-output.sh` proves one built page per catalog article. An
