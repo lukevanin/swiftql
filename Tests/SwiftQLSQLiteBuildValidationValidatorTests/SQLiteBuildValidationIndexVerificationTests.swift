@@ -484,6 +484,61 @@ final class SQLiteBuildValidationIndexVerificationTests: XCTestCase {
         )
     }
 
+    /// A recommendation can come from an `automatic_covering_index` before
+    /// shape, which is remediable but not diagnosed. Rendering advice from
+    /// diagnostics alone made those invisible; six of the to-do demo's nine
+    /// verified indices were in exactly that position.
+    func testARecommendationWithNoDiagnosticStillReachesTheSummary() throws {
+        let candidate = SQLiteBuildValidationIndexCandidate(
+            table: "Orders",
+            columns: [SQLiteBuildValidationIndexCandidateColumn(name: "CustomerID")],
+            sourceQueryIDs: ["undiagnosed"],
+            sourceDescriptorIdentities: ["d"],
+            representativeQueryID: "undiagnosed",
+            representativeAlias: "o"
+        )
+        let report = SQLiteBuildValidationPlanReport(
+            manifest: Support.manifest(queries: [Self.remediable]),
+            observedDatabaseByteCount: nil,
+            observedDatabaseSHA256: nil,
+            records: [],
+            diagnostics: []
+        )
+        .withIndexRecommendations(SQLiteBuildValidationIndexRecommendationSet(
+            recommendations: [
+                SQLiteBuildValidationIndexRecommendation(
+                    candidate: candidate,
+                    statementID: "undiagnosed",
+                    descriptorIdentity: "d",
+                    beforePlan: [],
+                    afterPlan: [],
+                    improvementRuleVersion: Verifier.improvementRuleVersion,
+                    improvementReason: "it helps",
+                    writeCostNote: "it costs"
+                ),
+            ]
+        ))
+
+        let summary = report.humanReadableSummary(origin: "/manifest.json")
+
+        XCTAssertTrue(report.diagnostics.isEmpty)
+        XCTAssertTrue(summary.contains("plan.verified-index"), summary)
+        XCTAssertTrue(summary.contains("Apply with: \(candidate.ddl);"), summary)
+        XCTAssertTrue(summary.hasPrefix("/manifest.json: warning: "), summary)
+    }
+
+    /// Nothing to advise prints nothing.
+    func testAnEmptySidecarPrintsNoSummary() {
+        let report = SQLiteBuildValidationPlanReport(
+            manifest: Support.manifest(queries: [Self.remediable]),
+            observedDatabaseByteCount: nil,
+            observedDatabaseSHA256: nil,
+            records: []
+        )
+
+        XCTAssertEqual(report.humanReadableSummary(origin: "/manifest.json"), "")
+    }
+
     // MARK: - Through the CLI
 
     func testVerificationIsOptInAndNeverChangesTheExitStatus() throws {
