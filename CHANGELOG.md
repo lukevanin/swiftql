@@ -1,5 +1,231 @@
 # Changelog
 
+## [1.8.0] - Unreleased
+
+### Added
+
+- The standalone build validator can capture a normalised `EXPLAIN QUERY PLAN`
+  record for every manifest entry (issue #394). A run opts in with
+  `--plan-output <path>`; without it the validator captures nothing and does no
+  extra work. Capture runs on the same read-only, query-only connection that
+  produced the run's correctness evidence, after that evidence is complete, and
+  writes a second canonical JSON file. Plans never enter the correctness
+  report, whose schema, verdict semantics, and bytes are unchanged either way.
+
+  Each `SQLiteBuildValidationPlanRecord` carries the entry's identity, the
+  SQLite build that planned it — version, source ID, and the compile options
+  that can change a plan — and exactly one of two outcomes: a normalised plan
+  tree, or an explicit unsupported reason. There is no third state and no
+  absent entry. The tree is built from each row's own `parent` id, and SQLite's
+  `id` and `parent` numbers are then discarded, because the research measured
+  them as the one field that differs between two SQLite builds planning the
+  same statement. Every node keeps its raw detail text beside its
+  classification, and text the classifier does not recognise stays
+  `unclassified` rather than being coerced into a neighbouring shape.
+
+  Statement parameters are left unbound. On a snapshot without `ANALYZE`
+  statistics, which the pinned snapshot deliberately is, SQLite's plan choice
+  never reads the bound value. The sidecar names that caveat, and the
+  `ENABLE_STAT4` compile option, in every report.
+
+- Advisory diagnostics for the plan shapes that indicate avoidable work (issue
+  #395): a full table scan above a stated row threshold, a temporary B-tree for
+  `ORDER BY`, a temporary B-tree for `GROUP BY`, and a correlated scalar
+  subquery. Each finding names the query, its descriptor identity, the plan
+  node that produced it, and — for the scan rule — the real table and its row
+  count. A finding is keyed on the classified shape, never on raw
+  `EXPLAIN QUERY PLAN` wording, and the diagnostic type refuses to be
+  constructed with an unclassified shape.
+
+  `SQLiteBuildValidationPlanDiagnosticSeverity.advisory` is its own type rather
+  than a fourth `SQLiteBuildValidationVerdict` case. A verdict decides the exit
+  status, and no arrangement of the advisory type can reach that decision.
+
+  Suppression is a checked-in file, passed with `--plan-suppressions <path>`.
+  Every rule names a diagnostic code and at least one of a query or a table,
+  and must state a reason, so a rule that silences everything is not
+  expressible and neither is a silent one. A silenced finding stays in the
+  sidecar with that reason, and a rule that silenced nothing is reported, so a
+  stale instruction to ignore a finding can be found and deleted.
+  `--plan-scan-row-threshold <rows>` moves the scan rule's threshold, which
+  defaults to 500.
+
+- Deterministic index candidates derived from the statements behind remediable
+  plan shapes (issue #396). Columns follow the rule the research settled with a
+  real re-plan: equality-constrained columns lead, and a join key is an
+  equality constraint too, so it shares that tier; then at most one range
+  column, because SQLite stops narrowing at the first range term; then the
+  `ORDER BY` terms, with their direction and collation.
+
+  An `ORDER BY` term the extractor cannot read as a plain qualified column ends
+  that tier rather than being skipped, because skipping it would claim an
+  ordering the index does not provide. Candidates merge across statements, so a
+  shared index is visibly shared, and a candidate whose columns are an exact
+  prefix of a wider one on the same table folds into it with its attribution
+  intact. Three stated bounds — six columns, four candidates per statement,
+  four per table — are reported when hit rather than applied silently, and a
+  remediable node the generator cannot read confidently is recorded as a
+  decline with its reason.
+
+- Verification of index candidates against a disposable copy of the snapshot
+  (issue #397), opted into with `--verify-index-candidates`. Each candidate is
+  created on its own scratch copy, the motivating statement is re-planned with
+  the same classifier, and the recommendation carries the before-plan, the DDL,
+  the after-plan, and a note of the write cost the index implies.
+
+  The copy lives in the system temporary directory; a scratch parent beside the
+  snapshot, or inside the working directory, is refused. It is removed on a
+  normal return, on a thrown error, and on `SIGINT` or `SIGTERM` through a
+  handler that unlinks a preallocated path table and then restores whichever
+  disposition was in place before. The pinned snapshot's byte count and SHA-256
+  must match what they were before the pass, or it fails closed.
+
+  The improvement rule is recorded by version. A candidate is kept only when
+  the index SQLite names in the after-plan is that candidate's own, and either
+  the alias's node moves from a full table scan or an automatic covering index
+  to a narrowed index search, or a temporary B-tree the before-plan had is gone
+  from the after-plan. A candidate the rule declined is reported with its
+  reason, and one that could not be verified is reported unverified rather than
+  recommended.
+
+- The SwiftPM build-tool plugin can surface all of this as build warnings
+  (issue #398). A target opts in by placing `swiftql-plan-analysis.json` in its
+  own directory, beside the manifest and snapshot the plugin already reads. The
+  plugin then adds the three plan-analysis arguments to the same build command
+  and declares the plan sidecar as a second output; the opt-in file is declared
+  as an input, so editing it invalidates the command. A target that does not
+  opt in sees an unchanged invocation and pays nothing.
+
+  Findings reach the build log and Xcode's issue navigator because the
+  validator prints them in the `<path>: warning: <message>` form every Swift
+  build system already parses, attributed to the manifest. There are two kinds
+  of line: a diagnostic says what SQLite is doing that costs avoidable work,
+  and a `plan.verified-index` recommendation says what to do about it and
+  carries the `CREATE INDEX` statement to paste.
+
+- `swiftql-index-advisor`, a command that turns verified recommendations into a
+  checked-in artifact (issue #399), with `SwiftQLSQLiteIndexAdvisor` as its
+  library. Report mode is the default: it prints every recommendation with its
+  evidence and every rejected candidate with its reason, and changes nothing.
+  `--apply` writes the statements as generated SQL and additionally requires
+  `--output`, so the command can only ever write to a path the invocation
+  names. The artifact's bytes are a pure function of the recommendations, and
+  apply compares bytes before writing, so a second run on unchanged advice does
+  not touch the file.
+
+  A build never invokes it. A build-tool plugin emits diagnostics rather than
+  fixits, and a macro cannot open a database without breaking hermetic,
+  incremental builds, so applying the advice is one explicit invocation whose
+  diff a developer approves.
+
+### Changed
+
+- The to-do demo carries nine indices, every one of them proposed and verified
+  by the new advisor (issue #484). The demo had none before, because SwiftQL's
+  generated `CREATE TABLE` declares no primary key: every lookup by identifier
+  was a full table scan and every `ORDER BY` built a temporary B-tree. Every
+  table access in the demo is now an index search. Three advisory warnings
+  remain, each recorded with its reason in the demo's checked-in suppression
+  file; all three are sorts no index can supply.
+
+## [1.7.0] - 2026-09-07
+
+### Added
+
+- SwiftQL now ships the `regexp` implementation the `REGEXP` operator needs
+  (issue #612). SQLite parses `X REGEXP Y` as a call to `regexp(Y, X)` and
+  ships no such function, so before this release every query that used the
+  operator failed with `no such function: regexp` unless the application
+  registered a two-argument `regexp` itself. `XLExpression.regexp(_:)` now
+  records SwiftQL's own implementation while the statement renders, and the
+  driver registers it on whichever pooled connection executes the statement.
+  The rendered SQL is unchanged.
+
+  `XLRegexpFunction` is backed by Swift `Regex`, so the pattern syntax is
+  Swift's. A pattern matches anywhere in the subject rather than having to
+  match all of it, which is what the widely used `regexp` extensions for
+  SQLite and PostgreSQL's `~` operator do; anchor a pattern with `^` and `$`
+  to require a whole-subject match. A NULL on either side yields NULL. An
+  invalid pattern raises `XLRegexpFunctionError.invalidPattern`, rather than
+  returning false and reading like a pattern that matched nothing. An argument
+  that is neither TEXT nor a UTF-8 BLOB raises `XLColumnReadError` instead of
+  being converted silently.
+
+- A `REGEXP` pattern is compiled once per statement execution rather than once
+  per row (issue #613). SQLite calls a scalar function once for every candidate
+  row and passes the pattern again on each call, so the compile dominated the
+  cost of a scan. Each registration of the bundled function keeps a bounded
+  cache of compiled patterns, holding at most 16 and caching a compile failure
+  with the same rules as a success. A measured 2000-row scan against one pattern
+  compiles once instead of 2000 times, about 46x less wall-clock time in the
+  recorded run. A cache belongs to one registration and is never shared between
+  connections, because Swift's `Regex` is not `Sendable`.
+
+### Changed
+
+- An application that registers its own two-argument `regexp` keeps it (issue
+  #612). SwiftQL never replaces a `regexp` already on the connection, whether
+  it was registered with `GRDBDatabaseBuilder.addFunction(_:)` or with
+  `Configuration.prepareDatabase(_:)`, so upgrading does not change what
+  `REGEXP` means for an application that already supplied one. Deciding that
+  costs one `PRAGMA function_list` per database, not one per query.
+
+- `XLRegexPattern`, a Swift `Regex` usable as the right operand of `REGEXP`
+  (issue #614). A pattern written with `RegexBuilder` gets a compile-time check,
+  composition, and named pieces, none of which a pattern string has. A compiled
+  `Regex` cannot travel through SQLite, so the statement carries an opaque key
+  and SwiftQL's `regexp` resolves it:
+
+  ```swift
+  let leadingA = XLRegexPattern {
+      Anchor.startOfSubject
+      "A"
+      ZeroOrMore(.any)
+  }
+
+  Where(person.name.regexp(leadingA))
+  ```
+
+  A key carries a marker no regular expression contains, so a plain pattern is
+  never mistaken for one; a key naming no registration raises
+  `XLRegexpFunctionError.unregisteredPattern` rather than silently matching
+  nothing. The registry does not keep a pattern alive: hold the
+  `XLRegexPattern` for as long as statements using it can execute. A key names
+  a registration in one process, so `XLStaticStatementDefinition` refuses a
+  statement that carries one -- a descriptor's identity has to be reproducible.
+  Captures are not exposed, because `REGEXP` answers only whether a subject
+  matches.
+
+- A statement that uses `REGEXP` with a string pattern now runs as a static
+  query descriptor, and passes the SQLite build validator, without any
+  registration by the caller (issue #615). One matching an `XLRegexPattern`
+  does not: its key names a registration in one process, so
+  `XLStaticStatementDefinition` refuses it. A descriptor cannot carry a registration closure, so
+  `XLStaticStatementDefinition` records the *signatures* of the functions
+  SwiftQL bundles, and the adapter rebuilds its own implementation from one
+  when the statement is prepared. The build validator registers the same
+  implementations on its snapshot connection, so a query the application can
+  run no longer fails the build.
+
+  An application's own custom function is unchanged: SwiftQL cannot rebuild an
+  implementation it did not write, so such a statement still needs an upfront
+  `GRDBDatabaseBuilder.addFunction(_:)` call to run as a static descriptor, and
+  a `function:` capability naming it is still proven from the validator
+  connection rather than from a declaration.
+
+- Recorded the bundled `REGEXP` surface in the #190 canonical SQLite
+  conformance inventory, and dropped the schema requirement the operator used
+  to carry (issue #616). The inventory version is now 1.7.0. It records 117 public-surface feature records: 113
+  supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
+  1 unimplemented. Of the 197 evidence records, 121 exercise real SQLite and
+  cite one captured SQLite 3.51.0 environment.
+
+- `XLCustomFunctionDefinition`, `XLRegexpFunctionError`, and the pattern matcher
+  behind `REGEXP` moved from `SwiftQL` to `SwiftQLCore` (issue #615). Nothing is
+  renamed and `SwiftQL` re-exports `SwiftQLCore`, so `import SwiftQL` is
+  unaffected. The move is what lets the build validator, which does not depend
+  on the GRDB adapter, register the same implementation the adapter registers.
+
 ## [1.6.0] - 2026-09-03
 
 ### Added
@@ -960,7 +1186,8 @@ The legacy `unixepoch(date:modifiers:)`, `toUnixTimestamp()`, and
 - Added the `REGEXP` operator across the same four optionality shapes as `glob`.
   SQLite parses `X REGEXP Y` as a call to `regexp(Y, X)` and ships no
   implementation, so the operator prepares only once the application registers a
-  two-argument `regexp` function.
+  two-argument `regexp` function. (As of 1.7.0 SwiftQL supplies that function,
+  and the operator needs no registration by the caller.)
 - Completed the generated real-SQLite operator conformance matrix. Every public
   operator overload now carries both prepare and semantic execution evidence,
   packed by operator family and optionality shape, and the corresponding
@@ -1016,7 +1243,8 @@ OrderBy(person.name.collate(XLCollation(rawValue: "localized")).ascending())
 
 `REGEXP` requires the application to register a two-argument `regexp` function
 on the connection. Without it, a statement using the operator fails to prepare
-with `no such function: regexp`.
+with `no such function: regexp`. (No longer true as of 1.7.0, which ships the
+implementation.)
 
 Select a scalar subquery on the nullable side of a join with
 `nullableSubquery(alias:_:)`; the deprecated `XLMetaNullable` overload of
