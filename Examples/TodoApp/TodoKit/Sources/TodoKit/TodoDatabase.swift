@@ -55,6 +55,12 @@ public final class TodoDatabase {
             try Self.insert(TodoSeed(referenceDate: referenceDate), in: scope)
             return true
         }
+        // After the transaction, not inside it: the scope above already owns
+        // the pool's writer, and `TodoIndices` needs a write of its own
+        // because SwiftQL has no index DDL to join that scope with (#139).
+        // Both steps are `IF NOT EXISTS`, so a crash between them is repaired
+        // on the next launch rather than leaving a half-built schema.
+        try TodoIndices.create(in: database.databasePool)
     }
 
     /// Whether the database holds no lists yet.

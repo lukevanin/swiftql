@@ -149,7 +149,7 @@ public enum SQLiteBuildValidationPlanShapeClassifier {
             return false
         }
         switch shape {
-        case .fullTableScan, .coveringIndexScan, .indexSearch,
+        case .fullTableScan, .coveringIndexScan, .indexScan, .indexSearch,
              .automaticCoveringIndex, .coRoutineSubqueryOrCTE,
              .recursiveCTEStep:
             return true
@@ -269,8 +269,15 @@ public enum SQLiteBuildValidationPlanShapeClassifier {
         }
         if using.hasPrefix("INDEX ") {
             let name = String(using.dropFirst("INDEX ".count))
+            // `SEARCH … USING INDEX` seeks; `SCAN … USING INDEX` walks the
+            // index in order, which is what removes a sort rather than what
+            // narrows a scan. Naming them alike would make an index that
+            // only serves an ORDER BY look like one that narrows a seek.
+            let shape: SQLiteBuildValidationPlanShape = access.isSearch
+                ? .indexSearch
+                : .indexScan
             return (
-                .indexSearch,
+                shape,
                 SQLiteBuildValidationPlanAttributes(
                     table: access.table,
                     indexName: name,

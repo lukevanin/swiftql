@@ -20,6 +20,7 @@ public enum SQLiteBuildValidationPlanShape:
     case fullTableScan = "full_table_scan"
     case coveringIndexScan = "covering_index_scan"
     case indexSearch = "index_search"
+    case indexScan = "index_scan"
     case automaticCoveringIndex = "automatic_covering_index"
     case tempBTreeForOrderBy = "temp_b_tree_for_order_by"
     case tempBTreeForGroupBy = "temp_b_tree_for_group_by"

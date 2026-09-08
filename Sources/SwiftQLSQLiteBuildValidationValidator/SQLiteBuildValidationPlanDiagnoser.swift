@@ -123,7 +123,8 @@ public enum SQLiteBuildValidationPlanDiagnoser {
                     tableRowCount: nil,
                     message: "This query evaluates a scalar subquery once per outer row, because the subquery reads a column of the outer row. A join, or an index that makes the inner lookup a seek, avoids repeating the work."
                 )
-            case .coveringIndexScan, .indexSearch, .automaticCoveringIndex,
+            case .coveringIndexScan, .indexScan, .indexSearch,
+                 .automaticCoveringIndex,
                  .tempBTreeForDistinctAggregate, .tempBTreeForCompoundOperation,
                  .scalarSubquery, .listSubquery, .coRoutineSubqueryOrCTE,
                  .materializedSubqueryOrCTE, .compoundQueryStrategy,

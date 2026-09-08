@@ -117,11 +117,19 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
         records.filter { $0.outcome.unsupportedReason != nil }
     }
 
-    /// A plain-text rendering of the advisory findings, one per line.
+    /// A plain-text rendering of everything this sidecar has to advise, one
+    /// finding per line.
     ///
-    /// The canonical JSON is the artifact of record; this is what a run
-    /// prints so an author sees the advice without opening the sidecar.
-    /// Empty when there is nothing to advise.
+    /// Two kinds of line, each complete on its own: a **diagnostic** says what
+    /// SQLite is doing that costs avoidable work, and a **recommendation**
+    /// says what to do about it and carries the statement to paste.
+    ///
+    /// They are separate lines rather than one, because they do not pair up.
+    /// A statement can be diagnosed with no verified remedy, and a verified
+    /// recommendation can come from a statement no diagnostic fired on — the
+    /// to-do demo (#484) had six of the latter, and appending DDL to
+    /// diagnostic lines alone made every one of them invisible in a build
+    /// log.
     ///
     /// `origin`, when given, is the path each line is attributed to, and the
     /// lines take the `<path>: warning: <message>` form every Swift build
@@ -129,23 +137,21 @@ public struct SQLiteBuildValidationPlanReport: Codable, Equatable, Sendable {
     /// and Xcode's issue navigator — the build-tool plugin passes the
     /// manifest's path and forwards nothing itself. There is no second report
     /// format: this is a rendering of the same sidecar.
+    ///
+    /// Empty when there is nothing to advise.
     public func humanReadableSummary(origin: String? = nil) -> String {
-        guard !diagnostics.isEmpty else {
-            return ""
+        let prefix = origin.map { "\($0): warning: " }
+            ?? "swiftql-build-validate: advisory "
+        var lines = diagnostics.map { diagnostic in
+            "\(prefix)\(diagnostic.code.rawValue) in \(diagnostic.queryID): \(diagnostic.message)"
         }
-        return diagnostics.map { diagnostic in
-            let prefix = origin.map { "\($0): warning: " }
-                ?? "swiftql-build-validate: advisory "
-            var line = "\(prefix)\(diagnostic.code.rawValue) in \(diagnostic.queryID): \(diagnostic.message)"
-            // A verified recommendation for the same statement carries the
-            // copy-pasteable fix, which is the actionable half of the advice.
-            let recommendations = indexRecommendations?.recommendations ?? []
-            for recommendation in recommendations
-            where recommendation.candidate.sourceQueryIDs.contains(diagnostic.queryID) {
-                line += " Verified index: \(recommendation.candidate.ddl);"
-            }
-            return line
-        }.joined(separator: "\n")
+        for recommendation in indexRecommendations?.recommendations ?? [] {
+            let candidate = recommendation.candidate
+            lines.append(
+                "\(prefix)plan.verified-index for \(candidate.sourceQueryIDs.joined(separator: ", ")): \(recommendation.improvementReason) \(recommendation.writeCostNote) Apply with: \(candidate.ddl);"
+            )
+        }
+        return lines.joined(separator: "\n")
     }
 
     public func canonicalJSONData() throws -> Data {

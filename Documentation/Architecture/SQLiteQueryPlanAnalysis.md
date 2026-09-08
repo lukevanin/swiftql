@@ -345,23 +345,38 @@ never runs against an application connection or a long-lived pool.
 ### The improvement rule
 
 Stated once, applied uniformly, and recorded in the report by version
-(`swiftql-index-improvement-rule-v1`) so a recommendation stays readable after
+(`swiftql-index-improvement-rule-v2`) so a recommendation stays readable after
 the rule changes.
 
-A candidate is kept only when **all** of the following hold for the plan node
-of the candidate's representative alias:
+Every version requires one thing first: **the index SQLite names in the
+after-plan for the candidate's representative alias must be this candidate's
+own**. Without it a candidate can be credited for an improvement some other
+index produced.
 
-1. the before-plan shape is `full_table_scan` or `automatic_covering_index`;
-2. the after-plan shape is `index_search` or `covering_index_scan`;
-3. the after-plan node reports at least one constrained column — proving the
-   index narrows the scan rather than merely existing;
-4. the index SQLite names in the after-plan is **this candidate's own**.
+v2 then accepts either kind of evidence:
 
-The fourth clause is what stops a candidate being credited for an improvement
-some other index produced.
+- **A narrowed scan.** The alias's node changes from `full_table_scan` or
+  `automatic_covering_index` to `index_search` or `covering_index_scan`, *and*
+  the after node reports at least one constrained column — proving the index
+  narrows the scan rather than merely existing.
+- **A removed sort.** A `USE TEMP B-TREE FOR ORDER BY` or `FOR GROUP BY` node
+  the before-plan had is gone from the after-plan.
+
+**v1 had only the first**, and the to-do demo (#484) is what showed that to be
+wrong. An index that serves an `ORDER BY` is walked in order rather than
+seeked, so it constrains no column, so v1 rejected every one of them — the
+whole remedy for two of the three shapes #395 diagnoses. Three real demo
+indices (`Tag(name)`, `Todo(createdAt, position)`, `TodoList(position, name)`)
+each removed a temporary B-tree outright and were each rejected for narrowing
+nothing.
+
+The classifier gained a shape in the same pass. `SEARCH … USING INDEX` seeks,
+while `SCAN … USING INDEX` walks the index in order; naming both
+`index_search` made an index that only serves a sort look like one that
+narrows a seek, so the second is now `index_scan`.
 
 No cost estimate or row-count comparison enters the rule. The pinned snapshot
-is deliberately unanalyzed, so a structural shape change is the only signal
+is deliberately unanalyzed, so a structural change is the only signal
 available that is not itself a guess.
 
 ### What a recommendation carries

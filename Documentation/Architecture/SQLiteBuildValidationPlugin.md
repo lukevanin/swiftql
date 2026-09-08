@@ -246,8 +246,16 @@ inputs and outputs declared, exactly as before.
 
 Advisory findings reach the build log and Xcode's issue navigator because the
 validator prints them in the `<path>: warning: <message>` form every Swift
-build system already parses, attributed to the manifest and carrying the
-verified `CREATE INDEX` DDL in the message text.
+build system already parses, attributed to the manifest.
+
+There are two kinds of line, each complete on its own: a **diagnostic** says
+what SQLite is doing that costs avoidable work, and a **recommendation**
+(`plan.verified-index`) says what to do about it and carries the
+`CREATE INDEX` statement to paste. They are separate lines because they do not
+pair up — a statement can be diagnosed with no verified remedy, and a verified
+recommendation can come from a statement no diagnostic fired on. The to-do
+demo (#484) had six of the latter, and an earlier design that appended DDL to
+diagnostic lines alone made every one of them invisible in a build log.
 
 They are warnings rather than fixits because a fixit is unreachable here. A
 SwiftPM build-tool plugin emits diagnostics, not fixits. A Swift fixit would

@@ -28,9 +28,11 @@ let package = Package(
         // the working tree rather than a published tag. A library change that
         // breaks the demo breaks it here, immediately.
         .package(name: "SwiftQL", path: "../../.."),
-        // Used only by the manifest generator below, to write the checked-in
-        // schema snapshot in rollback-journal mode. TodoKit itself never
-        // imports GRDB — SwiftQL is the demo's only database API.
+        // Used by the manifest generator below, to write the checked-in schema
+        // snapshot in rollback-journal mode, and by TodoIndices.swift, which
+        // runs the index statements the v1.8 advisor verified. SwiftQL is the
+        // demo's database API everywhere else; index DDL is the one thing it
+        // does not yet express (#139).
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "6.29.3"),
     ],
     targets: [
@@ -38,6 +40,12 @@ let package = Package(
             name: "TodoKit",
             dependencies: [
                 .product(name: "SwiftQL", package: "SwiftQL"),
+                // Used by exactly one file, TodoIndices.swift, and only
+                // because SwiftQL has no index DDL yet (#139). The v1.8 index
+                // advisor tells the demo which indices to add and proves each
+                // one changes the plan; running the statements it produces
+                // needs GRDB until typed DDL lands.
+                .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
 

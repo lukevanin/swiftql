@@ -20,21 +20,36 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
     /// The improvement rule, versioned so a recommendation stays readable
     /// after the rule changes.
     ///
-    /// **v1:** a candidate is kept only when the plan node for the
-    /// representative alias changes from `full_table_scan` or
-    /// `automatic_covering_index` to `index_search` or `covering_index_scan`,
-    /// the after-plan node reports at least one constrained column, **and**
-    /// the index SQLite names in the after-plan is this candidate's own.
+    /// Every version requires one thing first: the index SQLite names in the
+    /// after-plan for the candidate's representative alias must be **this
+    /// candidate's own**. Without that clause a candidate can be credited for
+    /// an improvement some other index produced.
     ///
-    /// `automatic_covering_index` counts as a remediable "before" shape
-    /// because it is SQLite's own ephemeral workaround for the situation a
-    /// real index fixes — rebuilding a throwaway index on every execution
-    /// instead of reusing a persistent one.
+    /// **v2** then accepts either of two kinds of evidence:
+    ///
+    /// - **A narrowed scan.** The alias's node changes from
+    ///   `full_table_scan` or `automatic_covering_index` to an index search
+    ///   or covering index scan, and the after node reports at least one
+    ///   constrained column — proving the index narrows the scan rather than
+    ///   merely being present. `automatic_covering_index` counts as a
+    ///   remediable "before" shape because it is SQLite's own ephemeral
+    ///   workaround for exactly what a persistent index fixes.
+    /// - **A removed sort.** A `USE TEMP B-TREE FOR ORDER BY` or
+    ///   `FOR GROUP BY` node the before-plan had is gone from the after-plan.
+    ///
+    /// **v1 had only the first**, and rejected every sort-serving index —
+    /// which is the whole remedy for two of the three shapes #395 diagnoses.
+    /// The to-do demo (#484) is what surfaced it: `Tag(name)`,
+    /// `Todo(createdAt, position)` and `TodoList(position, name)` each
+    /// removed a temp B-tree outright and were each rejected for reporting
+    /// no constrained columns, because an index walked in order constrains
+    /// nothing. The advice a developer most needed was the advice the rule
+    /// could not accept.
     ///
     /// No cost estimate or row-count comparison enters the rule. The pinned
-    /// snapshot is deliberately unanalyzed, so a structural shape change is
-    /// the only signal available that is not itself a guess.
-    public static let improvementRuleVersion = "swiftql-index-improvement-rule-v1"
+    /// snapshot is deliberately unanalyzed, so a structural change is the
+    /// only signal available that is not itself a guess.
+    public static let improvementRuleVersion = "swiftql-index-improvement-rule-v2"
 
     static let remediableBeforeShapes: Set<SQLiteBuildValidationPlanShape> = [
         .fullTableScan,
@@ -43,6 +58,10 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
     static let improvedAfterShapes: Set<SQLiteBuildValidationPlanShape> = [
         .indexSearch,
         .coveringIndexScan,
+    ]
+    static let sortShapes: Set<SQLiteBuildValidationPlanShape> = [
+        .tempBTreeForOrderBy,
+        .tempBTreeForGroupBy,
     ]
 
     /// Verifies every candidate in `candidates` against a scratch copy of the
@@ -214,26 +233,8 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
         guard let afterNode = node(forTable: alias, in: after) else {
             return (false, "No after-plan node names \"\(alias)\".")
         }
-        guard remediableBeforeShapes.contains(beforeNode.shape) else {
-            return (
-                false,
-                "The before-plan shape for \"\(alias)\" was \(beforeNode.shape.rawValue), not a full table scan or an automatic covering index, so there was nothing for this index to remediate."
-            )
-        }
-        guard improvedAfterShapes.contains(afterNode.shape) else {
-            return (
-                false,
-                "The after-plan shape for \"\(alias)\" was still \(afterNode.shape.rawValue); SQLite did not switch to an index search or a covering index scan."
-            )
-        }
-        guard !afterNode.attributes.constrainedColumns.isEmpty else {
-            return (
-                false,
-                "The after-plan node for \"\(alias)\" reports no constrained columns, so the new index is present but is not narrowing the scan."
-            )
-        }
-        // Which index SQLite adopted matters. Without this, a candidate would
-        // be credited for an improvement an existing index produced.
+        // Which index SQLite adopted is checked first, because nothing that
+        // follows is attributable to this candidate without it.
         guard afterNode.attributes.indexName == candidate.indexName else {
             let adopted = afterNode.attributes.indexName ?? "an unnamed index"
             return (
@@ -241,10 +242,45 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
                 "SQLite used \(adopted) rather than this candidate, so the improvement is not attributable to it."
             )
         }
+
+        let narrowsTheScan = remediableBeforeShapes.contains(beforeNode.shape)
+            && improvedAfterShapes.contains(afterNode.shape)
+            && !afterNode.attributes.constrainedColumns.isEmpty
+        if narrowsTheScan {
+            return (
+                true,
+                "The plan for \"\(alias)\" changed from \(beforeNode.shape.rawValue) to \(afterNode.shape.rawValue) using \(candidate.indexName), constrained by \(afterNode.attributes.constrainedColumns.joined(separator: ", "))."
+            )
+        }
+
+        let removedSorts = sortNodeCounts(before).subtracting(sortNodeCounts(after))
+        if let removed = removedSorts.first {
+            return (
+                true,
+                "The plan no longer materializes a temporary B-tree (\(removed.rawValue)); SQLite walks \(candidate.indexName) in order instead."
+            )
+        }
+
         return (
-            true,
-            "The plan for \"\(alias)\" changed from \(beforeNode.shape.rawValue) to \(afterNode.shape.rawValue) using \(candidate.indexName), constrained by \(afterNode.attributes.constrainedColumns.joined(separator: ", "))."
+            false,
+            "The plan for \"\(alias)\" was \(beforeNode.shape.rawValue) and is now \(afterNode.shape.rawValue) using \(candidate.indexName), but it narrows no column and removes no sort, so there is no measured improvement to report."
         )
+    }
+
+    /// The sort shapes a plan materializes, as a set, so "the after-plan no
+    /// longer sorts" is a set difference rather than a hand-rolled walk.
+    private static func sortNodeCounts(
+        _ roots: [SQLiteBuildValidationPlanNode]
+    ) -> Set<SQLiteBuildValidationPlanShape> {
+        var found: Set<SQLiteBuildValidationPlanShape> = []
+        func walk(_ node: SQLiteBuildValidationPlanNode) {
+            if sortShapes.contains(node.shape) {
+                found.insert(node.shape)
+            }
+            node.children.forEach(walk)
+        }
+        roots.forEach(walk)
+        return found
     }
 
     /// What the index costs on writes.
