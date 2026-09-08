@@ -4,6 +4,27 @@ import SwiftQLCore
 import SwiftQLSQLiteBuildValidationManifest
 
 
+/// One validation run's artifacts: the canonical correctness report, and the
+/// plan sidecar when plan capture was requested.
+///
+/// Two values rather than one merged report, because they answer different
+/// questions and carry different authority. ``report`` is the gate — its
+/// verdict decides the exit status. ``planReport`` is advisory evidence and
+/// is `nil` whenever the caller did not ask for it.
+public struct SQLiteBuildValidationRunResult: Equatable, Sendable {
+    public let report: SQLiteBuildValidationReport
+    public let planReport: SQLiteBuildValidationPlanReport?
+
+    public init(
+        report: SQLiteBuildValidationReport,
+        planReport: SQLiteBuildValidationPlanReport?
+    ) {
+        self.report = report
+        self.planReport = planReport
+    }
+}
+
+
 /// A standalone SQLite static-query build validator.
 ///
 /// Consumes a deterministic ``SQLiteBuildValidationManifest`` (#292) and an
@@ -14,6 +35,15 @@ import SwiftQLSQLiteBuildValidationManifest
 /// both fail the validation gate. No prepared statement escapes, persists,
 /// or is reused at runtime — `SQLitePrepareV3Probe` returns copied Swift
 /// values only, never a `sqlite3_stmt` pointer.
+///
+/// ## Plan capture
+///
+/// A run can additionally capture one normalised `EXPLAIN QUERY PLAN` record
+/// per manifest entry (#394), on the same connection and after the
+/// correctness evidence is complete. Plans go to a separate sidecar
+/// (``SQLiteBuildValidationPlanReport``), never into the correctness report,
+/// and cannot change any verdict — ``validate(manifest:againstDatabaseAt:environment:)``
+/// returns the identical report whether or not plans were captured.
 public enum SQLiteBuildValidator {
     /// Validates a manifest against a checked-in SQLite database file.
     ///
@@ -27,6 +57,25 @@ public enum SQLiteBuildValidator {
         againstDatabaseAt databaseURL: URL,
         environment: SQLiteBuildValidationEnvironment = .init()
     ) throws -> SQLiteBuildValidationReport {
+        try run(
+            manifest: manifest,
+            againstDatabaseAt: databaseURL,
+            environment: environment,
+            capturesPlans: false
+        ).report
+    }
+
+    /// The same run, with optional plan capture.
+    ///
+    /// Separate from ``validate(manifest:againstDatabaseAt:environment:)``
+    /// rather than an added parameter on it, so the correctness-only entry
+    /// point keeps a return type that cannot express an advisory artifact.
+    public static func run(
+        manifest: SQLiteBuildValidationManifest,
+        againstDatabaseAt databaseURL: URL,
+        environment: SQLiteBuildValidationEnvironment = .init(),
+        capturesPlans: Bool
+    ) throws -> SQLiteBuildValidationRunResult {
         let databaseURL = databaseURL.standardizedFileURL
             .resolvingSymlinksInPath()
             .standardizedFileURL
@@ -61,13 +110,14 @@ public enum SQLiteBuildValidator {
         )
         defer { try? queue.close() }
 
-        let report = try queue.read { database in
-            try validate(
+        let result = try queue.read { database in
+            try run(
                 manifest: manifest,
                 in: database,
                 observedDatabaseByteCount: databaseData.count,
                 observedDatabaseSHA256: observedDatabaseSHA256,
-                environment: environment
+                environment: environment,
+                capturesPlans: capturesPlans
             )
         }
 
@@ -89,7 +139,7 @@ public enum SQLiteBuildValidator {
                     finalSHA256: finalDatabaseSHA256
                 )
         }
-        return report
+        return result
     }
 
     /// Validates on a caller-supplied connection. The URL overload is the
@@ -105,6 +155,25 @@ public enum SQLiteBuildValidator {
         observedDatabaseSHA256: String? = nil,
         environment: SQLiteBuildValidationEnvironment = .init()
     ) throws -> SQLiteBuildValidationReport {
+        try run(
+            manifest: manifest,
+            in: database,
+            observedDatabaseByteCount: observedDatabaseByteCount,
+            observedDatabaseSHA256: observedDatabaseSHA256,
+            environment: environment,
+            capturesPlans: false
+        ).report
+    }
+
+    /// The same, with optional plan capture on the caller's connection.
+    public static func run(
+        manifest: SQLiteBuildValidationManifest,
+        in database: Database,
+        observedDatabaseByteCount: Int? = nil,
+        observedDatabaseSHA256: String? = nil,
+        environment: SQLiteBuildValidationEnvironment = .init(),
+        capturesPlans: Bool
+    ) throws -> SQLiteBuildValidationRunResult {
         let validatedManifest = try manifest.validating()
 
         var runtimeMetadata: SQLiteBuildValidationRuntimeMetadata?
@@ -167,7 +236,7 @@ public enum SQLiteBuildValidator {
                 )
             }
         }
-        return SQLiteBuildValidationReport(
+        let report = SQLiteBuildValidationReport(
             manifest: validatedManifest,
             observedDatabaseByteCount: observedDatabaseByteCount,
             observedDatabaseSHA256: observedDatabaseSHA256,
@@ -175,6 +244,27 @@ public enum SQLiteBuildValidator {
             environmentEvidence: environment,
             diagnostics: reportDiagnostics,
             outcomes: outcomes
+        )
+
+        // Deliberately after the report is complete, and reading none of it:
+        // plan capture is a second pass over the same manifest and the same
+        // connection, and it has nothing to say about correctness.
+        guard capturesPlans else {
+            return SQLiteBuildValidationRunResult(report: report, planReport: nil)
+        }
+        let planReport = SQLiteBuildValidationPlanCapture.capture(
+            manifest: validatedManifest,
+            in: database,
+            runtimeMetadata: runtimeMetadata,
+            observedDatabaseByteCount: observedDatabaseByteCount,
+            observedDatabaseSHA256: observedDatabaseSHA256,
+            skippedReason: hasSchemaIdentityMismatch
+                ? "Plan capture was skipped because the database snapshot's schema identity does not match the manifest."
+                : nil
+        )
+        return SQLiteBuildValidationRunResult(
+            report: report,
+            planReport: planReport
         )
     }
 }

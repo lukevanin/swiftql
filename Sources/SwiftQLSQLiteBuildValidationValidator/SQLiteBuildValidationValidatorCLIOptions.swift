@@ -8,10 +8,37 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
     public let databaseURL: URL?
     public let manifestURL: URL?
     public let outputURL: URL?
+    /// Where to write the advisory plan sidecar (#394), or `nil` when plan
+    /// capture was not requested. Opt-in, so a run that does not ask for
+    /// plans pays nothing for them.
+    public let planOutputURL: URL?
     public let codecIdentifiers: [String]
     public let extensionNames: [String]
     public let capabilityIDs: [String]
     public let showsHelp: Bool
+
+    /// Spelled out rather than left to the synthesized memberwise
+    /// initializer, so `planOutputURL` can default to "no plan capture" and a
+    /// caller that never asks for plans need not mention them.
+    public init(
+        databaseURL: URL?,
+        manifestURL: URL?,
+        outputURL: URL?,
+        planOutputURL: URL? = nil,
+        codecIdentifiers: [String] = [],
+        extensionNames: [String] = [],
+        capabilityIDs: [String] = [],
+        showsHelp: Bool = false
+    ) {
+        self.databaseURL = databaseURL
+        self.manifestURL = manifestURL
+        self.outputURL = outputURL
+        self.planOutputURL = planOutputURL
+        self.codecIdentifiers = codecIdentifiers
+        self.extensionNames = extensionNames
+        self.capabilityIDs = capabilityIDs
+        self.showsHelp = showsHelp
+    }
 
     public static func parse(
         arguments: [String],
@@ -23,6 +50,7 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         var databasePath: String?
         var manifestPath: String?
         var outputPath: String?
+        var planOutputPath: String?
         var codecIdentifiers: [String] = []
         var extensionNames: [String] = []
         var capabilityIDs: [String] = []
@@ -61,6 +89,8 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
                 try assignOnce(&manifestPath, option: argument)
             case "--output":
                 try assignOnce(&outputPath, option: argument)
+            case "--plan-output":
+                try assignOnce(&planOutputPath, option: argument)
             case "--codec":
                 codecIdentifiers.append(try value(after: argument))
             case "--extension":
@@ -95,6 +125,9 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
             outputURL: outputPath.map {
                 resolvedURL(path: $0, currentDirectory: currentDirectory)
             },
+            planOutputURL: planOutputPath.map {
+                resolvedURL(path: $0, currentDirectory: currentDirectory)
+            },
             codecIdentifiers: sqliteBuildValidationSortedUnique(codecIdentifiers),
             extensionNames: sqliteBuildValidationSortedUnique(extensionNames),
             capabilityIDs: sqliteBuildValidationSortedUnique(capabilityIDs),
@@ -123,19 +156,25 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         public let databaseURL: URL
         public let manifestURL: URL
         public let outputURL: URL
+        /// Present exactly when the run captures plans.
+        public let planOutputURL: URL?
         public let environment: SQLiteBuildValidationEnvironment
 
         public init(
             databaseURL: URL,
             manifestURL: URL,
             outputURL: URL,
+            planOutputURL: URL? = nil,
             environment: SQLiteBuildValidationEnvironment
         ) {
             self.databaseURL = databaseURL
             self.manifestURL = manifestURL
             self.outputURL = outputURL
+            self.planOutputURL = planOutputURL
             self.environment = environment
         }
+
+        public var capturesPlans: Bool { planOutputURL != nil }
     }
 
     /// Settles these options into help or a run.
@@ -161,6 +200,7 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
             databaseURL: databaseURL,
             manifestURL: manifestURL,
             outputURL: outputURL,
+            planOutputURL: planOutputURL,
             environment: SQLiteBuildValidationEnvironment(
                 codecIdentifiers: codecIdentifiers,
                 extensionNames: extensionNames,
@@ -175,6 +215,8 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
           --database <path>      Checked-in SQLite snapshot to open read-only
           --manifest <path>      Codable build-validation manifest (#292)
           --output <path>        Deterministic JSON report destination
+          --plan-output <path>   Advisory query-plan sidecar destination
+                                 (omit to skip plan capture entirely)
           --codec <identity>     Available codec identity (repeatable)
           --extension <name>     Registered extension name (repeatable)
           --capability <id>      Explicit caller-owned capability (repeatable)
@@ -192,12 +234,14 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         databaseURL: URL,
         manifestURL: URL,
         outputURL: URL,
+        planOutputURL: URL? = nil,
         fileManager: FileManager = .default
     ) throws {
         try SQLiteBuildValidationOutputSafetyPreflight.check(
             databaseURL: databaseURL,
             manifestURL: manifestURL,
             outputURL: outputURL,
+            planOutputURL: planOutputURL,
             fileManager: fileManager
         )
     }
@@ -224,6 +268,9 @@ public enum SQLiteBuildValidationValidatorCLIError:
     case unknownOption(String)
     case outputConflictsWithInput(String)
     case outputConflictsWithDatabaseSidecar
+    case planOutputConflictsWithInput(String)
+    case planOutputConflictsWithDatabaseSidecar
+    case planOutputConflictsWithReportOutput
 
     public var description: String {
         switch self {
@@ -239,6 +286,12 @@ public enum SQLiteBuildValidationValidatorCLIError:
             return "--output must not identify the same file as \(option)."
         case .outputConflictsWithDatabaseSidecar:
             return "--output must not use a SQLite sidecar path adjacent to --database."
+        case .planOutputConflictsWithInput(let option):
+            return "--plan-output must not identify the same file as \(option)."
+        case .planOutputConflictsWithDatabaseSidecar:
+            return "--plan-output must not use a SQLite sidecar path adjacent to --database."
+        case .planOutputConflictsWithReportOutput:
+            return "--plan-output must not identify the same file as --output."
         }
     }
 }
