@@ -50,6 +50,8 @@ public final class XLQueryObserver<Row>: ObservableObject {
 
     private var cancellable: AnyCancellable?
 
+    private let delivery = XLMainThreadDelivery()
+
     public init(_ request: any XLRequest<Row>) {
         subscribe(to: request.publish())
     }
@@ -59,15 +61,16 @@ public final class XLQueryObserver<Row>: ObservableObject {
     }
 
     private func subscribe(to publisher: AnyPublisher<[Row], Error>) {
+        let delivery = delivery
         cancellable = publisher
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure(let error) = completion {
-                        xlOnMainThread { self?.error = error }
+                        delivery.deliver { self?.error = error }
                     }
                 },
                 receiveValue: { [weak self] rows in
-                    xlOnMainThread { self?.rows = rows }
+                    delivery.deliver { self?.rows = rows }
                 }
             )
     }
@@ -89,6 +92,8 @@ public final class XLQueryRowObserver<Row>: ObservableObject {
 
     private var cancellable: AnyCancellable?
 
+    private let delivery = XLMainThreadDelivery()
+
     public init(_ request: any XLRequest<Row>) {
         subscribe(to: request.publishOne())
     }
@@ -98,35 +103,56 @@ public final class XLQueryRowObserver<Row>: ObservableObject {
     }
 
     private func subscribe(to publisher: AnyPublisher<Row?, Error>) {
+        let delivery = delivery
         cancellable = publisher
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure(let error) = completion {
-                        xlOnMainThread { self?.error = error }
+                        delivery.deliver { self?.error = error }
                     }
                 },
                 receiveValue: { [weak self] row in
-                    xlOnMainThread { self?.row = row }
+                    delivery.deliver { self?.row = row }
                 }
             )
     }
 }
 
 
-/// Runs `body` on the main thread: at once when the caller is already there, otherwise
-/// asynchronously on the main queue.
+/// Applies one subscription's deliveries on the main thread, in the order they arrive.
 ///
 /// This replaces an unconditional `.receive(on: DispatchQueue.main)` (issue #652). A GRDB-backed
 /// `publish()` already delivers on the main queue, so that operator only added a second hop. An
 /// external ``XLRequest`` conformer schedules its own publisher, so an off-main value still has to
-/// be moved to the main queue before it touches `@Published` state. A conformer that delivers on the
-/// main thread for some values and off it for others can see those two groups interleave; one that
-/// keeps to a single thread keeps its order.
-private func xlOnMainThread(_ body: @escaping () -> Void) {
-    if Thread.isMainThread {
-        body()
-    }
-    else {
-        DispatchQueue.main.async(execute: body)
+/// be moved to the main queue before it touches `@Published` state.
+///
+/// A delivery on the main thread runs at once only when no earlier delivery is still queued.
+/// Otherwise it queues behind that delivery. So a publisher that changes threads cannot have an
+/// older off-main value overwrite a newer main-thread value. Combine sends a subscriber one event
+/// at a time, so `deliver(_:)` is never called concurrently for one subscription.
+private final class XLMainThreadDelivery: @unchecked Sendable {
+
+    private let lock = NSLock()
+
+    private var queuedCount = 0
+
+    func deliver(_ body: @escaping () -> Void) {
+        lock.lock()
+        let runsNow = Thread.isMainThread && queuedCount == 0
+        if !runsNow {
+            queuedCount += 1
+        }
+        lock.unlock()
+
+        if runsNow {
+            body()
+            return
+        }
+        DispatchQueue.main.async { [self] in
+            body()
+            lock.lock()
+            queuedCount -= 1
+            lock.unlock()
+        }
     }
 }

@@ -121,6 +121,42 @@ private struct OffMainPublishingRequest: XLRequest {
 }
 
 
+/// An external `XLRequest` conformer whose values the test sends by hand, from any thread
+/// (issue #652).
+private struct SubjectPublishingRequest: XLRequest {
+
+    let rowsSubject = PassthroughSubject<[Int], Error>()
+
+    let rowSubject = PassthroughSubject<Int?, Error>()
+
+    mutating func set<T>(
+        parameter reference: XLNamedBindingReference<Optional<T>>,
+        value: T?
+    ) where T: XLBindable {}
+
+    mutating func set<T>(
+        parameter reference: XLNamedBindingReference<T>,
+        value: T
+    ) where T: XLBindable {}
+
+    func fetchAll() throws -> [Int] {
+        []
+    }
+
+    func fetchOne() throws -> Int? {
+        nil
+    }
+
+    func publish() -> AnyPublisher<[Int], Error> {
+        rowsSubject.eraseToAnyPublisher()
+    }
+
+    func publishOne() -> AnyPublisher<Int?, Error> {
+        rowSubject.eraseToAnyPublisher()
+    }
+}
+
+
 private final class PublisherLockedValue<Value>: @unchecked Sendable {
 
     private let lock = NSLock()
@@ -1268,6 +1304,38 @@ final class XLPublisherTests: XCTestCase {
         wait(for: [rowsExpectation, rowExpectation], timeout: 2)
         XCTAssertEqual(rowsOnMain.read(), [true])
         XCTAssertEqual(rowOnMain.read(), [true])
+    }
+
+    /// A newer main-thread value must not be overwritten by an older off-main value (issue #652).
+    ///
+    /// This test method holds the main thread, so the observer's main-queue dispatch for the
+    /// off-main value 1 cannot run yet. The main-thread value 2 then arrives. It must queue behind
+    /// value 1 instead of being applied first, or value 1 would land last and win. A background
+    /// thread sends value 1 and the test waits on a semaphore for that send. `DispatchQueue.sync`
+    /// would be wrong here, because it can run the block on the calling (main) thread.
+    func testQueryObserversKeepDeliveryOrderAcrossThreads() {
+        XCTAssertTrue(Thread.isMainThread)
+        let request = SubjectPublishingRequest()
+        let rowsObserver = XLQueryObserver(request)
+        let rowObserver = XLQueryRowObserver(request)
+
+        let sentOffMain = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async {
+            request.rowsSubject.send([1])
+            request.rowSubject.send(1)
+            sentOffMain.signal()
+        }
+        sentOffMain.wait()
+        request.rowsSubject.send([2])
+        request.rowSubject.send(2)
+
+        let drained = expectation(description: "main queue drained")
+        DispatchQueue.main.async {
+            drained.fulfill()
+        }
+        wait(for: [drained], timeout: 2)
+        XCTAssertEqual(rowsObserver.rows, [2])
+        XCTAssertEqual(rowObserver.row, 2)
     }
 
     // MARK: - Helpers

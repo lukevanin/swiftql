@@ -93,7 +93,3 @@ What the compiler does not catch:
   when you change a page.
 - **A new API worth teaching.** Nothing prompts you to add a page. Adding one
   is a judgement call at the point the API ships, not a maintenance task.
-
-One constraint the pages work around is recorded in `Examples/README.md`:
-nullable columns cannot be assigned in a `Setting` closure. If it is fixed, the
-workaround and the note explaining it should go.
