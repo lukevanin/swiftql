@@ -6,15 +6,17 @@ import XCTest
 import SwiftQL
 
 
-// Issue #651: `@SQLTable` accepts a column whose type has no `XLLiteral` conformance, such as
+// Issue #651: `@SQLTable` accepts a column whose type has no `XLEncodable` conformance, such as
 // a `Date` that only a contextual codec can encode. The generated v1 `MetaInsert(row)` and
 // `UpdateRequest.makeUpdate()` paths used to trap on such a value. They now record a typed
 // `XLSQLValueEncodingError` on the builder, so preparation throws before SQLite sees the
 // statement.
 //
-// The column uses a file-private value type rather than `Date`: every test target shares one
-// test process, and the legacy SQLTests suite retroactively conforms `Date` to
-// `XLCustomType`, which the bridge's dynamic `XLEncodable` cast would then find.
+// The column uses a file-private value type rather than `Date`. `Package.swift` keeps this
+// target from *compiling* against SQLTests, but `swift test` loads every test target into one
+// `SwiftQLPackageTests` bundle, so at run time the bridge's dynamic `as? any XLEncodable` cast
+// still finds SQLTests' retroactive `extension Date: XLCustomType`. A `Date` column therefore
+// encodes as a literal in this process instead of reaching the failure path.
 
 
 private struct ContextualOnlyStamp: Equatable {
@@ -22,9 +24,35 @@ private struct ContextualOnlyStamp: Equatable {
 }
 
 
+private enum ContextualOnlyStampCodecError: Error {
+    case invalidValue
+}
+
+
+/// A real contextual codec for the column, so the fixture is a valid codec-only column rather
+/// than an unsupported type.
+private let contextualOnlyStampCodec = XLValueCodec<ContextualOnlyStamp, XLSQLiteDialect>(
+    key: XLValueCodecKey(id: "tests.contextual-only-legacy-write.stamp", version: 1),
+    valueTypeIdentifier: XLValueTypeIdentifier(rawValue: "tests.contextual-only-stamp"),
+    dialectIdentifier: XLSQLiteDialect.identity,
+    storageIdentifier: XLValueStorageIdentifier(rawValue: "integer"),
+    encode: { value, _, _ in
+        .integer(Int64(value.seconds))
+    },
+    decode: { value, _, _ in
+        guard case .integer(let seconds) = value else {
+            throw ContextualOnlyStampCodecError.invalidValue
+        }
+        return ContextualOnlyStamp(seconds: Int(seconds))
+    }
+)
+
+
 @SQLTable(name: "ContextualOnlyLegacyWriteRecord")
 private struct ContextualOnlyLegacyWriteRecord: Equatable {
     let id: Int
+
+    @SQLCodec(contextualOnlyStampCodec.identity.key)
     var recordedAt: ContextualOnlyStamp
 }
 
@@ -36,12 +64,17 @@ final class ContextualOnlyLegacyWriteGRDBTests: XCTestCase {
     )
 
     private var fixture: TemporaryDatabaseFixture!
+    private var configuration: XLValueCodingConfiguration!
     private var database: GRDBDatabase!
 
     override func setUpWithError() throws {
         fixture = try TemporaryDatabaseFixture.make(named: "contextual-only-legacy-write")
+        configuration = try XLValueCodingConfiguration(
+            registry: try XLValueCodecRegistry().registering(contextualOnlyStampCodec)
+        )
         database = try GRDBDatabase(
             databasePool: fixture.pool,
+            codingConfiguration: configuration,
             formatter: XLiteFormatter(),
             logger: nil
         )
@@ -50,7 +83,7 @@ final class ContextualOnlyLegacyWriteGRDBTests: XCTestCase {
                 sql: """
                     CREATE TABLE ContextualOnlyLegacyWriteRecord (
                         id INTEGER NOT NULL,
-                        recordedAt TEXT NOT NULL
+                        recordedAt INTEGER NOT NULL
                     )
                     """
             )
@@ -59,6 +92,7 @@ final class ContextualOnlyLegacyWriteGRDBTests: XCTestCase {
 
     override func tearDown() {
         database = nil
+        configuration = nil
         fixture?.tearDown()
         fixture = nil
     }
@@ -69,12 +103,28 @@ final class ContextualOnlyLegacyWriteGRDBTests: XCTestCase {
         }
     }
 
+    func testFixtureColumnIsAValidCodecOnlyColumn() throws {
+        // The declared codec resolves through the database's configuration and encodes the
+        // value, so the column is usable through the static-layout path.
+        let table = XLSchema().table(ContextualOnlyLegacyWriteRecord.self, as: "record")
+        let field = try ContextualOnlyLegacyWriteRecord.staticResultField(
+            recordedAt: table.recordedAt,
+            storedAs: Int.self,
+            identifiedBy: XLQuerySlotIdentity(
+                path: ["tests", "contextual-only-legacy-write", "recorded-at"]
+            ),
+            using: database.dialect,
+            configuration: configuration
+        )
+        XCTAssertEqual(field.selectedCodecIdentity?.key, contextualOnlyStampCodec.identity.key)
+    }
+
     func testErrorMessageNamesTheValueTypeAndTheStaticLayoutPath() {
         XCTAssertEqual(
             XLSQLValueEncodingError.contextualOnlyValueInLegacyWrite(
                 valueType: "Foundation.Date"
             ).errorDescription,
-            "Cannot write Foundation.Date through the v1 MetaInsert/MetaUpdate path: it is a contextual-only SQL value with no XLLiteral conformance. Encode the row through XLStaticRowLayout instead."
+            "Cannot write Foundation.Date through the v1 MetaInsert/MetaUpdate path: the type does not conform to XLEncodable, so only a contextual codec can encode it. Encode the row through XLStaticRowLayout instead."
         )
     }
 
@@ -113,7 +163,7 @@ final class ContextualOnlyLegacyWriteGRDBTests: XCTestCase {
     func testUpdateRequestMakeUpdateWithContextualOnlyColumnThrowsTypedError() throws {
         try fixture.pool.write { db in
             try db.execute(
-                sql: "INSERT INTO ContextualOnlyLegacyWriteRecord (id, recordedAt) VALUES (1, 'original')"
+                sql: "INSERT INTO ContextualOnlyLegacyWriteRecord (id, recordedAt) VALUES (1, 42)"
             )
         }
         let request = ContextualOnlyLegacyWriteRecord.UpdateRequest(
@@ -134,8 +184,8 @@ final class ContextualOnlyLegacyWriteGRDBTests: XCTestCase {
             XCTAssertEqual(error as? XLSQLValueEncodingError, Self.expectedError)
         }
         let stored = try fixture.pool.read { db in
-            try String.fetchOne(db, sql: "SELECT recordedAt FROM ContextualOnlyLegacyWriteRecord")
+            try Int.fetchOne(db, sql: "SELECT recordedAt FROM ContextualOnlyLegacyWriteRecord")
         }
-        XCTAssertEqual(stored, "original")
+        XCTAssertEqual(stored, 42)
     }
 }

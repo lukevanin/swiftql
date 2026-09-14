@@ -65,7 +65,7 @@ public enum XLSQLValueEncodingError:
         case .realBindingWouldBecomeNull(let value, let valueType, let context):
             return "Cannot bind \(value) from \(valueType) at \(context): SQLite would normalize the value to SQL NULL."
         case .contextualOnlyValueInLegacyWrite(let valueType):
-            return "Cannot write \(valueType) through the v1 MetaInsert/MetaUpdate path: it is a contextual-only SQL value with no XLLiteral conformance. Encode the row through XLStaticRowLayout instead."
+            return "Cannot write \(valueType) through the v1 MetaInsert/MetaUpdate path: the type does not conform to XLEncodable, so only a contextual codec can encode it. Encode the row through XLStaticRowLayout instead."
         }
     }
 }
