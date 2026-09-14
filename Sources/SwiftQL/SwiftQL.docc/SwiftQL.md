@@ -167,3 +167,4 @@ replacing SQLite's runtime type rules.
 - <doc:CustomTypes>
 - <doc:NumericDateCodecs>
 - <doc:GenericTableParameters>
+- <doc:QueryPlanAdvice>

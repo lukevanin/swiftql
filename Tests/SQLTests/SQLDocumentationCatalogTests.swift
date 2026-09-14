@@ -184,7 +184,9 @@ final class SQLDocumentationCatalogTests: XCTestCase {
 
         XCTAssertEqual(
             Set(articleURLs.map(\.lastPathComponent)),
-            Set(expectedMarkerByFile.keys).union(sourceExcerptArticles),
+            Set(expectedMarkerByFile.keys)
+                .union(sourceExcerptArticles)
+                .union(commandReferenceArticles),
             "Update the documentation example registry when the source catalog changes."
         )
         XCTAssertEqual(
@@ -198,7 +200,8 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         )
 
         for articleURL in articleURLs.sorted(by: { $0.path < $1.path })
-        where !sourceExcerptArticles.contains(articleURL.lastPathComponent) {
+        where !sourceExcerptArticles.contains(articleURL.lastPathComponent)
+            && !commandReferenceArticles.contains(articleURL.lastPathComponent) {
             let contents = try String(contentsOf: articleURL, encoding: .utf8)
             try assertExampleCoverage(
                 in: contents,
@@ -232,6 +235,125 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     /// differently because the code lives somewhere this target cannot reach.
     private var sourceExcerptArticles: Set<String> {
         ["TodoDemo.md"]
+    }
+
+    /// Articles that document command-line tools and file formats rather than
+    /// Swift API, so they carry no Swift examples to compile.
+    ///
+    /// `QueryPlanAdvice.md` describes `swiftql-build-validate`'s plan options,
+    /// the build-tool plugin's opt-in file, and `swiftql-index-advisor`. Its
+    /// examples are shell invocations and JSON, and the drift check that fits
+    /// them is against the option parsers: every option the parsers accept must
+    /// appear in the article.
+    private var commandReferenceArticles: Set<String> {
+        ["QueryPlanAdvice.md"]
+    }
+
+    func testCommandReferenceArticlesCarryNoSwiftExamples() throws {
+        for article in commandReferenceArticles.sorted() {
+            let contents = try String(
+                contentsOf: try documentationCatalogURL().appendingPathComponent(article),
+                encoding: .utf8
+            )
+            var insideFence = false
+            for (offset, line) in contents.components(separatedBy: .newlines).enumerated() {
+                let lineNumber = offset + 1
+                if insideFence {
+                    if line == "```" {
+                        insideFence = false
+                    }
+                    continue
+                }
+                XCTAssertFalse(
+                    line.hasPrefix("<!-- test:"),
+                    "\(article):\(lineNumber) has a test marker but no Swift example to map it to."
+                )
+                guard line.hasPrefix("```") else {
+                    continue
+                }
+                let language = String(line.dropFirst(3))
+                XCTAssertTrue(
+                    ["sql", "text"].contains(language),
+                    "\(article):\(lineNumber) has code-fence language '\(language)'. A command reference article uses sql or text."
+                )
+                insideFence = true
+            }
+            XCTAssertFalse(insideFence, "\(article) has an unterminated code fence.")
+        }
+    }
+
+    /// Every option the validator and the index advisor parse is named in the
+    /// plan advice article, with the plugin's file names, so an option added to
+    /// either command cannot ship undocumented.
+    func testQueryPlanAdviceNamesEveryPlanOptionAndFile() throws {
+        let root = try repositoryRootURL()
+        let article = try String(
+            contentsOf: try documentationCatalogURL().appendingPathComponent("QueryPlanAdvice.md"),
+            encoding: .utf8
+        )
+        let optionPattern = try NSRegularExpression(pattern: #"case "(--[a-z-]+)""#)
+
+        func parsedOptions(in path: String) throws -> Set<String> {
+            let source = try String(
+                contentsOf: root.appendingPathComponent(path),
+                encoding: .utf8
+            )
+            let range = NSRange(source.startIndex ..< source.endIndex, in: source)
+            return Set(optionPattern.matches(in: source, range: range).compactMap { match in
+                Range(match.range(at: 1), in: source).map { String(source[$0]) }
+            })
+        }
+
+        let validatorOptions = try parsedOptions(
+            in: "Sources/SwiftQLSQLiteBuildValidationValidator/SQLiteBuildValidationValidatorCLIOptions.swift"
+        ).filter { $0.hasPrefix("--plan-") || $0 == "--verify-index-candidates" }
+        XCTAssertEqual(
+            validatorOptions,
+            [
+                "--plan-output",
+                "--plan-suppressions",
+                "--plan-scan-row-threshold",
+                "--verify-index-candidates",
+            ],
+            "The validator's plan options changed. Update QueryPlanAdvice.md and this list."
+        )
+        let advisorOptions = try parsedOptions(
+            in: "Sources/SwiftQLSQLiteIndexAdvisor/SQLiteIndexAdvisorCLI.swift"
+        ).subtracting(["--help"])
+        XCTAssertFalse(advisorOptions.isEmpty, "No swiftql-index-advisor options were found.")
+
+        for option in validatorOptions.union(advisorOptions).sorted() {
+            XCTAssertTrue(
+                article.contains("`\(option)"),
+                "QueryPlanAdvice.md does not document \(option)."
+            )
+        }
+
+        let plugin = try String(
+            contentsOf: root.appendingPathComponent(
+                "Plugins/SwiftQLSQLiteBuildValidationPlugin/Plugin.swift"
+            ),
+            encoding: .utf8
+        )
+        for fileName in [
+            "swiftql-plan-analysis.json",
+            "swiftql-plan-analysis-report.json",
+        ] {
+            XCTAssertTrue(plugin.contains("\"\(fileName)\""), "The plugin no longer uses \(fileName).")
+            XCTAssertTrue(article.contains("`\(fileName)`"), "QueryPlanAdvice.md does not name \(fileName).")
+        }
+
+        for phrase in [
+            "\"format_version\": 1",
+            "`query_id`",
+            "`table`",
+            "`reason`",
+            "`swiftql-index-improvement-rule-v2`",
+            "The default is 500.",
+            "`index_recommendations`",
+        ] {
+            XCTAssertTrue(article.contains(phrase), "QueryPlanAdvice.md is missing '\(phrase)'.")
+        }
     }
 
     func testSourceExcerptArticlesQuoteTheirSourcesVerbatim() throws {

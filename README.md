@@ -283,7 +283,7 @@ explicit list of the places the correspondence is not exact.
   `jsonGroupArray` and `jsonGroupObject`, and address any of it with
   `XLJSONPath` instead of a path string. The JSONB variants read and write
   SQLite's binary representation.
-- **[Query plans and index advice](COMPATIBILITY.md).**
+- **[Query plans and index advice](https://lukevanin.github.io/swiftql/documentation/swiftql/queryplanadvice/).**
   The same build-tool plugin can capture what SQLite plans to do with each
   declared query, warn about full scans and sorts it has to materialize, and
   name the index that removes them. Every recommendation is proved first, by
