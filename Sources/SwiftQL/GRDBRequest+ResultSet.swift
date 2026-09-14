@@ -33,15 +33,17 @@ extension GRDBRequest {
     /// buffered beyond the one row currently being decoded.
     ///
     /// A `RETURNING` request (`requiresWriteConnection`) is the one
-    /// exception: `RETURNING` rows are produced as SQLite steps through the
-    /// data-changing statement itself, so stepping only part of the cursor
-    /// would commit a write that only partially ran. Decoding lazily could
-    /// silently apply an incomplete `UPDATE`/`DELETE`/`INSERT` if the caller
-    /// stopped calling `next()` early. To keep that impossible, a
-    /// `RETURNING` request decodes every row eagerly inside its transaction
-    /// -- exactly like `fetchAll(bindings:)` -- before handing the
-    /// already-decoded rows to the caller through the same lazy `next()`
-    /// surface. Non-`RETURNING` requests are unaffected and stream lazily.
+    /// exception. It changes the database, and a pooled reader connection is
+    /// read-only, so it must run in a transaction on the writer connection.
+    /// Streaming it lazily would hold that writer, and the transaction, open
+    /// across every `next()` call in the caller's code. So a `RETURNING`
+    /// request decodes every row eagerly inside its transaction -- exactly
+    /// like `fetchAll(bindings:)` -- before handing the already-decoded rows
+    /// to the caller through the same lazy `next()` surface. Stopping early
+    /// would not leave a partial write in any case: SQLite applies every
+    /// change of the statement during its first step, and the later steps only
+    /// return the `RETURNING` rows (issue #643). Non-`RETURNING` requests are
+    /// unaffected and stream lazily.
     ///
     func withResultSet<Result>(
         bindings: any XLInvocationBindingPacket,

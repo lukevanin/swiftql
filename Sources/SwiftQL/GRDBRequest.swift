@@ -30,11 +30,15 @@ struct GRDBRequest<Row>: XLRequest {
     
     let reader: any XLRowReadable<Row>
 
-    /// A `RETURNING` statement writes as it reads, so its rows must be decoded
-    /// on a write connection inside a transaction; a plain query reads on a
-    /// read-only connection. Observation is unsupported in the write mode
-    /// because re-running a data-changing statement on every database change is
-    /// never the intended behavior.
+    /// A `RETURNING` statement changes the database, and a pooled reader
+    /// connection is read-only, so every fetch of its rows -- `fetchAll`,
+    /// `fetchOne`, `fetchAtMost`, and `withResultSet` -- runs in a transaction
+    /// on the writer connection (issue #643). SQLite applies all of the
+    /// statement's changes during its first step; the later steps only return
+    /// the `RETURNING` rows. A plain query reads on a read-only connection.
+    /// Observation is unsupported in the write mode because re-running a
+    /// data-changing statement on every database change is never the intended
+    /// behavior.
     let requiresWriteConnection: Bool
 
     let liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy

@@ -234,6 +234,107 @@ final class XLDataChangingExecutionTests: XCTestCase {
         XCTAssertEqual(try allTestRows(), [])
     }
 
+    // MARK: - fetchAtMost (issue #643)
+
+    /// The invocation packet for a request whose statement declares no
+    /// parameters.
+    private func emptyPacket<Row>(
+        for request: any XLRequest<Row>
+    ) throws -> any XLInvocationBindingPacket {
+        try XLInvocationBindings<XLSQLiteValue>(
+            layout: request.parameterLayout,
+            bindings: []
+        ).validatingComplete()
+    }
+
+    private func insertRows(_ rows: [TestTable]) throws {
+        for row in rows {
+            try database.makeRequest(with: sqlInsert(row)).execute()
+        }
+    }
+
+    /// `fetchAtMost` on a plain query reads on a pooled reader and returns at
+    /// most `limit` rows.
+    func testFetchAtMostOnAReadStatementReturnsAtMostLimitRows() throws {
+        try createUniqueTestTable()
+        try insertRows([
+            TestTable(id: "a", value: 1),
+            TestTable(id: "b", value: 2),
+            TestTable(id: "c", value: 3),
+        ])
+        let statement = sql { schema in
+            let t = schema.table(TestTable.self)
+            Select(t)
+            From(t)
+            OrderBy(t.id.ascending())
+        }
+        let request = database.makeRequest(with: statement)
+        let packet = try emptyPacket(for: request)
+
+        XCTAssertEqual(try request.fetchAtMost(0, bindings: packet), [])
+        XCTAssertEqual(
+            try request.fetchAtMost(2, bindings: packet),
+            [TestTable(id: "a", value: 1), TestTable(id: "b", value: 2)]
+        )
+        XCTAssertEqual(try request.fetchAtMost(5, bindings: packet).count, 3)
+    }
+
+    /// A `RETURNING` request changes the database, so `fetchAtMost` must run on
+    /// the writer inside a transaction, as `fetchAll` does. Before issue #643
+    /// it ran on a pooled reader, which is read-only, and the statement failed.
+    /// Reading fewer rows than the statement returns still applies the whole
+    /// statement, because SQLite makes every change during the first step.
+    func testFetchAtMostOnAReturningStatementRunsOnTheWriterAndAppliesTheWholeStatement() throws {
+        try createUniqueTestTable()
+        try insertRows([
+            TestTable(id: "a", value: 1),
+            TestTable(id: "b", value: 2),
+            TestTable(id: "c", value: 3),
+        ])
+        let schema = XLSchema()
+        let t = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let statement = delete(t)
+            .where(t.value >= 1)
+            .returning(projection)
+        let request = database.makeRequest(with: statement)
+
+        let deleted = try request.fetchAtMost(1, bindings: try emptyPacket(for: request))
+
+        XCTAssertEqual(deleted.count, 1)
+        XCTAssertEqual(try allTestRows(), [], "every matching row must be deleted, not only the row read")
+    }
+
+    /// `@SQLQuery` generates `fetchAtMost(2, bindings:)` and a count check for
+    /// a bare-row return (`.exactlyOne`). The macro renders an
+    /// `XLQueryStatement`, and `XLReturningStatement` does not refine it, so a
+    /// declaration cannot hold a `RETURNING` statement. This runs the generated
+    /// fetch shape against a `RETURNING` request on a `DatabasePool` instead,
+    /// which is the call issue #643 fixes.
+    func testExactlyOneFetchShapeOverAReturningStatementSucceedsOnADatabasePool() throws {
+        try createUniqueTestTable()
+        try insertRows([
+            TestTable(id: "a", value: 1),
+            TestTable(id: "b", value: 2),
+        ])
+        let schema = XLSchema()
+        let t = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let statement = update(t)
+            .set { row in row.value = 99 }
+            .where(t.id == "a")
+            .returning(projection)
+        let request = database.makeRequest(with: statement)
+
+        let rows = try request.fetchAtMost(2, bindings: try emptyPacket(for: request))
+
+        XCTAssertEqual(rows, [TestTable(id: "a", value: 99)], "exactly one row, as `.exactlyOne` requires")
+        XCTAssertEqual(
+            try allTestRows(),
+            [TestTable(id: "a", value: 99), TestTable(id: "b", value: 2)]
+        )
+    }
+
     // MARK: - UPDATE ... RETURNING
 
     func testUpdateReturningYieldsUpdatedRows() throws {
