@@ -244,6 +244,9 @@ table APIs remain the v1 compatibility path. Their `XLLiteral` behavior,
 including `wrapSQL`, is unchanged. Contextual-only properties compile in
 generated metadata, but must use a static layout for value encoding and row
 decoding instead of the v1 `MetaInsert`/`MetaUpdate` and introspection path.
+Writing one through `Values(row)` or `UpdateRequest.makeUpdate()` throws
+`XLSQLValueEncodingError.contextualOnlyValueInLegacyWrite(valueType:)`; see
+<doc:CustomTypes>.
 
 ## Select a nested composite property
 

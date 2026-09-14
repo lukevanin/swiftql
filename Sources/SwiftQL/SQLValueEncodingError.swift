@@ -51,12 +51,21 @@ public enum XLSQLValueEncodingError:
         context: XLValueCodingContext
     )
 
+    /// A generated v1 `MetaInsert` or `MetaUpdate` value (for example from
+    /// `Values(row)` or `UpdateRequest.makeUpdate()`) holds a value whose type
+    /// does not conform to `XLEncodable`, such as a `Date` column that only a
+    /// contextual codec can encode. The v1 path has no codec context, so the
+    /// row must be encoded through `XLStaticRowLayout` instead.
+    case contextualOnlyValueInLegacyWrite(valueType: String)
+
     public var errorDescription: String? {
         switch self {
         case .nonFiniteRealLiteral(let value, let expressionType):
             return "Cannot render \(value) from \(expressionType) as an inline SQLite real literal. SQLite has no valid bare numeric token for this value; use a bound parameter when its SQLite binding semantics are acceptable."
         case .realBindingWouldBecomeNull(let value, let valueType, let context):
             return "Cannot bind \(value) from \(valueType) at \(context): SQLite would normalize the value to SQL NULL."
+        case .contextualOnlyValueInLegacyWrite(let valueType):
+            return "Cannot write \(valueType) through the v1 MetaInsert/MetaUpdate path: it is a contextual-only SQL value with no XLLiteral conformance. Encode the row through XLStaticRowLayout instead."
         }
     }
 }

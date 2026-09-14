@@ -438,6 +438,16 @@ way an explicit `XLValueCodecSelection` fails elsewhere in this
 document -- with the same `XLValueCodecError` cases, at the same "explicit"
 precedence tier, before any row is touched.
 
+A column whose type needs a contextual codec, such as `filedAt: Date`, cannot
+be written through the v1 generated write helpers. `Values(row)`,
+`sqlInsert(row)`, and `UpdateRequest.makeUpdate()` carry no codec context, so
+preparing such a statement throws
+`XLSQLValueEncodingError.contextualOnlyValueInLegacyWrite(valueType:)` before
+SQLite sees it. The macro cannot detect this at compile time, because a
+read-only table with the same column is valid. Encode the row through its
+`staticRowLayout(using:...)` instead, and bind the encoded values to the
+`INSERT` or `UPDATE` statement.
+
 ## JSON `Codable` columns
 
 SQLite has no native JSON column type. It stores JSON as `TEXT` or `BLOB`
