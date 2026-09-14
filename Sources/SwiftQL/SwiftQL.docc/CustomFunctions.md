@@ -122,6 +122,12 @@ SwiftQL does not install the same function twice on one connection. SQLite treat
 installation as a change to the function: it expires every prepared statement on that
 connection, and it fails while a result set is open on the connection.
 
+SQLite identifies a function by its name and argument count only, and SwiftQL follows it:
+two `XLCustomFunction` types with the same `definition` are the same SQLite function, and they
+are interchangeable. The first one SwiftQL installs on a connection serves every statement on
+that connection that calls either type. Give functions with different behaviour different
+names.
+
 If a connection already has a function with the same name and argument count that your
 application installed itself -- with `builder.addFunction(_:)` or your own
 `Configuration.prepareDatabase(_:)` hook -- SwiftQL uses that function and does not install a

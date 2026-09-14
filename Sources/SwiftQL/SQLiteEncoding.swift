@@ -417,8 +417,11 @@ final class XLiteCustomFunctionRegistry {
     /// Records `registration`, keeping what earlier registrations of the same
     /// signature retain.
     ///
-    /// The latest registration still decides which function is registered,
-    /// as before. Its retained values are merged rather than replaced, so a
+    /// The latest registration still decides which registration the statement
+    /// carries, as before. Registrations that share a signature are
+    /// interchangeable, and the driver installs a signature once per
+    /// connection, so this choice does not pick the implementation a
+    /// connection runs. Its retained values are merged rather than replaced, so a
     /// statement that matches two ``XLRegexPattern`` values keeps both alive,
     /// not only the last one rendered.
     func insert(_ registration: XLCustomFunctionRegistration) {

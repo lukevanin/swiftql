@@ -832,6 +832,11 @@ struct GRDBDatabaseDriverConnection:
     /// application's own, from ``GRDBDatabaseBuilder/addFunction(_:)``, a `prepareDatabase` hook, or
     /// an extension it loaded -- nothing is replaced: SwiftQL records it and uses it.
     ///
+    /// The record is kept per signature, not per Swift type. Registrations that share a
+    /// ``XLCustomFunctionRegistration/definition`` are interchangeable, as that property documents,
+    /// so the first application ``XLCustomFunction`` installed for a signature serves every later
+    /// statement on the connection that calls any type with that signature.
+    ///
     /// - Throws: `XLDatabaseContractError.prepareFailure` when an install would replace a function
     ///   while a statement is active on the connection, or a preparation failure while reading a
     ///   marker.

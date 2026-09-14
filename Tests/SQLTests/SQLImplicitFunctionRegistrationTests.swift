@@ -140,6 +140,58 @@ private struct BuiltInCollidingLowerFunction: XLCustomFunction {
 }
 
 
+/// Two application functions that share one SQLite signature but behave differently. SQLite
+/// identifies a function by name and argument count only, so SwiftQL treats them as one function.
+private let sharedSignatureDefinition = XLCustomFunctionDefinition(
+    name: "sharedSignatureOffset",
+    numberOfArguments: 1
+)
+
+private struct SharedSignatureFirstFunction: XLCustomFunction {
+    typealias T = Int
+
+    static let definition = sharedSignatureDefinition
+
+    private let value: any XLExpression<Int>
+
+    init(_ value: any XLExpression<Int>) {
+        self.value = value
+    }
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { list in
+            list.listItem(expression: value.makeSQL)
+        }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> Int {
+        try reader.readInteger(at: 0) + 1000
+    }
+}
+
+private struct SharedSignatureSecondFunction: XLCustomFunction {
+    typealias T = Int
+
+    static let definition = sharedSignatureDefinition
+
+    private let value: any XLExpression<Int>
+
+    init(_ value: any XLExpression<Int>) {
+        self.value = value
+    }
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { list in
+            list.listItem(expression: value.makeSQL)
+        }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> Int {
+        try reader.readInteger(at: 0) + 2000
+    }
+}
+
+
 final class XLImplicitFunctionRegistrationTests: XCTestCase {
 
     private var databaseDirectoryURL: URL!
@@ -314,6 +366,25 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
 
         XCTAssertEqual(identifiers, ["a", "b"])
         XCTAssertEqual(doubled, [8, 10])
+    }
+
+    /// Registrations that share a signature are interchangeable, as
+    /// `XLCustomFunctionRegistration.definition` documents, and SwiftQL installs a signature once
+    /// per connection (issue #640). So the first type installed on a connection serves every later
+    /// statement there that calls a type with the same signature. One reader keeps every statement
+    /// on one connection. This pins the documented first-wins rule.
+    func testCustomFunctionsSharingASignatureAreInterchangeableAndTheFirstInstalledServesTheConnection() throws {
+        let database = try makeDatabase(maximumReaderCount: 1)
+        let first = sql { _ in Select(SharedSignatureFirstFunction(1)) }
+        let second = sql { _ in Select(SharedSignatureSecondFunction(1)) }
+
+        XCTAssertEqual(try database.makeRequest(with: first).fetchOne(), 1001)
+        XCTAssertEqual(
+            try database.makeRequest(with: second).fetchOne(),
+            1001,
+            "The first function installed for a signature serves the connection."
+        )
+        XCTAssertEqual(try database.makeRequest(with: first).fetchOne(), 1001)
     }
 
     /// A SQLite built-in is not the application's own function. An implicitly registered function
