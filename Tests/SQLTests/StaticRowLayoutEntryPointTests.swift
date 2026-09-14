@@ -7,6 +7,11 @@
 //  reader, and trapped, because a layout reads dialect values that the
 //  definition reader cannot supply.
 //
+//  The layouts here select plain columns only. The Swift 5.9 and 6.0
+//  compilers crash in SILGen when an opaque operator result such as
+//  `column + "suffix"` converts to the `any XLExpression<String>` parameter
+//  of the helper below, so the tests avoid that shape.
+//
 
 import Foundation
 import GRDB
@@ -99,10 +104,10 @@ final class StaticRowLayoutEntryPointRenderTests: XLSyntaxTestCase {
         let schema = XLSchema()
         let t = schema.table(TestTable.self)
         let layout = try testTableLayout(id: t.id, value: t.value)
-        let sql = encoder.makeSQL(
-            insert(t).values(TestTable(id: "a", value: 1)).returning(layout)
-        ).sql
-        XCTAssertTrue(sql.hasSuffix(" RETURNING id, value"), sql)
+        assertRenders(
+            insert(t).values(TestTable(id: "a", value: 1)).returning(layout),
+            as: "INSERT INTO Test AS t0 (id,value) VALUES ('a',1) RETURNING id, value"
+        )
     }
 
     func testUpdateReturning() throws {
@@ -110,10 +115,10 @@ final class StaticRowLayoutEntryPointRenderTests: XLSyntaxTestCase {
         let w = schema.into(TestTable.self)
         let projection = schema.table(TestTable.self)
         let layout = try testTableLayout(id: projection.id, value: projection.value)
-        let sql = encoder.makeSQL(
-            update(w).set { $0.value = 99 }.where(w.id == "a").returning(layout)
-        ).sql
-        XCTAssertTrue(sql.hasSuffix(" RETURNING id, value"), sql)
+        assertRenders(
+            update(w).set { $0.value = 99 }.where(w.id == "a").returning(layout),
+            as: "UPDATE Test AS t0 SET value = 99 WHERE (t0.id == 'a') RETURNING id, value"
+        )
     }
 
     func testDeleteReturning() throws {
@@ -121,10 +126,10 @@ final class StaticRowLayoutEntryPointRenderTests: XLSyntaxTestCase {
         let w = schema.into(TestTable.self)
         let projection = schema.table(TestTable.self)
         let layout = try testTableLayout(id: projection.id, value: projection.value)
-        let sql = encoder.makeSQL(
-            delete(w).where(w.id == "a").returning(layout)
-        ).sql
-        XCTAssertTrue(sql.hasSuffix(" RETURNING id, value"), sql)
+        assertRenders(
+            delete(w).where(w.id == "a").returning(layout),
+            as: "DELETE FROM Test AS t0 WHERE (t0.id == 'a') RETURNING id, value"
+        )
     }
 
     /// A generic caller that sees the layout only as `XLRowReadable` reaches
@@ -143,6 +148,8 @@ final class StaticRowLayoutEntryPointRenderTests: XLSyntaxTestCase {
 }
 
 
+/// Runs each entry point on SQLite and decodes the rows through the layout.
+/// Each test starts from one row, `("a", 1)`, in a new database.
 final class StaticRowLayoutEntryPointExecutionTests: XCTestCase {
 
     private var databasePool: DatabasePool!
@@ -157,6 +164,7 @@ final class StaticRowLayoutEntryPointExecutionTests: XCTestCase {
         databasePool = try DatabasePool(path: fileURL.path)
         database = try GRDBDatabase(databasePool: databasePool, formatter: formatter, logger: nil)
         try database.makeRequest(with: sqlCreate(TestTable.self)).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 1))).execute()
     }
 
     override func tearDown() {
@@ -164,80 +172,77 @@ final class StaticRowLayoutEntryPointExecutionTests: XCTestCase {
         databasePool = nil
     }
 
-    func testEveryEntryPointExecutesAndDecodesThroughTheLayout() throws {
-        // insert(...).returning(layout)
-        let insertSchema = XLSchema()
-        let insertTable = insertSchema.table(TestTable.self)
-        let insertLayout = try testTableLayout(id: insertTable.id, value: insertTable.value)
-        let inserted: [TestTable] = try database.makeRequest(
-            with: insert(insertTable).values(TestTable(id: "a", value: 1)).returning(insertLayout)
-        ).fetchAll()
-        XCTAssertEqual(inserted, [TestTable(id: "a", value: 1)])
+    func testFunctionalSelectExecutes() throws {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let layout = try testTableLayout(id: t.id, value: t.value)
+        let statement = select(layout).from(t)
+        let rows: [TestTable] = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows, [TestTable(id: "a", value: 1)])
+    }
 
-        // insert(...).select(layout)
-        let copySchema = XLSchema()
-        let copyTarget = copySchema.table(TestTable.self)
-        let copySource = copySchema.table(TestTable.self)
-        let copyLayout = try testTableLayout(
-            id: copySource.id + "-copy",
-            value: copySource.value + 1
-        )
-        try database.makeRequest(
-            with: insert(copyTarget).select(copyLayout).from(copySource).where(copySource.id == "a")
-        ).execute()
-
-        // select(layout)
-        let selectSchema = XLSchema()
-        let selectTable = selectSchema.table(TestTable.self)
-        let selectLayout = try testTableLayout(id: selectTable.id, value: selectTable.value)
-        let selected: [TestTable] = try database.makeRequest(
-            with: select(selectLayout).from(selectTable).orderBy(selectTable.id.ascending())
-        ).fetchAll()
-        XCTAssertEqual(selected, [TestTable(id: "a", value: 1), TestTable(id: "a-copy", value: 2)])
-
-        // with(...).select(layout)
-        let withSchema = XLSchema()
-        let cte = withSchema.commonTable { s in
+    func testWithSelectExecutes() throws {
+        let schema = XLSchema()
+        let cte = schema.commonTable { s in
             let t = s.table(TestTable.self)
-            return select(t).from(t).where(t.id == "a-copy")
+            return select(t).from(t)
         }
-        let withTable = withSchema.table(cte)
-        let withLayout = try testTableLayout(id: withTable.id, value: withTable.value)
-        let factored: [TestTable] = try database.makeRequest(
-            with: with(cte).select(withLayout).from(withTable)
-        ).fetchAll()
-        XCTAssertEqual(factored, [TestTable(id: "a-copy", value: 2)])
+        let t = schema.table(cte)
+        let layout = try testTableLayout(id: t.id, value: t.value)
+        let statement = with(cte).select(layout).from(t)
+        let rows: [TestTable] = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows, [TestTable(id: "a", value: 1)])
+    }
 
-        // QueryBuilder(select: layout)
-        let builderSchema = XLSchema()
-        let builderTable = builderSchema.table(TestTable.self)
-        let builderLayout = try testTableLayout(id: builderTable.id, value: builderTable.value)
-        let built: [TestTable] = try database.makeRequest(
-            with: QueryBuilder(select: builderLayout)
-                .from(builderTable)
-                .and(builderTable.id == "a")
-                .build()
-        ).fetchAll()
-        XCTAssertEqual(built, [TestTable(id: "a", value: 1)])
+    func testInsertSelectExecutes() throws {
+        let schema = XLSchema()
+        let target = schema.table(TestTable.self)
+        let source = schema.table(TestTable.self)
+        let layout = try testTableLayout(id: source.id, value: source.value)
+        let statement = insert(target).select(layout).from(source)
+        try database.makeRequest(with: statement).execute()
 
-        // update(...).returning(layout)
-        let updateSchema = XLSchema()
-        let updateTarget = updateSchema.into(TestTable.self)
-        let updateProjection = updateSchema.table(TestTable.self)
-        let updateLayout = try testTableLayout(id: updateProjection.id, value: updateProjection.value)
-        let updated: [TestTable] = try database.makeRequest(
-            with: update(updateTarget).set { $0.value = 99 }.where(updateTarget.id == "a").returning(updateLayout)
-        ).fetchAll()
-        XCTAssertEqual(updated, [TestTable(id: "a", value: 99)])
+        let readSchema = XLSchema()
+        let read = readSchema.table(TestTable.self)
+        let rows: [TestTable] = try database.makeRequest(with: select(read).from(read)).fetchAll()
+        XCTAssertEqual(rows, [TestTable(id: "a", value: 1), TestTable(id: "a", value: 1)])
+    }
 
-        // delete(...).returning(layout)
-        let deleteSchema = XLSchema()
-        let deleteTarget = deleteSchema.into(TestTable.self)
-        let deleteProjection = deleteSchema.table(TestTable.self)
-        let deleteLayout = try testTableLayout(id: deleteProjection.id, value: deleteProjection.value)
-        let deleted: [TestTable] = try database.makeRequest(
-            with: delete(deleteTarget).where(deleteTarget.id == "a-copy").returning(deleteLayout)
-        ).fetchAll()
-        XCTAssertEqual(deleted, [TestTable(id: "a-copy", value: 2)])
+    func testQueryBuilderInitSelectExecutes() throws {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let layout = try testTableLayout(id: t.id, value: t.value)
+        let statement = try QueryBuilder(select: layout).from(t).build()
+        let rows: [TestTable] = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows, [TestTable(id: "a", value: 1)])
+    }
+
+    func testInsertReturningExecutes() throws {
+        let schema = XLSchema()
+        let t = schema.table(TestTable.self)
+        let layout = try testTableLayout(id: t.id, value: t.value)
+        let statement = insert(t).values(TestTable(id: "b", value: 2)).returning(layout)
+        let rows: [TestTable] = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows, [TestTable(id: "b", value: 2)])
+    }
+
+    func testUpdateReturningExecutes() throws {
+        let schema = XLSchema()
+        let w = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let layout = try testTableLayout(id: projection.id, value: projection.value)
+        let statement = update(w).set { $0.value = 99 }.where(w.id == "a").returning(layout)
+        let rows: [TestTable] = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows, [TestTable(id: "a", value: 99)])
+    }
+
+    func testDeleteReturningExecutes() throws {
+        let schema = XLSchema()
+        let w = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let layout = try testTableLayout(id: projection.id, value: projection.value)
+        let statement = delete(w).where(w.id == "a").returning(layout)
+        let rows: [TestTable] = try database.makeRequest(with: statement).fetchAll()
+        XCTAssertEqual(rows, [TestTable(id: "a", value: 1)])
     }
 }

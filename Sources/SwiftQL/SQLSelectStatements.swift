@@ -70,10 +70,7 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
                 "SELECT projection \(String(reflecting: T.self)) could not "
                 + "enumerate its columns: \(error). Use a table or @SQLResult "
                 + "projection whose columns render against the definition "
-                + "reader. A static row layout must instead reach the "
-                + "XLStaticRowReadable overload of Select(_:), which skips "
-                + "this replay; erasing the layout to any XLRowReadable "
-                + "selects this initializer."
+                + "reader, or a static row layout."
             )
         }
         self.fields = reader

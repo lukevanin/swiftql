@@ -31,21 +31,27 @@ public struct Returning<Row>: XLEncodable, XLRowReadable {
     private let decode: (XLRowReader) throws -> Row
 
     ///
-    /// Creates a `RETURNING` clause projecting the columns described by the
-    /// given result metadata, for example a table reference obtained from
-    /// `XLSchema.table(_:)`.
-    ///
-    ///
     /// Creates a `RETURNING` clause from a static row layout.
     ///
     /// The layout's metadata names the columns, so the projection's `readRow`
     /// is not replayed. Rows decode through the layout.
+    ///
+    /// - Important: The clause renders only the layout's field aliases, not
+    ///   their expressions, because SQLite rejects qualified names in
+    ///   `RETURNING`. Each alias must therefore name a column of the target
+    ///   table. A computed field returns the stored column of that name, and a
+    ///   nested composite field, whose aliases have a prefix, fails to prepare.
     ///
     public init<T>(_ layout: T) where T: XLStaticRowReadable, T.Row == Row {
         self.columns = layout.metadata.fields.map { XLName($0.alias) }
         self.decode = layout.readRow
     }
 
+    ///
+    /// Creates a `RETURNING` clause projecting the columns described by the
+    /// given result metadata, for example a table reference obtained from
+    /// `XLSchema.table(_:)`.
+    ///
     public init<T>(_ result: T) where T: XLRowReadable, T.Row == Row {
         // A static row layout names its columns in its metadata. Use them
         // directly, also when the layout reaches this generic initializer
