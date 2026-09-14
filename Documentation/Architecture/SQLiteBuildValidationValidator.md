@@ -98,8 +98,10 @@ serialized format ever escapes the probe, and every statement is finalized
 exactly once on every path (success, inspection failure, or finalize
 failure).
 
-The manifest SQL is prepared verbatim, never under an `EXPLAIN` or
-`EXPLAIN QUERY PLAN` prefix. Apple's SQLite is built with
+The correctness pass prepares the manifest SQL verbatim, never under an
+`EXPLAIN` or `EXPLAIN QUERY PLAN` prefix; only the advisory plan capture
+(`--plan-output`) and index-candidate verification use that prefix, and neither
+decides a verdict. Apple's SQLite is built with
 `SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION`, which accepts a call to a function that
 does not exist when the statement is prepared under either prefix, so a
 correctness pass moved onto the plan probe's prefix would stop reporting an

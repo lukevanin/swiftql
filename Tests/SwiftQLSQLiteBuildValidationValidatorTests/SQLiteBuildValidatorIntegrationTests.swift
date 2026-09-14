@@ -168,7 +168,8 @@ final class SQLiteBuildValidatorIntegrationTests: XCTestCase {
     /// This is the behavioural half of the control. On a build without the
     /// option `EXPLAIN` rejects the call too, so this half alone cannot fail
     /// there; `testTheCorrectnessPassRecordsTheStatementsOwnShape` is the half
-    /// that fails on every build.
+    /// that fails on every build. The Linux CI cells build SQLite without the
+    /// option, so this half is guarded by the macOS compatibility cells.
     func testAStatementThatFailsPlainPreparationIsReportedAsAFailure() throws {
         let manifest = Support.manifest(queries: [
             Support.query(
@@ -240,6 +241,9 @@ final class SQLiteBuildValidatorIntegrationTests: XCTestCase {
             XCTAssertThrowsError(try SQLitePrepareV3Probe.prepare(sql: sql, in: database))
 
             let compileOptions = try String.fetchAll(database, sql: "PRAGMA compile_options")
+            // A build with SQLITE_OMIT_COMPILEOPTION_DIAGS reports nothing,
+            // which would read as "the option is off" and fail misleadingly.
+            XCTAssertFalse(compileOptions.isEmpty, "PRAGMA compile_options reported nothing")
             if compileOptions.contains("ENABLE_UNKNOWN_SQL_FUNCTION") {
                 XCTAssertNoThrow(
                     try SQLiteExplainQueryPlanProbe.rows(forSQL: sql, in: database)
