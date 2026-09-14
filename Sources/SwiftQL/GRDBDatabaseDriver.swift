@@ -370,8 +370,17 @@ struct GRDBInvocationExecutor: Sendable {
         var driver = driver
         let accessor: (inout GRDBDatabaseDriverConnection) throws -> Result = { connection in
             let statement = try self.boundStatement(packet: packet, in: &connection)
-            let stepper = try connection.makeValuesStepper(statement)
-            return try operation(stepper)
+            // The statement stays marked in use for all of `operation`, which
+            // can issue nested requests on this connection, and the mark is
+            // removed on the same return or throw that closes the result set.
+            // A nested request with the same SQL then prepares its own
+            // statement instead of resetting this cursor (issue #641).
+            return try GRDBOpenCursorStatements.shared.withOpenCursor(
+                on: statement.statement
+            ) {
+                let stepper = try connection.makeValuesStepper(statement)
+                return try operation(stepper)
+            }
         }
         if requiresWriteConnection {
             return try driver.withTransaction(accessor)
@@ -626,10 +635,20 @@ struct GRDBDatabaseDriverConnection:
         _ validatedStatement: XLValidatedLogicalPreparedStatement
     ) throws -> GRDBPhysicalStatement {
         let statement = validatedStatement.logicalStatement
+        // GRDB's cache hands back the same `Statement` instance for the same
+        // SQL on this connection. When a SwiftQL cursor is still stepping
+        // that instance -- a request nested inside a `withResultSet` callback
+        // on a transaction scope -- opening a second cursor on it would reset
+        // the outer cursor (issue #641). Prepare a private statement for the
+        // nested request instead, and keep the cache for every other call.
+        var physicalStatement = try database.cachedStatement(sql: statement.sql)
+        if GRDBOpenCursorStatements.shared.contains(physicalStatement) {
+            physicalStatement = try database.makeStatement(sql: statement.sql)
+        }
         return GRDBPhysicalStatement(
             logicalStatement: statement,
             connectionIdentifier: connectionIdentifier,
-            statement: try database.cachedStatement(sql: statement.sql),
+            statement: physicalStatement,
             bindings: [:]
         )
     }
@@ -707,14 +726,19 @@ struct GRDBDatabaseDriverConnection:
         // matrix; the eager `collectAllRows`/`collectFirstRow` compatibility
         // shims still build only the result they already contract to return.
         var values: [XLSQLiteValue] = []
-        while let row = try cursor.next() {
-            values.removeAll(keepingCapacity: true)
-            values.reserveCapacity(row.count)
-            for databaseValue in row.databaseValues {
-                values.append(databaseValue.sqliteDialectValue)
-            }
-            if try body(values) == .stop {
-                return
+        // `body` can issue a nested request on the same connection, so mark
+        // the statement in use until the loop ends; see
+        // `GRDBOpenCursorStatements`.
+        try GRDBOpenCursorStatements.shared.withOpenCursor(on: statement.statement) {
+            while let row = try cursor.next() {
+                values.removeAll(keepingCapacity: true)
+                values.reserveCapacity(row.count)
+                for databaseValue in row.databaseValues {
+                    values.append(databaseValue.sqliteDialectValue)
+                }
+                if try body(values) == .stop {
+                    return
+                }
             }
         }
     }
@@ -952,6 +976,79 @@ struct GRDBPhysicalStatement {
     fileprivate let statement: Statement
 
     fileprivate var bindings: [XLBindingKey: XLSQLiteValue]
+
+    /// Whether this and `other` wrap the same GRDB statement instance. Tests
+    /// use it to observe statement-cache reuse.
+    func sharesGRDBStatement(with other: GRDBPhysicalStatement) -> Bool {
+        statement === other.statement
+    }
+}
+
+
+///
+/// Records the GRDB statements that an open SwiftQL cursor is stepping
+/// (issue #641).
+///
+/// GRDB's statement cache belongs to one physical connection and returns the
+/// same `Statement` for the same SQL. Opening a cursor calls
+/// `prepareExecution(withArguments:)`, which resets that statement. A nested
+/// request with the same SQL on the same connection -- for example, a fetch
+/// inside a `withResultSet` callback on a transaction scope -- would
+/// therefore restart the outer cursor from the nested bindings, and the
+/// outer iteration would silently repeat, skip, or never finish.
+/// `GRDBDatabaseDriverConnection.preparePhysical` asks this record first and
+/// prepares an uncached statement only when the cached one is in use, so the
+/// ordinary path still uses the cache.
+///
+/// Keyed by statement identity, which also identifies the physical
+/// connection, because a cached statement belongs to exactly one connection.
+/// A key is recorded only while a cursor over the statement is open, and the
+/// cursor retains the statement for that whole time, so a recorded
+/// `ObjectIdentifier` cannot be reused by a different statement. The mark is
+/// always removed when the cursor's scope returns or throws, so an abandoned
+/// cursor or a throwing body cannot leave a statement marked.
+///
+final class GRDBOpenCursorStatements: @unchecked Sendable {
+
+    static let shared = GRDBOpenCursorStatements()
+
+    private let lock = NSLock()
+
+    /// Open-cursor count per statement. A count, not a set, so that marking
+    /// the same statement twice cannot unmark it early.
+    private var openCursorCounts: [ObjectIdentifier: Int] = [:]
+
+    private init() {}
+
+    /// Whether a SwiftQL cursor is stepping `statement` now.
+    func contains(_ statement: Statement) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return openCursorCounts[ObjectIdentifier(statement)] != nil
+    }
+
+    /// Marks `statement` in use for the duration of `body`, and always
+    /// removes the mark afterward -- including when `body` throws.
+    func withOpenCursor<Result>(
+        on statement: Statement,
+        _ body: () throws -> Result
+    ) rethrows -> Result {
+        let key = ObjectIdentifier(statement)
+        lock.lock()
+        openCursorCounts[key, default: 0] += 1
+        lock.unlock()
+        defer {
+            lock.lock()
+            if let count = openCursorCounts[key], count > 1 {
+                openCursorCounts[key] = count - 1
+            }
+            else {
+                openCursorCounts[key] = nil
+            }
+            lock.unlock()
+        }
+        return try body()
+    }
 }
 
 

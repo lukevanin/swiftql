@@ -290,6 +290,84 @@ final class GRDBDriverContractTests: XCTestCase {
         XCTAssertEqual(probe.invocationCount, countBeforeEmpty)
     }
 
+    /// Issue #641: with no cursor open, preparing the same SQL twice on one
+    /// physical connection reuses GRDB's cached statement. While a cursor
+    /// over that statement is open, a second connection value over the same
+    /// physical connection -- the shape a nested request on a transaction
+    /// scope has -- gets its own statement, and the cache is used again once
+    /// the cursor ends.
+    func testStatementCacheIsReusedUnlessAnOpenCursorIsSteppingTheCachedStatement() throws {
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        var driver = GRDBDatabaseDriver(
+            databasePool: fixture.pool,
+            dialect: XLSQLiteDialect()
+        )
+        let create = makeLogicalStatement(
+            for: driver,
+            sql: "CREATE TABLE cached_rows (id INTEGER PRIMARY KEY)"
+        )
+        let insert = makeLogicalStatement(
+            for: driver,
+            sql: "INSERT INTO cached_rows (id) VALUES (1), (2), (3)"
+        )
+        let select = makeLogicalStatement(
+            for: driver,
+            sql: "SELECT id FROM cached_rows ORDER BY id"
+        )
+        try driver.withWriteConnection { connection in
+            try connection.execute(connection.prepare(create))
+            try connection.execute(connection.prepare(insert))
+        }
+
+        try fixture.pool.read { database in
+            var outer = driver.makeConnection(database)
+            var nested = driver.makeConnection(database)
+
+            let first = try outer.prepare(select)
+            let second = try nested.prepare(select)
+            XCTAssertTrue(
+                first.sharesGRDBStatement(with: second),
+                "With no cursor open, the statement cache must be used."
+            )
+
+            var outerRows: [[XLSQLiteValue]] = []
+            try outer.forEachRow(first) { row in
+                outerRows.append(row)
+                // A reset outer cursor restarts forever; stop instead of hanging.
+                guard outerRows.count <= 3 else {
+                    XCTFail("The outer cursor restarted: a nested prepare reset its statement.")
+                    return .stop
+                }
+                let nestedStatement = try nested.prepare(select)
+                XCTAssertFalse(
+                    nestedStatement.sharesGRDBStatement(with: first),
+                    "A statement with an open cursor must not be handed to a nested request."
+                )
+                XCTAssertEqual(try nested.fetchAll(nestedStatement).count, 3)
+                return .advance
+            }
+            XCTAssertEqual(outerRows.map(\.first), [.integer(1), .integer(2), .integer(3)])
+
+            let afterCursor = try nested.prepare(select)
+            XCTAssertTrue(
+                afterCursor.sharesGRDBStatement(with: first),
+                "The open-cursor mark must be removed when the cursor ends."
+            )
+
+            XCTAssertThrowsError(
+                try outer.forEachRow(first) { _ in
+                    throw TransactionAbort.requested
+                }
+            )
+            XCTAssertTrue(
+                try nested.prepare(select).sharesGRDBStatement(with: first),
+                "A throwing body must not leave the statement marked."
+            )
+        }
+    }
+
     func testSharedSQLiteAffinityCasesAssertValueTypeAndState() throws {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }

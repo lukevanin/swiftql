@@ -239,6 +239,15 @@ never throws, whether called once, more than once, or after natural
 exhaustion -- but calling it does mean every later `next()` throws `.closed`
 from that point on, rather than continuing to return `nil`.
 
+To run another request while a result set is open, open the result set on the
+scope of `withTransaction(_:)` (see "Grouping work in a transaction" below),
+and issue the nested request on that same scope. The nested request then runs
+on the connection the result set already holds, and it can even repeat the
+same query with different bindings without disturbing the outer rows. Do not
+issue a nested request on the root `database` inside a `withResultSet(_:)`
+callback: that request asks the pool for a second database access from inside
+the first, which GRDB does not allow and which can stop the process.
+
 Prefer `fetchAll()` when every row is needed as a complete, retained array, or
 when the array-processing conveniences (`map`, `filter`, `count`, sorting, ...)
 matter more than incremental decoding. Prefer `withResultSet(_:)` when the
