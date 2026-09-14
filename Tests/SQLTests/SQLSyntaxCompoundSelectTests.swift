@@ -324,6 +324,27 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
             return XCTFail("Expected conflictingParameterKey, received \(String(describing: encoding.parameterLayoutError))")
         }
         XCTAssertEqual(key, .named("p0"))
+        XCTAssertTrue(
+            encoding.parameterLayoutError?.errorDescription?.contains("XLSchema(parent:)") ?? false
+        )
+
+        // With two different Swift types, the declaration conflict is found
+        // first and keeps the real incoming slot.
+        let textBinding = XLSchema().binding(of: String.self)
+        let mixedTable = outerSchema.table(TestTable.self)
+        let mixed = encoder.makeSQL(
+            select(outer)
+                .from(mixedTable)
+                .where(mixedTable.id == textBinding)
+        )
+        switch mixed.parameterLayoutError {
+        case .conflictingParameterIndex(_, let existing, let incoming),
+             .conflictingParameterKey(_, let existing, let incoming):
+            XCTAssertEqual(existing.valueTypeName, "Swift.Int")
+            XCTAssertEqual(incoming.valueTypeName, "Swift.String")
+        default:
+            XCTFail("Expected a declaration conflict, received \(String(describing: mixed.parameterLayoutError))")
+        }
         XCTAssertThrowsError(try encoder.makeValidatedSQL(select(outer + inner)))
 
         // The same reference used twice is one parameter, not a collision.

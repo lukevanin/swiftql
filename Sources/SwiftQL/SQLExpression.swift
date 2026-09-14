@@ -318,9 +318,6 @@ public struct XLNamedBindingReference<T>: XLBindingReference, Sendable where T: 
     }
 
     public func makeSQL(context: inout XLBuilder) {
-        if let origin, let recorder = context as? any XLBindingOriginRecording {
-            recorder.recordBindingOrigin(origin, key: .named(name.rawValue))
-        }
         T.wrapSQL(context: &context) { context in
             context.parameter(
                 _xlLegacyParameterDeclaration(
@@ -328,6 +325,13 @@ public struct XLNamedBindingReference<T>: XLBindingReference, Sendable where T: 
                     key: .named(name.rawValue)
                 )
             )
+        }
+        // Check the origin after the parameter is recorded, so a declaration
+        // conflict (for example two different Swift types) keeps its real
+        // incoming slot, and only identical declarations reach the origin
+        // check.
+        if let origin, let recorder = context as? any XLBindingOriginRecording {
+            recorder.recordBindingOrigin(origin, key: .named(name.rawValue))
         }
     }
 }
