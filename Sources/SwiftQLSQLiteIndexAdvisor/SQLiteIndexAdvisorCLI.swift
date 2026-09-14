@@ -276,8 +276,13 @@ public enum SQLiteIndexAdvisorRunner {
         // Byte equality above only proves a no-op. Before replacing anything,
         // prove the file is one this command generated: a hand-maintained
         // schema file at the same path would otherwise vanish silently.
+        // A directory is not a file anyone wrote by hand, and telling the
+        // caller to pass --force would be wrong advice: the atomic write
+        // below fails on it with a filesystem error naming the path.
+        var outputIsDirectory: ObjCBool = false
         if !options.forces,
-           FileManager.default.fileExists(atPath: outputURL.path),
+           FileManager.default.fileExists(atPath: outputURL.path, isDirectory: &outputIsDirectory),
+           !outputIsDirectory.boolValue,
            !SQLiteIndexAdvisorArtifact.carriesGeneratedHeader(at: outputURL) {
             throw SQLiteIndexAdvisorError.outputNotGenerated(path: outputURL.path)
         }

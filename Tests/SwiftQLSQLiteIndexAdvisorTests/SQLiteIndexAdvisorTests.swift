@@ -320,6 +320,30 @@ final class SQLiteIndexAdvisorTests: XCTestCase {
             }
             XCTAssertEqual(try Data(contentsOf: outputURL), handWritten)
 
+            // The same file with CRLF line endings. "\r\n" is one Swift
+            // Character, so a split on "\n" alone would read the whole file
+            // as its first line and find the marker.
+            let handWrittenCRLF = Data(
+                "CREATE TABLE Hand (id INTEGER PRIMARY KEY);\r\n-- \(SQLiteIndexAdvisorArtifact.generatedHeaderMarker)\r\n".utf8
+            )
+            try handWrittenCRLF.write(to: outputURL)
+            XCTAssertFalse(SQLiteIndexAdvisorArtifact.carriesGeneratedHeader(at: outputURL))
+            XCTAssertThrowsError(
+                try SQLiteIndexAdvisorRunner.run(
+                    options: SQLiteIndexAdvisorOptions(
+                        planReportURL: planURL,
+                        outputURL: outputURL,
+                        applies: true
+                    )
+                )
+            ) { error in
+                XCTAssertEqual(
+                    error as? SQLiteIndexAdvisorError,
+                    .outputNotGenerated(path: outputURL.path)
+                )
+            }
+            XCTAssertEqual(try Data(contentsOf: outputURL), handWrittenCRLF)
+
             // --force replaces it once; afterwards the file carries the
             // header, so later runs need no flag.
             let forced = try SQLiteIndexAdvisorRunner.run(

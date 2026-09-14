@@ -71,20 +71,7 @@ package enum SQLiteBuildValidationOutputSafetyPreflight {
         // Checked the same way the input checks above are: by path, and then
         // by device and inode, because two different paths hard-linked to one
         // file are the same file and only identity catches that.
-        let reportIdentityURL = identityURL(for: outputURL, fileManager: fileManager)
-        let planIdentityURL = identityURL(for: planOutputURL, fileManager: fileManager)
-        guard reportIdentityURL.path != planIdentityURL.path else {
-            throw SQLiteBuildValidationValidatorCLIError.planOutputConflictsWithReportOutput
-        }
-        if let reportFileIdentity = existingFileIdentity(
-               at: reportIdentityURL,
-               fileManager: fileManager
-           ),
-           let planFileIdentity = existingFileIdentity(
-               at: planIdentityURL,
-               fileManager: fileManager
-           ),
-           reportFileIdentity == planFileIdentity {
+        if identifiesSameFile(outputURL, planOutputURL, fileManager: fileManager) {
             throw SQLiteBuildValidationValidatorCLIError.planOutputConflictsWithReportOutput
         }
     }
@@ -131,10 +118,6 @@ package enum SQLiteBuildValidationOutputSafetyPreflight {
             for: outputURL,
             fileManager: fileManager
         )
-        let outputFileIdentity = existingFileIdentity(
-            at: outputIdentityURL,
-            fileManager: fileManager
-        )
         let databasePaths = [
             databaseURL.path,
             identityURL(for: databaseURL, fileManager: fileManager).path,
@@ -162,23 +145,9 @@ package enum SQLiteBuildValidationOutputSafetyPreflight {
         if let planSuppressionsURL {
             protectedInputs.append(("--plan-suppressions", planSuppressionsURL))
         }
-        for (option, inputURL) in protectedInputs {
-            let inputIdentityURL = identityURL(
-                for: inputURL,
-                fileManager: fileManager
-            )
-            if outputIdentityURL.path == inputIdentityURL.path {
-                throw errors.inputConflict(option)
-            }
-
-            if let outputFileIdentity,
-               let inputFileIdentity = existingFileIdentity(
-                   at: inputIdentityURL,
-                   fileManager: fileManager
-               ),
-               outputFileIdentity == inputFileIdentity {
-                throw errors.inputConflict(option)
-            }
+        for (option, inputURL) in protectedInputs
+        where identifiesSameFile(outputURL, inputURL, fileManager: fileManager) {
+            throw errors.inputConflict(option)
         }
     }
 

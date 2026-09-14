@@ -34,11 +34,10 @@ public enum SQLiteIndexAdvisorArtifact {
               let text = String(data: data, encoding: .utf8) else {
             return false
         }
-        let firstLine = text.split(
-            separator: "\n",
-            maxSplits: 1,
-            omittingEmptySubsequences: false
-        ).first ?? ""
+        // Any newline ends the line. Swift reads "\r\n" as one Character that
+        // is not "\n", so splitting on "\n" alone would treat a whole CRLF
+        // file as its first line and accept a marker further down.
+        let firstLine = text.prefix(while: { !$0.isNewline })
         return firstLine.hasPrefix("-- ") && firstLine.contains(generatedHeaderMarker)
     }
 
