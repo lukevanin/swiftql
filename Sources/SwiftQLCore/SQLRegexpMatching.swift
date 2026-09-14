@@ -2,8 +2,9 @@
 //  SQLRegexpMatching.swift
 //  SwiftQLCore
 //
-//  Matching a SQLite REGEXP pattern with Swift `Regex`, and compiling each
-//  pattern once per statement instead of once per row.
+//  Matching a SQLite REGEXP pattern with Swift `Regex`, and keeping compiled
+//  patterns for the life of one physical connection's `regexp` install, up
+//  to a bounded number, instead of compiling once per row.
 //
 //  Adapter-neutral on purpose (issue #615). The SQLite function this backs is
 //  registered by the GRDB adapter at runtime and by the build validator on its

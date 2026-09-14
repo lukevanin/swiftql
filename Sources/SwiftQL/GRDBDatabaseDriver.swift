@@ -965,8 +965,12 @@ struct GRDBDatabaseDriverConnection:
             else {
                 continue
             }
-            if let argumentCount = row["narg"] as Int?,
-               argumentCount != definition.numberOfArguments {
+            guard let argumentCount = row["narg"] as Int? else {
+                // No argument count to tell the overloads apart: read the name as registered,
+                // so the application's function is never replaced on a guess.
+                return .installedOnConnection
+            }
+            guard argumentCount == definition.numberOfArguments else {
                 continue
             }
             guard (row["builtin"] as Int?) == 1 else {
