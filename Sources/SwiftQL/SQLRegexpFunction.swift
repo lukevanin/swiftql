@@ -43,6 +43,12 @@ import GRDB
 ///   without a fixed column type, so a TEXT column can hold an integer; TEXT
 ///   and UTF-8 BLOB are both read as text, and any other storage class is an
 ///   error rather than a silent conversion.
+/// - **An oversized operand raises** `XLRegexpLengthLimitError`. A pattern
+///   string longer than `XLRegexpMatcher.maximumPatternLength` or a subject
+///   longer than `XLRegexpMatcher.maximumSubjectLength` is refused before it
+///   is compiled or matched, never truncated. The limits reduce how long one
+///   match can run, but they do not stop an exponential pattern, so validate
+///   a pattern that comes from untrusted input.
 ///
 /// ## Cost
 ///

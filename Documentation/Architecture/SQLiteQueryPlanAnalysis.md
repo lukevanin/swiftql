@@ -335,7 +335,18 @@ therefore gets its own disposable copy:
   in the system temporary directory the OS reclaims, never in the source
   tree.
 - Afterwards, the pinned snapshot's byte count and SHA-256 are compared to
-  what they were before. A difference is an error, not a warning.
+  what they were before. A difference is an error, not a warning: the
+  verifier rethrows `snapshotChangedDuringVerification`, and the run fails
+  with that named error. The comparison runs even when a candidate's
+  verification throws, and once more for the whole pass against a baseline
+  taken before the first candidate, so a change between two candidates is
+  caught as well.
+- A scratch copy that cannot be set up — a refused location, a temporary
+  directory that cannot be created, a copy that cannot be opened — does not
+  fail the run. Its candidate is reported unverified with a path-free reason,
+  and the validator prints one `plan.scratch-setup-failed` warning per such
+  candidate, with the full description, so the build log says why no advice
+  was produced. The sidecar never carries the path.
 - **One copy per candidate**, so one candidate's index can never change the
   plan another is judged by.
 
@@ -403,7 +414,11 @@ silently is indistinguishable from one that was never generated, and the reason
 it failed is often the more useful half of the answer.
 
 A candidate that could not be verified at all is likewise reported unverified.
-It is never recommended.
+It is never recommended. When the cause is the scratch copy itself rather than
+the statement, the reason says so without naming a path, and a
+`plan.scratch-setup-failed` warning in the build log names the full cause. The
+one failure that is not a reason at all is a pinned snapshot that changed
+during verification: that fails the run.
 
 ### Still advisory
 

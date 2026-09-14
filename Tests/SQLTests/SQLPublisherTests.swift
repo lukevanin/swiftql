@@ -10,6 +10,7 @@ import Foundation
 import Combine
 #else
 import OpenCombine
+import OpenCombineDispatch
 #endif
 import XCTest
 import GRDB
@@ -76,6 +77,45 @@ struct UpdateTest {
         request.set(Self.idParameter, id)
         request.set(Self.valueParameter, value)
         try request.execute()
+    }
+}
+
+
+/// An external `XLRequest` conformer whose values the test sends by hand, from any thread. The
+/// protocol allows this: publisher scheduling is adapter-specific (issue #652).
+///
+/// `@unchecked Sendable` because the tests send through it from a background queue. It holds only
+/// two `PassthroughSubject`s, which serialize their own sends.
+private struct SubjectPublishingRequest: XLRequest, @unchecked Sendable {
+
+    let rowsSubject = PassthroughSubject<[Int], Error>()
+
+    let rowSubject = PassthroughSubject<Int?, Error>()
+
+    mutating func set<T>(
+        parameter reference: XLNamedBindingReference<Optional<T>>,
+        value: T?
+    ) where T: XLBindable {}
+
+    mutating func set<T>(
+        parameter reference: XLNamedBindingReference<T>,
+        value: T
+    ) where T: XLBindable {}
+
+    func fetchAll() throws -> [Int] {
+        []
+    }
+
+    func fetchOne() throws -> Int? {
+        nil
+    }
+
+    func publish() -> AnyPublisher<[Int], Error> {
+        rowsSubject.eraseToAnyPublisher()
+    }
+
+    func publishOne() -> AnyPublisher<Int?, Error> {
+        rowSubject.eraseToAnyPublisher()
     }
 }
 
@@ -1188,6 +1228,86 @@ final class XLPublisherTests: XCTestCase {
         try insertDirect(TestTable(id: "first", value: 1))
         wait(for: [updateExpectation], timeout: 2)
         XCTAssertNil(observer.error)
+    }
+
+    /// The observers keep their main-thread boundary for an external conformer (issue #652).
+    ///
+    /// `XLRequest` leaves publisher scheduling adapter-specific. The values here are sent from a
+    /// background thread, so each one reaches the observer off the main thread. The observer must
+    /// still change its `@Published` state on the main thread. `wait(for:)` pumps the main run
+    /// loop, which lets the observer's main-queue dispatch run.
+    ///
+    /// The values are sent only after both `$rows` and `$row` sinks are attached. Otherwise an
+    /// off-main write could finish before a sink subscribes, and `@Published` would then replay the
+    /// stored value to that sink on the main thread -- a regression would pass unseen.
+    func testQueryObserversApplyOffMainValuesOnTheMainThread() {
+        let request = SubjectPublishingRequest()
+        let rowsObserver = XLQueryObserver(request)
+        let rowObserver = XLQueryRowObserver(request)
+        let rowsOnMain = PublisherLockedValue<[Bool]>([])
+        let rowOnMain = PublisherLockedValue<[Bool]>([])
+        let rowsExpectation = expectation(description: "rows applied")
+        let rowExpectation = expectation(description: "row applied")
+        rowsExpectation.assertForOverFulfill = false
+        rowExpectation.assertForOverFulfill = false
+
+        rowsObserver.$rows
+            .sink { rows in
+                if rows == [7, 8] {
+                    rowsOnMain.withValue { $0.append(Thread.isMainThread) }
+                    rowsExpectation.fulfill()
+                }
+            }
+            .store(in: &cancellables)
+        rowObserver.$row
+            .sink { row in
+                if row == 7 {
+                    rowOnMain.withValue { $0.append(Thread.isMainThread) }
+                    rowExpectation.fulfill()
+                }
+            }
+            .store(in: &cancellables)
+
+        DispatchQueue.global().async {
+            request.rowsSubject.send([7, 8])
+            request.rowSubject.send(7)
+        }
+
+        wait(for: [rowsExpectation, rowExpectation], timeout: 2)
+        XCTAssertEqual(rowsOnMain.read(), [true])
+        XCTAssertEqual(rowOnMain.read(), [true])
+    }
+
+    /// A newer main-thread value must not be overwritten by an older off-main value (issue #652).
+    ///
+    /// This test method holds the main thread, so the observer's main-queue dispatch for the
+    /// off-main value 1 cannot run yet. The main-thread value 2 then arrives. It must queue behind
+    /// value 1 instead of being applied first, or value 1 would land last and win. A background
+    /// thread sends value 1 and the test waits on a semaphore for that send. `DispatchQueue.sync`
+    /// would be wrong here, because it can run the block on the calling (main) thread.
+    func testQueryObserversKeepDeliveryOrderAcrossThreads() {
+        XCTAssertTrue(Thread.isMainThread)
+        let request = SubjectPublishingRequest()
+        let rowsObserver = XLQueryObserver(request)
+        let rowObserver = XLQueryRowObserver(request)
+
+        let sentOffMain = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async {
+            request.rowsSubject.send([1])
+            request.rowSubject.send(1)
+            sentOffMain.signal()
+        }
+        sentOffMain.wait()
+        request.rowsSubject.send([2])
+        request.rowSubject.send(2)
+
+        let drained = expectation(description: "main queue drained")
+        DispatchQueue.main.async {
+            drained.fulfill()
+        }
+        wait(for: [drained], timeout: 2)
+        XCTAssertEqual(rowsObserver.rows, [2])
+        XCTAssertEqual(rowObserver.row, 2)
     }
 
     // MARK: - Helpers

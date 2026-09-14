@@ -168,14 +168,41 @@ extension XLExpression {
 /// reason this is a distinct type: a plain binary-operator node records nothing,
 /// so before issue #612 the operator rendered SQL that SQLite could not prepare.
 ///
+/// When the right operand is an ``XLRegexPattern``, the node also holds the
+/// pattern, and records it on the registration, so the statement and every
+/// request rendered from it keep the registration alive. The registry holds a
+/// pattern weakly, so without this a pattern built as a local was released as
+/// soon as the statement was built, and the statement then failed at
+/// execution with `unregisteredPattern` (issue #646).
+///
 struct XLRegexpExpression<T>: XLExpression {
 
     let lhs: any XLExpression
 
     let rhs: any XLExpression
 
+    /// The pattern whose key `rhs` renders, or `nil` for a pattern string.
+    let pattern: XLRegexPattern?
+
+    init(lhs: any XLExpression, rhs: any XLExpression) {
+        self.lhs = lhs
+        self.rhs = rhs
+        self.pattern = nil
+    }
+
+    init(lhs: any XLExpression, pattern: XLRegexPattern) {
+        self.lhs = lhs
+        self.rhs = pattern.key
+        self.pattern = pattern
+    }
+
     func makeSQL(context: inout XLBuilder) {
-        context.customFunction(.bundledRegexp)
+        if let pattern {
+            context.customFunction(.bundledRegexp.retaining([pattern]))
+        }
+        else {
+            context.customFunction(.bundledRegexp)
+        }
         context.parenthesis { context in
             context.binaryOperator("REGEXP", left: lhs.makeSQL, right: rhs.makeSQL)
         }
@@ -232,17 +259,18 @@ extension XLExpression {
     ///
     /// A compiled `Regex` cannot be sent to SQLite, so the statement carries
     /// the pattern's key instead and the bundled `regexp` function resolves it.
-    /// The key names a registration in this process, so hold the
-    /// `XLRegexPattern` for as long as statements using it can execute, and
-    /// do not build a static query descriptor from such a statement. Both rules
-    /// are described on `XLRegexPattern`.
+    /// The statement holds the `XLRegexPattern`, and so does every request
+    /// made from it, so the pattern stays registered for as long as either can
+    /// execute. The key names a registration in this process, so do not build
+    /// a static query descriptor from such a statement. Both rules are
+    /// described on `XLRegexPattern`.
     ///
     public func regexp(_ pattern: XLRegexPattern) -> some XLExpression<Bool> where T == String {
-        regexp(pattern.key)
+        XLRegexpExpression<Bool>(lhs: self, pattern: pattern)
     }
 
     public func regexp(_ pattern: XLRegexPattern) -> some XLExpression<Optional<Bool>> where T == Optional<String> {
-        regexp(pattern.key)
+        XLRegexpExpression<Optional<Bool>>(lhs: self, pattern: pattern)
     }
 }
 

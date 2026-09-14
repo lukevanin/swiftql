@@ -766,6 +766,8 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "it never wraps the property",
             "a generated `staticResultField(_:...)` convenience per annotated",
             "`@SQLCodec` selects among registered codecs, it does not",
+            "cannot\nbe written through the v1 generated write helpers",
+            "`XLSQLValueEncodingError.contextualOnlyValueInLegacyWrite(valueType:)` before",
         ] {
             XCTAssertTrue(
                 contents.contains(semanticPhrase),

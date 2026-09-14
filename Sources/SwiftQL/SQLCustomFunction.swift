@@ -67,14 +67,38 @@ public struct XLCustomFunctionRegistration: Sendable {
 
     let makeDatabaseFunction: @Sendable () -> DatabaseFunction
 
+    /// Values the rendered statement depends on for as long as it can execute.
+    ///
+    /// Held, never read. The encoding carries registrations to every request
+    /// and prepared invocation made from it, so a value stored here lives as
+    /// long as the longest of those. `REGEXP` stores each ``XLRegexPattern``
+    /// the statement matches against here: the pattern registry holds a
+    /// pattern weakly, and the rendered SQL carries only its key (issue #646).
+    let retainedValues: [any Sendable]
+
     init(
         definition: XLCustomFunctionDefinition,
         defersToExistingRegistration: Bool = false,
+        retainedValues: [any Sendable] = [],
         makeDatabaseFunction: @escaping @Sendable () -> DatabaseFunction
     ) {
         self.definition = definition
         self.defersToExistingRegistration = defersToExistingRegistration
+        self.retainedValues = retainedValues
         self.makeDatabaseFunction = makeDatabaseFunction
+    }
+
+    /// This registration, additionally holding `values`.
+    ///
+    /// The function registered is unchanged: only what the registration keeps
+    /// alive grows.
+    func retaining(_ values: [any Sendable]) -> XLCustomFunctionRegistration {
+        XLCustomFunctionRegistration(
+            definition: definition,
+            defersToExistingRegistration: defersToExistingRegistration,
+            retainedValues: retainedValues + values,
+            makeDatabaseFunction: makeDatabaseFunction
+        )
     }
 
     /// Every function SwiftQL supplies itself, by its SQLite signature.

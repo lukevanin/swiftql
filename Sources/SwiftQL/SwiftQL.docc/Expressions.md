@@ -297,6 +297,8 @@ SwiftQL's:
 | `NULL` on either side | `NULL` |
 | Invalid pattern | An error naming the pattern |
 | An argument that is neither TEXT nor a UTF-8 BLOB | An error |
+| A pattern string longer than 1,024 UTF-8 bytes | `XLRegexpLengthLimitError` |
+| A subject longer than 16,384 UTF-8 bytes | `XLRegexpLengthLimitError` |
 
 Searching rather than matching the whole subject is what the widely used
 `regexp` extensions for SQLite do, and what PostgreSQL's `~` operator does.
@@ -305,6 +307,29 @@ Searching rather than matching the whole subject is what the widely used
 
 A pattern is compiled once per statement execution, not once per row, so a
 scan over a large table pays one compile and then only matches.
+
+#### Patterns from untrusted input
+
+Validate a `REGEXP` pattern that comes from untrusted input, such as a search
+field, before it reaches a statement. The match runs inside a SQLite function
+callback, where SQLite never checks for an interrupt, so a statement cannot be
+cancelled while one row is being matched. A pattern with nested quantifiers,
+such as `(a+)+$`, backtracks exponentially: in one measurement, a match against
+25 characters did not finish within 400 seconds.
+
+SwiftQL bounds the input size. The bundled function refuses a pattern string
+longer than `XLRegexpMatcher.maximumPatternLength` (1,024 UTF-8 bytes) and a
+subject longer than `XLRegexpMatcher.maximumSubjectLength` (16,384 UTF-8
+bytes). It throws `XLRegexpLengthLimitError`, which the statement reports as an
+execution error. It never truncates either operand, and a pattern and subject
+within the limits match exactly as before.
+
+A length bound reduces how long one match can run, but it does not remove
+catastrophic backtracking. A quadratic pattern such as `.*x` stays within
+seconds at the subject limit. An exponential pattern needs only a few dozen
+characters, which is far within the limit. Accept only the pattern syntax your
+feature needs, or escape user text so it matches literally. For documents longer
+than the subject limit, use full-text search or match in Swift.
 
 > Note: An application that registers its own two-argument `regexp` keeps it.
 SwiftQL never replaces a `regexp` already on the connection, whether it was
@@ -344,15 +369,19 @@ let query = sql { schema in
 ```
 
 The pattern is a `static let` rather than a local, which is the first of the
-two rules below: a local would be released when the function returns, while the
-statement it rendered is usually executed later.
+two rules below: one pattern is one registration and one compiled `Regex`, while
+a local builds both again every time the function runs.
 
 Two rules come with it.
 
-**Hold the pattern.** The registry does not keep an `XLRegexPattern` alive.
-Store it — in a `static let`, or a property — for as long as statements using
-it can execute. A released pattern leaves its key unresolvable, and executing a
-statement that carries it reports that rather than silently matching nothing.
+**Hold the pattern, or the statement.** The registry does not keep an
+`XLRegexPattern` alive, but a statement that matches against it does, and so
+does every request made from that statement. A statement built from a local
+pattern therefore still executes after the function that built it returns.
+Store a pattern that more than one statement uses — in a `static let`, or a
+property. A key passed on as a string (`pattern.key`) keeps nothing alive; once
+its pattern is released, executing a statement that carries it reports that
+rather than silently matching nothing.
 
 **A key is local to one process.** The rendered SQL names a registration in the
 process that rendered it, so a statement matching an `XLRegexPattern` cannot
