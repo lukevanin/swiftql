@@ -89,18 +89,20 @@ never queues behind, a snapshot the consumer has not yet asked for, and resuming
 whatever has already been produced rather than forcing a fresh fetch. See "Buffering and
 Resumed-Demand Semantics (#291)" below for the full contract `stream()`/`streamOne()` implement.
 
-`stream()`/`streamOne()` never schedule work on the main queue. The GRDB adapter gives each stream a
-private serial queue: GRDB delivers every snapshot into the stream on that queue, and a retry backoff
-waits on the same queue. Async consumers then resume per ordinary Swift concurrency scheduling, so a
-thread that blocks while it waits for a snapshot — the main thread included — does not hold up that
-snapshot. Only the Combine adapters add a main-queue hop, as their delivery default. A framework
-adapter that needs a specific delivery guarantee (e.g. main-thread delivery for SwiftUI) implements
-that guarantee itself on top of this canonical source; it is not a property of `stream()`/`streamOne()`.
+For a GRDB-backed request (``GRDBDatabase``), `stream()`/`streamOne()` never schedule work on the
+main queue. The GRDB adapter gives each stream a private serial queue: GRDB delivers every snapshot
+into the stream on that queue, and a retry backoff waits on the same queue. Async consumers then
+resume per ordinary Swift concurrency scheduling, so a thread that blocks while it waits for a
+snapshot — the main thread included — does not hold up that snapshot. Only the Combine adapters add
+a main-queue hop, as their delivery default. Another ``XLRequest`` conformer schedules its own work;
+see the note on external conformers below. A framework adapter that needs a specific delivery
+guarantee (e.g. main-thread delivery for SwiftUI) implements that guarantee itself on top of this
+canonical source; it is not a property of `stream()`/`streamOne()`.
 
-A request's SQL and its binding packet are fixed for the life of a stream, so the database region an
-observation tracks is constant. GRDB therefore refetches after a relevant commit on a pool reader, not
-inline on the writer that committed, and commits that land while a refetch runs coalesce into one
-more fetch.
+For a GRDB-backed request, a request's SQL and its binding packet are fixed for the life of a stream,
+so the database region an observation tracks is constant. GRDB therefore refetches after a relevant
+commit on a pool reader, not inline on the writer that committed, and commits that land while a
+refetch runs coalesce into one more fetch.
 
 ``XLRequest`` is a public protocol with external conformers. `stream()`/`streamOne()` (and their
 bindings variants) have a source-compatible default implemented in terms of `publish()`/

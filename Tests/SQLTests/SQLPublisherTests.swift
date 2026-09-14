@@ -10,6 +10,7 @@ import Foundation
 import Combine
 #else
 import OpenCombine
+import OpenCombineDispatch
 #endif
 import XCTest
 import GRDB
@@ -76,6 +77,46 @@ struct UpdateTest {
         request.set(Self.idParameter, id)
         request.set(Self.valueParameter, value)
         try request.execute()
+    }
+}
+
+
+/// An external `XLRequest` conformer whose publishers deliver off the main thread, which the
+/// protocol allows: its scheduling is adapter-specific (issue #652).
+private struct OffMainPublishingRequest: XLRequest {
+
+    let rows: [Int]
+
+    mutating func set<T>(
+        parameter reference: XLNamedBindingReference<Optional<T>>,
+        value: T?
+    ) where T: XLBindable {}
+
+    mutating func set<T>(
+        parameter reference: XLNamedBindingReference<T>,
+        value: T
+    ) where T: XLBindable {}
+
+    func fetchAll() throws -> [Int] {
+        rows
+    }
+
+    func fetchOne() throws -> Int? {
+        rows.first
+    }
+
+    func publish() -> AnyPublisher<[Int], Error> {
+        Just(rows)
+            .setFailureType(to: Error.self)
+            .receive(on: DispatchQueue.global())
+            .eraseToAnyPublisher()
+    }
+
+    func publishOne() -> AnyPublisher<Int?, Error> {
+        Just(rows.first)
+            .setFailureType(to: Error.self)
+            .receive(on: DispatchQueue.global())
+            .eraseToAnyPublisher()
     }
 }
 
@@ -1188,6 +1229,45 @@ final class XLPublisherTests: XCTestCase {
         try insertDirect(TestTable(id: "first", value: 1))
         wait(for: [updateExpectation], timeout: 2)
         XCTAssertNil(observer.error)
+    }
+
+    /// The observers keep their main-thread boundary for an external conformer (issue #652).
+    ///
+    /// `XLRequest` leaves publisher scheduling adapter-specific. `OffMainPublishingRequest`
+    /// delivers on a global queue, so each value reaches the observer off the main thread. The
+    /// observer must still change its `@Published` state on the main thread. `wait(for:)` pumps
+    /// the main run loop, which lets the observer's main-queue dispatch run.
+    func testQueryObserversApplyOffMainValuesOnTheMainThread() {
+        let request = OffMainPublishingRequest(rows: [7, 8])
+        let rowsObserver = XLQueryObserver(request)
+        let rowObserver = XLQueryRowObserver(request)
+        let rowsOnMain = PublisherLockedValue<[Bool]>([])
+        let rowOnMain = PublisherLockedValue<[Bool]>([])
+        let rowsExpectation = expectation(description: "rows applied")
+        let rowExpectation = expectation(description: "row applied")
+        rowsExpectation.assertForOverFulfill = false
+        rowExpectation.assertForOverFulfill = false
+
+        rowsObserver.$rows
+            .sink { rows in
+                if rows == [7, 8] {
+                    rowsOnMain.withValue { $0.append(Thread.isMainThread) }
+                    rowsExpectation.fulfill()
+                }
+            }
+            .store(in: &cancellables)
+        rowObserver.$row
+            .sink { row in
+                if row == 7 {
+                    rowOnMain.withValue { $0.append(Thread.isMainThread) }
+                    rowExpectation.fulfill()
+                }
+            }
+            .store(in: &cancellables)
+
+        wait(for: [rowsExpectation, rowExpectation], timeout: 2)
+        XCTAssertEqual(rowsOnMain.read(), [true])
+        XCTAssertEqual(rowOnMain.read(), [true])
     }
 
     // MARK: - Helpers

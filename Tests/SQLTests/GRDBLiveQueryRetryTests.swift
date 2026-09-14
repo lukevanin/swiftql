@@ -59,9 +59,9 @@ private final class ManualRetryScheduler: @unchecked Sendable {
     /// returned publisher. `GRDBLiveQueryAsyncBridge.scheduleRetry(after:)` subscribes after this
     /// closure returns, and `runNext()` sends into a `PassthroughSubject`, which drops a value sent
     /// before anyone subscribes -- the retry would then never start. While GRDB delivered errors on
-    /// the main queue, the test's own main-thread `runNext()` could not land in that window. Since
-    /// #652 errors arrive on the bridge's private queue, so the window has to be closed here, the
-    /// same way `AsyncStreamManualRetryScheduler` closes it.
+    /// the main queue, the test's own main-thread `runNext()` could not land in that window. As of
+    /// #652, errors arrive on the bridge's private queue. The window therefore has to be closed
+    /// here, the same way `AsyncStreamManualRetryScheduler` closes it.
     var scheduler: GRDBLiveQueryRetryScheduler {
         GRDBLiveQueryRetryScheduler { [weak self] delay in
             guard let self else {

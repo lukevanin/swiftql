@@ -34,9 +34,13 @@ import OpenCombine
 /// A view reads `observer.rows` and `observer.error` in its `body`; SwiftUI
 /// re-renders whenever either `@Published` property changes. Observation
 /// starts immediately on initialization and stops when the observer is
-/// deallocated. Values arrive on the main queue because `publish()` delivers
-/// there by default; the observer adds no second hop of its own (issue #652).
-/// The underlying fetch runs on a database reader, never the main thread.
+/// deallocated. Every delivered value is applied on the main thread. A value
+/// that already arrives on the main thread -- as it does from a GRDB-backed
+/// request, whose `publish()` delivers on the main queue by default -- is
+/// applied at once, with no second hop (issue #652). A value from another
+/// ``XLRequest`` conformer, whose scheduling is adapter-specific, that arrives
+/// on another thread is dispatched to the main queue first.
+/// For a GRDB-backed request, the underlying fetch runs on a database reader.
 ///
 public final class XLQueryObserver<Row>: ObservableObject {
 
@@ -59,11 +63,11 @@ public final class XLQueryObserver<Row>: ObservableObject {
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure(let error) = completion {
-                        self?.error = error
+                        xlOnMainThread { self?.error = error }
                     }
                 },
                 receiveValue: { [weak self] rows in
-                    self?.rows = rows
+                    xlOnMainThread { self?.rows = rows }
                 }
             )
     }
@@ -98,12 +102,31 @@ public final class XLQueryRowObserver<Row>: ObservableObject {
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure(let error) = completion {
-                        self?.error = error
+                        xlOnMainThread { self?.error = error }
                     }
                 },
                 receiveValue: { [weak self] row in
-                    self?.row = row
+                    xlOnMainThread { self?.row = row }
                 }
             )
+    }
+}
+
+
+/// Runs `body` on the main thread: at once when the caller is already there, otherwise
+/// asynchronously on the main queue.
+///
+/// This replaces an unconditional `.receive(on: DispatchQueue.main)` (issue #652). A GRDB-backed
+/// `publish()` already delivers on the main queue, so that operator only added a second hop. An
+/// external ``XLRequest`` conformer schedules its own publisher, so an off-main value still has to
+/// be moved to the main queue before it touches `@Published` state. A conformer that delivers on the
+/// main thread for some values and off it for others can see those two groups interleave; one that
+/// keeps to a single thread keeps its order.
+private func xlOnMainThread(_ body: @escaping () -> Void) {
+    if Thread.isMainThread {
+        body()
+    }
+    else {
+        DispatchQueue.main.async(execute: body)
     }
 }
