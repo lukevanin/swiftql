@@ -60,10 +60,10 @@ extension GRDBRequest {
                 items = try decodeRows(packet: packet, in: &connection)
             }
             // The shared eager fallback from `XLRequest` (see
-            // `SQLDatabase.swift`). A `RETURNING` statement writes as it
-            // reads, so its rows are decoded inside the transaction above and
-            // are already in memory by the time `operation` runs -- there is
-            // no cursor left to stream from.
+            // `SQLDatabase.swift`). A `RETURNING` statement changes the
+            // database, so its rows are decoded inside the transaction above,
+            // on the writer, and are already in memory by the time `operation`
+            // runs -- there is no cursor left to stream from.
             return try withEagerResultSet(items, operation)
         }
 

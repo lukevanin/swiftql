@@ -435,14 +435,16 @@ final class XLResultSetTests: XCTestCase {
         try assertPoolStillUsable()
     }
 
-    // MARK: - RETURNING statements decode eagerly to protect write completeness
+    // MARK: - RETURNING statements decode eagerly on the writer
 
-    /// `RETURNING` rows are produced as SQLite steps through the
-    /// data-changing statement itself, so lazily stopping partway through
-    /// them would leave the underlying `UPDATE` only partially applied.
-    /// `GRDBRequest.withResultSet(bindings:_:)` decodes `RETURNING` results
-    /// eagerly for exactly this reason -- confirm the write is always fully
-    /// applied even when the consumer stops after the first `next()` call.
+    /// A `RETURNING` statement changes the database, and a pooled reader is
+    /// read-only, so `GRDBRequest.withResultSet(bindings:_:)` runs it in a
+    /// transaction on the writer and decodes every row before the callback
+    /// runs, so the callback never holds the writer open. SQLite applies every
+    /// change of the statement during its first step (issue #643), so the
+    /// write is complete however few rows the consumer reads -- confirm that
+    /// every row is updated even when the consumer stops after the first
+    /// `next()` call.
     func testReturningStatementCommitsCompleteWriteEvenWhenConsumerStopsEarly() throws {
         try databasePool.write { database in
             try database.execute(

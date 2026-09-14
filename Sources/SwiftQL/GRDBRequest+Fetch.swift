@@ -116,7 +116,11 @@ extension GRDBRequest {
         // reader connection is read-only, so it runs in a transaction on the
         // writer. Stopping after `limit` rows is still safe there: SQLite
         // applies every change of the statement during its first step, so the
-        // rows left unread are only output, never unapplied work.
+        // rows left unread are only output, never unapplied work. The commit
+        // needs the statement to be reset first, because SQLite refuses to
+        // commit while a statement is still in progress; the GRDB row cursor
+        // behind `forEachRow` resets it when it is released, before
+        // `withTransaction` returns.
         var items: [Row] = []
         if requiresWriteConnection {
             try driver.withTransaction { connection in

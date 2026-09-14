@@ -305,13 +305,28 @@ final class XLDataChangingExecutionTests: XCTestCase {
         XCTAssertEqual(try allTestRows(), [], "every matching row must be deleted, not only the row read")
     }
 
-    /// `@SQLQuery` generates `fetchAtMost(2, bindings:)` and a count check for
-    /// a bare-row return (`.exactlyOne`). The macro renders an
-    /// `XLQueryStatement`, and `XLReturningStatement` does not refine it, so a
-    /// declaration cannot hold a `RETURNING` statement. This runs the generated
-    /// fetch shape against a `RETURNING` request on a `DatabasePool` instead,
-    /// which is the call issue #643 fixes.
-    func testExactlyOneFetchShapeOverAReturningStatementSucceedsOnADatabasePool() throws {
+    /// The fetch `@SQLQuery` generates for a bare-row return (`.exactlyOne`):
+    /// `fetchAtMost(2, bindings:)`, then a count check. Copied from
+    /// `SQLQueryMacro.makeFetchLines`, so the test runs the generated body.
+    private func generatedExactlyOneFetch<Row>(
+        _ request: any XLRequest<Row>
+    ) throws -> Row {
+        let rows = try request.fetchAtMost(2, bindings: try emptyPacket(for: request))
+        switch rows.count {
+        case 0:
+            throw XLQueryCardinalityError.noRowsMatched
+        case 1:
+            return rows[0]
+        default:
+            throw XLQueryCardinalityError.moreThanOneRowMatched
+        }
+    }
+
+    /// The macro renders an `XLQueryStatement`, and `XLReturningStatement` does
+    /// not refine it, so a `@SQLQuery` declaration cannot hold a `RETURNING`
+    /// statement. This runs the generated bare-row body against a `RETURNING`
+    /// request on a `DatabasePool` instead, which is the call issue #643 fixes.
+    func testGeneratedExactlyOneFetchOverAReturningStatementSucceedsOnADatabasePool() throws {
         try createUniqueTestTable()
         try insertRows([
             TestTable(id: "a", value: 1),
@@ -326,13 +341,61 @@ final class XLDataChangingExecutionTests: XCTestCase {
             .returning(projection)
         let request = database.makeRequest(with: statement)
 
-        let rows = try request.fetchAtMost(2, bindings: try emptyPacket(for: request))
-
-        XCTAssertEqual(rows, [TestTable(id: "a", value: 99)], "exactly one row, as `.exactlyOne` requires")
+        XCTAssertEqual(try generatedExactlyOneFetch(request), TestTable(id: "a", value: 99))
         XCTAssertEqual(
             try allTestRows(),
             [TestTable(id: "a", value: 99), TestTable(id: "b", value: 2)]
         )
+    }
+
+    /// When the `RETURNING` statement matches more rows than the generated body
+    /// reads, `fetchAtMost(2, bindings:)` stops after two rows and the count
+    /// check throws. The statement still changed every matching row, because
+    /// SQLite applies every change during the first step.
+    func testGeneratedExactlyOneFetchOverAReturningStatementMatchingManyRowsThrowsAfterApplyingTheWholeStatement() throws {
+        try createUniqueTestTable()
+        try insertRows([
+            TestTable(id: "a", value: 1),
+            TestTable(id: "b", value: 2),
+            TestTable(id: "c", value: 3),
+        ])
+        let schema = XLSchema()
+        let t = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        let statement = update(t)
+            .set { row in row.value = 99 }
+            .where(t.value >= 1)
+            .returning(projection)
+        let request = database.makeRequest(with: statement)
+
+        XCTAssertThrowsError(try generatedExactlyOneFetch(request)) { error in
+            XCTAssertEqual(error as? XLQueryCardinalityError, .moreThanOneRowMatched)
+        }
+        XCTAssertEqual(
+            try allTestRows(),
+            [TestTable(id: "a", value: 99), TestTable(id: "b", value: 99), TestTable(id: "c", value: 99)]
+        )
+    }
+
+    /// Inside a transaction scope, a `RETURNING` `fetchAtMost` runs on the
+    /// scope's pinned connection, and its change is part of the transaction.
+    func testFetchAtMostOnAReturningStatementInsideATransactionRunsOnTheScopeConnection() throws {
+        try createUniqueTestTable()
+        try insertRows([TestTable(id: "a", value: 1)])
+
+        let returned = try database.withTransaction { scope -> TestTable in
+            let schema = XLSchema()
+            let t = schema.into(TestTable.self)
+            let projection = schema.table(TestTable.self)
+            let statement = update(t)
+                .set { row in row.value = 99 }
+                .where(t.id == "a")
+                .returning(projection)
+            return try self.generatedExactlyOneFetch(scope.makeRequest(with: statement))
+        }
+
+        XCTAssertEqual(returned, TestTable(id: "a", value: 99))
+        XCTAssertEqual(try allTestRows(), [TestTable(id: "a", value: 99)])
     }
 
     // MARK: - UPDATE ... RETURNING
