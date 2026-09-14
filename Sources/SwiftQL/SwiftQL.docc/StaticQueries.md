@@ -221,7 +221,11 @@ generics.
 
 The factory assigns declaration indices and SQL aliases, validates them through
 `XLStaticRowMetadata`, and returns `XLStaticRowLayout`. Constructing that layout
-or `Select(layout)` only inspects immutable metadata and expressions. The
+or a statement from it only inspects immutable metadata and expressions. This
+is true for every entry point that accepts a layout: `Select(layout)`,
+`select(layout)`, `with(...).select(layout)`, `insert(table).select(layout)`,
+`QueryBuilder(select: layout)`, and `returning(layout)` on an insert, update,
+or delete. None of them replays the layout's `readRow`. The
 generated model initializer and codec decode closures run only when a row is
 actually decoded. Empty rows follow the same rule: `Self()` appears inside the
 decode closure, not in layout construction.
