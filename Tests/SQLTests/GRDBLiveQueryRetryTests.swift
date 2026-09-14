@@ -53,26 +53,44 @@ private final class ManualRetryScheduler: @unchecked Sendable {
 
     private var nextScheduledDelayObservers: [(TimeInterval) -> Void] = []
 
+    /// The scheduling seam handed to the bridge.
+    ///
+    /// A delay becomes pending, and its observer runs, only once the bridge has subscribed to the
+    /// returned publisher. `GRDBLiveQueryAsyncBridge.scheduleRetry(after:)` subscribes after this
+    /// closure returns, and `runNext()` sends into a `PassthroughSubject`, which drops a value sent
+    /// before anyone subscribes -- the retry would then never start. While GRDB delivered errors on
+    /// the main queue, the test's own main-thread `runNext()` could not land in that window. As of
+    /// #652, errors arrive on the bridge's private queue. The window therefore has to be closed
+    /// here, the same way `AsyncStreamManualRetryScheduler` closes it.
     var scheduler: GRDBLiveQueryRetryScheduler {
         GRDBLiveQueryRetryScheduler { [weak self] delay in
             guard let self else {
                 return Empty(completeImmediately: false).eraseToAnyPublisher()
             }
             let subject = PassthroughSubject<Void, Never>()
-            let observer: ((TimeInterval) -> Void)?
             self.lock.lock()
-            self.pending.append(PendingDelay(delay: delay, subject: subject))
             self.recorded.append(delay)
-            if self.nextScheduledDelayObservers.isEmpty {
-                observer = nil
-            }
-            else {
-                observer = self.nextScheduledDelayObservers.removeFirst()
-            }
             self.lock.unlock()
-            observer?(delay)
-            return subject.eraseToAnyPublisher()
+            return subject
+                .handleEvents(receiveSubscription: { [weak self] _ in
+                    self?.didSubscribe(to: PendingDelay(delay: delay, subject: subject))
+                })
+                .eraseToAnyPublisher()
         }
+    }
+
+    private func didSubscribe(to pendingDelay: PendingDelay) {
+        let observer: ((TimeInterval) -> Void)?
+        lock.lock()
+        pending.append(pendingDelay)
+        if nextScheduledDelayObservers.isEmpty {
+            observer = nil
+        }
+        else {
+            observer = nextScheduledDelayObservers.removeFirst()
+        }
+        lock.unlock()
+        observer?(pendingDelay.delay)
     }
 
     var pendingDelays: [TimeInterval] {

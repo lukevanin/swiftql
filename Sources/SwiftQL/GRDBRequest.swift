@@ -39,7 +39,8 @@ struct GRDBRequest<Row>: XLRequest {
 
     let liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy
 
-    let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
+    /// `nil` waits on each observation's own private serial queue (issue #652).
+    let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler?
 
     /// Bindings set through the v1 mutable `set(parameter:value:)` facade.
     var legacyBindings: GRDBLegacyBindingAccumulator
@@ -55,7 +56,7 @@ struct GRDBRequest<Row>: XLRequest {
         requiresWriteConnection: Bool = false,
         customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:],
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
-        liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
+        liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler?
     ) {
         self.requiresWriteConnection = requiresWriteConnection
         self.executor = GRDBInvocationExecutor(

@@ -96,16 +96,6 @@ The package itself supports a much wider matrix (see
 [COMPATIBILITY.md](../COMPATIBILITY.md)); the rows above record what the
 workspace and playground were opened and run against.
 
-## One thing a page has to work around
-
-Live queries deliver on the main queue. The GRDB adapter starts its
-observation with GRDB's default scheduling, so a page that blocks the main
-thread waiting for a snapshot deadlocks against the delivery it is waiting for.
-The live-queries page drives the main run loop instead, with
-`runMainLoop(until:)`. An application never needs this, because an observation
-there lives in a `Task` owned by a view model and nothing waits on the main
-thread.
-
 ## Keeping it working
 
 `SwiftQLExamples` is a first-party target, so `swift build` and the CI warning
