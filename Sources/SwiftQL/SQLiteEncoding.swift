@@ -414,8 +414,21 @@ final class XLiteCustomFunctionRegistry {
 
     private(set) var registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
 
+    /// Records `registration`, keeping what earlier registrations of the same
+    /// signature retain.
+    ///
+    /// The latest registration still decides which function is registered,
+    /// as before. Its retained values are merged rather than replaced, so a
+    /// statement that matches two ``XLRegexPattern`` values keeps both alive,
+    /// not only the last one rendered.
     func insert(_ registration: XLCustomFunctionRegistration) {
-        registrations[registration.definition] = registration
+        guard let existing = registrations[registration.definition] else {
+            registrations[registration.definition] = registration
+            return
+        }
+        registrations[registration.definition] = registration.retaining(
+            existing.retainedValues
+        )
     }
 }
 
