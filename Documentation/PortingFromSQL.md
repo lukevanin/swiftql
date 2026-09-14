@@ -45,11 +45,15 @@ and a rename leads the compiler to every query affected.
 | SQL | SwiftQL |
 | --- | --- |
 | `SELECT *` | `Select(person)` |
-| `SELECT a, b` | `Select(#row(person.name, occupation.name))` or a `@SQLResult` projection |
+| `SELECT a, b` | `Select(#row(person.name, occupation.name))` (Swift 6.1 and later) or a `@SQLResult` projection |
 | `FROM t` | `From(person)` |
 | `INNER JOIN t ON x` | `Join.Inner(occupation, on: occupation.id == person.occupationId)` |
 | `LEFT JOIN t ON x` | `Join.Left(occupation, on: ...)` with `schema.nullableTable(...)` |
 | `CROSS JOIN t` | `Join.Cross(occupation)` |
+| `JOIN t USING (c)` / `LEFT JOIN t USING (c)` | `Join.Inner(occupation, using: "id")` / `Join.Left(occupation, using: "id")` |
+| `NATURAL JOIN t` / `NATURAL LEFT JOIN t` | `Join.Natural(occupation)` / `Join.NaturalLeft(occupation)` |
+| `RIGHT JOIN t ON x` | `Join.Right(occupation, on: ...)` with the `FROM` table from `schema.nullableTable(...)` (SQLite 3.39.0) |
+| `FULL OUTER JOIN t ON x` | `Join.FullOuter(occupation, on: ...)` with both tables from `schema.nullableTable(...)` (SQLite 3.39.0) |
 | `WHERE x` | `Where(person.age > 21)` |
 | `GROUP BY x` | `GroupBy(person.occupationId)` |
 | `HAVING x` | `Having(row.numberOfPeople >= 2)` |
@@ -60,7 +64,7 @@ and a rename leads the compiler to every query affected.
 | `UNION ALL` | `UnionAll()` |
 | `WITH name AS (...)` | `schema.commonTableExpression { ... }` plus `With(cte)` |
 | `WITH RECURSIVE name AS (...)` | `schema.recursiveCommonTableExpression(Row.self) { schema, this in ... }` plus `With(cte)` |
-| `(SELECT ...)` as a value or source | `subqueryExpression { ... }` |
+| `(SELECT ...)` as a value or source | `subqueryExpression { ... }`, or `sql { ... }` on Swift 6.1 and later |
 | `x IN (SELECT ...)` | `org.name.in(cte)` |
 | `COUNT(x)` | `person.id.count()` |
 | `MIN(x)` / `MAX(x)` / `SUM(x)` | `person.age.minOrNull()` / `.maxOrNull()` / `.sumOrNull()` |

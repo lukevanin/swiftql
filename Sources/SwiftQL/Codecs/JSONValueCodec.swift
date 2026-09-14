@@ -184,10 +184,12 @@ public enum XLJSONValueCodecError: Error, CustomStringConvertible, Sendable {
 /// Factory for contextual SQLite JSON `Codable` codecs.
 ///
 /// SwiftQL has no built-in JSON column type. SQLite itself stores JSON as
-/// `TEXT` or `BLOB` bytes; SwiftQL does not validate JSON, drive SQLite's
-/// `json1` functions, or create generated/indexed columns on the caller's
-/// behalf. `XLJSONValueCodec` builds an `XLValueCodec` that converts an
-/// application `Codable` value to and from one of those two storage
+/// `TEXT` or `BLOB` bytes. This codec does not validate the stored JSON, and
+/// SwiftQL does not create generated or indexed columns on the caller's
+/// behalf. To read, change, or validate a document inside a query, use the
+/// typed JSON expressions instead, such as `jsonExtract(at:as:)` and
+/// `validJSONOrNull()`. `XLJSONValueCodec` builds an `XLValueCodec` that
+/// converts an application `Codable` value to and from one of those two storage
 /// representations using a snapshotted ``XLJSONCodecConfiguration``. Register
 /// the result with `XLValueCodecRegistry.registering(_:)` like any other
 /// contextual codec; optionality composes the same way it does for every

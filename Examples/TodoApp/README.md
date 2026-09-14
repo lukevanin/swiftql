@@ -47,7 +47,7 @@ in `TodoKit`, a local package beside it.
 | `TodoKit/Sources/TodoKit/TodoFilteredRead.swift` | The list view's one composable read |
 | `TodoKit/Sources/TodoKit/TodoStore.swift` | Writes and the move transaction |
 | `TodoKit/Sources/TodoKit/TodoModels.swift` | The `@Observable` live-query models |
-| `TodoKit/Tests/` | 77 tests over the query layer |
+| `TodoKit/Tests/` | 80 tests over the query layer |
 
 ## What each part shows
 
