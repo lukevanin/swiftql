@@ -14,7 +14,7 @@
 import Foundation
 import XCTest
 import GRDB
-import SwiftQL
+@testable import SwiftQL
 
 
 ///
@@ -266,6 +266,146 @@ final class XLQueryRenderOnceCacheTests: XCTestCase {
             XCTAssertNotEqual(keyA.databaseIdentifier, keyB.databaseIdentifier)
             XCTAssertEqual(keyA.dialectIdentifier, keyB.dialectIdentifier)
         }
+    }
+
+
+    // MARK: - Transaction scopes (issue #642)
+
+    private func allRowsStatement() -> any XLQueryStatement<TestTable> {
+        sql { schema in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            OrderBy(table.id.ascending())
+        }
+    }
+
+    ///
+    /// Each transaction scope used to key its own entry, with an identifier
+    /// minted per scope, so an application that called a declared query inside
+    /// transactions grew the cache by one permanent entry per transaction. A
+    /// scope now shares the entry of the database it was opened on.
+    ///
+    func testTransactionScopesShareTheDatabaseEntryInsteadOfAddingOnePerScope() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        let cache = XLRenderOnceCache<TestTable>()
+        var buildCount = 0
+
+        for _ in 0 ..< 50 {
+            let rows = try database.withTransaction { scope in
+                try cache.request(for: scope) {
+                    buildCount += 1
+                    return self.allRowsStatement()
+                }.fetchAll()
+            }
+            XCTAssertEqual(rows, [TestTable(id: "alpha", value: 1)])
+        }
+        XCTAssertEqual(cache.entryCount, 1, "transaction scopes must not add cache entries")
+
+        XCTAssertEqual(
+            try cache.request(for: database) {
+                buildCount += 1
+                return self.allRowsStatement()
+            }.fetchAll(),
+            [TestTable(id: "alpha", value: 1)]
+        )
+        XCTAssertEqual(cache.entryCount, 1)
+        XCTAssertEqual(buildCount, 1, "the database and every scope must share one render")
+    }
+
+    ///
+    /// A request the database cached closes over the pool driver. Called on a
+    /// scope, the shared entry must run on the transaction's own connection --
+    /// and so see the transaction's uncommitted write -- rather than re-enter
+    /// the pool, which `withTransaction(_:)` rejects.
+    ///
+    func testRequestCachedByTheDatabaseRunsOnTheTransactionConnectionWhenCalledOnAScope() throws {
+        try createTestTable()
+        let cache = XLRenderOnceCache<TestTable>()
+        XCTAssertEqual(try cache.request(for: database) { self.allRowsStatement() }.fetchAll(), [])
+
+        let insideTransaction = try database.withTransaction { scope in
+            try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+            return try cache.request(for: scope) { self.allRowsStatement() }.fetchAll()
+        }
+
+        XCTAssertEqual(insideTransaction, [TestTable(id: "alpha", value: 1)])
+        XCTAssertEqual(cache.entryCount, 1)
+    }
+
+    ///
+    /// A request first cached inside a transaction closes over that scope's
+    /// connection, which is invalidated when the scope ends. The database, and
+    /// a later transaction, must still get a request bound to their own
+    /// connection, not a `scopeEscaped` failure.
+    ///
+    func testRequestCachedInsideATransactionRunsOnItsCallerAfterTheScopeEnds() throws {
+        try createTestTable()
+        let cache = XLRenderOnceCache<TestTable>()
+
+        try database.withTransaction { scope in
+            try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+            XCTAssertEqual(
+                try cache.request(for: scope) { self.allRowsStatement() }.fetchAll(),
+                [TestTable(id: "alpha", value: 1)]
+            )
+        }
+
+        XCTAssertEqual(
+            try cache.request(for: database) { self.allRowsStatement() }.fetchAll(),
+            [TestTable(id: "alpha", value: 1)]
+        )
+        let laterTransaction = try database.withTransaction { scope in
+            try cache.request(for: scope) { self.allRowsStatement() }.fetchAll()
+        }
+        XCTAssertEqual(laterTransaction, [TestTable(id: "alpha", value: 1)])
+        XCTAssertEqual(cache.entryCount, 1)
+    }
+
+    ///
+    /// When a transaction renders an entry first, the cache stores it bound to
+    /// the database's pool driver, not to the scope's pinned driver. The entry
+    /// then never keeps the scope's invalidated connection, and a call on the
+    /// database uses the stored request as is instead of rebuilding it.
+    ///
+    func testEntryRenderedInsideATransactionIsStoredBoundToTheDatabasePool() throws {
+        try createTestTable()
+        let cache = XLRenderOnceCache<TestTable>()
+        _ = try database.withTransaction { scope in
+            try cache.request(for: scope) { self.allRowsStatement() }.fetchAll()
+        }
+
+        let key = try XCTUnwrap(database.preparedQueryCacheKey)
+        let stored = try XCTUnwrap(cache.cachedEntry(for: key) as? GRDBRequest<TestTable>)
+        XCTAssertFalse(stored.executor.driver.isPinned, "the stored entry must not be bound to a scope")
+        XCTAssertEqual(stored.executor.driver.databaseIdentifier, database.driver.databaseIdentifier)
+        XCTAssertEqual(
+            stored.executor.logicalStatement.databaseIdentifier,
+            database.driver.databaseIdentifier
+        )
+        XCTAssertNotNil(stored.executor.driver.databasePool)
+    }
+
+    ///
+    /// The generated executor goes through the same cache, so a declared query
+    /// called on many scopes returns each transaction's own rows, and then
+    /// still serves the database.
+    ///
+    func testDeclaredQueryCalledOnManyScopesRunsOnEachTransactionConnection() throws {
+        try createTestTable()
+        for index in 0 ..< 5 {
+            let id = "row-\(index)"
+            let rows = try database.withTransaction { scope in
+                try scope.makeRequest(with: sqlInsert(TestTable(id: id, value: index))).execute()
+                return try scope.fetchRowsMatchingID(id: id)
+            }
+            XCTAssertEqual(rows, [TestTable(id: id, value: index)])
+        }
+        XCTAssertEqual(
+            try database.fetchRowsMatchingID(id: "row-4"),
+            [TestTable(id: "row-4", value: 4)]
+        )
     }
 
 
