@@ -160,10 +160,10 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
     /// Finds a `WITH`, `ORDER BY`, `LIMIT`, or `OFFSET` clause in a right-hand
     /// branch (issue #657).
     ///
-    /// A branch statement whose static type ends with one of the last three
-    /// is rejected at compile time by the unavailable compound overloads. A
-    /// branch that arrives as `any XLQueryStatement`, or that carries a `WITH`
-    /// list, is found here and reported when the compound renders.
+    /// The compound methods accept any `XLQueryStatement`, so that callers who
+    /// pass an erased statement keep compiling. The check therefore runs here,
+    /// and the compound reports the clause when it renders, before SQLite
+    /// prepares the statement.
     private static func unsupportedClause(inBranch branch: any XLEncodable) -> String? {
         guard let components = branch as? XLQueryStatementComponents<Row> else {
             return nil

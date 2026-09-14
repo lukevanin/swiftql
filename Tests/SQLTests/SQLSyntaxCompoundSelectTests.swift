@@ -86,9 +86,25 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
         XCTAssertEqual(result.sql, "SELECT t0.name AS name, t0.mom AS parent FROM Family AS t0 UNION SELECT t1.name AS name, t1.dad AS parent FROM Family AS t1 LIMIT 1")
     }
 
-    /// A branch that ends with ORDER BY does not compile when its type is
-    /// known (see Tests/CompileFail/CompoundBranchWithOrderBy.swift). A branch
-    /// known only as `any XLQueryStatement` is rejected when it renders.
+    /// A typed branch that ends with ORDER BY is rejected when the compound
+    /// renders. SQLite would apply the ORDER BY to the whole compound.
+    func testTypedBranchWithOrderByIsRejected() {
+        let schema = XLSchema()
+        let familyMom = schema.table(Family.self)
+        let familyDad = schema.table(Family.self)
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
+        let expression = select(momRow).from(familyMom).except {
+            select(dadRow).from(familyDad).orderBy(familyDad.born.ascending()).limit(1).offset(1)
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).valueEncodingError,
+            .unsupportedCompoundBranchClause(compoundOperator: "EXCEPT", clause: "ORDER BY")
+        )
+    }
+
+    /// A branch known only as `any XLQueryStatement` is checked in the same
+    /// way.
     func testErasedBranchWithOrderByIsRejected() {
         let schema = XLSchema()
         let familyMom = schema.table(Family.self)

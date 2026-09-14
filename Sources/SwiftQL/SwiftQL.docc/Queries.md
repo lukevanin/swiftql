@@ -602,9 +602,9 @@ Each branch after the first must be a plain select. SQLite applies `ORDER BY`,
 `LIMIT`, and `OFFSET` to the whole compound, and it does not accept `WITH`
 after a compound operator. Apply those clauses after the last branch, and put
 `With` before the first branch. In the functional syntax, a branch such as
-`union { select(row).from(table).orderBy(...) }` does not compile. A branch that
-is known only as `any XLQueryStatement`, or that has a `WITH` list, is checked
-when the statement renders: the request fails with
+`union { select(row).from(table).orderBy(...) }` compiles, because the compound
+methods accept any query statement, but it is checked when the statement
+renders: the request fails with
 `XLSQLValueEncodingError.unsupportedCompoundBranchClause` before SQLite
 prepares it.
 
