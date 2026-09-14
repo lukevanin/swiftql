@@ -13,22 +13,25 @@ Repo: `lukevanin/swiftql`. Project board: **#9 "SwiftQL Project Plan"** (owner
 
 ### Tools
 
-Every **write** goes through the `github-mcp` server, which runs under a personal
-access token. The official GitHub connector has **no repository permission**: it
-can read this public repo, but every write returns `403 Resource not accessible
-by integration`. Treat it as read-only. Branches and PRs go through `gh` via
-Bash. Local git (status/diff/log/branch/commit/push) still uses `git` via Bash.
+Issue, milestone, project, and dependency **writes** go through the `github-mcp`
+server, which runs under a personal access token. The official GitHub connector
+has **no repository permission**: it can read this public repo, but every write
+returns `403 Resource not accessible by integration`. Treat it as read-only.
+Branch creation uses `git`; PRs use `gh`. Releases are written by neither — the
+tag-triggered workflow owns them (Step 6). Local git
+(status/diff/log/branch/commit/push) still uses `git` via Bash.
 
 | Action | Tool |
 |---|---|
-| Find / read an issue (read-only) | `search_issues` / `issue_read` |
-| Create / update an issue | `github-mcp` `create_issue` / `edit_issue` / `list_issues` |
+| Find / read / list an issue (read-only) | `search_issues` / `issue_read` / `github-mcp` `list_issues` |
+| Create / update an issue | `github-mcp` `create_issue` / `edit_issue` |
 | Create / list a milestone | `github-mcp` `create_milestone` / `list_milestones` |
 | Add an issue to Project #9 (returns `itemId`) | `github-mcp` `add_project_item` |
 | Set a project field (Size, Priority, Status…) | `github-mcp` `set_project_field` |
 | Inspect project fields/options/items | `github-mcp` `get_project` |
 | Mark an issue blocked by another | `github-mcp` `add_blocked_by` |
 | Read dependencies | `github-mcp` `list_blocked_by` / `list_blocking` |
+| Decompose an issue into sub-issues | `github-mcp` `add_sub_issue` / `list_sub_issues` |
 | Create a branch | `git branch` + `git push -u origin <name>` |
 | Open a PR | `gh pr create` |
 
@@ -81,11 +84,14 @@ breaks into children) — it is a hierarchy tool, not an ordering mechanism.
 
 ### Step 4 — Base branch for the milestone
 
-Create the milestone's base branch from `main` with `git`, named `version/x.y.z`
+Create the milestone's base branch from the fetched `origin/main` with `git`,
+named `version/x.y.z`
 (e.g. `version/1.4.5`):
 
 ```sh
-git branch version/x.y.z main && git push -u origin version/x.y.z
+git fetch origin
+git branch version/x.y.z origin/main
+git push -u origin version/x.y.z
 ```
 
 For an experiment/spike, use a descriptive `experiment/<name>` branch instead.
