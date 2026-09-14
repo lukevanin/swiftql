@@ -25,9 +25,9 @@ public enum SQLiteBuildValidationScratchError:
     public var description: String {
         switch self {
         case .scratchInsideSnapshotDirectory(let path):
-            return "A scratch copy must not be created beside the snapshot it copies (\(path))."
+            return "\(Self.besideTheSnapshot) (\(path))."
         case .scratchInsideWorkingDirectory(let path):
-            return "A scratch copy must not be created inside the source tree (\(path))."
+            return "\(Self.insideTheSourceTree) (\(path))."
         case .snapshotChangedDuringVerification(
             let initialByteCount,
             let initialSHA256,
@@ -37,6 +37,30 @@ public enum SQLiteBuildValidationScratchError:
             return "The pinned snapshot changed during verification: \(initialByteCount) bytes/\(initialSHA256) before, \(finalByteCount) bytes/\(finalSHA256) after."
         }
     }
+
+    /// The same description with every path removed.
+    ///
+    /// A refusal names the directory it refused, and that directory is a
+    /// per-run temporary path or a checkout on one machine. The sidecar must
+    /// read the same on every host, so it carries this form; the build log,
+    /// which has no such guarantee, carries ``description``. A changed
+    /// snapshot is described by byte counts and digests only, so its
+    /// description is already host-independent.
+    var hostIndependentDescription: String {
+        switch self {
+        case .scratchInsideSnapshotDirectory:
+            return "\(Self.besideTheSnapshot)."
+        case .scratchInsideWorkingDirectory:
+            return "\(Self.insideTheSourceTree)."
+        case .snapshotChangedDuringVerification:
+            return description
+        }
+    }
+
+    private static let besideTheSnapshot =
+        "A scratch copy must not be created beside the snapshot it copies"
+    private static let insideTheSourceTree =
+        "A scratch copy must not be created inside the source tree"
 }
 
 
@@ -80,6 +104,8 @@ public enum SQLiteBuildValidationScratchSnapshot {
     ///
     /// Fails closed: the snapshot's byte count and SHA-256 are taken before
     /// and after, and a difference is an error rather than a warning.
+    /// ``SQLiteBuildValidationIndexCandidateVerifier`` rethrows that error
+    /// rather than recording it against a candidate, so it ends the run.
     public static func withCopy<Result>(
         of snapshotURL: URL,
         in scratchParentDirectory: URL = FileManager.default.temporaryDirectory,
@@ -96,8 +122,7 @@ public enum SQLiteBuildValidationScratchSnapshot {
             snapshotURL: snapshotURL
         )
 
-        let initialData = try Data(contentsOf: snapshotURL, options: .mappedIfSafe)
-        let initialSHA256 = SQLiteBuildValidationSHA256.hexDigest(of: initialData)
+        let initial = try identity(of: snapshotURL)
 
         let scratchDirectory = scratchParentDirectory
             .appendingPathComponent("swiftql-index-advisor-\(UUID().uuidString)")
@@ -121,19 +146,48 @@ public enum SQLiteBuildValidationScratchSnapshot {
         }
         try FileManager.default.copyItem(at: snapshotURL, to: copyURL)
 
-        let result = try body(copyURL)
+        let result: Result
+        do {
+            result = try body(copyURL)
+        } catch {
+            // A body that throws does not skip custody. A snapshot that
+            // changed while it ran is reported ahead of whatever the body
+            // failed on, because nothing the body read can be trusted; only
+            // an unchanged snapshot lets the body's own error through.
+            try requireUnchanged(snapshotURL, since: initial)
+            throw error
+        }
+        try requireUnchanged(snapshotURL, since: initial)
+        return result
+    }
 
-        let finalData = try Data(contentsOf: snapshotURL, options: .mappedIfSafe)
-        let finalSHA256 = SQLiteBuildValidationSHA256.hexDigest(of: finalData)
-        guard finalData.count == initialData.count, finalSHA256 == initialSHA256 else {
+    /// What custody compares: the snapshot's byte count and SHA-256.
+    struct Identity: Equatable {
+        let byteCount: Int
+        let sha256: String
+    }
+
+    static func identity(of snapshotURL: URL) throws -> Identity {
+        let data = try Data(contentsOf: snapshotURL, options: .mappedIfSafe)
+        return Identity(
+            byteCount: data.count,
+            sha256: SQLiteBuildValidationSHA256.hexDigest(of: data)
+        )
+    }
+
+    /// Throws
+    /// ``SQLiteBuildValidationScratchError/snapshotChangedDuringVerification(initialByteCount:initialSHA256:finalByteCount:finalSHA256:)``
+    /// when the snapshot no longer matches `initial`.
+    static func requireUnchanged(_ snapshotURL: URL, since initial: Identity) throws {
+        let final = try identity(of: snapshotURL)
+        guard final == initial else {
             throw SQLiteBuildValidationScratchError.snapshotChangedDuringVerification(
-                initialByteCount: initialData.count,
-                initialSHA256: initialSHA256,
-                finalByteCount: finalData.count,
-                finalSHA256: finalSHA256
+                initialByteCount: initial.byteCount,
+                initialSHA256: initial.sha256,
+                finalByteCount: final.byteCount,
+                finalSHA256: final.sha256
             )
         }
-        return result
     }
 
     private static func requireDisposableLocation(

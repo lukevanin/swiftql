@@ -106,6 +106,29 @@ done
 IFS=$OLD_IFS
 echo "OK"
 
+echo "== 1b. The opted-in target's plan sidecar carries verified recommendations =="
+# Only SecondValidatedLibrary opts in. A present but empty recommendation set
+# is what a verification pass whose every scratch copy failed produces, and
+# before #647 that failure was invisible: it exited zero and warned nothing.
+PLAN_REPORT=$(find "$DERIVED_DATA/Build/Intermediates.noindex/BuildToolPluginIntermediates" \
+    -path '*SecondValidatedLibrary*' \
+    -name swiftql-plan-analysis-report.json 2>/dev/null | sort | head -1)
+if [ -z "$PLAN_REPORT" ]; then
+    echo "FAIL: expected a plan sidecar for SecondValidatedLibrary"
+    exit 1
+fi
+# `plutil` ships with macOS, which this script already requires. Extracting the
+# first element's DDL succeeds only when the array exists and is non-empty.
+# That holds on every `plutil` that reads JSON, unlike `raw` output for a
+# collection, which has differed between macOS releases.
+if ! FIRST_DDL=$(plutil -extract index_recommendations.recommendations.0.candidate.ddl raw -o - "$PLAN_REPORT" 2>/dev/null) \
+    || [ -z "$FIRST_DDL" ]; then
+    echo "FAIL: expected a non-empty index_recommendations.recommendations in $PLAN_REPORT"
+    plutil -extract index_recommendations json -o - "$PLAN_REPORT" 2>/dev/null || true
+    exit 1
+fi
+echo "OK (first recommendation: $FIRST_DDL)"
+
 echo "== 2. Validator executable lands where the plugin's tool resolution expects =="
 if [ ! -x "$PRODUCTS_DIR/$VALIDATOR_EXECUTABLE" ]; then
     echo "FAIL: expected an executable at $PRODUCTS_DIR/$VALIDATOR_EXECUTABLE"

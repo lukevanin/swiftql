@@ -14,13 +14,22 @@ import SwiftQLSQLiteBuildValidationManifest
 public struct SQLiteBuildValidationRunResult: Equatable, Sendable {
     public let report: SQLiteBuildValidationReport
     public let planReport: SQLiteBuildValidationPlanReport?
+    /// Advisory lines for the build log that belong in neither artifact,
+    /// each a complete `<code> for <ids>: <message>` line without the
+    /// `<path>: warning: ` prefix. Today that is one
+    /// `plan.scratch-setup-failed` line per candidate whose scratch copy
+    /// could not be set up. They may name host paths, which is exactly why
+    /// they are kept out of the byte-reproducible sidecar.
+    public let warnings: [String]
 
     public init(
         report: SQLiteBuildValidationReport,
-        planReport: SQLiteBuildValidationPlanReport?
+        planReport: SQLiteBuildValidationPlanReport?,
+        warnings: [String] = []
     ) {
         self.report = report
         self.planReport = planReport
+        self.warnings = warnings
     }
 }
 
