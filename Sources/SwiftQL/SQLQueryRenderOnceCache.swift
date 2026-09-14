@@ -30,6 +30,12 @@ import Foundation
 /// scope is per-instance — two `GRDBDatabase` values wrapping the same
 /// `DatabasePool` render independently rather than sharing an entry.
 ///
+/// A transaction scope is not a separate database for this key (issue #642).
+/// `GRDBDatabase.preparedQueryCacheKey` returns the key of the database the
+/// scope was opened on, so a scope adds no entry, however many transactions
+/// call a declared query. See ``XLRenderOnceCache`` for how the shared entry
+/// reaches the scope's connection.
+///
 /// Today there is a single dialect; keying on the dialect identifier rather than
 /// assuming one means a second dialect renders into its own entry rather than
 /// colliding with the first.
@@ -66,6 +72,14 @@ public struct XLPreparedQueryCacheKey: Hashable, Sendable {
 /// call through an immutable invocation packet — so reusing it across threads is
 /// safe.
 ///
+/// One entry also serves every transaction scope opened on a database (issue
+/// #642). A cached request closes over the connection of the database that
+/// rendered it, so an adapter whose requests do that conforms to
+/// `XLRenderOnceRequestBinding`, and the cache binds the entry to the calling
+/// database or scope before it returns it. Binding reuses the rendered SQL and
+/// row reader and renders nothing, so a declared query called inside any number
+/// of transactions still renders once per database and adds one entry.
+///
 /// Retention trade-off: for the GRDB adapter, a cached `XLRequest` retains its
 /// `GRDBInvocationExecutor` → `GRDBDatabaseDriver` → `DatabasePool` chain. Since
 /// the macro emits one cache as a `static` peer per declaration, invoking a
@@ -85,6 +99,14 @@ public final class XLRenderOnceCache<Row>: @unchecked Sendable {
 
     public init() {}
 
+    /// How many entries this cache holds. Tests read it to pin that
+    /// transaction scopes add no entries; nothing in the library reads it.
+    var entryCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return requests.count
+    }
+
     ///
     /// Returns the request for `database`, rendering the statement built by
     /// `build` on first use and reusing it afterward.
@@ -103,6 +125,23 @@ public final class XLRenderOnceCache<Row>: @unchecked Sendable {
             // exactly as the un-cached executor did.
             return database.makeRequest(with: build())
         }
+        let request = cachedRequest(for: key, database: database, statement: build)
+        // One entry serves a database and every transaction scope opened on it
+        // (issue #642), and a cached request closes over the connection of the
+        // database that rendered it, so bind it to the caller before returning.
+        guard let binding = database as? any XLRenderOnceRequestBinding else {
+            return request
+        }
+        return binding.bindRenderOnceRequest(request)
+    }
+
+    /// The entry for `key`, rendered under the lock on first use so concurrent
+    /// first callers render exactly once.
+    private func cachedRequest(
+        for key: XLPreparedQueryCacheKey,
+        database: some XLDatabase,
+        statement build: () -> any XLQueryStatement<Row>
+    ) -> any XLRequest<Row> {
         lock.lock()
         defer { lock.unlock() }
         if let existing = requests[key] {
@@ -112,4 +151,21 @@ public final class XLRenderOnceCache<Row>: @unchecked Sendable {
         requests[key] = request
         return request
     }
+}
+
+
+///
+/// Binds a render-once cache entry to the database that is calling (issue
+/// #642).
+///
+/// Internal. An adapter whose cached requests close over one connection
+/// conforms, so a transaction scope can share its database's entry without
+/// the entry ever running on the wrong connection. ``XLRenderOnceCache`` calls
+/// it on every request it returns; an adapter that does not conform gets the
+/// cached request unchanged.
+///
+protocol XLRenderOnceRequestBinding {
+
+    /// `request`, bound to this database. Must render nothing.
+    func bindRenderOnceRequest<Row>(_ request: any XLRequest<Row>) -> any XLRequest<Row>
 }

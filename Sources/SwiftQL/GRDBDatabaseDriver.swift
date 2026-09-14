@@ -84,20 +84,19 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
     /// reuses that connection directly instead of leasing one from the pool.
     ///
     /// Deliberately assigns a **fresh** `databaseIdentifier` rather than
-    /// reusing this driver's own: a `@SQLQuery`/`@SQLQueries` render-once
-    /// cache entry (``XLPreparedQueryCacheKey``) caches a fully-built
-    /// `GRDBRequest`/`GRDBWriteRequest` — which closes over one specific
-    /// driver — not just the rendered SQL text. Sharing the pool-backed
-    /// database's identifier would let a declared query first populated
-    /// outside a transaction permanently bind that entry to the pool driver
-    /// (silently re-entering the pool from inside every later transaction
-    /// instead of using the pinned connection), or let a declared query first
-    /// populated *inside* one transaction hand a later, unrelated call a
-    /// `GRDBRequest` bound to that transaction's already-invalidated pinned
-    /// box. A fresh identifier per scope gives every transaction its own
-    /// cache entry instead: one extra render the first time a declared query
-    /// is used inside a given transaction, in exchange for never reusing a
-    /// request built for a different connection.
+    /// reusing this driver's own. A logical statement is validated against the
+    /// identifier of the driver that runs it, and a distinct identifier per
+    /// scope is how the render-once cache tells whether a cached `GRDBRequest`
+    /// -- which closes over one specific driver -- is already bound to the
+    /// calling driver. A request built for the pool driver must never run on,
+    /// or re-enter the pool from, a transaction, and a request built inside one
+    /// transaction must never reach that transaction's invalidated box later.
+    ///
+    /// The cache does not key on this identifier (issue #642). A scope uses the
+    /// cache key of the database it was opened on, and the cache rebinds the
+    /// shared request to the calling driver at call time (see
+    /// `GRDBDatabase.bindRenderOnceRequest(_:)`), so a fresh identifier per
+    /// scope adds no cache entry and costs no render.
     ///
     func pinned(to box: GRDBPinnedConnectionBox) -> GRDBDatabaseDriver {
         GRDBDatabaseDriver(

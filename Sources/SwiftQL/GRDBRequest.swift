@@ -89,3 +89,39 @@ struct GRDBRequest<Row>: XLRequest {
         legacyBindings.set(value, named: reference.name)
     }
 }
+
+
+extension GRDBRequest {
+
+    /// This request, bound to `driver` instead of the driver it was built for
+    /// (issue #642).
+    ///
+    /// Keeps everything rendering produced -- the SQL, the parameter layout,
+    /// the row reader, the recorded functions and errors -- and replaces only
+    /// what names a connection: the driver, and the database identifier the
+    /// logical statement is validated against. Bindings set through the v1
+    /// `set(parameter:value:)` facade are not carried over; a render-once
+    /// request is value-free.
+    func rebound(to driver: GRDBDatabaseDriver) -> GRDBRequest<Row> {
+        let statement = executor.logicalStatement
+        return GRDBRequest(
+            driver: driver,
+            codingConfiguration: codingConfiguration,
+            logger: logger,
+            reader: reader,
+            logicalStatement: XLLogicalPreparedStatement(
+                databaseIdentifier: driver.databaseIdentifier,
+                dialectRequirement: statement.dialectRequirement,
+                sql: statement.sql,
+                entities: statement.entities,
+                parameterLayout: statement.parameterLayout
+            ),
+            parameterLayoutError: executor.parameterLayoutError,
+            valueEncodingError: executor.valueEncodingError,
+            requiresWriteConnection: requiresWriteConnection,
+            customFunctions: executor.customFunctions,
+            liveQueryRetryPolicy: liveQueryRetryPolicy,
+            liveQueryRetryScheduler: liveQueryRetryScheduler
+        )
+    }
+}

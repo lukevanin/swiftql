@@ -146,6 +146,18 @@ independently. An adapter that has not opted into render-once caching
 returns `nil` from `preparedQueryCacheKey` (the `XLDatabase` default), and the
 executor simply renders on every call, exactly as it would without the cache.
 
+### Inside a transaction
+
+A transaction scope shares the cache entry of the database it was opened on.
+`GRDBDatabase.preparedQueryCacheKey` returns the same key for the scope that
+`withTransaction(_:)` hands you as for the database itself, so calling a
+declared query inside any number of transactions renders the statement at most
+once and never adds an entry. The cached request is bound to one connection, so
+the cache binds it to the calling scope's connection at call time. A declared
+query called on the scope runs on the transaction's connection and sees the
+transaction's uncommitted writes. The same declaration called on the database
+afterward runs on the pool, as before.
+
 ### Concurrency and `Sendable`
 
 `XLRenderOnceCache` is `Sendable`; its single lock only ever guards the
