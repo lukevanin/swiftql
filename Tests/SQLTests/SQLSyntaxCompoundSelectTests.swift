@@ -66,7 +66,81 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
         let result = encoder.makeSQL(expression)
         XCTAssertEqual(result.sql, "SELECT t0.name AS name, t0.mom AS parent FROM Family AS t0 EXCEPT SELECT t1.name AS name, t1.dad AS parent FROM Family AS t1")
     }
-    
+
+    // MARK: Compound branches (#657)
+
+    /// A clause after the last branch applies to the whole compound, which is
+    /// valid, so no error is reported.
+    func testClauseAfterTheLastBranchIsAccepted() {
+        let schema = XLSchema()
+        let familyMom = schema.table(Family.self)
+        let familyDad = schema.table(Family.self)
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
+        let expression = select(momRow).from(familyMom).union {
+            select(dadRow).from(familyDad)
+        }
+        .limit(1)
+        let result = encoder.makeSQL(expression)
+        XCTAssertNil(result.valueEncodingError)
+        XCTAssertEqual(result.sql, "SELECT t0.name AS name, t0.mom AS parent FROM Family AS t0 UNION SELECT t1.name AS name, t1.dad AS parent FROM Family AS t1 LIMIT 1")
+    }
+
+    /// A branch that ends with ORDER BY does not compile when its type is
+    /// known (see Tests/CompileFail/CompoundBranchWithOrderBy.swift). A branch
+    /// known only as `any XLQueryStatement` is rejected when it renders.
+    func testErasedBranchWithOrderByIsRejected() {
+        let schema = XLSchema()
+        let familyMom = schema.table(Family.self)
+        let familyDad = schema.table(Family.self)
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
+        let expression = select(momRow).from(familyMom).union { () -> any XLQueryStatement<FamilyMemberParent> in
+            select(dadRow).from(familyDad).orderBy(familyDad.born.ascending())
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).valueEncodingError,
+            .unsupportedCompoundBranchClause(compoundOperator: "UNION", clause: "ORDER BY")
+        )
+        XCTAssertThrowsError(try encoder.makeValidatedSQL(expression))
+    }
+
+    func testErasedBranchWithLimitIsRejected() {
+        let schema = XLSchema()
+        let familyMom = schema.table(Family.self)
+        let familyDad = schema.table(Family.self)
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
+        let expression = select(momRow).from(familyMom).unionAll { () -> any XLQueryStatement<FamilyMemberParent> in
+            select(dadRow).from(familyDad).limit(1)
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).valueEncodingError,
+            .unsupportedCompoundBranchClause(compoundOperator: "UNION ALL", clause: "LIMIT")
+        )
+    }
+
+    /// A branch with a WITH list renders `INTERSECT WITH ...`, which SQLite
+    /// does not accept, so it is rejected.
+    func testBranchWithCommonTablesIsRejected() {
+        let schema = XLSchema()
+        let familyMom = schema.table(Family.self)
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let cte = schema.commonTable { s in
+            let family = s.table(Family.self)
+            return select(family).from(family)
+        }
+        let parents = schema.table(cte)
+        let parentRow = FamilyMemberParent.columns(name: parents.name, parent: parents.dad)
+        let expression = select(momRow).from(familyMom).intersect {
+            with(cte).select(parentRow).from(parents)
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).valueEncodingError,
+            .unsupportedCompoundBranchClause(compoundOperator: "INTERSECT", clause: "WITH")
+        )
+    }
+
     
     // MARK: Recursion
     

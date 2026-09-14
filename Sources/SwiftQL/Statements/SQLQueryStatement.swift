@@ -118,6 +118,55 @@ extension XLSimpleSelectQueryStatement {
         let union = BooleanClause<Row>(kind: .except, lhs: components, rhs: statement().components)
         return XLQueryUnionStatement(components: XLQueryStatementComponents(reader: union, components: [union]))
     }
+
+    // MARK: Unsupported branches
+
+    // A right-hand branch whose static type ends with ORDER BY, LIMIT, or
+    // OFFSET does not compile (issue #657). SQLite applies those clauses to
+    // the whole compound, so the rendered SQL would not mean what the branch
+    // says. These overloads win over the `any XLQueryStatement` overloads
+    // because they need no existential conversion. A branch that arrives as
+    // `any XLQueryStatement` is checked when the compound renders instead.
+
+    @available(*, unavailable, message: "A compound select branch cannot end with ORDER BY, LIMIT, or OFFSET. Apply the clause to the whole compound, after union(_:).")
+    public func union<Branch>(_ statement: () -> Branch) -> XLQueryUnionStatement<Row> where Branch: XLOrderedQueryStatement, Branch.Row == Row {
+        union { statement() as any XLQueryStatement<Row> }
+    }
+
+    @available(*, unavailable, message: "A compound select branch cannot end with ORDER BY, LIMIT, or OFFSET. Apply the clause to the whole compound, after unionAll(_:).")
+    public func unionAll<Branch>(_ statement: () -> Branch) -> XLQueryUnionStatement<Row> where Branch: XLOrderedQueryStatement, Branch.Row == Row {
+        unionAll { statement() as any XLQueryStatement<Row> }
+    }
+
+    @available(*, unavailable, message: "A compound select branch cannot end with ORDER BY, LIMIT, or OFFSET. Apply the clause to the whole compound, after intersect(_:).")
+    public func intersect<Branch>(_ statement: () -> Branch) -> XLQueryUnionStatement<Row> where Branch: XLOrderedQueryStatement, Branch.Row == Row {
+        intersect { statement() as any XLQueryStatement<Row> }
+    }
+
+    @available(*, unavailable, message: "A compound select branch cannot end with ORDER BY, LIMIT, or OFFSET. Apply the clause to the whole compound, after except(_:).")
+    public func except<Branch>(_ statement: () -> Branch) -> XLQueryUnionStatement<Row> where Branch: XLOrderedQueryStatement, Branch.Row == Row {
+        except { statement() as any XLQueryStatement<Row> }
+    }
+}
+
+
+///
+/// A select query statement that ends with `ORDER BY`, `LIMIT`, or `OFFSET`.
+///
+/// SQLite applies these clauses to a whole compound select, so a statement of
+/// this kind cannot be the right-hand branch of `union`, `unionAll`,
+/// `intersect`, or `except` (issue #657).
+///
+public protocol XLOrderedQueryStatement<Row>: XLQueryStatement {
+}
+
+extension XLQueryOrderByStatement: XLOrderedQueryStatement {
+}
+
+extension XLQueryLimitStatement: XLOrderedQueryStatement {
+}
+
+extension XLQueryOffsetStatement: XLOrderedQueryStatement {
 }
 
 

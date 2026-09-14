@@ -462,6 +462,16 @@ struct GRDBInvocationExecutor: Sendable {
                ) {
                 throw error
             }
+            // GRDB binds text with the length -1, so SQLite stores a value
+            // only up to its first NUL. Reject U+0000 instead of storing a
+            // truncated value (issue #657). A value without a NUL binds in
+            // full, because -1 then reads exactly its UTF-8 byte count.
+            if case .text(let value) = binding.value, value.utf8.contains(0) {
+                throw XLSQLValueEncodingError.nulCharacterInText(
+                    valueType: binding.slot.valueTypeName,
+                    context: binding.slot.codingContext
+                )
+            }
             if let codecIdentity = binding.slot.codecIdentity,
                codecIdentity.dialectIdentifier != driver.dialect.descriptor.identity {
                 throw XLInvocationBindingError.preparedCodecDialectMismatch(

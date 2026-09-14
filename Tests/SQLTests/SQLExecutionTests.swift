@@ -199,6 +199,50 @@ final class XLExecutionTests: XCTestCase {
         }
     }
 
+    /// #657: GRDB binds text with the length -1, so SQLite reads a bound value
+    /// only up to its first NUL. Before the fix `"a\0b"` came back as `"a"`.
+    /// The request now rejects the value before SQLite sees it.
+    func testBoundTextWithNulIsRejectedInsteadOfTruncated() throws {
+        let value = XLNamedBindingReference<String>(name: "value")
+        let statement = sql { _ in Select(value) }
+        var rejected = database.makeRequest(with: statement)
+        rejected.set(value, "a\0b")
+
+        XCTAssertThrowsError(try rejected.fetchOne()) { error in
+            XCTAssertEqual(
+                error as? XLSQLValueEncodingError,
+                .nulCharacterInText(
+                    valueType: String(reflecting: String.self),
+                    context: XLValueCodingContext(
+                        site: .parameter,
+                        path: XLValueCodingPath("value")
+                    )
+                )
+            )
+        }
+
+        var accepted = database.makeRequest(with: statement)
+        accepted.set(value, "a b ü 🧪")
+        XCTAssertEqual(try accepted.fetchOne(), "a b ü 🧪")
+    }
+
+    /// #657: an inline text literal with U+0000 fails before SQLite prepares
+    /// the statement.
+    func testInlineTextWithNulFailsBeforeSQLitePreparation() {
+        let statement = sql { _ in Select("a\0b") }
+        XCTAssertThrowsError(
+            try database.makeRequest(with: statement).fetchOne()
+        ) { error in
+            XCTAssertEqual(
+                error as? XLSQLValueEncodingError,
+                .nulCharacterInText(
+                    valueType: String(reflecting: String.self),
+                    context: nil
+                )
+            )
+        }
+    }
+
     func testBitwiseNotExecutesForIntegerLiteralsColumnsAndComposedExpressions() throws {
         let literal: any XLExpression<Int> = 12
         let literalStatement = sql { _ in

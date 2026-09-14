@@ -6,6 +6,7 @@ script_directory="$(cd "$(dirname "$0")" && pwd -P)"
 source_root="$(cd "$script_directory/../.." && pwd -P)"
 positive_fixture="$source_root/Tests/CompileFail/QueryClauseOrderingValid.swift"
 negative_fixtures=(
+    "$source_root/Tests/CompileFail/CompoundBranchWithOrderBy.swift"
     "$source_root/Tests/CompileFail/HavingWithoutGroupBy.swift"
     "$source_root/Tests/CompileFail/OffsetWithoutLimit.swift"
     "$source_root/Tests/CompileFail/WhereAfterOrderBy.swift"

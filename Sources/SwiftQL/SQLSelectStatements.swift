@@ -137,6 +137,10 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
 
     private let row: (XLRowReader) throws -> Row
 
+    /// The first clause of the right-hand branch that SQLite would apply to
+    /// the whole compound, or that it does not accept after the operator.
+    private let unsupportedBranchClause: String?
+
     ///
     /// Combines two branches, preserving the first branch's existing row reader.
     ///
@@ -150,8 +154,37 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
         self.lhs = lhs
         self.rhs = rhs
         self.row = lhs.readRow
+        self.unsupportedBranchClause = Self.unsupportedClause(inBranch: rhs)
     }
-    
+
+    /// Finds a `WITH`, `ORDER BY`, `LIMIT`, or `OFFSET` clause in a right-hand
+    /// branch (issue #657).
+    ///
+    /// A branch statement whose static type ends with one of the last three
+    /// is rejected at compile time by the unavailable compound overloads. A
+    /// branch that arrives as `any XLQueryStatement`, or that carries a `WITH`
+    /// list, is found here and reported when the compound renders.
+    private static func unsupportedClause(inBranch branch: any XLEncodable) -> String? {
+        guard let components = branch as? XLQueryStatementComponents<Row> else {
+            return nil
+        }
+        if !components.commonTables.isEmpty {
+            return "WITH"
+        }
+        for component in components.components {
+            if component is OrderBy {
+                return "ORDER BY"
+            }
+            if component is Limit {
+                return "LIMIT"
+            }
+            if component is Offset {
+                return "OFFSET"
+            }
+        }
+        return nil
+    }
+
     public func makeSQL(context: inout XLBuilder) {
         let op: String
         switch kind {
@@ -163,6 +196,14 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
             op = "INTERSECT"
         case .except:
             op = "EXCEPT"
+        }
+        if let unsupportedBranchClause {
+            context.valueEncodingFailed(
+                .unsupportedCompoundBranchClause(
+                    compoundOperator: op,
+                    clause: unsupportedBranchClause
+                )
+            )
         }
         context.binaryOperator(op, left: lhs.makeSQL, right: rhs.makeSQL(context:))
     }

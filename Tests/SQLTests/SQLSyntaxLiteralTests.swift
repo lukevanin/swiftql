@@ -170,10 +170,22 @@ final class XLSyntaxLiteralTests: XLSyntaxTestCase {
 
 
     func test_TextLiteral_EmbeddedNulCharacter() {
-        // A NUL cannot be escaped inside a SQL string literal. Verify the
-        // quotes remain balanced so the value cannot break out of the literal.
+        // A NUL cannot be escaped inside a SQL string literal, and SQLite reads
+        // text only up to the first NUL. Rendering reports the value instead
+        // of emitting a literal that SQLite would truncate (issue #657).
         let expression: String = "a\0b"
-        assertRenders(expression, as: "'a\0b'")
+        let encoding = encoder.makeSQL(expression)
+        XCTAssertEqual(
+            encoding.valueEncodingError,
+            .nulCharacterInText(valueType: "Swift.String", context: nil)
+        )
+        XCTAssertFalse(encoding.sql.contains("\0"))
+        XCTAssertThrowsError(try encoder.makeValidatedSQL(expression)) { error in
+            XCTAssertEqual(
+                error as? XLSQLValueEncodingError,
+                .nulCharacterInText(valueType: "Swift.String", context: nil)
+            )
+        }
     }
 
 

@@ -244,6 +244,33 @@ final class QueryBuilderTests: XLEncoderTestCase {
         XCTAssertEqual(finalResult, "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` LEFT JOIN `Employee` AS `t1` ON (`t1`.`companyId` IS `t0`.`id`) WHERE (`t1`.`name` IS 'Tim') ORDER BY `t1`.`name` ASC")
     }
 
+    /// #657: `and` and `or` terms fold in call order. Before v1.8.1 every `and`
+    /// term folded first, so `and(a).or(b).and(c)` rendered `((a AND c) OR b)`.
+    func testWhereTermsFoldInCallOrder() throws {
+        let schema = XLSchema()
+        let company = schema.table(CompanyTable.self)
+        let query = QueryBuilder(select: company)
+            .from(company)
+            .and(company.name == "A")
+            .or(company.name == "B")
+            .and(company.name == "C")
+        XCTAssertEqual(
+            try encoder.makeSQL(query.build()).sql,
+            "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` WHERE (((`t0`.`name` == 'A') OR (`t0`.`name` == 'B')) AND (`t0`.`name` == 'C'))"
+        )
+
+        // The operator of the first term has nothing to join, so a leading
+        // `or` starts the condition as before.
+        let leadingOr = QueryBuilder(select: company)
+            .from(company)
+            .or(company.name == "A")
+            .and(company.name == "B")
+        XCTAssertEqual(
+            try encoder.makeSQL(leadingOr.build()).sql,
+            "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` WHERE ((`t0`.`name` == 'A') AND (`t0`.`name` == 'B'))"
+        )
+    }
+
     func testCopyPreservesAllStoredStateAndMutatesOnlyTheCopy() throws {
         let schema = XLSchema()
         let commonTable = schema.commonTable { schema in

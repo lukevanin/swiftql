@@ -30,7 +30,8 @@ public enum XLNonFiniteRealValue: String, Equatable, Sendable, CustomStringConve
 }
 
 
-/// Structured failures at SQLite's real-value rendering and binding boundary.
+/// Structured failures while SwiftQL renders a statement or binds its values
+/// for SQLite, reported before SQLite prepares the statement.
 public enum XLSQLValueEncodingError:
     Error,
     Equatable,
@@ -58,8 +59,25 @@ public enum XLSQLValueEncodingError:
     /// row must be encoded through `XLStaticRowLayout` instead.
     case contextualOnlyValueInLegacyWrite(valueType: String)
 
+    /// A text value contains U+0000. SQLite reads a text literal, and a text
+    /// value bound with the length -1 that GRDB uses, only up to the first
+    /// NUL, so the value would be truncated or the statement would not
+    /// prepare. `context` is `nil` for an inline literal.
+    case nulCharacterInText(valueType: String, context: XLValueCodingContext?)
+
+    /// The right-hand branch of a compound select (`UNION`, `UNION ALL`,
+    /// `INTERSECT`, or `EXCEPT`) has a `WITH`, `ORDER BY`, `LIMIT`, or
+    /// `OFFSET` clause. SQLite applies `ORDER BY`, `LIMIT`, and `OFFSET` to
+    /// the whole compound, and it does not accept `WITH` after the operator.
+    case unsupportedCompoundBranchClause(compoundOperator: String, clause: String)
+
     public var errorDescription: String? {
         switch self {
+        case .nulCharacterInText(let valueType, let context):
+            let site = context.map { " at \($0)" } ?? ""
+            return "Cannot use a \(valueType) text value that contains U+0000\(site): SQLite reads text only up to the first NUL, so the value would be truncated. Store such data as a blob."
+        case .unsupportedCompoundBranchClause(let compoundOperator, let clause):
+            return "The right-hand branch of \(compoundOperator) has a \(clause) clause. SQLite applies ORDER BY, LIMIT, and OFFSET to the whole compound, and does not accept WITH after the operator. Apply the clause to the whole compound, or put WITH before the first branch."
         case .nonFiniteRealLiteral(let value, let expressionType):
             return "Cannot render \(value) from \(expressionType) as an inline SQLite real literal. SQLite has no valid bare numeric token for this value; use a bound parameter when its SQLite binding semantics are acceptable."
         case .realBindingWouldBecomeNull(let value, let valueType, let context):
