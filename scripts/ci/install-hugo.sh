@@ -8,7 +8,7 @@
 # documentation build failed until the pin was bumped by hand, including the
 # build the verified release workflow depends on. This script downloads the
 # pinned release asset instead, refuses it unless its SHA-256 matches the pin,
-# and checks that the installed binary reports the pinned version.
+# and checks that the binary reports the pinned version before installing it.
 #
 # On GitHub Actions it also prepends INSTALL_DIRECTORY to GITHUB_PATH, so every
 # later step resolves this hugo ahead of any copy on the runner image.
@@ -64,21 +64,25 @@ main() {
         return 1
     fi
 
-    mkdir -p "$install_directory"
-    install_directory="$(CDPATH= cd -- "$install_directory" && pwd -P)"
-    cp "$(cat "$work_directory/binaries")" "$install_directory/hugo"
-    chmod 755 "$install_directory/hugo"
-
-    installed_version="$("$install_directory/hugo" version)"
-    case "$installed_version" in
+    # Check the extracted binary before it reaches INSTALL_DIRECTORY, so a
+    # failed check never leaves a wrong hugo where PATH can find it.
+    binary="$(cat "$work_directory/binaries")"
+    chmod 755 "$binary"
+    binary_version="$("$binary" version)"
+    case "$binary_version" in
         "hugo v$SWIFTQL_HUGO_VERSION"[!0-9.]*) ;;
         *)
             printf 'error: expected hugo v%s from %s, found: %s\n' \
-                "$SWIFTQL_HUGO_VERSION" "$asset" "$installed_version" >&2
+                "$SWIFTQL_HUGO_VERSION" "$asset" "$binary_version" >&2
             return 1
             ;;
     esac
-    printf '%s\n' "$installed_version"
+
+    mkdir -p "$install_directory"
+    install_directory="$(CDPATH= cd -- "$install_directory" && pwd -P)"
+    cp "$binary" "$install_directory/hugo"
+    chmod 755 "$install_directory/hugo"
+    printf '%s\n' "$binary_version"
 
     if [ -n "${GITHUB_PATH:-}" ]; then
         printf '%s\n' "$install_directory" >> "$GITHUB_PATH"

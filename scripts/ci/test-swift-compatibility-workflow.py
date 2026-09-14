@@ -4,7 +4,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
+import shutil
 import stat
 import subprocess
 import tempfile
@@ -266,6 +268,12 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
 
 
 class HugoInstallTests(unittest.TestCase):
+    # A copy of install-hugo.sh runs beside a test pin, with fake curl, uname,
+    # and pkgutil commands, so the real script logic runs on any host without
+    # the network or the real release asset.
+    PACKAGE = b"fake hugo package\n"
+    VERSION = "0.165.0"
+
     def setUp(self) -> None:
         self.temporary_directory = tempfile.TemporaryDirectory(
             prefix="swiftql-hugo-install."
@@ -273,27 +281,51 @@ class HugoInstallTests(unittest.TestCase):
         self.root = Path(self.temporary_directory.name)
         self.bin = self.root / "bin"
         self.bin.mkdir()
+        scripts = self.root / "scripts"
+        scripts.mkdir()
+        self.script = scripts / "install-hugo.sh"
+        shutil.copy2(ROOT / "scripts/ci/install-hugo.sh", self.script)
+        self.pin = scripts / "hugo-version.sh"
+        self.write_pin(hashlib.sha256(self.PACKAGE).hexdigest())
+        self.fake_hugo = self.root / "fake-hugo"
+        self.write_fake_hugo(
+            f"hugo v{self.VERSION}-0123456789abcdef+extended+withdeploy "
+            "darwin/arm64 BuildDate=2026-08-01T00:00:00Z VendorInfo=gohugoio"
+        )
         self.install_directory = self.root / "hugo"
         self.github_path = self.root / "github-path"
         self.install_command(
             "uname",
-            """
+            r"""
             #!/bin/sh
             printf 'Darwin\n'
             """,
         )
         self.install_command(
             "curl",
-            """
+            r"""
             #!/bin/sh
             while [ "$#" -gt 0 ]; do
               if [ "$1" = --output ]; then
-                printf 'not the pinned hugo package\n' > "$2"
+                printf 'fake hugo package\n' > "$2"
                 exit 0
               fi
               shift
             done
             exit 64
+            """,
+        )
+        # Like `pkgutil --expand-full PACKAGE DESTINATION`, this refuses an
+        # existing destination and nests the payload under a component package.
+        self.install_command(
+            "pkgutil",
+            r"""
+            #!/bin/sh
+            if [ "$#" -ne 3 ] || [ "$1" != --expand-full ] || [ -e "$3" ]; then
+              exit 64
+            fi
+            mkdir -p "$3/hugo.pkg/Payload"
+            cp -p "$FAKE_HUGO" "$3/hugo.pkg/Payload/hugo"
             """,
         )
 
@@ -305,30 +337,76 @@ class HugoInstallTests(unittest.TestCase):
         path.write_text(textwrap.dedent(source).lstrip(), encoding="utf-8")
         path.chmod(path.stat().st_mode | stat.S_IXUSR)
 
+    def write_pin(self, sha256: str) -> None:
+        self.pin.write_text(
+            f"SWIFTQL_HUGO_VERSION={self.VERSION}\n"
+            f"SWIFTQL_HUGO_DARWIN_UNIVERSAL_SHA256={sha256}\n",
+            encoding="utf-8",
+        )
+
+    def write_fake_hugo(self, version_output: str) -> None:
+        self.fake_hugo.write_text(
+            f"#!/bin/sh\nprintf '%s\\n' '{version_output}'\n", encoding="utf-8"
+        )
+        self.fake_hugo.chmod(0o755)
+
     def run_install(self, *arguments: str) -> subprocess.CompletedProcess[str]:
         environment = os.environ.copy()
         environment.update(
             {
                 "PATH": f"{self.bin}:/usr/bin:/bin",
                 "GITHUB_PATH": str(self.github_path),
+                "FAKE_HUGO": str(self.fake_hugo),
             }
         )
         return subprocess.run(
-            [str(ROOT / "scripts/ci/install-hugo.sh"), *arguments],
-            cwd=ROOT,
+            [str(self.script), *arguments],
+            cwd=self.root,
             env=environment,
             text=True,
             capture_output=True,
             check=False,
         )
 
+    def assert_nothing_installed(self) -> None:
+        self.assertFalse((self.install_directory / "hugo").exists())
+        self.assertFalse(self.github_path.exists())
+
+    def test_installs_the_verified_binary_and_prepends_github_path(self) -> None:
+        result = self.run_install(str(self.install_directory))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        installed = self.install_directory / "hugo"
+        self.assertTrue(os.access(installed, os.X_OK))
+        self.assertEqual(installed.read_bytes(), self.fake_hugo.read_bytes())
+        self.assertIn(f"hugo v{self.VERSION}-", result.stdout)
+        self.assertEqual(
+            self.github_path.read_text(encoding="utf-8"),
+            f"{self.install_directory.resolve()}\n",
+        )
+
     def test_checksum_mismatch_fails_closed(self) -> None:
+        self.write_pin("0" * 64)
+
         result = self.run_install(str(self.install_directory))
 
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn("has SHA-256", result.stderr)
-        self.assertFalse((self.install_directory / "hugo").exists())
-        self.assertFalse(self.github_path.exists())
+        self.assert_nothing_installed()
+
+    def test_version_mismatch_fails_closed(self) -> None:
+        for version_output in (
+            "hugo v0.166.0+extended+withdeploy darwin/arm64 VendorInfo=Homebrew",
+            f"hugo v{self.VERSION}1-0123456789abcdef+extended darwin/arm64",
+        ):
+            with self.subTest(version_output=version_output):
+                self.write_fake_hugo(version_output)
+
+                result = self.run_install(str(self.install_directory))
+
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn(f"expected hugo v{self.VERSION}", result.stderr)
+                self.assert_nothing_installed()
 
     def test_missing_install_directory_is_a_usage_error(self) -> None:
         result = self.run_install()
