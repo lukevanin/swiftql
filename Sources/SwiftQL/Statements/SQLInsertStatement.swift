@@ -89,6 +89,12 @@ public struct XLInsertTableStatement<Table> {
         XLInsertTableValuesStatement(components: components.appending(Table.MetaInsert(values)))
     }
     
+    /// Inserts the rows selected through a static row layout. The layout's
+    /// metadata names the columns, so no `readRow` replay runs.
+    public func select<T>(_ layout: T) -> XLInsertSelectStatement<T.Row> where T: XLStaticRowReadable, T.Row == Table {
+        XLInsertSelectStatement(components: components.appending(Select(layout)))
+    }
+
     public func select<T>(_ result: T) -> XLInsertSelectStatement<T.Row> where T: XLRowReadable, T.Row == Table {
         XLInsertSelectStatement(components: components.appending(Select(result)))
     }

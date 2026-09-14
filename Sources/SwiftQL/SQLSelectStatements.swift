@@ -52,10 +52,15 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
     /// than surfacing an opaque `try!` crash. This matches `Returning.init(_:)`.
     ///
     /// A static row layout belongs to the ``XLStaticRowReadable`` overload
-    /// above, which skips the replay. Erasing such a layout to
-    /// `any XLRowReadable` selects this initializer instead, so the diagnostic
-    /// names that overload as the remedy.
+    /// above, which skips the replay. A generic caller that sees a layout only
+    /// as `XLRowReadable` reaches this initializer instead, so it checks for a
+    /// static layout at run time and uses the same non-replaying path.
     public init<T>(_ meta: T) where T: XLRowReadable, T.Row == Row {
+        if let layout = meta as? any XLStaticRowReadable {
+            self.fields = layout
+            self.row = meta.readRow
+            return
+        }
         let reader = XLColumnsDefinitionRowReader()
         do {
             _ = try meta.readRow(reader: reader)
@@ -65,10 +70,7 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
                 "SELECT projection \(String(reflecting: T.self)) could not "
                 + "enumerate its columns: \(error). Use a table or @SQLResult "
                 + "projection whose columns render against the definition "
-                + "reader. A static row layout must instead reach the "
-                + "XLStaticRowReadable overload of Select(_:), which skips "
-                + "this replay; erasing the layout to any XLRowReadable "
-                + "selects this initializer."
+                + "reader, or a static row layout."
             )
         }
         self.fields = reader

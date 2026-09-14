@@ -465,6 +465,18 @@ public func subquery<Wrapped>(_ statement: () -> any XLQueryStatement<Optional<W
 // MARK: Select
 
 ///
+/// Constructs a select statement from a static row layout.
+///
+/// The layout's metadata already names its columns, so the statement does not
+/// replay `readRow` to find them. The model initializer and codecs run only
+/// when a row is decoded.
+///
+public func select<T>(_ layout: T) -> XLQuerySelectStatement<T.Row> where T: XLStaticRowReadable {
+    makeQuery(select: Select(layout))
+}
+
+
+///
 /// Constructs a select statement that returns a column set.
 ///
 public func select<T>(_ result: T) -> XLQuerySelectStatement<T.Row> where T: XLRowReadable {

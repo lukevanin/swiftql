@@ -55,6 +55,14 @@ public struct QueryBuilder<Row> {
         self.init(select: Select(result))
     }
 
+    ///
+    /// Creates a query builder from a static row layout. The layout's metadata
+    /// names the columns, so no `readRow` replay runs.
+    ///
+    public init<T>(select layout: T) where T: XLStaticRowReadable, T.Row == Row {
+        self.init(select: Select(layout))
+    }
+
 
     ///
     /// Creates a query builder using an expression. The expression should use one or more fields in one or
