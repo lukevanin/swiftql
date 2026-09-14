@@ -231,6 +231,68 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
         )
     }
 
+    /// #644: the expression-builder subquery methods on `XLSchema` take the
+    /// subquery alias from the enclosing schema and nest the body in it.
+    func testSchemaSubqueryExpressionFormsDeriveFromEnclosingSchema() {
+        let tableForm = sql { schema in
+            let outer = schema.table(TestTable.self)
+            let sub = schema.subqueryExpression { inner in
+                let u = inner.table(TestTable.self)
+                Select(u)
+                From(u)
+                Where(u.value > outer.value)
+            }
+            Select(sub)
+            From(sub)
+        }
+        assertRenders(
+            tableForm,
+            as: "SELECT t1.id AS id, t1.value AS value FROM (SELECT t2.id AS id, t2.value AS value FROM Test AS t2 WHERE (t2.value > t0.value)) AS t1"
+        )
+
+        // The expression builder has no LEFT JOIN component, so the join is
+        // spelled with the functional chain.
+        let nullableSchema = XLSchema()
+        let company = nullableSchema.table(CompanyTable.self)
+        let staff = nullableSchema.nullableSubqueryExpression { inner in
+            let e = inner.table(EmployeeTable.self)
+            Select(e)
+            From(e)
+        }
+        let nullableForm = select(company)
+            .from(company)
+            .leftJoin(staff, on: staff.companyId == company.id)
+        assertRenders(
+            nullableForm,
+            as: "SELECT t0.id AS id, t0.name AS name FROM Company AS t0 LEFT JOIN (SELECT t2.id AS id, t2.name AS name, t2.companyId AS companyId, t2.managerEmployeeId AS managerEmployeeId FROM Employee AS t2) AS t1 ON (t1.companyId IS t0.id)"
+        )
+
+        let scalarForm = sql { schema in
+            let outer = schema.table(TestTable.self)
+            let limit = schema.binding(of: Int.self)
+            Select(
+                TestColumns.columns(
+                    id: outer.id,
+                    value: schema.subqueryExpression { inner in
+                        let u = inner.table(TestTable.self)
+                        let floor = inner.binding(of: Int.self)
+                        Select(u.value.sumOrNull())
+                        From(u)
+                        Where((u.value > floor) && (u.value < limit))
+                    }
+                )
+            )
+            From(outer)
+        }
+        let scalarEncoding = encoder.makeSQL(scalarForm)
+        XCTAssertEqual(
+            scalarEncoding.sql,
+            "SELECT t0.id AS id, (SELECT SUM(t1.value) FROM Test AS t1 WHERE ((t1.value > :p1) AND (t1.value < :p0))) AS value FROM Test AS t0"
+        )
+        XCTAssertNil(scalarEncoding.parameterLayoutError)
+        XCTAssertEqual(scalarEncoding.parameterLayout.count, 2)
+    }
+
     /// #644: an outer and an inner automatically named binding of the same
     /// Swift type get two parameters instead of one shared `:p0`.
     func testOuterAndInnerAutomaticBindingsUseDistinctParameters() {

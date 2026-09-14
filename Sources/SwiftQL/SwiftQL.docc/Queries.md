@@ -476,9 +476,9 @@ A subquery or common table body receives its own schema. When you build it
 from the enclosing schema -- `schema.subqueryExpression { ... }`,
 `schema.subquery { ... }`, `schema.nullableSubquery { ... }`,
 `schema.commonTable { ... }`, or `XLSchema(parent: schema)` -- the nested
-schema never reuses an alias or a common table name that the enclosing
-statement has already reserved, and its automatically named bindings continue
-the enclosing sequence. An unnamed subquery joined to an enclosing table
+schema never assigns an automatic alias or common table name that the
+enclosing statement has already reserved, and its automatically named bindings
+continue the enclosing sequence. An explicit alias is used as given. An unnamed subquery joined to an enclosing table
 therefore gets its own alias, and an outer and an inner binding stay two
 parameters. The free functions `subqueryExpression { ... }`, `subquery { ... }`,
 and `nullableSubquery { ... }` cannot see the enclosing schema, so they start
