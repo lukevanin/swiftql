@@ -387,8 +387,8 @@ public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQ
 /// inner statement is an ordinary one selecting `T`; nullability describes how
 /// the *result* is joined, not what the subquery selects.
 ///
-/// - Important: This function opens an independent scope, as
-///   ``subquery(alias:_:)`` does. Use ``XLSchema/nullableSubquery(alias:_:)``
+/// - Important: This function opens an independent scope, as the free
+///   `subquery(alias:_:)` function does. Use ``XLSchema/nullableSubquery(alias:_:)``
 ///   to derive the alias and the body's names from the enclosing schema.
 ///
 public func nullableSubquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult {
