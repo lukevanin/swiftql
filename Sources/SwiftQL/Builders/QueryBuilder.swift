@@ -288,7 +288,9 @@ public struct QueryBuilder<Row> {
     /// Adds an or expression to the where clause.
     ///
     /// Terms fold in call order: each call combines the whole condition so far
-    /// with its term. `and(a).or(b).and(c)` renders `((a OR b) AND c)`.
+    /// with its term. `and(a).or(b).and(c)` renders `((a OR b) AND c)`. The
+    /// operator of the first term is not used, so `or(a).and(b)` renders
+    /// `(a AND b)`.
     ///
     public func or(_ condition: any XLExpression<Bool>) -> QueryBuilder {
         copy {

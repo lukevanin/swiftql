@@ -259,8 +259,9 @@ final class QueryBuilderTests: XLEncoderTestCase {
             "SELECT `t0`.`id` AS `id`, `t0`.`name` AS `name` FROM `Company` AS `t0` WHERE (((`t0`.`name` == 'A') OR (`t0`.`name` == 'B')) AND (`t0`.`name` == 'C'))"
         )
 
-        // The operator of the first term has nothing to join, so a leading
-        // `or` starts the condition as before.
+        // The operator of the first term has nothing to join, so it is not
+        // used. Before v1.8.1 the `and` term folded first, so this query
+        // rendered `(B OR A)`.
         let leadingOr = QueryBuilder(select: company)
             .from(company)
             .or(company.name == "A")

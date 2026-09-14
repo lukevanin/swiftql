@@ -598,10 +598,17 @@ is similar except duplicate rows are excluded. SQLite does not guarantee the
 order of compound-query rows unless the compound statement has an `OrderBy`
 clause.
 
-Each branch after the first must be a plain select. SQLite applies `ORDER BY`,
-`LIMIT`, and `OFFSET` to the whole compound, and it does not accept `WITH`
-after a compound operator. Apply those clauses after the last branch, and put
-`With` before the first branch. In the functional syntax, a branch such as
+Each branch after the first must be a plain select: it cannot have `With`,
+`OrderBy`, `Limit`, or `Offset`, and it cannot be a compound itself. SQLite
+applies `ORDER BY`, `LIMIT`, and `OFFSET` to the whole compound, it does not
+accept `WITH` after a compound operator, and it reads `a EXCEPT b UNION c` as
+`(a EXCEPT b) UNION c`. Apply those clauses after the last branch, put `With`
+before the first branch, and chain compound operators instead of nesting them.
+For example, limit a recursive common table with
+`select(seed).unionAll { select(step).from(this) }.limit(10)`, not with `limit`
+inside the closure. Both spellings render the same SQL.
+
+In the functional syntax, a branch such as
 `union { select(row).from(table).orderBy(...) }` compiles, because the compound
 methods accept any query statement, but it is checked when the statement
 renders: the request fails with

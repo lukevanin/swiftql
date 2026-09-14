@@ -671,6 +671,17 @@ struct GRDBDatabaseDriverConnection:
            ) {
             throw error
         }
+        // Mirror the packet validation: GRDB binds text with the length -1,
+        // so a value with U+0000 would be truncated (issue #657).
+        if case .text(let text) = value, text.utf8.contains(0) {
+            throw XLSQLValueEncodingError.nulCharacterInText(
+                valueType: String(reflecting: String.self),
+                context: XLValueCodingContext(
+                    site: .parameter,
+                    path: XLValueCodingPath(key.valueEncodingPathComponent)
+                )
+            )
+        }
         var result = statement
         result.bindings[key] = value
         return result

@@ -226,6 +226,26 @@ final class XLExecutionTests: XCTestCase {
         XCTAssertEqual(try accepted.fetchOne(), "a b ü 🧪")
     }
 
+    /// #657: a compound whose right-hand branch has LIMIT fails in the request
+    /// before SQLite prepares it. The table does not need to exist, because
+    /// the failure comes before preparation.
+    func testCompoundBranchWithLimitFailsBeforeSQLitePreparation() {
+        let schema = XLSchema()
+        let left = schema.table(TestTable.self)
+        let right = schema.table(TestTable.self)
+        let statement = select(left.id).from(left).unionAll { () -> any XLQueryStatement<String> in
+            select(right.id).from(right).limit(1)
+        }
+        XCTAssertThrowsError(
+            try database.makeRequest(with: statement).fetchAll() as [String]
+        ) { error in
+            XCTAssertEqual(
+                error as? XLSQLValueEncodingError,
+                .unsupportedCompoundBranchClause(compoundOperator: "UNION ALL", clause: "LIMIT")
+            )
+        }
+    }
+
     /// #657: an inline text literal with U+0000 fails before SQLite prepares
     /// the statement.
     func testInlineTextWithNulFailsBeforeSQLitePreparation() {

@@ -86,8 +86,9 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
         XCTAssertEqual(result.sql, "SELECT t0.name AS name, t0.mom AS parent FROM Family AS t0 UNION SELECT t1.name AS name, t1.dad AS parent FROM Family AS t1 LIMIT 1")
     }
 
-    /// A typed branch that ends with ORDER BY is rejected when the compound
-    /// renders. SQLite would apply the ORDER BY to the whole compound.
+    /// A typed branch that ends with ORDER BY, LIMIT, and OFFSET is rejected
+    /// when the compound renders. SQLite would apply these clauses to the
+    /// whole compound. The error names the first clause found.
     func testTypedBranchWithOrderByIsRejected() {
         let schema = XLSchema()
         let familyMom = schema.table(Family.self)
@@ -133,6 +134,56 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
         XCTAssertEqual(
             encoder.makeSQL(expression).valueEncodingError,
             .unsupportedCompoundBranchClause(compoundOperator: "UNION ALL", clause: "LIMIT")
+        )
+    }
+
+    /// A branch that is itself a compound is rejected. SQLite groups compound
+    /// operators from the left, so `a EXCEPT (b UNION c)` would render as
+    /// `a EXCEPT b UNION c` and mean `(a EXCEPT b) UNION c`.
+    func testNestedCompoundBranchIsRejected() {
+        let schema = XLSchema()
+        let first = schema.table(Family.self)
+        let second = schema.table(Family.self)
+        let third = schema.table(Family.self)
+        let firstRow = FamilyMemberParent.columns(name: first.name, parent: first.mom)
+        let secondRow = FamilyMemberParent.columns(name: second.name, parent: second.dad)
+        let thirdRow = FamilyMemberParent.columns(name: third.name, parent: third.mom)
+        let expression = select(firstRow).from(first).except {
+            select(secondRow).from(second).union { select(thirdRow).from(third) }
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).valueEncodingError,
+            .unsupportedCompoundBranchClause(compoundOperator: "EXCEPT", clause: "UNION")
+        )
+
+        // Chaining the operators instead is accepted.
+        let chained = select(firstRow).from(first)
+            .except { select(secondRow).from(second) }
+            .union { select(thirdRow).from(third) }
+        XCTAssertNil(encoder.makeSQL(chained).valueEncodingError)
+    }
+
+    /// A nested compound whose first branch has a WITH list would render
+    /// `UNION WITH ...`. The nested compound is rejected, so that SQL never
+    /// reaches SQLite.
+    func testNestedCompoundBranchWithCommonTablesIsRejected() {
+        let schema = XLSchema()
+        let familyMom = schema.table(Family.self)
+        let familyDad = schema.table(Family.self)
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
+        let cte = schema.commonTable { s in
+            let family = s.table(Family.self)
+            return select(family).from(family)
+        }
+        let parents = schema.table(cte)
+        let parentRow = FamilyMemberParent.columns(name: parents.name, parent: parents.dad)
+        let expression = select(momRow).from(familyMom).union {
+            with(cte).select(parentRow).from(parents).union { select(dadRow).from(familyDad) }
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).valueEncodingError,
+            .unsupportedCompoundBranchClause(compoundOperator: "UNION", clause: "UNION")
         )
     }
 

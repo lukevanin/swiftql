@@ -67,8 +67,10 @@ public enum XLSQLValueEncodingError:
 
     /// The right-hand branch of a compound select (`UNION`, `UNION ALL`,
     /// `INTERSECT`, or `EXCEPT`) has a `WITH`, `ORDER BY`, `LIMIT`, or
-    /// `OFFSET` clause. SQLite applies `ORDER BY`, `LIMIT`, and `OFFSET` to
-    /// the whole compound, and it does not accept `WITH` after the operator.
+    /// `OFFSET` clause, or is itself a compound select, in which case `clause`
+    /// names the nested operator. SQLite applies `ORDER BY`, `LIMIT`, and
+    /// `OFFSET` to the whole compound, does not accept `WITH` after the
+    /// operator, and groups compound operators from the left.
     case unsupportedCompoundBranchClause(compoundOperator: String, clause: String)
 
     public var errorDescription: String? {
@@ -77,7 +79,7 @@ public enum XLSQLValueEncodingError:
             let site = context.map { " at \($0)" } ?? ""
             return "Cannot use a \(valueType) text value that contains U+0000\(site): SQLite reads text only up to the first NUL, so the value would be truncated. Store such data as a blob."
         case .unsupportedCompoundBranchClause(let compoundOperator, let clause):
-            return "The right-hand branch of \(compoundOperator) has a \(clause) clause. SQLite applies ORDER BY, LIMIT, and OFFSET to the whole compound, and does not accept WITH after the operator. Apply the clause to the whole compound, or put WITH before the first branch."
+            return "The right-hand branch of \(compoundOperator) has a \(clause) clause. SQLite applies ORDER BY, LIMIT, and OFFSET to the whole compound, does not accept WITH after the operator, and groups a nested compound from the left. Apply the clause to the whole compound, put WITH before the first branch, or chain the compound operators instead of nesting them."
         case .nonFiniteRealLiteral(let value, let expressionType):
             return "Cannot render \(value) from \(expressionType) as an inline SQLite real literal. SQLite has no valid bare numeric token for this value; use a bound parameter when its SQLite binding semantics are acceptable."
         case .realBindingWouldBecomeNull(let value, let valueType, let context):

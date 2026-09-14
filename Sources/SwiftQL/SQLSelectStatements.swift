@@ -158,12 +158,17 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
     }
 
     /// Finds a `WITH`, `ORDER BY`, `LIMIT`, or `OFFSET` clause in a right-hand
-    /// branch (issue #657).
+    /// branch, or a right-hand branch that is itself a compound (issue #657).
     ///
     /// The compound methods accept any `XLQueryStatement`, so that callers who
     /// pass an erased statement keep compiling. The check therefore runs here,
     /// and the compound reports the clause when it renders, before SQLite
-    /// prepares the statement.
+    /// prepares the statement. Only the branch's own top-level clauses are
+    /// read: a subquery or common table inside the branch may have its own.
+    ///
+    /// A nested compound is rejected because SQLite groups compound operators
+    /// from the left: `a EXCEPT (b UNION c)` would render as
+    /// `a EXCEPT b UNION c`. Its first branch could also carry a `WITH` list.
     private static func unsupportedClause(inBranch branch: any XLEncodable) -> String? {
         guard let components = branch as? XLQueryStatementComponents<Row> else {
             return nil
@@ -172,6 +177,9 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
             return "WITH"
         }
         for component in components.components {
+            if let nested = component as? BooleanClause<Row> {
+                return nested.operatorKeyword
+            }
             if component is OrderBy {
                 return "ORDER BY"
             }
@@ -185,18 +193,22 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
         return nil
     }
 
-    public func makeSQL(context: inout XLBuilder) {
-        let op: String
+    /// The SQL keyword of this compound operator.
+    var operatorKeyword: String {
         switch kind {
         case .union:
-            op = "UNION"
+            return "UNION"
         case .unionAll:
-            op = "UNION ALL"
+            return "UNION ALL"
         case .intersect:
-            op = "INTERSECT"
+            return "INTERSECT"
         case .except:
-            op = "EXCEPT"
+            return "EXCEPT"
         }
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        let op = operatorKeyword
         if let unsupportedBranchClause {
             context.valueEncodingFailed(
                 .unsupportedCompoundBranchClause(
