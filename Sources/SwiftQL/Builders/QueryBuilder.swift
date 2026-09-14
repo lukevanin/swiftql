@@ -276,7 +276,7 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds an and expression to the where clause.
     ///
-    /// Terms fold in call order, as for ``and(_:)-(any XLExpression<Bool>)``.
+    /// Terms fold in call order, as for the non-optional overload.
     ///
     public func and(_ condition: any XLExpression<Optional<Bool>>) -> QueryBuilder {
         copy {
