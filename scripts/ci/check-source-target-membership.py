@@ -28,6 +28,10 @@ REPORT_SCRIPT = Path(__file__).with_name("source-coverage-report.py")
 
 
 def load_report_module() -> Any:
+    # Loading a .py file through importlib caches its bytecode beside the
+    # source, in scripts/ci/__pycache__. The release-tooling job fails on any
+    # file the checkout did not have, so no bytecode may be written.
+    sys.dont_write_bytecode = True
     specification = importlib.util.spec_from_file_location(
         "source_coverage_report", REPORT_SCRIPT
     )
