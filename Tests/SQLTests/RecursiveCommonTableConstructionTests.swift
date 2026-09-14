@@ -408,6 +408,15 @@ final class RecursiveCommonTableConstructionTests: XCTestCase {
                 .duplicateAlias("SERIES")
             )
         }
+
+        // SQLite folds only ASCII letters, so non-ASCII case variants are
+        // distinct names. Every rendered WITH clause runs this validator, so a
+        // Unicode fold here would reject valid SQL.
+        let nonASCII = [
+            XLCommonTableDependency(alias: "é", statement: TestAliasedExpression<Int>(expression: 1, alias: "value")),
+            XLCommonTableDependency(alias: "É", statement: TestAliasedExpression<Int>(expression: 2, alias: "value")),
+        ]
+        XCTAssertNoThrow(try xlValidateUniqueCommonTableAliases(nonASCII))
     }
 
     func testResultLayoutMismatchIsRejected() throws {

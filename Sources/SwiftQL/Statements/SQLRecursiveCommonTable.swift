@@ -253,21 +253,39 @@ public struct XLRecursiveCommonTableDraft<Layout> where Layout: XLRecursiveCommo
 /// throwing ``XLRecursiveCommonTableConstructionError/duplicateAlias(_:)`` for
 /// the first collision.
 ///
-/// Alias comparison is case-insensitive using Swift's Unicode `lowercased()`,
-/// consistent with how ``XLNamespace`` tracks reserved aliases. (SQLite folds
-/// only ASCII `A`–`Z`, so this is marginally stricter for non-ASCII aliases,
-/// which the library never generates automatically.)
+/// Alias comparison folds only ASCII `A`–`Z`, as SQLite does when it compares
+/// identifiers. Every rendered `WITH` clause calls this validator, so a
+/// Unicode fold would reject aliases such as `é` and `É` that SQLite accepts
+/// as distinct names.
 ///
 public func xlValidateUniqueCommonTableAliases(
     _ definitions: [XLCommonTableDependency]
 ) throws {
     var seen: Set<String> = []
     for definition in definitions {
-        let key = definition.alias.rawValue.lowercased()
+        let key = xlSQLiteIdentifierFoldKey(definition.alias.rawValue)
         guard seen.insert(key).inserted else {
             throw XLRecursiveCommonTableConstructionError.duplicateAlias(definition.alias)
         }
     }
+}
+
+
+///
+/// Folds an identifier the way SQLite compares identifiers: ASCII `A`–`Z`
+/// become `a`–`z`, and every other scalar is unchanged.
+///
+func xlSQLiteIdentifierFoldKey(_ identifier: String) -> String {
+    var scalars = String.UnicodeScalarView()
+    for scalar in identifier.unicodeScalars {
+        if (65...90).contains(scalar.value) {
+            scalars.append(Unicode.Scalar(UInt8(scalar.value + 32)))
+        }
+        else {
+            scalars.append(scalar)
+        }
+    }
+    return String(scalars)
 }
 
 
