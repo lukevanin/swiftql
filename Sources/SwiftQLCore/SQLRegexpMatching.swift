@@ -166,9 +166,10 @@ public enum XLRegexpMatcher {
 /// where one cache sees many patterns -- a pattern read from a *column*, which
 /// can differ on every row, and the many statements with different patterns
 /// that one connection runs over its life -- so that the cache compiles
-/// repeatedly instead of growing without limit. Eviction is by insertion order, which needs
-/// no per-hit bookkeeping; a most-recent entry in front of the map keeps the
-/// common single-pattern statement from touching the map at all.
+/// repeatedly instead of growing without limit. Eviction is by insertion
+/// order, which needs no per-hit bookkeeping; a most-recent entry in front of
+/// the map keeps the common single-pattern statement from touching the map at
+/// all.
 ///
 /// A failed compile is cached with the same rules as a successful one, so a
 /// statement with an invalid pattern reports the failure once per row without
