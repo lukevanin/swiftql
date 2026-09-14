@@ -240,6 +240,102 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertNotIn("xcrun swift package resolve", compatibility)
         self.assertNotIn("xcrun swift run --skip-build swiftql-benchmark", compatibility)
 
+    def test_documentation_builds_install_the_pinned_hugo_release(self) -> None:
+        pin = (ROOT / "scripts/ci/hugo-version.sh").read_text(encoding="utf-8")
+        self.assertRegex(pin, r"(?m)^SWIFTQL_HUGO_VERSION=\d+\.\d+\.\d+$")
+        self.assertRegex(
+            pin, r"(?m)^SWIFTQL_HUGO_DARWIN_UNIVERSAL_SHA256=[0-9a-f]{64}$"
+        )
+
+        make_docs = (ROOT / "make-docs.sh").read_text(encoding="utf-8")
+        self.assertIn('. "$blog_source_root/scripts/ci/hugo-version.sh"', make_docs)
+        self.assertIn(
+            'blog_expected_hugo_version="hugo v$SWIFTQL_HUGO_VERSION"', make_docs
+        )
+        self.assertNotRegex(make_docs, r"hugo v\d")
+
+        for workflow in (
+            WORKFLOW,
+            ROOT / ".github/workflows/documentation-build.yml",
+        ):
+            with self.subTest(workflow=workflow.name):
+                text = workflow.read_text(encoding="utf-8")
+                self.assertIn('scripts/ci/install-hugo.sh "$RUNNER_TEMP/hugo"', text)
+                self.assertNotIn("brew install hugo", text)
+                self.assertNotIn("brew upgrade hugo", text)
+
+
+class HugoInstallTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary_directory = tempfile.TemporaryDirectory(
+            prefix="swiftql-hugo-install."
+        )
+        self.root = Path(self.temporary_directory.name)
+        self.bin = self.root / "bin"
+        self.bin.mkdir()
+        self.install_directory = self.root / "hugo"
+        self.github_path = self.root / "github-path"
+        self.install_command(
+            "uname",
+            """
+            #!/bin/sh
+            printf 'Darwin\n'
+            """,
+        )
+        self.install_command(
+            "curl",
+            """
+            #!/bin/sh
+            while [ "$#" -gt 0 ]; do
+              if [ "$1" = --output ]; then
+                printf 'not the pinned hugo package\n' > "$2"
+                exit 0
+              fi
+              shift
+            done
+            exit 64
+            """,
+        )
+
+    def tearDown(self) -> None:
+        self.temporary_directory.cleanup()
+
+    def install_command(self, name: str, source: str) -> None:
+        path = self.bin / name
+        path.write_text(textwrap.dedent(source).lstrip(), encoding="utf-8")
+        path.chmod(path.stat().st_mode | stat.S_IXUSR)
+
+    def run_install(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "PATH": f"{self.bin}:/usr/bin:/bin",
+                "GITHUB_PATH": str(self.github_path),
+            }
+        )
+        return subprocess.run(
+            [str(ROOT / "scripts/ci/install-hugo.sh"), *arguments],
+            cwd=ROOT,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def test_checksum_mismatch_fails_closed(self) -> None:
+        result = self.run_install(str(self.install_directory))
+
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("has SHA-256", result.stderr)
+        self.assertFalse((self.install_directory / "hugo").exists())
+        self.assertFalse(self.github_path.exists())
+
+    def test_missing_install_directory_is_a_usage_error(self) -> None:
+        result = self.run_install()
+
+        self.assertEqual(result.returncode, 64, result.stderr)
+        self.assertIn("usage:", result.stderr)
+
 
 class CompatibilityEnvironmentTests(unittest.TestCase):
     def setUp(self) -> None:

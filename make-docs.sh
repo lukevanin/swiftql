@@ -133,16 +133,20 @@ install_blog() {
     blog_output="$2"
     blog_base_path="$3"
     blog_website="$blog_source_root/Website/blog"
-    blog_expected_hugo_version="hugo v0.165.0"
+    # The pin lives only in scripts/ci/hugo-version.sh, and
+    # scripts/ci/install-hugo.sh installs exactly that release (#611).
+    . "$blog_source_root/scripts/ci/hugo-version.sh"
+    blog_expected_hugo_version="hugo v$SWIFTQL_HUGO_VERSION"
 
     if ! command -v hugo >/dev/null 2>&1; then
-        printf 'error: hugo is required to build Website/blog and was not found\n' >&2
+        printf 'error: %s is required to build Website/blog and was not found; install it with scripts/ci/install-hugo.sh\n' \
+            "$blog_expected_hugo_version" >&2
         return 1
     fi
     case "$(hugo version)" in
         "$blog_expected_hugo_version"*) ;;
         *)
-            printf 'error: expected %s, found: %s\n' \
+            printf 'error: expected %s, found: %s; install it with scripts/ci/install-hugo.sh\n' \
                 "$blog_expected_hugo_version" "$(hugo version)" >&2
             return 1
             ;;
