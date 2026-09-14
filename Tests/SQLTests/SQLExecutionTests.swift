@@ -110,6 +110,27 @@ final class XLExecutionTests: XCTestCase {
         )
     }
 
+    /// #644: an outer and an inner automatically named binding of the same
+    /// Swift type are two parameters with two values. Before the fix both
+    /// rendered `:p0`, so the last value set replaced the first.
+    func testOuterAndInnerAutomaticBindingsKeepTwoValues() throws {
+        let schema = XLSchema()
+        let outer = schema.binding(of: Int.self)
+        var inner: XLNamedBindingReference<Int>!
+        let statement = select(
+            schema.subquery { nested -> any XLQueryStatement<Int> in
+                let innerBinding = nested.binding(of: Int.self)
+                inner = innerBinding
+                return select(outer - innerBinding)
+            }
+        )
+        var request = database.makeRequest(with: statement)
+        XCTAssertEqual(request.parameterLayout.count, 2)
+        request.set(outer, 7)
+        request.set(inner, 5)
+        XCTAssertEqual(try request.fetchOne(), 2)
+    }
+
     func testNestedUnaryOperatorExecution() throws {
         let x = XLNamedBindingReference<Int>(name: "x")
         let doubleNegation = sql { _ in

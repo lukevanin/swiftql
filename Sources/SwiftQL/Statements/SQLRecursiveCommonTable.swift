@@ -271,6 +271,37 @@ public func xlValidateUniqueCommonTableAliases(
 }
 
 
+extension Array where Element == XLCommonTableDependency {
+
+    ///
+    /// Renders a `WITH` clause for these common tables, if there are any.
+    ///
+    /// The statement components of every query, insert, update, and delete
+    /// render their common tables here. A duplicate alias is reported through
+    /// ``XLSQLValueEncodingError/duplicateCommonTableAlias(alias:)`` before
+    /// SQLite sees the statement.
+    ///
+    func makeWithClauseSQL(context: inout XLBuilder) {
+        guard !isEmpty else {
+            return
+        }
+        do {
+            try xlValidateUniqueCommonTableAliases(self)
+        }
+        catch {
+            if case XLRecursiveCommonTableConstructionError.duplicateAlias(let alias) = error {
+                context.valueEncodingFailed(.duplicateCommonTableAlias(alias: alias.rawValue))
+            }
+        }
+        context.commonTables { context in
+            for commonTable in self {
+                commonTable.makeSQL(context: &context)
+            }
+        }
+    }
+}
+
+
 ///
 /// A never-rendering placeholder body for the alias-only self-reference used
 /// during recursive CTE construction.

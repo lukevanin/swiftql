@@ -201,6 +201,9 @@ public enum XLInvocationBindingError: Error, Equatable, Sendable, LocalizedError
         existing: XLParameterSlot,
         incoming: XLParameterSlot
     )
+    /// Two binding references that were named automatically by different
+    /// schemas render the same placeholder, so they would share one value.
+    case conflictingBindingReferences(key: XLBindingKey)
     case codecValueTypeMismatch(
         slot: XLParameterSlot,
         codecValueTypeIdentifier: XLValueTypeIdentifier
@@ -270,6 +273,8 @@ public enum XLInvocationBindingError: Error, Equatable, Sendable, LocalizedError
             return "Parameter \(key) has conflicting declarations at logical indices \(existing.index) and \(incoming.index)."
         case .conflictingPhysicalParameterIndex(let index, let existing, let incoming):
             return "Dialect parameter index \(index) aliases distinct logical parameters \(existing.key) and \(incoming.key)."
+        case .conflictingBindingReferences(let key):
+            return "Parameter \(key) is named automatically by two different schemas. Build the nested scope from the enclosing schema, for example with XLSchema(parent:), or give the bindings explicit names."
         case .codecValueTypeMismatch(let slot, let codecValueTypeIdentifier):
             let codec = slot.codecIdentity?.key.description ?? "unknown"
             return "Parameter \(slot.key) declares value type \(slot.valueTypeIdentifier), but codec \(codec) targets \(codecValueTypeIdentifier)."

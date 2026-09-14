@@ -212,6 +212,84 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
         )
     }
 
+    /// #644: the same join without a hand-written alias. The subquery built
+    /// from the enclosing schema takes the next outer alias, and its body
+    /// skips both outer aliases, so no alias is ambiguous.
+    func testUnnamedNullableSubqueryOnLeftJoinUsesDistinctAliases() {
+        let schema = XLSchema()
+        let company = schema.table(CompanyTable.self)
+        let employees = schema.nullableSubquery { inner in
+            let e = inner.table(EmployeeTable.self)
+            return select(e).from(e)
+        }
+        let expression = select(company)
+            .from(company)
+            .leftJoin(employees, on: employees.companyId == company.id)
+        assertRenders(
+            expression,
+            as: "SELECT t0.id AS id, t0.name AS name FROM Company AS t0 LEFT JOIN (SELECT t2.id AS id, t2.name AS name, t2.companyId AS companyId, t2.managerEmployeeId AS managerEmployeeId FROM Employee AS t2) AS t1 ON (t1.companyId IS t0.id)"
+        )
+    }
+
+    /// #644: an outer and an inner automatically named binding of the same
+    /// Swift type get two parameters instead of one shared `:p0`.
+    func testOuterAndInnerAutomaticBindingsUseDistinctParameters() {
+        let schema = XLSchema()
+        let outer = schema.binding(of: Int.self)
+        let expression = select(
+            schema.subquery { inner -> any XLQueryStatement<Int> in
+                let limit = inner.binding(of: Int.self)
+                return select(outer + limit)
+            }
+        )
+        let encoding = encoder.makeSQL(expression)
+        XCTAssertEqual(encoding.sql, "SELECT (SELECT (:p0 + :p1))")
+        XCTAssertNil(encoding.parameterLayoutError)
+        XCTAssertEqual(
+            encoding.parameterLayout.slots.map(\.key),
+            [.named("p0"), .named("p1")]
+        )
+    }
+
+    /// #644: bindings named automatically by two unrelated schemas both render
+    /// `:p0`. The renderer reports the collision instead of merging them.
+    func testAutomaticBindingsFromUnrelatedSchemasAreRejected() {
+        let outerSchema = XLSchema()
+        let outer = outerSchema.binding(of: Int.self)
+        let inner = XLSchema().binding(of: Int.self)
+        let encoding = encoder.makeSQL(select(outer + inner))
+        XCTAssertEqual(
+            encoding.parameterLayoutError,
+            .conflictingBindingReferences(key: .named("p0"))
+        )
+        XCTAssertThrowsError(try encoder.makeValidatedSQL(select(outer + inner)))
+
+        // The same reference used twice is one parameter, not a collision.
+        let repeated = encoder.makeSQL(select(outer + outer))
+        XCTAssertNil(repeated.parameterLayoutError)
+        XCTAssertEqual(repeated.parameterLayout.count, 1)
+    }
+
+    /// #644: a WITH clause that lists two common tables with the same name is
+    /// rejected at render time instead of at SQLite prepare.
+    func testDuplicateCommonTableAliasIsRejectedAtRender() {
+        let first = XLSchema().commonTable { s in
+            let t = s.table(TestTable.self)
+            return select(t).from(t)
+        }
+        let second = XLSchema().commonTable { s in
+            let t = s.table(TestTable.self)
+            return select(t).from(t)
+        }
+        let schema = XLSchema()
+        let t = schema.table(first)
+        let encoding = encoder.makeSQL(with(first, second).select(t).from(t))
+        XCTAssertEqual(
+            encoding.valueEncodingError,
+            .duplicateCommonTableAlias(alias: "cte0")
+        )
+    }
+
     func testSelectSubqueryAggregate() {
         let s = XLSchema()
         let t = s.table(TestTable.self)

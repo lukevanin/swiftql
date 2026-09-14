@@ -73,15 +73,38 @@ public func sqlCreate<T>(_ table: T.Type) -> any XLCreateStatement<T> where T: X
 
 
 public struct XLSchema {
-    
-    let commonTableNamespace = XLNamespace.common()
 
-    let tableNamespace = XLNamespace.table()
+    let commonTableNamespace: XLNamespace
 
-    let parameterNamespace = XLNamespace.parameter()
+    let tableNamespace: XLNamespace
 
+    let parameterNamespace: XLNamespace
+
+    ///
+    /// Creates a schema for a top-level statement.
+    ///
     public init() {
-        
+        commonTableNamespace = XLNamespace.common()
+        tableNamespace = XLNamespace.table()
+        parameterNamespace = XLNamespace.parameter()
+    }
+
+    ///
+    /// Creates a schema for a scope nested inside `parent`, such as the body of
+    /// a subquery or a common table expression.
+    ///
+    /// Automatically assigned table and common-table aliases skip every alias
+    /// that `parent` or one of its ancestors has reserved, so the nested body
+    /// never shadows a name that it can reference. Parameters are not scoped in
+    /// SQL, so the nested schema shares the parameter namespace of `parent`, and
+    /// an outer and an inner automatically named binding get distinct names.
+    ///
+    /// Explicit aliases are used as given.
+    ///
+    public init(parent: XLSchema) {
+        commonTableNamespace = parent.commonTableNamespace.makeNestedNamespace()
+        tableNamespace = parent.tableNamespace.makeNestedNamespace()
+        parameterNamespace = parent.parameterNamespace
     }
 
     ///
@@ -91,7 +114,12 @@ public struct XLSchema {
     /// be instantiated directly.
     ///
     public func binding<T>(of type: T.Type, as alias: XLName? = nil) -> XLNamedBindingReference<T> where T: XLLiteral {
-        XLNamedBindingReference(name: parameterNamespace.makeAlias(alias: alias))
+        XLNamedBindingReference(
+            name: parameterNamespace.makeAlias(alias: alias),
+            // Only an automatically assigned name can collide by accident. A
+            // caller that reuses an explicit name asks for one parameter.
+            origin: alias == nil ? XLBindingOrigin(scope: parameterNamespace.bindingScope) : nil
+        )
     }
 
     ///
@@ -116,7 +144,7 @@ public struct XLSchema {
     ///
     public func commonTable<T>(alias: XLName? = nil, materialization: XLCommonTableMaterialization = .unspecified, statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaCommonTable where T: XLResult {
         let alias = commonTableNamespace.makeAlias(alias: alias)
-        let schema = XLSchema()
+        let schema = XLSchema(parent: self)
         let dependency = XLCommonTableDependency(alias: alias, statement: statement(schema), materialization: materialization)
         return T.makeSQLCommonTable(namespace: commonTableNamespace, dependency: dependency)
     }
@@ -155,7 +183,7 @@ public struct XLSchema {
         body: (XLSchema, T.MetaCommonTable.Result.MetaNamedResult) -> any XLQueryStatement<T>
     ) -> T.MetaCommonTable where T: XLResult {
         let reservedAlias = commonTableNamespace.makeAlias(alias: alias)
-        let bodySchema = XLSchema()
+        let bodySchema = XLSchema(parent: self)
         var draft = XLRecursiveCommonTableDraft(
             alias: reservedAlias,
             layout: XLCompositeRecursiveCommonTableLayout<T>(schema: bodySchema)
@@ -234,9 +262,54 @@ public struct XLSchema {
     ///
     public func from<T>(as alias: XLName? = nil, statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLTable {
         let alias = tableNamespace.makeAlias(alias: alias)
-        let schema = XLSchema()
+        let schema = XLSchema(parent: self)
         let dependency = XLUpdateFromTableDependency(alias: alias, statement: statement(schema))
         return T.makeSQLAnonymousNamedResult(namespace: tableNamespace, dependency: dependency)
+    }
+
+    ///
+    /// Constructs a subquery in this schema with a select query statement that
+    /// returns a column set.
+    ///
+    /// The subquery's alias comes from this schema, so an unnamed subquery
+    /// never renders the alias of another source in the enclosing statement.
+    /// The body receives a schema nested in this one (see
+    /// ``init(parent:)``).
+    ///
+    public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLResult {
+        let alias = tableNamespace.makeAlias(alias: alias)
+        let dependency = XLSubqueryDependency(alias: alias, statement: statement(XLSchema(parent: self)))
+        return T.makeSQLAnonymousNamedResult(namespace: tableNamespace, dependency: dependency)
+    }
+
+    ///
+    /// Constructs a subquery in this schema whose columns can evaluate to NULL,
+    /// for use on the nullable side of a `LEFT JOIN`.
+    ///
+    /// The alias and the body schema are derived from this schema, as for
+    /// ``subquery(alias:_:)``.
+    ///
+    public func nullableSubquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult {
+        let alias = tableNamespace.makeAlias(alias: alias)
+        let dependency = XLSubqueryDependency(alias: alias, statement: statement(XLSchema(parent: self)))
+        return T.makeSQLAnonymousNullableNamedResult(namespace: tableNamespace, dependency: dependency)
+    }
+
+    ///
+    /// Constructs a scalar subquery in this schema. The body receives a schema
+    /// nested in this one, so its aliases and bindings do not collide with the
+    /// enclosing statement.
+    ///
+    public func subquery<T>(_ statement: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
+        XLSubquery(statement: statement(XLSchema(parent: self)))
+    }
+
+    ///
+    /// Constructs a scalar subquery in this schema whose inner statement is
+    /// already nullable, so the two sources of NULL collapse into one.
+    ///
+    public func subquery<Wrapped>(_ statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
+        XLSubquery<Wrapped>(statement: statement(XLSchema(parent: self)))
     }
 
     ///
@@ -292,6 +365,11 @@ public func result<T>(_ iterator: @escaping (XLRowReader) -> T) -> T.MetaResult 
 ///
 /// Constructs a subquery with a select query statement that returns a column set.
 ///
+/// - Important: This function cannot see the enclosing schema, so it opens an
+///   independent scope: an unnamed subquery is aliased `t0`, and its body's
+///   aliases and bindings restart. Use ``XLSchema/subquery(alias:_:)`` to
+///   derive them from the enclosing schema, or name the subquery explicitly.
+///
 public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLResult {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
@@ -308,6 +386,10 @@ public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQ
 /// This is the subquery counterpart of `XLSchema.nullableTable(_:as:)`. The
 /// inner statement is an ordinary one selecting `T`; nullability describes how
 /// the *result* is joined, not what the subquery selects.
+///
+/// - Important: This function opens an independent scope, as
+///   ``subquery(alias:_:)`` does. Use ``XLSchema/nullableSubquery(alias:_:)``
+///   to derive the alias and the body's names from the enclosing schema.
 ///
 public func nullableSubquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult {
     let newNamespace = XLNamespace.table()

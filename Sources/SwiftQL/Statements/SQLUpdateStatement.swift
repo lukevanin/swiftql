@@ -35,13 +35,7 @@ public struct XLUpdateStatementComponents<Row>: XLEncodable {
     }
     
     public func makeSQL(context: inout XLBuilder) {
-        if !commonTables.isEmpty {
-            context.commonTables { context in
-                for commonTable in commonTables {
-                    commonTable.makeSQL(context: &context)
-                }
-            }
-        }
+        commonTables.makeWithClauseSQL(context: &context)
         update.makeSQL(context: &context)
         for component in components {
             component.makeSQL(context: &context)

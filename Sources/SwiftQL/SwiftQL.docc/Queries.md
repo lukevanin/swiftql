@@ -472,6 +472,22 @@ everywhere means one name to remember.
 > on every supported toolchain. See COMPATIBILITY.md, "Swift 5.9 and Swift 6.0
 > API surface gaps".
 
+A subquery or common table body receives its own schema. When you build it
+from the enclosing schema -- `schema.subqueryExpression { ... }`,
+`schema.subquery { ... }`, `schema.nullableSubquery { ... }`,
+`schema.commonTable { ... }`, or `XLSchema(parent: schema)` -- the nested
+schema never reuses an alias or a common table name that the enclosing
+statement has already reserved, and its automatically named bindings continue
+the enclosing sequence. An unnamed subquery joined to an enclosing table
+therefore gets its own alias, and an outer and an inner binding stay two
+parameters. The free functions `subqueryExpression { ... }`, `subquery { ... }`,
+and `nullableSubquery { ... }` cannot see the enclosing schema, so they start
+an independent scope: give such a subquery an explicit alias when it is joined
+to another source. If two unrelated schemas name bindings with the same
+placeholder, rendering reports
+`XLInvocationBindingError.conflictingBindingReferences` instead of merging the
+two values into one.
+
 See the <doc:Expressions/In-operator> documentation for an example of using a
 subquery with the `in` operator.
 
