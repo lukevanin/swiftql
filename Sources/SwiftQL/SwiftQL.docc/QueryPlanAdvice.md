@@ -20,9 +20,12 @@ The findings arrive as build warnings and in a JSON sidecar file. The
 `swiftql-index-advisor` command turns the verified recommendations into a
 checked-in SQL file.
 
-Everything in this article is advice. A plan finding never changes a
-correctness verdict or the validator's exit status, so plan analysis cannot
-fail a build.
+The findings are advice. A plan finding never changes a correctness verdict or
+the validator's exit status, so no finding can fail a build. The plan analysis
+configuration can still fail the run, the same as any other invalid input: the
+validator stops with an error when the suppression file cannot be read or is
+not valid, when `--plan-output` conflicts with another path, or when it cannot
+write the sidecar.
 
 ## Turn on plan analysis
 
@@ -160,14 +163,23 @@ The file has this grammar:
   space.
 
 Each rule must name a `query_id`, a `table`, or both. A rule that silences every
-occurrence of a code cannot be written. A rule silences a finding only when
+occurrence of a code cannot be written. A rule matches a finding only when
 every field the rule states matches, so a rule with both a query and a table is
 narrower than a rule with either one.
 
+When more than one rule matches a finding, only one rule silences it and
+supplies the reason. The validator sorts the rules by `code`, then `query_id`,
+then `table`, then `reason`, and uses the first match. A rule with no
+`query_id` sorts before a rule with one, so a table-only rule wins over a
+query-specific rule for the same code. Avoid overlapping rules, so that each
+finding has one clear reason.
+
 Suppression leaves a trace. The sidecar keeps each silenced finding in
-`suppressed_diagnostics` with the rule's reason, and lists each rule that
-silenced nothing in `unused_suppressions`, so you can find and delete a stale
-rule.
+`suppressed_diagnostics` with the reason of the rule that silenced it. It lists
+each rule that matches no finding in `unused_suppressions`, so you can find and
+delete a stale rule. A rule that matches a finding counts as used even when an
+earlier rule silenced that finding, so an overlapping rule does not appear in
+`unused_suppressions`.
 
 ## How a candidate becomes a recommendation
 
@@ -177,13 +189,16 @@ candidates for one table. When a limit cuts the list, the sidecar records it in
 `truncations`. When the validator cannot read a statement with confidence, it
 declines to propose a candidate and records the reason in `declines`.
 
-To verify a candidate, the validator creates the index on a fresh scratch copy
-of the snapshot, plans the statement that motivated it again, and applies the
-improvement rule. The pinned snapshot is never changed. The validator proves
-that the original file is byte-identical afterwards, or the run fails. The
-scratch connection registers the same bundled SQL functions as the validator's
-own connection, such as `REGEXP`, so a statement that uses one of them can be
-planned and verified.
+To verify a candidate, the validator copies the snapshot to a fresh scratch
+file, creates the index on the copy, plans the statement that motivated it
+again, and applies the improvement rule. The pinned snapshot is never written.
+After each candidate, the validator checks that the original file is still
+byte-identical. If the check fails, or verification of a candidate cannot
+complete for another reason, that candidate is not recommended: the sidecar
+lists it in `unverified` with a reason that starts "Verification could not be
+completed". The scratch connection registers the same bundled SQL functions as
+the validator's own connection, such as `REGEXP`, so a statement that uses one
+of them can be planned and verified.
 
 The current rule is `swiftql-index-improvement-rule-v2`. A candidate is
 accepted only when both of these are true:
@@ -210,8 +225,10 @@ row count at verification time, so a schema-only snapshot reports 0 rows.
 ## Read the sidecar
 
 The sidecar is a JSON file with sorted keys. It holds no timestamp, host name,
-process identity, or path, and every list is sorted, so two runs over the same
-inputs write identical bytes. Its top-level keys are:
+process identity, or path. The records, findings, rules, and candidates are in
+a fixed order, and each plan tree keeps the order SQLite reported, so two runs
+over the same inputs on the same SQLite write identical bytes. Its top-level
+keys are:
 
 - `records`: One entry for each manifest statement, with `query_id`,
   `definition_identity`, `descriptor_identity`, the SQLite `provenance`
@@ -221,7 +238,7 @@ inputs write identical bytes. Its top-level keys are:
   is never left out.
 - `diagnostics`: The findings that no suppression silenced.
 - `suppressed_diagnostics`: The silenced findings, each with its reason.
-- `unused_suppressions`: The rules that silenced nothing.
+- `unused_suppressions`: The rules that match no finding.
 - `settings`: The `full_table_scan_row_threshold`, the `suppressions`, and
   the `candidate_limits` the run used.
 - `index_candidates`: The `limits`, `candidates`, `truncations`, and
