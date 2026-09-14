@@ -288,6 +288,143 @@ final class SQLiteIndexAdvisorTests: XCTestCase {
         }
     }
 
+    // MARK: - Refusing to overwrite what this command did not write (#649)
+
+    /// A hand-maintained file at `--output` is refused, and the message
+    /// names the flag that allows the one-time migration.
+    func testApplyingOverAFileWithoutTheGeneratedHeaderIsRefused() throws {
+        try withVerifiedSidecar { planURL, _ in
+            let outputURL = planURL.deletingLastPathComponent()
+                .appendingPathComponent("Schema.sql")
+            // Mentioning the marker below the first line is not the header.
+            let handWritten = Data("""
+                CREATE TABLE Hand (id INTEGER PRIMARY KEY);
+                -- \(SQLiteIndexAdvisorArtifact.generatedHeaderMarker)
+                """.utf8)
+            try handWritten.write(to: outputURL)
+
+            XCTAssertThrowsError(
+                try SQLiteIndexAdvisorRunner.run(
+                    options: SQLiteIndexAdvisorOptions(
+                        planReportURL: planURL,
+                        outputURL: outputURL,
+                        applies: true
+                    )
+                )
+            ) { error in
+                XCTAssertEqual(
+                    error as? SQLiteIndexAdvisorError,
+                    .outputNotGenerated(path: outputURL.path)
+                )
+                XCTAssertTrue(String(describing: error).contains("--force"), "\(error)")
+            }
+            XCTAssertEqual(try Data(contentsOf: outputURL), handWritten)
+
+            // --force replaces it once; afterwards the file carries the
+            // header, so later runs need no flag.
+            let forced = try SQLiteIndexAdvisorRunner.run(
+                options: SQLiteIndexAdvisorOptions(
+                    planReportURL: planURL,
+                    outputURL: outputURL,
+                    applies: true,
+                    forces: true
+                )
+            )
+            XCTAssertEqual(forced.outcome, .written)
+            XCTAssertTrue(SQLiteIndexAdvisorArtifact.carriesGeneratedHeader(at: outputURL))
+            let again = try SQLiteIndexAdvisorRunner.run(
+                options: SQLiteIndexAdvisorOptions(
+                    planReportURL: planURL,
+                    outputURL: outputURL,
+                    applies: true
+                )
+            )
+            XCTAssertEqual(again.outcome, .unchanged)
+        }
+    }
+
+    /// A file this command generated may be replaced when the advice changes,
+    /// which is the whole point of regenerating it.
+    func testAGeneratedFileWithStaleContentIsReplacedWithoutForce() throws {
+        try withVerifiedSidecar { planURL, _ in
+            let outputURL = planURL.deletingLastPathComponent()
+                .appendingPathComponent("AdvisedIndices.sql")
+            try Data("""
+                -- \(SQLiteIndexAdvisorArtifact.generatedHeaderMarker) Do not edit by hand.
+                -- stale advice
+                """.utf8).write(to: outputURL)
+
+            let result = try SQLiteIndexAdvisorRunner.run(
+                options: SQLiteIndexAdvisorOptions(
+                    planReportURL: planURL,
+                    outputURL: outputURL,
+                    applies: true
+                )
+            )
+            XCTAssertEqual(result.outcome, .written)
+        }
+    }
+
+    /// `--output` naming the sidecar would replace the evidence with SQL.
+    /// A symlink or a hard link is the same file under another name.
+    func testOutputMayNotAliasThePlanReport() throws {
+        try withVerifiedSidecar { planURL, _ in
+            let fileManager = FileManager.default
+            let workingDirectory = planURL.deletingLastPathComponent()
+            let symlinkURL = workingDirectory.appendingPathComponent("plans-alias.json")
+            try fileManager.createSymbolicLink(at: symlinkURL, withDestinationURL: planURL)
+            let hardLinkURL = workingDirectory.appendingPathComponent("plans-twin.json")
+            try fileManager.linkItem(at: planURL, to: hardLinkURL)
+            let before = try Data(contentsOf: planURL)
+
+            for outputURL in [
+                planURL,
+                workingDirectory.appendingPathComponent("./sub/../plans.json"),
+                symlinkURL,
+                hardLinkURL,
+            ] {
+                // --force does not lift this refusal.
+                XCTAssertThrowsError(
+                    try SQLiteIndexAdvisorRunner.run(
+                        options: SQLiteIndexAdvisorOptions(
+                            planReportURL: planURL,
+                            outputURL: outputURL,
+                            applies: true,
+                            forces: true
+                        )
+                    ),
+                    outputURL.path
+                ) { error in
+                    XCTAssertEqual(
+                        error as? SQLiteIndexAdvisorError,
+                        .outputConflictsWithPlanReport,
+                        outputURL.path
+                    )
+                }
+            }
+            XCTAssertEqual(try Data(contentsOf: planURL), before)
+        }
+    }
+
+    func testForceIsParsedAndRequiresApply() throws {
+        let options = try SQLiteIndexAdvisorOptions.parse(arguments: [
+            "--plan-report", "/tmp/plans.json",
+            "--apply",
+            "--output", "/tmp/out.sql",
+            "--force",
+        ])
+        XCTAssertTrue(options.forces)
+
+        XCTAssertThrowsError(
+            try SQLiteIndexAdvisorOptions.parse(arguments: [
+                "--plan-report", "/tmp/plans.json",
+                "--force",
+            ])
+        ) { error in
+            XCTAssertEqual(error as? SQLiteIndexAdvisorError, .forceRequiresApply)
+        }
+    }
+
     func testAnUnreadableSidecarIsRefusedWithItsPath() throws {
         try NorthwindFixture.withTemporaryCopy { copy in
             let planURL = copy.url.deletingLastPathComponent()

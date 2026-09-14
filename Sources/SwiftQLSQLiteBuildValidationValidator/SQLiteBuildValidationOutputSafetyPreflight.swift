@@ -17,7 +17,11 @@ import Foundation
 ///
 /// Split out of `SQLiteBuildValidationValidatorCLIOptions` (#566): this is
 /// filesystem work, not argument parsing, and it is worth reading on its own.
-enum SQLiteBuildValidationOutputSafetyPreflight {
+///
+/// `package` rather than `public` (#649): `swiftql-index-advisor` reuses
+/// ``identifiesSameFile(_:_:fileManager:)`` so its output cannot alias the
+/// sidecar it reads, and that need does not justify a public API promise.
+package enum SQLiteBuildValidationOutputSafetyPreflight {
 
     /// The errors to raise for one output path, so the same checks can guard
     /// both the correctness report and the plan sidecar while each names the
@@ -32,11 +36,13 @@ enum SQLiteBuildValidationOutputSafetyPreflight {
         manifestURL: URL,
         outputURL: URL,
         planOutputURL: URL? = nil,
+        planSuppressionsURL: URL? = nil,
         fileManager: FileManager = .default
     ) throws {
         try check(
             databaseURL: databaseURL,
             manifestURL: manifestURL,
+            planSuppressionsURL: planSuppressionsURL,
             outputURL: outputURL,
             errors: OutputErrors(
                 sidecarConflict: .outputConflictsWithDatabaseSidecar,
@@ -50,6 +56,7 @@ enum SQLiteBuildValidationOutputSafetyPreflight {
         try check(
             databaseURL: databaseURL,
             manifestURL: manifestURL,
+            planSuppressionsURL: planSuppressionsURL,
             outputURL: planOutputURL,
             errors: OutputErrors(
                 sidecarConflict: .planOutputConflictsWithDatabaseSidecar,
@@ -82,9 +89,40 @@ enum SQLiteBuildValidationOutputSafetyPreflight {
         }
     }
 
+    /// Whether `first` and `second` name one file: the same path once
+    /// symlinks (including symlinked parent directories) are resolved, or two
+    /// existing paths with one device and inode, which is how a hard link is
+    /// caught.
+    ///
+    /// A path that does not exist yet can only match by path, because it has
+    /// no inode to compare.
+    package static func identifiesSameFile(
+        _ first: URL,
+        _ second: URL,
+        fileManager: FileManager = .default
+    ) -> Bool {
+        let firstIdentityURL = identityURL(for: first, fileManager: fileManager)
+        let secondIdentityURL = identityURL(for: second, fileManager: fileManager)
+        if firstIdentityURL.path == secondIdentityURL.path {
+            return true
+        }
+        guard let firstFileIdentity = existingFileIdentity(
+                  at: firstIdentityURL,
+                  fileManager: fileManager
+              ),
+              let secondFileIdentity = existingFileIdentity(
+                  at: secondIdentityURL,
+                  fileManager: fileManager
+              ) else {
+            return false
+        }
+        return firstFileIdentity == secondFileIdentity
+    }
+
     private static func check(
         databaseURL: URL,
         manifestURL: URL,
+        planSuppressionsURL: URL?,
         outputURL: URL,
         errors: OutputErrors,
         fileManager: FileManager
@@ -114,10 +152,17 @@ enum SQLiteBuildValidationOutputSafetyPreflight {
             throw errors.sidecarConflict
         }
 
-        for (option, inputURL) in [
+        // The suppression file is a checked-in input like the other two, and
+        // `--plan-output` overwriting it would replace reviewed reasons with a
+        // generated sidecar (#649).
+        var protectedInputs = [
             ("--database", databaseURL),
             ("--manifest", manifestURL),
-        ] {
+        ]
+        if let planSuppressionsURL {
+            protectedInputs.append(("--plan-suppressions", planSuppressionsURL))
+        }
+        for (option, inputURL) in protectedInputs {
             let inputIdentityURL = identityURL(
                 for: inputURL,
                 fileManager: fileManager

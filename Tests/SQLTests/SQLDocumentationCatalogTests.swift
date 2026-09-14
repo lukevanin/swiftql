@@ -341,7 +341,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         )
         XCTAssertEqual(
             advisorOptions,
-            ["--plan-report", "--output", "--apply", "--help"],
+            ["--plan-report", "--output", "--apply", "--force", "--help"],
             "swiftql-index-advisor's options changed. Update QueryPlanAdvice.md, then this list."
         )
 
@@ -352,6 +352,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "--verify-index-candidates",
             "--plan-report",
             "--apply",
+            "--force",
         ]
         for option in documentedOptions.sorted() {
             XCTAssertTrue(

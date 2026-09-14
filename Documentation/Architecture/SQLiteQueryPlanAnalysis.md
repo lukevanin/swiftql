@@ -450,6 +450,17 @@ swiftql-index-advisor --plan-report plans.json \
 `--apply` requires `--output`, so the command can only ever write to a path
 the invocation named. No flag, no write.
 
+Two more guards stand before the write (#649). `--output` may not identify the
+same file as `--plan-report` — by path, through a symlink, or as a hard link —
+using the validator's own `SQLiteBuildValidationOutputSafetyPreflight`, shared
+through `package` access rather than public API. And an existing output whose
+first line does not carry the generated header is refused, because byte
+equality alone only proves a no-op and says nothing about who wrote the file.
+`--force` replaces such a file once, for migrating a hand-written one; it does
+not lift the sidecar-alias refusal. The validator applies the same identity
+checks to `--plan-suppressions`, so neither `--output` nor `--plan-output` can
+overwrite the checked-in suppression file.
+
 ### Why this is not an Xcode fixit
 
 A fixit would be better, and it is unreachable. A SwiftPM build-tool plugin

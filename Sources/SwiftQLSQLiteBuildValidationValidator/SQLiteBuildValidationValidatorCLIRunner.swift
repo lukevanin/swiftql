@@ -101,7 +101,8 @@ public enum SQLiteBuildValidationValidatorCLIRunner {
             databaseURL: resolved.databaseURL,
             manifestURL: resolved.manifestURL,
             outputURL: resolved.outputURL,
-            planOutputURL: resolved.planOutputURL
+            planOutputURL: resolved.planOutputURL,
+            planSuppressionsURL: resolved.planSuppressionsURL
         )
         let manifest = try SQLiteBuildValidationManifest.decode(
             contentsOf: resolved.manifestURL
