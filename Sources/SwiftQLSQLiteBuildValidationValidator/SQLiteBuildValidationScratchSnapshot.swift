@@ -122,8 +122,7 @@ public enum SQLiteBuildValidationScratchSnapshot {
             snapshotURL: snapshotURL
         )
 
-        let initialData = try Data(contentsOf: snapshotURL, options: .mappedIfSafe)
-        let initialSHA256 = SQLiteBuildValidationSHA256.hexDigest(of: initialData)
+        let initial = try identity(of: snapshotURL)
 
         let scratchDirectory = scratchParentDirectory
             .appendingPathComponent("swiftql-index-advisor-\(UUID().uuidString)")
@@ -147,19 +146,48 @@ public enum SQLiteBuildValidationScratchSnapshot {
         }
         try FileManager.default.copyItem(at: snapshotURL, to: copyURL)
 
-        let result = try body(copyURL)
+        let result: Result
+        do {
+            result = try body(copyURL)
+        } catch {
+            // A body that throws does not skip custody. A snapshot that
+            // changed while it ran is reported ahead of whatever the body
+            // failed on, because nothing the body read can be trusted; only
+            // an unchanged snapshot lets the body's own error through.
+            try requireUnchanged(snapshotURL, since: initial)
+            throw error
+        }
+        try requireUnchanged(snapshotURL, since: initial)
+        return result
+    }
 
-        let finalData = try Data(contentsOf: snapshotURL, options: .mappedIfSafe)
-        let finalSHA256 = SQLiteBuildValidationSHA256.hexDigest(of: finalData)
-        guard finalData.count == initialData.count, finalSHA256 == initialSHA256 else {
+    /// What custody compares: the snapshot's byte count and SHA-256.
+    struct Identity: Equatable {
+        let byteCount: Int
+        let sha256: String
+    }
+
+    static func identity(of snapshotURL: URL) throws -> Identity {
+        let data = try Data(contentsOf: snapshotURL, options: .mappedIfSafe)
+        return Identity(
+            byteCount: data.count,
+            sha256: SQLiteBuildValidationSHA256.hexDigest(of: data)
+        )
+    }
+
+    /// Throws
+    /// ``SQLiteBuildValidationScratchError/snapshotChangedDuringVerification(initialByteCount:initialSHA256:finalByteCount:finalSHA256:)``
+    /// when the snapshot no longer matches `initial`.
+    static func requireUnchanged(_ snapshotURL: URL, since initial: Identity) throws {
+        let final = try identity(of: snapshotURL)
+        guard final == initial else {
             throw SQLiteBuildValidationScratchError.snapshotChangedDuringVerification(
-                initialByteCount: initialData.count,
-                initialSHA256: initialSHA256,
-                finalByteCount: finalData.count,
-                finalSHA256: finalSHA256
+                initialByteCount: initial.byteCount,
+                initialSHA256: initial.sha256,
+                finalByteCount: final.byteCount,
+                finalSHA256: final.sha256
             )
         }
-        return result
     }
 
     private static func requireDisposableLocation(

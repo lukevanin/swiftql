@@ -70,10 +70,14 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
     /// Each candidate gets its own scratch copy, so one candidate's index can
     /// never change the plan another is judged by.
     ///
-    /// A pinned snapshot that changed while a copy was in use is the one
+    /// A pinned snapshot that changed at any point in the pass is the one
     /// failure this throws for:
     /// ``SQLiteBuildValidationScratchError/snapshotChangedDuringVerification(initialByteCount:initialSHA256:finalByteCount:finalSHA256:)``
     /// ends the run, because nothing read from that snapshot can be trusted.
+    /// Each copy checks the snapshot even when its candidate's verification
+    /// throws, and the pass checks it once more against a baseline taken
+    /// before the first candidate, so a change between two candidates is
+    /// caught too.
     /// Every other failure leaves its candidate unverified. A scratch copy
     /// that could not be set up at all is also passed to
     /// `reportScratchFailure`, once per candidate, as a complete
@@ -93,14 +97,16 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
             snapshotURL: snapshotURL,
             scratchParentDirectory: scratchParentDirectory,
             reportScratchFailure: reportScratchFailure,
-            whileTheCopyIsOpen: {}
+            whileTheCopyIsOpen: {},
+            afterEachCandidate: {}
         )
     }
 
-    /// The same, with a hook that runs while each scratch copy is open.
+    /// The same, with hooks that run while each scratch copy is open and
+    /// after each candidate is judged.
     ///
-    /// The hook exists for tests: it is the only way to change the pinned
-    /// snapshot at the moment custody forbids it, and so to prove that doing
+    /// The hooks exist for tests: they are the only way to change the pinned
+    /// snapshot at the moments custody forbids it, and so to prove that doing
     /// so fails the run.
     static func verify(
         candidates: [SQLiteBuildValidationIndexCandidate],
@@ -108,8 +114,15 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
         snapshotURL: URL,
         scratchParentDirectory: URL,
         reportScratchFailure: (String) -> Void,
-        whileTheCopyIsOpen: () throws -> Void
+        whileTheCopyIsOpen: () throws -> Void,
+        afterEachCandidate: () throws -> Void
     ) throws -> SQLiteBuildValidationIndexRecommendationSet {
+        // One baseline for the whole pass, not only one per copy. Each copy
+        // compares the snapshot with what it was when that copy was made, so
+        // a change between two candidates would otherwise become the next
+        // candidate's baseline and pass unnoticed.
+        let passBaseline = try SQLiteBuildValidationScratchSnapshot.identity(of: snapshotURL)
+
         var queriesByID: [String: SQLiteBuildValidationQueryEntry] = [:]
         for query in queries {
             queriesByID[query.id] = query
@@ -163,8 +176,13 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
                     reason: "Verification could not be completed: \(deterministicDescription(of: error))"
                 ))
             }
+            try afterEachCandidate()
         }
 
+        try SQLiteBuildValidationScratchSnapshot.requireUnchanged(
+            snapshotURL,
+            since: passBaseline
+        )
         return SQLiteBuildValidationIndexRecommendationSet(
             recommendations: recommendations,
             unverified: unverified

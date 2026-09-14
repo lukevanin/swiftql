@@ -20,8 +20,8 @@ public struct SQLiteBuildValidationValidatorCLIRunResult: Equatable, Sendable {
         self.warnings = warnings
     }
 
-    /// ``warnings`` in the `<path>: warning: <message>` form a build log and
-    /// Xcode's issue navigator parse, attributed to `origin`, one per line.
+    /// Renders ``warnings`` as `<origin>: warning: <message>` lines, one per
+    /// warning. Build logs and Xcode's issue navigator parse that form.
     ///
     /// Empty when there are none. Like the advisory summary, these never
     /// touch ``exitCode``.

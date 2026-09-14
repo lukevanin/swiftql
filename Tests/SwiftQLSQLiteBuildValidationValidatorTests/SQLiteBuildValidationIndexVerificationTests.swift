@@ -512,31 +512,143 @@ final class SQLiteBuildValidationIndexVerificationTests: XCTestCase {
                     snapshotURL: url,
                     scratchParentDirectory: FileManager.default.temporaryDirectory,
                     reportScratchFailure: { warnings.append($0) },
-                    whileTheCopyIsOpen: {
-                        let handle = try FileHandle(forWritingTo: url)
-                        defer { try? handle.close() }
-                        handle.seekToEndOfFile()
-                        handle.write(Data([0x00]))
-                    }
+                    whileTheCopyIsOpen: { try Self.appendOneByte(to: url) },
+                    afterEachCandidate: {}
                 )
             ) { error in
-                guard case .snapshotChangedDuringVerification(
-                    let initialByteCount,
-                    _,
-                    let finalByteCount,
-                    _
-                ) = error as? SQLiteBuildValidationScratchError else {
-                    return XCTFail("expected a changed-snapshot error, got \(error)")
-                }
-                XCTAssertEqual(finalByteCount, initialByteCount + 1)
-                XCTAssertTrue(
-                    String(describing: error).contains("changed during verification"),
-                    "\(error)"
-                )
+                Self.assertSnapshotChangedByOneByte(error)
             }
             // A custody failure is an error, not a warning.
             XCTAssertTrue(warnings.isEmpty, "\(warnings)")
         }
+    }
+
+    /// A candidate whose verification throws must not skip custody. If the
+    /// snapshot changed while it ran, the change is what the run reports,
+    /// not an unverified reason.
+    func testASnapshotChangedByAFailingVerificationStillFailsTheRun() throws {
+        struct PlanningFailed: Error {}
+
+        try Support.withValidatorOwnedNorthwindURL { url in
+            let manifest = Support.manifest(queries: [Self.remediable])
+            let planReport = try XCTUnwrap(
+                try SQLiteBuildValidator.run(
+                    manifest: manifest,
+                    againstDatabaseAt: url,
+                    capturesPlans: true
+                ).planReport
+            )
+
+            XCTAssertThrowsError(
+                try Verifier.verify(
+                    candidates: planReport.indexCandidates.candidates,
+                    queries: manifest.queries,
+                    snapshotURL: url,
+                    scratchParentDirectory: FileManager.default.temporaryDirectory,
+                    reportScratchFailure: { _ in },
+                    whileTheCopyIsOpen: {
+                        try Self.appendOneByte(to: url)
+                        throw PlanningFailed()
+                    },
+                    afterEachCandidate: {}
+                )
+            ) { error in
+                Self.assertSnapshotChangedByOneByte(error)
+            }
+        }
+    }
+
+    /// Each copy compares the snapshot with what it was when that copy was
+    /// made. A change between two candidates is therefore invisible to both
+    /// copies, and only the pass-wide baseline catches it.
+    func testASnapshotChangedBetweenCandidatesFailsTheRun() throws {
+        try Support.withValidatorOwnedNorthwindURL { url in
+            let manifest = Support.manifest(queries: [Self.remediable])
+            let planReport = try XCTUnwrap(
+                try SQLiteBuildValidator.run(
+                    manifest: manifest,
+                    againstDatabaseAt: url,
+                    capturesPlans: true
+                ).planReport
+            )
+
+            XCTAssertThrowsError(
+                try Verifier.verify(
+                    candidates: planReport.indexCandidates.candidates,
+                    queries: manifest.queries,
+                    snapshotURL: url,
+                    scratchParentDirectory: FileManager.default.temporaryDirectory,
+                    reportScratchFailure: { _ in },
+                    whileTheCopyIsOpen: {},
+                    // After the copy's own check has already passed.
+                    afterEachCandidate: { try Self.appendOneByte(to: url) }
+                )
+            ) { error in
+                guard case .snapshotChangedDuringVerification = error
+                    as? SQLiteBuildValidationScratchError else {
+                    return XCTFail("expected a changed-snapshot error, got \(error)")
+                }
+            }
+        }
+    }
+
+    /// The same rule at the scratch-copy level: a body that throws still has
+    /// its snapshot checked, and an unchanged snapshot lets its error through.
+    func testAThrowingBodyStillHasItsSnapshotChecked() throws {
+        struct Interruption: Error {}
+
+        try Support.withValidatorOwnedNorthwindURL { url in
+            XCTAssertThrowsError(
+                try SQLiteBuildValidationScratchSnapshot.withCopy(of: url) { _ in
+                    try Self.appendOneByte(to: url)
+                    throw Interruption()
+                }
+            ) { error in
+                Self.assertSnapshotChangedByOneByte(error)
+            }
+        }
+        try Support.withValidatorOwnedNorthwindURL { url in
+            XCTAssertThrowsError(
+                try SQLiteBuildValidationScratchSnapshot.withCopy(of: url) { _ in
+                    throw Interruption()
+                }
+            ) { error in
+                XCTAssertTrue(error is Interruption, "\(error)")
+            }
+        }
+    }
+
+    private static func appendOneByte(to url: URL) throws {
+        let handle = try FileHandle(forWritingTo: url)
+        defer { try? handle.close() }
+        handle.seekToEndOfFile()
+        handle.write(Data([0x00]))
+    }
+
+    private static func assertSnapshotChangedByOneByte(
+        _ error: Error,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        guard case .snapshotChangedDuringVerification(
+            let initialByteCount,
+            _,
+            let finalByteCount,
+            _
+        ) = error as? SQLiteBuildValidationScratchError else {
+            return XCTFail(
+                "expected a changed-snapshot error, got \(error)",
+                file: file,
+                line: line
+            )
+        }
+        XCTAssertEqual(finalByteCount, initialByteCount + 1, file: file, line: line)
+        XCTAssertTrue(
+            String(describing: error).contains("changed during verification"),
+            "\(error)",
+            file: file,
+            line: line
+        )
     }
 
     /// A refused scratch location does not fail the run. The sidecar gets a

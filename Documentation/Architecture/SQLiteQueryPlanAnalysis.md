@@ -337,7 +337,10 @@ therefore gets its own disposable copy:
 - Afterwards, the pinned snapshot's byte count and SHA-256 are compared to
   what they were before. A difference is an error, not a warning: the
   verifier rethrows `snapshotChangedDuringVerification`, and the run fails
-  with that named error.
+  with that named error. The comparison runs even when a candidate's
+  verification throws, and once more for the whole pass against a baseline
+  taken before the first candidate, so a change between two candidates is
+  caught as well.
 - A scratch copy that cannot be set up — a refused location, a temporary
   directory that cannot be created, a copy that cannot be opened — does not
   fail the run. Its candidate is reported unverified with a path-free reason,
