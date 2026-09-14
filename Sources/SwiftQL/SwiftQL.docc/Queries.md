@@ -483,7 +483,11 @@ therefore gets its own alias, and an outer and an inner binding stay two
 parameters. The free functions `subqueryExpression { ... }`, `subquery { ... }`,
 and `nullableSubquery { ... }` cannot see the enclosing schema, so they start
 an independent scope: give such a subquery an explicit alias when it is joined
-to another source. If two unrelated schemas name bindings with the same
+to another source. The schema that `in { schema in ... }` and
+`notIn { schema in ... }` pass to their closure is also independent. For a
+correlated `in` or `notIn` query, use the closure form that takes no schema and
+build the inner tables from the enclosing schema, or create
+`XLSchema(parent: schema)` inside the closure. If two unrelated schemas name bindings with the same
 placeholder, rendering reports
 `XLInvocationBindingError.conflictingBindingReferences` instead of merging the
 two values into one.

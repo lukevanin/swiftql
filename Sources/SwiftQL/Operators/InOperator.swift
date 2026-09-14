@@ -16,6 +16,17 @@ extension XLExpression {
         return XLInValueExpression(lhs: self, rhs: expression())
     }
 
+    ///
+    /// Membership of this value in the results of a query built with its own
+    /// schema.
+    ///
+    /// - Important: This overload cannot see the enclosing schema, so the
+    ///   schema passed to `expression` starts an independent scope, and its
+    ///   automatic aliases and bindings restart at `t0` and `p0`. For a
+    ///   correlated query, use the overload whose closure takes no schema, and
+    ///   build the inner tables from the enclosing schema, or from
+    ///   `XLSchema(parent:)`.
+    ///
     public func `in`(@XLQueryExpressionBuilder expression: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Bool> {
         let schema = XLSchema()
         return XLInValueExpression(lhs: self, rhs: expression(schema))
@@ -32,6 +43,9 @@ extension XLExpression {
         return XLInValueExpression(lhs: self, rhs: expression())
     }
 
+    /// - Important: The schema passed to `expression` starts an independent
+    ///   scope, as in the non-optional overload. Use the closure form without
+    ///   a schema for a correlated query.
     public func `in`<Wrapped>(@XLQueryExpressionBuilder expression: (XLSchema) -> any XLQueryStatement<Wrapped>) -> some XLExpression<Optional<Bool>> where T == Optional<Wrapped> {
         let schema = XLSchema()
         return XLInValueExpression(lhs: self, rhs: expression(schema))
@@ -99,6 +113,9 @@ extension XLExpression {
         XLInValueExpression(lhs: self, rhs: expression(), negated: true)
     }
 
+    /// - Important: The schema passed to `expression` starts an independent
+    ///   scope, as for `in`. Use the closure form without a schema for a
+    ///   correlated query.
     public func notIn(@XLQueryExpressionBuilder expression: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Bool> {
         let schema = XLSchema()
         return XLInValueExpression(lhs: self, rhs: expression(schema), negated: true)
@@ -113,6 +130,9 @@ extension XLExpression {
         XLInValueExpression(lhs: self, rhs: expression(), negated: true)
     }
 
+    /// - Important: The schema passed to `expression` starts an independent
+    ///   scope, as for `in`. Use the closure form without a schema for a
+    ///   correlated query.
     public func notIn<Wrapped>(@XLQueryExpressionBuilder expression: (XLSchema) -> any XLQueryStatement<Wrapped>) -> some XLExpression<Optional<Bool>> where T == Optional<Wrapped> {
         let schema = XLSchema()
         return XLInValueExpression(lhs: self, rhs: expression(schema), negated: true)

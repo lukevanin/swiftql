@@ -261,6 +261,38 @@ final class XLSyntaxExpressionTests: XLSyntaxTestCase {
         }
         assertRenders(expression, as: "(:x IN (SELECT t.id FROM Employee AS t))")
     }
+
+    /// #644: a correlated `IN` query. The closure form without a schema
+    /// builds its tables from the enclosing schema, and the builder form can
+    /// derive a nested schema with `XLSchema(parent:)`. In both, the inner
+    /// table does not reuse the outer alias, so the correlation still refers
+    /// to the outer row.
+    func testCorrelatedInQueryDoesNotReuseTheOuterAlias() {
+        let schema = XLSchema()
+        let outer = schema.table(EmployeeTable.self)
+        let closureForm = outer.id.in {
+            let inner = schema.table(EmployeeTable.self)
+            return select(inner.id).from(inner).where(inner.companyId == outer.companyId)
+        }
+        assertRenders(
+            closureForm,
+            as: "(t0.id IN (SELECT t1.id FROM Employee AS t1 WHERE (t1.companyId IS t0.companyId)))"
+        )
+
+        let builderSchema = XLSchema()
+        let builderOuter = builderSchema.table(EmployeeTable.self)
+        let builderForm = builderOuter.id.in { _ in
+            let nested = XLSchema(parent: builderSchema)
+            let inner = nested.table(EmployeeTable.self)
+            Select(inner.id)
+            From(inner)
+            Where(inner.companyId == builderOuter.companyId)
+        }
+        assertRenders(
+            builderForm,
+            as: "(t0.id IN (SELECT t1.id FROM Employee AS t1 WHERE (t1.companyId IS t0.companyId)))"
+        )
+    }
     
     
     // MARK: - Timestamp
