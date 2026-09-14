@@ -115,8 +115,10 @@ statement referencing it executes -- there is no need to call `builder.addFuncti
 affects the one physical connection it runs on, so SwiftQL checks before every execution
 whether the connection that serves the call already has the function, and installs it on that
 connection the first time only. The check reads a record SwiftQL keeps on the connection
-itself, so it costs one statement-cache lookup, and it stays correct when the pool closes and
-reopens connections or when two `GRDBDatabase` values share one pool.
+itself, and it stays correct when the pool closes and reopens connections or when two
+`GRDBDatabase` values share one pool. The first execution that needs a function on a connection
+also reads the connection's function list once, to decide whether to install it. Every later
+execution on that connection costs one statement-cache lookup per function.
 
 SwiftQL does not install the same function twice on one connection. SQLite treats a second
 installation as a change to the function: it expires every prepared statement on that

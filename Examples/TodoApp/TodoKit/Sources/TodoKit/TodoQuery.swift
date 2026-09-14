@@ -95,10 +95,10 @@ public struct TodoQuery: Equatable, Sendable {
     /// what a search box is expected to do; SwiftQL's `REGEXP` is
     /// case-sensitive otherwise.
     ///
-    /// A plain string pattern, deliberately. SwiftQL compiles one of these
-    /// once per statement execution rather than once per row, and the pattern
-    /// travels as a bound parameter, so the rendered SQL is the same for every
-    /// search and the request is still rendered once. An `XLRegexPattern`
+    /// A plain string pattern, deliberately. SwiftQL keeps a compiled copy of
+    /// recent patterns on each connection rather than compiling once per row,
+    /// and the pattern travels as a bound parameter, so the rendered SQL is the
+    /// same for every search and the request is still rendered once. An `XLRegexPattern`
     /// would give up both: its key changes with every keystroke.
     var searchPattern: String {
         guard !searchText.isEmpty else {
