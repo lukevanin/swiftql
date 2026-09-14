@@ -98,6 +98,16 @@ serialized format ever escapes the probe, and every statement is finalized
 exactly once on every path (success, inspection failure, or finalize
 failure).
 
+The manifest SQL is prepared verbatim, never under an `EXPLAIN` or
+`EXPLAIN QUERY PLAN` prefix. Apple's SQLite is built with
+`SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION`, which accepts a call to a function that
+does not exist when the statement is prepared under either prefix, so a
+correctness pass moved onto the plan probe's prefix would stop reporting an
+unregistered or misspelled function. `SQLiteBuildValidatorIntegrationTests`
+holds the negative control (#656): a statement that fails plain preparation is
+reported as a failure, and the recorded shape is the statement's own rather
+than an `EXPLAIN` result.
+
 This proves: the SQL is one non-empty statement the real SQLite parser
 accepts; referenced tables/columns/functions/collations resolve on that
 connection; the C parameter index/name layout and result-column count/alias
