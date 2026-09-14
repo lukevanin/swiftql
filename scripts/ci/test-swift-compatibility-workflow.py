@@ -208,6 +208,12 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertNotIn(pull_request_skip, release_tooling)
         self.assertNotIn(pull_request_skip, compatibility)
 
+        # Target membership needs no coverage run, so it runs in the
+        # release-tooling job on pull requests instead of after the merge.
+        membership_check = "python3 scripts/ci/check-source-target-membership.py"
+        self.assertIn(membership_check, release_tooling)
+        self.assertNotIn(membership_check, coverage)
+
     def test_documentation_runs_cancel_superseded_pull_request_runs(
         self,
     ) -> None:
