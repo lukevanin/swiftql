@@ -110,9 +110,27 @@ extension GRDBRequest {
         // fetchAtMost(_:bindings:)'s decode boundary (used by @SQLQuery's
         // `.exactlyOne` cardinality) — an unpatched crossing point of the
         // same IRGen crash class.
+        //
+        // The same read-or-write branch as decodeRows(packet:), too (issue
+        // #643). A `RETURNING` request changes the database, and a pooled
+        // reader connection is read-only, so it runs in a transaction on the
+        // writer. Stopping after `limit` rows is still safe there: SQLite
+        // applies every change of the statement during its first step, so the
+        // rows left unread are only output, never unapplied work. The commit
+        // needs the statement to be reset first, because SQLite refuses to
+        // commit while a statement is still in progress; the GRDB row cursor
+        // behind `forEachRow` resets it when it is released, before
+        // `withTransaction` returns.
         var items: [Row] = []
-        try driver.withReadConnection { connection in
-            items = try decodeRows(packet: packet, limit: limit, in: &connection)
+        if requiresWriteConnection {
+            try driver.withTransaction { connection in
+                items = try decodeRows(packet: packet, limit: limit, in: &connection)
+            }
+        }
+        else {
+            try driver.withReadConnection { connection in
+                items = try decodeRows(packet: packet, limit: limit, in: &connection)
+            }
         }
         return items
     }
