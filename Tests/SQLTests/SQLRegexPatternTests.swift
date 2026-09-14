@@ -417,6 +417,38 @@ final class XLRegexPatternTests: XCTestCase {
         )
     }
 
+    /// A prepared invocation builds its own executor from the encoding, so it
+    /// is a separate path from `makeRequest(with:)` and is pinned separately.
+    func testAPreparedInvocationKeepsItsRegistryEntryUntilReleased() throws {
+        database = try makeSeededDatabase()
+        var key = ""
+        var invocation: GRDBPreparedInvocation?
+        do {
+            let pattern = Self.makeLocalPattern()
+            key = pattern.key
+            invocation = database.prepareInvocation(
+                with: Self.statement(matching: pattern)
+            )
+        }
+
+        XCTAssertNotNil(XLRegexPatternRegistry.registration(forKey: key))
+        do {
+            let prepared = try XCTUnwrap(invocation)
+            let bindings = try XLInvocationBindings<XLSQLiteValue>(
+                layout: prepared.parameterLayout,
+                bindings: []
+            ).validatingComplete()
+            let rows: [[XLSQLiteValue]] = try prepared.fetchAllValues(
+                bindings: bindings
+            )
+            XCTAssertEqual(rows, [[.text("1")], [.text("3")]])
+        }
+        XCTAssertNotNil(XLRegexPatternRegistry.registration(forKey: key))
+
+        invocation = nil
+        XCTAssertNil(XLRegexPatternRegistry.registration(forKey: key))
+    }
+
     private static func deleteRequest(
         matching pattern: XLRegexPattern,
         in database: GRDBDatabase
