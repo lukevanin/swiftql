@@ -223,6 +223,145 @@ final class XLRegexpOperatorTests: XCTestCase {
         }
     }
 
+    // MARK: - Length limits (issue #645)
+
+    /// A pattern or subject exactly at its limit is matched as before. The
+    /// limit refuses input; it never changes what a pattern within it means.
+    func testOperandsAtTheLimitMatchAsBefore() throws {
+        let patternAtLimit = String(
+            repeating: "a",
+            count: XLRegexpMatcher.maximumPatternLength - 1
+        ) + "b"
+        XCTAssertTrue(
+            try XLRegexpMatcher.matches(
+                pattern: patternAtLimit,
+                in: "x" + patternAtLimit + "y"
+            )
+        )
+
+        let subjectAtLimit = String(
+            repeating: "a",
+            count: XLRegexpMatcher.maximumSubjectLength - 1
+        ) + "7"
+        XCTAssertTrue(try XLRegexpMatcher.matches(pattern: "[0-9]$", in: subjectAtLimit))
+        XCTAssertFalse(try XLRegexpMatcher.matches(pattern: "^b", in: subjectAtLimit))
+    }
+
+    /// One byte over the pattern limit is refused with a typed error naming the
+    /// operand, the length, and the limit, and is never compiled.
+    func testAPatternOverTheLimitIsRefused() {
+        let pattern = String(
+            repeating: "a",
+            count: XLRegexpMatcher.maximumPatternLength + 1
+        )
+        let cache = XLRegexpPatternCache()
+
+        XCTAssertThrowsError(
+            try XLRegexpMatcher.matches(pattern: pattern, in: "a", cache: cache)
+        ) { error in
+            XCTAssertEqual(
+                error as? XLRegexpLengthLimitError,
+                XLRegexpLengthLimitError(
+                    operand: .pattern,
+                    length: XLRegexpMatcher.maximumPatternLength + 1,
+                    limit: XLRegexpMatcher.maximumPatternLength
+                )
+            )
+        }
+        XCTAssertEqual(cache.numberOfCompiles, 0)
+    }
+
+    /// One byte over the subject limit is refused rather than truncated or
+    /// searched.
+    func testASubjectOverTheLimitIsRefused() {
+        let subject = String(
+            repeating: "a",
+            count: XLRegexpMatcher.maximumSubjectLength + 1
+        )
+
+        XCTAssertThrowsError(
+            try XLRegexpMatcher.matches(pattern: "a", in: subject)
+        ) { error in
+            XCTAssertEqual(
+                error as? XLRegexpLengthLimitError,
+                XLRegexpLengthLimitError(
+                    operand: .subject,
+                    length: XLRegexpMatcher.maximumSubjectLength + 1,
+                    limit: XLRegexpMatcher.maximumSubjectLength
+                )
+            )
+        }
+    }
+
+    /// The limits count UTF-8 bytes, which is how SQLite measures TEXT, not
+    /// characters. A two-byte character counts twice.
+    func testTheLimitCountsUTF8Bytes() {
+        let characterCount = XLRegexpMatcher.maximumSubjectLength / 2 + 1
+        let subject = String(repeating: "é", count: characterCount)
+        XCTAssertLessThan(subject.count, XLRegexpMatcher.maximumSubjectLength)
+
+        XCTAssertThrowsError(
+            try XLRegexpMatcher.matches(pattern: "a", in: subject)
+        ) { error in
+            XCTAssertEqual(
+                (error as? XLRegexpLengthLimitError)?.length,
+                characterCount * 2
+            )
+        }
+    }
+
+    /// A registered pattern's matches share one lock, so an unbounded match
+    /// would stall every connection using it. The subject limit covers it too.
+    func testTheSubjectLimitAppliesToARegisteredPattern() throws {
+        let pattern = XLRegexPattern(try Regex("a"))
+        let subject = String(
+            repeating: "a",
+            count: XLRegexpMatcher.maximumSubjectLength + 1
+        )
+
+        XCTAssertThrowsError(
+            try XLRegexpMatcher.matches(pattern: pattern.key, in: subject)
+        ) { error in
+            XCTAssertEqual(
+                (error as? XLRegexpLengthLimitError)?.operand,
+                .subject
+            )
+        }
+        XCTAssertTrue(try XLRegexpMatcher.matches(pattern: pattern.key, in: "a"))
+    }
+
+    /// Through SQLite: the statement fails with the limit error's message
+    /// rather than trapping or running an unbounded match.
+    func testAnOversizedOperandFailsTheStatement() throws {
+        database = try makeDatabase()
+        let longPattern = String(
+            repeating: "a",
+            count: XLRegexpMatcher.maximumPatternLength + 1
+        )
+        XCTAssertThrowsError(try matchingIdentifiers(longPattern)) { error in
+            let message = String(describing: error)
+            XCTAssertTrue(
+                message.contains("REGEXP pattern is \(longPattern.utf8.count) UTF-8 bytes"),
+                "the error should name the operand and its length, got: \(message)"
+            )
+        }
+
+        let longText = String(
+            repeating: "a",
+            count: XLRegexpMatcher.maximumSubjectLength + 1
+        )
+        try database.makeRequest(
+            with: sqlInsert(RegexpPhrase(id: "4", text: longText))
+        ).execute()
+        XCTAssertThrowsError(try matchingIdentifiers("^beta$")) { error in
+            let message = String(describing: error)
+            XCTAssertTrue(
+                message.contains("limit of \(XLRegexpMatcher.maximumSubjectLength) bytes"),
+                "the error should name the limit, got: \(message)"
+            )
+        }
+    }
+
     /// A TEXT column can hold any storage class, because SQLite does not
     /// enforce column types. Reading an integer as text would be a silent
     /// conversion, so it is an error instead.
