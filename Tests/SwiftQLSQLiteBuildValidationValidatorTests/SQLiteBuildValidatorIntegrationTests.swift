@@ -154,6 +154,108 @@ final class SQLiteBuildValidatorIntegrationTests: XCTestCase {
         }
     }
 
+    // MARK: - Negative control: validation never prepares under EXPLAIN (#656)
+
+    /// A SQLite built with `SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION` -- Apple's is --
+    /// accepts a call to a function that does not exist when the statement is
+    /// prepared under `EXPLAIN` or `EXPLAIN QUERY PLAN`, and rejects it
+    /// otherwise. The plan probe added in v1.8 prepares under exactly that
+    /// prefix, so moving the correctness pass onto it would look like a
+    /// harmless reuse and would silently stop this validator reporting an
+    /// unregistered or misspelled function on every Apple platform
+    /// (`Research/SQLiteCFeasibility.md` §1.4).
+    ///
+    /// This is the behavioural half of the control. On a build without the
+    /// option `EXPLAIN` rejects the call too, so this half alone cannot fail
+    /// there; `testTheCorrectnessPassRecordsTheStatementsOwnShape` is the half
+    /// that fails on every build. The Linux CI cells build SQLite without the
+    /// option, so this half is guarded by the macOS compatibility cells.
+    func testAStatementThatFailsPlainPreparationIsReportedAsAFailure() throws {
+        let manifest = Support.manifest(queries: [
+            Support.query(
+                id: "unknown-function",
+                sql: "SELECT tests_no_such_function(1) AS value"
+            ),
+        ])
+        try Support.withValidatorOwnedNorthwindURL { url in
+            let report = try SQLiteBuildValidator.validate(
+                manifest: manifest,
+                againstDatabaseAt: url
+            )
+            XCTAssertEqual(report.overallVerdict, .failed)
+            let outcome = try XCTUnwrap(report.outcomes.first)
+            XCTAssertEqual(outcome.verdict, .failed)
+            XCTAssertNil(outcome.preparedShape)
+            let diagnostic = try XCTUnwrap(
+                outcome.diagnostics.first { $0.code == "sqlite.prepare.failed" },
+                "\(outcome.diagnostics)"
+            )
+            XCTAssertEqual(diagnostic.verdict, .failed)
+            XCTAssertTrue(
+                diagnostic.message.contains("no such function"),
+                diagnostic.message
+            )
+        }
+    }
+
+    /// The structural half: the shape the correctness pass records is the
+    /// statement's own. Under `EXPLAIN`, SQLite reports its eight bytecode
+    /// columns (`addr`, `opcode`, `p1`...); under `EXPLAIN QUERY PLAN`, four
+    /// (`id`, `parent`, `notused`, `detail`), none with a declared type. So
+    /// this fails on every build, whichever prefix is added.
+    func testTheCorrectnessPassRecordsTheStatementsOwnShape() throws {
+        let manifest = Support.manifest(queries: [
+            Support.query(
+                id: "plain-select",
+                sql: "SELECT CompanyName AS value FROM Customers WHERE CustomerID = 'ALFKI'",
+                results: [
+                    Support.result(
+                        declaredAlias: "value",
+                        valueTypeIdentifier: "swift.string",
+                        valueTypeName: "Swift.String",
+                        storageIdentifier: "text"
+                    ),
+                ]
+            ),
+        ])
+        try Support.withValidatorOwnedNorthwindURL { url in
+            let report = try SQLiteBuildValidator.validate(
+                manifest: manifest,
+                againstDatabaseAt: url
+            )
+            let outcome = try XCTUnwrap(report.outcomes.first)
+            let shape = try XCTUnwrap(outcome.preparedShape, "\(outcome.diagnostics)")
+            XCTAssertEqual(shape.columns.map(\.name), ["value"])
+            // A column read straight from a table keeps its declared type;
+            // no EXPLAIN column has one.
+            XCTAssertNotNil(shape.columns.first?.declaredType)
+        }
+    }
+
+    /// The premise of the control, checked rather than assumed: where the
+    /// option is on, the plan probe's prefix really does accept the statement
+    /// plain preparation rejects. Without the option, both reject it.
+    func testTheExplainPrefixAcceptsAnUnknownFunctionOnlyWhereTheOptionIsOn() throws {
+        let sql = "SELECT tests_no_such_function(1) AS value"
+        try Support.withReadOnlyNorthwindDatabase { database in
+            XCTAssertThrowsError(try SQLitePrepareV3Probe.prepare(sql: sql, in: database))
+
+            let compileOptions = try String.fetchAll(database, sql: "PRAGMA compile_options")
+            // A build with SQLITE_OMIT_COMPILEOPTION_DIAGS reports nothing,
+            // which would read as "the option is off" and fail misleadingly.
+            XCTAssertFalse(compileOptions.isEmpty, "PRAGMA compile_options reported nothing")
+            if compileOptions.contains("ENABLE_UNKNOWN_SQL_FUNCTION") {
+                XCTAssertNoThrow(
+                    try SQLiteExplainQueryPlanProbe.rows(forSQL: sql, in: database)
+                )
+            } else {
+                XCTAssertThrowsError(
+                    try SQLiteExplainQueryPlanProbe.rows(forSQL: sql, in: database)
+                )
+            }
+        }
+    }
+
     func testEmptyStatementFailsClosed() throws {
         // Nonempty but non-preparable: passes #292's structural "sql must not
         // be empty" check, but SQLite prepares no statement from it.
