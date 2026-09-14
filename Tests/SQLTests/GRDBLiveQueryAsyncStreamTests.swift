@@ -297,6 +297,54 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         }
     }
 
+    /// Parks each `stream:` fetch log, once armed, until ``open()`` is called (issue #652).
+    ///
+    /// Records whether a parked fetch gave up waiting. The deadline bounds only a failing run: a
+    /// passing run opens the gate as soon as the test's write returns.
+    private final class GatedFetchLogger: XLLogger, @unchecked Sendable {
+        private let condition = NSCondition()
+        private var isArmed = false
+        private var isOpen = false
+        private var timedOut = false
+
+        func log(level: XLLogLevel, message: String) {
+            guard message.contains("stream:") else {
+                return
+            }
+            condition.lock()
+            defer { condition.unlock() }
+            guard isArmed else {
+                return
+            }
+            let deadline = Date().addingTimeInterval(10)
+            while !isOpen {
+                if !condition.wait(until: deadline) {
+                    timedOut = true
+                    return
+                }
+            }
+        }
+
+        func arm() {
+            condition.lock()
+            isArmed = true
+            condition.unlock()
+        }
+
+        func open() {
+            condition.lock()
+            isOpen = true
+            condition.broadcast()
+            condition.unlock()
+        }
+
+        var didTimeOut: Bool {
+            condition.lock()
+            defer { condition.unlock() }
+            return timedOut
+        }
+    }
+
     private var databaseDirectoryURL: URL!
     private var databasePool: DatabasePool!
     private var database: GRDBDatabase!
@@ -820,6 +868,121 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         XCTAssertEqual(secondRows, [])
     }
 
+    // MARK: - Observation scheduling (issue #652)
+
+    /// A refetch after a commit must run on a pool reader, not inline on the writer that committed.
+    ///
+    /// The fetch closure logs `stream:` before it decodes. Once armed, `GatedFetchLogger` parks
+    /// every such call until the test opens its gate, and the test opens it only after the write
+    /// returns. A refetch that ran inline on the writer -- GRDB's `tracking(_:)` mode, before #652 --
+    /// would hold that write open, so the gate would never open and the logger would record its
+    /// timeout. A refetch on a reader leaves the write free to return, and the gate opens at once.
+    /// The timeout only bounds the failing path; the passing path waits on no duration.
+    func testRefetchAfterCommitDoesNotRunOnTheWriter() async throws {
+        try createRecordTable()
+        let gatedLogger = GatedFetchLogger()
+        let gatedDatabase = try GRDBDatabase(
+            databasePool: databasePool,
+            formatter: XLiteFormatter(),
+            logger: gatedLogger
+        )
+        let iterator = AsyncStreamIteratorBox(
+            gatedDatabase.makeRequest(with: orderedStatement()).stream()
+        )
+        let initial = try await iterator.next()
+        XCTAssertEqual(initial, [])
+
+        gatedLogger.arm()
+        try insertDirect(AsyncStreamRecord(id: "gated", value: 1))
+        gatedLogger.open()
+
+        let refreshed = try await iterator.next()
+        XCTAssertEqual(refreshed, [AsyncStreamRecord(id: "gated", value: 1)])
+        XCTAssertFalse(
+            gatedLogger.didTimeOut,
+            "The refetch held the write open, so it ran inline on the writer instead of a reader."
+        )
+    }
+
+    /// `stream()` must not need the main thread.
+    ///
+    /// This synchronous test method runs on the main thread and holds it in a semaphore wait, which
+    /// pumps no run loop, while a `Task` on the global executor takes two snapshots. Before #652
+    /// GRDB scheduled every snapshot on the main queue, so this wait could only time out.
+    func testStreamDeliversWhileTheMainThreadIsBlocked() throws {
+        XCTAssertTrue(Thread.isMainThread)
+        try createRecordTable()
+        let pool = databasePool!
+        let stream = database.makeRequest(with: orderedStatement()).stream()
+        let seen = AsyncStreamLockedArray<[AsyncStreamRecord]>()
+        let finished = DispatchSemaphore(value: 0)
+
+        let task = Task {
+            do {
+                for try await rows in stream {
+                    XCTAssertFalse(Thread.isMainThread)
+                    seen.append(rows)
+                    if seen.read().count == 1 {
+                        try await pool.write { database in
+                            try database.execute(
+                                sql: "INSERT INTO AsyncStreamRecord (id, value) VALUES (?, ?)",
+                                arguments: ["off-main", 1]
+                            )
+                        }
+                    }
+                    else {
+                        break
+                    }
+                }
+            }
+            catch {
+                XCTFail("Unexpected stream error: \(error)")
+            }
+            finished.signal()
+        }
+
+        XCTAssertEqual(
+            finished.wait(timeout: .now() + 10),
+            .success,
+            "Awaiting a stream off the main thread must not wait on the blocked main thread."
+        )
+        XCTAssertEqual(seen.read(), [[], [AsyncStreamRecord(id: "off-main", value: 1)]])
+        task.cancel()
+    }
+
+    /// The default retry backoff must not need the main thread either: it waits on the same private
+    /// queue GRDB delivers on. Same shape as the test above, with one injected BUSY failure.
+    func testDefaultRetryBackoffDoesNotNeedTheMainThread() throws {
+        XCTAssertTrue(Thread.isMainThread)
+        let fixture = try makeInjectedBusyFixture(policy: .retryBusy, behavior: .failOnce)
+        defer { try? FileManager.default.removeItem(at: fixture.directoryURL) }
+        let stream = fixture.database.makeRequest(with: fixture.statement).stream()
+        let seen = AsyncStreamLockedArray<[AsyncStreamRetryRecord]>()
+        let finished = DispatchSemaphore(value: 0)
+
+        let task = Task {
+            do {
+                for try await rows in stream {
+                    seen.append(rows)
+                    break
+                }
+            }
+            catch {
+                XCTFail("Unexpected stream error: \(error)")
+            }
+            finished.signal()
+        }
+
+        XCTAssertEqual(
+            finished.wait(timeout: .now() + 10),
+            .success,
+            "A retry backoff must not wait on the blocked main thread."
+        )
+        XCTAssertEqual(seen.read(), [[AsyncStreamRetryRecord(id: "initial", value: 1)]])
+        XCTAssertGreaterThanOrEqual(fixture.functionState.invocationCount, 2)
+        task.cancel()
+    }
+
     // MARK: - Retry integration (reuses GRDBLiveQueryRetryPolicy/State/Scheduler)
 
     func testRealGRDBObservationRecoversFromInjectedBusyAndKeepsObserving() async throws {
@@ -1122,11 +1285,14 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         }
     }
 
-    /// A barrier on the queue GRDB's `ValueObservation` actually delivers on, not a deadline: it
-    /// resumes when the main queue reaches the block it enqueued, however long that takes. Every
-    /// call site below uses it to let already-scheduled observation work run before asserting that
-    /// no *further* fetch happened. The suite's polling `waitUntil` is gone (#467): the conditions
-    /// it polled are now awaited directly on the harness state that produces them.
+    /// A main-queue barrier, not a deadline: it resumes when the main queue reaches the block it
+    /// enqueued, however long that takes. Every call site below uses it to let already-scheduled
+    /// work run before asserting that no *further* fetch happened. Since #652, GRDB delivers a
+    /// stream's snapshots on the bridge's private queue rather than the main queue, and fetches run
+    /// on GRDB's own queues, so this fences neither; the assertions it precedes hold under every
+    /// interleaving, because a torn-down observation never fetches again. The suite's polling
+    /// `waitUntil` is gone (#467): the conditions it polled are now awaited directly on the harness
+    /// state that produces them.
     private func drainMainQueue() async {
         await xlDrainMainQueue()
     }
@@ -1166,7 +1332,7 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
             formatter: XLiteFormatter(),
             logger: nil,
             liveQueryRetryPolicy: policy,
-            liveQueryRetryScheduler: retryScheduler ?? .mainQueue
+            liveQueryRetryScheduler: retryScheduler
         )
         try pool.write { database in
             try database.execute(

@@ -57,13 +57,19 @@ struct GRDBLiveQueryRetryScheduler: @unchecked Sendable {
         scheduleImpl(delay)
     }
 
-    static let mainQueue = GRDBLiveQueryRetryScheduler { delay in
-        Just(())
-            .delay(
-                for: .nanoseconds(Int(delay * 1_000_000_000)),
-                scheduler: DispatchQueue.main
-            )
-            .eraseToAnyPublisher()
+    /// Waits out each delay on `queue`.
+    ///
+    /// A live query passes its own private serial queue here by default (issue #652), the same
+    /// queue GRDB delivers its snapshots on, so a retry backoff never needs the main thread.
+    static func queue(_ queue: DispatchQueue) -> GRDBLiveQueryRetryScheduler {
+        GRDBLiveQueryRetryScheduler { delay in
+            Just(())
+                .delay(
+                    for: .nanoseconds(Int(delay * 1_000_000_000)),
+                    scheduler: queue
+                )
+                .eraseToAnyPublisher()
+        }
     }
 }
 
