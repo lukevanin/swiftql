@@ -300,6 +300,9 @@ public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilde
 ///
 /// Constructs a subquery that returns a nullable table.
 ///
+/// - Important: This function opens an independent scope. Give the subquery
+///   an explicit alias when it is joined to another source.
+///
 public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.Basis.MetaNullableResult where T: XLMetaNullable, T.Basis: XLTable {
     let newNamespace = XLNamespace.table()
     let schema = XLSchema()
@@ -311,6 +314,11 @@ public func subqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilde
 
 ///
 /// Constructs a subquery that returns an optional scalar value.
+///
+/// - Important: The schema passed to `statement` starts an independent scope.
+///   Use the schema method `XLSchema.subqueryExpression(statement:)`, or the
+///   form whose closure takes no schema, to use names from the enclosing
+///   schema.
 ///
 public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
     let schema = XLSchema()
@@ -330,6 +338,9 @@ public func subqueryExpression<T>(@XLQueryExpressionBuilder statement: () -> any
 /// Constructs a scalar subquery whose inner statement is already nullable, so
 /// the subquery's own nullability does not nest a second `Optional`.
 ///
+/// - Important: The schema passed to `statement` starts an independent scope,
+///   as for the non-optional scalar form.
+///
 public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
     let schema = XLSchema()
     return XLSubquery<Wrapped>(statement: statement(schema))
@@ -344,6 +355,10 @@ public func subqueryExpression<Wrapped>(@XLQueryExpressionBuilder statement: () 
 ///
 /// Constructs a subquery whose columns can evaluate to NULL, for use on the
 /// nullable side of a `LEFT JOIN`.
+///
+/// - Important: This function opens an independent scope. Use the schema
+///   method `XLSchema.nullableSubqueryExpression(alias:statement:)` to take the
+///   alias and the body's names from the enclosing schema.
 ///
 public func nullableSubqueryExpression<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNullableNamedResult where T: XLResult {
     let newNamespace = XLNamespace.table()
@@ -403,6 +418,12 @@ public func sql<Row>(@XLQueryExpressionBuilder builder: (XLSchema) -> any XLQuer
 // still letting a caller reach one of these shapes when the surrounding
 // expression — `From(sql { ... })`, a scalar comparison — uniquely requires
 // it.
+//
+// ## Scope
+//
+// These overloads forward to the free `subqueryExpression` functions, so the
+// schema passed to a closure starts an independent scope (issue #644). Use the
+// `XLSchema` subquery methods to take names from the enclosing schema.
 
 @_disfavoredOverload
 public func sql<T>(alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaResult where T: XLTable {

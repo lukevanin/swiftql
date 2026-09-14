@@ -22,7 +22,9 @@ extension XLExpression {
     ///
     /// - Important: This overload cannot see the enclosing schema, so the
     ///   schema passed to `expression` starts an independent scope, and its
-    ///   automatic aliases and bindings restart at `t0` and `p0`. For a
+    ///   automatic aliases and bindings restart at `t0` and `p0`. If the
+    ///   enclosing statement also has an automatic binding `p0`, rendering
+    ///   fails with `XLInvocationBindingError.conflictingParameterKey`. For a
     ///   correlated query, use the overload whose closure takes no schema, and
     ///   build the inner tables from the enclosing schema, or from
     ///   `XLSchema(parent:)`.

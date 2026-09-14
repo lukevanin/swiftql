@@ -421,6 +421,10 @@ public func subquery<T>(alias: XLName? = nil, _ statement: (XLSchema) -> any XLQ
 /// Constructs a subquery with a select query statement that returns a scalar value that can evaluate
 /// to NULL.
 ///
+/// - Important: The schema passed to `statement` starts an independent scope.
+///   Use the schema method `XLSchema.subquery(_:)`, or the form whose closure
+///   takes no schema, to use names from the enclosing schema.
+///
 public func subquery<T>(_ statement: (XLSchema) -> any XLQueryStatement<T>) -> some XLExpression<Optional<T>> where T: XLLiteral {
     let schema = XLSchema()
     return XLSubquery(statement: statement(schema))
@@ -442,6 +446,10 @@ public func subquery<T>(_ statement: () -> any XLQueryStatement<T>) -> some XLEx
 /// no row. When the inner statement is itself optional — an aggregate such as
 /// `sumOrNull()`, or a nullable column — the two sources of NULL collapse into
 /// one rather than nesting into `Optional<Optional<Wrapped>>`.
+///
+/// - Important: The schema passed to `statement` starts an independent scope.
+///   Use the schema method `XLSchema.subquery(_:)`, or the form whose closure
+///   takes no schema, to use names from the enclosing schema.
 ///
 public func subquery<Wrapped>(_ statement: (XLSchema) -> any XLQueryStatement<Optional<Wrapped>>) -> some XLExpression<Optional<Wrapped>> where Wrapped: XLLiteral {
     let schema = XLSchema()
