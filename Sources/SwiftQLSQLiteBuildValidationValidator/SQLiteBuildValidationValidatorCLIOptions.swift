@@ -320,6 +320,7 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
         manifestURL: URL,
         outputURL: URL,
         planOutputURL: URL? = nil,
+        planSuppressionsURL: URL? = nil,
         fileManager: FileManager = .default
     ) throws {
         try SQLiteBuildValidationOutputSafetyPreflight.check(
@@ -327,6 +328,7 @@ public struct SQLiteBuildValidationValidatorCLIOptions: Equatable, @unchecked Se
             manifestURL: manifestURL,
             outputURL: outputURL,
             planOutputURL: planOutputURL,
+            planSuppressionsURL: planSuppressionsURL,
             fileManager: fileManager
         )
     }

@@ -169,6 +169,110 @@ final class SQLiteBuildValidationValidatorCLIRunnerTests: XCTestCase {
         }
     }
 
+    /// The suppression file is a checked-in input. Before #649 the preflight
+    /// protected only `--database` and `--manifest`, so `--plan-output`
+    /// could overwrite reviewed suppression reasons with a generated sidecar.
+    func testNoOutputMayAliasThePlanSuppressions() throws {
+        try Support.withValidatorOwnedNorthwindURL { databaseURL in
+            let fileManager = FileManager.default
+            let workingDirectory = databaseURL.deletingLastPathComponent()
+            let manifestURL = workingDirectory.appendingPathComponent("manifest.json")
+            try Support.manifest().canonicalJSONData().write(to: manifestURL)
+            let reportURL = workingDirectory.appendingPathComponent("report.json")
+            let suppressionsURL = workingDirectory.appendingPathComponent("swiftql-plan-analysis.json")
+            try Data(#"{"format_version": 1, "suppressions": []}"#.utf8).write(to: suppressionsURL)
+
+            func assertRefused(
+                planOutputURL: URL,
+                expected: SQLiteBuildValidationValidatorCLIError,
+                line: UInt = #line
+            ) {
+                XCTAssertThrowsError(
+                    try SQLiteBuildValidationValidatorCLIOptions.preflightOutputSafety(
+                        databaseURL: databaseURL,
+                        manifestURL: manifestURL,
+                        outputURL: reportURL,
+                        planOutputURL: planOutputURL,
+                        planSuppressionsURL: suppressionsURL
+                    ),
+                    line: line
+                ) { error in
+                    XCTAssertEqual(
+                        error as? SQLiteBuildValidationValidatorCLIError,
+                        expected,
+                        line: line
+                    )
+                }
+            }
+
+            // By path.
+            assertRefused(
+                planOutputURL: suppressionsURL,
+                expected: .planOutputConflictsWithInput("--plan-suppressions")
+            )
+
+            // By symlink.
+            let symlinkURL = workingDirectory.appendingPathComponent("suppressions-alias.json")
+            try fileManager.createSymbolicLink(at: symlinkURL, withDestinationURL: suppressionsURL)
+            assertRefused(
+                planOutputURL: symlinkURL,
+                expected: .planOutputConflictsWithInput("--plan-suppressions")
+            )
+
+            // By hard link.
+            let hardLinkURL = workingDirectory.appendingPathComponent("suppressions-twin.json")
+            try fileManager.linkItem(at: suppressionsURL, to: hardLinkURL)
+            assertRefused(
+                planOutputURL: hardLinkURL,
+                expected: .planOutputConflictsWithInput("--plan-suppressions")
+            )
+
+            // The correctness report is protected the same way.
+            XCTAssertThrowsError(
+                try SQLiteBuildValidationValidatorCLIOptions.preflightOutputSafety(
+                    databaseURL: databaseURL,
+                    manifestURL: manifestURL,
+                    outputURL: suppressionsURL,
+                    planOutputURL: workingDirectory.appendingPathComponent("plans.json"),
+                    planSuppressionsURL: suppressionsURL
+                )
+            ) { error in
+                XCTAssertEqual(
+                    error as? SQLiteBuildValidationValidatorCLIError,
+                    .outputConflictsWithInput("--plan-suppressions")
+                )
+            }
+
+            // A distinct sidecar beside the suppression file stays allowed.
+            XCTAssertNoThrow(
+                try SQLiteBuildValidationValidatorCLIOptions.preflightOutputSafety(
+                    databaseURL: databaseURL,
+                    manifestURL: manifestURL,
+                    outputURL: reportURL,
+                    planOutputURL: workingDirectory.appendingPathComponent("plans.json"),
+                    planSuppressionsURL: suppressionsURL
+                )
+            )
+
+            // And the runner passes the suppression file to the preflight.
+            let options = try SQLiteBuildValidationValidatorCLIOptions.parse(arguments: [
+                "--database", databaseURL.path,
+                "--manifest", manifestURL.path,
+                "--output", reportURL.path,
+                "--plan-output", suppressionsURL.path,
+                "--plan-suppressions", suppressionsURL.path,
+            ])
+            let before = try Data(contentsOf: suppressionsURL)
+            XCTAssertThrowsError(try SQLiteBuildValidationValidatorCLIRunner.run(options: options)) { error in
+                XCTAssertEqual(
+                    error as? SQLiteBuildValidationValidatorCLIError,
+                    .planOutputConflictsWithInput("--plan-suppressions")
+                )
+            }
+            XCTAssertEqual(try Data(contentsOf: suppressionsURL), before)
+        }
+    }
+
     /// The advisory options are read from the command line and the
     /// checked-in file, and neither can reach the exit code.
     func testPlanDiagnosticOptionsAreReadFromTheCommandLineAndTheSuppressionFile() throws {

@@ -13,11 +13,20 @@ public enum SQLiteIndexAdvisorError:
     case requiredOption(String)
     case unknownOption(String)
     case applyRequiresOutput
+    case forceRequiresApply
     case noVerificationInSidecar
     case unreadableSidecar(path: String, reason: String)
+    case outputConflictsWithPlanReport
+    case outputNotGenerated(path: String)
 
     public var description: String {
         switch self {
+        case .forceRequiresApply:
+            return "--force only affects --apply; supply --apply or drop --force."
+        case .outputConflictsWithPlanReport:
+            return "--output must not identify the same file as --plan-report."
+        case .outputNotGenerated(let path):
+            return "\(path) exists and its first line does not carry the \"\(SQLiteIndexAdvisorArtifact.generatedHeaderMarker)\" header, so this command did not write it. Refusing to overwrite it. Pass --force to replace it once, for example to migrate a hand-written file."
         case .missingValue(let option):
             return "\(option) requires a nonempty value."
         case .duplicateOption(let option):
@@ -46,17 +55,22 @@ public struct SQLiteIndexAdvisorOptions: Equatable, @unchecked Sendable {
     public let planReportURL: URL?
     public let outputURL: URL?
     public let applies: Bool
+    /// Replaces an existing `--output` file that does not carry the
+    /// generated header. Only meaningful with ``applies``.
+    public let forces: Bool
     public let showsHelp: Bool
 
     public init(
         planReportURL: URL?,
         outputURL: URL? = nil,
         applies: Bool = false,
+        forces: Bool = false,
         showsHelp: Bool = false
     ) {
         self.planReportURL = planReportURL
         self.outputURL = outputURL
         self.applies = applies
+        self.forces = forces
         self.showsHelp = showsHelp
     }
 
@@ -70,6 +84,7 @@ public struct SQLiteIndexAdvisorOptions: Equatable, @unchecked Sendable {
         var planReportPath: String?
         var outputPath: String?
         var applies = false
+        var forces = false
         var showsHelp = false
         var index = 0
 
@@ -102,6 +117,8 @@ public struct SQLiteIndexAdvisorOptions: Equatable, @unchecked Sendable {
                 try assignOnce(&outputPath, option: argument)
             case "--apply":
                 applies = true
+            case "--force":
+                forces = true
             case "--help", "-h":
                 showsHelp = true
             default:
@@ -117,6 +134,11 @@ public struct SQLiteIndexAdvisorOptions: Equatable, @unchecked Sendable {
             if applies, outputPath == nil {
                 throw SQLiteIndexAdvisorError.applyRequiresOutput
             }
+            // Accepting it silently would read as permission that report
+            // mode then never uses.
+            if forces, !applies {
+                throw SQLiteIndexAdvisorError.forceRequiresApply
+            }
         }
 
         func resolved(_ path: String) -> URL {
@@ -129,6 +151,7 @@ public struct SQLiteIndexAdvisorOptions: Equatable, @unchecked Sendable {
             planReportURL: planReportPath.map(resolved),
             outputURL: outputPath.map(resolved),
             applies: applies,
+            forces: forces,
             showsHelp: showsHelp
         )
     }
@@ -141,11 +164,15 @@ public struct SQLiteIndexAdvisorOptions: Equatable, @unchecked Sendable {
           --output <path>        Where to write the generated SQL artifact
           --apply                Write the artifact. Without this the command
                                  only reports, and changes nothing.
+          --force                With --apply, replace an existing --output
+                                 file that this command did not generate
           --help, -h             Show this help
 
         Report mode is the default and never writes anything. Applying is one
         explicit invocation whose diff you review; a build never rewrites
-        source on your behalf.
+        source on your behalf. --apply refuses an --output that names the
+        --plan-report file, and refuses to replace a file whose first line
+        lacks the generated header unless --force is given.
         """
 }
 
@@ -180,6 +207,17 @@ public enum SQLiteIndexAdvisorRunner {
     public static func run(options: SQLiteIndexAdvisorOptions) throws -> SQLiteIndexAdvisorRunResult {
         guard let planReportURL = options.planReportURL else {
             throw SQLiteIndexAdvisorError.requiredOption("--plan-report")
+        }
+        // Checked before anything is read. Writing SQL over the sidecar the
+        // advice came from destroys the evidence for it, and a symlink or
+        // hard link is the same file under another name.
+        if options.applies,
+           let outputURL = options.outputURL,
+           SQLiteBuildValidationOutputSafetyPreflight.identifiesSameFile(
+               outputURL,
+               planReportURL
+           ) {
+            throw SQLiteIndexAdvisorError.outputConflictsWithPlanReport
         }
         let planReport: SQLiteBuildValidationPlanReport
         do {
@@ -234,6 +272,19 @@ public enum SQLiteIndexAdvisorRunner {
                 outcome: .unchanged,
                 standardOutput: "swiftql-index-advisor: \(outputURL.path) is already up to date.\n"
             )
+        }
+        // Byte equality above only proves a no-op. Before replacing anything,
+        // prove the file is one this command generated: a hand-maintained
+        // schema file at the same path would otherwise vanish silently.
+        // A directory is not a file anyone wrote by hand, and telling the
+        // caller to pass --force would be wrong advice: the atomic write
+        // below fails on it with a filesystem error naming the path.
+        var outputIsDirectory: ObjCBool = false
+        if !options.forces,
+           FileManager.default.fileExists(atPath: outputURL.path, isDirectory: &outputIsDirectory),
+           !outputIsDirectory.boolValue,
+           !SQLiteIndexAdvisorArtifact.carriesGeneratedHeader(at: outputURL) {
+            throw SQLiteIndexAdvisorError.outputNotGenerated(path: outputURL.path)
         }
         try FileManager.default.createDirectory(
             at: outputURL.deletingLastPathComponent(),
