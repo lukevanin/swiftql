@@ -137,19 +137,19 @@ public enum XLRegexpMatcher {
 /// ## Scope
 ///
 /// One cache belongs to one registered SQLite function, created by
-/// `XLCustomFunctionRegistration.bundledRegexp` each time the driver
-/// registers the function on a connection. It is never shared between
-/// connections, and it is not a process-wide cache:
+/// `XLCustomFunctionRegistration.bundledRegexp` when the driver installs the
+/// function on a connection -- once per physical connection. It is never
+/// shared between connections, and it is not a process-wide cache:
 ///
 /// - Swift's `Regex` is not `Sendable`. Sharing one compiled value between the
 ///   pooled connections that match with it concurrently would be exactly the
 ///   sharing the type does not promise is safe. Confining a cache to the
 ///   registration that created it means a compiled `Regex` is only ever matched
 ///   against by the one connection that compiled it.
-/// - A cache that outlived a statement would have to decide when a pattern
-///   built from user input stops being worth keeping. One that lives as long as
-///   one registration does not: the patterns it holds are the patterns the
-///   statement being prepared can present.
+/// - A cache that lives as long as one connection's installation sees every
+///   statement that connection runs, including patterns built from user input.
+///   ``capacity`` is therefore the real limit on the compiled patterns one
+///   connection keeps; see "Bound" below.
 ///
 /// The lock is therefore not there to make cross-connection sharing safe --
 /// nothing shares one of these. It is there so the `@unchecked Sendable`
@@ -160,10 +160,11 @@ public enum XLRegexpMatcher {
 /// ## Bound
 ///
 /// A statement almost always uses one pattern, from a literal or from a
-/// parameter SQLite binds once per execution. The bound exists for the case
-/// that does not hold -- a pattern read from a *column*, which can differ on
-/// every row -- so that such a statement compiles repeatedly instead of
-/// growing the cache without limit. Eviction is by insertion order, which needs
+/// parameter SQLite binds once per execution. The bound exists for the cases
+/// where one cache sees many patterns -- a pattern read from a *column*, which
+/// can differ on every row, and the many statements with different patterns
+/// that one connection runs over its life -- so that the cache compiles
+/// repeatedly instead of growing without limit. Eviction is by insertion order, which needs
 /// no per-hit bookkeeping; a most-recent entry in front of the map keeps the
 /// common single-pattern statement from touching the map at all.
 ///

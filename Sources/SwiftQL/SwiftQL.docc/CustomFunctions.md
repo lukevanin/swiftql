@@ -112,11 +112,15 @@ public func makeSQL(context: inout XLBuilder) {
 With that change, `GRDBDatabase` registers the function with SQLite the first time a rendered
 statement referencing it executes -- there is no need to call `builder.addFunction(_:)` at all.
 `GRDB.DatabasePool` maintains several persistent reader connections and a registration only
-affects the one physical connection it runs on, so SwiftQL re-registers on every execution
-rather than tracking a single "already registered" flag: whichever pooled connection happens
-to service a given call gets the function registered on it before the call runs. SQLite's
-underlying `sqlite3_create_function` call is cheap, so this repetition is not a meaningful
-runtime cost.
+affects the one physical connection it runs on, so SwiftQL checks before every execution
+whether the connection that serves the call already has the function, and installs it on that
+connection the first time only. The check reads a record SwiftQL keeps on the connection
+itself, so it costs one statement-cache lookup, and it stays correct when the pool closes and
+reopens connections or when two `GRDBDatabase` values share one pool.
+
+SwiftQL never installs the same function twice on one connection. SQLite treats a second
+installation as a change to the function: it expires every prepared statement on that
+connection, and it fails while a result set is open on the connection.
 
 Calling `builder.addFunction(_:)` upfront continues to work exactly as before, for functions
 that use `simpleFunction` directly or for callers who prefer to register everything upfront.
