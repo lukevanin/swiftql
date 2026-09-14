@@ -127,17 +127,19 @@ application installed itself -- with `builder.addFunction(_:)` or your own
 `Configuration.prepareDatabase(_:)` hook -- SwiftQL uses that function and does not install a
 second copy, even for a function whose `makeSQL` calls `customFunctionCall`. So registering a
 function up front and calling it through `customFunctionCall` works everywhere, including the
-first call on a connection inside a `withResultSet(_:)` callback.
+first call on a connection inside a `withResultSet(_:)` callback. A SQLite built-in function,
+such as `lower` with one argument, does not count as yours; see the exception below.
 
 There is one deliberate exception. Your own `XLCustomFunction` always wins over a function
-SwiftQL bundles, such as the two-argument `regexp` behind the `REGEXP` operator. If your function
-has the same name and argument count, and SwiftQL already installed its bundled version on a
-connection, SwiftQL replaces the bundled version with yours the first time a statement on that
-connection calls yours. SQLite cannot make that replacement while a result set is open on the
-connection, so when that first call happens inside a `withResultSet(_:)` callback, the request
+SwiftQL bundles, such as the two-argument `regexp` behind the `REGEXP` operator, and over a SQLite
+built-in function, such as `lower` with one argument. If your function has the same name and
+argument count as one of those, SwiftQL replaces it with yours on a connection the first time a
+statement on that connection calls yours. SQLite cannot make that replacement while a result set
+is open on the connection, so when that first call happens inside a `withResultSet(_:)` callback,
+the request
 throws `XLDatabaseContractError.prepareFailure` instead. To avoid it, register your function up
-front with `builder.addFunction(_:)` — the bundled version then never installs — or call your
-function once before you open the result set.
+front with `builder.addFunction(_:)` — SwiftQL then uses that registration and replaces nothing —
+or call your function once before you open the result set.
 
 Calling `builder.addFunction(_:)` upfront continues to work exactly as before, for functions
 that use `simpleFunction` directly or for callers who prefer to register everything upfront.

@@ -111,6 +111,35 @@ private struct UpfrontAndImplicitDoubleFunction: XLCustomFunction {
 }
 
 
+/// An application function with the same name and argument count as SQLite's built-in `lower/1`.
+/// The statement references this type, so this implementation must run, not SQLite's. It prefixes
+/// its argument instead of lowering it, so which one ran is visible in the result.
+private struct BuiltInCollidingLowerFunction: XLCustomFunction {
+    typealias T = String
+
+    static let definition = XLCustomFunctionDefinition(
+        name: "lower",
+        numberOfArguments: 1
+    )
+
+    private let value: any XLExpression<String>
+
+    init(_ value: any XLExpression<String>) {
+        self.value = value
+    }
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { list in
+            list.listItem(expression: value.makeSQL)
+        }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> String {
+        "custom:" + (try reader.readText(at: 0))
+    }
+}
+
+
 final class XLImplicitFunctionRegistrationTests: XCTestCase {
 
     private var databaseDirectoryURL: URL!
@@ -285,6 +314,58 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
 
         XCTAssertEqual(identifiers, ["a", "b"])
         XCTAssertEqual(doubled, [8, 10])
+    }
+
+    /// A SQLite built-in is not the application's own function. An implicitly registered function
+    /// with a built-in's name and argument count replaces the built-in on the connection, so the
+    /// statement runs the function it referenced -- on the first call and on every later one.
+    func testImplicitFunctionNamedLikeASQLiteBuiltInReplacesTheBuiltIn() throws {
+        let database = try makeDatabase(maximumReaderCount: 1)
+        let statement = sql { _ in Select(BuiltInCollidingLowerFunction("ABC")) }
+
+        XCTAssertEqual(try database.makeRequest(with: statement).fetchOne(), "custom:ABC")
+        XCTAssertEqual(try database.makeRequest(with: statement).fetchOne(), "custom:ABC")
+    }
+
+    /// Replacing a built-in is a replacement of a function with the same name and argument count,
+    /// which SQLite refuses while a statement is active, and GRDB turns that refusal into a
+    /// `fatalError`. Inside an open result set the request must throw instead, and the replacement
+    /// must succeed once the result set closes.
+    func testReplacingASQLiteBuiltInInsideAnOpenResultSetThrowsInsteadOfCrashing() throws {
+        let database = try makeDatabase()
+        try database.makeRequest(with: sqlCreate(TestTable.self)).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 4))).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "b", value: 5))).execute()
+
+        let rows = sql { schema -> any XLQueryStatement<TestTable> in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            OrderBy(table.id.ascending())
+        }
+        let statement = sql { _ in Select(BuiltInCollidingLowerFunction("ABC")) }
+
+        let visited = try database.withTransaction { scope -> Int in
+            var visited = 0
+            try scope.makeRequest(with: rows).withResultSet { results in
+                while try results.next() != nil {
+                    visited += 1
+                    XCTAssertThrowsError(try scope.makeRequest(with: statement).fetchOne()) { error in
+                        guard case .prepareFailure(_, let message) = error as? XLDatabaseContractError else {
+                            return XCTFail("Expected a prepare failure, received \(error)")
+                        }
+                        XCTAssertTrue(message.contains("lower/1"), message)
+                    }
+                }
+            }
+            return visited
+        }
+        XCTAssertEqual(visited, 2)
+
+        let afterwards = try database.withTransaction { scope in
+            try scope.makeRequest(with: statement).fetchOne()
+        }
+        XCTAssertEqual(afterwards, "custom:ABC")
     }
 
     // MARK: - Pool concurrency
