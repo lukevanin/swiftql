@@ -560,10 +560,19 @@ final class SQLiteBuildValidationIndexVerificationTests: XCTestCase {
 
     /// Each copy compares the snapshot with what it was when that copy was
     /// made. A change between two candidates is therefore invisible to both
-    /// copies, and only the pass-wide baseline catches it.
+    /// copies: the first copy's check has already passed, and the second copy
+    /// takes the changed snapshot as its baseline. Only the pass-wide
+    /// baseline catches it.
     func testASnapshotChangedBetweenCandidatesFailsTheRun() throws {
+        // Two statements whose candidates differ, so there is a real boundary
+        // between two copies to change the snapshot at.
+        let byShipCountry = Self.query(
+            "orders.by-ship-country",
+            "SELECT o.ShipName AS value FROM Orders o WHERE o.ShipCountry = 'Germany'"
+        )
+
         try Support.withValidatorOwnedNorthwindURL { url in
-            let manifest = Support.manifest(queries: [Self.remediable])
+            let manifest = Support.manifest(queries: [Self.remediable, byShipCountry])
             let planReport = try XCTUnwrap(
                 try SQLiteBuildValidator.run(
                     manifest: manifest,
@@ -571,24 +580,39 @@ final class SQLiteBuildValidationIndexVerificationTests: XCTestCase {
                     capturesPlans: true
                 ).planReport
             )
+            let candidates = planReport.indexCandidates.candidates
+            XCTAssertGreaterThanOrEqual(
+                candidates.count,
+                2,
+                "the boundary needs two candidates: \(candidates.map(\.indexName))"
+            )
 
+            var judged = 0
+            var copiesOpened = 0
             XCTAssertThrowsError(
                 try Verifier.verify(
-                    candidates: planReport.indexCandidates.candidates,
+                    candidates: candidates,
                     queries: manifest.queries,
                     snapshotURL: url,
                     scratchParentDirectory: FileManager.default.temporaryDirectory,
                     reportScratchFailure: { _ in },
-                    whileTheCopyIsOpen: {},
-                    // After the copy's own check has already passed.
-                    afterEachCandidate: { try Self.appendOneByte(to: url) }
+                    whileTheCopyIsOpen: { copiesOpened += 1 },
+                    afterEachCandidate: {
+                        judged += 1
+                        // After the first copy's own check has passed and
+                        // before the second copy takes its baseline.
+                        if judged == 1 {
+                            try Self.appendOneByte(to: url)
+                        }
+                    }
                 )
             ) { error in
-                guard case .snapshotChangedDuringVerification = error
-                    as? SQLiteBuildValidationScratchError else {
-                    return XCTFail("expected a changed-snapshot error, got \(error)")
-                }
+                Self.assertSnapshotChangedByOneByte(error)
             }
+            // Every candidate ran, so neither copy's own check noticed: the
+            // failure came from the pass-wide baseline after the loop.
+            XCTAssertEqual(judged, candidates.count)
+            XCTAssertEqual(copiesOpened, candidates.count)
         }
     }
 
