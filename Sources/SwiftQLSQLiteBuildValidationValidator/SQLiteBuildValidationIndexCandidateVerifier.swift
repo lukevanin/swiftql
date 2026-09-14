@@ -153,11 +153,9 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
             of: snapshotURL,
             in: scratchParentDirectory
         ) { copyURL in
-            var configuration = Configuration()
-            configuration.label = "SwiftQLSQLiteBuildValidationIndexVerification"
             let queue = try DatabaseQueue(
                 path: copyURL.path,
-                configuration: configuration
+                configuration: scratchConfiguration()
             )
             defer { try? queue.close() }
 
@@ -199,6 +197,24 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
                 writeCostNote: writeCostNote(for: candidate, rowCount: tableRowCount)
             ))
         }
+    }
+
+    /// The configuration of the connection each scratch copy is opened on.
+    ///
+    /// It registers the same functions the correctness connection has, before
+    /// anything is planned. SQLite resolves a function name at preparation, so
+    /// a statement using `REGEXP` would otherwise fail to prepare here, and
+    /// every candidate it motivated would land in `unverified` for a reason
+    /// that has nothing to do with the index. A build compiled with
+    /// `SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION` — Apple's is — lets `EXPLAIN`
+    /// prepare an unknown function and hides the gap; other builds do not.
+    static func scratchConfiguration() -> Configuration {
+        var configuration = Configuration()
+        configuration.label = "SwiftQLSQLiteBuildValidationIndexVerification"
+        configuration.prepareDatabase { database in
+            SQLiteBuildValidationBundledFunctions.register(on: database)
+        }
+        return configuration
     }
 
     private static func plan(

@@ -340,7 +340,11 @@ therefore gets its own disposable copy:
   plan another is judged by.
 
 The connection is a `DatabaseQueue` this pass opens and closes. Verification
-never runs against an application connection or a long-lived pool.
+never runs against an application connection or a long-lived pool. It
+registers the same bundled functions as the correctness connection (such as
+`regexp`) before the before-plan is captured, because SQLite resolves a
+function name at preparation and a statement using `REGEXP` would otherwise
+fail to plan on the copy.
 
 ### The improvement rule
 

@@ -205,6 +205,46 @@ final class SQLiteBuildValidationIndexVerificationTests: XCTestCase {
         XCTAssertTrue(recommendation.writeCostNote.contains("830 rows"))
     }
 
+    /// SQLite resolves a function name at preparation, so the scratch
+    /// connection needs the functions SwiftQL supplies, exactly as the
+    /// correctness connection does. The extractor drops the `REGEXP` conjunct
+    /// and keeps the equality, so this statement yields a candidate; before
+    /// issue #648 that candidate always failed to prepare on the bare scratch
+    /// connection and landed in `unverified`.
+    func testAStatementUsingRegexpYieldsAVerifiedRecommendation() throws {
+        let regexp = Self.query(
+            "orders.by-customer-matching-city",
+            "SELECT o.ShipCity AS value FROM Orders o WHERE o.CustomerID = 'ALFKI' AND o.ShipCity REGEXP '^B'"
+        )
+
+        let set = try verifiedSet(queries: [regexp])
+
+        XCTAssertTrue(set.unverified.isEmpty, "\(set.unverified.map(\.reason))")
+        XCTAssertEqual(set.recommendations.count, 1)
+        let recommendation = try XCTUnwrap(set.recommendations.first)
+        XCTAssertEqual(recommendation.statementID, regexp.id)
+        XCTAssertEqual(recommendation.candidate.table, "Orders")
+        XCTAssertEqual(
+            recommendation.candidate.columns.map(\.name),
+            ["CustomerID"]
+        )
+    }
+
+    /// The test above goes through `EXPLAIN QUERY PLAN`, and a SQLite built
+    /// with `SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION` (Apple's is) prepares an
+    /// unknown function under `EXPLAIN`. So that test alone proves nothing on
+    /// macOS. Executing `REGEXP` on the scratch configuration needs the
+    /// function on every build.
+    func testTheScratchConnectionHasTheBundledFunctions() throws {
+        let queue = try DatabaseQueue(configuration: Verifier.scratchConfiguration())
+        defer { try? queue.close() }
+
+        let matches = try queue.read { database in
+            try Bool.fetchOne(database, sql: "SELECT 'Berlin' REGEXP '^B'")
+        }
+        XCTAssertEqual(matches, true)
+    }
+
     /// A candidate SQLite declines to use is rejected, with the reason kept.
     func testAPlausibleButUselessCandidateIsRejectedWithItsReason() throws {
         let candidate = SQLiteBuildValidationIndexCandidate(
