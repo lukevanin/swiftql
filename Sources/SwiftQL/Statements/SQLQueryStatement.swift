@@ -45,7 +45,13 @@ public struct XLQueryStatementComponents<Row>: XLEncodable, XLRowReadable {
     }
     
     public func makeSQL(context: inout XLBuilder) {
-        commonTables.makeWithClauseSQL(context: &context)
+        if !commonTables.isEmpty {
+            context.commonTables { context in
+                for commonTable in commonTables {
+                    commonTable.makeSQL(context: &context)
+                }
+            }
+        }
         for component in components {
             component.makeSQL(context: &context)
         }

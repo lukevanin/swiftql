@@ -489,8 +489,11 @@ correlated `in` or `notIn` query, use the closure form that takes no schema and
 build the inner tables from the enclosing schema, or create
 `XLSchema(parent: schema)` inside the closure. If two unrelated schemas name bindings with the same
 placeholder, rendering reports
-`XLInvocationBindingError.conflictingBindingReferences` instead of merging the
-two values into one.
+`XLInvocationBindingError.conflictingParameterKey` instead of merging the two
+values into one. SwiftQL does not check common table names in one `WITH`
+clause while it renders; SQLite rejects a duplicate name when it prepares the
+statement, and `xlValidateUniqueCommonTableAliases` checks a list before you
+build the statement.
 
 See the <doc:Expressions/In-operator> documentation for an example of using a
 subquery with the `in` operator.

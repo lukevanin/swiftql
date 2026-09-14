@@ -320,10 +320,10 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
         let outer = outerSchema.binding(of: Int.self)
         let inner = XLSchema().binding(of: Int.self)
         let encoding = encoder.makeSQL(select(outer + inner))
-        XCTAssertEqual(
-            encoding.parameterLayoutError,
-            .conflictingBindingReferences(key: .named("p0"))
-        )
+        guard case .conflictingParameterKey(let key, _, _) = encoding.parameterLayoutError else {
+            return XCTFail("Expected conflictingParameterKey, received \(String(describing: encoding.parameterLayoutError))")
+        }
+        XCTAssertEqual(key, .named("p0"))
         XCTAssertThrowsError(try encoder.makeValidatedSQL(select(outer + inner)))
 
         // The same reference used twice is one parameter, not a collision.
@@ -332,25 +332,6 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
         XCTAssertEqual(repeated.parameterLayout.count, 1)
     }
 
-    /// #644: a WITH clause that lists two common tables with the same name is
-    /// rejected at render time instead of at SQLite prepare.
-    func testDuplicateCommonTableAliasIsRejectedAtRender() {
-        let first = XLSchema().commonTable { s in
-            let t = s.table(TestTable.self)
-            return select(t).from(t)
-        }
-        let second = XLSchema().commonTable { s in
-            let t = s.table(TestTable.self)
-            return select(t).from(t)
-        }
-        let schema = XLSchema()
-        let t = schema.table(first)
-        let encoding = encoder.makeSQL(with(first, second).select(t).from(t))
-        XCTAssertEqual(
-            encoding.valueEncodingError,
-            .duplicateCommonTableAlias(alias: "cte0")
-        )
-    }
 
     func testSelectSubqueryAggregate() {
         let s = XLSchema()

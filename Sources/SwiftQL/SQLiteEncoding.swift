@@ -100,14 +100,27 @@ private final class XLiteDialectRequirementRecorder {
     /// Rejects two automatically named binding references from different
     /// namespaces that resolve to the same key. Without this check the
     /// recorder reuses the first slot, and both references share one value.
+    ///
+    /// The collision is reported as
+    /// ``XLInvocationBindingError/conflictingParameterKey(key:existing:incoming:)``
+    /// so that the public error enum keeps its cases. Both slots are the slot
+    /// that the first reference recorded, because the two declarations are
+    /// identical and only their origins differ.
     func recordBindingOrigin(_ origin: XLBindingOrigin, key: XLBindingKey) {
-        guard let existing = bindingOriginByKey[key] else {
+        guard let existingOrigin = bindingOriginByKey[key] else {
             bindingOriginByKey[key] = origin
             return
         }
-        if existing != origin, parameterLayoutError == nil {
-            parameterLayoutError = .conflictingBindingReferences(key: key)
+        guard existingOrigin != origin,
+              parameterLayoutError == nil,
+              let slot = parameterLayout.slot(for: key) else {
+            return
         }
+        parameterLayoutError = .conflictingParameterKey(
+            key: key,
+            existing: slot,
+            incoming: slot
+        )
     }
 
     func recordValueEncodingError(_ error: XLSQLValueEncodingError) {

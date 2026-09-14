@@ -51,14 +51,8 @@ public enum XLSQLValueEncodingError:
         context: XLValueCodingContext
     )
 
-    /// One `WITH` clause defines two common tables with the same name, which
-    /// SQLite cannot prepare.
-    case duplicateCommonTableAlias(alias: String)
-
     public var errorDescription: String? {
         switch self {
-        case .duplicateCommonTableAlias(let alias):
-            return "Cannot render a WITH clause that defines the common table \(alias) more than once. Build each common table from the same schema, or give them distinct names."
         case .nonFiniteRealLiteral(let value, let expressionType):
             return "Cannot render \(value) from \(expressionType) as an inline SQLite real literal. SQLite has no valid bare numeric token for this value; use a bound parameter when its SQLite binding semantics are acceptable."
         case .realBindingWouldBecomeNull(let value, let valueType, let context):
