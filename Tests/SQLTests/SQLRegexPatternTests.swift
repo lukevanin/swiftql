@@ -336,6 +336,166 @@ final class XLRegexPatternTests: XCTestCase {
         }
     }
 
+    // MARK: - Statements and requests hold their pattern (issue #646)
+
+    /// A pattern built inside a function, so nothing but the statement or
+    /// request made from it can keep it alive once the function returns.
+    ///
+    /// Built from a compiled `Regex` rather than a `RegexBuilder` closure, and
+    /// in a function of its own, for the Swift 5.9.2 SILGen crash described on
+    /// `Patterns`.
+    private static func makeLocalPattern() -> XLRegexPattern {
+        XLRegexPattern(try! Regex("[0-9]+$"))
+    }
+
+    private static func statement(
+        matching pattern: XLRegexPattern
+    ) -> any XLQueryStatement<String> {
+        sql { schema in
+            let phrase = schema.table(RegexPatternPhrase.self)
+            Select(phrase.id)
+            From(phrase)
+            Where(phrase.text.regexp(pattern))
+            OrderBy(phrase.id.ascending())
+        }
+    }
+
+    /// The failure the issue reports: a statement built from a pattern that
+    /// goes out of scope before execution still matches.
+    func testAStatementBuiltFromALocalPatternStillMatches() throws {
+        database = try makeSeededDatabase()
+        let statement = Self.statement(matching: Self.makeLocalPattern())
+
+        XCTAssertEqual(
+            try database.makeRequest(with: statement).fetchAll(),
+            ["1", "3"]
+        )
+    }
+
+    /// A rendered request holds the registry entry, and releasing the request
+    /// releases it, so holding the pattern does not become a leak.
+    func testARenderedRequestKeepsItsRegistryEntryUntilReleased() throws {
+        database = try makeSeededDatabase()
+        var key = ""
+        var request: (any XLRequest<String>)?
+        do {
+            let pattern = Self.makeLocalPattern()
+            key = pattern.key
+            request = database.makeRequest(
+                with: Self.statement(matching: pattern)
+            )
+        }
+
+        XCTAssertNotNil(XLRegexPatternRegistry.registration(forKey: key))
+        XCTAssertEqual(try XCTUnwrap(request).fetchAll(), ["1", "3"])
+        XCTAssertNotNil(XLRegexPatternRegistry.registration(forKey: key))
+
+        request = nil
+        XCTAssertNil(XLRegexPatternRegistry.registration(forKey: key))
+    }
+
+    /// A write request keeps no statement, only the encoding, so the pattern
+    /// has to travel with the encoding for this to hold.
+    func testAWriteRequestBuiltFromALocalPatternStillMatches() throws {
+        database = try makeSeededDatabase()
+        let request = Self.deleteRequest(
+            matching: Self.makeLocalPattern(),
+            in: database
+        )
+
+        try request.execute()
+
+        let remaining = sql { schema in
+            let phrase = schema.table(RegexPatternPhrase.self)
+            Select(phrase.id)
+            From(phrase)
+            OrderBy(phrase.id.ascending())
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: remaining).fetchAll(),
+            ["2"]
+        )
+    }
+
+    /// A prepared invocation builds its own executor from the encoding, so it
+    /// is a separate path from `makeRequest(with:)` and is pinned separately.
+    func testAPreparedInvocationKeepsItsRegistryEntryUntilReleased() throws {
+        database = try makeSeededDatabase()
+        var key = ""
+        var invocation: GRDBPreparedInvocation?
+        do {
+            let pattern = Self.makeLocalPattern()
+            key = pattern.key
+            invocation = database.prepareInvocation(
+                with: Self.statement(matching: pattern)
+            )
+        }
+
+        XCTAssertNotNil(XLRegexPatternRegistry.registration(forKey: key))
+        do {
+            let prepared = try XCTUnwrap(invocation)
+            let bindings = try XLInvocationBindings<XLSQLiteValue>(
+                layout: prepared.parameterLayout,
+                bindings: []
+            ).validatingComplete()
+            let rows: [[XLSQLiteValue]] = try prepared.fetchAllValues(
+                bindings: bindings
+            )
+            XCTAssertEqual(rows, [[.text("1")], [.text("3")]])
+        }
+        XCTAssertNotNil(XLRegexPatternRegistry.registration(forKey: key))
+
+        invocation = nil
+        XCTAssertNil(XLRegexPatternRegistry.registration(forKey: key))
+    }
+
+    private static func deleteRequest(
+        matching pattern: XLRegexPattern,
+        in database: GRDBDatabase
+    ) -> XLWriteRequest {
+        let statement = sql { schema in
+            let phrase = schema.into(RegexPatternPhrase.self)
+            Delete(phrase)
+            Where(phrase.text.regexp(pattern))
+        }
+        return database.makeRequest(with: statement)
+    }
+
+    /// Two patterns in one statement record the same function signature. The
+    /// encoding keeps both, not only the one rendered last.
+    func testAnEncodingKeepsEveryPatternItMatches() {
+        var keys: [String] = []
+        var encoding: XLEncoding?
+        do {
+            let first = Self.makeLocalPattern()
+            let second = XLRegexPattern(try! Regex("^alpha"))
+            keys = [first.key, second.key]
+            encoding = XLiteEncoder(formatter: XLiteFormatter()).makeSQL(
+                Self.statement(matching: first, and: second)
+            )
+        }
+
+        for key in keys {
+            XCTAssertNotNil(
+                XLRegexPatternRegistry.registration(forKey: key),
+                key.debugDescription
+            )
+        }
+        XCTAssertNotNil(encoding)
+    }
+
+    private static func statement(
+        matching first: XLRegexPattern,
+        and second: XLRegexPattern
+    ) -> any XLQueryStatement<String> {
+        sql { schema in
+            let phrase = schema.table(RegexPatternPhrase.self)
+            Select(phrase.id)
+            From(phrase)
+            Where(phrase.text.regexp(first) && phrase.text.regexp(second))
+        }
+    }
+
     // MARK: - Static descriptors
 
     /// A key names a registration in one process, so a descriptor built from

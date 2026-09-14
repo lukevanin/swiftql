@@ -344,15 +344,19 @@ let query = sql { schema in
 ```
 
 The pattern is a `static let` rather than a local, which is the first of the
-two rules below: a local would be released when the function returns, while the
-statement it rendered is usually executed later.
+two rules below: one pattern is one registration and one compiled `Regex`, while
+a local builds both again every time the function runs.
 
 Two rules come with it.
 
-**Hold the pattern.** The registry does not keep an `XLRegexPattern` alive.
-Store it — in a `static let`, or a property — for as long as statements using
-it can execute. A released pattern leaves its key unresolvable, and executing a
-statement that carries it reports that rather than silently matching nothing.
+**Hold the pattern, or the statement.** The registry does not keep an
+`XLRegexPattern` alive, but a statement that matches against it does, and so
+does every request made from that statement. A statement built from a local
+pattern therefore still executes after the function that built it returns.
+Store a pattern that more than one statement uses — in a `static let`, or a
+property. A key passed on as a string (`pattern.key`) keeps nothing alive; once
+its pattern is released, executing a statement that carries it reports that
+rather than silently matching nothing.
 
 **A key is local to one process.** The rendered SQL names a registration in the
 process that rendered it, so a statement matching an `XLRegexPattern` cannot

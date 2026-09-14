@@ -48,10 +48,10 @@ public enum TodoLinks {
 
     /// Matches an `http` or `https` URL anywhere in a note.
     ///
-    /// Held in a `static let` because the registry does not keep a pattern
-    /// alive. One that went out of scope would leave its key unresolvable, and
-    /// the next search using it would report that rather than quietly
-    /// returning nothing.
+    /// Held in a `static let` so every statement built from `statement` shares
+    /// one registration and one compiled `Regex`. The statement and its
+    /// requests would keep a pattern alive by themselves, but a pattern built
+    /// inside `statement` would be built again on every read.
     public static let pattern = XLRegexPattern {
         "http"
         Optionally("s")
