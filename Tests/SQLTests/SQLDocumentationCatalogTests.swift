@@ -291,43 +291,88 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             contentsOf: try documentationCatalogURL().appendingPathComponent("QueryPlanAdvice.md"),
             encoding: .utf8
         )
-        let optionPattern = try NSRegularExpression(pattern: #"case "(--[a-z-]+)""#)
+        let optionPattern = try NSRegularExpression(pattern: #""(--[a-z-]+)""#)
 
+        /// Every quoted `--option` on a `case` line of a parser's `switch`,
+        /// including each pattern of a multi-pattern case such as
+        /// `case "--help", "-h":`.
         func parsedOptions(in path: String) throws -> Set<String> {
             let source = try String(
                 contentsOf: root.appendingPathComponent(path),
                 encoding: .utf8
             )
-            let range = NSRange(source.startIndex ..< source.endIndex, in: source)
-            return Set(optionPattern.matches(in: source, range: range).compactMap { match in
-                Range(match.range(at: 1), in: source).map { String(source[$0]) }
-            })
+            var options: Set<String> = []
+            for line in source.components(separatedBy: .newlines)
+            where line.trimmingCharacters(in: .whitespaces).hasPrefix("case \"") {
+                let range = NSRange(line.startIndex ..< line.endIndex, in: line)
+                for match in optionPattern.matches(in: line, range: range) {
+                    if let optionRange = Range(match.range(at: 1), in: line) {
+                        options.insert(String(line[optionRange]))
+                    }
+                }
+            }
+            return options
         }
 
+        // The whole option set, not only the plan options, so an option added
+        // under any name forces a decision about whether the article covers it.
         let validatorOptions = try parsedOptions(
             in: "Sources/SwiftQLSQLiteBuildValidationValidator/SQLiteBuildValidationValidatorCLIOptions.swift"
-        ).filter { $0.hasPrefix("--plan-") || $0 == "--verify-index-candidates" }
+        )
         XCTAssertEqual(
             validatorOptions,
             [
+                "--database",
+                "--manifest",
+                "--output",
                 "--plan-output",
                 "--plan-suppressions",
                 "--plan-scan-row-threshold",
                 "--verify-index-candidates",
+                "--codec",
+                "--extension",
+                "--capability",
+                "--help",
             ],
-            "The validator's plan options changed. Update QueryPlanAdvice.md and this list."
+            "swiftql-build-validate's options changed. Update QueryPlanAdvice.md if the change affects plan analysis, then this list."
         )
         let advisorOptions = try parsedOptions(
             in: "Sources/SwiftQLSQLiteIndexAdvisor/SQLiteIndexAdvisorCLI.swift"
-        ).subtracting(["--help"])
-        XCTAssertFalse(advisorOptions.isEmpty, "No swiftql-index-advisor options were found.")
+        )
+        XCTAssertEqual(
+            advisorOptions,
+            ["--plan-report", "--output", "--apply", "--help"],
+            "swiftql-index-advisor's options changed. Update QueryPlanAdvice.md, then this list."
+        )
 
-        for option in validatorOptions.union(advisorOptions).sorted() {
+        let documentedOptions: Set<String> = [
+            "--plan-output",
+            "--plan-suppressions",
+            "--plan-scan-row-threshold",
+            "--verify-index-candidates",
+            "--plan-report",
+            "--apply",
+        ]
+        for option in documentedOptions.sorted() {
             XCTAssertTrue(
                 article.contains("`\(option)"),
                 "QueryPlanAdvice.md does not document \(option)."
             )
         }
+
+        // The reverse direction: the article names no option that neither
+        // command accepts, such as one from an unmerged change.
+        let articleRange = NSRange(article.startIndex ..< article.endIndex, in: article)
+        let articleOptionPattern = try NSRegularExpression(pattern: #"`(--[a-z-]+)"#)
+        let articleOptions = Set(
+            articleOptionPattern.matches(in: article, range: articleRange).compactMap { match in
+                Range(match.range(at: 1), in: article).map { String(article[$0]) }
+            }
+        )
+        XCTAssertTrue(
+            articleOptions.isSubset(of: validatorOptions.union(advisorOptions)),
+            "QueryPlanAdvice.md names options no command accepts: \(articleOptions.subtracting(validatorOptions.union(advisorOptions)).sorted())"
+        )
 
         let plugin = try String(
             contentsOf: root.appendingPathComponent(

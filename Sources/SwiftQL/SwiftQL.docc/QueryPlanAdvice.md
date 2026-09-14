@@ -24,6 +24,8 @@ The findings are advice. A plan finding never changes a correctness verdict or
 the validator's exit status, so no finding can fail a build. Plan analysis can
 still fail the run in these cases, the same as any other invalid input:
 
+- A plan option is used without `--plan-output`, or the row threshold is not a
+  nonnegative integer.
 - The suppression file cannot be read or is not valid.
 - `--plan-output` conflicts with another path.
 - The validator cannot write the sidecar.
@@ -168,7 +170,9 @@ The file has this grammar:
 - `code`: Required in each rule. One of the four diagnostic codes above.
 - `query_id`: Optional. The manifest query identifier the rule applies to.
 - `table`: Optional. The table the rule applies to. This is the real table
-  name, not the alias the statement used.
+  name, not the alias the statement used. Only `plan.full-table-scan` findings
+  have a table. A rule for any other code must name a `query_id`, or it never
+  matches.
 - `reason`: Required in each rule. It must not be empty or only white
   space.
 
@@ -180,8 +184,8 @@ narrower than a rule with either one.
 When more than one rule matches a finding, only one rule silences it and
 supplies the reason. The validator sorts the rules by `code`, then `query_id`,
 then `table`, then `reason`, and uses the first match. A rule with no
-`query_id` sorts before a rule with one, so a table-only rule wins over a
-query-specific rule for the same code. Avoid overlapping rules, so that each
+`query_id` sorts before a rule with one, so for `plan.full-table-scan` a
+table-only rule wins over a query-specific rule. Avoid overlapping rules, so that each
 finding has one clear reason.
 
 Suppression leaves a trace. The sidecar keeps each silenced finding in
@@ -203,9 +207,10 @@ To verify a candidate, the validator copies the snapshot to a fresh scratch
 file, creates the index on the copy, plans the statement that motivated it
 again, and applies the improvement rule. The pinned snapshot is never written.
 The validator compares the byte count and SHA-256 of the original file after
-each candidate, even when that candidate's evaluation throws an error. It
-compares them once more at the end of the pass, against a baseline taken before
-the first candidate, so a change between two candidates is also caught. If the
+each candidate whose scratch copy was made, even when that candidate's
+evaluation throws an error. It compares them once more at the end of the pass,
+against a baseline taken before the first candidate, so any change during the
+pass is caught, including a change between two candidates. If the
 snapshot changed, nothing read from it can be trusted, and the run fails with a
 snapshot-changed error.
 
@@ -218,9 +223,11 @@ it is never recommended:
   path. The validator also prints a `plan.scratch-setup-failed` warning with
   the full cause, so the build log says why no advice was produced.
 - If planning the statement or creating the index fails on the copy, the
-  reason starts "Verification could not be completed". The scratch connection registers the same bundled SQL functions as
-the validator's own connection, such as `REGEXP`, so a statement that uses one
-of them can be planned and verified.
+  reason starts "Verification could not be completed".
+
+The scratch connection registers the same bundled function as the validator's
+own connection, `regexp`, which SQLite calls for `REGEXP`. A statement that uses
+`REGEXP` can therefore be planned and verified on the copy.
 
 The current rule is `swiftql-index-improvement-rule-v2`. A candidate is
 accepted only when both of these are true:
@@ -335,7 +342,7 @@ The command gives a definite answer in each case:
 SwiftQL has no typed index declarations yet, so the command writes a separate
 SQL file and does not edit Swift source. Run that file against your database
 yourself, for example from a migration. <doc:TodoDemo> shows one application
-that does this.
+that runs the verified statements through GRDB.
 
 ## Limits of the advice
 
