@@ -440,8 +440,9 @@ precedence tier, before any row is touched.
 
 A column whose type needs a contextual codec, such as `filedAt: Date`, cannot
 be written through the v1 generated write helpers. `Values(row)`,
-`sqlInsert(row)`, and `UpdateRequest.makeUpdate()` carry no codec context, so
-preparing such a statement throws
+`sqlInsert(row)`, and `UpdateRequest.makeUpdate()` carry no codec context.
+These helpers and `makeRequest(with:)` do not throw, but validated rendering
+and request execution reject the statement they build and throw
 `XLSQLValueEncodingError.contextualOnlyValueInLegacyWrite(valueType:)` before
 SQLite sees it. The macro cannot detect this at compile time, because a
 read-only table with the same column is valid. Encode the row through its
