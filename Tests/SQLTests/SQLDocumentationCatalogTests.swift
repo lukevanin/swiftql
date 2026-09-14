@@ -996,7 +996,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         let repositoryRoot = try repositoryRootURL()
         let requiredPhrasesByPath = [
             "Sources/SwiftQL/SwiftQL.docc/Queries.md": [
-                "SwiftQL supports every join kind SQLite does.",
+                "SwiftQL supports the join kinds in the table below.",
                 "| `RIGHT JOIN ... ON` | `Join.Right(occupation, on: ...)` | the `From` table | SQLite 3.39.0 |",
                 "| `FULL OUTER JOIN ... ON` | `Join.FullOuter(occupation, on: ...)` | both tables | SQLite 3.39.0 |",
                 "| `NATURAL JOIN` | `Join.Natural(occupation)` | none | any SQLite 3 |",

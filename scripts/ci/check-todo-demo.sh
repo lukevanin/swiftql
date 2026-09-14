@@ -215,6 +215,12 @@ require_documented_test_count() {
         return 1
     fi
 
+    # Without the heading the section below reads as empty and the check
+    # would pass silently, so a renamed heading fails here instead.
+    if ! grep -q '^### The to-do demo' "$root_readme"; then
+        echo "error: $root_readme has no '### The to-do demo' section to check" >&2
+        return 1
+    fi
     restated="$(
         awk '/^### The to-do demo/ { inside = 1; next }
              /^##/ { inside = 0 }

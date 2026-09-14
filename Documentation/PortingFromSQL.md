@@ -45,7 +45,7 @@ and a rename leads the compiler to every query affected.
 | SQL | SwiftQL |
 | --- | --- |
 | `SELECT *` | `Select(person)` |
-| `SELECT a, b` | `Select(#row(person.name, occupation.name))` (Swift 6.1 and later) or a `@SQLResult` projection |
+| `SELECT a, b` | `Select(#row(person.name, occupation.name))` (Swift 6.1 and later) or a `@SQLResult` projection; a one-column `#row` works on every supported toolchain |
 | `FROM t` | `From(person)` |
 | `INNER JOIN t ON x` | `Join.Inner(occupation, on: occupation.id == person.occupationId)` |
 | `LEFT JOIN t ON x` | `Join.Left(occupation, on: ...)` with `schema.nullableTable(...)` |

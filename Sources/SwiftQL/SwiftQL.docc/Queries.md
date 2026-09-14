@@ -55,9 +55,11 @@ including typed <doc:Expressions/Between-operators> predicates.
 ## Join
 
 The ability to join tables in a query is where relational databases really start 
-to shine. SwiftQL supports every join kind SQLite does. The fluent statement
-API has a matching method for each one, such as `rightJoin(_:on:)`,
-`fullOuterJoin(_:on:)`, `naturalJoin(_:)`, and `innerJoin(_:using:)`.
+to shine. SwiftQL supports the join kinds in the table below. The fluent
+statement API has a matching method for each one, such as `rightJoin(_:on:)`,
+`fullOuterJoin(_:on:)`, `naturalJoin(_:)`, and `innerJoin(_:using:)`. SQLite
+also accepts a right or full outer join with `USING` or `NATURAL`; SwiftQL has
+no spelling for those, so write the constraint with `on:` instead.
 
 | Join | SwiftQL | Nullable table | Needs |
 | --- | --- | --- | --- |
