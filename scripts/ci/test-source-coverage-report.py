@@ -1049,6 +1049,8 @@ class SourceTargetMembershipTests(unittest.TestCase):
         self.assertIn("outside the configured target roots", result.stderr)
         self.assertIn("Sources/NewProductionTarget/New.swift", result.stderr)
         self.assertNotIn("untracked", result.stderr)
+        # The error names the config that was checked, not the default one.
+        self.assertIn(str(self.config), result.stderr)
 
     def test_untracked_source_outside_configured_roots_is_ignored(self) -> None:
         path = self.root / "Sources/Scratch/Local.swift"

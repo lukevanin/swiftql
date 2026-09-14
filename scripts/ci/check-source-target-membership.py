@@ -122,9 +122,9 @@ def check_membership(repository_root: Path, config_path: Path) -> List[str]:
     ]
     if outside:
         raise CoverageError(
-            "tracked Swift sources are outside the configured target roots in "
-            "scripts/ci/source-coverage-config.json (add a coverage target or an "
-            "excluded_source_roots entry): "
+            f"tracked Swift sources are outside the configured target roots in "
+            f"{config_path} (add a coverage target or an excluded_source_roots "
+            f"entry): "
             + ", ".join(outside)
         )
     stale = [
@@ -163,7 +163,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 1
     print(
         f"source target membership: {len(sources)} tracked Swift sources are "
-        "inside the configured target roots"
+        "inside a configured target root or an excluded source root"
     )
     return 0
 
