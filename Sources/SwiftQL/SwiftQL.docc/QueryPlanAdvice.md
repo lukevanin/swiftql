@@ -192,11 +192,11 @@ declines to propose a candidate and records the reason in `declines`.
 To verify a candidate, the validator copies the snapshot to a fresh scratch
 file, creates the index on the copy, plans the statement that motivated it
 again, and applies the improvement rule. The pinned snapshot is never written.
-After each candidate, the validator checks that the original file is still
-byte-identical. If the check fails, or verification of a candidate cannot
-complete for another reason, that candidate is not recommended: the sidecar
-lists it in `unverified` with a reason that starts "Verification could not be
-completed". The scratch connection registers the same bundled SQL functions as
+When the evaluation of a candidate completes, the validator checks that the
+original file is still byte-identical. If that check fails, or the evaluation
+throws an error before the check, that candidate is not recommended: the
+sidecar lists it in `unverified` with a reason that starts "Verification could
+not be completed". The scratch connection registers the same bundled SQL functions as
 the validator's own connection, such as `REGEXP`, so a statement that uses one
 of them can be planned and verified.
 
