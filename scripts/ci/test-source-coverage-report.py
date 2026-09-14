@@ -19,6 +19,7 @@ VERIFY_SCRIPT = Path(__file__).with_name(
     "verify-source-coverage-reproducibility.sh"
 )
 RUN_SCRIPT = Path(__file__).with_name("run-source-coverage.sh")
+MEMBERSHIP_SCRIPT = Path(__file__).with_name("check-source-target-membership.py")
 WORKFLOW = SCRIPT.parents[2] / ".github/workflows/swift.yml"
 INITIAL_BASELINE = (
     SCRIPT.parents[2]
@@ -466,7 +467,9 @@ class SourceCoverageReportTests(unittest.TestCase):
             "untracked-source",
             expect_success=False,
         )
-        self.assertIn("untracked files inside target roots", result.stderr)
+        self.assertIn(
+            "files inside target roots that git does not track", result.stderr
+        )
 
     def test_malformed_llvm_schema_fails_closed(self) -> None:
         valid_files = [file_entry(self.sql_macros), file_entry(self.swiftql)]
@@ -499,19 +502,25 @@ class SourceCoverageReportTests(unittest.TestCase):
                 )
                 self.assertIn("error: source coverage report", result.stderr)
 
-    def test_unknown_repository_source_target_fails(self) -> None:
+    def test_source_outside_target_roots_is_left_to_membership_check(self) -> None:
+        # Membership moved to check-source-target-membership.py, which runs on
+        # pull requests. The post-merge report excludes such a file and keeps
+        # the first-party totals unchanged.
         unknown = self.make_source("Sources/NewProductionTarget/New.swift")
-        result = self.run_report(
+        self.run_report(
             [
                 file_entry(self.sql_macros),
                 file_entry(self.swiftql),
-                file_entry(unknown),
+                file_entry(unknown, (100, 0), (50, 0)),
             ],
             "unknown-target",
-            expect_success=False,
         )
-        self.assertIn("untracked files inside target roots", result.stderr)
-        self.assertIn("Sources/NewProductionTarget/New.swift", result.stderr)
+        report = self.read_normalized_report("unknown-target")
+        self.assertEqual(report["overall"]["lines"]["count"], 20)
+        self.assertEqual(
+            report["filtering"]["excluded_raw_file_entries_by_category"],
+            {"other_repository_sources": 1},
+        )
 
     def test_reproducibility_verifier_accepts_equal_reports(self) -> None:
         entries = [file_entry(self.sql_macros), file_entry(self.swiftql)]
@@ -946,6 +955,149 @@ class CoverageWorkflowTests(unittest.TestCase):
             accounted_sources.add(source)
         self.assertEqual(accounted_sources, baseline_sources)
         self.assertFalse(list(INITIAL_BASELINE.glob("llvm-coverage.*")))
+
+
+class SourceTargetMembershipTests(unittest.TestCase):
+    # A throwaway git repository stands in for the checkout: each test tracks a
+    # fake file list and runs the real membership check against it.
+    def setUp(self) -> None:
+        self.temporary_directory = tempfile.TemporaryDirectory(
+            prefix="swiftql-source-membership-test."
+        )
+        self.root = Path(self.temporary_directory.name) / "repo"
+        self.root.mkdir()
+        subprocess.run(
+            ["git", "-C", str(self.root), "init", "-q"],
+            check=True,
+            capture_output=True,
+        )
+        self.config = self.root / "coverage-config.json"
+        self.write_config()
+        self.track(
+            "Sources/SwiftQL/Query.swift",
+            "Sources/SwiftQL/SwiftQL.docc/Resources/Snapshot.swift",
+            "Sources/SwiftQLCLI/main.swift",
+            "Sources/NotSwift/Resource.json",
+            "Tests/SQLTests/QueryTests.swift",
+        )
+
+    def tearDown(self) -> None:
+        self.temporary_directory.cleanup()
+
+    def write_config(
+        self, excluded: Optional[Sequence[Dict[str, Any]]] = None
+    ) -> None:
+        self.config.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "targets": [
+                        {
+                            "name": "SwiftQL",
+                            "source_root": "Sources/SwiftQL",
+                            "allowed_uninstrumented_sources": [],
+                        }
+                    ],
+                    "excluded_source_roots": list(excluded)
+                    if excluded is not None
+                    else [
+                        {
+                            "source_root": "Sources/SwiftQLCLI",
+                            "reason": "Executable target.",
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    def track(self, *relative_paths: str) -> None:
+        for relative_path in relative_paths:
+            path = self.root / relative_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("func fixture() {}\n", encoding="utf-8")
+        subprocess.run(
+            ["git", "-C", str(self.root), "add", "--", *relative_paths],
+            check=True,
+            capture_output=True,
+        )
+
+    def run_check(self) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [
+                sys.executable,
+                str(MEMBERSHIP_SCRIPT),
+                "--repository-root",
+                str(self.root),
+                "--config",
+                str(self.config),
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def test_sources_inside_configured_roots_pass(self) -> None:
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("2 tracked Swift sources", result.stdout)
+
+    def test_added_source_outside_configured_roots_fails(self) -> None:
+        self.track("Sources/NewProductionTarget/New.swift")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("outside the configured target roots", result.stderr)
+        self.assertIn("Sources/NewProductionTarget/New.swift", result.stderr)
+        self.assertNotIn("untracked", result.stderr)
+
+    def test_untracked_source_outside_configured_roots_is_ignored(self) -> None:
+        path = self.root / "Sources/Scratch/Local.swift"
+        path.parent.mkdir(parents=True)
+        path.write_text("func local() {}\n", encoding="utf-8")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_stale_excluded_root_fails(self) -> None:
+        self.write_config(
+            [
+                {"source_root": "Sources/SwiftQLCLI", "reason": "Executable target."},
+                {"source_root": "Sources/RemovedCLI", "reason": "Executable target."},
+            ]
+        )
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Sources/RemovedCLI", result.stderr)
+
+    def test_malformed_excluded_roots_fail(self) -> None:
+        cases = {
+            "missing-reason": [{"source_root": "Sources/SwiftQLCLI"}],
+            "outside-sources": [
+                {"source_root": "Tests/SQLTests", "reason": "Not a source root."}
+            ],
+            "overlaps-target": [
+                {"source_root": "Sources/SwiftQL/Nested", "reason": "Overlap."}
+            ],
+        }
+        for name, excluded in cases.items():
+            with self.subTest(name=name):
+                self.write_config(excluded)
+                result = self.run_check()
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("error: source target membership", result.stderr)
+
+    def test_release_tooling_job_runs_membership_check_on_pull_requests(
+        self,
+    ) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        release_tooling = workflow.split("\n  release-tooling:\n", maxsplit=1)[1]
+        release_tooling, coverage = release_tooling.split(
+            "\n  coverage:\n", maxsplit=1
+        )
+        coverage = coverage.split("\n  swift-series:\n", maxsplit=1)[0]
+        command = "python3 scripts/ci/check-source-target-membership.py"
+        self.assertIn(command, release_tooling)
+        self.assertNotIn("github.event_name", release_tooling)
+        self.assertNotIn(command, coverage)
 
 
 if __name__ == "__main__":

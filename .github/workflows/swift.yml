@@ -66,6 +66,11 @@ jobs:
       - name: Run source coverage reporting fixtures
         run: python3 scripts/ci/test-source-coverage-report.py
 
+      # Runs on pull requests so a new target outside the coverage config
+      # fails before the merge, not in the post-merge coverage job.
+      - name: Check source coverage target membership
+        run: python3 scripts/ci/check-source-target-membership.py
+
       - name: Run Swift compatibility workflow fixtures
         run: python3 scripts/ci/test-swift-compatibility-workflow.py
 

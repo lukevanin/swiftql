@@ -37,5 +37,15 @@
       "source_root": "Sources/SwiftQLSQLiteIndexAdvisor",
       "allowed_uninstrumented_sources": []
     }
+  ],
+  "excluded_source_roots": [
+    {
+      "source_root": "Sources/SwiftQLSQLiteBuildValidationValidatorCLI",
+      "reason": "Executable target swiftql-build-validate; the coverage test binary does not link it."
+    },
+    {
+      "source_root": "Sources/SwiftQLSQLiteIndexAdvisorCLI",
+      "reason": "Executable target swiftql-index-advisor; the coverage test binary does not link it."
+    }
   ]
 }
