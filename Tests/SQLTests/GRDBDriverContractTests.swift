@@ -368,6 +368,93 @@ final class GRDBDriverContractTests: XCTestCase {
         }
     }
 
+    /// Issue #641: the pull-based stepper behind `withResultSet` has its own
+    /// open-cursor mark. On a pinned connection -- the transaction-scope shape
+    /// -- an early return from the callback and a thrown callback must both
+    /// remove that mark, so the next same-SQL prepare reuses the cache.
+    func testValuesStepperRemovesItsOpenCursorMarkOnEarlyReturnAndOnThrow() throws {
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        var driver = GRDBDatabaseDriver(
+            databasePool: fixture.pool,
+            dialect: XLSQLiteDialect()
+        )
+        let create = makeLogicalStatement(
+            for: driver,
+            sql: "CREATE TABLE stepper_rows (id INTEGER PRIMARY KEY)"
+        )
+        let insert = makeLogicalStatement(
+            for: driver,
+            sql: "INSERT INTO stepper_rows (id) VALUES (1), (2), (3)"
+        )
+        let select = makeLogicalStatement(
+            for: driver,
+            sql: "SELECT id FROM stepper_rows ORDER BY id"
+        )
+        try driver.withWriteConnection { connection in
+            try connection.execute(connection.prepare(create))
+            try connection.execute(connection.prepare(insert))
+        }
+
+        try fixture.pool.write { database in
+            let box = GRDBPinnedConnectionBox(database)
+            defer { box.invalidate() }
+            // A pinned driver has its own database identifier, so its logical
+            // statement is built for it. The SQL is the same, so it maps to the
+            // same cached GRDB statement as `select`.
+            let pinnedDriver = driver.pinned(to: box)
+            let executor = GRDBInvocationExecutor(
+                driver: pinnedDriver,
+                logicalStatement: makeLogicalStatement(
+                    for: pinnedDriver,
+                    sql: "SELECT id FROM stepper_rows ORDER BY id"
+                )
+            )
+            let packet = try executor.sqlitePacket(
+                XLInvocationBindings<XLSQLiteValue>(
+                    layout: executor.parameterLayout,
+                    bindings: []
+                ).validatingComplete()
+            )
+            var connection = driver.makeConnection(database)
+            let reference = try connection.prepare(select)
+
+            let firstRow = try executor.withValuesStepper(
+                packet: packet,
+                requiresWriteConnection: false
+            ) { stepper -> [XLSQLiteValue]? in
+                XCTAssertFalse(
+                    try connection.prepare(select).sharesGRDBStatement(with: reference),
+                    "The stepper's statement must be marked while its callback runs."
+                )
+                // Return early, with rows still left in the cursor.
+                return try stepper()
+            }
+            XCTAssertEqual(firstRow, [.integer(1)])
+            XCTAssertTrue(
+                try connection.prepare(select).sharesGRDBStatement(with: reference),
+                "An early return must remove the open-cursor mark."
+            )
+
+            XCTAssertThrowsError(
+                try executor.withValuesStepper(
+                    packet: packet,
+                    requiresWriteConnection: false
+                ) { stepper -> Void in
+                    _ = try stepper()
+                    throw TransactionAbort.requested
+                }
+            ) { error in
+                XCTAssertEqual(error as? TransactionAbort, .requested)
+            }
+            XCTAssertTrue(
+                try connection.prepare(select).sharesGRDBStatement(with: reference),
+                "A thrown callback must remove the open-cursor mark."
+            )
+        }
+    }
+
     func testSharedSQLiteAffinityCasesAssertValueTypeAndState() throws {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
