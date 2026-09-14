@@ -35,9 +35,9 @@ public struct QueryBuilder<Row> {
     
     private var joins: [Join] = []
     
-    private var whereAnd: [any XLExpression] = []
-    
-    private var whereOr: [any XLExpression] = []
+    /// The where terms in call order, each with the operator that joins it to
+    /// the terms before it. The first term's operator is not used.
+    private var whereTerms: [(op: String, condition: any XLExpression)] = []
     
     private var groupBy: [any XLExpression] = []
     
@@ -263,36 +263,49 @@ public struct QueryBuilder<Row> {
     ///
     /// Adds an and expression to the where clause.
     ///
+    /// Terms fold in call order: each call combines the whole condition so far
+    /// with its term. `and(a).or(b).and(c)` renders `((a OR b) AND c)`. Build
+    /// a grouped expression and pass it as one term for another grouping.
+    ///
     public func and(_ condition: any XLExpression<Bool>) -> QueryBuilder {
         copy {
-            $0.whereAnd.append(condition)
+            $0.whereTerms.append((op: "AND", condition: condition))
         }
     }
 
     ///
     /// Adds an and expression to the where clause.
     ///
+    /// Terms fold in call order, as for the non-optional overload.
+    ///
     public func and(_ condition: any XLExpression<Optional<Bool>>) -> QueryBuilder {
         copy {
-            $0.whereAnd.append(condition)
+            $0.whereTerms.append((op: "AND", condition: condition))
         }
     }
 
     ///
     /// Adds an or expression to the where clause.
+    ///
+    /// Terms fold in call order: each call combines the whole condition so far
+    /// with its term. `and(a).or(b).and(c)` renders `((a OR b) AND c)`. The
+    /// operator of the first term is not used, so `or(a).and(b)` renders
+    /// `(a AND b)`.
     ///
     public func or(_ condition: any XLExpression<Bool>) -> QueryBuilder {
         copy {
-            $0.whereOr.append(condition)
+            $0.whereTerms.append((op: "OR", condition: condition))
         }
     }
 
     ///
     /// Adds an or expression to the where clause.
     ///
+    /// Terms fold in call order, as for the non-optional overload.
+    ///
     public func or(_ condition: any XLExpression<Optional<Bool>>) -> QueryBuilder {
         copy {
-            $0.whereOr.append(condition)
+            $0.whereTerms.append((op: "OR", condition: condition))
         }
     }
 
@@ -358,27 +371,20 @@ public struct QueryBuilder<Row> {
         }
         statement.components.append(from)
         statement.components.append(contentsOf: joins)
-        if !whereAnd.isEmpty || !whereOr.isEmpty {
-            var condition: (any XLExpression)!
-            for term in whereAnd {
-                if condition == nil {
-                    condition = term
-                }
-                else {
-                    condition = XLBinaryOperatorExpression<Bool>(op: "AND", lhs: condition, rhs: term)
-                }
+        // Fold the terms in call order (issue #657). Before v1.8.1 every `and`
+        // term folded first and every `or` term folded after them, so
+        // `and(a).or(b).and(c)` rendered `((a AND c) OR b)`.
+        var condition: (any XLExpression)?
+        for term in whereTerms {
+            if let current = condition {
+                condition = XLBinaryOperatorExpression<Bool>(op: term.op, lhs: current, rhs: term.condition)
             }
-            for term in whereOr {
-                if condition == nil {
-                    condition = term
-                }
-                else {
-                    condition = XLBinaryOperatorExpression<Bool>(op: "OR", lhs: condition, rhs: term)
-                }
+            else {
+                condition = term.condition
             }
-            if let condition {
-                statement.components.append(Where(condition))
-            }
+        }
+        if let condition {
+            statement.components.append(Where(condition))
         }
         if !groupBy.isEmpty {
             statement.components.append(GroupBy(groupBy))

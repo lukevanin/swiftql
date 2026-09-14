@@ -556,6 +556,18 @@ public struct XLiteBuilder: XLBuilder {
     }
 
     public mutating func text(_ value: String) {
+        // SQLite reads a text literal only up to the first NUL, so a value
+        // that contains U+0000 cannot render faithfully (issue #657). Report
+        // it without an invalid token, as `real(_:)` does for NaN.
+        if value.utf8.contains(0) {
+            valueEncodingFailed(
+                .nulCharacterInText(
+                    valueType: String(reflecting: String.self),
+                    context: nil
+                )
+            )
+            return
+        }
         append(formatter.text(value))
     }
 
