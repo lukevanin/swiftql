@@ -822,7 +822,15 @@ struct GRDBDatabaseDriverConnection:
     ///
     /// A registration from the application's own ``XLCustomFunction`` keeps its separate record, so
     /// it still wins over a bundled function of the same signature: the bundled registration defers
-    /// to it, and it installs over a bundled function that got there first.
+    /// to it, and it installs over a bundled function that got there first. That replacement is the
+    /// one install that can meet a function with the same name and argument count, and SQLite
+    /// refuses it while a statement is active on the connection. It then throws
+    /// `XLDatabaseContractError.prepareFailure` instead of reaching GRDB's `fatalError`; see
+    /// `checkCanInstallWithoutReplacingDuringActiveStatement(_:)`.
+    ///
+    /// - Throws: `XLDatabaseContractError.prepareFailure` when an install would replace a function
+    ///   while a statement is active on the connection, or a preparation failure while reading a
+    ///   marker.
     func registerCustomFunctions(
         _ registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
     ) throws {
@@ -833,6 +841,7 @@ struct GRDBDatabaseDriverConnection:
                 if try customMarker.isRecorded(in: database) {
                     continue
                 }
+                try checkCanInstallWithoutReplacingDuringActiveStatement(definition)
                 database.add(function: registration.makeDatabaseFunction())
                 customMarker.record(in: database)
                 continue
@@ -871,7 +880,14 @@ struct GRDBDatabaseDriverConnection:
     /// treating an unanswerable probe as "already provided" -- would leave `REGEXP` unusable on
     /// every connection, including the overwhelming majority that registered nothing. SQLite has
     /// reported `PRAGMA function_list` since 3.30, and the package's supported builds all do.
-    private func hasFunction(matching definition: XLCustomFunctionDefinition) -> Bool {
+    ///
+    /// - Parameter exactArity: When `true`, a variadic row does not count. `add(function:)`
+    ///   replaces only a function with the same name *and* the same argument count, so that is the
+    ///   question `checkCanInstallWithoutReplacingDuringActiveStatement(_:)` asks.
+    private func hasFunction(
+        matching definition: XLCustomFunctionDefinition,
+        exactArity: Bool = false
+    ) -> Bool {
         let folded = sqliteASCIIFoldedFunctionName(definition.name)
         guard let rows = try? Row.fetchAll(database, sql: "PRAGMA function_list") else {
             return false
@@ -887,8 +903,55 @@ struct GRDBDatabaseDriverConnection:
                 // treat the name as the whole answer rather than registering over the caller.
                 return true
             }
+            if exactArity {
+                return argumentCount == definition.numberOfArguments
+            }
             return argumentCount == definition.numberOfArguments || argumentCount == -1
         }
+    }
+
+    /// Throws when installing `definition` now would replace a function while a statement is
+    /// active on this connection.
+    ///
+    /// SQLite answers that replacement with `SQLITE_BUSY`, and GRDB 6 calls `fatalError` on any
+    /// failed `sqlite3_create_function_v2`, so it has to be refused before `add(function:)` runs.
+    /// Creating a function that does not exist yet is always allowed, which is why the connection
+    /// is only probed for the signature once a statement is known to be active. The usual way to
+    /// get here is an application ``XLCustomFunction`` that reuses a bundled signature, called for
+    /// the first time on a connection from inside a `withResultSet` callback after the bundled
+    /// function was already installed there.
+    private func checkCanInstallWithoutReplacingDuringActiveStatement(
+        _ definition: XLCustomFunctionDefinition
+    ) throws {
+        guard hasActiveStatement(), hasFunction(matching: definition, exactArity: true) else {
+            return
+        }
+        throw XLDatabaseContractError.prepareFailure(
+            driver: driverIdentifier,
+            message: """
+                Cannot install the custom function \(definition.name)/\(definition.numberOfArguments) \
+                while a statement is active on this connection: a function with the same name and \
+                argument count is already installed, and SQLite cannot replace it until the \
+                statement finishes. Run a statement that uses this function before opening the \
+                result set, or register the function up front with GRDBDatabaseBuilder.addFunction(_:).
+                """
+        )
+    }
+
+    /// Whether any statement on this physical connection has started stepping and not yet been
+    /// reset -- the condition under which SQLite refuses to replace a function.
+    private func hasActiveStatement() -> Bool {
+        guard let connection = database.sqliteConnection else {
+            return false
+        }
+        var statement = sqlite3_next_stmt(connection, nil)
+        while let current = statement {
+            if sqlite3_stmt_busy(current) != 0 {
+                return true
+            }
+            statement = sqlite3_next_stmt(connection, current)
+        }
+        return false
     }
 
     private func validateOwnership(of statement: GRDBPhysicalStatement) throws {

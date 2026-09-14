@@ -554,6 +554,62 @@ final class XLRegexpOperatorTests: XCTestCase {
         try assertConcurrentRegexpReadsSucceed(through: database, readers: 2)
     }
 
+    /// Selects the phrases the application's own `regexp/2` accepts. The
+    /// application's function inverts the match, so which implementation ran is
+    /// visible in the rows.
+    private func applicationRegexpStatement() -> any XLQueryStatement<String> {
+        sql { schema in
+            let phrase = schema.table(RegexpPhrase.self)
+            Select(phrase.id)
+            From(phrase)
+            Where(ApplicationRegexpCall(pattern: "[0-9]+$", subject: phrase.text))
+            OrderBy(phrase.id.ascending())
+        }
+    }
+
+    /// The application-wins rule still holds for an installed bundled function:
+    /// the first statement on the connection that calls the application's own
+    /// `XLCustomFunction` of the same signature replaces the bundled one.
+    func testApplicationCustomFunctionReplacesAnInstalledBundledRegexp() throws {
+        database = try makeDatabase(maximumReaderCount: 1)
+        XCTAssertEqual(try matchingIdentifiers("[0-9]+$"), ["1", "3"])
+
+        XCTAssertEqual(try database.makeRequest(with: applicationRegexpStatement()).fetchAll(), ["2"])
+        XCTAssertEqual(try database.makeRequest(with: applicationRegexpStatement()).fetchAll(), ["2"])
+    }
+
+    /// That replacement is the one install SQLite refuses while a statement is
+    /// active, with `SQLITE_BUSY`, which GRDB turns into a `fatalError`. Inside
+    /// an open result set the request must throw instead, the outer iteration
+    /// must finish, and the replacement must succeed once the result set closes.
+    func testReplacingAnInstalledBundledRegexpInsideAnOpenResultSetThrowsInsteadOfCrashing() throws {
+        database = try makeDatabase()
+        let bundled = digitSuffixStatement()
+        let application = applicationRegexpStatement()
+
+        let outer = try database.withTransaction { scope -> [String] in
+            var outer: [String] = []
+            try scope.makeRequest(with: bundled).withResultSet { results in
+                while let identifier = try results.next() {
+                    outer.append(identifier)
+                    XCTAssertThrowsError(try scope.makeRequest(with: application).fetchAll()) { error in
+                        guard case .prepareFailure(_, let message) = error as? XLDatabaseContractError else {
+                            return XCTFail("Expected a prepare failure, received \(error)")
+                        }
+                        XCTAssertTrue(message.contains("regexp/2"), message)
+                    }
+                }
+            }
+            return outer
+        }
+        XCTAssertEqual(outer, ["1", "3"])
+
+        let afterwards = try database.withTransaction { scope in
+            try scope.makeRequest(with: application).fetchAll()
+        }
+        XCTAssertEqual(afterwards, ["2"])
+    }
+
     /// Runs REGEXP reads through `database` on dedicated threads, held in a
     /// barrier until `readers` of them run at once, so they spread over that
     /// many pooled connections. See `testRegexpRegistersOnEveryPooledConnection`.
@@ -725,6 +781,39 @@ private struct InvertedRegexpFunction: XLCustomFunction {
         fatalError(
             "InvertedRegexpFunction is registered with addFunction(_:), never rendered."
         )
+    }
+
+    static func execute(reader: XLColumnReader) throws -> Bool {
+        let pattern = try reader.readText(at: 0)
+        let subject = try reader.readText(at: 1)
+        return subject.range(of: pattern, options: .regularExpression) == nil
+    }
+}
+
+
+/// An application's own `regexp/2`, written as an ``XLCustomFunction`` and
+/// called from a statement, so SwiftQL installs it implicitly. It inverts the
+/// match, like `InvertedRegexpFunction`, so replacing the bundled function is
+/// visible in the rows.
+private struct ApplicationRegexpCall: XLCustomFunction {
+    typealias T = Bool
+
+    static let definition = XLRegexpFunction.definition
+
+    private let pattern: String
+
+    private let subject: any XLExpression<String>
+
+    init(pattern: String, subject: any XLExpression<String>) {
+        self.pattern = pattern
+        self.subject = subject
+    }
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { list in
+            list.listItem(expression: pattern.makeSQL)
+            list.listItem(expression: subject.makeSQL)
+        }
     }
 
     static func execute(reader: XLColumnReader) throws -> Bool {

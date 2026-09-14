@@ -118,9 +118,19 @@ connection the first time only. The check reads a record SwiftQL keeps on the co
 itself, so it costs one statement-cache lookup, and it stays correct when the pool closes and
 reopens connections or when two `GRDBDatabase` values share one pool.
 
-SwiftQL never installs the same function twice on one connection. SQLite treats a second
+SwiftQL does not install the same function twice on one connection. SQLite treats a second
 installation as a change to the function: it expires every prepared statement on that
 connection, and it fails while a result set is open on the connection.
+
+There is one deliberate exception. Your own `XLCustomFunction` always wins over a function
+SwiftQL bundles, such as the two-argument `regexp` behind the `REGEXP` operator. If your function
+has the same name and argument count, and SwiftQL already installed its bundled version on a
+connection, SwiftQL replaces the bundled version with yours the first time a statement on that
+connection calls yours. SQLite cannot make that replacement while a result set is open on the
+connection, so when that first call happens inside a `withResultSet(_:)` callback, the request
+throws `XLDatabaseContractError.prepareFailure` instead. To avoid it, register your function up
+front with `builder.addFunction(_:)` — the bundled version then never installs — or call your
+function once before you open the result set.
 
 Calling `builder.addFunction(_:)` upfront continues to work exactly as before, for functions
 that use `simpleFunction` directly or for callers who prefer to register everything upfront.

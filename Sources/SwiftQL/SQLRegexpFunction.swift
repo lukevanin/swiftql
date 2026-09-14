@@ -48,10 +48,13 @@ import GRDB
 ///
 /// SQLite calls the function once per candidate row and passes the pattern each
 /// time. The driver installs the function once per physical connection, and
-/// that installation keeps one `XLRegexpPatternCache`. A connection therefore
-/// compiles a pattern once and then only matches, however many rows and
-/// statements test it, and keeps at most `XLRegexpPatternCache.capacity`
-/// compiled patterns.
+/// that installation keeps one `XLRegexpPatternCache`. While a pattern stays in
+/// that cache, the connection only matches with it, however many rows and
+/// statements test it. The cache keeps at most `XLRegexpPatternCache.capacity`
+/// compiled patterns and evicts the oldest first, so a connection that sees
+/// more distinct patterns than that -- for example, patterns read from a column
+/// or built from user input -- compiles an evicted pattern again the next time
+/// it appears.
 ///
 /// ## Replacing it
 ///
