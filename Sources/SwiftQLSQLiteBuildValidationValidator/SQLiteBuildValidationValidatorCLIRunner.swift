@@ -6,13 +6,29 @@ public struct SQLiteBuildValidationValidatorCLIRunResult: Equatable, Sendable {
     public let report: SQLiteBuildValidationReport
     /// The advisory plan sidecar, when `--plan-output` asked for one.
     public let planReport: SQLiteBuildValidationPlanReport?
+    /// Build-log lines that belong in neither artifact. See
+    /// ``SQLiteBuildValidationRunResult/warnings``.
+    public let warnings: [String]
 
     public init(
         report: SQLiteBuildValidationReport,
-        planReport: SQLiteBuildValidationPlanReport? = nil
+        planReport: SQLiteBuildValidationPlanReport? = nil,
+        warnings: [String] = []
     ) {
         self.report = report
         self.planReport = planReport
+        self.warnings = warnings
+    }
+
+    /// ``warnings`` in the `<path>: warning: <message>` form a build log and
+    /// Xcode's issue navigator parse, attributed to `origin`, one per line.
+    ///
+    /// Empty when there are none. Like the advisory summary, these never
+    /// touch ``exitCode``.
+    public func warningSummary(origin: String) -> String {
+        warnings
+            .map { "\(origin): warning: \($0)" }
+            .joined(separator: "\n")
     }
 
     /// Decided by the correctness verdict alone. Plan capture adds data, not
@@ -55,7 +71,8 @@ public enum SQLiteBuildValidationValidatorCLIRunner {
         }
         return SQLiteBuildValidationValidatorCLIRunResult(
             report: result.report,
-            planReport: result.planReport
+            planReport: result.planReport,
+            warnings: result.warnings
         )
     }
 
@@ -110,14 +127,22 @@ public enum SQLiteBuildValidationValidatorCLIRunner {
         // connection: verification needs a writable scratch copy, and the one
         // database it may never write to is the snapshot the run validated
         // against.
+        //
+        // A snapshot that changed during verification throws out of here and
+        // fails the run. A scratch copy that could not be set up does not: its
+        // candidates are unverified, and the reason reaches the build log as a
+        // warning rather than only a path-free line in the sidecar.
+        var scratchWarnings: [String] = []
         let recommendations = try SQLiteBuildValidationIndexCandidateVerifier.verify(
             candidates: planReport.indexCandidates.candidates,
             queries: manifest.queries,
-            snapshotURL: resolved.databaseURL
+            snapshotURL: resolved.databaseURL,
+            reportScratchFailure: { scratchWarnings.append($0) }
         )
         return SQLiteBuildValidationRunResult(
             report: result.report,
-            planReport: planReport.withIndexRecommendations(recommendations)
+            planReport: planReport.withIndexRecommendations(recommendations),
+            warnings: result.warnings + scratchWarnings
         )
     }
 

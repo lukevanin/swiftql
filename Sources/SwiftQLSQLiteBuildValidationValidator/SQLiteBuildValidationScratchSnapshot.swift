@@ -25,9 +25,9 @@ public enum SQLiteBuildValidationScratchError:
     public var description: String {
         switch self {
         case .scratchInsideSnapshotDirectory(let path):
-            return "A scratch copy must not be created beside the snapshot it copies (\(path))."
+            return "\(Self.besideTheSnapshot) (\(path))."
         case .scratchInsideWorkingDirectory(let path):
-            return "A scratch copy must not be created inside the source tree (\(path))."
+            return "\(Self.insideTheSourceTree) (\(path))."
         case .snapshotChangedDuringVerification(
             let initialByteCount,
             let initialSHA256,
@@ -37,6 +37,30 @@ public enum SQLiteBuildValidationScratchError:
             return "The pinned snapshot changed during verification: \(initialByteCount) bytes/\(initialSHA256) before, \(finalByteCount) bytes/\(finalSHA256) after."
         }
     }
+
+    /// The same description with every path removed.
+    ///
+    /// A refusal names the directory it refused, and that directory is a
+    /// per-run temporary path or a checkout on one machine. The sidecar must
+    /// read the same on every host, so it carries this form; the build log,
+    /// which has no such guarantee, carries ``description``. A changed
+    /// snapshot is described by byte counts and digests only, so its
+    /// description is already host-independent.
+    var hostIndependentDescription: String {
+        switch self {
+        case .scratchInsideSnapshotDirectory:
+            return "\(Self.besideTheSnapshot)."
+        case .scratchInsideWorkingDirectory:
+            return "\(Self.insideTheSourceTree)."
+        case .snapshotChangedDuringVerification:
+            return description
+        }
+    }
+
+    private static let besideTheSnapshot =
+        "A scratch copy must not be created beside the snapshot it copies"
+    private static let insideTheSourceTree =
+        "A scratch copy must not be created inside the source tree"
 }
 
 
@@ -80,6 +104,8 @@ public enum SQLiteBuildValidationScratchSnapshot {
     ///
     /// Fails closed: the snapshot's byte count and SHA-256 are taken before
     /// and after, and a difference is an error rather than a warning.
+    /// ``SQLiteBuildValidationIndexCandidateVerifier`` rethrows that error
+    /// rather than recording it against a candidate, so it ends the run.
     public static func withCopy<Result>(
         of snapshotURL: URL,
         in scratchParentDirectory: URL = FileManager.default.temporaryDirectory,

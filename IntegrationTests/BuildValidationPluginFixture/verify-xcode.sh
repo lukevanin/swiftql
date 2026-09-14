@@ -106,6 +106,29 @@ done
 IFS=$OLD_IFS
 echo "OK"
 
+echo "== 1b. The opted-in target's plan sidecar carries verified recommendations =="
+# Only SecondValidatedLibrary opts in. A present but empty recommendation set
+# is what a verification pass whose every scratch copy failed produces, and
+# before #647 that failure was invisible: it exited zero and warned nothing.
+PLAN_REPORT=$(find "$DERIVED_DATA/Build/Intermediates.noindex/BuildToolPluginIntermediates" \
+    -path '*SecondValidatedLibrary*' \
+    -name swiftql-plan-analysis-report.json 2>/dev/null | sort | head -1)
+if [ -z "$PLAN_REPORT" ]; then
+    echo "FAIL: expected a plan sidecar for SecondValidatedLibrary"
+    exit 1
+fi
+# `plutil` ships with macOS, which this script already requires. For an array,
+# `raw` prints the element count; a missing key fails the extraction.
+RECOMMENDATION_COUNT=$(plutil -extract index_recommendations.recommendations raw -o - "$PLAN_REPORT" 2>/dev/null || echo "missing")
+case "$RECOMMENDATION_COUNT" in
+    ''|missing|*[!0-9]*|0)
+        echo "FAIL: expected a non-empty index_recommendations.recommendations in $PLAN_REPORT, got '$RECOMMENDATION_COUNT'"
+        plutil -extract index_recommendations raw -o - "$PLAN_REPORT" 2>/dev/null || true
+        exit 1
+        ;;
+esac
+echo "OK ($RECOMMENDATION_COUNT recommendation(s))"
+
 echo "== 2. Validator executable lands where the plugin's tool resolution expects =="
 if [ ! -x "$PRODUCTS_DIR/$VALIDATOR_EXECUTABLE" ]; then
     echo "FAIL: expected an executable at $PRODUCTS_DIR/$VALIDATOR_EXECUTABLE"

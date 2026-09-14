@@ -459,8 +459,15 @@ final class SQLiteBuildValidationIndexVerificationTests: XCTestCase {
             .scratchInsideWorkingDirectory("/Users/somebody/checkout")
         let described = Verifier.deterministicDescription(of: hostSpecific)
 
+        // Readable, and without the path. Before #647 this was only the
+        // error's type name, which told a developer nothing.
         XCTAssertFalse(described.contains("/Users/somebody"), described)
-        XCTAssertTrue(described.contains("SQLiteBuildValidationScratchError"), described)
+        XCTAssertEqual(
+            described,
+            "A scratch copy must not be created inside the source tree."
+        )
+        // The build log keeps the path; only the sidecar form drops it.
+        XCTAssertTrue(hostSpecific.description.contains("/Users/somebody"))
 
         // A failure this validator raises and knows to be host-independent
         // keeps its message, which is the useful half.
@@ -469,6 +476,158 @@ final class SQLiteBuildValidationIndexVerificationTests: XCTestCase {
                 of: SQLiteExplainQueryPlanProbeError.embeddedNUL
             ).contains("embedded NUL"),
             "the probe's own errors stay readable"
+        )
+
+        // Anything else is still named by type, because its description may
+        // carry a path this validator cannot vouch for.
+        struct Foreign: Error {}
+        XCTAssertEqual(
+            Verifier.deterministicDescription(of: Foreign()),
+            "an error of type Foreign."
+        )
+    }
+
+    // MARK: - Custody failures (issue #647)
+
+    /// The pinned snapshot changing while a copy is open is the one failure
+    /// that must end the run. Before #647 the verifier caught it per
+    /// candidate and the run exited from the correctness verdict alone.
+    func testASnapshotChangedDuringVerificationFailsTheRun() throws {
+        try Support.withValidatorOwnedNorthwindURL { url in
+            let manifest = Support.manifest(queries: [Self.remediable])
+            let planReport = try XCTUnwrap(
+                try SQLiteBuildValidator.run(
+                    manifest: manifest,
+                    againstDatabaseAt: url,
+                    capturesPlans: true
+                ).planReport
+            )
+            XCTAssertFalse(planReport.indexCandidates.candidates.isEmpty)
+            var warnings: [String] = []
+
+            XCTAssertThrowsError(
+                try Verifier.verify(
+                    candidates: planReport.indexCandidates.candidates,
+                    queries: manifest.queries,
+                    snapshotURL: url,
+                    scratchParentDirectory: FileManager.default.temporaryDirectory,
+                    reportScratchFailure: { warnings.append($0) },
+                    whileTheCopyIsOpen: {
+                        let handle = try FileHandle(forWritingTo: url)
+                        defer { try? handle.close() }
+                        handle.seekToEndOfFile()
+                        handle.write(Data([0x00]))
+                    }
+                )
+            ) { error in
+                guard case .snapshotChangedDuringVerification(
+                    let initialByteCount,
+                    _,
+                    let finalByteCount,
+                    _
+                ) = error as? SQLiteBuildValidationScratchError else {
+                    return XCTFail("expected a changed-snapshot error, got \(error)")
+                }
+                XCTAssertEqual(finalByteCount, initialByteCount + 1)
+                XCTAssertTrue(
+                    String(describing: error).contains("changed during verification"),
+                    "\(error)"
+                )
+            }
+            // A custody failure is an error, not a warning.
+            XCTAssertTrue(warnings.isEmpty, "\(warnings)")
+        }
+    }
+
+    /// A refused scratch location does not fail the run. The sidecar gets a
+    /// readable, path-free reason; the build log gets a warning with the
+    /// path; and the sidecar reads the same from two different snapshot
+    /// directories.
+    func testARefusedScratchLocationIsUnverifiedWithAReasonAndAWarning() throws {
+        func verifyBesideTheSnapshot() throws
+            -> (set: SQLiteBuildValidationIndexRecommendationSet, warnings: [String], directory: String) {
+            try Support.withValidatorOwnedNorthwindURL { url in
+                let manifest = Support.manifest(queries: [Self.remediable])
+                let planReport = try XCTUnwrap(
+                    try SQLiteBuildValidator.run(
+                        manifest: manifest,
+                        againstDatabaseAt: url,
+                        capturesPlans: true
+                    ).planReport
+                )
+                var warnings: [String] = []
+                let set = try Verifier.verify(
+                    candidates: planReport.indexCandidates.candidates,
+                    queries: manifest.queries,
+                    snapshotURL: url,
+                    // Beside the snapshot: refused before any copy is made.
+                    scratchParentDirectory: url.deletingLastPathComponent(),
+                    reportScratchFailure: { warnings.append($0) }
+                )
+                return (
+                    set,
+                    warnings,
+                    url.deletingLastPathComponent()
+                        .resolvingSymlinksInPath()
+                        .lastPathComponent
+                )
+            }
+        }
+
+        let first = try verifyBesideTheSnapshot()
+        let second = try verifyBesideTheSnapshot()
+
+        XCTAssertTrue(first.set.recommendations.isEmpty)
+        XCTAssertEqual(first.set.unverified.count, 1)
+        let rejection = try XCTUnwrap(first.set.unverified.first)
+        XCTAssertEqual(
+            rejection.reason,
+            "The scratch copy could not be set up: A scratch copy must not be created beside the snapshot it copies."
+        )
+        XCTAssertNil(rejection.beforePlan)
+        XCTAssertFalse(rejection.reason.contains(first.directory), rejection.reason)
+
+        // One warning per failed setup, carrying what the sidecar leaves out.
+        XCTAssertEqual(first.warnings.count, 1, "\(first.warnings)")
+        let warning = try XCTUnwrap(first.warnings.first)
+        XCTAssertTrue(
+            warning.hasPrefix("plan.scratch-setup-failed for \(Self.remediable.id): "),
+            warning
+        )
+        XCTAssertTrue(warning.contains(rejection.candidate.indexName), warning)
+        XCTAssertTrue(warning.contains(first.directory), warning)
+
+        // Two snapshot directories, one sidecar.
+        XCTAssertNotEqual(first.directory, second.directory)
+        XCTAssertEqual(
+            try JSONEncoder.canonical.encode(first.set),
+            try JSONEncoder.canonical.encode(second.set)
+        )
+    }
+
+    /// The CLI prints these warnings in the form a build log parses, and they
+    /// never change the exit status.
+    func testScratchWarningsRenderAsBuildLogWarnings() throws {
+        let passed = try Support.withValidatorOwnedNorthwindURL { url in
+            try SQLiteBuildValidator.validate(
+                manifest: Support.manifest(queries: [Self.remediable]),
+                againstDatabaseAt: url
+            )
+        }
+        let result = SQLiteBuildValidationValidatorCLIRunResult(
+            report: passed,
+            warnings: ["plan.scratch-setup-failed for a: one", "plan.scratch-setup-failed for b: two"]
+        )
+
+        XCTAssertEqual(
+            result.warningSummary(origin: "/manifest.json"),
+            "/manifest.json: warning: plan.scratch-setup-failed for a: one\n/manifest.json: warning: plan.scratch-setup-failed for b: two"
+        )
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertEqual(
+            SQLiteBuildValidationValidatorCLIRunResult(report: passed)
+                .warningSummary(origin: "/manifest.json"),
+            ""
         )
     }
 
