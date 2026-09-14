@@ -822,11 +822,13 @@ struct GRDBDatabaseDriverConnection:
     ///
     /// A registration from the application's own ``XLCustomFunction`` keeps its separate record, so
     /// it still wins over a bundled function of the same signature: the bundled registration defers
-    /// to it, and it installs over a bundled function that got there first. That replacement is the
-    /// one install that can meet a function with the same name and argument count, and SQLite
+    /// to it, and it installs over a bundled function that SwiftQL installed first. That replacement
+    /// is the one install that meets a function with the same name and argument count, and SQLite
     /// refuses it while a statement is active on the connection. It then throws
     /// `XLDatabaseContractError.prepareFailure` instead of reaching GRDB's `fatalError`; see
-    /// `checkCanInstallWithoutReplacingDuringActiveStatement(_:)`.
+    /// `checkNoActiveStatementBlocksReplacing(_:)`. When the function already on the connection is
+    /// one the application installed itself -- with ``GRDBDatabaseBuilder/addFunction(_:)`` or a
+    /// `prepareDatabase` hook -- nothing is replaced: SwiftQL records it and uses it.
     ///
     /// - Throws: `XLDatabaseContractError.prepareFailure` when an install would replace a function
     ///   while a statement is active on the connection, or a preparation failure while reading a
@@ -841,7 +843,24 @@ struct GRDBDatabaseDriverConnection:
                 if try customMarker.isRecorded(in: database) {
                     continue
                 }
-                try checkCanInstallWithoutReplacingDuringActiveStatement(definition)
+                if hasFunction(matching: definition, exactArity: true) {
+                    let bundledImplementationMarker = GRDBInstalledFunctionMarker(
+                        definition: definition,
+                        kind: .bundledImplementation
+                    )
+                    guard try bundledImplementationMarker.isRecorded(in: database) else {
+                        // The application installed this signature itself -- with
+                        // `GRDBDatabaseBuilder.addFunction(_:)` or its own `prepareDatabase`
+                        // hook -- so the connection already has the application's function. Use
+                        // it: replacing it would expire the connection's statements, and would
+                        // fail inside an open cursor.
+                        customMarker.record(in: database)
+                        continue
+                    }
+                    // SwiftQL's own bundled implementation is installed, and the application's
+                    // function wins over it, so replace it -- unless SQLite cannot right now.
+                    try checkNoActiveStatementBlocksReplacing(definition)
+                }
                 database.add(function: registration.makeDatabaseFunction())
                 customMarker.record(in: database)
                 continue
@@ -854,6 +873,8 @@ struct GRDBDatabaseDriverConnection:
                 || hasFunction(matching: definition)
             if !applicationProvides {
                 database.add(function: registration.makeDatabaseFunction())
+                GRDBInstalledFunctionMarker(definition: definition, kind: .bundledImplementation)
+                    .record(in: database)
             }
             bundledMarker.record(in: database)
         }
@@ -883,7 +904,7 @@ struct GRDBDatabaseDriverConnection:
     ///
     /// - Parameter exactArity: When `true`, a variadic row does not count. `add(function:)`
     ///   replaces only a function with the same name *and* the same argument count, so that is the
-    ///   question `checkCanInstallWithoutReplacingDuringActiveStatement(_:)` asks.
+    ///   question an application ``XLCustomFunction`` install asks before it could replace one.
     private func hasFunction(
         matching definition: XLCustomFunctionDefinition,
         exactArity: Bool = false
@@ -910,30 +931,28 @@ struct GRDBDatabaseDriverConnection:
         }
     }
 
-    /// Throws when installing `definition` now would replace a function while a statement is
-    /// active on this connection.
+    /// Throws when SwiftQL's bundled implementation of `definition` cannot be replaced right now,
+    /// because a statement is active on this connection.
     ///
-    /// SQLite answers that replacement with `SQLITE_BUSY`, and GRDB 6 calls `fatalError` on any
-    /// failed `sqlite3_create_function_v2`, so it has to be refused before `add(function:)` runs.
-    /// Creating a function that does not exist yet is always allowed, which is why the connection
-    /// is only probed for the signature once a statement is known to be active. The usual way to
-    /// get here is an application ``XLCustomFunction`` that reuses a bundled signature, called for
-    /// the first time on a connection from inside a `withResultSet` callback after the bundled
-    /// function was already installed there.
-    private func checkCanInstallWithoutReplacingDuringActiveStatement(
+    /// SQLite answers a replacement during an active statement with `SQLITE_BUSY`, and GRDB 6 calls
+    /// `fatalError` on any failed `sqlite3_create_function_v2`, so it has to be refused before
+    /// `add(function:)` runs. The way to get here is an application ``XLCustomFunction`` that
+    /// reuses a bundled signature, called for the first time on a connection from inside a
+    /// `withResultSet` callback after SwiftQL installed its bundled implementation there.
+    private func checkNoActiveStatementBlocksReplacing(
         _ definition: XLCustomFunctionDefinition
     ) throws {
-        guard hasActiveStatement(), hasFunction(matching: definition, exactArity: true) else {
+        guard hasActiveStatement() else {
             return
         }
         throw XLDatabaseContractError.prepareFailure(
             driver: driverIdentifier,
             message: """
-                Cannot install the custom function \(definition.name)/\(definition.numberOfArguments) \
-                while a statement is active on this connection: a function with the same name and \
-                argument count is already installed, and SQLite cannot replace it until the \
-                statement finishes. Run a statement that uses this function before opening the \
-                result set, or register the function up front with GRDBDatabaseBuilder.addFunction(_:).
+                Cannot replace SwiftQL's bundled \(definition.name)/\(definition.numberOfArguments) \
+                with the application's XLCustomFunction of the same name and argument count while a \
+                statement is active on this connection: SQLite cannot replace a function until the \
+                statement finishes. Run a statement that uses the application's function before \
+                opening the result set, or register it up front with GRDBDatabaseBuilder.addFunction(_:).
                 """
         )
     }
@@ -1278,7 +1297,12 @@ struct GRDBInstalledFunctionMarker {
         /// A bundled registration was decided on this connection: SwiftQL installed its
         /// implementation, or found the application's and deferred to it.
         case bundled
-        /// SwiftQL installed the application's own ``XLCustomFunction`` on this connection.
+        /// SwiftQL installed its own bundled implementation on this connection. Read only the
+        /// first time an application ``XLCustomFunction`` of the same signature runs there, to tell
+        /// SwiftQL's implementation apart from one the application installed itself.
+        case bundledImplementation
+        /// The application's own ``XLCustomFunction`` is on this connection: SwiftQL installed it,
+        /// or found that the application had already installed that signature itself.
         case custom
     }
 

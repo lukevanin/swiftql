@@ -83,6 +83,34 @@ private struct ExplicitOnlyIdentityFunction: XLCustomFunction {
 }
 
 
+/// Computes `value * 2`. Registered up front with `GRDBDatabaseBuilder.addFunction(_:)` *and*
+/// rendered through `customFunctionCall`, so both registration paths meet on every connection.
+private struct UpfrontAndImplicitDoubleFunction: XLCustomFunction {
+    typealias T = Int
+
+    static let definition = XLCustomFunctionDefinition(
+        name: "upfrontAndImplicitDouble",
+        numberOfArguments: 1
+    )
+
+    private let value: any XLExpression<Int>
+
+    init(_ value: any XLExpression<Int>) {
+        self.value = value
+    }
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { list in
+            list.listItem(expression: value.makeSQL)
+        }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> Int {
+        try reader.readInteger(at: 0) * 2
+    }
+}
+
+
 final class XLImplicitFunctionRegistrationTests: XCTestCase {
 
     private var databaseDirectoryURL: URL!
@@ -209,6 +237,54 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
         let deleted: [TestTable] = try database.makeRequest(with: statement).fetchAll()
 
         XCTAssertEqual(deleted, [TestTable(id: "b", value: 5)])
+    }
+
+    // MARK: - Up-front and implicit registration together (issue #640)
+
+    /// A function registered up front is already on every connection, so its implicit registration
+    /// must use that copy rather than install over it. Installing over it would replace a function
+    /// with the same name and argument count, which SQLite refuses while a statement is active. The
+    /// first implicit call on the writer connection here happens inside an open result set whose own
+    /// statement does not use the function, so a replacement attempt would fail.
+    func testUpfrontRegisteredImplicitFunctionRunsForTheFirstTimeInsideAnOpenResultSet() throws {
+        let fileURL = databaseDirectoryURL.appendingPathComponent(
+            "database.sqlite",
+            isDirectory: false
+        )
+        var builder = try GRDBDatabaseBuilder(
+            url: fileURL,
+            configuration: Configuration(),
+            logger: nil
+        )
+        builder.addFunction(UpfrontAndImplicitDoubleFunction.self)
+        let database = try builder.build()
+        try database.makeRequest(with: sqlCreate(TestTable.self)).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 4))).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "b", value: 5))).execute()
+
+        let rows = sql { schema -> any XLQueryStatement<TestTable> in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            OrderBy(table.id.ascending())
+        }
+
+        let (identifiers, doubled) = try database.withTransaction { scope -> ([String], [Int?]) in
+            var identifiers: [String] = []
+            var doubled: [Int?] = []
+            try scope.makeRequest(with: rows).withResultSet { results in
+                while let row = try results.next() {
+                    identifiers.append(row.id)
+                    let value = row.value
+                    let statement = sql { _ in Select(UpfrontAndImplicitDoubleFunction(value)) }
+                    doubled.append(try scope.makeRequest(with: statement).fetchOne())
+                }
+            }
+            return (identifiers, doubled)
+        }
+
+        XCTAssertEqual(identifiers, ["a", "b"])
+        XCTAssertEqual(doubled, [8, 10])
     }
 
     // MARK: - Pool concurrency

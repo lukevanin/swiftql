@@ -122,6 +122,13 @@ SwiftQL does not install the same function twice on one connection. SQLite treat
 installation as a change to the function: it expires every prepared statement on that
 connection, and it fails while a result set is open on the connection.
 
+If a connection already has a function with the same name and argument count that your
+application installed itself -- with `builder.addFunction(_:)` or your own
+`Configuration.prepareDatabase(_:)` hook -- SwiftQL uses that function and does not install a
+second copy, even for a function whose `makeSQL` calls `customFunctionCall`. So registering a
+function up front and calling it through `customFunctionCall` works everywhere, including the
+first call on a connection inside a `withResultSet(_:)` callback.
+
 There is one deliberate exception. Your own `XLCustomFunction` always wins over a function
 SwiftQL bundles, such as the two-argument `regexp` behind the `REGEXP` operator. If your function
 has the same name and argument count, and SwiftQL already installed its bundled version on a
