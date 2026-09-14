@@ -31,9 +31,10 @@ public enum XLRegexpFunctionError: Error, Equatable {
 
     /// The operand names an ``XLRegexPattern`` this process cannot resolve.
     ///
-    /// Almost always a pattern that was released before the statement carrying
-    /// it executed. Hold the ``XLRegexPattern`` for as long as statements using
-    /// it can run; see its ownership note.
+    /// Almost always a key passed on as a string after its pattern was
+    /// released. A statement built with `regexp(_:)` from the
+    /// ``XLRegexPattern`` itself keeps the pattern alive; a bare key does not.
+    /// See its ownership note.
     ///
     /// - Parameter key: The key SQLite passed to the function.
     case unregisteredPattern(key: String)
