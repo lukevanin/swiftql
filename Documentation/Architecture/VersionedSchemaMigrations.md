@@ -4,7 +4,7 @@
 
 This note records the research and SQLite prototype for
 [issue #216](https://github.com/lukevanin/swiftql/issues/216). It describes no
-supported API: nothing here ships until the v2.5 implementation issues land.
+supported API: nothing here ships until the v2.3 implementation issues land.
 
 The prototype that produced the evidence below was throwaway test code and is
 not retained in the repository. Its measured results are recorded in the
@@ -17,9 +17,9 @@ reports and confirmation-required proposals, but a live schema difference or a
 changed Swift model must never execute a migration by itself.
 
 Migration support is scheduled for
-[v2.5](https://github.com/lukevanin/swiftql/milestone/11). It does not block
+[v2.3](https://github.com/lukevanin/swiftql/milestone/11). It does not block
 [catalog bootstrap #215](https://github.com/lukevanin/swiftql/issues/215) or the
-v2 catalog release.
+v2.1 catalog release.
 
 ## Decision summary
 
@@ -355,7 +355,7 @@ the required capability or resource policy is absent.
 
 The prototype was throwaway test code and is not part of the repository, so this
 section is a record of what was measured, not a suite that can be re-run from a
-checkout. Reproducing it means rewriting it against the v2.5 API.
+checkout. Reproducing it means rewriting it against the v2.3 API.
 
 Environment:
 

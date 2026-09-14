@@ -88,7 +88,10 @@ The v2 line is split so the breaking changes ship once and the additive
 features follow on frozen seams. v2.0 carries every source break: Swift 6
 language mode, the reshaped driver contract, the dialect rendering seam, the
 GRDB adapter boundary, the `XL` prefix removal, and the FluentQL and DynamicQL
-extraction. Catalogs and typed DDL then ship as ordinary minors.
+extraction. Catalogs and typed DDL then ship as ordinary minors. Versioned
+migrations follow as v2.3, ahead of the native adapter and the server dialects:
+they need the v2.0 seams, the v2.1 catalog, and the v2.2 typed DDL, but not a
+second SQLite adapter or a network dialect.
 
 The v1.5 line shipped as the seven sub-milestones listed above, not as one
 milestone. The original
@@ -916,7 +919,9 @@ and [SQLite provenance is chosen on determinism and operational access rather th
 tracked as [#705](https://github.com/lukevanin/swiftql/issues/705). Observation
 is the largest single slice and may ship reduced or deferred
 ([#711](https://github.com/lukevanin/swiftql/issues/711)); that is a
-pre-agreement, not a discovery to make late.
+pre-agreement, not a discovery to make late. The research documents predate the
+September 2026 renumbering: in them, v2.1 is this native adapter milestone, and
+v2.2 to v2.4 are the server dialects, now v2.5 to v2.7.
 
 ### v2.5 — PostgreSQL Dialect and Adapter
 
