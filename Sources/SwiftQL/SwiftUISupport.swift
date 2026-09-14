@@ -5,6 +5,7 @@
 //  Created by Luke Van In on 2026/07/26.
 //
 
+import Dispatch
 import Foundation
 #if canImport(Combine)
 import Combine
@@ -128,8 +129,11 @@ public final class XLQueryRowObserver<Row>: ObservableObject {
 ///
 /// A delivery on the main thread runs at once only when no earlier delivery is still queued.
 /// Otherwise it queues behind that delivery. So a publisher that changes threads cannot have an
-/// older off-main value overwrite a newer main-thread value. Combine sends a subscriber one event
-/// at a time, so `deliver(_:)` is never called concurrently for one subscription.
+/// older off-main value overwrite a newer main-thread value.
+///
+/// The count update and the main-queue enqueue happen under one lock, so the enqueue order is the
+/// order of the `deliver(_:)` calls. Combine already sends a subscriber one event at a time; the
+/// lock keeps the order correct without relying on that.
 private final class XLMainThreadDelivery: @unchecked Sendable {
 
     private let lock = NSLock()
@@ -138,21 +142,18 @@ private final class XLMainThreadDelivery: @unchecked Sendable {
 
     func deliver(_ body: @escaping () -> Void) {
         lock.lock()
-        let runsNow = Thread.isMainThread && queuedCount == 0
-        if !runsNow {
+        guard Thread.isMainThread && queuedCount == 0 else {
             queuedCount += 1
-        }
-        lock.unlock()
-
-        if runsNow {
-            body()
+            DispatchQueue.main.async { [self] in
+                body()
+                lock.lock()
+                queuedCount -= 1
+                lock.unlock()
+            }
+            lock.unlock()
             return
         }
-        DispatchQueue.main.async { [self] in
-            body()
-            lock.lock()
-            queuedCount -= 1
-            lock.unlock()
-        }
+        lock.unlock()
+        body()
     }
 }

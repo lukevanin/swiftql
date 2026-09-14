@@ -8,6 +8,7 @@
 //  Split out of GRDBSQLDatabase.swift (issue #560).
 //
 
+import Dispatch
 import Foundation
 import GRDB
 #if canImport(Combine)
