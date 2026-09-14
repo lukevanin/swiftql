@@ -156,19 +156,36 @@ extension GRDBRequest {
     /// Builds the async-native GRDB observation bridge shared by `stream()`/`streamOne()`. Returns `nil`
     /// for a transaction-scoped driver (issue #284), which has no pool to track — the same guard
     /// `publish(bindings:)`/`publishOne(bindings:)` check eagerly for the Combine path (issue #309).
+    ///
+    /// The observation tracks a constant region (issue #652). `fetch` runs one statement, prepared
+    /// from this request's immutable `logicalStatement`, bound to a packet fixed when the stream was
+    /// made. GRDB records a statement's region from SQLite's authorizer when the statement is
+    /// prepared, not from the rows a step visits, so every fetch selects the same region. With a
+    /// constant region, GRDB refetches after a commit on a pool reader and coalesces a burst of
+    /// commits; `tracking(_:)` would refetch inline on the writer, once per commit.
+    ///
+    /// Each bridge also gets its own serial queue. GRDB delivers snapshots on it, and it is the
+    /// default retry scheduler, so nothing in `stream()` needs the main thread. The Combine adapter
+    /// adds its main-queue hop itself (`xlLiveQueryPublisher(makeStream:)`).
     func liveQueryStreamBridge<Value>(
         fetch: @escaping (Database) throws -> Value
     ) -> GRDBLiveQueryAsyncBridge<Value>? {
         guard let databasePool = executor.driver.databasePool else {
             return nil
         }
+        let queue = DispatchQueue(label: "SwiftQL.GRDBLiveQuery")
         return GRDBLiveQueryAsyncBridge(
             policy: liveQueryRetryPolicy,
-            scheduler: liveQueryRetryScheduler,
+            scheduler: liveQueryRetryScheduler ?? .queue(queue),
             makeSource: { onError, onChange in
                 ValueObservation
-                    .tracking(fetch)
-                    .start(in: databasePool, onError: onError, onChange: onChange)
+                    .trackingConstantRegion(fetch)
+                    .start(
+                        in: databasePool,
+                        scheduling: .async(onQueue: queue),
+                        onError: onError,
+                        onChange: onChange
+                    )
             }
         )
     }

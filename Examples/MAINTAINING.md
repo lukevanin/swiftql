@@ -94,7 +94,6 @@ What the compiler does not catch:
 - **A new API worth teaching.** Nothing prompts you to add a page. Adding one
   is a judgement call at the point the API ships, not a maintenance task.
 
-Two constraints the pages work around are recorded in `Examples/README.md`:
-live queries deliver on the main queue, and nullable columns cannot be
-assigned in a `Setting` closure. If either is fixed, the workaround and the
-note explaining it should go.
+One constraint the pages work around is recorded in `Examples/README.md`:
+nullable columns cannot be assigned in a `Setting` closure. If it is fixed, the
+workaround and the note explaining it should go.

@@ -43,8 +43,9 @@ struct GRDBDatabaseConfiguration {
     /// Recovery policy for live-query failures.
     var liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy = .terminal
 
-    /// Where a live query's recovery work is scheduled.
-    var liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler = .mainQueue
+    /// Where a live query's recovery work is scheduled. `nil`, the default,
+    /// waits on each observation's own private serial queue (issue #652).
+    var liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler? = nil
 }
 
 
@@ -72,8 +73,8 @@ public struct GRDBDatabase: XLDatabase {
 
     let liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy
 
-    let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
-    
+    let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler?
+
     /// Opens a GRDB-backed SQLite database.
     ///
     /// Custom functions and collations cannot be registered through this
@@ -199,7 +200,7 @@ public struct GRDBDatabase: XLDatabase {
         formatter: XLiteFormatter,
         logger: XLLogger?,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
-        liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
+        liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler?
     ) throws {
         self.init(
             databasePool: databasePool,
@@ -219,7 +220,7 @@ public struct GRDBDatabase: XLDatabase {
         formatter: XLiteFormatter,
         logger: XLLogger?,
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
-        liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
+        liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler?
     ) throws {
         self.init(
             databasePool: databasePool,

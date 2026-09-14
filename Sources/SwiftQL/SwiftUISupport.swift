@@ -5,13 +5,11 @@
 //  Created by Luke Van In on 2026/07/26.
 //
 
-import Dispatch
 import Foundation
 #if canImport(Combine)
 import Combine
 #else
 import OpenCombine
-import OpenCombineDispatch
 #endif
 
 
@@ -36,8 +34,9 @@ import OpenCombineDispatch
 /// A view reads `observer.rows` and `observer.error` in its `body`; SwiftUI
 /// re-renders whenever either `@Published` property changes. Observation
 /// starts immediately on initialization and stops when the observer is
-/// deallocated; every delivered value is received on the main queue, though
-/// the underlying fetch may begin on whatever thread triggers it.
+/// deallocated. Values arrive on the main queue because `publish()` delivers
+/// there by default; the observer adds no second hop of its own (issue #652).
+/// The underlying fetch runs on a database reader, never the main thread.
 ///
 public final class XLQueryObserver<Row>: ObservableObject {
 
@@ -57,7 +56,6 @@ public final class XLQueryObserver<Row>: ObservableObject {
 
     private func subscribe(to publisher: AnyPublisher<[Row], Error>) {
         cancellable = publisher
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure(let error) = completion {
@@ -97,7 +95,6 @@ public final class XLQueryRowObserver<Row>: ObservableObject {
 
     private func subscribe(to publisher: AnyPublisher<Row?, Error>) {
         cancellable = publisher
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure(let error) = completion {
