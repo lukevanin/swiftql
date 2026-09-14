@@ -179,7 +179,7 @@ aggregate, one query serving every filter, sort, and search combination,
 writes that return their row through `RETURNING`, an atomic move between
 lists, and an interface fed entirely by live queries — completing a to-do
 updates the list and the sidebar counts with no reload call anywhere. Its
-queries are checked against a schema snapshot at build time, and 62 tests
+queries are checked against a schema snapshot at build time, and its tests
 cover the query layer.
 
 Open `Examples/TodoApp/TodoApp.xcodeproj` and run the **TodoApp** scheme.

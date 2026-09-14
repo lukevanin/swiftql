@@ -452,9 +452,11 @@ read-only table with the same column is valid. Encode the row through its
 ## JSON `Codable` columns
 
 SQLite has no native JSON column type. It stores JSON as `TEXT` or `BLOB`
-bytes, and SwiftQL does not drive SQLite's `json1` functions, validate JSON,
-or create generated/indexed columns on the caller's behalf: those remain the
-application's or a future issue's responsibility. `XLJSONValueCodec` is a
+bytes. SwiftQL exposes SQLite's JSON functions and operators as typed
+expressions, including `validJSONOrNull()` to check that a value is
+well-formed; <doc:JSON> covers that surface. This section covers the other
+half: decoding a whole column into a Swift value. SwiftQL does not create
+generated or indexed columns on the caller's behalf. `XLJSONValueCodec` is a
 factory, built on the same contextual codec API described above, that
 converts an application `Codable` value to and from one of those two storage
 representations. It stores no `JSONEncoder`/`JSONDecoder` instance globally

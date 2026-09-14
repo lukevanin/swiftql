@@ -55,9 +55,38 @@ including typed <doc:Expressions/Between-operators> predicates.
 ## Join
 
 The ability to join tables in a query is where relational databases really start 
-to shine. SwiftQL supports cross join, inner join, and left (outer) join. 
+to shine. SwiftQL supports the join kinds in the table below. The fluent
+statement API has a matching method for each one, such as `rightJoin(_:on:)`,
+`fullOuterJoin(_:on:)`, `naturalJoin(_:)`, and `innerJoin(_:using:)`. SQLite
+also accepts a right or full outer join with `USING` or `NATURAL`; SwiftQL has
+no spelling for those, so write the constraint with `on:` instead.
 
-> Note: SwiftQL does not currently support right joins or full outer joins.
+| Join | SwiftQL | Nullable table | Needs |
+| --- | --- | --- | --- |
+| `CROSS JOIN` | `Join.Cross(occupation)` | none | any SQLite 3 |
+| `INNER JOIN ... ON` | `Join.Inner(occupation, on: ...)` | none | any SQLite 3 |
+| `INNER JOIN ... USING` | `Join.Inner(occupation, using: "id")` | none | any SQLite 3 |
+| `NATURAL JOIN` | `Join.Natural(occupation)` | none | any SQLite 3 |
+| `LEFT JOIN ... ON` | `Join.Left(occupation, on: ...)` | the joined table | any SQLite 3 |
+| `LEFT JOIN ... USING` | `Join.Left(occupation, using: "id")` | the joined table | any SQLite 3 |
+| `NATURAL LEFT JOIN` | `Join.NaturalLeft(occupation)` | the joined table | any SQLite 3 |
+| `RIGHT JOIN ... ON` | `Join.Right(occupation, on: ...)` | the `From` table | SQLite 3.39.0 |
+| `FULL OUTER JOIN ... ON` | `Join.FullOuter(occupation, on: ...)` | both tables | SQLite 3.39.0 |
+
+A table that an outer join can leave unmatched is declared with
+`schema.nullableTable(_:)`, so its columns decode as optionals. The compiler
+checks the joined table: `Join.Left`, `Join.NaturalLeft`, and `Join.FullOuter`
+only accept a nullable table. It cannot check the `From` table, so declare it
+nullable yourself for a right or full outer join.
+
+A `USING` join matches the named columns, which must exist in both tables, and
+SQLite merges each one into a single output column. A `NATURAL` join matches
+every column the two tables share by name, and takes no constraint.
+
+> Important: `RIGHT JOIN` and `FULL OUTER JOIN` need SQLite 3.39.0 or later.
+> SwiftQL renders the SQL either way; an older SQLite refuses the statement.
+> Apple's platforms ship the system SQLite, so its version follows the OS
+> rather than the application.
 
 First let's define an `Occupation` table that we can join to our `Person` table:
 

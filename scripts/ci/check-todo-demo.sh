@@ -8,6 +8,8 @@
 #   1. The demo package builds from clean. This is also what runs SwiftQL's
 #      build-time query validator over every query the demo declares.
 #   2. Its tests pass.
+#   2a. The demo README states the number of tests the suite ran, and the root
+#       README does not restate it.
 #   3. The demo package built without warnings.
 #   4. Regenerating the validation manifest and schema snapshot reproduces
 #      what is checked in, so a query edited without regenerating fails rather
@@ -75,6 +77,12 @@ main() {
     echo "== 2. Demo tests pass =="
     xcrun swift test --package-path "$package_root" 2>&1 \
         | tee "$log_directory/swiftql-todo-demo-test.log"
+
+    echo "== 2a. The demo README states the suite's test count =="
+    require_documented_test_count \
+        "$log_directory/swiftql-todo-demo-test.log" \
+        "$demo_root/README.md" \
+        "$source_root/README.md"
 
     echo "== 3. The demo package built without warnings =="
     require_no_demo_warnings \
@@ -167,6 +175,63 @@ require_current_validation_manifest() {
 # The manifest minus the one field that depends on the host's SQLite.
 manifest_without_byte_identity() {
     grep -v '"database_sha256"' "$1"
+}
+
+# Fails when the demo README's test count disagrees with the suite that ran.
+#
+# The count is stated once, in the demo README's layout table, and nowhere
+# else: the root README once said 62 while the demo README said 77 and the
+# suite had 80 (issue #653). The number comes from XCTest's own summary of the
+# run, so a test that is added, removed, or renamed into or out of discovery
+# moves it. The root README's demo section must not restate a count.
+require_documented_test_count() {
+    local test_log="$1"
+    local demo_readme="$2"
+    local root_readme="$3"
+    local executed
+    local documented
+    local restated
+
+    executed="$(
+        grep -oE 'Executed [0-9]+ tests?,' "$test_log" | tail -1 \
+            | grep -oE '[0-9]+' || true
+    )"
+    if [[ -z "$executed" ]]; then
+        echo "error: no XCTest summary found in $test_log" >&2
+        return 1
+    fi
+
+    documented="$(
+        grep -oE '^\| `TodoKit/Tests/` \| [0-9]+ tests' "$demo_readme" \
+            | grep -oE '[0-9]+' || true
+    )"
+    if [[ -z "$documented" ]]; then
+        echo "error: $demo_readme does not state the test count in its layout table" >&2
+        return 1
+    fi
+    if [[ "$documented" != "$executed" ]]; then
+        printf 'error: %s says %s tests, but the suite ran %s.\n' \
+            "$demo_readme" "$documented" "$executed" >&2
+        return 1
+    fi
+
+    # Without the heading the section below reads as empty and the check
+    # would pass silently, so a renamed heading fails here instead.
+    if ! grep -q '^### The to-do demo' "$root_readme"; then
+        echo "error: $root_readme has no '### The to-do demo' section to check" >&2
+        return 1
+    fi
+    restated="$(
+        awk '/^### The to-do demo/ { inside = 1; next }
+             /^##/ { inside = 0 }
+             inside' "$root_readme" \
+            | grep -E '[0-9]+ tests' || true
+    )"
+    if [[ -n "$restated" ]]; then
+        echo "error: $root_readme restates the demo's test count; state it only in $demo_readme:" >&2
+        printf '%s\n' "$restated" >&2
+        return 1
+    fi
 }
 
 # Rejects any compiler warning originating in the demo's own sources.

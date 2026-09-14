@@ -1153,6 +1153,84 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         }
     }
 
+    /// The September 2026 review found shipped documents that described
+    /// features as missing after they had shipped: right and full outer joins
+    /// (v1.4.5), the JSON function surface (v1.6), and the `sql { }` subquery
+    /// form. It also found the demo's test count stated three different ways.
+    /// These pins hold each correction in place (issue #653). The demo count
+    /// itself is compared with the suite by scripts/ci/check-todo-demo.sh.
+    func testPublicDocumentsDescribeTheShippedJoinAndJSONSurface() throws {
+        let repositoryRoot = try repositoryRootURL()
+        let requiredPhrasesByPath = [
+            "Sources/SwiftQL/SwiftQL.docc/Queries.md": [
+                "SwiftQL supports the join kinds in the table below.",
+                "| `RIGHT JOIN ... ON` | `Join.Right(occupation, on: ...)` | the `From` table | SQLite 3.39.0 |",
+                "| `FULL OUTER JOIN ... ON` | `Join.FullOuter(occupation, on: ...)` | both tables | SQLite 3.39.0 |",
+                "| `NATURAL JOIN` | `Join.Natural(occupation)` | none | any SQLite 3 |",
+                "| `INNER JOIN ... USING` | `Join.Inner(occupation, using: \"id\")` | none | any SQLite 3 |",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/CustomTypes.md": [
+                "SwiftQL exposes SQLite's JSON functions and operators as typed",
+                "<doc:JSON> covers that surface",
+            ],
+            "Sources/SwiftQL/Codecs/JSONValueCodec.swift": [
+                "use the\n/// typed JSON expressions instead",
+            ],
+            "Documentation/PortingFromSQL.md": [
+                "| `RIGHT JOIN t ON x` | `Join.Right(occupation, on: ...)`",
+                "| `FULL OUTER JOIN t ON x` | `Join.FullOuter(occupation, on: ...)`",
+                "| `NATURAL JOIN t` / `NATURAL LEFT JOIN t` |",
+                "| `JOIN t USING (c)` / `LEFT JOIN t USING (c)` |",
+                "`subqueryExpression { ... }`, or `sql { ... }` on Swift 6.1 and later",
+                "`Select(#row(person.name, occupation.name))` (Swift 6.1 and later)",
+            ],
+        ]
+        let forbiddenPhrasesByPath = [
+            "Sources/SwiftQL/SwiftQL.docc/Queries.md": [
+                "does not currently support right joins or full outer joins",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/CustomTypes.md": [
+                "SwiftQL does not drive SQLite's `json1` functions",
+            ],
+            "Sources/SwiftQL/Codecs/JSONValueCodec.swift": [
+                "drive SQLite's\n/// `json1` functions",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/CustomFunctions.md": [
+                "not a meaningful runtime cost",
+            ],
+            // The demo README states the count once; the check script
+            // compares it with the suite, so no other document restates it.
+            "README.md": [
+                "62 tests",
+            ],
+        ]
+
+        for (path, requiredPhrases) in requiredPhrasesByPath {
+            let contents = try String(
+                contentsOf: repositoryRoot.appendingPathComponent(path),
+                encoding: .utf8
+            )
+            for phrase in requiredPhrases {
+                XCTAssertTrue(
+                    contents.contains(phrase),
+                    "\(path) is missing the corrected phrase '\(phrase)'."
+                )
+            }
+        }
+        for (path, forbiddenPhrases) in forbiddenPhrasesByPath {
+            let contents = try String(
+                contentsOf: repositoryRoot.appendingPathComponent(path),
+                encoding: .utf8
+            )
+            for phrase in forbiddenPhrases {
+                XCTAssertFalse(
+                    contents.contains(phrase),
+                    "\(path) still makes the disproved claim '\(phrase)'."
+                )
+            }
+        }
+    }
+
     func testREADMERepositoryLinksResolveWithExactCase() throws {
         let repositoryRoot = try repositoryRootURL()
         let readme = try String(
