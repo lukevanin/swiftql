@@ -269,7 +269,8 @@ public enum XLInvocationBindingError: Error, Equatable, Sendable, LocalizedError
         case .conflictingParameterKey(let key, let existing, let incoming):
             return "Parameter \(key) has conflicting declarations at logical indices \(existing.index) and \(incoming.index)."
         case .conflictingPhysicalParameterIndex(let index, let existing, let incoming):
-            return "Dialect parameter index \(index) aliases distinct logical parameters \(existing.key) and \(incoming.key)."        case .codecValueTypeMismatch(let slot, let codecValueTypeIdentifier):
+            return "Dialect parameter index \(index) aliases distinct logical parameters \(existing.key) and \(incoming.key)."
+        case .codecValueTypeMismatch(let slot, let codecValueTypeIdentifier):
             let codec = slot.codecIdentity?.key.description ?? "unknown"
             return "Parameter \(slot.key) declares value type \(slot.valueTypeIdentifier), but codec \(codec) targets \(codecValueTypeIdentifier)."
         case .codecBindingRequiresPreparedParameter(let slot, let codecIdentity):
