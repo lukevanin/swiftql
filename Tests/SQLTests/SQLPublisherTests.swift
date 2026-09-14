@@ -83,7 +83,10 @@ struct UpdateTest {
 
 /// An external `XLRequest` conformer whose values the test sends by hand, from any thread. The
 /// protocol allows this: publisher scheduling is adapter-specific (issue #652).
-private struct SubjectPublishingRequest: XLRequest {
+///
+/// `@unchecked Sendable` because the tests send through it from a background queue. It holds only
+/// two `PassthroughSubject`s, which serialize their own sends.
+private struct SubjectPublishingRequest: XLRequest, @unchecked Sendable {
 
     let rowsSubject = PassthroughSubject<[Int], Error>()
 

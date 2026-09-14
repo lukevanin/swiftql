@@ -144,8 +144,9 @@ private final class XLMainThreadDelivery: @unchecked Sendable {
         lock.lock()
         guard Thread.isMainThread && queuedCount == 0 else {
             queuedCount += 1
+            let work = XLMainThreadWork(body: body)
             DispatchQueue.main.async { [self] in
-                body()
+                work.body()
                 lock.lock()
                 queuedCount -= 1
                 lock.unlock()
@@ -156,4 +157,15 @@ private final class XLMainThreadDelivery: @unchecked Sendable {
         lock.unlock()
         body()
     }
+}
+
+
+/// Carries one delivery closure across `DispatchQueue.main.async`, whose closure is `@Sendable`.
+///
+/// `@unchecked Sendable` because the closure captures the observer's non-`Sendable` `Row` values.
+/// The crossing is safe: ``XLMainThreadDelivery`` hands each closure to the main queue exactly once
+/// and keeps no other reference, so only the main thread ever runs it. A struct, not a
+/// `nonisolated(unsafe)` shadow, so it parses on every supported compiler, Swift 5.9 included.
+private struct XLMainThreadWork: @unchecked Sendable {
+    let body: () -> Void
 }
