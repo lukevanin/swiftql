@@ -311,18 +311,48 @@ extension GRDBDatabase: XLRenderOnceRequestBinding {
 
     /// Binds a render-once cache entry to this database's driver (issue #642).
     ///
-    /// One entry serves a database and every transaction scope opened on it, and
-    /// the cached `GRDBRequest` closes over the driver of whichever of them
-    /// rendered it -- possibly a scope that has already ended. It is returned
-    /// unchanged when that driver is this database's own, and rebuilt around
-    /// this driver otherwise. Rebuilding reuses the rendered SQL, parameter
-    /// layout, row reader, and recorded functions, so it renders nothing.
+    /// One entry serves a database and every transaction scope opened on it,
+    /// and the cache stores it bound to the database's pool driver (see
+    /// `storableRenderOnceRequest(_:)`). It is returned unchanged when that
+    /// driver is this database's own, and rebuilt around this driver otherwise
+    /// -- on a scope, the pinned driver. Rebuilding reuses the rendered SQL,
+    /// parameter layout, row reader, and recorded functions, so it renders
+    /// nothing.
     func bindRenderOnceRequest<Row>(_ request: any XLRequest<Row>) -> any XLRequest<Row> {
-        guard let grdbRequest = request as? GRDBRequest<Row>,
-              grdbRequest.executor.driver.databaseIdentifier != driver.databaseIdentifier
-        else {
+        guard let grdbRequest = request as? GRDBRequest<Row> else {
+            assertionFailure("A GRDBDatabase render-once entry must be a GRDBRequest.")
+            return request
+        }
+        guard grdbRequest.executor.driver.databaseIdentifier != driver.databaseIdentifier else {
             return request
         }
         return grdbRequest.rebound(to: driver)
+    }
+
+    /// The request a render-once cache stores for this database's key (issue
+    /// #642): bound to the pool driver of the database that owns the key.
+    ///
+    /// A transaction scope that renders an entry first would otherwise store a
+    /// request bound to its pinned driver. That entry would keep the scope's
+    /// invalidated connection, and every later call on the database would have
+    /// to rebuild it. The pool driver is rebuilt from the scope's own values --
+    /// the pool, the dialect, and the cache identifier the scope copied from
+    /// its database -- so it is the database's driver, with the identifier the
+    /// root re-entry guard checks.
+    func storableRenderOnceRequest<Row>(_ request: any XLRequest<Row>) -> any XLRequest<Row> {
+        guard driver.isPinned else {
+            return request
+        }
+        guard let grdbRequest = request as? GRDBRequest<Row> else {
+            assertionFailure("A GRDBDatabase render-once entry must be a GRDBRequest.")
+            return request
+        }
+        return grdbRequest.rebound(
+            to: GRDBDatabaseDriver(
+                databasePool: databasePool,
+                dialect: dialect,
+                databaseIdentifier: renderCacheIdentifier
+            )
+        )
     }
 }

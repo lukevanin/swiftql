@@ -152,8 +152,10 @@ A transaction scope shares the cache entry of the database it was opened on.
 `GRDBDatabase.preparedQueryCacheKey` returns the same key for the scope that
 `withTransaction(_:)` hands you as for the database itself, so calling a
 declared query inside any number of transactions renders the statement at most
-once and never adds an entry. The cached request is bound to one connection, so
-the cache binds it to the calling scope's connection at call time. A declared
+once and adds no entry beyond the database's own. The cache stores that entry
+bound to the database's pool, even when a transaction renders it first. A
+request is bound to one connection, so the cache binds the entry to the calling
+scope's connection at call time. A declared
 query called on the scope runs on the transaction's connection and sees the
 transaction's uncommitted writes. The same declaration called on the database
 afterward runs on the pool, as before.
@@ -163,8 +165,8 @@ afterward runs on the pool, as before.
 `XLRenderOnceCache` is `Sendable`; its single lock only ever guards the
 render-once population of one dictionary, so many threads can safely race to
 call a declared query for the first time — the statement renders exactly
-once, and every caller (including the ones that arrived first) gets the same
-cached request back. Each call still builds its own invocation packet and
+once, and every caller (including the ones that arrived first) gets a request
+built from that one render. Each call still builds its own invocation packet and
 executes independently, so concurrent invocations with different argument
 values never share mutable state and never share a physical `sqlite3_stmt`
 across connections: the existing `XLRequest`/connection-pool contracts still

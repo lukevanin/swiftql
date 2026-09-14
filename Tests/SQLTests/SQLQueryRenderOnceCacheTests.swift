@@ -364,6 +364,30 @@ final class XLQueryRenderOnceCacheTests: XCTestCase {
     }
 
     ///
+    /// When a transaction renders an entry first, the cache stores it bound to
+    /// the database's pool driver, not to the scope's pinned driver. The entry
+    /// then never keeps the scope's invalidated connection, and a call on the
+    /// database uses the stored request as is instead of rebuilding it.
+    ///
+    func testEntryRenderedInsideATransactionIsStoredBoundToTheDatabasePool() throws {
+        try createTestTable()
+        let cache = XLRenderOnceCache<TestTable>()
+        _ = try database.withTransaction { scope in
+            try cache.request(for: scope) { self.allRowsStatement() }.fetchAll()
+        }
+
+        let key = try XCTUnwrap(database.preparedQueryCacheKey)
+        let stored = try XCTUnwrap(cache.cachedEntry(for: key) as? GRDBRequest<TestTable>)
+        XCTAssertFalse(stored.executor.driver.isPinned, "the stored entry must not be bound to a scope")
+        XCTAssertEqual(stored.executor.driver.databaseIdentifier, database.driver.databaseIdentifier)
+        XCTAssertEqual(
+            stored.executor.logicalStatement.databaseIdentifier,
+            database.driver.databaseIdentifier
+        )
+        XCTAssertNotNil(stored.executor.driver.databasePool)
+    }
+
+    ///
     /// The generated executor goes through the same cache, so a declared query
     /// called on many scopes returns each transaction's own rows, and then
     /// still serves the database.
