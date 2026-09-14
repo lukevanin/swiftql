@@ -305,8 +305,12 @@ Searching rather than matching the whole subject is what the widely used
 `"alpha-123" REGEXP '[0-9]+$'` is therefore true. Anchor a pattern with `^` and
 `$` when you want the whole subject to match.
 
-A pattern is compiled once per statement execution, not once per row, so a
-scan over a large table pays one compile and then only matches.
+A pattern is not compiled once per row. SwiftQL installs `regexp` once per
+database connection, and that installation keeps the most recent 16 compiled
+patterns, so a scan over a large table pays at most one compile and then only
+matches, and later statements with the same pattern on that connection compile
+nothing. A connection that sees more distinct patterns than that, such as
+patterns read from a column, compiles an evicted pattern again when it returns.
 
 #### Patterns from untrusted input
 
@@ -332,10 +336,14 @@ feature needs, or escape user text so it matches literally. For documents longer
 than the subject limit, use full-text search or match in Swift.
 
 > Note: An application that registers its own two-argument `regexp` keeps it.
-SwiftQL never replaces a `regexp` already on the connection, whether it was
-registered with `GRDBDatabaseBuilder.addFunction(_:)` or with
+SwiftQL never installs its bundled `regexp` over one registered with
+`GRDBDatabaseBuilder.addFunction(_:)` or with
 `Configuration.prepareDatabase(_:)`, so upgrading does not change what `REGEXP`
-means for an application that already supplied one.
+means for an application that already supplied one. An application
+`XLCustomFunction` named `regexp` with two arguments also wins, and replaces the
+bundled function on a connection where SwiftQL installed it first; see
+<doc:CustomFunctions> for that rule and its one restriction inside an open
+result set.
 
 #### Matching a Swift Regex
 

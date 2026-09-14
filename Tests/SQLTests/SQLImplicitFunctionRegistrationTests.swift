@@ -83,6 +83,115 @@ private struct ExplicitOnlyIdentityFunction: XLCustomFunction {
 }
 
 
+/// Computes `value * 2`. Registered up front with `GRDBDatabaseBuilder.addFunction(_:)` *and*
+/// rendered through `customFunctionCall`, so both registration paths meet on every connection.
+private struct UpfrontAndImplicitDoubleFunction: XLCustomFunction {
+    typealias T = Int
+
+    static let definition = XLCustomFunctionDefinition(
+        name: "upfrontAndImplicitDouble",
+        numberOfArguments: 1
+    )
+
+    private let value: any XLExpression<Int>
+
+    init(_ value: any XLExpression<Int>) {
+        self.value = value
+    }
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { list in
+            list.listItem(expression: value.makeSQL)
+        }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> Int {
+        try reader.readInteger(at: 0) * 2
+    }
+}
+
+
+/// An application function with the same name and argument count as SQLite's built-in `lower/1`.
+/// The statement references this type, so this implementation must run, not SQLite's. It prefixes
+/// its argument instead of lowering it, so which one ran is visible in the result.
+private struct BuiltInCollidingLowerFunction: XLCustomFunction {
+    typealias T = String
+
+    static let definition = XLCustomFunctionDefinition(
+        name: "lower",
+        numberOfArguments: 1
+    )
+
+    private let value: any XLExpression<String>
+
+    init(_ value: any XLExpression<String>) {
+        self.value = value
+    }
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { list in
+            list.listItem(expression: value.makeSQL)
+        }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> String {
+        "custom:" + (try reader.readText(at: 0))
+    }
+}
+
+
+/// Two application functions that share one SQLite signature but behave differently. SQLite
+/// identifies a function by name and argument count only, so SwiftQL treats them as one function.
+private let sharedSignatureDefinition = XLCustomFunctionDefinition(
+    name: "sharedSignatureOffset",
+    numberOfArguments: 1
+)
+
+private struct SharedSignatureFirstFunction: XLCustomFunction {
+    typealias T = Int
+
+    static let definition = sharedSignatureDefinition
+
+    private let value: any XLExpression<Int>
+
+    init(_ value: any XLExpression<Int>) {
+        self.value = value
+    }
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { list in
+            list.listItem(expression: value.makeSQL)
+        }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> Int {
+        try reader.readInteger(at: 0) + 1000
+    }
+}
+
+private struct SharedSignatureSecondFunction: XLCustomFunction {
+    typealias T = Int
+
+    static let definition = sharedSignatureDefinition
+
+    private let value: any XLExpression<Int>
+
+    init(_ value: any XLExpression<Int>) {
+        self.value = value
+    }
+
+    func makeSQL(context: inout XLBuilder) {
+        context.customFunctionCall(Self.self) { list in
+            list.listItem(expression: value.makeSQL)
+        }
+    }
+
+    static func execute(reader: XLColumnReader) throws -> Int {
+        try reader.readInteger(at: 0) + 2000
+    }
+}
+
+
 final class XLImplicitFunctionRegistrationTests: XCTestCase {
 
     private var databaseDirectoryURL: URL!
@@ -209,6 +318,125 @@ final class XLImplicitFunctionRegistrationTests: XCTestCase {
         let deleted: [TestTable] = try database.makeRequest(with: statement).fetchAll()
 
         XCTAssertEqual(deleted, [TestTable(id: "b", value: 5)])
+    }
+
+    // MARK: - Up-front and implicit registration together (issue #640)
+
+    /// A function registered up front is already on every connection, so its implicit registration
+    /// must use that copy rather than install over it. Installing over it would replace a function
+    /// with the same name and argument count, which SQLite refuses while a statement is active. The
+    /// first implicit call on the writer connection here happens inside an open result set whose own
+    /// statement does not use the function, so a replacement attempt would fail.
+    func testUpfrontRegisteredImplicitFunctionRunsForTheFirstTimeInsideAnOpenResultSet() throws {
+        let fileURL = databaseDirectoryURL.appendingPathComponent(
+            "database.sqlite",
+            isDirectory: false
+        )
+        var builder = try GRDBDatabaseBuilder(
+            url: fileURL,
+            configuration: Configuration(),
+            logger: nil
+        )
+        builder.addFunction(UpfrontAndImplicitDoubleFunction.self)
+        let database = try builder.build()
+        try database.makeRequest(with: sqlCreate(TestTable.self)).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 4))).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "b", value: 5))).execute()
+
+        let rows = sql { schema -> any XLQueryStatement<TestTable> in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            OrderBy(table.id.ascending())
+        }
+
+        let (identifiers, doubled) = try database.withTransaction { scope -> ([String], [Int?]) in
+            var identifiers: [String] = []
+            var doubled: [Int?] = []
+            try scope.makeRequest(with: rows).withResultSet { results in
+                while let row = try results.next() {
+                    identifiers.append(row.id)
+                    let value = row.value
+                    let statement = sql { _ in Select(UpfrontAndImplicitDoubleFunction(value)) }
+                    doubled.append(try scope.makeRequest(with: statement).fetchOne())
+                }
+            }
+            return (identifiers, doubled)
+        }
+
+        XCTAssertEqual(identifiers, ["a", "b"])
+        XCTAssertEqual(doubled, [8, 10])
+    }
+
+    /// Registrations that share a signature are interchangeable, as
+    /// `XLCustomFunctionRegistration.definition` documents, and SwiftQL installs a signature once
+    /// per connection (issue #640). So the first type installed on a connection serves every later
+    /// statement there that calls a type with the same signature. One reader keeps every statement
+    /// on one connection. This pins the documented first-wins rule.
+    func testCustomFunctionsSharingASignatureAreInterchangeableAndTheFirstInstalledServesTheConnection() throws {
+        let database = try makeDatabase(maximumReaderCount: 1)
+        let first = sql { _ in Select(SharedSignatureFirstFunction(1)) }
+        let second = sql { _ in Select(SharedSignatureSecondFunction(1)) }
+
+        XCTAssertEqual(try database.makeRequest(with: first).fetchOne(), 1001)
+        XCTAssertEqual(
+            try database.makeRequest(with: second).fetchOne(),
+            1001,
+            "The first function installed for a signature serves the connection."
+        )
+        XCTAssertEqual(try database.makeRequest(with: first).fetchOne(), 1001)
+    }
+
+    /// A SQLite built-in is not the application's own function. An implicitly registered function
+    /// with a built-in's name and argument count replaces the built-in on the connection, so the
+    /// statement runs the function it referenced -- on the first call and on every later one.
+    func testImplicitFunctionNamedLikeASQLiteBuiltInReplacesTheBuiltIn() throws {
+        let database = try makeDatabase(maximumReaderCount: 1)
+        let statement = sql { _ in Select(BuiltInCollidingLowerFunction("ABC")) }
+
+        XCTAssertEqual(try database.makeRequest(with: statement).fetchOne(), "custom:ABC")
+        XCTAssertEqual(try database.makeRequest(with: statement).fetchOne(), "custom:ABC")
+    }
+
+    /// Replacing a built-in is a replacement of a function with the same name and argument count,
+    /// which SQLite refuses while a statement is active, and GRDB turns that refusal into a
+    /// `fatalError`. Inside an open result set the request must throw instead, and the replacement
+    /// must succeed once the result set closes.
+    func testReplacingASQLiteBuiltInInsideAnOpenResultSetThrowsInsteadOfCrashing() throws {
+        let database = try makeDatabase()
+        try database.makeRequest(with: sqlCreate(TestTable.self)).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "a", value: 4))).execute()
+        try database.makeRequest(with: sqlInsert(TestTable(id: "b", value: 5))).execute()
+
+        let rows = sql { schema -> any XLQueryStatement<TestTable> in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            OrderBy(table.id.ascending())
+        }
+        let statement = sql { _ in Select(BuiltInCollidingLowerFunction("ABC")) }
+
+        let visited = try database.withTransaction { scope -> Int in
+            var visited = 0
+            try scope.makeRequest(with: rows).withResultSet { results in
+                while try results.next() != nil {
+                    visited += 1
+                    XCTAssertThrowsError(try scope.makeRequest(with: statement).fetchOne()) { error in
+                        guard case .prepareFailure(_, let message) = error as? XLDatabaseContractError else {
+                            return XCTFail("Expected a prepare failure, received \(error)")
+                        }
+                        XCTAssertTrue(message.contains("lower/1"), message)
+                    }
+                }
+            }
+            return visited
+        }
+        XCTAssertEqual(visited, 2)
+
+        let afterwards = try database.withTransaction { scope in
+            try scope.makeRequest(with: statement).fetchOne()
+        }
+        XCTAssertEqual(afterwards, "custom:ABC")
     }
 
     // MARK: - Pool concurrency

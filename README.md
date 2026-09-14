@@ -294,7 +294,7 @@ explicit list of the places the correspondence is not exact.
 - **[Text matching](https://lukevanin.github.io/swiftql/documentation/swiftql/expressions/).**
   Match with `like`, `glob`, and `regexp`. `REGEXP` needs no setup: SQLite ships
   no `regexp` function, so SwiftQL supplies one backed by Swift `Regex`,
-  compiles each pattern once per statement execution rather than once per row,
+  keeps compiled patterns per connection rather than compiling once per row,
   and matches a `RegexBuilder` pattern through `XLRegexPattern`.
 - **Your domain.** Extend SQLite with Swift enums, custom value types, and
   type-safe custom SQL functions.

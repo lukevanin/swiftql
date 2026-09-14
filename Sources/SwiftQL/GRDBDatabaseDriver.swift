@@ -37,12 +37,6 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
 
     private let access: Access
 
-    /// Remembers, per database, whether the application already provides a
-    /// SQLite function that a bundled SwiftQL implementation would otherwise
-    /// register. Shared by reference with every driver copy, including the
-    /// pinned copies `pinned(to:)` makes, so one database probes once.
-    private let bundledFunctions: GRDBBundledFunctionAvailability
-
     /// The pool backing this driver, or `nil` when pinned to one transaction
     /// scope's connection. `ValueObservation`-backed live queries need a
     /// stable pool to track, so a pinned-mode caller must fail explicitly
@@ -72,19 +66,16 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
         self.access = .pool(databasePool)
         self.dialect = dialect
         self.databaseIdentifier = databaseIdentifier
-        self.bundledFunctions = GRDBBundledFunctionAvailability()
     }
 
     private init(
         access: Access,
         dialect: XLSQLiteDialect,
-        databaseIdentifier: XLDatabaseIdentifier,
-        bundledFunctions: GRDBBundledFunctionAvailability
+        databaseIdentifier: XLDatabaseIdentifier
     ) {
         self.access = access
         self.dialect = dialect
         self.databaseIdentifier = databaseIdentifier
-        self.bundledFunctions = bundledFunctions
     }
 
     ///
@@ -112,8 +103,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
         GRDBDatabaseDriver(
             access: .pinned(box),
             dialect: dialect,
-            databaseIdentifier: XLDatabaseIdentifier(rawValue: UUID()),
-            bundledFunctions: bundledFunctions
+            databaseIdentifier: XLDatabaseIdentifier(rawValue: UUID())
         )
     }
 
@@ -199,8 +189,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
             database: database,
             databaseIdentifier: databaseIdentifier,
             driverIdentifier: driverIdentifier,
-            dialect: dialect,
-            bundledFunctions: bundledFunctions
+            dialect: dialect
         )
     }
 }
@@ -278,13 +267,13 @@ struct GRDBInvocationExecutor: Sendable {
     /// Custom scalar functions referenced by `logicalStatement`, keyed by their SQLite
     /// registration signature.
     ///
-    /// Registered unconditionally on whatever physical connection is checked out immediately
-    /// before every execution (see `boundStatement`), rather than once upfront. `DatabasePool`
+    /// Checked against whatever physical connection is checked out immediately before every
+    /// execution (see `boundStatement`), rather than registered once upfront. `DatabasePool`
     /// hands out any of several persistent reader connections, and a `Database.add(function:)`
     /// call only affects the one physical connection it runs on -- so there is no single "first
-    /// use" moment this could register at once and be done. Re-registering on every execution
-    /// costs one cheap `sqlite3_create_function` call and guarantees correctness regardless of
-    /// which pooled connection served the request.
+    /// use" moment for the whole pool. Each function is installed on a connection the first time
+    /// that connection needs it, and never again; see
+    /// `GRDBDatabaseDriverConnection.registerCustomFunctions(_:)`.
     let customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
 
     init(
@@ -510,7 +499,7 @@ struct GRDBInvocationExecutor: Sendable {
         packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws -> GRDBPhysicalStatement {
-        connection.registerCustomFunctions(customFunctions)
+        try connection.registerCustomFunctions(customFunctions)
         var statement = try connection.prepare(logicalStatement)
         for binding in packet.bindings {
             do {
@@ -615,20 +604,16 @@ struct GRDBDatabaseDriverConnection:
 
     private let database: Database
 
-    private let bundledFunctions: GRDBBundledFunctionAvailability
-
     init(
         database: Database,
         databaseIdentifier: XLDatabaseIdentifier,
         driverIdentifier: XLDriverIdentifier,
-        dialect: XLSQLiteDialect,
-        bundledFunctions: GRDBBundledFunctionAvailability = GRDBBundledFunctionAvailability()
+        dialect: XLSQLiteDialect
     ) {
         self.database = database
         self.databaseIdentifier = databaseIdentifier
         self.driverIdentifier = driverIdentifier
         self.dialect = dialect
-        self.bundledFunctions = bundledFunctions
     }
 
     mutating func preparePhysical(
@@ -810,31 +795,104 @@ struct GRDBDatabaseDriverConnection:
         )
     }
 
-    /// Registers custom SQLite functions referenced by the statement about to execute on this
-    /// connection's underlying physical connection.
+    /// Installs the custom SQLite functions referenced by the statement about to execute, once per
+    /// physical connection.
     ///
-    /// Idempotent: SQLite's `sqlite3_create_function` simply replaces any
-    /// existing registration for the same name and argument count, so calling this before every
-    /// execution is correct however many times it runs, on however many distinct physical
-    /// connections `DatabasePool` hands out over the connection's lifetime.
+    /// This runs before every execution, because `DatabasePool` hands a statement to any of several
+    /// persistent connections and `Database.add(function:)` affects only the one it runs on. It
+    /// must not install the same definition twice on one connection, though. SQLite treats a second
+    /// `sqlite3_create_function` for the same name and argument count as a modification: while a
+    /// statement is active on the connection -- a result-set cursor inside a transaction -- it
+    /// returns `SQLITE_BUSY`, which GRDB turns into a `fatalError`, and otherwise it expires every
+    /// prepared statement on the connection (issue #640).
+    ///
+    /// What SwiftQL installed is therefore recorded on the physical connection itself; see
+    /// `GRDBInstalledFunctionMarker`. The record lives and dies with the SQLite connection, so a
+    /// closed reader or a reopened pool cannot leave a stale record that claims a function is
+    /// installed on a new connection, and every `GRDBDatabase` over the same pool reads the same
+    /// record. No table outside the connection is involved.
     ///
     /// A registration that defers to an existing one -- a function SwiftQL bundles rather than one
     /// the caller wrote, such as `XLCustomFunctionRegistration.bundledRegexp` -- is skipped when
-    /// the application already provides that function. That test is the only reason this is not
-    /// unconditional, and it costs one `PRAGMA function_list` per database rather than one per
-    /// execution; see `GRDBBundledFunctionAvailability`.
+    /// the application already provides that function. A `PRAGMA function_list` row counts as the
+    /// application's only when SwiftQL recorded no installation of that signature on the
+    /// connection: SwiftQL never installs a definition without recording it, so an unrecorded row
+    /// cannot be SwiftQL's own. The bundled decision -- install or defer -- is recorded too, so the
+    /// probe runs once per connection and signature rather than once per execution.
+    ///
+    /// A registration from the application's own ``XLCustomFunction`` keeps its separate record, so
+    /// it still wins over a bundled function of the same signature: the bundled registration defers
+    /// to it, and it installs over a bundled function that SwiftQL installed first. It also installs
+    /// over a SQLite built-in of the same signature, such as `lower/1`, because the statement
+    /// referenced the application's function. Those replacements are the installs that meet a
+    /// function with the same name and argument count, and SQLite refuses them while a statement is
+    /// active on the connection. They then throw `XLDatabaseContractError.prepareFailure` instead of
+    /// reaching GRDB's `fatalError`; see `checkNoActiveStatementBlocksReplacing(_:)`. When the
+    /// function already on the connection is a registered one that SwiftQL did not install -- the
+    /// application's own, from ``GRDBDatabaseBuilder/addFunction(_:)``, a `prepareDatabase` hook, or
+    /// an extension it loaded -- nothing is replaced: SwiftQL records it and uses it.
+    ///
+    /// The record is kept per signature, not per Swift type. Registrations that share a
+    /// ``XLCustomFunctionRegistration/definition`` are interchangeable, as that property documents,
+    /// so the first application ``XLCustomFunction`` installed for a signature serves every later
+    /// statement on the connection that calls any type with that signature.
+    ///
+    /// - Throws: `XLDatabaseContractError.prepareFailure` when an install would replace a function
+    ///   while a statement is active on the connection, or a preparation failure while reading a
+    ///   marker.
     func registerCustomFunctions(
         _ registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration]
-    ) {
+    ) throws {
         for registration in registrations.values {
-            if registration.defersToExistingRegistration,
-               bundledFunctions.applicationProvides(
-                   registration.definition,
-                   probe: { hasFunction(matching: registration.definition) }
-               ) {
+            let definition = registration.definition
+            let customMarker = GRDBInstalledFunctionMarker(definition: definition, kind: .custom)
+            guard registration.defersToExistingRegistration else {
+                if try customMarker.isRecorded(in: database) {
+                    continue
+                }
+                switch existingExactFunction(matching: definition) {
+                case .absent:
+                    break
+                case .builtIn:
+                    // Only a SQLite built-in answers this signature, such as `lower/1`. The
+                    // statement referenced the application's own function, so it replaces the
+                    // built-in on this connection, as it always has -- unless SQLite cannot
+                    // right now.
+                    try checkNoActiveStatementBlocksReplacing(definition)
+                case .installedOnConnection:
+                    let bundledImplementationMarker = GRDBInstalledFunctionMarker(
+                        definition: definition,
+                        kind: .bundledImplementation
+                    )
+                    guard try bundledImplementationMarker.isRecorded(in: database) else {
+                        // The application installed this signature itself -- with
+                        // `GRDBDatabaseBuilder.addFunction(_:)`, its own `prepareDatabase` hook,
+                        // or an extension it loaded -- so the connection already has the
+                        // application's function. Use it: replacing it would expire the
+                        // connection's statements, and would fail inside an open cursor.
+                        customMarker.record(in: database)
+                        continue
+                    }
+                    // SwiftQL's own bundled implementation is installed, and the application's
+                    // function wins over it, so replace it -- unless SQLite cannot right now.
+                    try checkNoActiveStatementBlocksReplacing(definition)
+                }
+                database.add(function: registration.makeDatabaseFunction())
+                customMarker.record(in: database)
                 continue
             }
-            database.add(function: registration.makeDatabaseFunction())
+            let bundledMarker = GRDBInstalledFunctionMarker(definition: definition, kind: .bundled)
+            if try bundledMarker.isRecorded(in: database) {
+                continue
+            }
+            let applicationProvides = try customMarker.isRecorded(in: database)
+                || hasFunction(matching: definition)
+            if !applicationProvides {
+                database.add(function: registration.makeDatabaseFunction())
+                GRDBInstalledFunctionMarker(definition: definition, kind: .bundledImplementation)
+                    .record(in: database)
+            }
+            bundledMarker.record(in: database)
         }
     }
 
@@ -877,6 +935,100 @@ struct GRDBDatabaseDriverConnection:
             }
             return argumentCount == definition.numberOfArguments || argumentCount == -1
         }
+    }
+
+    /// What already answers exactly `definition`'s signature on this physical connection.
+    private enum ExistingFunction {
+        /// Nothing: installing creates a new function, which SQLite always allows.
+        case absent
+        /// Only a SQLite built-in, such as `lower/1`.
+        case builtIn
+        /// A function registered on this connection: by the application's setup, by an extension
+        /// it loaded, or by SwiftQL's own bundled install.
+        case installedOnConnection
+    }
+
+    /// Reads `PRAGMA function_list` for rows with exactly `definition`'s name and argument count.
+    ///
+    /// `add(function:)` replaces only a function with the same name *and* the same argument count,
+    /// so a variadic row does not count here. A row whose `builtin` column is `1` is one of SQLite's
+    /// own functions; any other row was registered on the connection. When both exist -- the
+    /// application overrode a built-in in its own setup -- the registered one is what SQLite calls,
+    /// so it decides the answer. A build that reports no argument count or no `builtin` column
+    /// reads as registered, the answer that never replaces the application's function.
+    private func existingExactFunction(
+        matching definition: XLCustomFunctionDefinition
+    ) -> ExistingFunction {
+        let folded = sqliteASCIIFoldedFunctionName(definition.name)
+        guard let rows = try? Row.fetchAll(database, sql: "PRAGMA function_list") else {
+            return .absent
+        }
+        var existing = ExistingFunction.absent
+        for row in rows {
+            guard let name = row["name"] as String?,
+                  sqliteASCIIFoldedFunctionName(name) == folded
+            else {
+                continue
+            }
+            guard let argumentCount = row["narg"] as Int? else {
+                // No argument count to tell the overloads apart: read the name as registered,
+                // so the application's function is never replaced on a guess.
+                return .installedOnConnection
+            }
+            guard argumentCount == definition.numberOfArguments else {
+                continue
+            }
+            guard (row["builtin"] as Int?) == 1 else {
+                return .installedOnConnection
+            }
+            existing = .builtIn
+        }
+        return existing
+    }
+
+    /// Throws when the function that answers `definition`'s signature -- SwiftQL's bundled
+    /// implementation or a SQLite built-in -- cannot be replaced right now, because a statement is
+    /// active on this connection.
+    ///
+    /// SQLite answers a replacement during an active statement with `SQLITE_BUSY`, and GRDB 6 calls
+    /// `fatalError` on any failed `sqlite3_create_function_v2`, so it has to be refused before
+    /// `add(function:)` runs. The way to get here is an application ``XLCustomFunction`` that
+    /// reuses a bundled or built-in signature, called for the first time on a connection from
+    /// inside a `withResultSet` callback.
+    private func checkNoActiveStatementBlocksReplacing(
+        _ definition: XLCustomFunctionDefinition
+    ) throws {
+        guard hasActiveStatement() else {
+            return
+        }
+        throw XLDatabaseContractError.prepareFailure(
+            driver: driverIdentifier,
+            message: """
+                Cannot install the application's XLCustomFunction \
+                \(definition.name)/\(definition.numberOfArguments) over the existing function with \
+                the same name and argument count (SwiftQL's bundled implementation or a SQLite \
+                built-in) while a statement is active on this connection: SQLite cannot replace a \
+                function until the statement finishes. Run a statement that uses the application's \
+                function before opening the result set, or register it up front with \
+                GRDBDatabaseBuilder.addFunction(_:).
+                """
+        )
+    }
+
+    /// Whether any statement on this physical connection has started stepping and not yet been
+    /// reset -- the condition under which SQLite refuses to replace a function.
+    private func hasActiveStatement() -> Bool {
+        guard let connection = database.sqliteConnection else {
+            return false
+        }
+        var statement = sqlite3_next_stmt(connection, nil)
+        while let current = statement {
+            if sqlite3_stmt_busy(current) != 0 {
+                return true
+            }
+            statement = sqlite3_next_stmt(connection, current)
+        }
+        return false
     }
 
     private func validateOwnership(of statement: GRDBPhysicalStatement) throws {
@@ -1173,51 +1325,91 @@ final class GRDBTransactionScopeTracker: @unchecked Sendable {
 
 
 ///
-/// Remembers, for one database, whether the application already provides a SQLite function that a
-/// bundled SwiftQL implementation would otherwise register.
+/// A record, kept on one physical SQLite connection, that SwiftQL installed -- or, for a bundled
+/// function, decided about -- one custom function signature there (issue #640).
 ///
-/// The answer is cached per database rather than per physical connection. Every caller-supplied
-/// registration reaches a connection through `Configuration.prepareDatabase(_:)` -- both
-/// ``GRDBDatabaseBuilder/addFunction(_:)`` and a caller's own hook -- and GRDB runs those setups
-/// on every connection it opens, so what one connection has, they all have. Probing once keeps
-/// the cost at one `PRAGMA function_list` per database instead of one per statement execution.
+/// The record is itself a zero-argument SQLite function, named from the signature and the kind of
+/// registration. It is read by preparing a call to it: preparation succeeds only on a connection
+/// where the marker was created. GRDB's per-connection statement cache keeps that statement, so
+/// every later check is one dictionary lookup. A connection without the marker answers with
+/// SQLite's "no such function" preparation error, which is the expected "not recorded" answer and
+/// never reaches the caller; it is only seen until the marker is created.
 ///
-/// The probe must run before the bundled function is ever registered, otherwise it would find
-/// SwiftQL's own registration and defer to it forever. It does: the first execution that needs
-/// the function asks this box first.
+/// Why on the connection rather than in a Swift table:
 ///
-final class GRDBBundledFunctionAvailability: @unchecked Sendable {
+/// - GRDB closes and opens physical connections over a pool's life (a released reader, a
+///   reopened pool), and a new connection can reuse an old one's address. A table keyed by
+///   `ObjectIdentifier(Database)` or by the `sqlite3 *` pointer could then claim a function is
+///   installed on a connection that never saw it. A SQLite function cannot outlive its connection.
+/// - Two `GRDBDatabase` values can share one `DatabasePool`. A table owned by one of them cannot
+///   see what the other installed; the connection sees both.
+/// - Registration is per physical connection, so a process-global table would be the wrong scope.
+///
+/// Creating a function under a *new* name neither expires prepared statements nor fails while a
+/// statement is active -- SQLite does either only when it replaces a definition with the same name
+/// and argument count -- so a marker can be recorded inside an open cursor.
+///
+struct GRDBInstalledFunctionMarker {
 
-    private let lock = NSLock()
+    enum Kind: String {
+        /// A bundled registration was decided on this connection: SwiftQL installed its
+        /// implementation, or found the application's and deferred to it.
+        case bundled
+        /// SwiftQL installed its own bundled implementation on this connection. Read only the
+        /// first time an application ``XLCustomFunction`` of the same signature runs there, to tell
+        /// SwiftQL's implementation apart from one the application installed itself.
+        case bundledImplementation
+        /// The application's own ``XLCustomFunction`` is on this connection: SwiftQL installed it,
+        /// or found that the application had already installed that signature itself.
+        case custom
+    }
 
-    private var answers: [XLCustomFunctionDefinition: Bool] = [:]
+    let name: String
 
-    /// Whether the application provides this function, probing the connection once per database.
+    init(definition: XLCustomFunctionDefinition, kind: Kind) {
+        // The name is always a plain SQL identifier, whatever the function's own name contains, and
+        // stays well under SQLite's 255-byte limit on function names. SQLite folds function names
+        // over ASCII, so the hash does too. A hash collision between two signatures used on one
+        // connection would skip an install, which surfaces as "no such function", never a crash.
+        let arity = definition.numberOfArguments < 0 ? "v" : String(definition.numberOfArguments)
+        let foldedName = sqliteASCIIFoldedFunctionName(definition.name)
+        self.name = "swiftql_installed_\(kind.rawValue)_\(arity)_\(Self.fnv1a64Hex(foldedName))"
+    }
+
+    /// Whether this marker exists on `database`'s physical connection.
     ///
-    /// - Parameters:
-    ///   - definition: The registration signature being considered.
-    ///   - probe: Reads the connection for a function of that name. Called at most once per
-    ///     definition, except in the harmless race where two connections probe at the same time
-    ///     and both observe the same pre-registration state.
-    func applicationProvides(
-        _ definition: XLCustomFunctionDefinition,
-        probe: () -> Bool
-    ) -> Bool {
-        lock.lock()
-        let cached = answers[definition]
-        lock.unlock()
-        if let cached {
-            return cached
+    /// - Throws: Any preparation failure other than SQLite's "no such function", which is the
+    ///   "not recorded" answer.
+    func isRecorded(in database: Database) throws -> Bool {
+        do {
+            _ = try database.cachedStatement(sql: "SELECT \(name)()")
+            return true
         }
-        let observed = probe()
-        lock.lock()
-        defer { lock.unlock() }
-        // First answer wins, so two concurrent probes cannot disagree later.
-        if let raced = answers[definition] {
-            return raced
+        catch let error as DatabaseError
+            where error.resultCode == .SQLITE_ERROR
+            && (error.message ?? "").hasPrefix("no such function")
+        {
+            return false
         }
-        answers[definition] = observed
-        return observed
+    }
+
+    /// Creates this marker on `database`'s physical connection.
+    func record(in database: Database) {
+        database.add(
+            function: DatabaseFunction(name, argumentCount: 0, pure: true) { _ in nil }
+        )
+    }
+
+    /// 64-bit FNV-1a over UTF-8, as lowercase hexadecimal. Stable across processes and platforms,
+    /// unlike `Hasher`, and needs no cryptography library on Linux.
+    private static func fnv1a64Hex(_ value: String) -> String {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in value.utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x0000_0100_0000_01b3
+        }
+        let digits = String(hash, radix: 16)
+        return String(repeating: "0", count: 16 - digits.count) + digits
     }
 }
 

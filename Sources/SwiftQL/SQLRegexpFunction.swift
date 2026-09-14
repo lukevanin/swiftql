@@ -53,8 +53,14 @@ import GRDB
 /// ## Cost
 ///
 /// SQLite calls the function once per candidate row and passes the pattern each
-/// time. Each registration keeps an `XLRegexpPatternCache`, so a statement
-/// compiles its pattern once and then only matches, however many rows it tests.
+/// time. The driver installs the function once per physical connection, and
+/// that installation keeps one `XLRegexpPatternCache`. While a pattern stays in
+/// that cache, the connection only matches with it, however many rows and
+/// statements test it. The cache keeps at most `XLRegexpPatternCache.capacity`
+/// compiled patterns and evicts the oldest first, so a connection that sees
+/// more distinct patterns than that -- for example, patterns read from a column
+/// or built from user input -- compiles an evicted pattern again the next time
+/// it appears.
 ///
 /// ## Replacing it
 ///
@@ -145,7 +151,7 @@ extension XLCustomFunctionRegistration {
     /// name and argument count, and every caller-supplied registration
     /// necessarily runs earlier — both ``GRDBDatabaseBuilder/addFunction(_:)``
     /// and `Configuration.prepareDatabase(_:)` run when a connection opens, and
-    /// this runs when a statement is prepared.
+    /// this runs before the first statement that needs it on a connection.
     ///
     /// The function is declared pure. Its result depends only on its two
     /// arguments, which lets SQLite hoist a call whose arguments do not change
@@ -155,8 +161,9 @@ extension XLCustomFunctionRegistration {
         definition: XLRegexpFunction.definition,
         defersToExistingRegistration: true,
         makeDatabaseFunction: {
-            // A fresh cache per registered function, so it belongs to the one
-            // connection this registration is about to be added to. See
+            // A fresh cache per registered function. The driver installs the
+            // function once per physical connection, so the cache belongs to
+            // that connection and lasts as long as the installation. See
             // `XLRegexpPatternCache` for why it is not process-wide.
             XLRegexpFunction.makeDatabaseFunction()
         }
