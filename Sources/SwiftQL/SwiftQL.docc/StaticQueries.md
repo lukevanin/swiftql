@@ -244,6 +244,11 @@ table APIs remain the v1 compatibility path. Their `XLLiteral` behavior,
 including `wrapSQL`, is unchanged. Contextual-only properties compile in
 generated metadata, but must use a static layout for value encoding and row
 decoding instead of the v1 `MetaInsert`/`MetaUpdate` and introspection path.
+`Values(row)` and `UpdateRequest.makeUpdate()` do not throw for such a
+property, but the statement they build is rejected: validated rendering
+and request execution throw
+`XLSQLValueEncodingError.contextualOnlyValueInLegacyWrite(valueType:)`
+before SQLite prepares it. See <doc:CustomTypes>.
 
 ## Select a nested composite property
 

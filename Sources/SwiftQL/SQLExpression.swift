@@ -253,7 +253,9 @@ extension XLColumnResult: XLStaticStorageRetypableExpression {
 /// Contextual-only values can now appear in generated table metadata, but
 /// they must use a static row layout for encoding. Existing `XLLiteral` /
 /// `XLExpression` values retain their original rendering behavior through
-/// this wrapper.
+/// this wrapper. A contextual-only value records
+/// ``XLSQLValueEncodingError/contextualOnlyValueInLegacyWrite(valueType:)``
+/// on the builder, so preparation throws instead of trapping (issue #651).
 public struct XLLegacyDynamicValueExpression<Value>: XLExpression {
     public typealias T = Value
 
@@ -265,9 +267,15 @@ public struct XLLegacyDynamicValueExpression<Value>: XLExpression {
 
     public func makeSQL(context: inout XLBuilder) {
         guard let expression = value as? any XLEncodable else {
-            preconditionFailure(
-                "\(String(reflecting: Value.self)) is a contextual-only SQL value. Encode it through XLStaticRowLayout instead of the v1 MetaInsert/MetaUpdate path."
+            context.valueEncodingFailed(
+                .contextualOnlyValueInLegacyWrite(
+                    valueType: String(reflecting: Value.self)
+                )
             )
+            // Keep the rendered statement well formed for builders that
+            // only inspect SQL text; the recorded error blocks execution.
+            context.null()
+            return
         }
         expression.makeSQL(context: &context)
     }
