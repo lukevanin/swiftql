@@ -301,18 +301,32 @@ class HugoInstallTests(unittest.TestCase):
             printf 'Darwin\n'
             """,
         )
+        # Serves the package only for the exact versioned release asset URL, so
+        # a wrong tag or asset name fails the download instead of passing.
+        expected_url = (
+            "https://github.com/gohugoio/hugo/releases/download/"
+            f"v{self.VERSION}/hugo_extended_withdeploy_{self.VERSION}"
+            "_darwin-universal.pkg"
+        )
         self.install_command(
             "curl",
-            r"""
+            rf"""
             #!/bin/sh
+            output=""
+            url=""
             while [ "$#" -gt 0 ]; do
-              if [ "$1" = --output ]; then
-                printf 'fake hugo package\n' > "$2"
-                exit 0
-              fi
-              shift
+              case "$1" in
+                --output) output="$2"; shift 2 ;;
+                --retry) shift 2 ;;
+                -*) shift ;;
+                *) url="$1"; shift ;;
+              esac
             done
-            exit 64
+            if [ -z "$output" ] || [ "$url" != '{expected_url}' ]; then
+              printf 'unexpected curl request: %s\n' "$url" >&2
+              exit 22
+            fi
+            printf 'fake hugo package\n' > "$output"
             """,
         )
         # Like `pkgutil --expand-full PACKAGE DESTINATION`, this refuses an
