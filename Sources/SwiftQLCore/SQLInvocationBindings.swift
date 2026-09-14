@@ -267,6 +267,12 @@ public enum XLInvocationBindingError: Error, Equatable, Sendable, LocalizedError
         case .conflictingParameterIndex(let index, let existing, let incoming):
             return "Logical parameter index \(index) is declared by both \(existing.key) and \(incoming.key)."
         case .conflictingParameterKey(let key, let existing, let incoming):
+            if existing == incoming {
+                // SwiftQL reports two automatically named bindings from
+                // unrelated schemas this way: the declarations are identical,
+                // but they are two different logical parameters.
+                return "Parameter \(key) is used by two different automatically named bindings from unrelated schemas, so they would share one value. Build the nested scope from the enclosing schema, for example with XLSchema(parent:), or give the bindings explicit names."
+            }
             return "Parameter \(key) has conflicting declarations at logical indices \(existing.index) and \(incoming.index)."
         case .conflictingPhysicalParameterIndex(let index, let existing, let incoming):
             return "Dialect parameter index \(index) aliases distinct logical parameters \(existing.key) and \(incoming.key)."

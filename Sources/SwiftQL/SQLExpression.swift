@@ -303,17 +303,28 @@ public protocol XLBindingReference<T>: XLExpression {
 /// A variable used in an expression that is referred to by a given name.
 ///
 public struct XLNamedBindingReference<T>: XLBindingReference, Sendable where T: XLLiteral {
-    
+
     /// The placeholder name emitted in SQL.
     public let name: XLName
-    
+
+    /// The allocation that named this reference automatically, or `nil` when
+    /// the caller chose the name. Two references with different origins must
+    /// not render the same placeholder.
+    let origin: XLBindingOrigin?
+
     /// Creates a named binding reference.
     ///
     /// - Parameter name: The placeholder name, without a leading colon.
     public init(name: XLName) {
         self.name = name
+        self.origin = nil
     }
-    
+
+    init(name: XLName, origin: XLBindingOrigin?) {
+        self.name = name
+        self.origin = origin
+    }
+
     public func makeSQL(context: inout XLBuilder) {
         T.wrapSQL(context: &context) { context in
             context.parameter(
@@ -323,7 +334,49 @@ public struct XLNamedBindingReference<T>: XLBindingReference, Sendable where T: 
                 )
             )
         }
+        // Check the origin after the parameter is recorded, so a declaration
+        // conflict (for example two different Swift types) keeps its real
+        // incoming slot, and only identical declarations reach the origin
+        // check.
+        if let origin, let recorder = context as? any XLBindingOriginRecording {
+            recorder.recordBindingOrigin(origin, key: .named(name.rawValue))
+        }
     }
+}
+
+
+///
+/// Identity of one parameter namespace.
+///
+/// Every binding reference that a namespace names automatically carries the
+/// namespace's scope, so the renderer can tell when two unrelated namespaces
+/// allocated the same placeholder name. A class gives the identity without
+/// process-global counters.
+///
+final class XLBindingScope: Sendable {
+}
+
+
+///
+/// The namespace allocation that named a binding reference automatically.
+///
+struct XLBindingOrigin: Sendable, Equatable {
+
+    let scope: XLBindingScope
+
+    static func == (lhs: XLBindingOrigin, rhs: XLBindingOrigin) -> Bool {
+        lhs.scope === rhs.scope
+    }
+}
+
+
+///
+/// A builder that reports automatically named binding references, so that two
+/// references from different namespaces that resolve to the same key are
+/// rejected at render time instead of being merged into one parameter.
+///
+protocol XLBindingOriginRecording {
+    func recordBindingOrigin(_ origin: XLBindingOrigin, key: XLBindingKey)
 }
 
 

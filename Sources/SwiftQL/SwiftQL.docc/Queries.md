@@ -472,6 +472,34 @@ everywhere means one name to remember.
 > on every supported toolchain. See COMPATIBILITY.md, "Swift 5.9 and Swift 6.0
 > API surface gaps".
 
+A subquery or common table body receives its own schema. When you build it
+from the enclosing schema -- `schema.subqueryExpression { ... }`,
+`schema.subquery { ... }`, `schema.nullableSubquery { ... }`,
+`schema.commonTable { ... }`, or `XLSchema(parent: schema)` -- the nested
+schema never assigns an automatic alias or common table name that the
+enclosing statement has already reserved, and its automatically named bindings
+continue the enclosing sequence. An explicit alias is used as given. An unnamed subquery joined to an enclosing table
+therefore gets its own alias, and an outer and an inner binding stay two
+parameters. The free functions that pass a schema to their closure --
+`subqueryExpression { schema in ... }`, `subquery { schema in ... }`,
+`nullableSubquery { schema in ... }`, and, on Swift 6.1 and later,
+`sql { schema in ... }` used as a subquery -- cannot see the enclosing schema,
+so that schema starts an independent scope: give such a subquery an explicit
+alias when it is joined to another source. The scalar forms whose closure takes
+no schema, `subqueryExpression { ... }` and `subquery { ... }`, create no
+schema; build their tables from the enclosing schema, as in the first example
+above, for a correlated subquery. The schema that `in { schema in ... }` and
+`notIn { schema in ... }` pass to their closure is also independent. For a
+correlated `in` or `notIn` query, use the closure form that takes no schema and
+build the inner tables from the enclosing schema, or create
+`XLSchema(parent: schema)` inside the closure. If two unrelated schemas name bindings with the same
+placeholder, rendering reports
+`XLInvocationBindingError.conflictingParameterKey` instead of merging the two
+values into one. SwiftQL does not check common table names in one `WITH`
+clause while it renders; SQLite rejects a duplicate name when it prepares the
+statement, and `xlValidateUniqueCommonTableAliases` checks a list before you
+build the statement.
+
 See the <doc:Expressions/In-operator> documentation for an example of using a
 subquery with the `in` operator.
 

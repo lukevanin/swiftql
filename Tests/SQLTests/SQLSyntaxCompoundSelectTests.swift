@@ -212,6 +212,148 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
         )
     }
 
+    /// #644: the same join without a hand-written alias. The subquery built
+    /// from the enclosing schema takes the next outer alias, and its body
+    /// skips both outer aliases, so no alias is ambiguous.
+    func testUnnamedNullableSubqueryOnLeftJoinUsesDistinctAliases() {
+        let schema = XLSchema()
+        let company = schema.table(CompanyTable.self)
+        let employees = schema.nullableSubquery { inner in
+            let e = inner.table(EmployeeTable.self)
+            return select(e).from(e)
+        }
+        let expression = select(company)
+            .from(company)
+            .leftJoin(employees, on: employees.companyId == company.id)
+        assertRenders(
+            expression,
+            as: "SELECT t0.id AS id, t0.name AS name FROM Company AS t0 LEFT JOIN (SELECT t2.id AS id, t2.name AS name, t2.companyId AS companyId, t2.managerEmployeeId AS managerEmployeeId FROM Employee AS t2) AS t1 ON (t1.companyId IS t0.id)"
+        )
+    }
+
+    /// #644: the expression-builder subquery methods on `XLSchema` take the
+    /// subquery alias from the enclosing schema and nest the body in it.
+    func testSchemaSubqueryExpressionFormsDeriveFromEnclosingSchema() {
+        let tableForm = sql { schema in
+            let outer = schema.table(TestTable.self)
+            let sub = schema.subqueryExpression { inner in
+                let u = inner.table(TestTable.self)
+                Select(u)
+                From(u)
+                Where(u.value > outer.value)
+            }
+            Select(sub)
+            From(sub)
+        }
+        assertRenders(
+            tableForm,
+            as: "SELECT t1.id AS id, t1.value AS value FROM (SELECT t2.id AS id, t2.value AS value FROM Test AS t2 WHERE (t2.value > t0.value)) AS t1"
+        )
+
+        // The expression builder has no LEFT JOIN component, so the join is
+        // spelled with the functional chain.
+        let nullableSchema = XLSchema()
+        let company = nullableSchema.table(CompanyTable.self)
+        let staff = nullableSchema.nullableSubqueryExpression { inner in
+            let e = inner.table(EmployeeTable.self)
+            Select(e)
+            From(e)
+        }
+        let nullableForm = select(company)
+            .from(company)
+            .leftJoin(staff, on: staff.companyId == company.id)
+        assertRenders(
+            nullableForm,
+            as: "SELECT t0.id AS id, t0.name AS name FROM Company AS t0 LEFT JOIN (SELECT t2.id AS id, t2.name AS name, t2.companyId AS companyId, t2.managerEmployeeId AS managerEmployeeId FROM Employee AS t2) AS t1 ON (t1.companyId IS t0.id)"
+        )
+
+        let scalarForm = sql { schema in
+            let outer = schema.table(TestTable.self)
+            let limit = schema.binding(of: Int.self)
+            Select(
+                TestColumns.columns(
+                    id: outer.id,
+                    value: schema.subqueryExpression { inner in
+                        let u = inner.table(TestTable.self)
+                        let floor = inner.binding(of: Int.self)
+                        Select(u.value.sumOrNull())
+                        From(u)
+                        Where((u.value > floor) && (u.value < limit))
+                    }
+                )
+            )
+            From(outer)
+        }
+        let scalarEncoding = encoder.makeSQL(scalarForm)
+        XCTAssertEqual(
+            scalarEncoding.sql,
+            "SELECT t0.id AS id, (SELECT SUM(t1.value) FROM Test AS t1 WHERE ((t1.value > :p1) AND (t1.value < :p0))) AS value FROM Test AS t0"
+        )
+        XCTAssertNil(scalarEncoding.parameterLayoutError)
+        XCTAssertEqual(scalarEncoding.parameterLayout.count, 2)
+    }
+
+    /// #644: an outer and an inner automatically named binding of the same
+    /// Swift type get two parameters instead of one shared `:p0`.
+    func testOuterAndInnerAutomaticBindingsUseDistinctParameters() {
+        let schema = XLSchema()
+        let outer = schema.binding(of: Int.self)
+        let expression = select(
+            schema.subquery { inner -> any XLQueryStatement<Int> in
+                let limit = inner.binding(of: Int.self)
+                return select(outer + limit)
+            }
+        )
+        let encoding = encoder.makeSQL(expression)
+        XCTAssertEqual(encoding.sql, "SELECT (SELECT (:p0 + :p1))")
+        XCTAssertNil(encoding.parameterLayoutError)
+        XCTAssertEqual(
+            encoding.parameterLayout.slots.map(\.key),
+            [.named("p0"), .named("p1")]
+        )
+    }
+
+    /// #644: bindings named automatically by two unrelated schemas both render
+    /// `:p0`. The renderer reports the collision instead of merging them.
+    func testAutomaticBindingsFromUnrelatedSchemasAreRejected() {
+        let outerSchema = XLSchema()
+        let outer = outerSchema.binding(of: Int.self)
+        let inner = XLSchema().binding(of: Int.self)
+        let encoding = encoder.makeSQL(select(outer + inner))
+        guard case .conflictingParameterKey(let key, _, _) = encoding.parameterLayoutError else {
+            return XCTFail("Expected conflictingParameterKey, received \(String(describing: encoding.parameterLayoutError))")
+        }
+        XCTAssertEqual(key, .named("p0"))
+        XCTAssertTrue(
+            encoding.parameterLayoutError?.errorDescription?.contains("XLSchema(parent:)") ?? false
+        )
+
+        // With two different Swift types, the declaration conflict is found
+        // first and keeps the real incoming slot.
+        let textBinding = XLSchema().binding(of: String.self)
+        let mixedTable = outerSchema.table(TestTable.self)
+        let mixed = encoder.makeSQL(
+            select(outer)
+                .from(mixedTable)
+                .where(mixedTable.id == textBinding)
+        )
+        switch mixed.parameterLayoutError {
+        case .conflictingParameterIndex(_, let existing, let incoming),
+             .conflictingParameterKey(_, let existing, let incoming):
+            XCTAssertEqual(existing.valueTypeName, "Swift.Int")
+            XCTAssertEqual(incoming.valueTypeName, "Swift.String")
+        default:
+            XCTFail("Expected a declaration conflict, received \(String(describing: mixed.parameterLayoutError))")
+        }
+        XCTAssertThrowsError(try encoder.makeValidatedSQL(select(outer + inner)))
+
+        // The same reference used twice is one parameter, not a collision.
+        let repeated = encoder.makeSQL(select(outer + outer))
+        XCTAssertNil(repeated.parameterLayoutError)
+        XCTAssertEqual(repeated.parameterLayout.count, 1)
+    }
+
+
     func testSelectSubqueryAggregate() {
         let s = XLSchema()
         let t = s.table(TestTable.self)

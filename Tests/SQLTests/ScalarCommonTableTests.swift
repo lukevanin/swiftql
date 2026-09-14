@@ -63,6 +63,42 @@ final class ScalarCommonTableTests: XCTestCase {
         )
     }
 
+    /// #644: a scalar common table body is nested in the enclosing schema, so
+    /// its table skips an alias that the enclosing statement already
+    /// reserved, and a scalar common table inside a common-table body skips
+    /// the outer common-table name.
+    func testScalarCommonTableBodyDoesNotReuseEnclosingNames() {
+        let schema = XLSchema()
+        let reserved = schema.table(NumberRow.self)
+        let cte = schema.scalarCommonTable(Int.self) { s in
+            let number = s.table(NumberRow.self)
+            return select(number.value).from(number)
+        }
+        let output = schema.table(cte)
+        let query = with(cte).select(output.value).from(output).crossJoin(reserved)
+        XCTAssertTrue(
+            encoder.makeSQL(query).sql.hasPrefix(
+                "WITH `cte0`(`value`) AS (SELECT `t1`.`value` FROM `Number` AS `t1`)"
+            ),
+            encoder.makeSQL(query).sql
+        )
+
+        let outer = schema.scalarCommonTable(Int.self) { body in
+            let inner = body.scalarCommonTable(Int.self) { s in
+                let number = s.table(NumberRow.self)
+                return select(number.value).from(number)
+            }
+            let value = body.table(inner)
+            return with(inner).select(value.value).from(value)
+        }
+        let outerOutput = schema.table(outer)
+        let nested = with(outer).select(outerOutput.value).from(outerOutput)
+        XCTAssertTrue(
+            encoder.makeSQL(nested).sql.hasPrefix("WITH `cte1`(`value`) AS (WITH `cte2`(`value`) AS"),
+            encoder.makeSQL(nested).sql
+        )
+    }
+
     // MARK: - Execution
 
     func testNonRecursiveScalarCommonTableExecutesAsInt() throws {

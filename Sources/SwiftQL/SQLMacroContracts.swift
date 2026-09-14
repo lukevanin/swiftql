@@ -204,15 +204,47 @@ public protocol XLTable: XLResult {
 /// they are requested.
 ///
 public class XLNamespace {
-    
+
     private var usedAliases: Set<String> = []
-    
+
     private var aliasCount = 0
-    
+
     public var nameFormat: String
-    
-    private init(nameFormat: String) {
+
+    /// The namespace of the enclosing scope, if any.
+    ///
+    /// An automatically assigned alias skips every alias reserved by an
+    /// ancestor, so a nested scope never shadows a name that its body can
+    /// reference. Aliases reserved in a nested scope are not added to the
+    /// ancestor, because a later name in the enclosing scope cannot be seen
+    /// inside the nested body.
+    private let parent: XLNamespace?
+
+    /// Identity shared by the binding references that this namespace names
+    /// automatically. See ``XLBindingOrigin``.
+    let bindingScope = XLBindingScope()
+
+    private init(nameFormat: String, parent: XLNamespace? = nil) {
         self.nameFormat = nameFormat
+        self.parent = parent
+    }
+
+    ///
+    /// Instantiates a namespace for a scope nested inside this one.
+    ///
+    /// The nested namespace uses the same name format and starts its own
+    /// sequence, but never assigns an alias that this namespace or one of its
+    /// ancestors has already reserved.
+    ///
+    func makeNestedNamespace() -> XLNamespace {
+        XLNamespace(nameFormat: nameFormat, parent: self)
+    }
+
+    private func isReserved(_ key: String) -> Bool {
+        if usedAliases.contains(key) {
+            return true
+        }
+        return parent?.isReserved(key) ?? false
     }
 
     ///
@@ -236,7 +268,7 @@ public class XLNamespace {
             let alias = XLName(String(format: nameFormat, aliasCount))
             aliasCount += 1
             let key = aliasKey(alias)
-            if !usedAliases.contains(key) {
+            if !isReserved(key) {
                 return alias
             }
             if !attemptedAliases.insert(key).inserted {
@@ -254,7 +286,7 @@ public class XLNamespace {
         while true {
             let alias = XLName("\(stem)\(suffix)")
             suffix += 1
-            if !usedAliases.contains(aliasKey(alias)) {
+            if !isReserved(aliasKey(alias)) {
                 return alias
             }
         }

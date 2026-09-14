@@ -303,7 +303,10 @@ final class XLSyntaxSelectTests: XLSyntaxTestCase {
         }
         let t = s.table(bar)
         let expression = with(bar).select(t).from(t)
-        assertRenders(expression, as: "WITH cte0 AS (WITH cte0 AS (SELECT t0.id AS id, t0.value AS value FROM Test AS t0) SELECT t0.id AS id, t0.value AS value FROM cte0 AS t0) SELECT t0.id AS id, t0.value AS value FROM cte0 AS t0")
+        // The body schema is nested in the outer one (#644), so the inner
+        // common table skips the reserved outer name `cte0` instead of
+        // shadowing it.
+        assertRenders(expression, as: "WITH cte0 AS (WITH cte1 AS (SELECT t0.id AS id, t0.value AS value FROM Test AS t0) SELECT t0.id AS id, t0.value AS value FROM cte1 AS t0) SELECT t0.id AS id, t0.value AS value FROM cte0 AS t0")
     }
     
     
