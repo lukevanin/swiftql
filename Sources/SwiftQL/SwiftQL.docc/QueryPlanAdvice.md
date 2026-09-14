@@ -21,11 +21,13 @@ The findings arrive as build warnings and in a JSON sidecar file. The
 checked-in SQL file.
 
 The findings are advice. A plan finding never changes a correctness verdict or
-the validator's exit status, so no finding can fail a build. The plan analysis
-configuration can still fail the run, the same as any other invalid input: the
-validator stops with an error when the suppression file cannot be read or is
-not valid, when `--plan-output` conflicts with another path, or when it cannot
-write the sidecar.
+the validator's exit status, so no finding can fail a build. Plan analysis can
+still fail the run in these cases, the same as any other invalid input:
+
+- The suppression file cannot be read or is not valid.
+- `--plan-output` conflicts with another path.
+- The validator cannot write the sidecar.
+- The pinned snapshot changes while candidates are verified.
 
 ## Turn on plan analysis
 
@@ -117,6 +119,14 @@ The two kinds do not pair up. A statement can have a diagnostic and no verified
 remedy. A verified recommendation can come from a statement that no diagnostic
 fired on.
 
+A third line appears only when verification could not set up a scratch copy
+for a candidate. It names the full cause, paths included, which the sidecar
+does not:
+
+```text
+<manifest>: warning: plan.scratch-setup-failed for <query ids>: <index name> is unverified because its scratch copy could not be set up: <cause>
+```
+
 The validator diagnoses four plan shapes:
 
 - `plan.full-table-scan`: SQLite reads every row of a table. This fires
@@ -192,11 +202,23 @@ declines to propose a candidate and records the reason in `declines`.
 To verify a candidate, the validator copies the snapshot to a fresh scratch
 file, creates the index on the copy, plans the statement that motivated it
 again, and applies the improvement rule. The pinned snapshot is never written.
-When the evaluation of a candidate completes, the validator checks that the
-original file is still byte-identical. If that check fails, or the evaluation
-throws an error before the check, that candidate is not recommended: the
-sidecar lists it in `unverified` with a reason that starts "Verification could
-not be completed". The scratch connection registers the same bundled SQL functions as
+The validator compares the byte count and SHA-256 of the original file after
+each candidate, even when that candidate's evaluation throws an error. It
+compares them once more at the end of the pass, against a baseline taken before
+the first candidate, so a change between two candidates is also caught. If the
+snapshot changed, nothing read from it can be trusted, and the run fails with a
+snapshot-changed error.
+
+Other failures do not fail the run. They put the candidate in `unverified`, and
+it is never recommended:
+
+- If the scratch copy cannot be set up, for example because the scratch
+  location is refused or the copy cannot be opened, the reason starts "The
+  scratch copy could not be set up". The reason in the sidecar never names a
+  path. The validator also prints a `plan.scratch-setup-failed` warning with
+  the full cause, so the build log says why no advice was produced.
+- If planning the statement or creating the index fails on the copy, the
+  reason starts "Verification could not be completed". The scratch connection registers the same bundled SQL functions as
 the validator's own connection, such as `REGEXP`, so a statement that uses one
 of them can be planned and verified.
 
