@@ -74,6 +74,13 @@ declared query like the others, with the search pattern passed to
 `regexp(_:)`. `TodoFilteredRead.swift` holds the same statement for the live
 query that observes it.
 
+**Bindings are checked by name at compile time.** A statement that is not a
+declared query — the observed reads and the edits in `TodoStore.swift` — takes
+its values in a binding packet. Each one declares its bindings as an
+`@SQLBindings` struct, so the statement reads typed references and the packet
+binds values under the same names. A misspelled name or a forgotten value does
+not compile.
+
 **Search is a regular expression, matched in SQLite.** v1.7 ships the `regexp`
 implementation SQLite lacks, so the list view's search is `REGEXP` rather than
 `LIKE`. The user's text is quoted character by character and travels as a bound

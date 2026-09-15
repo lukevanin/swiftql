@@ -16,7 +16,12 @@ import SwiftQL
 /// these statements, so at least the observed shape is the checked one.
 enum TodoLiveReads {
 
-    static let todoID = XLNamedBindingReference<TodoUUID>(name: "id")
+    /// The named binding of ``todoByID``. `@SQLBindings` gives it a typed
+    /// reference and builds the packet under the same name.
+    @SQLBindings
+    struct TodoByIDBindings {
+        var id: TodoUUID
+    }
 
     /// Mirrors `Query.todoLists()`.
     static var lists: any XLQueryStatement<TodoList> {
@@ -50,7 +55,7 @@ enum TodoLiveReads {
             let todo = schema.table(Todo.self)
             Select(todo)
             From(todo)
-            Where(todo.id == todoID)
+            Where(todo.id == TodoByIDBindings.id)
         }
     }
 }
@@ -62,15 +67,6 @@ extension TodoDatabase {
         _ id: TodoUUID,
         layout: XLParameterLayout
     ) throws -> XLInvocationBindings<XLSQLiteValue> {
-        guard let slot = layout.slot(for: .named("id")) else {
-            throw TodoStoreError.unknownParameter(
-                statement: "to-do by identifier",
-                name: "id"
-            )
-        }
-        return try XLInvocationBindings<XLSQLiteValue>(
-            layout: layout,
-            bindings: [try XLInvocationBinding(slot: slot, value: id.sqlValue)]
-        ).validatingComplete()
+        try TodoLiveReads.TodoByIDBindings(id: id).bindings(in: layout)
     }
 }

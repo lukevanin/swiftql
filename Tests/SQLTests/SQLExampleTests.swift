@@ -581,6 +581,14 @@ extension GRDBDatabase {
 }
 
 
+// Issue #663: the `@SQLBindings` example in `DeclaredQueries.md`.
+@SQLBindings
+struct PersonSearchBindings {
+    var name: String
+    var minimumAge: Int
+}
+
+
 /// The `static let` form `Expressions.md` recommends for an `XLRegexPattern`.
 /// The registry does not keep a pattern alive, so the documented example holds
 /// one here rather than in a local, and this test compiles what the page shows.
@@ -3345,6 +3353,25 @@ extension XLDocumentationTests {
     func testDocumentationDeclaredQueries() throws {
         XCTAssertEqual(try database.fetchPersonByExactName(name: "John Doe"), johnDoe)
         XCTAssertNil(try database.fetchPersonByExactName(name: "Nobody"))
+
+        // Issue #663: the `@SQLBindings` example.
+        let searchStatement = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(
+                person.name == PersonSearchBindings.name
+                && person.age >= PersonSearchBindings.minimumAge
+            )
+        }
+        let searchRequest = database.makeRequest(with: searchStatement)
+        let adults = try searchRequest.fetchAll(
+            bindings: PersonSearchBindings(name: "John Doe", minimumAge: 21)
+                .bindings(for: searchRequest)
+        )
+        XCTAssertEqual(adults, [johnDoe])
+        let _: (XLBindingsMacroExecutionTests) -> () throws -> Void =
+            XLBindingsMacroExecutionTests.testStatementThatDoesNotUseADeclaredBindingThrows
 
         let _: (XLQueryPeerMacroTests) -> () throws -> Void =
             XLQueryPeerMacroTests.testDirectResultOptionalExecutorFetchesSingleRow

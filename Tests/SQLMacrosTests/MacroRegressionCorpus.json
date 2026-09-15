@@ -409,6 +409,40 @@
           "test_case": "SQLQueryMacroExpansionTests.test_rewriter_leavesKeyPathComponentsAndCalleesUnchanged"
         }
       ]
+    },
+    {
+      "id": "macro.named-binding-packets",
+      "category": "named-binding-packets",
+      "title": "Typed named-binding packets for a statement value",
+      "description": "Issue #663: @SQLBindings turns each stored property of a struct into a typed XLNamedBindingReference for the statement and a packet builder that binds the property values under the same names. A misspelled reference, a misspelled value label, and a missing value fail to compile. A statement that does not use a declared binding, or that uses an undeclared one, throws when the packet is built. A property that cannot be a binding (static, lazy, computed, a tuple pattern, or no type annotation) gets a diagnostic at the property.",
+      "provenance": {
+        "inspiration": "n/a -- recorded from this repository's own issue #663, not adapted from an external case.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLBindingsMacroTests.swift",
+          "test_case": "SQLBindingsMacroExpansionTests.test_properties_generateTypedReferencesAndPacketBuilders / test_escapedPropertyName_usesUnescapedPlaceholderName / test_publicStruct_generatesPublicMembers"
+        },
+        {
+          "layer": "diagnostics",
+          "source_path": "Tests/SQLMacrosTests/SQLBindingsMacroTests.swift",
+          "test_case": "SQLBindingsMacroDiagnosticTests.test_staticProperty_emitsError / test_missingTypeAnnotation_emitsError / test_severalInvalidProperties_reportEveryOne"
+        },
+        {
+          "layer": "downstream-build",
+          "source_path": "scripts/ci/check-named-binding-packet-type-safety.sh",
+          "test_case": "NamedBindingPacketMisspelledReference / NamedBindingPacketMisspelledLabel / NamedBindingPacketMissingValue"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "Tests/SQLTests/SQLBindingsMacroExecutionTests.swift",
+          "test_case": "XLBindingsMacroExecutionTests.testPacketBindsEveryPropertyUnderItsOwnName / testWriteStatementWithReturningBindsPacket / testStatementThatDoesNotUseADeclaredBindingThrows"
+        }
+      ]
     }
   ]
 }

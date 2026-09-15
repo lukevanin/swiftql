@@ -744,6 +744,12 @@ jobs:
           cd "$SWIFTQL_SOURCE"
           scripts/ci/check-query-clause-ordering-type-safety.sh
 
+      - name: Check named binding packet type safety
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/check-named-binding-packet-type-safety.sh
+
       - name: Report SQLite runtime through GRDB
         env:
           EXPECTED_SQLITE_VERSION: ${{ matrix.sqlite_version }}

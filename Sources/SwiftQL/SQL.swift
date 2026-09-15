@@ -100,6 +100,26 @@ public macro SQLQuery() = #externalMacro(module: "SQLMacros", type: "SQLQueryMac
 public macro SQLQueries() = #externalMacro(module: "SQLMacros", type: "SQLQueriesMacro")
 
 ///
+/// Defines the `@SQLBindings` macro.
+///
+/// Issue #663: attach to a struct whose stored properties are the named
+/// bindings of a statement value. For each property the macro generates a
+/// static `XLNamedBindingReference` with the property's name and type, which
+/// the statement uses in place of a hand-written reference. It also generates
+/// `bindings(in:)` and `bindings(for:)`, which encode the property values into
+/// an immutable `XLInvocationBindings` packet for a parameter layout or a
+/// prepared request.
+///
+/// A misspelled binding name is a missing static member, and a missing value
+/// is a missing memberwise-initializer argument, so both fail to compile. A
+/// statement that does not use every declared binding, or that uses a binding
+/// the struct does not declare, still throws when the packet is built. See
+/// <doc:DeclaredQueries>.
+///
+@attached(member, names: arbitrary)
+public macro SQLBindings() = #externalMacro(module: "SQLMacros", type: "SQLBindingsMacro")
+
+///
 /// Defines the `@SQLFunction` macro.
 ///
 /// Attach to a struct which conforms to `XLCustomFunction` and declares one stored property per

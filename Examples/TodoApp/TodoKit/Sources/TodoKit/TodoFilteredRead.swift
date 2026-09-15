@@ -22,13 +22,23 @@ import SwiftQL
 /// hand-copied twin of it. Call ``TodoDatabase/todos(matching:)`` instead.
 public enum TodoFilteredRead {
 
-    static let listID = XLNamedBindingReference<TodoUUID>(name: "listID")
-    static let includesCompleted = XLNamedBindingReference<Bool>(name: "includesCompleted")
-    static let includesActive = XLNamedBindingReference<Bool>(name: "includesActive")
-    static let overdueOnly = XLNamedBindingReference<Bool>(name: "overdueOnly")
-    static let referenceDate = XLNamedBindingReference<TodoDate>(name: "referenceDate")
-    static let searchPattern = XLNamedBindingReference<String>(name: "searchPattern")
-    static let sortOrder = XLNamedBindingReference<Int>(name: "sortOrder")
+    /// The statement's named bindings.
+    ///
+    /// `@SQLBindings` gives each property a typed reference, which
+    /// ``statement`` reads, and builds the packet that binds the values under
+    /// the same names. A misspelled name or a forgotten value does not
+    /// compile. Until v1.9 the packet looked each slot up by a string, and a
+    /// typo was a runtime error (#663).
+    @SQLBindings
+    struct Bindings {
+        var listID: TodoUUID
+        var includesCompleted: Bool
+        var includesActive: Bool
+        var overdueOnly: Bool
+        var referenceDate: TodoDate
+        var searchPattern: String
+        var sortOrder: Int
+    }
 
     /// Search is `REGEXP`, which v1.7 made usable without the application
     /// registering anything: SwiftQL supplies the `regexp` implementation and
@@ -51,25 +61,25 @@ public enum TodoFilteredRead {
             Select(todo)
             From(todo)
             Where(
-                todo.listID == listID
-                && (todo.isCompleted == includesCompleted
-                    || todo.isCompleted != includesActive)
-                && (overdueOnly == false
-                    || (todo.dueAt < referenceDate
+                todo.listID == Bindings.listID
+                && (todo.isCompleted == Bindings.includesCompleted
+                    || todo.isCompleted != Bindings.includesActive)
+                && (Bindings.overdueOnly == false
+                    || (todo.dueAt < Bindings.referenceDate
                         && todo.isCompleted == false))
-                && (todo.title.regexp(searchPattern)
-                    || todo.notes.regexp(searchPattern))
+                && (todo.title.regexp(Bindings.searchPattern)
+                    || todo.notes.regexp(Bindings.searchPattern))
             )
             OrderBy(
-                (sortOrder == TodoSort.dueDate.rawValue).iif(
+                (Bindings.sortOrder == TodoSort.dueDate.rawValue).iif(
                     then: todo.dueAt ?? TodoDate.distantFuture,
                     else: TodoDate.distantFuture
                 ).ascending(),
-                (sortOrder == TodoSort.priority.rawValue).iif(
+                (Bindings.sortOrder == TodoSort.priority.rawValue).iif(
                     then: todo.priority,
                     else: TodoPriority.low
                 ).descending(),
-                (sortOrder == TodoSort.manual.rawValue).iif(
+                (Bindings.sortOrder == TodoSort.manual.rawValue).iif(
                     then: todo.position,
                     else: 0
                 ).ascending(),
@@ -85,47 +95,14 @@ public enum TodoFilteredRead {
         layout: XLParameterLayout
     ) throws -> XLInvocationBindings<XLSQLiteValue> {
         let flags = query.filter.flags
-        return try XLInvocationBindings<XLSQLiteValue>(
-            layout: layout,
-            bindings: [
-                try binding(layout, "listID", query.listID.sqlValue),
-                try binding(layout, "includesCompleted", .boolean(flags.includesCompleted)),
-                try binding(layout, "includesActive", .boolean(flags.includesActive)),
-                try binding(layout, "overdueOnly", .boolean(flags.overdueOnly)),
-                try binding(layout, "referenceDate", query.referenceDate.sqlValue),
-                try binding(layout, "searchPattern", .text(query.searchPattern)),
-                try binding(layout, "sortOrder", .integer(Int64(query.sort.rawValue))),
-            ]
-        ).validatingComplete()
-    }
-
-    private static func binding(
-        _ layout: XLParameterLayout,
-        _ name: String,
-        _ value: XLSQLiteValue
-    ) throws -> XLInvocationBinding<XLSQLiteValue> {
-        guard let slot = layout.slot(for: .named(name)) else {
-            throw TodoFilteredReadError.unknownParameter(name)
-        }
-        return try XLInvocationBinding(slot: slot, value: value)
-    }
-}
-
-enum TodoFilteredReadError: Error, LocalizedError {
-
-    case unknownParameter(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .unknownParameter(let name):
-            return "The filtered-to-do query has no parameter named \(name)."
-        }
-    }
-}
-
-private extension XLSQLiteValue {
-
-    static func boolean(_ value: Bool) -> XLSQLiteValue {
-        .integer(value ? 1 : 0)
+        return try Bindings(
+            listID: query.listID,
+            includesCompleted: flags.includesCompleted,
+            includesActive: flags.includesActive,
+            overdueOnly: flags.overdueOnly,
+            referenceDate: query.referenceDate,
+            searchPattern: query.searchPattern,
+            sortOrder: query.sort.rawValue
+        ).bindings(in: layout)
     }
 }

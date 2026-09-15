@@ -125,6 +125,59 @@ the pinned scope, not the original database — pass it to `makeRequest(with:)`
 for any operation the closure needs beyond the container's own declared
 queries.
 
+## Named bindings for a statement value
+
+A declared query binds its parameters for you. Some statements are not
+declared queries: a write with `RETURNING`, or a read that a live query
+observes through its request. Such a statement uses named bindings, and each
+call needs a packet of values.
+
+Attach `@SQLBindings` to a struct with one stored property for each named
+binding. The macro generates a static typed reference for each property, which
+the statement uses, and `bindings(for:)` and `bindings(in:)`, which build the
+immutable `XLInvocationBindings` packet from the property values:
+
+<!-- test: XLDocumentationTests.testDocumentationDeclaredQueries -->
+```swift
+@SQLBindings
+struct PersonSearchBindings {
+    var name: String
+    var minimumAge: Int
+}
+
+let searchStatement = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    Where(
+        person.name == PersonSearchBindings.name
+        && person.age >= PersonSearchBindings.minimumAge
+    )
+}
+let searchRequest = database.makeRequest(with: searchStatement)
+let adults = try searchRequest.fetchAll(
+    bindings: PersonSearchBindings(name: "John Doe", minimumAge: 21)
+        .bindings(for: searchRequest)
+)
+```
+
+The property is the only place the binding's name and type are written:
+
+- A misspelled reference, such as `PersonSearchBindings.nmae`, is a missing
+  static member, so it does not compile.
+- A missing value or a misspelled value label is a memberwise-initializer
+  error, so it does not compile either.
+- The packet binds each value under its property name. `nil` in an optional
+  property is a present SQL `NULL`, not a missing binding.
+- The packet is still checked against the request's parameter layout. If the
+  statement does not use a declared binding, building the packet throws
+  `XLInvocationBindingError.parameterDeclarationNotInLayout`. If the statement
+  uses a binding that the struct does not declare, it throws
+  `XLInvocationBindingError.missingBindings`.
+
+Pass the packet to `fetchAll(bindings:)`, `fetchOne(bindings:)`,
+`execute(bindings:)`, a packet-backed publisher, or an `XLObservableQuery`.
+
 ## Render-once caching
 
 The generated executor does not render SQL on every call. Each declaration

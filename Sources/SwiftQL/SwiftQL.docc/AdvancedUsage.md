@@ -49,6 +49,11 @@ packet-backed publisher. Creating a request translates the SwiftQL statement
 into SQL but does not prepare it immediately. On execution, GRDB obtains a
 cached SQLite statement for that SQL on the connection performing the work.
 
+For a statement with named bindings, `@SQLBindings` generates both the typed
+references the statement uses and the packet for each call, so a binding name
+is checked at compile time. See "Named bindings for a statement value" in
+<doc:DeclaredQueries>.
+
 ## Dialect and driver responsibilities
 
 The SQLite dialect defines how SwiftQL renders valid SQLite syntax, including
