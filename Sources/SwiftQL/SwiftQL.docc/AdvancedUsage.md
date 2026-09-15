@@ -285,9 +285,9 @@ try database.withTransaction { scope in
 
 The guarantees:
 
-- **One render, one preparation.** The SQL text is the same for every row, so
-  GRDB's per-connection statement cache prepares it once per connection. A
-  100-row batch renders once and prepares once.
+- **One render, one preparation.** The call renders the statement once and
+  prepares it once, on the connection that runs the rows. A 100-row batch
+  renders once and prepares once.
 - **One connection, one unit.** On a transaction scope the rows run inside a
   savepoint in that scope's transaction. When a row fails, the savepoint rolls
   back every row of the call and the error is thrown. Writes the body made
@@ -297,10 +297,10 @@ The guarantees:
 - **The sequence is read inside the connection access.** Elements are produced
   one at a time after the scope is checked. An escaped scope throws before a
   lazy sequence produces anything, and it throws for an empty sequence too.
-- **No statement outlives its connection.** SwiftQL keeps only the rendered SQL
-  and its parameter layout between rows. The prepared statement stays owned by
-  the connection, and the call does not keep it past its connection access. A
-  batch on an escaped scope throws `.scopeEscaped`, and a batch on the root
+- **No statement outlives its connection.** The prepared statement is a local
+  value of the call. It is used only inside the call's connection access, on
+  the connection that prepared it, and it is dropped before the call returns.
+  A batch on an escaped scope throws `.scopeEscaped`, and a batch on the root
   database from inside an active body throws `.nestedTransactionUnsupported`,
   as every other request does.
 - **The same stored values and errors as `sqlInsert(_:)`.** A row whose values
