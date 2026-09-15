@@ -148,6 +148,29 @@ final class MetaPropertyBindingWalkTests: XCTestCase {
         XCTAssertEqual(diagnosticIDs(diagnostics), ["immutable-initial-value"])
     }
 
+    /// Issue #665: a `var` keeps its initial value, which the generated
+    /// initializer offers as the parameter's default. The value is kept as
+    /// source text, never evaluated.
+    func testAMutableBindingKeepsItsInitialValueAsTheDefault() throws {
+        let columns = try resolve(
+            "var title: String = Defaults.title(for: 1)",
+            mutability: .mutable
+        )
+
+        XCTAssertEqual(columns.map(\.name), ["title"])
+        XCTAssertEqual(columns.map(\.defaultValueExpression), ["Defaults.title(for: 1)"])
+    }
+
+    /// Only the binding that carries the initial value has a default. In
+    /// `var a, b: Int = 1` the annotation carries back to `a`, but the value
+    /// does not.
+    func testAnInitialValueDefaultsOnlyItsOwnBinding() throws {
+        let columns = try resolve("var a, b: Int = 1", mutability: .mutable)
+
+        XCTAssertEqual(columns.map(\.name), ["a", "b"])
+        XCTAssertEqual(columns.map(\.defaultValueExpression), [nil, "1"])
+    }
+
     /// Backticks let a reserved word name a property. They stay in the Swift
     /// name and are stripped from the SQL name.
     func testABacktickedNameKeepsItsBackticksAndLosesThemInSQL() throws {

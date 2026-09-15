@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.9.0] - Unreleased
+
+### Fixed
+
+- **A `@SQLTable` or `@SQLResult` property default now applies** (issue #665,
+  recorded on #469). The generated memberwise initializer gives a `var`
+  property with an initial value a default for its parameter, so a call can
+  leave that property out. Before this change, the initializer ignored the
+  initial value and required the argument. The default refers to a generated
+  `@usableFromInline` static accessor that returns the initial value. Thus a
+  `public` model whose initial value refers to a `private` member still
+  compiles. The change is source compatible: every existing call passes every
+  argument and so still compiles. The value is a Swift default only and does
+  not add a SQL `DEFAULT` clause. A `let` property with an initial value is
+  still an error, because the initializer cannot assign it. The diagnostic
+  now says that the value cannot be used as a default. The to-do demo gives
+  `Todo.checklist` its default again.
+
 ## [1.8.1] - 2026-09-15
 
 v1.8.1 is a correctness and safety patch for the 1.8 line. It removes process
