@@ -66,6 +66,11 @@ jobs:
       - name: Run source coverage reporting fixtures
         run: python3 scripts/ci/test-source-coverage-report.py
 
+      # Runs on pull requests so a new target outside the coverage config
+      # fails before the merge, not in the post-merge coverage job.
+      - name: Check source coverage target membership
+        run: python3 scripts/ci/check-source-target-membership.py
+
       - name: Run Swift compatibility workflow fixtures
         run: python3 scripts/ci/test-swift-compatibility-workflow.py
 
@@ -1050,23 +1055,14 @@ jobs:
           IntegrationTests/BuildValidationPluginFixture/verify.sh
 
       # make-docs.sh builds Website/blog with Hugo as part of the site, so this
-      # job needs it for the same reason documentation-build.yml does.
+      # job needs it for the same reason documentation-build.yml does, and
+      # installs the same pinned, checksum-verified release (#611).
       - name: Install Hugo
         if: ${{ matrix.swift_series == '6.0' && matrix.resolution == 'committed' }}
         run: |
           set -euo pipefail
-          # The runner image ships a preinstalled hugo, and `brew install` is a
-          # no-op when the formula is already present, so it never upgrades and
-          # the version is whatever the assigned image happens to carry. Update
-          # the formula index and upgrade explicitly, so the pinned version in
-          # make-docs.sh is the version actually installed. Both commands
-          # tolerate failure -- already-installed and already-current are both
-          # non-fatal -- because make-docs.sh's exact-version gate is what
-          # decides, and it fails closed.
-          brew update
-          brew install hugo || true
-          brew upgrade hugo || true
-          hugo version
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/install-hugo.sh "$RUNNER_TEMP/hugo"
 
       - name: Build and inspect DocC static site
         if: ${{ matrix.swift_series == '6.0' && matrix.resolution == 'committed' }}

@@ -23,10 +23,10 @@ introduction to SQL, see the
 Add the latest published SwiftQL package to your dependencies:
 
 ```text
-.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.8.0")
+.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.8.1")
 ```
 
-Version 1.8.0 is the published package. This guide's basic request path remains
+Version 1.8.1 is the published package. This guide's basic request path remains
 supported in v1.3, and its static-query and contextual-codec APIs remain
 available from version 1.2.0 or later. Pin a source revision only when
 intentionally testing later changes from `main`.
@@ -238,6 +238,15 @@ keeps returning `nil` rather than throwing. `close()` itself is idempotent and
 never throws, whether called once, more than once, or after natural
 exhaustion -- but calling it does mean every later `next()` throws `.closed`
 from that point on, rather than continuing to return `nil`.
+
+To run another request while a result set is open, open the result set on the
+scope of `withTransaction(_:)` (see "Grouping work in a transaction" below),
+and issue the nested request on that same scope. The nested request then runs
+on the connection the result set already holds, and it can even repeat the
+same query with different bindings without disturbing the outer rows. Do not
+issue a nested request on the root `database` inside a `withResultSet(_:)`
+callback: that request asks the pool for a second database access from inside
+the first, which GRDB does not allow and which can stop the process.
 
 Prefer `fetchAll()` when every row is needed as a complete, retained array, or
 when the array-processing conveniences (`map`, `filter`, `count`, sorting, ...)

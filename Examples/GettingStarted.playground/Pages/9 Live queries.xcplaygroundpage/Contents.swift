@@ -29,21 +29,13 @@ let engineersRequest = database.makeRequest(with: engineersQuery)
  A playground page runs its top-level code to the end and then finishes, so a
  page that starts an observation and stops has nothing to show. It has to wait.
 
- How it waits matters. The GRDB adapter starts its observation with GRDB's
- default scheduling, which delivers on the main queue, so a page that blocks
- the main thread waiting for a snapshot deadlocks: the snapshot it is waiting
- for needs the thread it is holding. `runMainLoop(until:)` below drives the
- main run loop instead of blocking it, which lets those deliveries through.
+ This page waits with a semaphore. That is safe because a stream never needs
+ the main thread: the GRDB adapter fetches on a database reader and hands each
+ snapshot to the stream from a private queue of its own.
 
- None of this is needed in an application, where an observation lives in a
- `Task` owned by a view model and nothing waits on the main thread.
+ An application does not wait like this. There, an observation lives in a
+ `Task` owned by a view model.
  */
-func runMainLoop(until finished: DispatchSemaphore, timeout: TimeInterval = 10) {
-    let deadline = Date().addingTimeInterval(timeout)
-    while finished.wait(timeout: .now()) == .timedOut, Date() < deadline {
-        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-    }
-}
 
 /*:
  ## Observing a result set
@@ -80,7 +72,7 @@ let observer = Task {
     finished.signal()
 }
 
-runMainLoop(until: finished)
+_ = finished.wait(timeout: .now() + 10)
 observer.cancel()
 /*:
  Prints:
@@ -163,7 +155,7 @@ let rowObserver = Task {
     oneFinished.signal()
 }
 
-runMainLoop(until: oneFinished)
+_ = oneFinished.wait(timeout: .now() + 10)
 rowObserver.cancel()
 /*:
  Prints:

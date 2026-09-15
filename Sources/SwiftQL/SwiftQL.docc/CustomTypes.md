@@ -438,12 +438,25 @@ way an explicit `XLValueCodecSelection` fails elsewhere in this
 document -- with the same `XLValueCodecError` cases, at the same "explicit"
 precedence tier, before any row is touched.
 
+A column whose type needs a contextual codec, such as `filedAt: Date`, cannot
+be written through the v1 generated write helpers. `Values(row)`,
+`sqlInsert(row)`, and `UpdateRequest.makeUpdate()` carry no codec context.
+These helpers and `makeRequest(with:)` do not throw, but validated rendering
+and request execution reject the statement they build and throw
+`XLSQLValueEncodingError.contextualOnlyValueInLegacyWrite(valueType:)` before
+SQLite sees it. The macro cannot detect this at compile time, because a
+read-only table with the same column is valid. Encode the row through its
+`staticRowLayout(using:...)` instead, and bind the encoded values to the
+`INSERT` or `UPDATE` statement.
+
 ## JSON `Codable` columns
 
 SQLite has no native JSON column type. It stores JSON as `TEXT` or `BLOB`
-bytes, and SwiftQL does not drive SQLite's `json1` functions, validate JSON,
-or create generated/indexed columns on the caller's behalf: those remain the
-application's or a future issue's responsibility. `XLJSONValueCodec` is a
+bytes. SwiftQL exposes SQLite's JSON functions and operators as typed
+expressions, including `validJSONOrNull()` to check that a value is
+well-formed; <doc:JSON> covers that surface. This section covers the other
+half: decoding a whole column into a Swift value. SwiftQL does not create
+generated or indexed columns on the caller's behalf. `XLJSONValueCodec` is a
 factory, built on the same contextual codec API described above, that
 converts an application `Codable` value to and from one of those two storage
 representations. It stores no `JSONEncoder`/`JSONDecoder` instance globally

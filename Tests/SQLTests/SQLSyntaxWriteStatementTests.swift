@@ -231,7 +231,9 @@ final class XLSyntaxWriteStatementTests: XLSyntaxTestCase {
             .from(s)
             .where(t.id == s.id)
         let result = encoder.makeSQL(expression)
-        XCTAssertEqual(result.sql, "UPDATE Temp AS t0 SET value = ((t0.value || ' ') || t1.name) FROM (SELECT t0.id AS id, t0.name AS name FROM Company AS t0) AS t1 WHERE (t0.id == t1.id)")
+        // The `from` body is nested in the outer schema (#644), so its table
+        // skips the outer aliases `t0` and `t1` instead of shadowing them.
+        XCTAssertEqual(result.sql, "UPDATE Temp AS t0 SET value = ((t0.value || ' ') || t1.name) FROM (SELECT t2.id AS id, t2.name AS name FROM Company AS t2) AS t1 WHERE (t0.id == t1.id)")
         XCTAssertTrue(result.entities.contains("Temp"))
     }
     

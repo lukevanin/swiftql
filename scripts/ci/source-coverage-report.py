@@ -332,7 +332,7 @@ def build_report(
 
     selected: Dict[str, Mapping[str, Any]] = {}
     excluded = Counter()
-    unexpected_target_paths: List[str] = []
+    untracked_target_paths: List[str] = []
     for raw_file in raw_files:
         relative = repository_relative_path(raw_file["filename"], repository_root)
         if relative in owner_by_path:
@@ -340,17 +340,23 @@ def build_report(
                 raise CoverageError(f"duplicate first-party coverage entry: {relative}")
             selected[relative] = raw_file
             continue
+        # Target membership (a tracked source outside every configured root) is
+        # checked on pull requests by check-source-target-membership.py. This
+        # guard only rejects coverage for a file inside a configured root that
+        # git does not track, which would make the report depend on the tree.
         if (
             relative is not None
-            and relative.startswith("Sources/")
+            and any(
+                relative.startswith(root + "/") for root in roots_by_target.values()
+            )
             and not in_documentation_catalog(relative)
         ):
-            unexpected_target_paths.append(relative)
+            untracked_target_paths.append(relative)
         excluded[excluded_category(relative)] += 1
-    if unexpected_target_paths:
+    if untracked_target_paths:
         raise CoverageError(
-            "coverage reported untracked files inside target roots: "
-            + ", ".join(sorted(set(unexpected_target_paths)))
+            "coverage reported files inside target roots that git does not track: "
+            + ", ".join(sorted(set(untracked_target_paths)))
         )
 
     target_reports: Dict[str, Any] = {}

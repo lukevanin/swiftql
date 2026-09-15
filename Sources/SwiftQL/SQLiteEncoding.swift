@@ -95,6 +95,34 @@ private final class XLiteDialectRequirementRecorder {
 
     private var largestPhysicalIndex = 0
 
+    private var bindingOriginByKey: [XLBindingKey: XLBindingOrigin] = [:]
+
+    /// Rejects two automatically named binding references from different
+    /// namespaces that resolve to the same key. Without this check the
+    /// recorder reuses the first slot, and both references share one value.
+    ///
+    /// The collision is reported as
+    /// ``XLInvocationBindingError/conflictingParameterKey(key:existing:incoming:)``
+    /// so that the public error enum keeps its cases. Both slots are the slot
+    /// that the first reference recorded, because the two declarations are
+    /// identical and only their origins differ.
+    func recordBindingOrigin(_ origin: XLBindingOrigin, key: XLBindingKey) {
+        guard let existingOrigin = bindingOriginByKey[key] else {
+            bindingOriginByKey[key] = origin
+            return
+        }
+        guard existingOrigin != origin,
+              parameterLayoutError == nil,
+              let slot = parameterLayout.slot(for: key) else {
+            return
+        }
+        parameterLayoutError = .conflictingParameterKey(
+            key: key,
+            existing: slot,
+            incoming: slot
+        )
+    }
+
     func recordValueEncodingError(_ error: XLSQLValueEncodingError) {
         if valueEncodingError == nil {
             valueEncodingError = error
@@ -233,6 +261,8 @@ private protocol XLiteParameterRecordingFormatter: XLFormatter {
     func formatParameter(_ declaration: XLParameterDeclaration) -> String
 
     func recordValueEncodingError(_ error: XLSQLValueEncodingError)
+
+    func recordBindingOrigin(_ origin: XLBindingOrigin, key: XLBindingKey)
 }
 
 
@@ -308,6 +338,10 @@ private struct XLiteRequirementRecordingFormatter: XLiteParameterRecordingFormat
 
     func recordValueEncodingError(_ error: XLSQLValueEncodingError) {
         recorder.recordValueEncodingError(error)
+    }
+
+    func recordBindingOrigin(_ origin: XLBindingOrigin, key: XLBindingKey) {
+        recorder.recordBindingOrigin(origin, key: key)
     }
 }
 
@@ -414,8 +448,24 @@ final class XLiteCustomFunctionRegistry {
 
     private(set) var registrations: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:]
 
+    /// Records `registration`, keeping what earlier registrations of the same
+    /// signature retain.
+    ///
+    /// The latest registration still decides which registration the statement
+    /// carries, as before. Registrations that share a signature are
+    /// interchangeable, and the driver installs a signature once per
+    /// connection, so this choice does not pick the implementation a
+    /// connection runs. Its retained values are merged rather than replaced, so a
+    /// statement that matches two ``XLRegexPattern`` values keeps both alive,
+    /// not only the last one rendered.
     func insert(_ registration: XLCustomFunctionRegistration) {
-        registrations[registration.definition] = registration
+        guard let existing = registrations[registration.definition] else {
+            registrations[registration.definition] = registration
+            return
+        }
+        registrations[registration.definition] = registration.retaining(
+            existing.retainedValues
+        )
     }
 }
 
@@ -506,6 +556,18 @@ public struct XLiteBuilder: XLBuilder {
     }
 
     public mutating func text(_ value: String) {
+        // SQLite reads a text literal only up to the first NUL, so a value
+        // that contains U+0000 cannot render faithfully (issue #657). Report
+        // it without an invalid token, as `real(_:)` does for NaN.
+        if value.utf8.contains(0) {
+            valueEncodingFailed(
+                .nulCharacterInText(
+                    valueType: String(reflecting: String.self),
+                    context: nil
+                )
+            )
+            return
+        }
         append(formatter.text(value))
     }
 
@@ -667,6 +729,18 @@ public struct XLiteBuilder: XLBuilder {
         builder(&columnsBuilder)
         let tableName = formatter.scopedName(name.components.map { $0.rawValue })
         append("CREATE TABLE IF NOT EXISTS " + tableName + " (" + columnsBuilder.build() + ")")
+    }
+}
+
+
+extension XLiteBuilder: XLBindingOriginRecording {
+
+    func recordBindingOrigin(_ origin: XLBindingOrigin, key: XLBindingKey) {
+        guard let recordingFormatter =
+                formatter as? any XLiteParameterRecordingFormatter else {
+            return
+        }
+        recordingFormatter.recordBindingOrigin(origin, key: key)
     }
 }
 

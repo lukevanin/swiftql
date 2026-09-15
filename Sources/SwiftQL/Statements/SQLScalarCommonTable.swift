@@ -125,7 +125,7 @@ extension XLSchema {
         statement: (XLSchema) -> any XLQueryStatement<Value>
     ) -> XLScalarCommonTable<Value> where Value: XLLiteral {
         let cteAlias = commonTableNamespace.makeAlias(alias: alias)
-        let bodySchema = XLSchema()
+        let bodySchema = XLSchema(parent: self)
         let dependency = XLCommonTableDependency(
             alias: cteAlias,
             statement: statement(bodySchema),
@@ -150,7 +150,7 @@ extension XLSchema {
         statement: (XLSchema, XLScalarCommonTableReference<Value>) -> any XLQueryStatement<Value>
     ) -> XLScalarCommonTable<Value> where Value: XLLiteral {
         let cteAlias = commonTableNamespace.makeAlias(alias: alias)
-        let bodySchema = XLSchema()
+        let bodySchema = XLSchema(parent: self)
         var draft = XLRecursiveCommonTableDraft(
             alias: cteAlias,
             layout: XLScalarRecursiveCommonTableLayout<Value>(schema: bodySchema, columnAlias: column)

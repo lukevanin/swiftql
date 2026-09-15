@@ -42,6 +42,12 @@ do {
         if !advisorySummary.isEmpty {
             writeStandardError(advisorySummary)
         }
+        // Lines that belong in the log but in neither artifact -- a scratch
+        // copy that could not be set up, with the paths that explain why.
+        let warningSummary = result.warningSummary(origin: resolved.manifestURL.path)
+        if !warningSummary.isEmpty {
+            writeStandardError(warningSummary)
+        }
         exit(result.exitCode)
     }
 } catch {

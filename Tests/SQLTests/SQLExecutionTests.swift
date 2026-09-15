@@ -110,6 +110,27 @@ final class XLExecutionTests: XCTestCase {
         )
     }
 
+    /// #644: an outer and an inner automatically named binding of the same
+    /// Swift type are two parameters with two values. Before the fix both
+    /// rendered `:p0`, so the last value set replaced the first.
+    func testOuterAndInnerAutomaticBindingsKeepTwoValues() throws {
+        let schema = XLSchema()
+        let outer = schema.binding(of: Int.self)
+        var inner: XLNamedBindingReference<Int>!
+        let statement = select(
+            schema.subquery { nested -> any XLQueryStatement<Int> in
+                let innerBinding = nested.binding(of: Int.self)
+                inner = innerBinding
+                return select(outer - innerBinding)
+            }
+        )
+        var request = database.makeRequest(with: statement)
+        XCTAssertEqual(request.parameterLayout.count, 2)
+        request.set(outer, 7)
+        request.set(inner, 5)
+        XCTAssertEqual(try request.fetchOne(), 2)
+    }
+
     func testNestedUnaryOperatorExecution() throws {
         let x = XLNamedBindingReference<Int>(name: "x")
         let doubleNegation = sql { _ in
@@ -175,6 +196,70 @@ final class XLExecutionTests: XCTestCase {
             var request = database.makeRequest(with: statement)
             request.set(value, expected)
             XCTAssertEqual(try request.fetchOne(), expected)
+        }
+    }
+
+    /// #657: GRDB binds text with the length -1, so SQLite reads a bound value
+    /// only up to its first NUL. Before the fix `"a\0b"` came back as `"a"`.
+    /// The request now rejects the value before SQLite sees it.
+    func testBoundTextWithNulIsRejectedInsteadOfTruncated() throws {
+        let value = XLNamedBindingReference<String>(name: "value")
+        let statement = sql { _ in Select(value) }
+        var rejected = database.makeRequest(with: statement)
+        rejected.set(value, "a\0b")
+
+        XCTAssertThrowsError(try rejected.fetchOne()) { error in
+            XCTAssertEqual(
+                error as? XLSQLValueEncodingError,
+                .nulCharacterInText(
+                    valueType: String(reflecting: String.self),
+                    context: XLValueCodingContext(
+                        site: .parameter,
+                        path: XLValueCodingPath("value")
+                    )
+                )
+            )
+        }
+
+        var accepted = database.makeRequest(with: statement)
+        accepted.set(value, "a b ü 🧪")
+        XCTAssertEqual(try accepted.fetchOne(), "a b ü 🧪")
+    }
+
+    /// #657: a compound whose right-hand branch has LIMIT fails in the request
+    /// before SQLite prepares it. The table does not need to exist, because
+    /// the failure comes before preparation.
+    func testCompoundBranchWithLimitFailsBeforeSQLitePreparation() {
+        let schema = XLSchema()
+        let left = schema.table(TestTable.self)
+        let right = schema.table(TestTable.self)
+        let statement = select(left.id).from(left).unionAll { () -> any XLQueryStatement<String> in
+            select(right.id).from(right).limit(1)
+        }
+        XCTAssertThrowsError(
+            try database.makeRequest(with: statement).fetchAll() as [String]
+        ) { error in
+            XCTAssertEqual(
+                error as? XLSQLValueEncodingError,
+                .unsupportedCompoundBranchClause(compoundOperator: "UNION ALL", clause: "LIMIT")
+            )
+        }
+    }
+
+    /// #657: an inline text literal with U+0000 fails before SQLite prepares
+    /// the statement.
+    func testInlineTextWithNulFailsBeforeSQLitePreparation() {
+        let statement = sql { _ in Select("a\0b") }
+        XCTAssertThrowsError(
+            try database.makeRequest(with: statement).fetchOne()
+        ) { error in
+            XCTAssertEqual(
+                error as? XLSQLValueEncodingError,
+                .nulCharacterInText(
+                    valueType: String(reflecting: String.self),
+                    context: nil
+                )
+            )
         }
     }
 

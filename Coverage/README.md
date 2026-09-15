@@ -38,14 +38,42 @@ generated files. `scripts/ci/source-coverage-report.py` includes only tracked
 `.swift` files found under the target roots declared in
 `scripts/ci/source-coverage-config.json`:
 
+- `Sources/SQLMacros`
 - `Sources/SwiftQL`
 - `Sources/SwiftQLCore`
-- `Sources/SQLMacros`
+- `Sources/SwiftQLSQLiteBuildValidationManifest`
+- `Sources/SwiftQLSQLiteBuildValidationValidator`
+- `Sources/SwiftQLSQLiteIndexAdvisor`
 
 Tests, temporary fixtures, benchmarks, package checkouts, build products, and
 generated macro expansion files therefore cannot contribute to the reported
 first-party totals. Fixture tests inject each excluded category and verify that
 the totals and manifest remain unchanged.
+
+## Target membership
+
+Every tracked `.swift` file under `Sources/` must sit inside one of those target
+roots or inside an `excluded_source_roots` entry of the same config. An excluded
+root records a directory the coverage test binary never links, with the reason.
+The two executable targets are excluded this way:
+
+- `Sources/SwiftQLSQLiteBuildValidationValidatorCLI`
+- `Sources/SwiftQLSQLiteIndexAdvisorCLI`
+
+`scripts/ci/check-source-target-membership.py` enforces this rule. It needs only
+`git ls-files` and the config, so the Linux `Release tooling fixtures` job runs it
+on every pull request. A pull request that adds a new target without a config
+entry therefore fails before the merge, not in the post-merge coverage job. The
+check also fails when an excluded root no longer holds a tracked Swift file.
+
+Run it locally with:
+
+```bash
+python3 scripts/ci/check-source-target-membership.py
+```
+
+The coverage report itself no longer checks membership. It still rejects LLVM
+coverage for a file inside a configured root that git does not track.
 
 Swift files inside a `.docc` catalog are excluded as well, even though they sit
 under a configured target root. SwiftPM copies a documentation catalog as a
@@ -56,6 +84,7 @@ checks each snapshot against the compiled walkthrough it was cut from, which is
 where their type checking comes from.
 
 LLVM does not currently report executable regions for `Sources/SwiftQL/SQL.swift`,
+`Sources/SwiftQL/SQLRowMacro.swift`, `Sources/SwiftQL/SQLRowResult.swift`,
 `Sources/SwiftQL/SQLScalarResult.swift`, or the import-only
 `Sources/SwiftQL/SwiftQLCore.swift` compatibility shim. They are explicit
 exceptions in the configuration. Any other production source missing from LLVM

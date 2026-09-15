@@ -57,7 +57,7 @@ extension XLSchema {
     ///
     public func fromExpression<T>(as alias: XLName? = nil, @XLQueryExpressionBuilder statement: (XLSchema) -> any XLQueryStatement<T>) -> T.MetaNamedResult where T: XLTable {
         let alias = tableNamespace.makeAlias(alias: alias)
-        let schema = XLSchema()
+        let schema = XLSchema(parent: self)
         let dependency = XLUpdateFromTableDependency(alias: alias, statement: statement(schema))
         return T.makeSQLAnonymousNamedResult(namespace: tableNamespace, dependency: dependency)
     }

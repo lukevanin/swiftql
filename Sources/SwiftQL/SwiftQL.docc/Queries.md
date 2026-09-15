@@ -55,9 +55,38 @@ including typed <doc:Expressions/Between-operators> predicates.
 ## Join
 
 The ability to join tables in a query is where relational databases really start 
-to shine. SwiftQL supports cross join, inner join, and left (outer) join. 
+to shine. SwiftQL supports the join kinds in the table below. The fluent
+statement API has a matching method for each one, such as `rightJoin(_:on:)`,
+`fullOuterJoin(_:on:)`, `naturalJoin(_:)`, and `innerJoin(_:using:)`. SQLite
+also accepts a right or full outer join with `USING` or `NATURAL`; SwiftQL has
+no spelling for those, so write the constraint with `on:` instead.
 
-> Note: SwiftQL does not currently support right joins or full outer joins.
+| Join | SwiftQL | Nullable table | Needs |
+| --- | --- | --- | --- |
+| `CROSS JOIN` | `Join.Cross(occupation)` | none | any SQLite 3 |
+| `INNER JOIN ... ON` | `Join.Inner(occupation, on: ...)` | none | any SQLite 3 |
+| `INNER JOIN ... USING` | `Join.Inner(occupation, using: "id")` | none | any SQLite 3 |
+| `NATURAL JOIN` | `Join.Natural(occupation)` | none | any SQLite 3 |
+| `LEFT JOIN ... ON` | `Join.Left(occupation, on: ...)` | the joined table | any SQLite 3 |
+| `LEFT JOIN ... USING` | `Join.Left(occupation, using: "id")` | the joined table | any SQLite 3 |
+| `NATURAL LEFT JOIN` | `Join.NaturalLeft(occupation)` | the joined table | any SQLite 3 |
+| `RIGHT JOIN ... ON` | `Join.Right(occupation, on: ...)` | the `From` table | SQLite 3.39.0 |
+| `FULL OUTER JOIN ... ON` | `Join.FullOuter(occupation, on: ...)` | both tables | SQLite 3.39.0 |
+
+A table that an outer join can leave unmatched is declared with
+`schema.nullableTable(_:)`, so its columns decode as optionals. The compiler
+checks the joined table: `Join.Left`, `Join.NaturalLeft`, and `Join.FullOuter`
+only accept a nullable table. It cannot check the `From` table, so declare it
+nullable yourself for a right or full outer join.
+
+A `USING` join matches the named columns, which must exist in both tables, and
+SQLite merges each one into a single output column. A `NATURAL` join matches
+every column the two tables share by name, and takes no constraint.
+
+> Important: `RIGHT JOIN` and `FULL OUTER JOIN` need SQLite 3.39.0 or later.
+> SwiftQL renders the SQL either way; an older SQLite refuses the statement.
+> Apple's platforms ship the system SQLite, so its version follows the OS
+> rather than the application.
 
 First let's define an `Occupation` table that we can join to our `Person` table:
 
@@ -472,6 +501,34 @@ everywhere means one name to remember.
 > on every supported toolchain. See COMPATIBILITY.md, "Swift 5.9 and Swift 6.0
 > API surface gaps".
 
+A subquery or common table body receives its own schema. When you build it
+from the enclosing schema -- `schema.subqueryExpression { ... }`,
+`schema.subquery { ... }`, `schema.nullableSubquery { ... }`,
+`schema.commonTable { ... }`, or `XLSchema(parent: schema)` -- the nested
+schema never assigns an automatic alias or common table name that the
+enclosing statement has already reserved, and its automatically named bindings
+continue the enclosing sequence. An explicit alias is used as given. An unnamed subquery joined to an enclosing table
+therefore gets its own alias, and an outer and an inner binding stay two
+parameters. The free functions that pass a schema to their closure --
+`subqueryExpression { schema in ... }`, `subquery { schema in ... }`,
+`nullableSubquery { schema in ... }`, and, on Swift 6.1 and later,
+`sql { schema in ... }` used as a subquery -- cannot see the enclosing schema,
+so that schema starts an independent scope: give such a subquery an explicit
+alias when it is joined to another source. The scalar forms whose closure takes
+no schema, `subqueryExpression { ... }` and `subquery { ... }`, create no
+schema; build their tables from the enclosing schema, as in the first example
+above, for a correlated subquery. The schema that `in { schema in ... }` and
+`notIn { schema in ... }` pass to their closure is also independent. For a
+correlated `in` or `notIn` query, use the closure form that takes no schema and
+build the inner tables from the enclosing schema, or create
+`XLSchema(parent: schema)` inside the closure. If two unrelated schemas name bindings with the same
+placeholder, rendering reports
+`XLInvocationBindingError.conflictingParameterKey` instead of merging the two
+values into one. SwiftQL does not check common table names in one `WITH`
+clause while it renders; SQLite rejects a duplicate name when it prepares the
+statement, and `xlValidateUniqueCommonTableAliases` checks a list before you
+build the statement.
+
 See the <doc:Expressions/In-operator> documentation for an example of using a
 subquery with the `in` operator.
 
@@ -540,6 +597,23 @@ let query = sql { schema in
 is similar except duplicate rows are excluded. SQLite does not guarantee the
 order of compound-query rows unless the compound statement has an `OrderBy`
 clause.
+
+Each branch after the first must be a plain select: it cannot have `With`,
+`OrderBy`, `Limit`, or `Offset`, and it cannot be a compound itself. SQLite
+applies `ORDER BY`, `LIMIT`, and `OFFSET` to the whole compound, it does not
+accept `WITH` after a compound operator, and it reads `a EXCEPT b UNION c` as
+`(a EXCEPT b) UNION c`. Apply those clauses after the last branch, put `With`
+before the first branch, and chain compound operators instead of nesting them.
+For example, limit a recursive common table with
+`select(seed).unionAll { select(step).from(this) }.limit(10)`, not with `limit`
+inside the closure. Both spellings render the same SQL.
+
+In the functional syntax, a branch such as
+`union { select(row).from(table).orderBy(...) }` compiles, because the compound
+methods accept any query statement, but it is checked when the statement
+renders: the request fails with
+`XLSQLValueEncodingError.unsupportedCompoundBranchClause` before SQLite
+prepares it.
 
 The `Except` operator returns the results from the first query that are not also 
 in the second query, which is to say that the row is omitted if it is returned 

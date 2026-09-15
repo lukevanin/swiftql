@@ -45,11 +45,15 @@ and a rename leads the compiler to every query affected.
 | SQL | SwiftQL |
 | --- | --- |
 | `SELECT *` | `Select(person)` |
-| `SELECT a, b` | `Select(#row(person.name, occupation.name))` or a `@SQLResult` projection |
+| `SELECT a, b` | `Select(#row(person.name, occupation.name))` (Swift 6.1 and later) or a `@SQLResult` projection; a one-column `#row` works on every supported toolchain |
 | `FROM t` | `From(person)` |
 | `INNER JOIN t ON x` | `Join.Inner(occupation, on: occupation.id == person.occupationId)` |
 | `LEFT JOIN t ON x` | `Join.Left(occupation, on: ...)` with `schema.nullableTable(...)` |
 | `CROSS JOIN t` | `Join.Cross(occupation)` |
+| `JOIN t USING (c)` / `LEFT JOIN t USING (c)` | `Join.Inner(occupation, using: "id")` / `Join.Left(occupation, using: "id")` |
+| `NATURAL JOIN t` / `NATURAL LEFT JOIN t` | `Join.Natural(occupation)` / `Join.NaturalLeft(occupation)` |
+| `RIGHT JOIN t ON x` | `Join.Right(occupation, on: ...)` with the `FROM` table from `schema.nullableTable(...)` (SQLite 3.39.0) |
+| `FULL OUTER JOIN t ON x` | `Join.FullOuter(occupation, on: ...)` with both tables from `schema.nullableTable(...)` (SQLite 3.39.0) |
 | `WHERE x` | `Where(person.age > 21)` |
 | `GROUP BY x` | `GroupBy(person.occupationId)` |
 | `HAVING x` | `Having(row.numberOfPeople >= 2)` |
@@ -58,9 +62,11 @@ and a rename leads the compiler to every query affected.
 | `OFFSET n` | `Offset(10)` |
 | `UNION` | `Union()` |
 | `UNION ALL` | `UnionAll()` |
+| `INTERSECT` | `Intersect()` |
+| `EXCEPT` | `Except()` |
 | `WITH name AS (...)` | `schema.commonTableExpression { ... }` plus `With(cte)` |
 | `WITH RECURSIVE name AS (...)` | `schema.recursiveCommonTableExpression(Row.self) { schema, this in ... }` plus `With(cte)` |
-| `(SELECT ...)` as a value or source | `subqueryExpression { ... }` |
+| `(SELECT ...)` as a value or source | `subqueryExpression { ... }`, or `sql { ... }` on Swift 6.1 and later |
 | `x IN (SELECT ...)` | `org.name.in(cte)` |
 | `COUNT(x)` | `person.id.count()` |
 | `MIN(x)` / `MAX(x)` / `SUM(x)` | `person.age.minOrNull()` / `.maxOrNull()` / `.sumOrNull()` |
@@ -88,6 +94,13 @@ and a rename leads the compiler to every query affected.
 
 Read statements take their table from `schema.table(_:)`. Write statements take
 theirs from `schema.into(_:)`.
+
+In a compound query, `OrderBy`, `Limit`, and `Offset` follow the last branch,
+because SQLite applies them to the whole compound, and `With` comes before the
+first branch. In the functional syntax, a branch after the first that carries
+one of those clauses, or that is itself a compound, fails when the statement
+renders: write `select(seed).unionAll { select(step).from(this) }.limit(10)`,
+not `limit(10)` inside the closure.
 
 ## Worked ports
 
@@ -293,7 +306,7 @@ checking:
 4. **Outer-joined tables are declared nullable at the source**, via
    `schema.nullableTable`, rather than only being nullable in the result.
 
-Beyond those, the current gaps are recorded rather than hidden. As of the v1.7
+Beyond those, the current gaps are recorded rather than hidden. As of the v1.8.1
 conformance inventory, of 117 tracked features, 113 are supported with evidence
 from a real SQLite engine, and the exceptions are:
 

@@ -257,6 +257,12 @@ recommendation can come from a statement no diagnostic fired on. The to-do
 demo (#484) had six of the latter, and an earlier design that appended DDL to
 diagnostic lines alone made every one of them invisible in a build log.
 
+A third line, `plan.scratch-setup-failed`, appears only when verification
+could not set up a scratch copy for a candidate — for example a refused
+scratch location. It names the full cause, paths included, which the sidecar
+deliberately does not, so a verification pass that produced no advice says
+why in the build log instead of passing silently.
+
 They are warnings rather than fixits because a fixit is unreachable here. A
 SwiftPM build-tool plugin emits diagnostics, not fixits. A Swift fixit would
 have to come from a macro, and a macro cannot open a database without breaking

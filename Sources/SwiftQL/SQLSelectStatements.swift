@@ -52,10 +52,15 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
     /// than surfacing an opaque `try!` crash. This matches `Returning.init(_:)`.
     ///
     /// A static row layout belongs to the ``XLStaticRowReadable`` overload
-    /// above, which skips the replay. Erasing such a layout to
-    /// `any XLRowReadable` selects this initializer instead, so the diagnostic
-    /// names that overload as the remedy.
+    /// above, which skips the replay. A generic caller that sees a layout only
+    /// as `XLRowReadable` reaches this initializer instead, so it checks for a
+    /// static layout at run time and uses the same non-replaying path.
     public init<T>(_ meta: T) where T: XLRowReadable, T.Row == Row {
+        if let layout = meta as? any XLStaticRowReadable {
+            self.fields = layout
+            self.row = meta.readRow
+            return
+        }
         let reader = XLColumnsDefinitionRowReader()
         do {
             _ = try meta.readRow(reader: reader)
@@ -65,10 +70,7 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
                 "SELECT projection \(String(reflecting: T.self)) could not "
                 + "enumerate its columns: \(error). Use a table or @SQLResult "
                 + "projection whose columns render against the definition "
-                + "reader. A static row layout must instead reach the "
-                + "XLStaticRowReadable overload of Select(_:), which skips "
-                + "this replay; erasing the layout to any XLRowReadable "
-                + "selects this initializer."
+                + "reader, or a static row layout."
             )
         }
         self.fields = reader
@@ -135,6 +137,10 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
 
     private let row: (XLRowReader) throws -> Row
 
+    /// The first clause of the right-hand branch that SQLite would apply to
+    /// the whole compound, or that it does not accept after the operator.
+    private let unsupportedBranchClause: String?
+
     ///
     /// Combines two branches, preserving the first branch's existing row reader.
     ///
@@ -148,19 +154,68 @@ internal struct BooleanClause<Row>: XLEncodable, XLRowReadable {
         self.lhs = lhs
         self.rhs = rhs
         self.row = lhs.readRow
+        self.unsupportedBranchClause = Self.unsupportedClause(inBranch: rhs)
     }
-    
-    public func makeSQL(context: inout XLBuilder) {
-        let op: String
+
+    /// Finds a `WITH`, `ORDER BY`, `LIMIT`, or `OFFSET` clause in a right-hand
+    /// branch, or a right-hand branch that is itself a compound (issue #657).
+    ///
+    /// The compound methods accept any `XLQueryStatement`, so that callers who
+    /// pass an erased statement keep compiling. The check therefore runs here,
+    /// and the compound reports the clause when it renders, before SQLite
+    /// prepares the statement. Only the branch's own top-level clauses are
+    /// read: a subquery or common table inside the branch may have its own.
+    ///
+    /// A nested compound is rejected because SQLite groups compound operators
+    /// from the left: `a EXCEPT (b UNION c)` would render as
+    /// `a EXCEPT b UNION c`. Its first branch could also carry a `WITH` list.
+    private static func unsupportedClause(inBranch branch: any XLEncodable) -> String? {
+        guard let components = branch as? XLQueryStatementComponents<Row> else {
+            return nil
+        }
+        if !components.commonTables.isEmpty {
+            return "WITH"
+        }
+        for component in components.components {
+            if let nested = component as? BooleanClause<Row> {
+                return nested.operatorKeyword
+            }
+            if component is OrderBy {
+                return "ORDER BY"
+            }
+            if component is Limit {
+                return "LIMIT"
+            }
+            if component is Offset {
+                return "OFFSET"
+            }
+        }
+        return nil
+    }
+
+    /// The SQL keyword of this compound operator.
+    var operatorKeyword: String {
         switch kind {
         case .union:
-            op = "UNION"
+            return "UNION"
         case .unionAll:
-            op = "UNION ALL"
+            return "UNION ALL"
         case .intersect:
-            op = "INTERSECT"
+            return "INTERSECT"
         case .except:
-            op = "EXCEPT"
+            return "EXCEPT"
+        }
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        let op = operatorKeyword
+        if let unsupportedBranchClause {
+            context.valueEncodingFailed(
+                .unsupportedCompoundBranchClause(
+                    compoundOperator: op,
+                    clause: unsupportedBranchClause
+                )
+            )
         }
         context.binaryOperator(op, left: lhs.makeSQL, right: rhs.makeSQL(context:))
     }

@@ -335,12 +335,27 @@ therefore gets its own disposable copy:
   in the system temporary directory the OS reclaims, never in the source
   tree.
 - Afterwards, the pinned snapshot's byte count and SHA-256 are compared to
-  what they were before. A difference is an error, not a warning.
+  what they were before. A difference is an error, not a warning: the
+  verifier rethrows `snapshotChangedDuringVerification`, and the run fails
+  with that named error. The comparison runs even when a candidate's
+  verification throws, and once more for the whole pass against a baseline
+  taken before the first candidate, so a change between two candidates is
+  caught as well.
+- A scratch copy that cannot be set up — a refused location, a temporary
+  directory that cannot be created, a copy that cannot be opened — does not
+  fail the run. Its candidate is reported unverified with a path-free reason,
+  and the validator prints one `plan.scratch-setup-failed` warning per such
+  candidate, with the full description, so the build log says why no advice
+  was produced. The sidecar never carries the path.
 - **One copy per candidate**, so one candidate's index can never change the
   plan another is judged by.
 
 The connection is a `DatabaseQueue` this pass opens and closes. Verification
-never runs against an application connection or a long-lived pool.
+never runs against an application connection or a long-lived pool. It
+registers the same bundled functions as the correctness connection (such as
+`regexp`) before the before-plan is captured, because SQLite resolves a
+function name at preparation and a statement using `REGEXP` would otherwise
+fail to plan on the copy.
 
 ### The improvement rule
 
@@ -399,7 +414,11 @@ silently is indistinguishable from one that was never generated, and the reason
 it failed is often the more useful half of the answer.
 
 A candidate that could not be verified at all is likewise reported unverified.
-It is never recommended.
+It is never recommended. When the cause is the scratch copy itself rather than
+the statement, the reason says so without naming a path, and a
+`plan.scratch-setup-failed` warning in the build log names the full cause. The
+one failure that is not a reason at all is a pinned snapshot that changed
+during verification: that fails the run.
 
 ### Still advisory
 
@@ -430,6 +449,17 @@ swiftql-index-advisor --plan-report plans.json \
 
 `--apply` requires `--output`, so the command can only ever write to a path
 the invocation named. No flag, no write.
+
+Two more guards stand before the write (#649). `--output` may not identify the
+same file as `--plan-report` — by path, through a symlink, or as a hard link —
+using the validator's own `SQLiteBuildValidationOutputSafetyPreflight`, shared
+through `package` access rather than public API. And an existing output whose
+first line does not carry the generated header is refused, because byte
+equality alone only proves a no-op and says nothing about who wrote the file.
+`--force` replaces such a file once, for migrating a hand-written one; it does
+not lift the sidecar-alias refusal. The validator applies the same identity
+checks to `--plan-suppressions`, so neither `--output` nor `--plan-output` can
+overwrite the checked-in suppression file.
 
 ### Why this is not an Xcode fixit
 

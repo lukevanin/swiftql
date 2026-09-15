@@ -26,30 +26,41 @@ import RegexBuilder
 /// back to the `Regex` when SQLite calls it.
 ///
 /// ```swift
-/// let leadingA = XLRegexPattern {
-///     Anchor.startOfSubject
-///     "A"
-///     ZeroOrMore(.any)
-///     "n"
-///     Anchor.endOfSubject
+/// enum PersonPatterns {
+///     static let leadingA = XLRegexPattern {
+///         Anchor.startOfSubject
+///         "A"
+///         ZeroOrMore(.any)
+///         "n"
+///         Anchor.endOfSubject
+///     }
 /// }
 ///
 /// let statement = sql { schema in
 ///     let person = schema.table(Person.self)
 ///     Select(person)
 ///     From(person)
-///     Where(person.name.regexp(leadingA))
+///     Where(person.name.regexp(PersonPatterns.leadingA))
 /// }
 /// ```
 ///
 /// ## Ownership
 ///
-/// The registry does **not** keep your pattern alive. Hold the
-/// ``XLRegexPattern`` -- in a `static let`, or a stored property -- for as long
-/// as statements using it can still execute. A pattern that has been released
-/// leaves its key unresolvable, and executing a statement that carries it
-/// raises ``XLRegexpFunctionError/unregisteredPattern(key:)`` naming the key,
-/// rather than silently matching nothing.
+/// The registry does **not** keep your pattern alive. A statement that matches
+/// against the pattern does, and so does every request made from that
+/// statement, so a statement stays executable for as long as you hold it or a
+/// request made from it.
+///
+/// Hold the ``XLRegexPattern`` itself -- in a `static let`, or a stored
+/// property -- when more than one statement uses it. One pattern is one
+/// registration and one compiled `Regex`, where a pattern built inside a
+/// function builds both again on every call.
+///
+/// Only the `regexp(_:)` overload that takes the pattern keeps it alive. A
+/// ``key`` passed on as a string holds nothing: once the pattern is released,
+/// the key is unresolvable, and executing a statement that carries it raises
+/// ``XLRegexpFunctionError/unregisteredPattern(key:)`` naming the key, rather
+/// than silently matching nothing.
 ///
 /// Weak ownership is deliberate. Retaining every pattern would leak one entry
 /// for every pattern an application ever builds, and evicting from a bounded

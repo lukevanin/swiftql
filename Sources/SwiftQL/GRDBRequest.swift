@@ -30,16 +30,21 @@ struct GRDBRequest<Row>: XLRequest {
     
     let reader: any XLRowReadable<Row>
 
-    /// A `RETURNING` statement writes as it reads, so its rows must be decoded
-    /// on a write connection inside a transaction; a plain query reads on a
-    /// read-only connection. Observation is unsupported in the write mode
-    /// because re-running a data-changing statement on every database change is
-    /// never the intended behavior.
+    /// A `RETURNING` statement changes the database, and a pooled reader
+    /// connection is read-only, so every fetch of its rows -- `fetchAll`,
+    /// `fetchOne`, `fetchAtMost`, and `withResultSet` -- runs in a transaction
+    /// on the writer connection (issue #643). SQLite applies all of the
+    /// statement's changes during its first step; the later steps only return
+    /// the `RETURNING` rows. A plain query reads on a read-only connection.
+    /// Observation is unsupported in the write mode because re-running a
+    /// data-changing statement on every database change is never the intended
+    /// behavior.
     let requiresWriteConnection: Bool
 
     let liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy
 
-    let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
+    /// `nil` waits on each observation's own private serial queue (issue #652).
+    let liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler?
 
     /// Bindings set through the v1 mutable `set(parameter:value:)` facade.
     var legacyBindings: GRDBLegacyBindingAccumulator
@@ -55,7 +60,7 @@ struct GRDBRequest<Row>: XLRequest {
         requiresWriteConnection: Bool = false,
         customFunctions: [XLCustomFunctionDefinition: XLCustomFunctionRegistration] = [:],
         liveQueryRetryPolicy: GRDBLiveQueryRetryPolicy,
-        liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler
+        liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler?
     ) {
         self.requiresWriteConnection = requiresWriteConnection
         self.executor = GRDBInvocationExecutor(
@@ -86,5 +91,41 @@ struct GRDBRequest<Row>: XLRequest {
 
     public mutating func set<T>(parameter reference: XLNamedBindingReference<T>, value: T) where T: XLBindable {
         legacyBindings.set(value, named: reference.name)
+    }
+}
+
+
+extension GRDBRequest {
+
+    /// This request, bound to `driver` instead of the driver it was built for
+    /// (issue #642).
+    ///
+    /// Keeps everything rendering produced -- the SQL, the parameter layout,
+    /// the row reader, the recorded functions and errors -- and replaces only
+    /// what names a connection: the driver, and the database identifier the
+    /// logical statement is validated against. Bindings set through the v1
+    /// `set(parameter:value:)` facade are not carried over; a render-once
+    /// request is value-free.
+    func rebound(to driver: GRDBDatabaseDriver) -> GRDBRequest<Row> {
+        let statement = executor.logicalStatement
+        return GRDBRequest(
+            driver: driver,
+            codingConfiguration: codingConfiguration,
+            logger: logger,
+            reader: reader,
+            logicalStatement: XLLogicalPreparedStatement(
+                databaseIdentifier: driver.databaseIdentifier,
+                dialectRequirement: statement.dialectRequirement,
+                sql: statement.sql,
+                entities: statement.entities,
+                parameterLayout: statement.parameterLayout
+            ),
+            parameterLayoutError: executor.parameterLayoutError,
+            valueEncodingError: executor.valueEncodingError,
+            requiresWriteConnection: requiresWriteConnection,
+            customFunctions: executor.customFunctions,
+            liveQueryRetryPolicy: liveQueryRetryPolicy,
+            liveQueryRetryScheduler: liveQueryRetryScheduler
+        )
     }
 }

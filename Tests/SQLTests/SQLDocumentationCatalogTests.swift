@@ -184,7 +184,9 @@ final class SQLDocumentationCatalogTests: XCTestCase {
 
         XCTAssertEqual(
             Set(articleURLs.map(\.lastPathComponent)),
-            Set(expectedMarkerByFile.keys).union(sourceExcerptArticles),
+            Set(expectedMarkerByFile.keys)
+                .union(sourceExcerptArticles)
+                .union(commandReferenceArticles),
             "Update the documentation example registry when the source catalog changes."
         )
         XCTAssertEqual(
@@ -198,7 +200,8 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         )
 
         for articleURL in articleURLs.sorted(by: { $0.path < $1.path })
-        where !sourceExcerptArticles.contains(articleURL.lastPathComponent) {
+        where !sourceExcerptArticles.contains(articleURL.lastPathComponent)
+            && !commandReferenceArticles.contains(articleURL.lastPathComponent) {
             let contents = try String(contentsOf: articleURL, encoding: .utf8)
             try assertExampleCoverage(
                 in: contents,
@@ -232,6 +235,171 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     /// differently because the code lives somewhere this target cannot reach.
     private var sourceExcerptArticles: Set<String> {
         ["TodoDemo.md"]
+    }
+
+    /// Articles that document command-line tools and file formats rather than
+    /// Swift API, so they carry no Swift examples to compile.
+    ///
+    /// `QueryPlanAdvice.md` describes `swiftql-build-validate`'s plan options,
+    /// the build-tool plugin's opt-in file, and `swiftql-index-advisor`. Its
+    /// examples are shell invocations and JSON, and the drift check that fits
+    /// them is against the option parsers: every option the parsers accept must
+    /// appear in the article.
+    private var commandReferenceArticles: Set<String> {
+        ["QueryPlanAdvice.md"]
+    }
+
+    func testCommandReferenceArticlesCarryNoSwiftExamples() throws {
+        for article in commandReferenceArticles.sorted() {
+            let contents = try String(
+                contentsOf: try documentationCatalogURL().appendingPathComponent(article),
+                encoding: .utf8
+            )
+            var insideFence = false
+            for (offset, line) in contents.components(separatedBy: .newlines).enumerated() {
+                let lineNumber = offset + 1
+                if insideFence {
+                    if line == "```" {
+                        insideFence = false
+                    }
+                    continue
+                }
+                XCTAssertFalse(
+                    line.hasPrefix("<!-- test:"),
+                    "\(article):\(lineNumber) has a test marker but no Swift example to map it to."
+                )
+                guard line.hasPrefix("```") else {
+                    continue
+                }
+                let language = String(line.dropFirst(3))
+                XCTAssertTrue(
+                    ["sql", "text"].contains(language),
+                    "\(article):\(lineNumber) has code-fence language '\(language)'. A command reference article uses sql or text."
+                )
+                insideFence = true
+            }
+            XCTAssertFalse(insideFence, "\(article) has an unterminated code fence.")
+        }
+    }
+
+    /// Every option the validator and the index advisor parse is named in the
+    /// plan advice article, with the plugin's file names, so an option added to
+    /// either command cannot ship undocumented.
+    func testQueryPlanAdviceNamesEveryPlanOptionAndFile() throws {
+        let root = try repositoryRootURL()
+        let article = try String(
+            contentsOf: try documentationCatalogURL().appendingPathComponent("QueryPlanAdvice.md"),
+            encoding: .utf8
+        )
+        let optionPattern = try NSRegularExpression(pattern: #""(--[a-z-]+)""#)
+
+        /// Every quoted `--option` on a `case` line of a parser's `switch`,
+        /// including each pattern of a multi-pattern case such as
+        /// `case "--help", "-h":`.
+        func parsedOptions(in path: String) throws -> Set<String> {
+            let source = try String(
+                contentsOf: root.appendingPathComponent(path),
+                encoding: .utf8
+            )
+            var options: Set<String> = []
+            for line in source.components(separatedBy: .newlines)
+            where line.trimmingCharacters(in: .whitespaces).hasPrefix("case \"") {
+                let range = NSRange(line.startIndex ..< line.endIndex, in: line)
+                for match in optionPattern.matches(in: line, range: range) {
+                    if let optionRange = Range(match.range(at: 1), in: line) {
+                        options.insert(String(line[optionRange]))
+                    }
+                }
+            }
+            return options
+        }
+
+        // The whole option set, not only the plan options, so an option added
+        // under any name forces a decision about whether the article covers it.
+        let validatorOptions = try parsedOptions(
+            in: "Sources/SwiftQLSQLiteBuildValidationValidator/SQLiteBuildValidationValidatorCLIOptions.swift"
+        )
+        XCTAssertEqual(
+            validatorOptions,
+            [
+                "--database",
+                "--manifest",
+                "--output",
+                "--plan-output",
+                "--plan-suppressions",
+                "--plan-scan-row-threshold",
+                "--verify-index-candidates",
+                "--codec",
+                "--extension",
+                "--capability",
+                "--help",
+            ],
+            "swiftql-build-validate's options changed. Update QueryPlanAdvice.md if the change affects plan analysis, then this list."
+        )
+        let advisorOptions = try parsedOptions(
+            in: "Sources/SwiftQLSQLiteIndexAdvisor/SQLiteIndexAdvisorCLI.swift"
+        )
+        XCTAssertEqual(
+            advisorOptions,
+            ["--plan-report", "--output", "--apply", "--force", "--help"],
+            "swiftql-index-advisor's options changed. Update QueryPlanAdvice.md, then this list."
+        )
+
+        let documentedOptions: Set<String> = [
+            "--plan-output",
+            "--plan-suppressions",
+            "--plan-scan-row-threshold",
+            "--verify-index-candidates",
+            "--plan-report",
+            "--apply",
+            "--force",
+        ]
+        for option in documentedOptions.sorted() {
+            XCTAssertTrue(
+                article.contains("`\(option)"),
+                "QueryPlanAdvice.md does not document \(option)."
+            )
+        }
+
+        // The reverse direction: the article names no option that neither
+        // command accepts, such as one from an unmerged change.
+        let articleRange = NSRange(article.startIndex ..< article.endIndex, in: article)
+        let articleOptionPattern = try NSRegularExpression(pattern: #"`(--[a-z-]+)"#)
+        let articleOptions = Set(
+            articleOptionPattern.matches(in: article, range: articleRange).compactMap { match in
+                Range(match.range(at: 1), in: article).map { String(article[$0]) }
+            }
+        )
+        XCTAssertTrue(
+            articleOptions.isSubset(of: validatorOptions.union(advisorOptions)),
+            "QueryPlanAdvice.md names options no command accepts: \(articleOptions.subtracting(validatorOptions.union(advisorOptions)).sorted())"
+        )
+
+        let plugin = try String(
+            contentsOf: root.appendingPathComponent(
+                "Plugins/SwiftQLSQLiteBuildValidationPlugin/Plugin.swift"
+            ),
+            encoding: .utf8
+        )
+        for fileName in [
+            "swiftql-plan-analysis.json",
+            "swiftql-plan-analysis-report.json",
+        ] {
+            XCTAssertTrue(plugin.contains("\"\(fileName)\""), "The plugin no longer uses \(fileName).")
+            XCTAssertTrue(article.contains("`\(fileName)`"), "QueryPlanAdvice.md does not name \(fileName).")
+        }
+
+        for phrase in [
+            "\"format_version\": 1",
+            "`query_id`",
+            "`table`",
+            "`reason`",
+            "`swiftql-index-improvement-rule-v2`",
+            "The default is 500.",
+            "`index_recommendations`",
+        ] {
+            XCTAssertTrue(article.contains(phrase), "QueryPlanAdvice.md is missing '\(phrase)'.")
+        }
     }
 
     func testSourceExcerptArticlesQuoteTheirSourcesVerbatim() throws {
@@ -644,6 +812,8 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "it never wraps the property",
             "a generated `staticResultField(_:...)` convenience per annotated",
             "`@SQLCodec` selects among registered codecs, it does not",
+            "cannot\nbe written through the v1 generated write helpers",
+            "`XLSQLValueEncodingError.contextualOnlyValueInLegacyWrite(valueType:)` before",
         ] {
             XCTAssertTrue(
                 contents.contains(semanticPhrase),
@@ -695,7 +865,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
 
         let requiredPhrasesByPath = [
             "README.md": [
-                "`1.8.0` is the latest published package",
+                "`1.8.1` is the latest published package",
             ],
             "COMPATIBILITY.md": [
                 "## v1.3 public products and runtime boundaries",
@@ -736,10 +906,10 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "not a claim of complete SQLite",
                 "v1.3 does not ship a public",
                 "validator, build plugin, query macro, schema system",
-                "Version 1.8.0 is the latest published package",
+                "Version 1.8.1 is the latest published package",
             ],
             "Sources/SwiftQL/SwiftQL.docc/GettingStarted.md": [
-                "Version 1.8.0 is the published package",
+                "Version 1.8.1 is the published package",
                 "This guide's basic request path remains",
                 "from version 1.2.0 or later",
             ],
@@ -762,9 +932,9 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         let inventoryPhrasesByPath = [
             "COMPATIBILITY.md": [
                 // This label tracks the inventory's own `inventory_version`,
-                // which the 1.4.5-1.5.4 fold bumped to 1.4.0. It is unrelated
+                // which the v1.8.1 release preparation bumped to 1.8.1. It is unrelated
                 // to the v1.3 source-tree milestone the phrases above pin.
-                "The v1.7 inventory contains \(inventory.features.count) feature records and \(inventory.evidence.count) evidence records",
+                "The v1.8.1 inventory contains \(inventory.features.count) feature records and \(inventory.evidence.count) evidence records",
                 "| Supported | \(supportedCount) |",
                 "| Partial | \(partialCount) |",
                 "| Capability-gated | \(capabilityGatedCount) |",
@@ -818,14 +988,14 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         // replacing `Unreleased` with the release date; update this pin in the
         // same change.
         //
-        // 1.8.0 is the newest version, so its heading is the first one in the
+        // 1.8.1 is the newest version, so its heading is the first one in the
         // file. The release gate (`scripts/ci/check-release-changelog.sh`)
         // reads the heading for the version being tagged rather than the first
         // heading, so this pin records the changelog's shape rather than
         // gating the release. While a later line is developed on its own
         // branch, that branch's heading is the first one and this pin names it
         // there.
-        XCTAssertEqual(firstReleaseHeading, "## [1.8.0] - 2026-09-08")
+        XCTAssertEqual(firstReleaseHeading, "## [1.8.1] - Unreleased")
     }
 
     /// `check-docc-output.sh` proves one built page per catalog article. An
@@ -913,7 +1083,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             // Package Manager version drifts silently; it was still on 1.5.4
             // two releases later when #230 found it.
             "Website/index.html": [
-                #".package(url: "https://github.com/lukevanin/swiftql.git", from: "1.8.0")"#,
+                #".package(url: "https://github.com/lukevanin/swiftql.git", from: "1.8.1")"#,
             ],
             "COMPATIBILITY.md": [
                 "`SwiftQLSQLiteBuildValidationManifest` and",
@@ -979,6 +1149,84 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 XCTAssertFalse(
                     contents.contains(phrase),
                     "\(path) still makes the superseded claim '\(phrase)'."
+                )
+            }
+        }
+    }
+
+    /// The September 2026 review found shipped documents that described
+    /// features as missing after they had shipped: right and full outer joins
+    /// (v1.4.5), the JSON function surface (v1.6), and the `sql { }` subquery
+    /// form. It also found the demo's test count stated three different ways.
+    /// These pins hold each correction in place (issue #653). The demo count
+    /// itself is compared with the suite by scripts/ci/check-todo-demo.sh.
+    func testPublicDocumentsDescribeTheShippedJoinAndJSONSurface() throws {
+        let repositoryRoot = try repositoryRootURL()
+        let requiredPhrasesByPath = [
+            "Sources/SwiftQL/SwiftQL.docc/Queries.md": [
+                "SwiftQL supports the join kinds in the table below.",
+                "| `RIGHT JOIN ... ON` | `Join.Right(occupation, on: ...)` | the `From` table | SQLite 3.39.0 |",
+                "| `FULL OUTER JOIN ... ON` | `Join.FullOuter(occupation, on: ...)` | both tables | SQLite 3.39.0 |",
+                "| `NATURAL JOIN` | `Join.Natural(occupation)` | none | any SQLite 3 |",
+                "| `INNER JOIN ... USING` | `Join.Inner(occupation, using: \"id\")` | none | any SQLite 3 |",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/CustomTypes.md": [
+                "SwiftQL exposes SQLite's JSON functions and operators as typed",
+                "<doc:JSON> covers that surface",
+            ],
+            "Sources/SwiftQL/Codecs/JSONValueCodec.swift": [
+                "use the\n/// typed JSON expressions instead",
+            ],
+            "Documentation/PortingFromSQL.md": [
+                "| `RIGHT JOIN t ON x` | `Join.Right(occupation, on: ...)`",
+                "| `FULL OUTER JOIN t ON x` | `Join.FullOuter(occupation, on: ...)`",
+                "| `NATURAL JOIN t` / `NATURAL LEFT JOIN t` |",
+                "| `JOIN t USING (c)` / `LEFT JOIN t USING (c)` |",
+                "`subqueryExpression { ... }`, or `sql { ... }` on Swift 6.1 and later",
+                "`Select(#row(person.name, occupation.name))` (Swift 6.1 and later)",
+            ],
+        ]
+        let forbiddenPhrasesByPath = [
+            "Sources/SwiftQL/SwiftQL.docc/Queries.md": [
+                "does not currently support right joins or full outer joins",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/CustomTypes.md": [
+                "SwiftQL does not drive SQLite's `json1` functions",
+            ],
+            "Sources/SwiftQL/Codecs/JSONValueCodec.swift": [
+                "drive SQLite's\n/// `json1` functions",
+            ],
+            "Sources/SwiftQL/SwiftQL.docc/CustomFunctions.md": [
+                "not a meaningful runtime cost",
+            ],
+            // The demo README states the count once; the check script
+            // compares it with the suite, so no other document restates it.
+            "README.md": [
+                "62 tests",
+            ],
+        ]
+
+        for (path, requiredPhrases) in requiredPhrasesByPath {
+            let contents = try String(
+                contentsOf: repositoryRoot.appendingPathComponent(path),
+                encoding: .utf8
+            )
+            for phrase in requiredPhrases {
+                XCTAssertTrue(
+                    contents.contains(phrase),
+                    "\(path) is missing the corrected phrase '\(phrase)'."
+                )
+            }
+        }
+        for (path, forbiddenPhrases) in forbiddenPhrasesByPath {
+            let contents = try String(
+                contentsOf: repositoryRoot.appendingPathComponent(path),
+                encoding: .utf8
+            )
+            for phrase in forbiddenPhrases {
+                XCTAssertFalse(
+                    contents.contains(phrase),
+                    "\(path) still makes the disproved claim '\(phrase)'."
                 )
             }
         }

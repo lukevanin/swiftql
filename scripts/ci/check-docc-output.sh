@@ -39,6 +39,7 @@ json|JSON
 livequeries|Live Queries
 numericdatecodecs|Numeric Date Codecs
 queries|Select Queries
+queryplanadvice|Query plan advice
 realvalues|Real Values
 staticqueries|Static queries
 tododemo|The to-do demo

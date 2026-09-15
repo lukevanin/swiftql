@@ -21,6 +21,14 @@ public struct XLWithStatement {
 
    // MARK: Select
 
+   /// Builds a factored select from a static row layout.
+   ///
+   /// The layout's metadata already names its columns, so the select does not
+   /// replay `readRow` to find them.
+   public func select<T>(_ layout: T) -> XLQuerySelectStatement<T.Row> where T: XLStaticRowReadable {
+       XLQuerySelectStatement(components: XLQueryStatementComponents(commonTables: commonTables, select: Select(layout)))
+   }
+
    public func select<T>(_ t: T) -> XLQuerySelectStatement<T.Row> where T: XLRowReadable {
        XLQuerySelectStatement(components: XLQueryStatementComponents(commonTables: commonTables, select: Select(t)))
    }

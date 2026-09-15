@@ -123,10 +123,10 @@ Add the following line to the `dependencies` section in your `Package.swift`
 file:
 
 ```text
-.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.8.0")
+.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.8.1")
 ```
 
-`1.8.0` is the latest published package. The examples above use APIs retained
+`1.8.1` is the latest published package. The examples above use APIs retained
 by v1.3; the static-query surface remains available from version 1.2.0. Pin a
 source revision only when intentionally testing later changes from `main`.
 
@@ -179,7 +179,7 @@ aggregate, one query serving every filter, sort, and search combination,
 writes that return their row through `RETURNING`, an atomic move between
 lists, and an interface fed entirely by live queries — completing a to-do
 updates the list and the sidebar counts with no reload call anywhere. Its
-queries are checked against a schema snapshot at build time, and 62 tests
+queries are checked against a schema snapshot at build time, and its tests
 cover the query layer.
 
 Open `Examples/TodoApp/TodoApp.xcodeproj` and run the **TodoApp** scheme.
@@ -252,7 +252,8 @@ explicit list of the places the correspondence is not exact.
   Compose boolean, numeric, text, optional, conditional, and aggregate
   expressions with Swift operators and generic constraints.
 - **[Queries](https://lukevanin.github.io/swiftql/documentation/swiftql/queries/).**
-  Build selects with inner, left, and cross joins; grouping and `HAVING`;
+  Build selects with inner, left, right, full outer, cross, natural, and
+  `USING` joins; grouping and `HAVING`;
   ordering and pagination; scalar and table subqueries; compound queries; and
   ordinary or recursive common table expressions.
 - **[Writes and table creation](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/).**
@@ -283,7 +284,7 @@ explicit list of the places the correspondence is not exact.
   `jsonGroupArray` and `jsonGroupObject`, and address any of it with
   `XLJSONPath` instead of a path string. The JSONB variants read and write
   SQLite's binary representation.
-- **[Query plans and index advice](COMPATIBILITY.md).**
+- **[Query plans and index advice](https://lukevanin.github.io/swiftql/documentation/swiftql/queryplanadvice/).**
   The same build-tool plugin can capture what SQLite plans to do with each
   declared query, warn about full scans and sorts it has to materialize, and
   name the index that removes them. Every recommendation is proved first, by
@@ -294,7 +295,8 @@ explicit list of the places the correspondence is not exact.
 - **[Text matching](https://lukevanin.github.io/swiftql/documentation/swiftql/expressions/).**
   Match with `like`, `glob`, and `regexp`. `REGEXP` needs no setup: SQLite ships
   no `regexp` function, so SwiftQL supplies one backed by Swift `Regex`,
-  compiles each pattern once per statement execution rather than once per row,
+  keeps compiled patterns per connection rather than compiling once per row,
+  refuses an oversized pattern or subject rather than truncating it,
   and matches a `RegexBuilder` pattern through `XLRegexPattern`.
 - **Your domain.** Extend SQLite with Swift enums, custom value types, and
   type-safe custom SQL functions.

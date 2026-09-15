@@ -30,7 +30,8 @@ public enum XLNonFiniteRealValue: String, Equatable, Sendable, CustomStringConve
 }
 
 
-/// Structured failures at SQLite's real-value rendering and binding boundary.
+/// Structured failures while SwiftQL renders a statement or binds its values
+/// for SQLite, reported before SQLite prepares the statement.
 public enum XLSQLValueEncodingError:
     Error,
     Equatable,
@@ -51,12 +52,40 @@ public enum XLSQLValueEncodingError:
         context: XLValueCodingContext
     )
 
+    /// A generated v1 `MetaInsert` or `MetaUpdate` value (for example from
+    /// `Values(row)` or `UpdateRequest.makeUpdate()`) holds a value whose type
+    /// does not conform to `XLEncodable`, such as a `Date` column that only a
+    /// contextual codec can encode. The v1 path has no codec context, so the
+    /// row must be encoded through `XLStaticRowLayout` instead.
+    case contextualOnlyValueInLegacyWrite(valueType: String)
+
+    /// A text value contains U+0000. SQLite reads a text literal, and a text
+    /// value bound with the length -1 that GRDB uses, only up to the first
+    /// NUL, so the value would be truncated or the statement would not
+    /// prepare. `context` is `nil` for an inline literal.
+    case nulCharacterInText(valueType: String, context: XLValueCodingContext?)
+
+    /// The right-hand branch of a compound select (`UNION`, `UNION ALL`,
+    /// `INTERSECT`, or `EXCEPT`) has a `WITH`, `ORDER BY`, `LIMIT`, or
+    /// `OFFSET` clause, or is itself a compound select, in which case `clause`
+    /// names the nested operator. SQLite applies `ORDER BY`, `LIMIT`, and
+    /// `OFFSET` to the whole compound, does not accept `WITH` after the
+    /// operator, and groups compound operators from the left.
+    case unsupportedCompoundBranchClause(compoundOperator: String, clause: String)
+
     public var errorDescription: String? {
         switch self {
+        case .nulCharacterInText(let valueType, let context):
+            let site = context.map { " at \($0)" } ?? ""
+            return "Cannot use a \(valueType) text value that contains U+0000\(site): SQLite reads text only up to the first NUL, so the value would be truncated. Store such data as a blob."
+        case .unsupportedCompoundBranchClause(let compoundOperator, let clause):
+            return "The right-hand branch of \(compoundOperator) has a \(clause) clause. SQLite applies ORDER BY, LIMIT, and OFFSET to the whole compound, does not accept WITH after the operator, and groups a nested compound from the left. Apply the clause to the whole compound, put WITH before the first branch, or chain the compound operators instead of nesting them."
         case .nonFiniteRealLiteral(let value, let expressionType):
             return "Cannot render \(value) from \(expressionType) as an inline SQLite real literal. SQLite has no valid bare numeric token for this value; use a bound parameter when its SQLite binding semantics are acceptable."
         case .realBindingWouldBecomeNull(let value, let valueType, let context):
             return "Cannot bind \(value) from \(valueType) at \(context): SQLite would normalize the value to SQL NULL."
+        case .contextualOnlyValueInLegacyWrite(let valueType):
+            return "Cannot write \(valueType) through the v1 MetaInsert/MetaUpdate path: the type does not conform to XLEncodable, so only a contextual codec can encode it. Encode the row through XLStaticRowLayout instead."
         }
     }
 }

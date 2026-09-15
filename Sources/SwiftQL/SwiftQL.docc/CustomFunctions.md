@@ -112,11 +112,42 @@ public func makeSQL(context: inout XLBuilder) {
 With that change, `GRDBDatabase` registers the function with SQLite the first time a rendered
 statement referencing it executes -- there is no need to call `builder.addFunction(_:)` at all.
 `GRDB.DatabasePool` maintains several persistent reader connections and a registration only
-affects the one physical connection it runs on, so SwiftQL re-registers on every execution
-rather than tracking a single "already registered" flag: whichever pooled connection happens
-to service a given call gets the function registered on it before the call runs. SQLite's
-underlying `sqlite3_create_function` call is cheap, so this repetition is not a meaningful
-runtime cost.
+affects the one physical connection it runs on, so SwiftQL checks before every execution
+whether the connection that serves the call already has the function, and installs it on that
+connection the first time only. The check reads a record SwiftQL keeps on the connection
+itself, and it stays correct when the pool closes and reopens connections or when two
+`GRDBDatabase` values share one pool. The first execution that needs a function on a connection
+also reads the connection's function list once, to decide whether to install it. Every later
+execution on that connection costs one statement-cache lookup per function.
+
+SwiftQL does not install the same function twice on one connection. SQLite treats a second
+installation as a change to the function: it expires every prepared statement on that
+connection, and it fails while a result set is open on the connection.
+
+SQLite identifies a function by its name and argument count only, and SwiftQL follows it:
+two `XLCustomFunction` types with the same `definition` are the same SQLite function, and they
+are interchangeable. The first one SwiftQL installs on a connection serves every statement on
+that connection that calls either type. Give functions with different behaviour different
+names.
+
+If a connection already has a function with the same name and argument count that your
+application installed itself -- with `builder.addFunction(_:)` or your own
+`Configuration.prepareDatabase(_:)` hook -- SwiftQL uses that function and does not install a
+second copy, even for a function whose `makeSQL` calls `customFunctionCall`. So registering a
+function up front and calling it through `customFunctionCall` works everywhere, including the
+first call on a connection inside a `withResultSet(_:)` callback. A SQLite built-in function,
+such as `lower` with one argument, does not count as yours; see the exception below.
+
+There is one deliberate exception. Your own `XLCustomFunction` always wins over a function
+SwiftQL bundles, such as the two-argument `regexp` behind the `REGEXP` operator, and over a SQLite
+built-in function, such as `lower` with one argument. If your function has the same name and
+argument count as one of those, SwiftQL replaces it with yours on a connection the first time a
+statement on that connection calls yours. SQLite cannot make that replacement while a result set
+is open on the connection, so when that first call happens inside a `withResultSet(_:)` callback,
+the request
+throws `XLDatabaseContractError.prepareFailure` instead. To avoid it, register your function up
+front with `builder.addFunction(_:)` — SwiftQL then uses that registration and replaces nothing —
+or call your function once before you open the result set.
 
 Calling `builder.addFunction(_:)` upfront continues to work exactly as before, for functions
 that use `simpleFunction` directly or for callers who prefer to register everything upfront.

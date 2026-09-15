@@ -31,11 +31,38 @@ public struct Returning<Row>: XLEncodable, XLRowReadable {
     private let decode: (XLRowReader) throws -> Row
 
     ///
+    /// Creates a `RETURNING` clause from a static row layout.
+    ///
+    /// The layout's metadata names the columns, so the projection's `readRow`
+    /// is not replayed. Rows decode through the layout.
+    ///
+    /// - Important: The clause renders only the layout's field aliases, not
+    ///   their expressions, because SQLite rejects qualified names in
+    ///   `RETURNING`. Each alias must therefore name a column of the target
+    ///   table. A computed field returns the stored column of that name, and a
+    ///   nested composite field, whose aliases have a prefix, fails to prepare.
+    ///
+    public init<T>(_ layout: T) where T: XLStaticRowReadable, T.Row == Row {
+        self.columns = layout.metadata.fields.map { XLName($0.alias) }
+        self.decode = layout.readRow
+    }
+
+    ///
     /// Creates a `RETURNING` clause projecting the columns described by the
     /// given result metadata, for example a table reference obtained from
     /// `XLSchema.table(_:)`.
     ///
     public init<T>(_ result: T) where T: XLRowReadable, T.Row == Row {
+        // A static row layout names its columns in its metadata. Use them
+        // directly, also when the layout reaches this generic initializer
+        // through a caller that sees it only as `XLRowReadable`. Replaying a
+        // layout's `readRow` would ask the definition reader for dialect values
+        // it cannot supply.
+        if let layout = result as? any XLStaticRowReadable {
+            self.columns = layout.metadata.fields.map { XLName($0.alias) }
+            self.decode = result.readRow
+            return
+        }
         let definition = XLColumnsDefinitionRowReader()
         // Replay the projection to capture its output column names. The
         // definition reader returns SQL defaults, so no database row is decoded
@@ -146,6 +173,18 @@ extension XLInsertStatement {
             returning: clause
         )
     }
+
+    ///
+    /// Appends a `RETURNING` clause whose columns come from a static row
+    /// layout's metadata, so no `readRow` replay runs.
+    ///
+    public func returning<T>(_ layout: T) -> XLInsertReturningStatement<T.Row> where T: XLStaticRowReadable {
+        let clause = Returning<T.Row>(layout)
+        return XLInsertReturningStatement(
+            statement: components.appending(clause),
+            returning: clause
+        )
+    }
 }
 
 
@@ -192,6 +231,18 @@ extension XLDeleteStatement {
             returning: clause
         )
     }
+
+    ///
+    /// Appends a `RETURNING` clause whose columns come from a static row
+    /// layout's metadata, so no `readRow` replay runs.
+    ///
+    public func returning<T>(_ layout: T) -> XLDeleteReturningStatement<T.Row> where T: XLStaticRowReadable {
+        let clause = Returning<T.Row>(layout)
+        return XLDeleteReturningStatement(
+            statement: components.appending(clause),
+            returning: clause
+        )
+    }
 }
 
 
@@ -230,6 +281,18 @@ extension XLUpdateStatement {
     ///
     public func returning<T>(_ result: T) -> XLUpdateReturningStatement<T.Row> where T: XLRowReadable {
         let clause = Returning<T.Row>(result)
+        return XLUpdateReturningStatement(
+            statement: components.appending(clause),
+            returning: clause
+        )
+    }
+
+    ///
+    /// Appends a `RETURNING` clause whose columns come from a static row
+    /// layout's metadata, so no `readRow` replay runs.
+    ///
+    public func returning<T>(_ layout: T) -> XLUpdateReturningStatement<T.Row> where T: XLStaticRowReadable {
+        let clause = Returning<T.Row>(layout)
         return XLUpdateReturningStatement(
             statement: components.appending(clause),
             returning: clause

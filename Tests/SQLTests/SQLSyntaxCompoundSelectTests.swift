@@ -66,7 +66,148 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
         let result = encoder.makeSQL(expression)
         XCTAssertEqual(result.sql, "SELECT t0.name AS name, t0.mom AS parent FROM Family AS t0 EXCEPT SELECT t1.name AS name, t1.dad AS parent FROM Family AS t1")
     }
-    
+
+    // MARK: Compound branches (#657)
+
+    /// A clause after the last branch applies to the whole compound, which is
+    /// valid, so no error is reported.
+    func testClauseAfterTheLastBranchIsAccepted() {
+        let schema = XLSchema()
+        let familyMom = schema.table(Family.self)
+        let familyDad = schema.table(Family.self)
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
+        let expression = select(momRow).from(familyMom).union {
+            select(dadRow).from(familyDad)
+        }
+        .limit(1)
+        let result = encoder.makeSQL(expression)
+        XCTAssertNil(result.valueEncodingError)
+        XCTAssertEqual(result.sql, "SELECT t0.name AS name, t0.mom AS parent FROM Family AS t0 UNION SELECT t1.name AS name, t1.dad AS parent FROM Family AS t1 LIMIT 1")
+    }
+
+    /// A typed branch that ends with ORDER BY, LIMIT, and OFFSET is rejected
+    /// when the compound renders. SQLite would apply these clauses to the
+    /// whole compound. The error names the first clause found.
+    func testTypedBranchWithOrderByIsRejected() {
+        let schema = XLSchema()
+        let familyMom = schema.table(Family.self)
+        let familyDad = schema.table(Family.self)
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
+        let expression = select(momRow).from(familyMom).except {
+            select(dadRow).from(familyDad).orderBy(familyDad.born.ascending()).limit(1).offset(1)
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).valueEncodingError,
+            .unsupportedCompoundBranchClause(compoundOperator: "EXCEPT", clause: "ORDER BY")
+        )
+    }
+
+    /// A branch known only as `any XLQueryStatement` is checked in the same
+    /// way.
+    func testErasedBranchWithOrderByIsRejected() {
+        let schema = XLSchema()
+        let familyMom = schema.table(Family.self)
+        let familyDad = schema.table(Family.self)
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
+        let expression = select(momRow).from(familyMom).union { () -> any XLQueryStatement<FamilyMemberParent> in
+            select(dadRow).from(familyDad).orderBy(familyDad.born.ascending())
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).valueEncodingError,
+            .unsupportedCompoundBranchClause(compoundOperator: "UNION", clause: "ORDER BY")
+        )
+        XCTAssertThrowsError(try encoder.makeValidatedSQL(expression))
+    }
+
+    func testErasedBranchWithLimitIsRejected() {
+        let schema = XLSchema()
+        let familyMom = schema.table(Family.self)
+        let familyDad = schema.table(Family.self)
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
+        let expression = select(momRow).from(familyMom).unionAll { () -> any XLQueryStatement<FamilyMemberParent> in
+            select(dadRow).from(familyDad).limit(1)
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).valueEncodingError,
+            .unsupportedCompoundBranchClause(compoundOperator: "UNION ALL", clause: "LIMIT")
+        )
+    }
+
+    /// A branch that is itself a compound is rejected. SQLite groups compound
+    /// operators from the left, so `a EXCEPT (b UNION c)` would render as
+    /// `a EXCEPT b UNION c` and mean `(a EXCEPT b) UNION c`.
+    func testNestedCompoundBranchIsRejected() {
+        let schema = XLSchema()
+        let first = schema.table(Family.self)
+        let second = schema.table(Family.self)
+        let third = schema.table(Family.self)
+        let firstRow = FamilyMemberParent.columns(name: first.name, parent: first.mom)
+        let secondRow = FamilyMemberParent.columns(name: second.name, parent: second.dad)
+        let thirdRow = FamilyMemberParent.columns(name: third.name, parent: third.mom)
+        let expression = select(firstRow).from(first).except {
+            select(secondRow).from(second).union { select(thirdRow).from(third) }
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).valueEncodingError,
+            .unsupportedCompoundBranchClause(compoundOperator: "EXCEPT", clause: "UNION")
+        )
+
+        // Chaining the operators instead is accepted.
+        let chained = select(firstRow).from(first)
+            .except { select(secondRow).from(second) }
+            .union { select(thirdRow).from(third) }
+        XCTAssertNil(encoder.makeSQL(chained).valueEncodingError)
+    }
+
+    /// A nested compound whose first branch has a WITH list would render
+    /// `UNION WITH ...`. The nested compound is rejected, so that SQL never
+    /// reaches SQLite.
+    func testNestedCompoundBranchWithCommonTablesIsRejected() {
+        let schema = XLSchema()
+        let familyMom = schema.table(Family.self)
+        let familyDad = schema.table(Family.self)
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let dadRow = FamilyMemberParent.columns(name: familyDad.name, parent: familyDad.dad)
+        let cte = schema.commonTable { s in
+            let family = s.table(Family.self)
+            return select(family).from(family)
+        }
+        let parents = schema.table(cte)
+        let parentRow = FamilyMemberParent.columns(name: parents.name, parent: parents.dad)
+        let expression = select(momRow).from(familyMom).union {
+            with(cte).select(parentRow).from(parents).union { select(dadRow).from(familyDad) }
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).valueEncodingError,
+            .unsupportedCompoundBranchClause(compoundOperator: "UNION", clause: "UNION")
+        )
+    }
+
+    /// A branch with a WITH list renders `INTERSECT WITH ...`, which SQLite
+    /// does not accept, so it is rejected.
+    func testBranchWithCommonTablesIsRejected() {
+        let schema = XLSchema()
+        let familyMom = schema.table(Family.self)
+        let momRow = FamilyMemberParent.columns(name: familyMom.name, parent: familyMom.mom)
+        let cte = schema.commonTable { s in
+            let family = s.table(Family.self)
+            return select(family).from(family)
+        }
+        let parents = schema.table(cte)
+        let parentRow = FamilyMemberParent.columns(name: parents.name, parent: parents.dad)
+        let expression = select(momRow).from(familyMom).intersect {
+            with(cte).select(parentRow).from(parents)
+        }
+        XCTAssertEqual(
+            encoder.makeSQL(expression).valueEncodingError,
+            .unsupportedCompoundBranchClause(compoundOperator: "INTERSECT", clause: "WITH")
+        )
+    }
+
     
     // MARK: Recursion
     
@@ -211,6 +352,148 @@ final class XLSyntaxCompoundSelectTests: XLSyntaxTestCase {
             as: "SELECT t0.id AS id, t0.name AS name FROM Company AS t0 LEFT JOIN (SELECT t0.id AS id, t0.name AS name, t0.companyId AS companyId, t0.managerEmployeeId AS managerEmployeeId FROM Employee AS t0) AS staff ON (staff.companyId IS t0.id)"
         )
     }
+
+    /// #644: the same join without a hand-written alias. The subquery built
+    /// from the enclosing schema takes the next outer alias, and its body
+    /// skips both outer aliases, so no alias is ambiguous.
+    func testUnnamedNullableSubqueryOnLeftJoinUsesDistinctAliases() {
+        let schema = XLSchema()
+        let company = schema.table(CompanyTable.self)
+        let employees = schema.nullableSubquery { inner in
+            let e = inner.table(EmployeeTable.self)
+            return select(e).from(e)
+        }
+        let expression = select(company)
+            .from(company)
+            .leftJoin(employees, on: employees.companyId == company.id)
+        assertRenders(
+            expression,
+            as: "SELECT t0.id AS id, t0.name AS name FROM Company AS t0 LEFT JOIN (SELECT t2.id AS id, t2.name AS name, t2.companyId AS companyId, t2.managerEmployeeId AS managerEmployeeId FROM Employee AS t2) AS t1 ON (t1.companyId IS t0.id)"
+        )
+    }
+
+    /// #644: the expression-builder subquery methods on `XLSchema` take the
+    /// subquery alias from the enclosing schema and nest the body in it.
+    func testSchemaSubqueryExpressionFormsDeriveFromEnclosingSchema() {
+        let tableForm = sql { schema in
+            let outer = schema.table(TestTable.self)
+            let sub = schema.subqueryExpression { inner in
+                let u = inner.table(TestTable.self)
+                Select(u)
+                From(u)
+                Where(u.value > outer.value)
+            }
+            Select(sub)
+            From(sub)
+        }
+        assertRenders(
+            tableForm,
+            as: "SELECT t1.id AS id, t1.value AS value FROM (SELECT t2.id AS id, t2.value AS value FROM Test AS t2 WHERE (t2.value > t0.value)) AS t1"
+        )
+
+        // The expression builder has no LEFT JOIN component, so the join is
+        // spelled with the functional chain.
+        let nullableSchema = XLSchema()
+        let company = nullableSchema.table(CompanyTable.self)
+        let staff = nullableSchema.nullableSubqueryExpression { inner in
+            let e = inner.table(EmployeeTable.self)
+            Select(e)
+            From(e)
+        }
+        let nullableForm = select(company)
+            .from(company)
+            .leftJoin(staff, on: staff.companyId == company.id)
+        assertRenders(
+            nullableForm,
+            as: "SELECT t0.id AS id, t0.name AS name FROM Company AS t0 LEFT JOIN (SELECT t2.id AS id, t2.name AS name, t2.companyId AS companyId, t2.managerEmployeeId AS managerEmployeeId FROM Employee AS t2) AS t1 ON (t1.companyId IS t0.id)"
+        )
+
+        let scalarForm = sql { schema in
+            let outer = schema.table(TestTable.self)
+            let limit = schema.binding(of: Int.self)
+            Select(
+                TestColumns.columns(
+                    id: outer.id,
+                    value: schema.subqueryExpression { inner in
+                        let u = inner.table(TestTable.self)
+                        let floor = inner.binding(of: Int.self)
+                        Select(u.value.sumOrNull())
+                        From(u)
+                        Where((u.value > floor) && (u.value < limit))
+                    }
+                )
+            )
+            From(outer)
+        }
+        let scalarEncoding = encoder.makeSQL(scalarForm)
+        XCTAssertEqual(
+            scalarEncoding.sql,
+            "SELECT t0.id AS id, (SELECT SUM(t1.value) FROM Test AS t1 WHERE ((t1.value > :p1) AND (t1.value < :p0))) AS value FROM Test AS t0"
+        )
+        XCTAssertNil(scalarEncoding.parameterLayoutError)
+        XCTAssertEqual(scalarEncoding.parameterLayout.count, 2)
+    }
+
+    /// #644: an outer and an inner automatically named binding of the same
+    /// Swift type get two parameters instead of one shared `:p0`.
+    func testOuterAndInnerAutomaticBindingsUseDistinctParameters() {
+        let schema = XLSchema()
+        let outer = schema.binding(of: Int.self)
+        let expression = select(
+            schema.subquery { inner -> any XLQueryStatement<Int> in
+                let limit = inner.binding(of: Int.self)
+                return select(outer + limit)
+            }
+        )
+        let encoding = encoder.makeSQL(expression)
+        XCTAssertEqual(encoding.sql, "SELECT (SELECT (:p0 + :p1))")
+        XCTAssertNil(encoding.parameterLayoutError)
+        XCTAssertEqual(
+            encoding.parameterLayout.slots.map(\.key),
+            [.named("p0"), .named("p1")]
+        )
+    }
+
+    /// #644: bindings named automatically by two unrelated schemas both render
+    /// `:p0`. The renderer reports the collision instead of merging them.
+    func testAutomaticBindingsFromUnrelatedSchemasAreRejected() {
+        let outerSchema = XLSchema()
+        let outer = outerSchema.binding(of: Int.self)
+        let inner = XLSchema().binding(of: Int.self)
+        let encoding = encoder.makeSQL(select(outer + inner))
+        guard case .conflictingParameterKey(let key, _, _) = encoding.parameterLayoutError else {
+            return XCTFail("Expected conflictingParameterKey, received \(String(describing: encoding.parameterLayoutError))")
+        }
+        XCTAssertEqual(key, .named("p0"))
+        XCTAssertTrue(
+            encoding.parameterLayoutError?.errorDescription?.contains("XLSchema(parent:)") ?? false
+        )
+
+        // With two different Swift types, the declaration conflict is found
+        // first and keeps the real incoming slot.
+        let textBinding = XLSchema().binding(of: String.self)
+        let mixedTable = outerSchema.table(TestTable.self)
+        let mixed = encoder.makeSQL(
+            select(outer)
+                .from(mixedTable)
+                .where(mixedTable.id == textBinding)
+        )
+        switch mixed.parameterLayoutError {
+        case .conflictingParameterIndex(_, let existing, let incoming),
+             .conflictingParameterKey(_, let existing, let incoming):
+            XCTAssertEqual(existing.valueTypeName, "Swift.Int")
+            XCTAssertEqual(incoming.valueTypeName, "Swift.String")
+        default:
+            XCTFail("Expected a declaration conflict, received \(String(describing: mixed.parameterLayoutError))")
+        }
+        XCTAssertThrowsError(try encoder.makeValidatedSQL(select(outer + inner)))
+
+        // The same reference used twice is one parameter, not a collision.
+        let repeated = encoder.makeSQL(select(outer + outer))
+        XCTAssertNil(repeated.parameterLayoutError)
+        XCTAssertEqual(repeated.parameterLayout.count, 1)
+    }
+
 
     func testSelectSubqueryAggregate() {
         let s = XLSchema()

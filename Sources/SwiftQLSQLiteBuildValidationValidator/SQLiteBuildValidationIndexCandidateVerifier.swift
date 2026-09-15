@@ -69,12 +69,60 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
     ///
     /// Each candidate gets its own scratch copy, so one candidate's index can
     /// never change the plan another is judged by.
+    ///
+    /// A pinned snapshot that changed at any point in the pass is the one
+    /// failure this throws for:
+    /// ``SQLiteBuildValidationScratchError/snapshotChangedDuringVerification(initialByteCount:initialSHA256:finalByteCount:finalSHA256:)``
+    /// ends the run, because nothing read from that snapshot can be trusted.
+    /// Each copy checks the snapshot even when its candidate's verification
+    /// throws, and the pass checks it once more against a baseline taken
+    /// before the first candidate, so a change between two candidates is
+    /// caught too.
+    /// Every other failure leaves its candidate unverified. A scratch copy
+    /// that could not be set up at all is also passed to
+    /// `reportScratchFailure`, once per candidate, as a complete
+    /// `plan.scratch-setup-failed` line whose description keeps its paths,
+    /// so a build log can say why no advice was produced. The sidecar keeps
+    /// only the path-free reason.
     public static func verify(
         candidates: [SQLiteBuildValidationIndexCandidate],
         queries: [SQLiteBuildValidationQueryEntry],
         snapshotURL: URL,
-        scratchParentDirectory: URL = FileManager.default.temporaryDirectory
+        scratchParentDirectory: URL = FileManager.default.temporaryDirectory,
+        reportScratchFailure: (String) -> Void = { _ in }
     ) throws -> SQLiteBuildValidationIndexRecommendationSet {
+        try verify(
+            candidates: candidates,
+            queries: queries,
+            snapshotURL: snapshotURL,
+            scratchParentDirectory: scratchParentDirectory,
+            reportScratchFailure: reportScratchFailure,
+            whileTheCopyIsOpen: {},
+            afterEachCandidate: {}
+        )
+    }
+
+    /// The same, with hooks that run while each scratch copy is open and
+    /// after each candidate is judged.
+    ///
+    /// The hooks exist for tests: they are the only way to change the pinned
+    /// snapshot at the moments custody forbids it, and so to prove that doing
+    /// so fails the run.
+    static func verify(
+        candidates: [SQLiteBuildValidationIndexCandidate],
+        queries: [SQLiteBuildValidationQueryEntry],
+        snapshotURL: URL,
+        scratchParentDirectory: URL,
+        reportScratchFailure: (String) -> Void,
+        whileTheCopyIsOpen: () throws -> Void,
+        afterEachCandidate: () throws -> Void
+    ) throws -> SQLiteBuildValidationIndexRecommendationSet {
+        // One baseline for the whole pass, not only one per copy. Each copy
+        // compares the snapshot with what it was when that copy was made, so
+        // a change between two candidates would otherwise become the next
+        // candidate's baseline and pass unnoticed.
+        let passBaseline = try SQLiteBuildValidationScratchSnapshot.identity(of: snapshotURL)
+
         var queriesByID: [String: SQLiteBuildValidationQueryEntry] = [:]
         for query in queries {
             queriesByID[query.id] = query
@@ -94,29 +142,47 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
                 ))
                 continue
             }
+            // A candidate that could not be verified is reported unverified,
+            // never recommended. A changed snapshot is not caught here: it
+            // is the one failure that ends the run.
             do {
                 switch try evaluate(
                     candidate: candidate,
                     query: query,
                     snapshotURL: snapshotURL,
-                    scratchParentDirectory: scratchParentDirectory
+                    scratchParentDirectory: scratchParentDirectory,
+                    whileTheCopyIsOpen: whileTheCopyIsOpen
                 ) {
                 case .recommended(let recommendation):
                     recommendations.append(recommendation)
                 case .rejected(let rejection):
                     unverified.append(rejection)
                 }
-            } catch {
-                // A candidate that could not be verified is reported
-                // unverified, never recommended.
+            } catch VerificationFailure.scratchSetup(let error) {
+                unverified.append(SQLiteBuildValidationUnverifiedIndexCandidate(
+                    candidate: candidate,
+                    statementID: query.id,
+                    reason: "The scratch copy could not be set up: \(deterministicDescription(of: error))"
+                ))
+                // The build log is not an artifact, so it gets the full
+                // description, paths and all -- the part that says what to fix.
+                reportScratchFailure(
+                    "plan.scratch-setup-failed for \(candidate.sourceQueryIDs.joined(separator: ", ")): \(candidate.indexName) is unverified because its scratch copy could not be set up: \(String(describing: error))"
+                )
+            } catch VerificationFailure.verification(let error) {
                 unverified.append(SQLiteBuildValidationUnverifiedIndexCandidate(
                     candidate: candidate,
                     statementID: query.id,
                     reason: "Verification could not be completed: \(deterministicDescription(of: error))"
                 ))
             }
+            try afterEachCandidate()
         }
 
+        try SQLiteBuildValidationScratchSnapshot.requireUnchanged(
+            snapshotURL,
+            since: passBaseline
+        )
         return SQLiteBuildValidationIndexRecommendationSet(
             recommendations: recommendations,
             unverified: unverified
@@ -126,16 +192,20 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
     /// How a failure is described in the sidecar.
     ///
     /// Only errors this validator raises *and* knows to be
-    /// host-independent are described in full. Everything else is named by
+    /// host-independent are described in full. A scratch refusal is
+    /// described without the path it refused. Everything else is named by
     /// type. Two failures that read differently on two machines would break
     /// the artifact's byte-identical guarantee, and the paths a filesystem
     /// error embeds — a per-run temporary directory, most of all — are
     /// exactly that.
     static func deterministicDescription(of error: Error) -> String {
-        guard let probeError = error as? SQLiteExplainQueryPlanProbeError else {
-            return "an error of type \(type(of: error))."
+        if let probeError = error as? SQLiteExplainQueryPlanProbeError {
+            return probeError.description
         }
-        return probeError.description
+        if let scratchError = error as? SQLiteBuildValidationScratchError {
+            return scratchError.hostIndependentDescription
+        }
+        return "an error of type \(type(of: error))."
     }
 
     private enum Evaluation {
@@ -143,62 +213,133 @@ public enum SQLiteBuildValidationIndexCandidateVerifier {
         case rejected(SQLiteBuildValidationUnverifiedIndexCandidate)
     }
 
+    /// Why a candidate could not be judged, by where it failed.
+    ///
+    /// The split decides what a developer is told. A verification failure is
+    /// about the statement or the index, and the sidecar reason is the whole
+    /// story. A setup failure is about the environment the validator ran in,
+    /// and nothing in the sidecar can say which directory or file was the
+    /// problem, so it is also reported to the build log.
+    private enum VerificationFailure: Error {
+        /// The scratch copy, or the connection to it, could not be set up.
+        case scratchSetup(Error)
+        /// The copy was open, and planning or creating the index failed.
+        case verification(Error)
+    }
+
+    /// Evaluates one candidate, throwing either a ``VerificationFailure`` or
+    /// ``SQLiteBuildValidationScratchError/snapshotChangedDuringVerification(initialByteCount:initialSHA256:finalByteCount:finalSHA256:)``,
+    /// and nothing else.
     private static func evaluate(
         candidate: SQLiteBuildValidationIndexCandidate,
         query: SQLiteBuildValidationQueryEntry,
         snapshotURL: URL,
-        scratchParentDirectory: URL
+        scratchParentDirectory: URL,
+        whileTheCopyIsOpen: () throws -> Void
     ) throws -> Evaluation {
-        try SQLiteBuildValidationScratchSnapshot.withCopy(
-            of: snapshotURL,
-            in: scratchParentDirectory
-        ) { copyURL in
-            var configuration = Configuration()
-            configuration.label = "SwiftQLSQLiteBuildValidationIndexVerification"
-            let queue = try DatabaseQueue(
-                path: copyURL.path,
-                configuration: configuration
-            )
-            defer { try? queue.close() }
+        do {
+            return try SQLiteBuildValidationScratchSnapshot.withCopy(
+                of: snapshotURL,
+                in: scratchParentDirectory
+            ) { copyURL in
+                let queue: DatabaseQueue
+                do {
+                    queue = try DatabaseQueue(
+                        path: copyURL.path,
+                        configuration: scratchConfiguration()
+                    )
+                } catch {
+                    throw VerificationFailure.scratchSetup(error)
+                }
+                defer { try? queue.close() }
 
-            let beforePlan = try queue.read { database in
-                try plan(for: query, in: database)
+                do {
+                    try whileTheCopyIsOpen()
+                    return try judge(candidate: candidate, query: query, on: queue)
+                } catch {
+                    throw VerificationFailure.verification(error)
+                }
             }
-            try queue.write { database in
-                try database.execute(sql: candidate.ddl)
+        } catch let failure as VerificationFailure {
+            throw failure
+        } catch let error as SQLiteBuildValidationScratchError {
+            // The same byte counts and digests the validator's own custody
+            // check reports, so the error is host-independent and ends the
+            // run exactly as `SQLiteBuildValidator.run` does.
+            if case .snapshotChangedDuringVerification = error {
+                throw error
             }
-            let afterPlan = try queue.read { database in
-                try plan(for: query, in: database)
-            }
-            let tableRowCount = try queue.read { database in
-                try Self.rowCount(of: candidate.table, in: database)
-            }
+            throw VerificationFailure.scratchSetup(error)
+        } catch {
+            // Anything else `withCopy` throws happened around the copy rather
+            // than inside it: reading the snapshot, creating the scratch
+            // directory, or copying the file.
+            throw VerificationFailure.scratchSetup(error)
+        }
+    }
 
-            let outcome = applyImprovementRule(
-                candidate: candidate,
-                before: beforePlan,
-                after: afterPlan
-            )
-            guard outcome.isImprovement else {
-                return .rejected(SQLiteBuildValidationUnverifiedIndexCandidate(
-                    candidate: candidate,
-                    statementID: query.id,
-                    reason: outcome.reason,
-                    beforePlan: beforePlan,
-                    afterPlan: afterPlan
-                ))
-            }
-            return .recommended(SQLiteBuildValidationIndexRecommendation(
+    /// Plans the statement, creates the candidate, plans it again, and
+    /// applies the rule.
+    private static func judge(
+        candidate: SQLiteBuildValidationIndexCandidate,
+        query: SQLiteBuildValidationQueryEntry,
+        on queue: DatabaseQueue
+    ) throws -> Evaluation {
+        let beforePlan = try queue.read { database in
+            try plan(for: query, in: database)
+        }
+        try queue.write { database in
+            try database.execute(sql: candidate.ddl)
+        }
+        let afterPlan = try queue.read { database in
+            try plan(for: query, in: database)
+        }
+        let tableRowCount = try queue.read { database in
+            try Self.rowCount(of: candidate.table, in: database)
+        }
+
+        let outcome = applyImprovementRule(
+            candidate: candidate,
+            before: beforePlan,
+            after: afterPlan
+        )
+        guard outcome.isImprovement else {
+            return .rejected(SQLiteBuildValidationUnverifiedIndexCandidate(
                 candidate: candidate,
                 statementID: query.id,
-                descriptorIdentity: query.descriptorIdentity,
+                reason: outcome.reason,
                 beforePlan: beforePlan,
-                afterPlan: afterPlan,
-                improvementRuleVersion: improvementRuleVersion,
-                improvementReason: outcome.reason,
-                writeCostNote: writeCostNote(for: candidate, rowCount: tableRowCount)
+                afterPlan: afterPlan
             ))
         }
+        return .recommended(SQLiteBuildValidationIndexRecommendation(
+            candidate: candidate,
+            statementID: query.id,
+            descriptorIdentity: query.descriptorIdentity,
+            beforePlan: beforePlan,
+            afterPlan: afterPlan,
+            improvementRuleVersion: improvementRuleVersion,
+            improvementReason: outcome.reason,
+            writeCostNote: writeCostNote(for: candidate, rowCount: tableRowCount)
+        ))
+    }
+
+    /// The configuration of the connection each scratch copy is opened on.
+    ///
+    /// It registers the same functions the correctness connection has, before
+    /// anything is planned. SQLite resolves a function name at preparation, so
+    /// a statement using `REGEXP` would otherwise fail to prepare here, and
+    /// every candidate it motivated would land in `unverified` for a reason
+    /// that has nothing to do with the index. A build compiled with
+    /// `SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION` — Apple's is — lets `EXPLAIN`
+    /// prepare an unknown function and hides the gap; other builds do not.
+    static func scratchConfiguration() -> Configuration {
+        var configuration = Configuration()
+        configuration.label = "SwiftQLSQLiteBuildValidationIndexVerification"
+        configuration.prepareDatabase { database in
+            SQLiteBuildValidationBundledFunctions.register(on: database)
+        }
+        return configuration
     }
 
     private static func plan(

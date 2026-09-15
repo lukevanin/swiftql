@@ -101,7 +101,7 @@ The report is evidence for SwiftQL's existing public SQLite subset; it is not a
 claim of complete SQLite grammar coverage. The inventory remains the source of
 truth, while the report is its readable generated view.
 
-The v1.7 inventory contains 117 feature records and 197 evidence records. Its
+The v1.8.1 inventory contains 117 feature records and 207 evidence records. Its
 support-status totals are exact and mutually exclusive:
 
 | Support status | Features |
@@ -112,7 +112,7 @@ support-status totals are exact and mutually exclusive:
 | Intentionally unsupported | 1 |
 | Unimplemented | 1 |
 
-Of those 197 evidence records, 121 exercise real SQLite and
+Of those 207 evidence records, 126 exercise real SQLite and
 cite one captured environment, SQLite 3.51.0. An inventory entry is counted in
 the 113 supported features only when it links to successful preparation by a
 real SQLite engine whose version and source ID are recorded. Partial,
@@ -602,12 +602,16 @@ destination when a separate output is useful, for example
 `./make-docs.sh /tmp/swiftql-docs`. The command never stages or commits files.
 
 The site also carries the blog under `Website/blog`, generated with
-[Hugo](https://gohugo.io). `make-docs.sh` requires Hugo 0.164.x on `PATH` and
-stops with an explicit error when it is absent or a different version, so
-install it first:
+[Hugo](https://gohugo.io). `make-docs.sh` requires the exact Hugo release pinned
+in [`scripts/ci/hugo-version.sh`](scripts/ci/hugo-version.sh) on `PATH`, and
+stops with an explicit error when it is absent or a different version.
+`brew install hugo` installs whatever version Homebrew currently ships, so on
+macOS install the pinned release, verified by checksum, and put it first on
+`PATH`:
 
 ```sh
-brew install hugo
+scripts/ci/install-hugo.sh "$HOME/.swiftql-hugo"
+export PATH="$HOME/.swiftql-hugo:$PATH"
 ```
 
 Every Swift fence carries a marker for a named `XLDocumentationTests` scenario.

@@ -290,6 +290,71 @@ final class SQLTransactionScopeTests: XCTestCase {
         XCTAssertEqual(second, [TestTable(id: "second", value: 2)])
     }
 
+    // MARK: - Nested requests inside an open result set (issue #641)
+
+    /// A recursive walk issues the same SQL again, with different bindings,
+    /// while the outer `withResultSet` cursor is still open on the pinned
+    /// connection. GRDB's statement cache would hand the inner fetch the
+    /// outer cursor's own statement, and rebinding it would restart the outer
+    /// iteration. Both result sets must instead return their own rows in
+    /// full.
+    func testSameSQLNestedFetchInsideWithResultSetInsideATransactionKeepsBothResultSetsIntact() throws {
+        try createTestTable()
+
+        let minimumValue = XLNamedBindingReference<Int>(name: "minimumValue")
+        let query = sql { schema -> any XLQueryStatement<TestTable> in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            Where(table.value >= minimumValue)
+            OrderBy(table.value.ascending())
+        }
+        let allRows = (1 ... 4).map { TestTable(id: "row-\($0)", value: $0) }
+
+        let (outerRows, innerRowsByOuterRow) = try database.withTransaction { scope -> ([TestTable], [[TestTable]]) in
+            for row in allRows {
+                try scope.makeRequest(with: sqlInsert(row)).execute()
+            }
+
+            let request = scope.makeRequest(with: query)
+            let slot = try XCTUnwrap(request.parameterLayout.slot(for: .named("minimumValue")))
+            func bindings(_ value: Int) throws -> XLInvocationBindings<XLSQLiteValue> {
+                try XLInvocationBindings<XLSQLiteValue>(
+                    layout: request.parameterLayout,
+                    bindings: [try XLInvocationBinding(slot: slot, value: .integer(Int64(value)))]
+                ).validatingComplete()
+            }
+
+            var outerRows: [TestTable] = []
+            var innerRowsByOuterRow: [[TestTable]] = []
+            try request.withResultSet(bindings: try bindings(1)) { results in
+                while let row = try results.next() {
+                    outerRows.append(row)
+                    XCTAssertLessThanOrEqual(
+                        outerRows.count,
+                        allRows.count,
+                        "The outer cursor restarted: a nested fetch reset its statement."
+                    )
+                    guard outerRows.count <= allRows.count else {
+                        break
+                    }
+                    // The inner result starts at the outer row itself, so a
+                    // reset outer cursor would return this same row again
+                    // instead of the next one.
+                    innerRowsByOuterRow.append(
+                        try scope.makeRequest(with: query).fetchAll(bindings: try bindings(row.value))
+                    )
+                }
+            }
+            return (outerRows, innerRowsByOuterRow)
+        }
+
+        XCTAssertEqual(outerRows, allRows)
+        XCTAssertEqual(innerRowsByOuterRow, allRows.map { outer in
+            allRows.filter { $0.value >= outer.value }
+        })
+    }
+
     // MARK: - Source ordering: an earlier typed result feeds a later operation
 
     func testEarlierTypedResultFeedsALaterOperationAndTheReturnValue() throws {

@@ -419,7 +419,7 @@ footer {
       <a class="btn" href="https://github.com/lukevanin/swiftql/blob/main/Documentation/PortingFromSQL.md">Port a query</a>
       <a class="btn" href="https://github.com/lukevanin/swiftql">GitHub</a>
     </div>
-    <div class="install"><code>.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.8.0")</code></div>
+    <div class="install"><code>.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.8.1")</code></div>
   </div>
 </header>
 
@@ -516,7 +516,7 @@ footer {
     <div class="grid">
       <div class="card">
         <h3>Queries</h3>
-        <p>Inner, left, and cross joins; grouping and <code>HAVING</code>; ordering and pagination; scalar and table subqueries; compound queries.</p>
+        <p>Inner, left, right, full outer, cross, natural, and <code>USING</code> joins; grouping and <code>HAVING</code>; ordering and pagination; scalar and table subqueries; compound queries.</p>
       </div>
       <div class="card">
         <h3>Common table expressions</h3>
@@ -544,7 +544,7 @@ footer {
       </div>
       <div class="card">
         <h3>Text matching</h3>
-        <p>Match with <code>like</code>, <code>glob</code>, and <code>regexp</code>. SQLite ships no <code>regexp</code> function, so SwiftQL supplies one backed by Swift <code>Regex</code>, and a <code>RegexBuilder</code> pattern matches through <code>XLRegexPattern</code>.</p>
+        <p>Match with <code>like</code>, <code>glob</code>, and <code>regexp</code>. SQLite ships no <code>regexp</code> function, so SwiftQL supplies one backed by Swift <code>Regex</code>, and a <code>RegexBuilder</code> pattern matches through <code>XLRegexPattern</code>. An oversized pattern or subject is refused, never truncated.</p>
       </div>
       <div class="card">
         <h3>Your domain</h3>
