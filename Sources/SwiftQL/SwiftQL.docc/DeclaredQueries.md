@@ -236,18 +236,54 @@ reported on the specification's own source location, not on the generated
 code. A malformed declaration therefore never produces a confusing error deep
 inside macro-expanded output.
 
-## v1.5 transitional syntax and the v2 migration path
+## Static descriptors and build validation
 
-The v1.5.1 prototype builds its value-free statement with the existing
-`sql { }` / `XLQueryStatement` / `makeRequest(with:)` v1 path — the same
-statement construction every other SwiftQL query already uses. It
-deliberately does **not** build on the newer `XLStaticQueryDescriptor` /
-`XLQueryCapture` catalog machinery described in <doc:StaticQueries>; that
-stable-v2 catalog integration is out of scope until the catalog-facing issues
-it depends on land. Existing `@SQLQuery`/`@SQLQueries` declarations are
-expected to keep compiling once that integration ships — the migration is
-expected to be a change to what the macro generates internally, not to how
-you write a specification function.
+Since v1.9 (issue [#659](https://github.com/lukevanin/swiftql/issues/659)),
+every declaration also describes itself, so it can become an
+`XLStaticQueryDescriptor` (see <doc:StaticQueries>) and an entry in a
+build-validation manifest without a hand-written list.
+
+The macro has no type information, so it emits data rather than a
+descriptor. For each specification it emits an `XLDeclaredQuery` value: the
+specification's name, the cardinality its return type selects, each
+parameter's name and Swift type, the row type, and the same value-free
+statement builder the executor renders. `@SQLQueries` collects these values in
+a generated static `declaredQueries` member of the extended type, in
+declaration order. `@SQLQuery` generates a static `<name>DeclaredQuery` peer
+beside each declaration.
+
+`XLDeclaredQuery.makeDescriptor(dialect:)` assembles the descriptor at run
+time:
+
+- It renders the statement with an `XLiteEncoder` for the dialect, the same
+  encoder a `GRDBDatabase` with that dialect renders the executor's statement
+  with. The descriptor's SQL is therefore the SQL the executor runs.
+- It takes the parameter layout from the rendered statement, and checks it
+  against the declared parameters.
+- It records the result columns by replaying the row reader against a reader
+  that notes each column's alias and Swift type.
+- It names the definition `<DatabaseType>/<specification>@1`. Nothing in the
+  identity depends on the build, so an unchanged declaration has the same
+  descriptor identity in every build.
+
+The `SwiftQLSQLiteBuildValidationDeclaredQueries` library projects the
+descriptors into a format version 2 manifest.
+`SQLiteBuildValidationDeclaredQueryManifest.makeManifest(queries:snapshotIdentifier:snapshotURL:dialect:)`
+takes the generated `declaredQueries` list and a checked-in schema snapshot,
+and returns a manifest with one entry per query and no fixture provenance.
+A package runs a small generator that calls it and writes the canonical JSON
+beside the snapshot. A query added to the `Query` container is in the next
+regenerated manifest. The manifest is not validated when it is generated: the
+`swiftql-build-validate` validator and the `SwiftQLSQLiteBuildValidationPlugin`
+build plugin stay the validation step. <doc:TodoDemo> generates its manifest
+this way.
+
+None of this changes the executor. Existing `@SQLQuery` and `@SQLQueries`
+declarations keep compiling, render the same SQL, and run the same way. The
+catalog-scoped lowering that v2 plans (issue
+[#494](https://github.com/lukevanin/swiftql/issues/494)) is expected to change
+what the macro generates internally, not how you write a specification
+function.
 
 ## Current limitations
 
@@ -271,3 +307,21 @@ you write a specification function.
   `@SQLQueries`-attached extension of the same database type would
   redeclare `Context` and `execute(_:)`. Declare every specification for one
   database type in a single `@SQLQueries` extension's `Query` container.
+- **Only the container form lists its queries.** A peer macro cannot see the
+  other declarations in its scope, so separate `@SQLQuery` declarations each
+  get a `<name>DeclaredQuery` peer but no generated list. Declare the queries
+  a manifest must cover in an `@SQLQueries` container.
+- **A specification body builds a value-free statement only.** The generated
+  `declaredQueries` member and `<name>DeclaredQuery` peer are static, so a
+  body that reads the database instance (`self`, or a member of it) does not
+  compile there. Pass such a value as a parameter instead.
+- **Lowering reads placeholders.** Recording result columns calls each
+  result type's `sqlDefault()`, as rendering a legacy `Select` projection
+  already does. A parameter of a custom type that is not an `XLEnum` also
+  binds its `sqlDefault()` once, to learn its SQLite storage class. A row read
+  through a static row layout cannot be lowered yet, and fails with a
+  thrown error rather than a partial descriptor.
+- **The manifest renders with one dialect.** `makeDescriptor(dialect:)` and
+  the manifest projection default to `XLSQLiteDialect()`. A database built
+  with other identifier formatting options must pass the same dialect, or the
+  manifest describes SQL the application does not run.

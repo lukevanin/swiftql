@@ -297,6 +297,13 @@ runs. SwiftQL's build-tool plugin prepares each query against that snapshot on
 every build, so a query that no longer matches the schema fails the build
 rather than the app.
 
+The manifest generator lists no queries. `@SQLQueries` generates
+`GRDBDatabase.declaredQueries` from the `Query` container, and
+`TodoDeclaredQueries` adds the list view's read, which is a statement rather
+than a declaration. SwiftQL lowers each one to a static descriptor and
+projects it into the manifest, so a query added to the container is validated
+after the next regeneration with no change to the generator.
+
 Regenerate both after changing the schema or a query:
 
 ```text

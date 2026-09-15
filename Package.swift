@@ -32,6 +32,10 @@ let package = Package(
             name: "SwiftQLSQLiteBuildValidationValidator",
             targets: ["SwiftQLSQLiteBuildValidationValidator"]
         ),
+        .library(
+            name: "SwiftQLSQLiteBuildValidationDeclaredQueries",
+            targets: ["SwiftQLSQLiteBuildValidationDeclaredQueries"]
+        ),
         .executable(
             name: "swiftql-benchmark",
             targets: ["SwiftQLBenchmarkCLI"]
@@ -226,6 +230,33 @@ let package = Package(
             name: "swiftql-build-validate",
             dependencies: ["SwiftQLSQLiteBuildValidationValidator"],
             path: "Sources/SwiftQLSQLiteBuildValidationValidatorCLI"
+        ),
+
+        // Projects the declared queries of a target into a format version 2
+        // build-validation manifest (#659). `@SQLQueries` lists its
+        // specifications in a generated `declaredQueries` member, and this
+        // target turns that list into manifest entries pinned to a snapshot.
+        // Generation only: validation stays in the validator above.
+        .target(
+            name: "SwiftQLSQLiteBuildValidationDeclaredQueries",
+            dependencies: [
+                "SwiftQL",
+                "SwiftQLSQLiteBuildValidationManifest",
+                "SwiftQLSQLiteBuildValidationValidator",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ]
+        ),
+
+        .testTarget(
+            name: "SwiftQLSQLiteBuildValidationDeclaredQueriesTests",
+            dependencies: [
+                "SwiftQL",
+                "SwiftQLCore",
+                "SwiftQLSQLiteBuildValidationDeclaredQueries",
+                "SwiftQLSQLiteBuildValidationManifest",
+                "SwiftQLSQLiteBuildValidationValidator",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ]
         ),
 
         // The swiftql-index-advisor codemod (#399). Reads the verified

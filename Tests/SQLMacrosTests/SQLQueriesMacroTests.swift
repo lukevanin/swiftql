@@ -148,6 +148,45 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                         try __xlContext.personById(id: id)
                     }
                 }
+
+                static var declaredQueries: [XLDeclaredQuery] {
+                    [
+                        XLDeclaredQuery(
+                            databaseType: Self.self,
+                            name: "personByName",
+                            cardinality: .many,
+                            parameters: [
+                                XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                            ],
+                            rowType: Person.self,
+                            statement: {
+                                sql { schema in
+                                    let person = schema.table(Person.self)
+                                    Select(person)
+                                    From(person)
+                                    Where(person.name == XLNamedBindingReference<String>(name: "name"))
+                                }
+                            }
+                        ),
+                        XLDeclaredQuery(
+                            databaseType: Self.self,
+                            name: "personById",
+                            cardinality: .zeroOrOne,
+                            parameters: [
+                                XLDeclaredQueryParameter(name: "id", valueType: String.self),
+                            ],
+                            rowType: Person.self,
+                            statement: {
+                                sql { schema in
+                                    let person = schema.table(Person.self)
+                                    Select(person)
+                                    From(person)
+                                    Where(person.id == XLNamedBindingReference<String>(name: "id"))
+                                }
+                            }
+                        ),
+                    ]
+                }
             }
             """,
             macros: makeTestMacros()
@@ -229,6 +268,28 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                         try __xlContext.peopleByClass(class: `class`)
                     }
                 }
+
+                static var declaredQueries: [XLDeclaredQuery] {
+                    [
+                        XLDeclaredQuery(
+                            databaseType: Self.self,
+                            name: "peopleByClass",
+                            cardinality: .many,
+                            parameters: [
+                                XLDeclaredQueryParameter(name: "class", valueType: String.self),
+                            ],
+                            rowType: Person.self,
+                            statement: {
+                                sql { schema in
+                                    let person = schema.table(Person.self)
+                                    Select(person)
+                                    From(person)
+                                    Where(person.name == XLNamedBindingReference<String>(name: "class"))
+                                }
+                            }
+                        ),
+                    ]
+                }
             }
             """,
             macros: makeTestMacros()
@@ -303,6 +364,25 @@ final class SQLQueriesMacroAccessLevelTests: XCTestCase {
                     try execute { __xlContext in
                         try __xlContext.allPeople()
                     }
+                }
+
+                public static var declaredQueries: [XLDeclaredQuery] {
+                    [
+                        XLDeclaredQuery(
+                            databaseType: Self.self,
+                            name: "allPeople",
+                            cardinality: .many,
+                            parameters: [],
+                            rowType: Person.self,
+                            statement: {
+                                sql { schema in
+                                    let person = schema.table(Person.self)
+                                    Select(person)
+                                    From(person)
+                                }
+                            }
+                        ),
+                    ]
                 }
             }
             """,

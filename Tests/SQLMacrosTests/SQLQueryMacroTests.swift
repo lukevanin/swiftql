@@ -78,6 +78,26 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
+
+                static var personByNameDeclaredQuery: XLDeclaredQuery {
+                    XLDeclaredQuery(
+                        databaseType: Self.self,
+                        name: "personByName",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                                Where(person.name == XLNamedBindingReference<String>(name: "name"))
+                            }
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -135,6 +155,27 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
+
+                public static var peopleInCohortDeclaredQuery: XLDeclaredQuery {
+                    XLDeclaredQuery(
+                        databaseType: Self.self,
+                        name: "peopleInCohort",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                            XLDeclaredQueryParameter(name: "minimumAge", valueType: Int.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                                Where(person.name == XLNamedBindingReference<String>(name: "name") && person.age >= XLNamedBindingReference<Int>(name: "minimumAge"))
+                            }
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -190,6 +231,26 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+
+                static var peopleByNicknameDeclaredQuery: XLDeclaredQuery {
+                    XLDeclaredQuery(
+                        databaseType: Self.self,
+                        name: "peopleByNickname",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "nickname", valueType: String?.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                                Where(person.nickname == XLNamedBindingReference<String?>(name: "nickname"))
+                            }
+                        }
+                    )
                 }
             }
             """,
@@ -247,6 +308,26 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
+
+                static var personByNameDeclaredQuery: XLDeclaredQuery {
+                    XLDeclaredQuery(
+                        databaseType: Self.self,
+                        name: "personByName",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                                Where(person.name == XLNamedBindingReference<String>(name: "name") && XLNamedBindingReference<String>(name: "name") == person.name)
+                            }
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -303,6 +384,26 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
+
+                static var rowsForKindDeclaredQuery: XLDeclaredQuery {
+                    XLDeclaredQuery(
+                        databaseType: Self.self,
+                        name: "rowsForKind",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "class", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                                Where(person.kind == XLNamedBindingReference<String>(name: "class"))
+                            }
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -350,6 +451,23 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     let __xlLayout = __xlRequest.parameterLayout
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+
+                static var allPeopleDeclaredQuery: XLDeclaredQuery {
+                    XLDeclaredQuery(
+                        databaseType: Self.self,
+                        name: "allPeople",
+                        cardinality: .many,
+                        parameters: [],
+                        rowType: Person.self,
+                        statement: {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                            }
+                        }
+                    )
                 }
             }
             """,
@@ -415,6 +533,26 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
+
+                static var personByNameDeclaredQuery: XLDeclaredQuery {
+                    XLDeclaredQuery(
+                        databaseType: Self.self,
+                        name: "personByName",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                                Where(person.name == XLNamedBindingReference<String>(name: "name"))
+                            }
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -475,6 +613,26 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchOne(bindings: __xlPacket)
+                }
+
+                static var personByExactNameDeclaredQuery: XLDeclaredQuery {
+                    XLDeclaredQuery(
+                        databaseType: Self.self,
+                        name: "personByExactName",
+                        cardinality: .zeroOrOne,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                                Where(person.name == XLNamedBindingReference<String>(name: "name"))
+                            }
+                        }
+                    )
                 }
             }
             """,
@@ -546,6 +704,26 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         throw XLQueryCardinalityError.moreThanOneRowMatched
                     }
                 }
+
+                static var theOnlyPersonDeclaredQuery: XLDeclaredQuery {
+                    XLDeclaredQuery(
+                        databaseType: Self.self,
+                        name: "theOnlyPerson",
+                        cardinality: .exactlyOne,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                                Where(person.name == XLNamedBindingReference<String>(name: "name"))
+                            }
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -610,6 +788,27 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+
+                static var auditedPersonByNameDeclaredQuery: XLDeclaredQuery {
+                    XLDeclaredQuery(
+                        databaseType: Self.self,
+                        name: "auditedPersonByName",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                                Where(person.name == XLNamedBindingReference<String>(name: "name"))
+                                audit(sqlResult)
+                            }
+                        }
+                    )
                 }
             }
             """,

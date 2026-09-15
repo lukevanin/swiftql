@@ -47,7 +47,7 @@ in `TodoKit`, a local package beside it.
 | `TodoKit/Sources/TodoKit/TodoFilteredRead.swift` | The list view's one composable read |
 | `TodoKit/Sources/TodoKit/TodoStore.swift` | Writes and the move transaction |
 | `TodoKit/Sources/TodoKit/TodoModels.swift` | The `@Observable` live-query models |
-| `TodoKit/Tests/` | 80 tests over the query layer |
+| `TodoKit/Tests/` | 82 tests over the query layer |
 
 ## What each part shows
 
@@ -115,7 +115,10 @@ re-binds the live query rather than filtering in Swift.
 **Queries are checked at build time.** `TodoKitBuildValidation` carries a
 checked-in schema snapshot and a manifest of every query the demo runs, and
 SwiftQL's build-tool plugin prepares each one against that snapshot on every
-build. Regenerate both after changing the schema or a query:
+build. The manifest is generated from the declarations: `@SQLQueries` lists
+every query in the `Query` container, `TodoDeclaredQueries.swift` adds the
+filtered read, and the generator in `Sources/todo-validation-manifest` holds no
+query list of its own. Regenerate both after changing the schema or a query:
 
 ```
 Examples/TodoApp/Tools/regenerate-validation-manifest.sh

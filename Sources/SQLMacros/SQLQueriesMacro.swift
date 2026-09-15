@@ -128,6 +128,10 @@ extension SQLQueriesMacro: MemberMacro {
         for builder in builders {
             members.append(builder.makeDatabaseExecutorFunction(modifierPrefix: modifierPrefix))
         }
+        members.append(makeDeclaredQueriesMember(
+            builders: builders,
+            modifierPrefix: modifierPrefix
+        ))
         return try members.map(makeDecl)
     }
 

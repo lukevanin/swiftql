@@ -27,6 +27,38 @@
   optional key no longer decodes as an absent field. A file that decoded on
   1.8 because it had an extra key now fails. Remove or correct the key.
 
+- **Declared queries generate one more member** (issue #659). `@SQLQueries`
+  adds a static `declaredQueries` member to the extended type, and `@SQLQuery`
+  adds a static `<name>DeclaredQuery` peer beside each declaration. A type
+  that already declares a member with one of these names gets a
+  redeclaration error. Rename that member. The generated executors, their
+  rendered SQL, and their runtime behaviour do not change.
+
+### Added
+
+- **Declared queries lower to a static descriptor** (issue #659). The macros
+  now emit what they know about each declaration: its name, cardinality,
+  parameter names and types, row type, and value-free statement builder. The
+  new `XLDeclaredQuery` type assembles that data into an
+  `XLStaticQueryDescriptor` with `makeDescriptor(dialect:)`. It renders the
+  SQL with the same encoder a `GRDBDatabase` uses, takes the parameter layout
+  from the rendered statement, and records the result columns from the row
+  reader. The definition identity is the database type name and the
+  specification name at version 1, so the descriptor identity does not change
+  between builds of an unchanged declaration. No catalog is needed.
+
+- **A build-validation manifest from declarations** (issue #659). The new
+  `SwiftQLSQLiteBuildValidationDeclaredQueries` library projects declared
+  queries into a format version 2 manifest.
+  `SQLiteBuildValidationDeclaredQueryManifest.makeManifest(queries:snapshotIdentifier:snapshotURL:dialect:)`
+  takes the `declaredQueries` list that `@SQLQueries` generates, so a package
+  regenerates its manifest with no hand-written query list, and a query added
+  to the container is in the next manifest. The manifest omits fixture
+  provenance. Generation does not validate: the validator and the build plugin
+  stay the only validation step. The to-do demo now generates its manifest
+  this way, and the hand-written list it used before is kept as a test
+  fixture.
+
 ### Changed
 
 - **Manifest format version 2** (issue #658) lets a generated manifest be

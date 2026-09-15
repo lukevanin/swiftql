@@ -64,14 +64,20 @@ let package = Package(
 
         // Regenerates the two files the validation plugin consumes:
         // the checked-in schema snapshot and the query manifest describing
-        // it. Run ../Tools/regenerate-validation-manifest.sh after changing
-        // the schema or any declared query.
+        // it. The manifest is projected from the queries TodoKit declares, so
+        // it holds no query list of its own. Run
+        // ../Tools/regenerate-validation-manifest.sh after changing the
+        // schema or any declared query.
         .executableTarget(
             name: "todo-validation-manifest",
             dependencies: [
                 "TodoKit",
                 .product(name: "SwiftQL", package: "SwiftQL"),
                 .product(name: "GRDB", package: "GRDB.swift"),
+                .product(
+                    name: "SwiftQLSQLiteBuildValidationDeclaredQueries",
+                    package: "SwiftQL"
+                ),
                 .product(
                     name: "SwiftQLSQLiteBuildValidationManifest",
                     package: "SwiftQL"
@@ -85,7 +91,21 @@ let package = Package(
 
         .testTarget(
             name: "TodoKitTests",
-            dependencies: ["TodoKit"]
+            dependencies: [
+                "TodoKit",
+                // Used by TodoValidationManifestTests.swift, which compares
+                // the generated manifest entries with the hand-written list
+                // the generator carried before issue #659.
+                .product(name: "SwiftQL", package: "SwiftQL"),
+                .product(
+                    name: "SwiftQLSQLiteBuildValidationDeclaredQueries",
+                    package: "SwiftQL"
+                ),
+                .product(
+                    name: "SwiftQLSQLiteBuildValidationManifest",
+                    package: "SwiftQL"
+                ),
+            ]
         ),
     ]
 )

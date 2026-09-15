@@ -51,6 +51,11 @@ validation proves. The
 records the verified build systems, and the demo application in
 <doc:TodoDemo> adopts the plugin.
 
+Since v1.9, a query declared with `@SQLQuery` or `@SQLQueries` lowers to a
+static descriptor, and a package can generate its manifest from those
+descriptors instead of listing its queries by hand. <doc:DeclaredQueries>
+describes that path.
+
 ## Construct a descriptor
 
 First render a statement and convert its validated encoding into an
