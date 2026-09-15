@@ -46,6 +46,11 @@ struct GRDBDatabaseConfiguration {
     /// Where a live query's recovery work is scheduled. `nil`, the default,
     /// waits on each observation's own private serial queue (issue #652).
     var liveQueryRetryScheduler: GRDBLiveQueryRetryScheduler? = nil
+
+    /// The encoder the database renders statements with. `nil`, the default,
+    /// uses an `XLiteEncoder` for the database's dialect. Tests set it to
+    /// count renders (issue #668); no public initializer sets it.
+    var encoder: XLEncoder? = nil
 }
 
 
@@ -256,7 +261,7 @@ public struct GRDBDatabase: XLDatabase {
         )
         self.dialect = dialect
         self.codingConfiguration = configuration.codingConfiguration
-        self.encoder = XLiteEncoder(dialect: dialect)
+        self.encoder = configuration.encoder ?? XLiteEncoder(dialect: dialect)
         self.databasePool = databasePool
         self.driverIdentifier = driver.driverIdentifier
         self.driver = driver

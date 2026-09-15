@@ -629,6 +629,11 @@ struct GRDBDatabaseDriverConnection:
         _ validatedStatement: XLValidatedLogicalPreparedStatement
     ) throws -> GRDBPhysicalStatement {
         let statement = validatedStatement.logicalStatement
+        #if DEBUG
+        let preparationCountBefore = GRDBStatementPreparationTestHooks.shared.isObserving
+            ? liveStatementCount()
+            : nil
+        #endif
         // GRDB's cache hands back the same `Statement` instance for the same
         // SQL on this connection. When a SwiftQL cursor is still stepping
         // that instance -- a request nested inside a `withResultSet` callback
@@ -639,6 +644,11 @@ struct GRDBDatabaseDriverConnection:
         if GRDBOpenCursorStatements.shared.contains(physicalStatement) {
             physicalStatement = try database.makeStatement(sql: statement.sql)
         }
+        #if DEBUG
+        if let preparationCountBefore, liveStatementCount() > preparationCountBefore {
+            GRDBStatementPreparationTestHooks.shared.notifyPrepared(sql: statement.sql)
+        }
+        #endif
         return GRDBPhysicalStatement(
             logicalStatement: statement,
             connectionIdentifier: connectionIdentifier,
@@ -1051,6 +1061,24 @@ struct GRDBDatabaseDriverConnection:
         return false
     }
 
+    #if DEBUG
+    /// How many SQLite statements are prepared and not yet finalized on this
+    /// physical connection. A statement preparation adds one, so tests read
+    /// the difference to count preparations (issue #668).
+    private func liveStatementCount() -> Int {
+        guard let connection = database.sqliteConnection else {
+            return 0
+        }
+        var count = 0
+        var statement = sqlite3_next_stmt(connection, nil)
+        while let current = statement {
+            count += 1
+            statement = sqlite3_next_stmt(connection, current)
+        }
+        return count
+    }
+    #endif
+
     private func validateOwnership(of statement: GRDBPhysicalStatement) throws {
         guard statement.connectionIdentifier == connectionIdentifier else {
             throw XLDatabaseContractError.prepareFailure(
@@ -1222,6 +1250,62 @@ final class GRDBOpenCursorStatements: @unchecked Sendable {
         return try body()
     }
 }
+
+
+#if DEBUG
+///
+/// Reports each SQLite statement that `GRDBDatabaseDriverConnection` prepares,
+/// by its SQL text (issue #668).
+///
+/// Tests use it to prove that an operation prepared a statement once rather
+/// than once per row. A GRDB statement-cache hit prepares nothing and is not
+/// reported. It exists only in DEBUG builds, and the driver counts statements
+/// only while an observer is attached, so release builds pay nothing.
+///
+final class GRDBStatementPreparationTestHooks: @unchecked Sendable {
+
+    static let shared = GRDBStatementPreparationTestHooks()
+
+    private let lock = NSLock()
+
+    private var observers: [UUID: (String) -> Void] = [:]
+
+    private init() {}
+
+    var isObserving: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return !observers.isEmpty
+    }
+
+    /// Calls `observer` with the SQL of every statement prepared while `body`
+    /// runs, and always detaches it afterward.
+    func observe<Result>(
+        _ observer: @escaping (String) -> Void,
+        during body: () throws -> Result
+    ) rethrows -> Result {
+        let identifier = UUID()
+        lock.lock()
+        observers[identifier] = observer
+        lock.unlock()
+        defer {
+            lock.lock()
+            observers[identifier] = nil
+            lock.unlock()
+        }
+        return try body()
+    }
+
+    func notifyPrepared(sql: String) {
+        lock.lock()
+        let observers = Array(observers.values)
+        lock.unlock()
+        for observer in observers {
+            observer(sql)
+        }
+    }
+}
+#endif
 
 
 extension DatabaseValue {

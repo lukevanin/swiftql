@@ -262,3 +262,45 @@ separate transaction-aware spelling — a `@SQLQueries` extension's generated
 `execute(_:)` already calls `withTransaction(_:)` internally, so every
 declared query it runs shares the same pinned connection as any
 `makeRequest(with:)` call alongside it in the same body.
+
+## Inserting many rows through one statement
+
+`sqlInsert(_:)` renders a row's values into the SQL text as literals. A loop of
+`makeRequest(with: sqlInsert(row)).execute()` therefore renders a new
+statement for every row, and every distinct row is a distinct SQL string that
+SQLite prepares again. `GRDBDatabase.insert(contentsOf:)` (issue #668) renders
+the insert once, with a bound parameter in place of each literal, and binds
+each row's values through an invocation packet:
+
+<!-- test: XLDocumentationTests.testDocumentationAdvancedUsage -->
+```swift
+let newPeople = [
+    Person(id: "batch-1", occupationId: nil, name: "Kim", age: 41),
+    Person(id: "batch-2", occupationId: nil, name: "Lee", age: 37),
+]
+try database.withTransaction { scope in
+    try scope.insert(contentsOf: newPeople)
+}
+```
+
+The guarantees:
+
+- **One render, one preparation.** The SQL text is the same for every row, so
+  GRDB's per-connection statement cache prepares it once per connection. A
+  100-row batch renders once and prepares once.
+- **One connection, one transaction.** On a transaction scope the rows join
+  that scope's transaction. On any other database the call opens one write
+  transaction for all rows, so either every row commits or none does.
+- **No statement outlives its connection.** SwiftQL keeps only the rendered SQL
+  and its parameter layout between rows. The prepared statement stays owned by
+  the connection, and the call does not keep it past its connection access. A
+  batch on an escaped scope throws `.scopeEscaped`, and a batch on the root
+  database from inside an active body throws `.nestedTransactionUnsupported`,
+  as every other request does.
+- **The same stored values and errors as `sqlInsert(_:)`.** A row whose values
+  cannot be bound to the shared statement renders on its own as
+  `sqlInsert(_:)` does, inside the same transaction. That covers a value that
+  renders as SQL other than one literal, such as a custom literal type that
+  wraps its value in a function call, and a value that fails to render, such as
+  a non-finite `Double`. Such a row fails with the error the single-row path
+  reports. The SQL that `sqlInsert(_:)` renders for one row does not change.

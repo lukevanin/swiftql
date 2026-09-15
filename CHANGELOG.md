@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.9.0] - Unreleased
+
+### Added
+
+- **`GRDBDatabase.insert(contentsOf:)` inserts many rows through one
+  statement** (issue #668). A loop of
+  `makeRequest(with: sqlInsert(row)).execute()` renders each row's values into
+  the SQL as literals, so every row renders a new statement and SQLite prepares
+  every distinct row again. `insert(contentsOf:)` renders the insert once, with
+  a bound parameter in place of each literal, and binds each row through an
+  invocation packet. GRDB's per-connection statement cache then prepares the
+  statement once per connection. A 100-row batch inside one transaction renders
+  once and prepares once, where the per-row loop renders and prepares 100
+  times.
+  - On a `withTransaction(_:)` scope the rows join that transaction. On any
+    other database the call opens one write transaction, so either every row
+    commits or none does.
+  - SwiftQL keeps only the rendered SQL between rows. The prepared statement
+    stays owned by its connection and never outlives the call's connection
+    access, so a pooled connection or an ended scope cannot keep it.
+  - A row whose values cannot be bound -- a value that renders as SQL other
+    than one literal, or a value that fails to render, such as a non-finite
+    `Double` -- renders on its own as `sqlInsert(_:)` does, in the same
+    transaction, and fails with the same error.
+  - The SQL `sqlInsert(_:)` renders for one row does not change.
+
 ## [1.8.1] - 2026-09-15
 
 v1.8.1 is a correctness and safety patch for the 1.8 line. It removes process
