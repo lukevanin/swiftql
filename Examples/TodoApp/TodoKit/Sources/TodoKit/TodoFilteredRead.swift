@@ -2,28 +2,20 @@ import Foundation
 
 import SwiftQL
 
-/// The list view's read: one statement covering every filter, sort, and
-/// search the app offers.
+/// The statement behind the list view's live query.
 ///
-/// This is the only read in the demo that is not an `@SQLQuery` declaration,
-/// and the reason is the search term. A declared query's frozen-literal guard
-/// rejects a parameter passed as an argument to a call, and matching is a
-/// method — `todo.title.regexp(searchPattern)` fails to compile with
+/// Mirrors `Query.filteredTodos(...)` in `TodoReads.swift`, the declared form
+/// of the same read, which ``TodoDatabase/todos(matching:)`` calls. That
+/// declaration explains the filter, search, and sort.
 ///
-///     'searchPattern' is passed as an argument to a function call in the
-///     '@SQLQueries' body.
+/// A live query observes an `XLRequest`, and a declared query does not give
+/// you one, so the observed read needs a statement value as well. This is the
+/// same duplication `TodoLiveReads.swift` describes for the other observed
+/// reads, and a change to one has to be made in both. Recorded on #469.
 ///
-/// SwiftQL offers no operator spelling of `REGEXP`, and none of `LIKE`, which
-/// this read used before v1.7. Splitting search into a second declared query
-/// would mean two copies of the same filter and sort logic drifting apart, so
-/// the whole read uses named bindings instead. Recorded on #469.
-///
-/// Everything else about it is the point: the filter is three booleans the
-/// `Where` clause reads rather than a mode the query branches on, the search
-/// is always applied with the empty pattern standing in for an empty box --
-/// every subject contains it -- and the sort
-/// selects which ordering keys have any effect. One statement, rendered once,
-/// serves all of it.
+/// Until v1.9 this was the only form of the read: the frozen-literal guard
+/// rejected a parameter passed to `regexp(_:)`, so the read could not be a
+/// declaration at all (#661).
 ///
 /// Public only so the validation-manifest generator, which is a separate
 /// target, can put this exact statement through the validator rather than a
