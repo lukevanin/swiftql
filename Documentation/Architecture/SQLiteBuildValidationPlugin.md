@@ -52,8 +52,9 @@ bundle resources for the target's own product.
 ## Opting in from an Xcode application target
 
 Since v1.9.0 the plugin also conforms to `XcodeBuildToolPlugin`, behind
-`#if canImport(XcodeProjectPlugin)`, so a native target in an `.xcodeproj` —
-an application, a framework, or a command-line tool — can adopt it (#666).
+`#if canImport(XcodeProjectPlugin)`, so a native target in an `.xcodeproj`,
+such as an application, can adopt it (#666). `verify-xcode.sh` verifies an
+application target.
 Before v1.9.0 only a SwiftPM target could, and an application had to move its
 validated queries into a local package.
 
