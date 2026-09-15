@@ -86,6 +86,33 @@ public enum TodoFilteredRead {
         }
     }
 
+    /// This read, described the way `@SQLQuery` describes a declaration, so
+    /// the validation manifest lowers it through the same runtime and with
+    /// `database`'s own encoder.
+    ///
+    /// It is the one read the generated `TodoKitDeclaredQueries` registry
+    /// cannot find, because it is a statement rather than a declaration. The
+    /// manifest generator adds it.
+    public static func declaredQuery(for database: GRDBDatabase) -> XLDeclaredQuery {
+        let statement = Self.statement
+        return XLDeclaredQuery(
+            database: database,
+            name: "filteredTodos",
+            cardinality: .many,
+            parameters: [
+                XLDeclaredQueryParameter(name: "listID", valueType: TodoUUID.self),
+                XLDeclaredQueryParameter(name: "includesCompleted", valueType: Bool.self),
+                XLDeclaredQueryParameter(name: "includesActive", valueType: Bool.self),
+                XLDeclaredQueryParameter(name: "overdueOnly", valueType: Bool.self),
+                XLDeclaredQueryParameter(name: "referenceDate", valueType: TodoDate.self),
+                XLDeclaredQueryParameter(name: "searchPattern", valueType: String.self),
+                XLDeclaredQueryParameter(name: "sortOrder", valueType: Int.self),
+            ],
+            rowType: Todo.self,
+            statement: { statement }
+        )
+    }
+
     /// Builds the packet for one call. Values live here; the request holds
     /// only the rendered SQL and the shape of its parameters.
     static func bindings(

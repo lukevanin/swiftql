@@ -115,10 +115,10 @@ re-binds the live query rather than filtering in Swift.
 **Queries are checked at build time.** `TodoKitBuildValidation` carries a
 checked-in schema snapshot and a manifest of every query the demo runs, and
 SwiftQL's build-tool plugin prepares each one against that snapshot on every
-build. The manifest is generated from the declarations: `@SQLQueries` lists
-every query in the `Query` container, `TodoDeclaredQueries.swift` adds the
-filtered read, and the generator in `Sources/todo-validation-manifest` holds no
-query list of its own. Regenerate both after changing the schema or a query:
+build. The manifest is generated from the declarations:
+TodoKit applies `SwiftQLDeclaredQueryRegistryPlugin`, which generates
+`TodoKitDeclaredQueries` from every declared query on each build, and the
+generator in `Sources/todo-validation-manifest` adds only the filtered read. Regenerate both after changing the schema or a query:
 
 ```
 Examples/TodoApp/Tools/regenerate-validation-manifest.sh

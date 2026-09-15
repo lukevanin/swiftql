@@ -297,12 +297,15 @@ runs. SwiftQL's build-tool plugin prepares each query against that snapshot on
 every build, so a query that no longer matches the schema fails the build
 rather than the app.
 
-The manifest generator lists no queries. `@SQLQueries` generates
-`GRDBDatabase.declaredQueries` from the `Query` container, and
-`TodoDeclaredQueries` adds the list view's read, which is a statement rather
-than a declaration. SwiftQL lowers each one to a static descriptor and
-projects it into the manifest, so a query added to the container is validated
-after the next regeneration with no change to the generator.
+The manifest generator lists no queries. TodoKit applies
+`SwiftQLDeclaredQueryRegistryPlugin`, which scans its sources on every build
+and generates `TodoKitDeclaredQueries`. The generator reads every declared
+query from that registry and adds only the list view's read, which is a
+statement rather than a declaration. SwiftQL lowers each query to a static
+descriptor and projects it into the manifest, so a query added anywhere in
+TodoKit is validated after the next regeneration with no change to the
+generator. Xcode asks you to trust the plugin the first time it builds the
+app.
 
 Regenerate both after changing the schema or a query:
 

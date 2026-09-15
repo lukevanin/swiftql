@@ -8,10 +8,11 @@
 //
 //  The macro has no type information. It knows the specification's name, its
 //  parameter names and spelled types, its row type, its cardinality, and the
-//  rewritten value-free statement builder. Everything that needs a type --
-//  the rendered SQL, the parameter layout, the value type and storage class of
-//  every parameter and result -- is derived here, at run time, from the same
-//  statement builder the generated executor renders.
+//  value-free statement builder. Everything that needs a type -- the rendered
+//  SQL, the parameter layout, the value type and storage class of every
+//  parameter and result -- is derived here, at run time, from the statement
+//  the generated executor renders, with the encoder of the database the query
+//  was read from.
 //
 
 import Foundation
@@ -42,17 +43,23 @@ public struct XLDeclaredQueryParameter {
 /// A declared query, lowered from its declaration to the data a static
 /// descriptor needs.
 ///
-/// `@SQLQueries` generates one value per specification in its `Query`
-/// container, collected in the extended type's `declaredQueries` member.
-/// `@SQLQuery` generates one value per declaration as a `<name>DeclaredQuery`
-/// peer. Call ``makeDescriptor(dialect:)`` to assemble the static descriptor.
+/// Every value is read from a database instance, so it renders with that
+/// database's encoder:
 ///
-/// A statement that is not a declaration can be described the same way, by
-/// calling the initializer directly.
+/// - `@SQLQueries` generates a `declaredQueries` property on the extended
+///   type and on its `Context`, with one value per specification in the
+///   container.
+/// - `@SQLQuery` generates a `<name>DeclaredQuery()` method beside each
+///   declaration.
+///
+/// Call ``makeDescriptor()`` to assemble the static descriptor. A statement
+/// that is not a declaration can be described the same way, by calling an
+/// initializer directly.
 ///
 public struct XLDeclaredQuery {
 
-    /// The unqualified name of the database type the query is declared on.
+    /// The name of the database type the query is declared on, qualified by
+    /// its enclosing types and without its module.
     public let databaseTypeName: String
 
     /// The specification function's base name.
@@ -64,41 +71,90 @@ public struct XLDeclaredQuery {
     /// The parameters in declaration order.
     public let parameters: [XLDeclaredQueryParameter]
 
-    private let statement: () -> any XLQueryStatement
+    private let encoder: (any XLEncoder)?
 
-    private let readRow: (any XLQueryStatement, XLRowReader) throws -> Void
+    private let render: (any XLEncoder) throws -> RenderedStatement
 
     ///
-    /// Describes one declared query.
+    /// Describes one declared query read from `database`.
+    ///
+    /// The query renders with the database's own encoder, so its descriptor
+    /// carries the SQL that database runs. A `GRDBDatabase` supplies its
+    /// encoder. For another database type, use
+    /// ``init(databaseType:encoder:name:cardinality:parameters:rowType:statement:)``.
     ///
     /// - Parameters:
-    ///   - databaseType: The type the query is declared on. Only its
-    ///     unqualified name is used, as the first component of the definition
-    ///     identity.
+    ///   - database: The database the query is declared on.
     ///   - name: The specification function's base name.
     ///   - cardinality: The cardinality the declared return type selects.
     ///   - parameters: Every named parameter the statement binds.
     ///   - rowType: The row type the executor decodes.
-    ///   - statement: Builds the value-free statement the executor renders.
+    ///   - statement: Returns the value-free statement the executor renders.
     ///
     public init<Database, Row>(
-        databaseType: Database.Type,
+        database: Database,
         name: String,
         cardinality: XLQueryCardinality,
         parameters: [XLDeclaredQueryParameter],
         rowType: Row.Type,
         statement: @escaping () -> any XLQueryStatement<Row>
     ) {
-        self.databaseTypeName = String(describing: databaseType)
+        self.init(
+            databaseTypeName: Self.qualifiedTypeName(of: Database.self),
+            optionalEncoder: (database as? GRDBDatabase)?.encoder,
+            name: name,
+            cardinality: cardinality,
+            parameters: parameters,
+            statement: statement
+        )
+    }
+
+    ///
+    /// Describes one declared query for a database type that renders with
+    /// `encoder`.
+    ///
+    public init<Database, Row>(
+        databaseType: Database.Type,
+        encoder: any XLEncoder,
+        name: String,
+        cardinality: XLQueryCardinality,
+        parameters: [XLDeclaredQueryParameter],
+        rowType: Row.Type,
+        statement: @escaping () -> any XLQueryStatement<Row>
+    ) {
+        self.init(
+            databaseTypeName: Self.qualifiedTypeName(of: databaseType),
+            optionalEncoder: encoder,
+            name: name,
+            cardinality: cardinality,
+            parameters: parameters,
+            statement: statement
+        )
+    }
+
+    private init<Row>(
+        databaseTypeName: String,
+        optionalEncoder: (any XLEncoder)?,
+        name: String,
+        cardinality: XLQueryCardinality,
+        parameters: [XLDeclaredQueryParameter],
+        statement: @escaping () -> any XLQueryStatement<Row>
+    ) {
+        self.databaseTypeName = databaseTypeName
         self.name = name
         self.cardinality = cardinality
         self.parameters = parameters
-        self.statement = statement
-        self.readRow = { statement, reader in
-            guard let typed = statement as? any XLQueryStatement<Row> else {
-                return
+        self.encoder = optionalEncoder
+        self.render = { encoder in
+            let value = statement()
+            let encoding = encoder.makeSQL(value)
+            if let select = value.components.reader as? Select<Row>,
+               let layout = select.staticLayout {
+                return RenderedStatement(encoding: encoding, results: .staticLayout(layout.metadata))
             }
-            _ = try typed.readRow(reader: reader)
+            let recorder = XLDeclaredQueryResultRecorder()
+            _ = try value.readRow(reader: recorder)
+            return RenderedStatement(encoding: encoding, results: .recorded(recorder.columns))
         }
     }
 
@@ -124,36 +180,62 @@ public struct XLDeclaredQuery {
     ///
     /// Assembles the static descriptor for this query.
     ///
-    /// The statement is rendered with an `XLiteEncoder` for `dialect`. That is
-    /// the encoder a `GRDBDatabase` built with the same dialect renders the
-    /// generated executor's statement with, so the descriptor's SQL is the SQL
-    /// the executor runs.
+    /// The statement is rendered with the encoder of the database the query
+    /// was read from, so the descriptor's SQL is the SQL that database runs.
     ///
-    /// Result slots are recorded by replaying the statement's row reader
+    /// A row selected through a static row layout takes its result slots from
+    /// the layout's metadata, codecs included. Any other row is replayed
     /// against a reader that notes each column's alias and Swift type. That
     /// replay calls `sqlDefault()` on each result type, exactly as rendering
     /// a legacy `Select` projection already does.
     ///
-    /// - Parameter dialect: The SQLite dialect to render with.
     /// - Throws: ``XLDeclaredQueryError`` when the declaration and the
-    ///   rendered statement disagree, or any error the statement or the
-    ///   descriptor raises while it is validated.
+    ///   rendered statement disagree, or any error the statement, the row
+    ///   reader, or the descriptor raises while it is validated.
     ///
-    public func makeDescriptor(
-        dialect: XLSQLiteDialect = XLSQLiteDialect()
-    ) throws -> XLLoweredDeclaredQuery {
-        let valueFreeStatement = statement()
-        let encoding = XLiteEncoder(dialect: dialect).makeSQL(valueFreeStatement)
-        let definition = try XLStaticStatementDefinition(validating: encoding)
-
+    public func makeDescriptor() throws -> XLLoweredDeclaredQuery {
+        guard let encoder else {
+            throw XLDeclaredQueryError.encoderUnavailable(
+                query: id,
+                databaseType: databaseTypeName
+            )
+        }
+        let rendered = try render(encoder)
+        let definition = try XLStaticStatementDefinition(validating: rendered.encoding)
         let parameterMetadata = try makeParameterMetadata(
             layout: definition.parameterLayout
         )
 
-        let recorder = XLDeclaredQueryResultRecorder()
-        try readRow(valueFreeStatement, recorder)
-        var resultSlots: [XLStaticQueryResultSlot] = []
-        for (offset, column) in recorder.columns.enumerated() {
+        let results: XLStaticQueryResultMetadata
+        let aliases: [String]
+        switch rendered.results {
+        case .staticLayout(let metadata):
+            results = metadata.results
+            aliases = metadata.fields.map(\.alias)
+        case .recorded(let columns):
+            results = try makeRecordedResults(columns)
+            aliases = columns.map(\.alias)
+        }
+
+        let descriptor = try XLStaticQueryDescriptor(
+            definitionIdentity: try definitionIdentity(),
+            statement: definition,
+            parameters: parameterMetadata,
+            results: results,
+            cardinality: cardinality
+        )
+        return XLLoweredDeclaredQuery(
+            id: id,
+            descriptor: descriptor,
+            resultAliases: aliases
+        )
+    }
+
+    private func makeRecordedResults(
+        _ columns: [XLDeclaredQueryResultRecorder.Column]
+    ) throws -> XLStaticQueryResultMetadata {
+        var slots: [XLStaticQueryResultSlot] = []
+        for (offset, column) in columns.enumerated() {
             let metadata = legacyValueMetadata(for: column.valueType)
             guard let storage = Self.storageClass(for: column.valueType) else {
                 throw XLDeclaredQueryError.unknownStorageClass(
@@ -162,7 +244,7 @@ public struct XLDeclaredQuery {
                     valueType: metadata.typeName
                 )
             }
-            resultSlots.append(XLStaticQueryResultSlot(
+            slots.append(XLStaticQueryResultSlot(
                 index: XLLogicalResultIndex(offset),
                 identity: try XLQuerySlotIdentity(path: ["result", column.alias]),
                 valueTypeIdentifier: metadata.identifier,
@@ -176,19 +258,7 @@ public struct XLDeclaredQuery {
                 )
             ))
         }
-
-        let descriptor = try XLStaticQueryDescriptor(
-            definitionIdentity: try definitionIdentity(),
-            statement: definition,
-            parameters: parameterMetadata,
-            results: try XLStaticQueryResultMetadata(slots: resultSlots),
-            cardinality: cardinality
-        )
-        return XLLoweredDeclaredQuery(
-            id: id,
-            descriptor: descriptor,
-            resultAliases: recorder.columns.map(\.alias)
-        )
+        return try XLStaticQueryResultMetadata(slots: slots)
     }
 
     private func makeParameterMetadata(
@@ -256,6 +326,48 @@ public struct XLDeclaredQuery {
     }
 
     ///
+    /// A type's name qualified by its enclosing types, without its module.
+    ///
+    /// `String(describing:)` drops the enclosing types, so `A.Database` and
+    /// `B.Database` would share one identity. `String(reflecting:)` keeps
+    /// them, and its first component is the module, which is dropped so the
+    /// name does not change when the declarations move to another module. A
+    /// type declared in a private scope reflects an `(unknown context at …)`
+    /// component whose address changes between builds, so that component is
+    /// dropped too.
+    ///
+    static func qualifiedTypeName(of type: Any.Type) -> String {
+        let reflected = String(reflecting: type)
+        var components: [String] = []
+        var current = ""
+        var depth = 0
+        for character in reflected {
+            switch character {
+            case "<", "(", "[":
+                depth += 1
+                current.append(character)
+            case ">", ")", "]":
+                depth -= 1
+                current.append(character)
+            case "." where depth == 0:
+                components.append(current)
+                current = ""
+            default:
+                current.append(character)
+            }
+        }
+        components.append(current)
+        if components.count > 1 {
+            components.removeFirst()
+        }
+        components.removeAll { $0.hasPrefix("(") }
+        guard !components.isEmpty else {
+            return String(describing: type)
+        }
+        return components.joined(separator: ".")
+    }
+
+    ///
     /// The SQLite storage class a value of `type` binds as.
     ///
     /// Optionals are unwrapped, intrinsic types are known, and an `XLEnum`
@@ -306,6 +418,20 @@ public struct XLDeclaredQuery {
 }
 
 
+/// A rendered declared-query statement and where its result slots come from.
+private struct RenderedStatement {
+
+    enum Results {
+        case staticLayout(XLStaticRowMetadata)
+        case recorded([XLDeclaredQueryResultRecorder.Column])
+    }
+
+    let encoding: XLEncoding
+
+    let results: Results
+}
+
+
 ///
 /// A declared query's static descriptor, with the result aliases the
 /// descriptor itself does not carry.
@@ -345,6 +471,15 @@ public enum XLDeclaredQueryError: Error, Equatable, LocalizedError {
     /// No SQLite storage class can be derived for a slot's Swift type.
     case unknownStorageClass(query: String, slot: String, valueType: String)
 
+    /// The query was read from a database whose encoder SwiftQL cannot
+    /// reach. Describe it with an explicit encoder instead.
+    case encoderUnavailable(query: String, databaseType: String)
+
+    /// A generated declared-query registry was given no instance of a
+    /// database type that declares queries, so those queries would be
+    /// silently left out.
+    case missingDatabaseInstance(typeName: String)
+
     public var errorDescription: String? {
         switch self {
         case .positionalParameter(let query, let key):
@@ -357,6 +492,10 @@ public enum XLDeclaredQueryError: Error, Equatable, LocalizedError {
             return "Declared query '\(query)' declares parameter '\(name)' as \(declared), but its statement renders it as \(rendered)."
         case .unknownStorageClass(let query, let slot, let valueType):
             return "Declared query '\(query)' has slot '\(slot)' of type \(valueType), and no SQLite storage class can be derived for it. Its sqlDefault() placeholder must bind a non-NULL value."
+        case .encoderUnavailable(let query, let databaseType):
+            return "Declared query '\(query)' was read from a \(databaseType), whose encoder SwiftQL cannot reach. Describe the query with XLDeclaredQuery(databaseType:encoder:name:cardinality:parameters:rowType:statement:)."
+        case .missingDatabaseInstance(let typeName):
+            return "The declared-query registry has queries declared on \(typeName), but no instance of \(typeName) was passed. Pass one, or those queries are not validated."
         }
     }
 }
@@ -366,8 +505,7 @@ public enum XLDeclaredQueryError: Error, Equatable, LocalizedError {
 /// Records the alias and Swift type of every column a row reader reads.
 ///
 /// Returns each type's `sqlDefault()` placeholder so the reader can run to
-/// completion without a database row. A statically described row reads raw
-/// dialect values instead, which this reader does not supply, so such a row
+/// completion without a database row. A row that reads raw dialect values
 /// fails with the default ``XLRowReader`` diagnostic rather than producing a
 /// partial result layout.
 ///

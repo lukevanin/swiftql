@@ -218,8 +218,9 @@ step. It does not:
   I/O (owned by #293);
 - provide a build-tool plugin or declare SwiftPM build-command inputs/outputs
   (owned by #294);
-- implement or lower the `@SQLQuery` macro (owned by #26; the lowering to a
-  descriptor and the projection of declared queries into a manifest are in
-  `SwiftQL` and `SwiftQLSQLiteBuildValidationDeclaredQueries`, #659); or
+- implement or lower the `@SQLQuery` macro (owned by #26). Since #659 the
+  lowering to a descriptor is in `SwiftQL`, discovery is
+  `SwiftQLDeclaredQueryRegistryPlugin`, and the projection into a manifest is
+  `SwiftQLSQLiteBuildValidationDeclaredQueries`; or
 - change `XLQueryIdentity` v1, make `XLStaticQueryDescriptor` wholesale
   `Codable`, or mint a competing #190/#191/#254 inventory.

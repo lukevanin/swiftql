@@ -246,37 +246,73 @@ build-validation manifest without a hand-written list.
 The macro has no type information, so it emits data rather than a
 descriptor. For each specification it emits an `XLDeclaredQuery` value: the
 specification's name, the cardinality its return type selects, each
-parameter's name and Swift type, the row type, and the same value-free
-statement builder the executor renders. `@SQLQueries` collects these values in
-a generated static `declaredQueries` member of the extended type, in
-declaration order. `@SQLQuery` generates a static `<name>DeclaredQuery` peer
-beside each declaration.
+parameter's name and Swift type, the row type, and the value-free statement
+the executor renders. Every generated member is an instance member, and none
+copies a specification body into a new context, so a declaration that
+compiles for its executor compiles for its descriptor too:
 
-`XLDeclaredQuery.makeDescriptor(dialect:)` assembles the descriptor at run
-time:
+- `@SQLQueries` generates a `declaredQueries` property on its `Context`,
+  which evaluates each body exactly where the `Context` executor evaluates
+  it, and a `declaredQueries` property on the extended type that reads it
+  through a `Context`.
+- `@SQLQuery` generates a `<name>DeclaredQuery()` method beside each
+  declaration. It calls the existing `<name>Statement()` peer, and keeps the
+  declaration's access level and `mutating` modifier.
 
-- It renders the statement with an `XLiteEncoder` for the dialect, the same
-  encoder a `GRDBDatabase` with that dialect renders the executor's statement
-  with. The descriptor's SQL is therefore the SQL the executor runs.
+`XLDeclaredQuery.makeDescriptor()` assembles the descriptor at run time:
+
+- It renders the statement with the encoder of the database the value was
+  read from, so the descriptor's SQL is the SQL that database runs, whatever
+  identifier formatting it was built with. A `GRDBDatabase` supplies its
+  encoder. For another database type, build the value with the initializer
+  that takes an encoder.
 - It takes the parameter layout from the rendered statement, and checks it
-  against the declared parameters.
-- It records the result columns by replaying the row reader against a reader
-  that notes each column's alias and Swift type.
-- It names the definition `<DatabaseType>/<specification>@1`. Nothing in the
-  identity depends on the build, so an unchanged declaration has the same
-  descriptor identity in every build.
+  against the declared parameter names, value types, and nullability.
+- A row selected through a static row layout takes its result slots, codecs
+  included, from the layout's metadata. Any other row is replayed against a
+  reader that records each column's alias and Swift type.
+- It names the definition `<DatabaseType>/<specification>@1`. The type name
+  keeps its enclosing types (`Outer.Database`) and drops its module. Nothing
+  in the identity depends on the build, so an unchanged declaration has the
+  same descriptor identity in every build.
 
-The `SwiftQLSQLiteBuildValidationDeclaredQueries` library projects the
-descriptors into a format version 2 manifest.
-`SQLiteBuildValidationDeclaredQueryManifest.makeManifest(queries:snapshotIdentifier:snapshotURL:dialect:)`
-takes the generated `declaredQueries` list and a checked-in schema snapshot,
-and returns a manifest with one entry per query and no fixture provenance.
-A package runs a small generator that calls it and writes the canonical JSON
-beside the snapshot. A query added to the `Query` container is in the next
-regenerated manifest. The manifest is not validated when it is generated: the
-`swiftql-build-validate` validator and the `SwiftQLSQLiteBuildValidationPlugin`
-build plugin stay the validation step. <doc:TodoDemo> generates its manifest
-this way.
+### Discover every declaration in a target
+
+Apply the `SwiftQLDeclaredQueryRegistryPlugin` build-tool plugin to the target
+that declares the queries. On every build it scans the target's own Swift
+sources with SwiftSyntax and compiles a generated `<Target>DeclaredQueries`
+enum into that target. Its `queries(for:)` method takes database instances
+and returns the declared queries of every `@SQLQueries` extension and every
+`@SQLQuery` function it found. It throws
+`XLDeclaredQueryError.missingDatabaseInstance` when no instance of a type
+that declares queries is passed, so a database type cannot be left out
+silently.
+
+The registry is generated into the declaring target, not into a generator,
+because the generated members keep their declaration's access level. A
+declaration the registry cannot reach from another file -- one that is
+`private` or `fileprivate`, one on a generic or constrained type, or one
+outside a type -- is reported as a build warning rather than left out
+silently.
+
+### Generate the manifest
+
+The `SwiftQLSQLiteBuildValidationDeclaredQueries` library projects declared
+queries into a format version 2 manifest.
+`SQLiteBuildValidationDeclaredQueryManifest.makeManifest(queries:snapshotIdentifier:snapshotURL:)`
+takes the queries and a checked-in schema snapshot, and returns the manifest,
+with one entry per query and no fixture provenance, and the queries it had to
+skip. A query whose rows cannot be described statically is skipped by name
+with the reason, not guessed at.
+
+A package runs a small generator that opens a database the way the
+application does, passes it to the generated registry, calls `makeManifest`,
+and writes the canonical JSON beside the snapshot. The generator names no
+query, so a query added to the target is in the next regenerated manifest.
+The manifest is not validated when it is generated: the
+`swiftql-build-validate` validator and the
+`SwiftQLSQLiteBuildValidationPlugin` build plugin stay the validation step.
+<doc:TodoDemo> generates its manifest this way.
 
 None of this changes the executor. Existing `@SQLQuery` and `@SQLQueries`
 declarations keep compiling, render the same SQL, and run the same way. The
@@ -307,21 +343,18 @@ function.
   `@SQLQueries`-attached extension of the same database type would
   redeclare `Context` and `execute(_:)`. Declare every specification for one
   database type in a single `@SQLQueries` extension's `Query` container.
-- **Only the container form lists its queries.** A peer macro cannot see the
-  other declarations in its scope, so separate `@SQLQuery` declarations each
-  get a `<name>DeclaredQuery` peer but no generated list. Declare the queries
-  a manifest must cover in an `@SQLQueries` container.
-- **A specification body builds a value-free statement only.** The generated
-  `declaredQueries` member and `<name>DeclaredQuery` peer are static, so a
-  body that reads the database instance (`self`, or a member of it) does not
-  compile there. Pass such a value as a parameter instead.
-- **Lowering reads placeholders.** Recording result columns calls each
-  result type's `sqlDefault()`, as rendering a legacy `Select` projection
-  already does. A parameter of a custom type that is not an `XLEnum` also
-  binds its `sqlDefault()` once, to learn its SQLite storage class. A row read
-  through a static row layout cannot be lowered yet, and fails with a
-  thrown error rather than a partial descriptor.
-- **The manifest renders with one dialect.** `makeDescriptor(dialect:)` and
-  the manifest projection default to `XLSQLiteDialect()`. A database built
-  with other identifier formatting options must pass the same dialect, or the
-  manifest describes SQL the application does not run.
+- **Discovery needs the plugin in a SwiftPM target.** The registry is
+  generated by `SwiftQLDeclaredQueryRegistryPlugin`, which runs in a SwiftPM
+  target. Xcode asks you to trust the plugin the first time it builds a
+  project that uses it. Only declarations the registry can reach are found;
+  every other one is reported as a build warning.
+- **Lowering reads placeholders.** Recording the result columns of a row
+  that is not a static row layout calls each result type's `sqlDefault()`,
+  as rendering a legacy `Select` projection already does. A parameter of a
+  custom type that is not an `XLEnum` also binds its `sqlDefault()` once, to
+  learn its SQLite storage class. A query whose columns cannot be recorded, or
+  whose placeholder binds `NULL`, is skipped from the manifest by name.
+- **Only a `GRDBDatabase` supplies its encoder.** A declared query read from
+  another database type throws `XLDeclaredQueryError.encoderUnavailable` when
+  it is lowered. Describe such a query with the `XLDeclaredQuery` initializer
+  that takes an encoder.

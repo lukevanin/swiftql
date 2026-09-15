@@ -12,13 +12,33 @@ import TodoKit
 /// Before issue #659 the manifest generator listed every query by hand. That
 /// list is kept below as a fixture: each entry it wrote must still be
 /// produced, with the same SQL, parameters, and result columns, by the
-/// generated `declaredQueries` list. The comparison runs one way only, so a
-/// query added to TodoReads.swift needs no change here.
+/// generated `TodoKitDeclaredQueries` registry. The comparison runs one way
+/// only, so a query added to TodoKit needs no change here.
 final class TodoValidationManifestTests: XCTestCase {
+
+    private var directories: [URL] = []
+
+    override func tearDownWithError() throws {
+        for directory in directories {
+            try? FileManager.default.removeItem(at: directory)
+        }
+        directories = []
+    }
+
+    /// Every query the manifest generator lowers, read from a database built
+    /// the way the app builds one.
+    private func declaredQueries() throws -> [XLDeclaredQuery] {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("TodoManifest-\(UUID().uuidString)", isDirectory: true)
+        directories.append(directory)
+        let todo = try TodoDatabase(url: directory.appendingPathComponent(TodoDatabase.fileName))
+        return try TodoKitDeclaredQueries.queries(for: [todo.database])
+            + [TodoFilteredRead.declaredQuery(for: todo.database)]
+    }
 
     // MARK: - The checked-in manifest
 
-    /// A query added to the `Query` container is listed by the macro, so the
+    /// A query added to TodoKit is listed by the generated registry, so the
     /// checked-in manifest goes stale until it is regenerated. This fails
     /// first, before the CI regeneration check does.
     func testTheCheckedInManifestListsEveryDeclaredQuery() throws {
@@ -31,7 +51,7 @@ final class TodoValidationManifestTests: XCTestCase {
 
         XCTAssertEqual(
             manifest.queries.map(\.id),
-            TodoDeclaredQueries.all.map(\.id).sorted(),
+            try declaredQueries().map(\.id).sorted(),
             "Run Examples/TodoApp/Tools/regenerate-validation-manifest.sh"
         )
     }
@@ -39,9 +59,11 @@ final class TodoValidationManifestTests: XCTestCase {
     // MARK: - The hand-written fixture
 
     func testTheEmittedEntriesMatchTheHandWrittenFixture() throws {
-        let emitted = try SQLiteBuildValidationDeclaredQueryManifest.queryEntries(
-            for: TodoDeclaredQueries.all
+        let projection = try SQLiteBuildValidationDeclaredQueryManifest.queryEntries(
+            for: try declaredQueries()
         )
+        XCTAssertEqual(projection.skippedQueries, [])
+        let emitted = projection.entries
         let emittedByID = Dictionary(uniqueKeysWithValues: emitted.map { ($0.id, $0) })
         let encoder = XLiteEncoder(dialect: XLSQLiteDialect())
 

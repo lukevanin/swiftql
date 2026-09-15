@@ -37,6 +37,14 @@ let package = Package(
             targets: ["SwiftQLSQLiteBuildValidationDeclaredQueries"]
         ),
         .executable(
+            name: "swiftql-declared-query-registry",
+            targets: ["swiftql-declared-query-registry"]
+        ),
+        .plugin(
+            name: "SwiftQLDeclaredQueryRegistryPlugin",
+            targets: ["SwiftQLDeclaredQueryRegistryPlugin"]
+        ),
+        .executable(
             name: "swiftql-benchmark",
             targets: ["SwiftQLBenchmarkCLI"]
         ),
@@ -247,6 +255,8 @@ let package = Package(
             ]
         ),
 
+        // Applies the registry plugin to itself, so the declarations in the
+        // test sources are discovered exactly as an application's are.
         .testTarget(
             name: "SwiftQLSQLiteBuildValidationDeclaredQueriesTests",
             dependencies: [
@@ -256,7 +266,42 @@ let package = Package(
                 "SwiftQLSQLiteBuildValidationManifest",
                 "SwiftQLSQLiteBuildValidationValidator",
                 .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            plugins: ["SwiftQLDeclaredQueryRegistryPlugin"]
+        ),
+
+        // Finds every @SQLQuery and @SQLQueries declaration in Swift source
+        // with SwiftSyntax and renders a target's declared-query registry
+        // (#659). A regular target so the scan is unit-testable.
+        .target(
+            name: "SwiftQLDeclaredQueryDiscovery",
+            dependencies: [
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftParser", package: "swift-syntax"),
             ]
+        ),
+
+        // The registry generator the plugin below runs. Target and product
+        // share a name for the same reason `swiftql-build-validate` does
+        // (#492).
+        .executableTarget(
+            name: "swiftql-declared-query-registry",
+            dependencies: ["SwiftQLDeclaredQueryDiscovery"],
+            path: "Sources/SwiftQLDeclaredQueryRegistryCLI"
+        ),
+
+        // Generates `<Target>DeclaredQueries` into the target it is applied
+        // to, from that target's own sources, so a manifest generator needs
+        // no hand-written list of declared queries (#659).
+        .plugin(
+            name: "SwiftQLDeclaredQueryRegistryPlugin",
+            capability: .buildTool(),
+            dependencies: ["swiftql-declared-query-registry"]
+        ),
+
+        .testTarget(
+            name: "SwiftQLDeclaredQueryDiscoveryTests",
+            dependencies: ["SwiftQLDeclaredQueryDiscovery"]
         ),
 
         // The swiftql-index-advisor codemod (#399). Reads the verified

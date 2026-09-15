@@ -46,6 +46,15 @@ let package = Package(
                 // one changes the plan; running the statements it produces
                 // needs GRDB until typed DDL lands.
                 .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            // Generates TodoKitDeclaredQueries from the @SQLQueries and
+            // @SQLQuery declarations in this target, so the manifest
+            // generator below lists no queries of its own.
+            plugins: [
+                .plugin(
+                    name: "SwiftQLDeclaredQueryRegistryPlugin",
+                    package: "SwiftQL"
+                ),
             ]
         ),
 

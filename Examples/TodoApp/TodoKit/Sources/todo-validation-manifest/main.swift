@@ -18,13 +18,14 @@ import TodoKit
 //   swiftql-build-validation-manifest.json  — one entry per declared query,
 //       carrying the rendered SQL and its parameter and result metadata.
 //
-// This file lists no queries. `@SQLQueries` generates
-// `GRDBDatabase.declaredQueries` from the `Query` container in TodoReads.swift,
-// TodoDeclaredQueries adds the one read that is not a declaration, and
-// SwiftQL projects each into a manifest entry through its static descriptor.
-// A query added to the container is in the next manifest without a change
-// here. The hand-written list this generator used to carry is kept as a test
-// fixture in TodoValidationManifestTests.swift.
+// This file lists no queries. SwiftQLDeclaredQueryRegistryPlugin scans
+// TodoKit's sources on every build and generates `TodoKitDeclaredQueries`,
+// which reads every @SQLQueries and @SQLQuery declaration from a database
+// instance. The generator adds only the list view's read, which is a
+// statement rather than a declaration. A query added anywhere in TodoKit is
+// in the next manifest without a change here. The hand-written list this
+// generator used to carry is kept as a test fixture in
+// TodoValidationManifestTests.swift.
 
 let arguments = CommandLine.arguments
 guard arguments.count == 2 else {
@@ -75,16 +76,39 @@ try snapshotQueue.write { database in
 }
 try snapshotQueue.close()
 
+// MARK: - Queries
+
+// Read from a database opened the way the app opens one, so each query
+// renders with the encoder the app's executors use.
+let scratchDirectory = FileManager.default.temporaryDirectory
+    .appendingPathComponent("todo-validation-manifest-\(UUID().uuidString)", isDirectory: true)
+defer {
+    try? FileManager.default.removeItem(at: scratchDirectory)
+}
+let todoDatabase = try TodoDatabase(
+    url: scratchDirectory.appendingPathComponent(TodoDatabase.fileName)
+)
+let queries = try TodoKitDeclaredQueries.queries(for: [todoDatabase.database])
+    + [TodoFilteredRead.declaredQuery(for: todoDatabase.database)]
+
 // MARK: - Manifest
 
 // Format version 2, with no fixture provenance: the demo's queries are its
 // own, not authored against SwiftQL's #190/#191 test inventories.
-let manifest = try SQLiteBuildValidationDeclaredQueryManifest.makeManifest(
-    queries: TodoDeclaredQueries.all,
+let generated = try SQLiteBuildValidationDeclaredQueryManifest.makeManifest(
+    queries: queries,
     snapshotIdentifier: "todo-demo.schema",
     snapshotURL: snapshotURL
 )
-try manifest.canonicalJSONData().write(to: manifestURL, options: .atomic)
+guard generated.skippedQueries.isEmpty else {
+    for skipped in generated.skippedQueries {
+        FileHandle.standardError.write(Data(
+            "error: \(skipped.queryID) cannot be validated: \(skipped.reason)\n".utf8
+        ))
+    }
+    exit(1)
+}
+try generated.manifest.canonicalJSONData().write(to: manifestURL, options: .atomic)
 
 // MARK: - Validation
 
@@ -92,7 +116,7 @@ try manifest.canonicalJSONData().write(to: manifestURL, options: .atomic)
 // actually pass, so a regeneration can never leave the repository in a state
 // the plugin rejects.
 let report = try SQLiteBuildValidator.validate(
-    manifest: manifest,
+    manifest: generated.manifest,
     againstDatabaseAt: snapshotURL
 )
 guard report.overallVerdict == .passed else {
