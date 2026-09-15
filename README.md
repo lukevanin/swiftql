@@ -130,6 +130,11 @@ file:
 by v1.3; the static-query surface remains available from version 1.2.0. Pin a
 source revision only when intentionally testing later changes from `main`.
 
+SwiftQL 1.x requires GRDB 6 (`6.29.3..<7.0.0`). If your package graph already
+uses GRDB 7, SwiftPM cannot resolve SwiftQL 1.x. The
+[compatibility guide](COMPATIBILITY.md) gives the reasons and links the GRDB 7
+evaluation.
+
 In Xcode, follow Apple's [Adding package dependencies to your app](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app#Add-a-package-dependency),
 and specify the package URL `https://github.com/lukevanin/swiftql.git`.
 
