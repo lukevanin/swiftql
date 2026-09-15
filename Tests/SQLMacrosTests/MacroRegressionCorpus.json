@@ -574,6 +574,35 @@
           "test_case": "NamedBindingPacketInitialValue / NamedBindingPacketCustomInitializer"
         }
       ]
+    },
+    {
+      "id": "macro.declared-query-inside-transaction",
+      "category": "declared-query-transaction",
+      "title": "Declared query called on a transaction scope",
+      "description": "Issue #662: the @SQLQueries database-level executor calls _xlWithDeclaredQueryScope, which runs the Context executor on self when self is a transaction scope and opens a transaction otherwise. On a scope the query runs on the transaction's connection, sees its uncommitted writes, and uses the database's render-once cache entry, so many scopes add one render and one entry. An ended scope throws scopeEscaped; the captured root database and execute(_:) on a scope still throw nestedTransactionUnsupported; a query prepared on a scope cannot be observed.",
+      "provenance": {
+        "inspiration": "n/a -- recorded from this repository's own issue #662, the render-once cache fix in #642, and the to-do demo's recorded limitation (#469), not adapted from an external case.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLQueriesMacroTests.swift",
+          "test_case": "SQLQueriesMacroExpansionTests.test_container_generatesContextExecuteAndDatabaseExecutors"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "Tests/SQLTests/SQLQueriesContainerTests.swift",
+          "test_case": "XLQueriesContainerTests.testDatabaseExecutorCalledOnATransactionScopeSeesTheUncommittedWrite / testDatabaseExecutorOnManyScopesRendersOnceAndAddsNoEntryPerScope / testDatabaseExecutorOnAnEscapedScopeThrowsScopeEscaped / testRootDatabaseAndExecuteInsideATransactionAreStillRejected / testQueryPreparedOnATransactionScopeFetchesThereButCannotBeObserved"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "Tests/SQLTests/SQLQueryRenderOnceCacheTests.swift",
+          "test_case": "SQLQueryRenderOnceCacheTests.testTransactionScopesShareTheDatabaseEntryInsteadOfAddingOnePerScope"
+        }
+      ]
     }
   ]
 }

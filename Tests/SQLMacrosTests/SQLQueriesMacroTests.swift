@@ -229,14 +229,14 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                 }
 
                 func personByName(name: String) throws -> [Person] {
-                    try execute { __xlContext in
-                        try __xlContext.personByName(name: name)
+                    try _xlWithDeclaredQueryScope(self) { __xlDatabase in
+                        try Context(database: __xlDatabase).personByName(name: name)
                     }
                 }
 
                 func personById(id: String) throws -> Person? {
-                    try execute { __xlContext in
-                        try __xlContext.personById(id: id)
+                    try _xlWithDeclaredQueryScope(self) { __xlDatabase in
+                        try Context(database: __xlDatabase).personById(id: id)
                     }
                 }
 
@@ -381,8 +381,8 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                 }
 
                 func peopleMatching(pattern: String, count: Int) throws -> [Person] {
-                    try execute { __xlContext in
-                        try __xlContext.peopleMatching(pattern: pattern, count: count)
+                    try _xlWithDeclaredQueryScope(self) { __xlDatabase in
+                        try Context(database: __xlDatabase).peopleMatching(pattern: pattern, count: count)
                     }
                 }
 
@@ -520,8 +520,8 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                 }
 
                 func peopleByClass(`class`: String) throws -> [Person] {
-                    try execute { __xlContext in
-                        try __xlContext.peopleByClass(class: `class`)
+                    try _xlWithDeclaredQueryScope(self) { __xlDatabase in
+                        try Context(database: __xlDatabase).peopleByClass(class: `class`)
                     }
                 }
 
@@ -697,8 +697,8 @@ final class SQLQueriesMacroAccessLevelTests: XCTestCase {
                 }
 
                 public func allPeople() throws -> [Person] {
-                    try execute { __xlContext in
-                        try __xlContext.allPeople()
+                    try _xlWithDeclaredQueryScope(self) { __xlDatabase in
+                        try Context(database: __xlDatabase).allPeople()
                     }
                 }
 

@@ -54,6 +54,54 @@ public func _xlQueryParameterBinding<T>(
 
 
 ///
+/// Runs one `@SQLQueries` database-level executor call (issue #662).
+///
+/// Support for macro-generated code. On a database, `body` runs inside a new
+/// transaction, exactly as `execute(_:)` runs it. On a transaction scope --
+/// the value `withTransaction(_:)` hands its body -- `body` runs on the scope
+/// itself, so the declared query joins the open transaction: it runs on the
+/// transaction's connection and sees its uncommitted writes, instead of
+/// throwing ``XLTransactionScopeError/nestedTransactionUnsupported``.
+///
+/// Nothing else about the scope rules changes. A scope used after its body
+/// returned still throws ``XLTransactionScopeError/scopeEscaped`` from the
+/// fetch, because the scope's connection is gone. The original database
+/// captured inside a body is not a scope, so it still opens a transaction and
+/// throws `nestedTransactionUnsupported`. `execute(_:)` itself always opens a
+/// transaction.
+///
+/// An adapter that does not conform to `XLTransactionScopeReporting` is never
+/// treated as a scope, so its executors behave as they did before.
+///
+public func _xlWithDeclaredQueryScope<Database: XLTransactionalDatabase, Result>(
+    _ database: Database,
+    _ body: (Database) throws -> Result
+) throws -> Result {
+    if let reporting = database as? any XLTransactionScopeReporting,
+       reporting.isTransactionScope {
+        return try body(database)
+    }
+    return try database.withTransaction(body)
+}
+
+
+///
+/// Reports whether a database value is a transaction scope (issue #662).
+///
+/// Internal. An adapter whose `withTransaction(_:)` hands its body another
+/// value of the same database type conforms, so a generated executor called
+/// on that scope can join the open transaction. See
+/// `_xlWithDeclaredQueryScope(_:_:)`.
+///
+protocol XLTransactionScopeReporting {
+
+    /// `true` when this value is the scope of an open (or ended) transaction,
+    /// not a database that can open one.
+    var isTransactionScope: Bool { get }
+}
+
+
+///
 /// The trapping direct-result entry point for `@SQLQuery`/`@SQLQueries`
 /// specifications.
 ///

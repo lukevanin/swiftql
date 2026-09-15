@@ -143,7 +143,7 @@ extension TodoDatabase {
         now: TodoDate = TodoDate(Date())
     ) throws -> Todo {
         try database.withTransaction { scope in
-            guard try Self.listExists(listID, in: scope) else {
+            guard try scope.todoList(id: listID) != nil else {
                 throw TodoStoreError.listNotFound(listID)
             }
             let todo = Todo(
@@ -244,7 +244,7 @@ extension TodoDatabase {
     @discardableResult
     public func toggleCompleted(todoID id: TodoUUID) throws -> Todo {
         try database.withTransaction { scope in
-            guard let current = try Self.find(id, in: scope) else {
+            guard let current = try scope.todo(id: id) else {
                 throw TodoStoreError.todoNotFound(id)
             }
             let schema = XLSchema()
@@ -415,10 +415,12 @@ extension TodoDatabase {
         beforeCommit: ((GRDBDatabase) throws -> Void)? = nil
     ) throws -> Todo {
         try database.withTransaction { scope in
-            guard let todo = try Self.find(todoID, in: scope) else {
+            // Declared reads, called on the scope, run on the transaction's
+            // connection and see what it has written so far.
+            guard let todo = try scope.todo(id: todoID) else {
                 throw TodoStoreError.todoNotFound(todoID)
             }
-            guard try Self.listExists(destinationID, in: scope) else {
+            guard try scope.todoList(id: destinationID) != nil else {
                 throw TodoStoreError.listNotFound(destinationID)
             }
 
@@ -465,37 +467,6 @@ extension TodoDatabase {
             throw TodoStoreError.todoNotFound(id)
         }
         return row
-    }
-
-    /// A to-do, read inside a transaction.
-    ///
-    /// A plain request rather than the declared `todo(id:)` read: a generated
-    /// executor opens a transaction of its own, and SwiftQL rejects nesting
-    /// one inside another.
-    fileprivate static func find(
-        _ id: TodoUUID,
-        in scope: GRDBDatabase
-    ) throws -> Todo? {
-        let statement = sql { schema in
-            let todo = schema.table(Todo.self)
-            Select(todo)
-            From(todo)
-            Where(todo.id == id)
-        }
-        return try scope.makeRequest(with: statement).fetchOne()
-    }
-
-    fileprivate static func listExists(
-        _ id: TodoUUID,
-        in scope: GRDBDatabase
-    ) throws -> Bool {
-        let statement = sql { schema in
-            let list = schema.table(TodoList.self)
-            Select(list.id)
-            From(list)
-            Where(list.id == id)
-        }
-        return try scope.makeRequest(with: statement).fetchOne() != nil
     }
 
     /// One past the last position in a list, or zero when it is empty.
