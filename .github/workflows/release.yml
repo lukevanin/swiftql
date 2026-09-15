@@ -63,6 +63,17 @@ jobs:
           scripts/ci/check-release-changelog.sh
           "$SOURCE_TAG" "$RELEASE_TAG"
 
+      # The six published-version claims (RELEASING.md, "Documentation
+      # currency") are checked here, on the exact tag commit, rather than
+      # pinned in the Swift test suite, so a version bump touches no test file.
+      - name: Require current published-version claims
+        env:
+          SOURCE_TAG: ${{ steps.release-ref.outputs.source_tag }}
+          RELEASE_TAG: ${{ steps.release-ref.outputs.release_tag }}
+        run: >-
+          scripts/ci/check-release-version-claims.sh
+          "$SOURCE_TAG" "$RELEASE_TAG"
+
       - name: Record validation summary
         env:
           MODE: ${{ steps.release-ref.outputs.mode }}

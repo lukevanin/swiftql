@@ -53,8 +53,6 @@ final class SQLSkillDocumentationTests: XCTestCase {
             "SwiftQL exposes no general raw-fragment API",
             "`XLRequest` across tasks; it is not `Sendable`",
             "checked-out public v1 contract",
-            "1.8.1 is the latest published package, a correctness and safety patch (functions installed once per connection, bounded `REGEXP` operands, distinct aliases and bindings in nested query scopes built from the enclosing schema, and typed errors in place of process traps and silently wrong results) over v1.8, which adds advisory query-plan analysis to the build validator -- normalised `EXPLAIN QUERY PLAN` records, warnings for full scans and materialized sorts, and index recommendations each proved by re-planning on a disposable snapshot copy and applied by the `swiftql-index-advisor` command -- on top of v1.7 `REGEXP` with no application registration, v1.6 SQLite JSON support (the `->` and `->>` selection operators, a typed `XLJSONPath`, the JSON constructor, inspection, extraction, mutation, and aggregate functions, and their JSONB variants), v1.5.6 nullable-column assignment in `Setting` closures, v1.5.5 async live-query streams, `@Observable` query wrappers, and lazy result sets, v1.5.4 method-style scalar functions and observers, v1.5.3 contextual codec presets and `@SQLCodec`, v1.5.2 build-time query validation, and v1.5.1 declared-query macros (`@SQLQuery`/`@SQLQueries`) and typed transaction scopes",
-            "`1.8.1` is the latest published package",
             "Keep those five statuses distinct",
             "recorded SQLite version, source ID, compile options, capabilities",
             "Swift 5.9 and Swift 6.0-6.3 evidence",
@@ -75,6 +73,25 @@ final class SQLSkillDocumentationTests: XCTestCase {
                 "SKILL.md is missing '\(required)'."
             )
         }
+
+        // The description once pinned a 120-word sentence verbatim, so every
+        // release edited this file. It now has to name the newest version
+        // CHANGELOG.md records as released, in both places SKILL.md states it;
+        // how it describes that release is prose, not contract. The release
+        // workflow's check-release-version-claims.sh ties the version to the
+        // tag (issue #672).
+        let latestRelease = try swiftQLLatestReleasedVersion()
+        let description = try XCTUnwrap(
+            metadata.first { $0.hasPrefix("description:") }
+        )
+        XCTAssertTrue(
+            description.contains("\(latestRelease) is the latest published package"),
+            "SKILL.md's description must name \(latestRelease), the newest released version in CHANGELOG.md."
+        )
+        XCTAssertTrue(
+            normalizedContents.contains("`\(latestRelease)` is the latest published package"),
+            "SKILL.md's body must name \(latestRelease), the newest released version in CHANGELOG.md."
+        )
     }
 
     func testConformanceCensusGuidanceMatchesCanonicalInventory() throws {

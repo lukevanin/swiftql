@@ -3,6 +3,7 @@ import XCTest
 
 import SwiftQLCore
 import SwiftQLSQLiteConformanceFixtures
+import SwiftQLTestSupport
 
 
 final class SQLiteValueConformanceBoundaryTests: XCTestCase {
@@ -20,7 +21,14 @@ final class SQLiteValueConformanceBoundaryTests: XCTestCase {
         }
         let valueFeatureCount = featuresByID.values.reduce(0) { $0 + $1.count }
         XCTAssertEqual(inventory.schemaVersion, 1)
-        XCTAssertEqual(inventory.inventoryVersion, "1.8.1")
+        // Compared with the constant the inventory tool enforces instead of a
+        // literal, so bumping the inventory with a release line edits no test
+        // (issue #672). `sqlite-conformance-inventory.py check` keeps the JSON
+        // and that constant equal; this keeps the Swift loader reading it.
+        XCTAssertEqual(
+            inventory.inventoryVersion,
+            try inventoryToolVersion()
+        )
         XCTAssertEqual(inventory.coordinationIssue, 190)
         XCTAssertEqual(valueFeatureCount, 24)
         XCTAssertEqual(
@@ -562,6 +570,24 @@ private enum ConformanceCodecFailure: Error {
 private let conformanceValueType = XLValueTypeIdentifier(
     rawValue: "swiftql.conformance.mode"
 )
+
+
+/// The `INVENTORY_VERSION` constant `scripts/ci/sqlite-conformance-inventory.py`
+/// requires the checked-in inventory to carry.
+private func inventoryToolVersion() throws -> String {
+    let script = try String(
+        contentsOf: try swiftQLRepositoryRootURL().appendingPathComponent(
+            "scripts/ci/sqlite-conformance-inventory.py"
+        ),
+        encoding: .utf8
+    )
+    let prefix = "INVENTORY_VERSION = \""
+    let line = try XCTUnwrap(
+        script.components(separatedBy: .newlines).first { $0.hasPrefix(prefix) },
+        "sqlite-conformance-inventory.py no longer declares INVENTORY_VERSION."
+    )
+    return String(line.dropFirst(prefix.count).dropLast())
+}
 
 
 private func makeTextCodec() -> XLValueCodec<ConformanceMode, XLSQLiteDialect> {

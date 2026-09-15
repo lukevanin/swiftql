@@ -3365,6 +3365,9 @@ extension XLDocumentationTests {
             XLQueryPeerMacroTests.testBareRowExecutorThrowsWhenMultipleRowsMatch
         let _: (XLQueriesContainerTests) -> () throws -> Void =
             XLQueriesContainerTests.testExecuteClosureRunsMultipleQueriesInOneScope
+        // Issue #661: the matching-method and `Limit` example.
+        let _: (XLQueriesContainerTests) -> () throws -> Void =
+            XLQueriesContainerTests.testContainerExecutorBindsLikeRegexpAndLimitParameters
         let _: (XLQueryRenderOnceCacheTests) -> () throws -> Void =
             XLQueryRenderOnceCacheTests.testCachedExecutorServesDifferentArgumentsWithStablePlaceholderSQL
     }
