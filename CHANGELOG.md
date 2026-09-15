@@ -2,7 +2,49 @@
 
 ## [1.9.0] - Unreleased
 
+### Migration
+
+- **Build-validation manifest format version 2** (issue #658). New manifests
+  are written as `format_version: 2`, and the reader accepts versions 1 and 2.
+  A version 1 manifest decodes, validates, and encodes to the same bytes as on
+  1.8.
+  - `SQLiteBuildValidationManifest.conformanceInventoryVersion` and
+    `combinatorialManifestVersion` are now `String?`, and so are the same
+    properties on `SQLiteBuildValidationReport` and
+    `SQLiteBuildValidationPlanReport`. Code that reads them must handle `nil`.
+    A report omits the two keys when the manifest omits them.
+  - `SQLiteBuildValidationParameterEntry.valueTypeName` and
+    `SQLiteBuildValidationResultEntry.valueTypeName` are now `String?`.
+  - `SQLiteBuildValidationManifestFormatVersion.current` is now `.v2`. To keep
+    writing version 1, pass `formatVersion: .v1`.
+  - `SQLiteBuildValidationManifestError` gains `unknownKey(path:)`, and
+    `SQLiteBuildValidationPlanSuppressionError` gains `unknownKey(path:)`. A
+    `switch` with no `default` clause must handle the new case.
+
+- **Unknown keys fail closed** (issue #658). The manifest and the plan
+  suppression file (`swiftql-plan-analysis.json`) reject a key their schema
+  does not define, at every level, with `unknownKey(path:)`. A misspelled
+  optional key no longer decodes as an absent field. A file that decoded on
+  1.8 because it had an extra key now fails. Remove or correct the key.
+
 ### Changed
+
+- **Manifest format version 2** (issue #658) lets a generated manifest be
+  valid without invented provenance. In version 2,
+  `conformance_inventory_version` and `combinatorial_manifest_version` are
+  optional, `queries` can be empty, and `value_type_name` is optional on each
+  parameter and result. An absent provenance field means that the manifest was
+  not authored against SwiftQL's test inventories. A present field must not be
+  empty, and a `conformance_feature_ids` or `conformance_case_ids` reference
+  requires its inventory version. `nullability` stays required, because
+  validation checks it. Version 1 keeps every check it had. The to-do demo's
+  manifest is now version 2 with no provenance.
+
+- **Version-first decoding** (issue #658). The manifest and the plan
+  suppression file decode `format_version` before anything else. A document
+  in a version the reader does not know fails with `unsupportedFormatVersion`,
+  not with a decoding error from its body. `SQLiteBuildValidationPlanSuppressions`
+  gains `decode(_:)` for in-memory data.
 
 - OpenCombine is a Linux-only dependency (issue #669). The `SwiftQL` target
   and the test targets that import OpenCombine now use
@@ -30,6 +72,17 @@
   still an error, because the initializer cannot assign it. The diagnostic
   now says that the value cannot be used as a default. The to-do demo gives
   `Todo.checklist` its default again.
+
+### Documentation
+
+- SwiftQL 1.x states that it supports GRDB 6 only (issue #667). The manifest
+  range stays `from: "6.29.3"` (`6.29.3..<7.0.0`). `COMPATIBILITY.md` and the
+  README Install section now say that an application on GRDB 7 cannot resolve
+  SwiftQL 1.x. `Research/GRDB7Evaluation.md` records the build against GRDB
+  7.11.1 and the break list: the `CSQLite` product rename, the SQLite C module
+  that `import GRDB` no longer re-exports, and the `Sendable` closure and value
+  requirements. The `Sendable` findings go to the v2.0 `Row` decision (issue
+  #685).
 
 ## [1.8.1] - 2026-09-15
 

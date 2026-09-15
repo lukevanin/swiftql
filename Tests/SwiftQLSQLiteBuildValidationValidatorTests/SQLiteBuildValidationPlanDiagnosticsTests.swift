@@ -461,6 +461,62 @@ final class SQLiteBuildValidationPlanDiagnosticsTests: XCTestCase {
         )
     }
 
+    /// `format_version` is read before the body (#658), so a file in a
+    /// version this validator does not read reports that version rather
+    /// than a decoding error from a body shape it does not know.
+    func testASuppressionFileReportsAnUnsupportedVersionBeforeItsBody() {
+        for document in [
+            #"{"format_version": 2}"#,
+            #"{"format_version": 2, "suppressions": "none", "rules": []}"#,
+        ] {
+            let data = Data(document.utf8)
+            XCTAssertThrowsError(
+                try SQLiteBuildValidationPlanSuppressions.decode(data),
+                document
+            ) { error in
+                XCTAssertEqual(
+                    error as? SQLiteBuildValidationPlanSuppressionError,
+                    .unsupportedFormatVersion(2)
+                )
+            }
+            XCTAssertThrowsError(
+                try JSONDecoder().decode(SQLiteBuildValidationPlanSuppressions.self, from: data),
+                document
+            ) { error in
+                XCTAssertEqual(
+                    error as? SQLiteBuildValidationPlanSuppressionError,
+                    .unsupportedFormatVersion(2)
+                )
+            }
+        }
+    }
+
+    /// A misspelled `query_id` must not decode as absent: this rule would
+    /// then silence the finding for every query that scans `Orders`, not one.
+    func testASuppressionFileWithAStrayKeyFailsClosed() {
+        let cases: [(document: String, path: String)] = [
+            (
+                #"{"format_version": 1, "suppressions": [{"code": "plan.full-table-scan", "query": "a.scan-orders", "table": "Orders", "reason": "Small."}]}"#,
+                "suppressions[0].query"
+            ),
+            (
+                #"{"format_version": 1, "suppressions": [], "supressions": []}"#,
+                "supressions"
+            ),
+        ]
+        for (document, path) in cases {
+            XCTAssertThrowsError(
+                try SQLiteBuildValidationPlanSuppressions.decode(Data(document.utf8)),
+                path
+            ) { error in
+                XCTAssertEqual(
+                    error as? SQLiteBuildValidationPlanSuppressionError,
+                    .unknownKey(path: path)
+                )
+            }
+        }
+    }
+
     // MARK: - Advice never becomes a verdict
 
     func testAdvisoryDiagnosticsLeaveTheReportAndExitStatusAlone() throws {
