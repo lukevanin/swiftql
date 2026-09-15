@@ -16,7 +16,7 @@ whether it affects code you already wrote.
 
 ## 1.8.1 — Fewer crashes, fewer silent wrong answers
 
-*Released DATE_PLACEHOLDER.*
+*Released 15 September 2026.*
 
 - Several things that used to stop your app now either work or throw an error
   you can catch: a `REGEXP` or custom-function query inside `withResultSet`

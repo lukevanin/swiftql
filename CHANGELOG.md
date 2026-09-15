@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.8.1] - Unreleased
+## [1.8.1] - 2026-09-15
 
 v1.8.1 is a correctness and safety patch for the 1.8 line. It removes process
 traps, silently wrong results, and unbounded work, most often by replacing them
