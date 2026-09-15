@@ -50,6 +50,21 @@
 
 ### Added
 
+- **Build-time validation from an Xcode application target.**
+  `SwiftQLSQLiteBuildValidationPlugin` now also conforms to
+  `XcodeBuildToolPlugin`, so an Xcode project target, such as an app, can add
+  it under "Run Build Tool Plug-ins" (issue #666). Before, only a SwiftPM
+  target could adopt it. The target makes
+  `swiftql-build-validation-manifest.json` and
+  `swiftql-build-validation-snapshot.sqlite` member files, in one folder. It
+  can add `swiftql-plan-analysis.json` beside them to turn on plan analysis.
+  The plugin finds these files by name among the target's input files, and
+  runs the same validator command as the SwiftPM path. An invalid manifest
+  fails the app's build with the validator's diagnostic.
+  `IntegrationTests/BuildValidationPluginFixture/verify-xcode.sh` now builds
+  an application target and checks the correctness report, the plan sidecar,
+  and the failure on an invalid manifest. SwiftPM targets see no change.
+
 - `validJSONOrJSONBOrNull()` renders `json_valid(X, 9)` (issue #671). It
   checks text as RFC 8259 JSON, accepts a blob that is well-formed JSONB or
   that holds well-formed JSON text, and needs SQLite 3.45.0.
