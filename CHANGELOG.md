@@ -1,5 +1,51 @@
 # Changelog
 
+## [1.9.0] - Unreleased
+
+### Migration
+
+- **Build-validation manifest format version 2** (issue #658). New manifests
+  are written as `format_version: 2`, and the reader accepts versions 1 and 2.
+  A version 1 manifest decodes, validates, and encodes to the same bytes as on
+  1.8.
+  - `SQLiteBuildValidationManifest.conformanceInventoryVersion` and
+    `combinatorialManifestVersion` are now `String?`, and so are the same
+    properties on `SQLiteBuildValidationReport` and
+    `SQLiteBuildValidationPlanReport`. Code that reads them must handle `nil`.
+    A report omits the two keys when the manifest omits them.
+  - `SQLiteBuildValidationParameterEntry.valueTypeName` and
+    `SQLiteBuildValidationResultEntry.valueTypeName` are now `String?`.
+  - `SQLiteBuildValidationManifestFormatVersion.current` is now `.v2`. To keep
+    writing version 1, pass `formatVersion: .v1`.
+  - `SQLiteBuildValidationManifestError` gains `unknownKey(path:)`, and
+    `SQLiteBuildValidationPlanSuppressionError` gains `unknownKey(path:)`. A
+    `switch` with no `default` clause must handle the new case.
+
+- **Unknown keys fail closed** (issue #658). The manifest and the plan
+  suppression file (`swiftql-plan-analysis.json`) reject a key their schema
+  does not define, at every level, with `unknownKey(path:)`. A misspelled
+  optional key no longer decodes as an absent field. A file that decoded on
+  1.8 because it had an extra key now fails. Remove or correct the key.
+
+### Changed
+
+- **Manifest format version 2** (issue #658) lets a generated manifest be
+  valid without invented provenance. In version 2,
+  `conformance_inventory_version` and `combinatorial_manifest_version` are
+  optional, `queries` can be empty, and `value_type_name` is optional on each
+  parameter and result. An absent provenance field means that the manifest was
+  not authored against SwiftQL's test inventories. A present field must not be
+  empty, and a `conformance_feature_ids` or `conformance_case_ids` reference
+  requires its inventory version. `nullability` stays required, because
+  validation checks it. Version 1 keeps every check it had. The to-do demo's
+  manifest is now version 2 with no provenance.
+
+- **Version-first decoding** (issue #658). The manifest and the plan
+  suppression file decode `format_version` before anything else. A document
+  in a version the reader does not know fails with `unsupportedFormatVersion`,
+  not with a decoding error from its body. `SQLiteBuildValidationPlanSuppressions`
+  gains `decode(_:)` for in-memory data.
+
 ## [1.8.1] - 2026-09-15
 
 v1.8.1 is a correctness and safety patch for the 1.8 line. It removes process

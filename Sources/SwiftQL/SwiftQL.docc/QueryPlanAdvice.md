@@ -168,8 +168,8 @@ ignoring the warning.
 
 The file has this grammar:
 
-- `format_version`: Required. Must be `1`. The validator refuses any
-  other version.
+- `format_version`: Required. Must be `1`. The validator reads this key
+  first and refuses any other version before it reads the rest of the file.
 - `suppressions`: Required. An array of rules.
 - `code`: Required in each rule. One of the four diagnostic codes above.
 - `query_id`: Optional. The manifest query identifier the rule applies to.
@@ -179,6 +179,11 @@ The file has this grammar:
   matches.
 - `reason`: Required in each rule. It must not be empty or only white
   space.
+
+The file must not contain any other key, at the top level or in a rule. A
+misspelled key, such as `query` for `query_id`, fails the run with an
+unknown-key error. It does not decode as an absent field, which would silence
+more findings than you intended.
 
 Each rule must name a `query_id`, a `table`, or both. A rule that silences every
 occurrence of a code cannot be written. A rule matches a finding only when
@@ -286,7 +291,8 @@ keys are:
 - `schema_snapshot`, `observed_database_byte_count`, `observed_database_sha256`:
   The snapshot identity the plans were captured on.
 - `format_version`, `manifest_format_version`, `conformance_inventory_version`, `combinatorial_manifest_version`:
-  The versions of the sidecar and its inputs.
+  The versions of the sidecar and its inputs. The two inventory versions are
+  absent when the manifest records no fixture provenance.
 
 A missing `index_recommendations` key and an empty `recommendations` list are
 different answers. A missing key means that verification did not run. An empty

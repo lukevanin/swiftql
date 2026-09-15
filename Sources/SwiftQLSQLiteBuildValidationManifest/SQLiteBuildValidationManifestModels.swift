@@ -36,7 +36,23 @@ public struct SQLiteBuildValidationSchemaSnapshot: Codable, Equatable, Sendable 
         self.schemaFingerprint = schemaFingerprint.lowercased()
     }
 
-    private enum CodingKeys: String, CodingKey {
+    /// Decodes stored values as written, without the memberwise initializer's
+    /// lowercasing, so structural validation still rejects non-canonical hex.
+    public init(from decoder: any Decoder) throws {
+        try sqliteBuildValidationManifestRejectUnknownKeys(
+            in: decoder,
+            allowedKeys: CodingKeys.self
+        )
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.kind = try container.decode(Kind.self, forKey: .kind)
+        self.identifier = try container.decode(String.self, forKey: .identifier)
+        self.databaseSHA256 = try container.decode(String.self, forKey: .databaseSHA256)
+        self.databaseByteCount = try container.decode(Int.self, forKey: .databaseByteCount)
+        self.schemaRowCount = try container.decode(Int.self, forKey: .schemaRowCount)
+        self.schemaFingerprint = try container.decode(String.self, forKey: .schemaFingerprint)
+    }
+
+    private enum CodingKeys: String, CodingKey, CaseIterable {
         case kind
         case identifier
         case databaseSHA256 = "database_sha256"
@@ -91,7 +107,20 @@ public struct SQLiteBuildValidationCodecReference:
         "\(keyID)@\(keyVersion)|\(valueTypeIdentifier)|\(dialectIdentifier)|\(storageIdentifier)"
     }
 
-    private enum CodingKeys: String, CodingKey {
+    public init(from decoder: any Decoder) throws {
+        try sqliteBuildValidationManifestRejectUnknownKeys(
+            in: decoder,
+            allowedKeys: CodingKeys.self
+        )
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.keyID = try container.decode(String.self, forKey: .keyID)
+        self.keyVersion = try container.decode(UInt.self, forKey: .keyVersion)
+        self.valueTypeIdentifier = try container.decode(String.self, forKey: .valueTypeIdentifier)
+        self.dialectIdentifier = try container.decode(String.self, forKey: .dialectIdentifier)
+        self.storageIdentifier = try container.decode(String.self, forKey: .storageIdentifier)
+    }
+
+    private enum CodingKeys: String, CodingKey, CaseIterable {
         case keyID = "key_id"
         case keyVersion = "key_version"
         case valueTypeIdentifier = "value_type_identifier"
@@ -115,6 +144,19 @@ public struct SQLiteBuildValidationCapabilityReference:
     public init(id: String) {
         self.id = id
     }
+
+    public init(from decoder: any Decoder) throws {
+        try sqliteBuildValidationManifestRejectUnknownKeys(
+            in: decoder,
+            allowedKeys: CodingKeys.self
+        )
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+    }
+
+    private enum CodingKeys: String, CodingKey, CaseIterable {
+        case id
+    }
 }
 
 
@@ -123,6 +165,13 @@ public struct SQLiteBuildValidationCapabilityReference:
 /// `logicalIndex` mirrors ``XLLogicalParameterIndex``. `physicalIndex` is the
 /// one-based SQLite bind position, which the frozen `XLQueryIdentity` v1
 /// representation deliberately excludes.
+///
+/// `valueTypeName` is the Swift spelling of the value type, kept for a human
+/// reading the manifest. The validator never reads it: `valueTypeIdentifier`
+/// is the stable identity. Format version 1 requires it; version 2 accepts
+/// its absence. `nullability` stays required in every version, because
+/// structural validation checks it against ``XLParameterNullability`` and a
+/// descriptor always carries it.
 public struct SQLiteBuildValidationParameterEntry: Codable, Equatable, Sendable {
 
     public enum KeyKind: String, Codable, Sendable {
@@ -137,7 +186,7 @@ public struct SQLiteBuildValidationParameterEntry: Codable, Equatable, Sendable 
     public let keyName: String?
     public let keyIndex: Int?
     public let valueTypeIdentifier: String
-    public let valueTypeName: String
+    public let valueTypeName: String?
     public let nullability: String
     public let codec: SQLiteBuildValidationCodecReference?
     public let storageIdentifier: String
@@ -150,7 +199,7 @@ public struct SQLiteBuildValidationParameterEntry: Codable, Equatable, Sendable 
         keyName: String?,
         keyIndex: Int?,
         valueTypeIdentifier: String,
-        valueTypeName: String,
+        valueTypeName: String? = nil,
         nullability: String,
         codec: SQLiteBuildValidationCodecReference?,
         storageIdentifier: String
@@ -178,7 +227,29 @@ public struct SQLiteBuildValidationParameterEntry: Codable, Equatable, Sendable 
         }
     }
 
-    private enum CodingKeys: String, CodingKey {
+    public init(from decoder: any Decoder) throws {
+        try sqliteBuildValidationManifestRejectUnknownKeys(
+            in: decoder,
+            allowedKeys: CodingKeys.self
+        )
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.logicalIndex = try container.decode(Int.self, forKey: .logicalIndex)
+        self.physicalIndex = try container.decode(Int.self, forKey: .physicalIndex)
+        self.identity = try container.decode(String.self, forKey: .identity)
+        self.keyKind = try container.decode(KeyKind.self, forKey: .keyKind)
+        self.keyName = try container.decodeIfPresent(String.self, forKey: .keyName)
+        self.keyIndex = try container.decodeIfPresent(Int.self, forKey: .keyIndex)
+        self.valueTypeIdentifier = try container.decode(String.self, forKey: .valueTypeIdentifier)
+        self.valueTypeName = try container.decodeIfPresent(String.self, forKey: .valueTypeName)
+        self.nullability = try container.decode(String.self, forKey: .nullability)
+        self.codec = try container.decodeIfPresent(
+            SQLiteBuildValidationCodecReference.self,
+            forKey: .codec
+        )
+        self.storageIdentifier = try container.decode(String.self, forKey: .storageIdentifier)
+    }
+
+    private enum CodingKeys: String, CodingKey, CaseIterable {
         case logicalIndex = "logical_index"
         case physicalIndex = "physical_index"
         case identity
@@ -199,13 +270,16 @@ public struct SQLiteBuildValidationParameterEntry: Codable, Equatable, Sendable 
 /// `declaredAlias` is the stable `AS` alias the query renders, when known.
 /// SQLite does not promise stable names for unaliased expressions, so this is
 /// `nil` for positional-only results.
+///
+/// `valueTypeName` and `nullability` follow the same version rules as
+/// ``SQLiteBuildValidationParameterEntry``.
 public struct SQLiteBuildValidationResultEntry: Codable, Equatable, Sendable {
 
     public let index: Int
     public let identity: String
     public let declaredAlias: String?
     public let valueTypeIdentifier: String
-    public let valueTypeName: String
+    public let valueTypeName: String?
     public let nullability: String
     public let codec: SQLiteBuildValidationCodecReference?
     public let storageIdentifier: String
@@ -215,7 +289,7 @@ public struct SQLiteBuildValidationResultEntry: Codable, Equatable, Sendable {
         identity: String,
         declaredAlias: String?,
         valueTypeIdentifier: String,
-        valueTypeName: String,
+        valueTypeName: String? = nil,
         nullability: String,
         codec: SQLiteBuildValidationCodecReference?,
         storageIdentifier: String
@@ -230,7 +304,26 @@ public struct SQLiteBuildValidationResultEntry: Codable, Equatable, Sendable {
         self.storageIdentifier = storageIdentifier
     }
 
-    private enum CodingKeys: String, CodingKey {
+    public init(from decoder: any Decoder) throws {
+        try sqliteBuildValidationManifestRejectUnknownKeys(
+            in: decoder,
+            allowedKeys: CodingKeys.self
+        )
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.index = try container.decode(Int.self, forKey: .index)
+        self.identity = try container.decode(String.self, forKey: .identity)
+        self.declaredAlias = try container.decodeIfPresent(String.self, forKey: .declaredAlias)
+        self.valueTypeIdentifier = try container.decode(String.self, forKey: .valueTypeIdentifier)
+        self.valueTypeName = try container.decodeIfPresent(String.self, forKey: .valueTypeName)
+        self.nullability = try container.decode(String.self, forKey: .nullability)
+        self.codec = try container.decodeIfPresent(
+            SQLiteBuildValidationCodecReference.self,
+            forKey: .codec
+        )
+        self.storageIdentifier = try container.decode(String.self, forKey: .storageIdentifier)
+    }
+
+    private enum CodingKeys: String, CodingKey, CaseIterable {
         case index
         case identity
         case declaredAlias = "declared_alias"
@@ -454,7 +547,52 @@ public struct SQLiteBuildValidationQueryEntry: Codable, Equatable, Sendable {
         Self.sortedUnique(ids).map(SQLiteBuildValidationCapabilityReference.init)
     }
 
-    private enum CodingKeys: String, CodingKey {
+    /// Decodes stored values as written. Canonical ordering is re-applied by
+    /// ``SQLiteBuildValidationManifest/validating()``, not here.
+    public init(from decoder: any Decoder) throws {
+        try sqliteBuildValidationManifestRejectUnknownKeys(
+            in: decoder,
+            allowedKeys: CodingKeys.self
+        )
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.definitionIdentity = try container.decode(String.self, forKey: .definitionIdentity)
+        self.descriptorIdentity = try container.decode(String.self, forKey: .descriptorIdentity)
+        self.conformanceFeatureIDs = try container.decode(
+            [String].self,
+            forKey: .conformanceFeatureIDs
+        )
+        self.conformanceCaseIDs = try container.decode([String].self, forKey: .conformanceCaseIDs)
+        self.northwindAnchorCaseIDs = try container.decode(
+            [String].self,
+            forKey: .northwindAnchorCaseIDs
+        )
+        self.sql = try container.decode(String.self, forKey: .sql)
+        self.dialectIdentifier = try container.decode(String.self, forKey: .dialectIdentifier)
+        self.minimumDialectVersion = try container.decodeIfPresent(
+            String.self,
+            forKey: .minimumDialectVersion
+        )
+        self.dialectCapabilitiesRawValue = try container.decode(
+            UInt64.self,
+            forKey: .dialectCapabilitiesRawValue
+        )
+        self.cardinality = try container.decode(UInt8.self, forKey: .cardinality)
+        self.parameters = try container.decode(
+            [SQLiteBuildValidationParameterEntry].self,
+            forKey: .parameters
+        )
+        self.results = try container.decode(
+            [SQLiteBuildValidationResultEntry].self,
+            forKey: .results
+        )
+        self.requiredCapabilities = try container.decode(
+            [SQLiteBuildValidationCapabilityReference].self,
+            forKey: .requiredCapabilities
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey, CaseIterable {
         case id
         case definitionIdentity = "definition_identity"
         case descriptorIdentity = "descriptor_identity"
