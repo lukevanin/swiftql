@@ -1,5 +1,308 @@
 # Changelog
 
+## [1.8.1] - Unreleased
+
+v1.8.1 is a correctness and safety patch for the 1.8 line. It removes process
+traps, silently wrong results, and unbounded work, most often by replacing them
+with a typed error. Some code that compiled and ran on 1.8.0 therefore needs a
+change, and "Migration" lists every such case first.
+
+### Migration
+
+- **New cases on public error enums.** A `switch` over one of these enums with
+  no `default` clause stops compiling until it handles the new cases or adds a
+  `default` clause.
+  - `XLSQLValueEncodingError` gains
+    `contextualOnlyValueInLegacyWrite(valueType:)` (issue #651), and
+    `nulCharacterInText(valueType:context:)` and
+    `unsupportedCompoundBranchClause(compoundOperator:clause:)` (issue #657).
+  - `SQLiteIndexAdvisorError` gains `forceRequiresApply`,
+    `outputConflictsWithPlanReport`, and `outputNotGenerated(path:)`
+    (issue #649).
+
+- **Long `REGEXP` operands fail.** The bundled `regexp` function refuses a
+  pattern string longer than 1,024 UTF-8 bytes, and a subject longer than
+  16,384 UTF-8 bytes, with `XLRegexpLengthLimitError` (issue #645). It checks
+  before it compiles or matches, and it never truncates either operand. The
+  subject limit also applies to a pattern matched through `XLRegexPattern`. A
+  statement that matched longer column text on 1.8.0 now throws when it reaches
+  such a row. Search long text with full-text search, or match it in Swift.
+  `XLRegexpLengthLimitError` is a new type, so no existing `switch` changes.
+
+- **`QueryBuilder` folds `and` and `or` in call order** (issue #657). A query
+  that mixes the two can render a different `WHERE` clause, and so match
+  different rows. `and(a).or(b).and(c)` rendered `((a AND c) OR b)` and now
+  renders `((a OR b) AND c)`. `or(a).and(b)` rendered `(b OR a)` and now renders
+  `(a AND b)`, because the operator of the first term joins nothing and is not
+  used. A query that uses only `and`, only `or`, or every `and` before every
+  `or` renders as before. Check every mixed chain against the condition it is
+  meant to express.
+
+- **Some compound selects fail before SQLite prepares them** (issue #657). The
+  right-hand branch of `union`, `unionAll`, `intersect`, or `except` must be a
+  plain select. A branch with `WITH`, `ORDER BY`, `LIMIT`, or `OFFSET`, or a
+  branch that is itself a compound, fails with
+  `XLSQLValueEncodingError.unsupportedCompoundBranchClause` when the statement
+  renders. On 1.8.0 SQLite applied the branch's `ORDER BY`, `LIMIT`, or
+  `OFFSET` to the whole compound, a nested compound lost its grouping, and a
+  `WITH` branch did not prepare, so a query that relied on the old placement
+  ran and now throws. Move the clause after the last branch, and chain compound
+  operators instead of nesting them. The common case is a recursive common
+  table limited inside its closure: write
+  `select(seed).unionAll { select(step).from(this) }.limit(10)`, not `limit(10)`
+  inside the `unionAll` closure. Both spellings render the same SQL. The
+  result-builder spelling, `Union()` followed by `Select`, is not affected.
+
+- **Text that contains U+0000 is rejected** (issue #657). An inline text
+  literal or a bound text value that contains U+0000 fails with
+  `XLSQLValueEncodingError.nulCharacterInText`. On 1.8.0 SQLite read such a
+  value only up to its first NUL, so a literal was cut short and a bound value
+  was stored truncated. Store data that can contain U+0000 as a blob.
+
+- **Automatic aliases and binding names in nested scopes change** (issue
+  #644). A subquery or common table built from the enclosing schema no longer
+  reuses an outer alias, common-table name, or automatic parameter name, so the
+  SQL rendered for an unnamed nested source changes: an inner `WITH cte0` inside
+  an outer `cte0` is now `cte1`, and the table in an
+  `UPDATE ... FROM (SELECT ...)` body is now `t2` rather than `t0`. Explicitly
+  named sources render as before. A test that pins the SQL of an unnamed nested
+  source must move its pin.
+  - An automatic binding in a body built from the enclosing schema
+    (`commonTable`, `from`, `fromExpression`, and the scalar and recursive
+    common tables) now gets its own name, for example `:p1`, where before it
+    shared `:p0` with an outer binding. A caller that set only the outer
+    reference must now set the inner reference too.
+  - Two automatically named bindings from unrelated schemas that render the
+    same placeholder fail with
+    `XLInvocationBindingError.conflictingParameterKey`. On 1.8.0 they silently
+    shared one value. This includes an outer automatic binding beside an inner
+    one in a free `subquery { schema in ... }` or `in { schema in ... }`
+    closure. Build such a subquery from the enclosing schema, with the new
+    `XLSchema` subquery methods or `XLSchema(parent:)`.
+
+- **Custom and bundled functions are installed once per connection** (issue
+  #640).
+  - Two `XLCustomFunction` types with the same name and argument count are one
+    SQLite function. The first one installed on a connection serves every
+    statement on that connection that calls either type. On 1.8.0 each
+    execution installed the implementation its own statement referenced. Give
+    functions that behave differently different names.
+  - An application function still replaces a bundled function or a SQLite
+    built-in with the same signature. If that replacement happens for the first
+    time while a statement is active on the connection, for example inside an
+    open `withResultSet(_:)` callback, the request now throws
+    `XLDatabaseContractError.prepareFailure`. On 1.8.0 the process stopped.
+  - SwiftQL records each install with a zero-argument marker function named
+    `swiftql_installed_<kind>_<arity>_<hash>`, so these names appear in
+    `PRAGMA function_list`.
+
+- **Live-query streams deliver off the main queue** (issue #652). `stream()` and
+  `streamOne()` on a GRDB-backed request deliver on a private serial queue, and
+  their default retry backoff waits on the same queue. A refetch after a commit
+  runs on a pool reader rather than inline on the writer, and GRDB coalesces a
+  burst of commits. Code that treated stream values as if they arrived on the
+  main thread must move to the main actor itself. Combine `publish()` and
+  `publishOne()` still deliver on the main queue by default, and
+  `XLQueryObserver` and `XLQueryRowObserver` still change their state on the
+  main thread.
+
+- **The build validator can fail a run that passed** (issue #647). A pinned
+  snapshot that changes during index verification now fails the run with
+  `snapshotChangedDuringVerification`, including a change while a candidate's
+  verification throws and a change between two candidates. On 1.8.0 the run
+  exited 0.
+
+- **`swiftql-index-advisor --apply` refuses some writes** (issue #649). It
+  refuses to replace an existing output file whose first line lacks the
+  generated header, and it refuses an `--output` that is the same file as
+  `--plan-report`. Pass `--force` once to replace a hand-written file, for
+  example to adopt the advisor for an existing file. `swiftql-build-validate`
+  also refuses an `--output` or `--plan-output` that is the same file as
+  `--plan-suppressions`.
+
+### Security
+
+- The `REGEXP` length limits above (issue #645). A match runs inside a SQLite
+  function callback, where SQLite does not check `sqlite3_interrupt`, so a
+  statement cannot be cancelled during one match, and a pattern often comes
+  from a search field. For a registered `XLRegexPattern`, one slow match also
+  held the registration lock for every pooled connection. The limits bound the
+  input size; they reduce catastrophic backtracking but do not remove it.
+
+- `swiftql-index-advisor --apply` no longer destroys a file it did not generate
+  (issue #649). Before, `--plan-report plans.json --apply --output plans.json`
+  replaced the sidecar with SQL, and an `--output` that named a hand-maintained
+  file replaced it with no warning. The alias check matches by path, by
+  symbolic link (including a linked parent directory), and by hard link, and
+  `--force` does not lift it.
+
+### Fixed
+
+- SwiftQL installs custom and bundled SQLite functions once per physical
+  connection, not before every execution (issue #640). A `REGEXP` or
+  custom-function request inside a `withResultSet` callback in a transaction no
+  longer stops the process with SQLite error 5. Executions no longer expire the
+  connection's prepared statements. The `regexp` pattern cache lasts for the
+  life of the connection, so a statement compiles its pattern once rather than
+  on every execution. Two `GRDBDatabase` values over one `DatabasePool` no
+  longer fail with `no such function: regexp`.
+
+- A request nested inside a `withResultSet` callback on a transaction scope,
+  with the same SQL as the outer request, no longer resets the outer cursor
+  (issue #641). The nested request prepares its own statement while the cached
+  one is in use, so the outer result set returns its own rows in full.
+
+- A declared query (`@SQLQuery` or `@SQLQueries`) called inside
+  `withTransaction(_:)` no longer adds a permanent render-once cache entry for
+  each transaction (issue #642). A transaction scope shares its database's
+  entry, and the cached request is bound to the scope's connection when it is
+  called.
+
+- `fetchAtMost(_:bindings:)` on a `RETURNING` request runs in a transaction on
+  the writer connection, as `fetchAll` and `fetchOne` do (issue #643). Before,
+  it ran on a read-only pooled reader and failed, which broke the `.exactlyOne`
+  fetch that `@SQLQuery` generates. SQLite applies every change of the
+  statement during its first step, so reading fewer rows still applies the
+  whole statement; the source comments that said otherwise are corrected.
+
+- A subquery or common table built from the enclosing schema no longer shadows
+  an outer alias or common-table name, or shares an automatic parameter with an
+  outer binding (issue #644). See "Migration".
+
+- A statement that matches an `XLRegexPattern` keeps the pattern registered for
+  as long as the statement, or a request made from it, can execute (issue
+  #646). Before, a pattern built as a local was released early, and execution
+  failed with `unregisteredPattern`.
+
+- A scratch copy that cannot be set up during index verification gives a
+  readable, path-free unverified reason and a `plan.scratch-setup-failed`
+  build warning (issue #647). Before, the reason named only the error type, and
+  the build log showed nothing.
+
+- Index verification registers the bundled SQLite functions, such as `regexp`,
+  on its scratch connection (issue #648). A statement that uses `REGEXP` can now
+  produce a verified index recommendation on a SQLite build without
+  `SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION`.
+
+- A static row layout no longer stops the process at `select(_:)`,
+  `with(...).select(_:)`, `insert(...).select(_:)`, `QueryBuilder(select:)`,
+  `Returning(_:)`, or `returning(_:)` (issue #650). New overloads read the column
+  aliases from the layout's metadata, and the dynamic `Select` and `Returning`
+  initializers detect a layout at run time, so a generic caller that sees the
+  layout only as `XLRowReadable` is covered too. `RETURNING` renders column
+  aliases only, so each layout alias must name a column of the target table.
+
+- A `@SQLTable` column whose type has no `XLLiteral` conformance, such as a
+  `Date` read through a contextual codec, no longer stops the process when it
+  is written through `Values(row)`, `sqlInsert(row)`, or
+  `UpdateRequest.makeUpdate()` (issue #651). Preparation throws
+  `XLSQLValueEncodingError.contextualOnlyValueInLegacyWrite(valueType:)`, and
+  no row changes. Encode such a row through its static row layout.
+
+- A live-query stream no longer refetches inline on the writer, and awaiting a
+  stream or its default retry backoff no longer needs the main thread, so a
+  thread that blocks while it waits, the main thread included, cannot deadlock
+  (issue #652). `XLQueryObserver` and `XLQueryRowObserver` apply a value that
+  arrives on the main thread at once, and keep the delivery order across
+  threads.
+
+- A compound select no longer applies a branch's `ORDER BY`, `LIMIT`, or
+  `OFFSET` to the whole compound, and a text value with U+0000 is no longer
+  truncated (issue #657). Both now fail with a typed error; see "Migration".
+
+### Added
+
+- `XLSchema(parent:)`, and `XLSchema` subquery methods that take their alias
+  from the enclosing schema: `subquery(alias:_:)`, `nullableSubquery(alias:_:)`,
+  the scalar `subquery(_:)` forms, `subqueryExpression(alias:statement:)`,
+  `nullableSubqueryExpression(alias:statement:)`, and the scalar
+  `subqueryExpression(statement:)` forms (issue #644).
+
+- `XLStaticRowReadable` overloads of `select(_:)`,
+  `XLWithStatement.select(_:)`, `XLInsertTableStatement.select(_:)`,
+  `QueryBuilder.init(select:)`, `Returning.init(_:)`, and `returning(_:)` on
+  insert, update, and delete statements (issue #650).
+
+- `warnings` on `SQLiteBuildValidationRunResult` and
+  `SQLiteBuildValidationValidatorCLIRunResult`,
+  `SQLiteBuildValidationValidatorCLIRunResult.warningSummary(origin:)`, and a
+  defaulted `reportScratchFailure` parameter on
+  `SQLiteBuildValidationIndexCandidateVerifier.verify` (issue #647).
+  `swiftql-build-validate` prints the warnings after its advisory summary; they
+  never change the exit code.
+
+- The `--force` option of `swiftql-index-advisor`, with
+  `SQLiteIndexAdvisorOptions.forces` and a defaulted `forces:` initializer
+  parameter (issue #649).
+
+- "Query plan advice", a DocC article for plan analysis, suppressions, verified
+  index recommendations, and `swiftql-index-advisor`, linked from the catalog
+  landing page and the README (issue #654).
+
+### Changed
+
+- Corrected the documents that said SwiftQL does not support right joins, full
+  outer joins, or SQLite's JSON functions (issue #653). `Queries.md` has a table
+  of each join kind and its SQLite minimum, and `PortingFromSQL.md` maps
+  `USING`, `NATURAL`, right, and full outer joins and the `sql { }` subquery
+  form. The to-do demo check fails when the demo README's test count disagrees
+  with the suite.
+
+- The build validator has a negative control that fails if query validation
+  prepares statements under `EXPLAIN` or `EXPLAIN QUERY PLAN`, where Apple's
+  `SQLITE_ENABLE_UNKNOWN_SQL_FUNCTION` would hide unknown-function errors
+  (issue #656).
+
+- CI runs the source-coverage target-membership check on pull requests, so a
+  new target outside `scripts/ci/source-coverage-config.json` fails before the
+  merge (issue #655).
+
+- CI and `make-docs.sh` install the Hugo release pinned in
+  `scripts/ci/hugo-version.sh`, checked by SHA-256, instead of the Homebrew
+  formula, whose version drift broke every documentation build (issue #611).
+
+- Recorded the v1.8.1 behavior in the #190 canonical SQLite conformance
+  inventory: the `REGEXP` length limits, the compound-branch rule, the
+  recursive `limit` placement, NUL rejection in text, nested-scope aliases and
+  automatic bindings, static row layouts in `RETURNING`, and `fetchAtMost` on
+  `RETURNING`. The inventory version is now 1.8.1. It records 117 public-surface feature records: 113
+  supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
+  1 unimplemented. Of the 207 evidence records, 126 exercise real SQLite and
+  cite one captured SQLite 3.51.0 environment.
+
+### Correction to the 1.8.0 entry
+
+- The 1.8.0 entry says that index verification fails closed when the pinned
+  snapshot's byte count or SHA-256 changes. That was not true in 1.8.0 (issue
+  #647). The verifier caught `snapshotChangedDuringVerification` for each
+  candidate and recorded it as an unverified reason, so the run still exited 0.
+  It is true from 1.8.1. A dated correction note now follows that statement in
+  the 1.8.0 entry, whose text is otherwise unchanged.
+
+### Known limitations
+
+- A custom `XLRowReadable` projection that is not a static row layout, and
+  whose own `readRow` throws against the definition reader, still stops the
+  process in `Select.init(_:)` and `Returning.init(_:)`. Reporting it as a typed
+  error needs those initializers to throw, which is a source-breaking change,
+  so it is deferred to v2.0 as
+  [#744](https://github.com/lukevanin/swiftql/issues/744). Every static row
+  layout avoids the trap at every entry point (issue #650).
+- The `REGEXP` length limits reduce catastrophic backtracking but do not remove
+  it: an exponential pattern needs only a few dozen characters. Validate a
+  pattern that comes from untrusted input.
+- The free functions `subquery`, `nullableSubquery`, and `subqueryExpression`,
+  and the schema that `in { schema in ... }` and `notIn { schema in ... }` pass
+  to their closure, cannot see the enclosing schema and start an independent
+  scope. Give a subquery there an explicit alias when it is joined to another
+  source.
+- `@SQLTable` does not diagnose a contextual-only column at its declaration,
+  because a read-only table with such a column is valid. The write fails when
+  it is prepared (issue #651).
+- A request nested inside a `withResultSet` callback must use the transaction
+  scope that opened the result set. A nested request on the root database
+  still stops the process in GRDB (issue #641).
+
 ## [1.8.0] - 2026-09-08
 
 ### Added
@@ -79,6 +382,12 @@
   handler that unlinks a preallocated path table and then restores whichever
   disposition was in place before. The pinned snapshot's byte count and SHA-256
   must match what they were before the pass, or it fails closed.
+
+  > **Correction (15 September 2026, v1.8.1, issue #647).** The last
+  > sentence did not hold in 1.8.0. The verifier caught
+  > `snapshotChangedDuringVerification` for each candidate and recorded it as
+  > an unverified reason, so the run still exited 0. From 1.8.1 a snapshot
+  > that changes during verification fails the run.
 
   The improvement rule is recorded by version. A candidate is kept only when
   the index SQLite names in the after-plan is that candidate's own, and either

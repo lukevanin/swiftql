@@ -62,6 +62,8 @@ and a rename leads the compiler to every query affected.
 | `OFFSET n` | `Offset(10)` |
 | `UNION` | `Union()` |
 | `UNION ALL` | `UnionAll()` |
+| `INTERSECT` | `Intersect()` |
+| `EXCEPT` | `Except()` |
 | `WITH name AS (...)` | `schema.commonTableExpression { ... }` plus `With(cte)` |
 | `WITH RECURSIVE name AS (...)` | `schema.recursiveCommonTableExpression(Row.self) { schema, this in ... }` plus `With(cte)` |
 | `(SELECT ...)` as a value or source | `subqueryExpression { ... }`, or `sql { ... }` on Swift 6.1 and later |
@@ -92,6 +94,13 @@ and a rename leads the compiler to every query affected.
 
 Read statements take their table from `schema.table(_:)`. Write statements take
 theirs from `schema.into(_:)`.
+
+In a compound query, `OrderBy`, `Limit`, and `Offset` follow the last branch,
+because SQLite applies them to the whole compound, and `With` comes before the
+first branch. In the functional syntax, a branch after the first that carries
+one of those clauses, or that is itself a compound, fails when the statement
+renders: write `select(seed).unionAll { select(step).from(this) }.limit(10)`,
+not `limit(10)` inside the closure.
 
 ## Worked ports
 
@@ -297,7 +306,7 @@ checking:
 4. **Outer-joined tables are declared nullable at the source**, via
    `schema.nullableTable`, rather than only being nullable in the result.
 
-Beyond those, the current gaps are recorded rather than hidden. As of the v1.7
+Beyond those, the current gaps are recorded rather than hidden. As of the v1.8.1
 conformance inventory, of 117 tracked features, 113 are supported with evidence
 from a real SQLite engine, and the exceptions are:
 

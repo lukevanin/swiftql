@@ -8,10 +8,63 @@ For the exact, evidence-backed detail — every API name, constraint, and SQLite
 version requirement — read [CHANGELOG.md](CHANGELOG.md). That file is the
 canonical record; this one is a reading aid.
 
-Almost every 1.x release has been purely additive. The one exception so far is
+Almost every 1.x release has been purely additive. The exceptions so far are
 1.4.3, where `unixEpoch(_:)` changed its return type from `Int` to
-`TimeInterval`. Each entry below ends with whether it affects code you already
-wrote.
+`TimeInterval`, and 1.8.1, whose correctness fixes turn some silently wrong
+results into errors and change some rendered SQL. Each entry below ends with
+whether it affects code you already wrote.
+
+## 1.8.1 — Fewer crashes, fewer silent wrong answers
+
+*Released DATE_PLACEHOLDER.*
+
+- Several things that used to stop your app now either work or throw an error
+  you can catch: a `REGEXP` or custom-function query inside `withResultSet`
+  inside a transaction, selecting or returning a static row layout, and
+  writing a `@SQLTable` row with a column only a contextual codec can encode.
+- Several ways to get a silently wrong answer are gone. A nested query with the
+  same SQL no longer resets the outer result set. An outer and an inner binding
+  in a nested query no longer share one value. Text with a NUL character is
+  refused instead of being cut short. A compound select no longer applies one
+  branch's `LIMIT` to the whole result.
+- `REGEXP` refuses a pattern longer than 1,024 bytes and text longer than
+  16,384 bytes, so a pattern typed into a search box cannot tie up a database
+  connection for minutes.
+- Functions such as `regexp` are installed once per database connection
+  instead of before every query, so a pattern is compiled once per connection
+  and prepared statements are no longer thrown away.
+- Live-query streams refetch on a reader instead of holding up the writer, and
+  they no longer need the main thread, so waiting for one on the main thread
+  cannot deadlock.
+- A declared query called inside transactions no longer grows a cache without
+  limit, and `fetchAtMost` works on a `RETURNING` statement over a database
+  pool.
+- The build validator now fails the run when the snapshot changes during index
+  verification, which 1.8.0 said it did but did not. `swiftql-index-advisor
+  --apply` no longer overwrites a file it did not write unless you pass
+  `--force`.
+- The documentation has a new "Query plan advice" guide.
+
+**Does this affect code you already wrote?** Possibly. Check for these:
+
+- A `switch` with no `default` over `XLSQLValueEncodingError` or
+  `SQLiteIndexAdvisorError` must handle their new cases.
+- `REGEXP` over text longer than 16,384 bytes now throws.
+- A `QueryBuilder` that mixes `and` and `or` now combines them in the order you
+  wrote them, which can change the rows it returns.
+- A compound select whose later branch has `ORDER BY`, `LIMIT`, `OFFSET`, or
+  `WITH` now throws. Move the clause after the last branch: for a recursive
+  common table, write `.unionAll { ... }.limit(n)`, not `.limit(n)` inside the
+  closure.
+- Text that contains U+0000 now throws. Store it as a blob.
+- The SQL for an unnamed nested subquery or common table uses new automatic
+  names, an inner binding needs its own value, and two unrelated automatic
+  bindings with the same name now throw.
+- Two `XLCustomFunction` types with the same name and argument count now share
+  the implementation installed first on each connection.
+- `stream()` values no longer arrive on the main thread.
+
+The [changelog](CHANGELOG.md)'s Migration section gives the detail for each.
 
 ## 1.8.0 — The build tells you which index to add
 
