@@ -53,8 +53,9 @@ import Foundation
 ///
 /// SwiftQL renders for the newer behaviour, which is what SQLite documents.
 /// On an older engine such a path selects nothing rather than reporting an
-/// error. This includes a key that begins with a `"`, which renders quoted
-/// and escaped. Every other key — including `.`, `[`, `]`, `#`, non-ASCII
+/// error. A key that begins with a `"` renders quoted and escaped, so it also
+/// needs a SQLite that unescapes JSON labels; an older engine can reject that
+/// path as a bad JSON path instead of selecting nothing. Every other key — including `.`, `[`, `]`, `#`, non-ASCII
 /// text, and the empty name — resolves the same way on every supported
 /// SQLite.
 ///

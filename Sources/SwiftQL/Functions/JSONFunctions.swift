@@ -53,7 +53,7 @@ public struct XLJSONValidationFlags: OptionSet, Hashable, Sendable {
 /// `1`, and `json_set(X, P, true)` stores the number `1`. A `Codable` reader
 /// of a `Bool` field then throws. This wrapper renders a `Bool` literal as
 /// `json('true')` or `json('false')`, and any other `Bool` expression as
-/// `json(CASE (X) <> 0 WHEN 1 THEN 'true' WHEN 0 THEN 'false' END)`, which
+/// `json(CASE X <> 0 WHEN 1 THEN 'true' WHEN 0 THEN 'false' END)`, which
 /// reads `X` once and keeps SQL `NULL` as JSON `null`.
 ///
 /// SQLite also has no JSON form for a blob: it reports
@@ -61,7 +61,9 @@ public struct XLJSONValidationFlags: OptionSet, Hashable, Sendable {
 /// happen to be valid JSONB. A `Data` value is therefore reported as
 /// ``XLSQLValueEncodingError/blobInJSONValue(valueType:function:)`` before
 /// SQLite prepares the statement, unless it is the result of a `jsonb`
-/// function, which is how a JSONB document is nested on purpose.
+/// function, which is how a JSONB document is nested on purpose. The check
+/// reads the static type, so a `Data?` value is rejected even when it is SQL
+/// `NULL` at run time.
 ///
 /// Every other value renders exactly as it did before.
 ///
@@ -326,9 +328,10 @@ extension XLExpression {
     ///
     /// The flag is ``XLJSONValidationFlags/json`` combined with
     /// ``XLJSONValidationFlags/jsonbStrict``. SQLite checks text as RFC 8259
-    /// JSON and a blob completely as JSONB, so this is the check to use in a
-    /// `CHECK` constraint on a column that can hold JSONB. A `NULL` input
-    /// gives `NULL`.
+    /// JSON, and accepts a blob that is well-formed JSONB or that holds
+    /// well-formed JSON text. This is the check to use in a `CHECK`
+    /// constraint on a column that can hold JSONB. A `NULL` input gives
+    /// `NULL`.
     ///
     /// Needs SQLite 3.45.0 or later.
     ///

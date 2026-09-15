@@ -39,7 +39,8 @@ the column must hold well-formed JSON. SQLite does not enforce that by itself.
 That check reads JSON text only: it reports false for every JSONB blob, even
 a well-formed one. For a column that can hold JSONB, use
 ``XLExpression/validJSONOrJSONBOrNull()``, which renders `json_valid(X, 9)`,
-checks text as JSON and a blob strictly as JSONB, and needs SQLite 3.45.0.
+checks text as JSON, accepts a blob as JSONB or as JSON text, and needs
+SQLite 3.45.0.
 
 ## Naming a value with a path
 
@@ -168,6 +169,12 @@ prepares the statement. The one exception is the result of a `jsonb`
 function: that is JSONB, and SQLite nests it as a document. To nest JSONB held
 in a `Data` column or parameter, pass it through
 ``XLExpression/minifiedJSONB()`` first.
+
+The check reads the value's static type, not its value at run time. A `Data?`
+column or parameter is therefore rejected even for a row where it is SQL
+`NULL`, which SQLite would have written as JSON `null`. Pass such a column
+through ``XLExpression/minifiedJSONB()``, which keeps `NULL` as `NULL`, or
+leave it out of the document.
 
 ## Building JSON in a query
 

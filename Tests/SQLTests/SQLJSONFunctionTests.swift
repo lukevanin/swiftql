@@ -524,6 +524,12 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
             try evaluate(Data([0x01, 0x02]).validJSONOrJSONBOrNull()),
             false
         )
+        // Flag 9 includes the text bit, so a blob that holds JSON text also
+        // passes. The check is not a strict JSONB-only check.
+        XCTAssertEqual(
+            try evaluate(Data(#"{"a":1}"#.utf8).validJSONOrJSONBOrNull()),
+            true
+        )
         XCTAssertNil(try evaluateOnNull { $0.validJSONOrJSONBOrNull() })
     }
 

@@ -13,7 +13,12 @@
   SQLite reported `JSON cannot hold BLOB values`, or it silently read the
   bytes as a document when they were valid JSONB. The result of a `jsonb`
   function is still accepted. To nest JSONB held in a `Data` column or
-  parameter, pass it through `minifiedJSONB()` first. This check runs when the
+  parameter, pass it through `minifiedJSONB()` first. The check reads the
+  static type, so a `Data?` value is rejected even when it is SQL `NULL`. For
+  example, `jsonObject(("avatar", user.avatar))` with a nullable `Data` column
+  wrote JSON `null` for a `NULL` row on 1.8.1, and now always throws
+  `blobInJSONValue`. Pass the column through `minifiedJSONB()`, which keeps
+  `NULL` as `NULL`, or leave it out of the document. This check runs when the
   statement renders, not at compile time. The JSON value parameters take
   `any XLExpression`, and a compile-time constraint would reject every opaque
   function result and every existential value that code passes today. A
@@ -34,8 +39,8 @@
 ### Added
 
 - `validJSONOrJSONBOrNull()` renders `json_valid(X, 9)` (issue #671). It
-  checks text as RFC 8259 JSON and a blob strictly as JSONB, and it needs
-  SQLite 3.45.0. `validJSONOrNull()` still renders `json_valid(X)`, which
+  checks text as RFC 8259 JSON, accepts a blob that is well-formed JSONB or
+  that holds well-formed JSON text, and needs SQLite 3.45.0. `validJSONOrNull()` still renders `json_valid(X)`, which
   reports false for every JSONB blob.
 
 ### Fixed
