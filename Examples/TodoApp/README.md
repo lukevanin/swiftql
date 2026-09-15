@@ -191,13 +191,17 @@ the API resists, all recorded on
 - **A declared query cannot be called inside `withTransaction`.** The generated
   executor opens its own transaction, and SwiftQL rejects nesting, so reads
   inside a transaction use plain requests.
-- **A JSON mutation cannot be assigned to a `NOT NULL` column without
-  `coalesce`.** `json_set` and its siblings return `NULL` for a `NULL`
-  document, so their result is optional even when the column is not. Every
-  checklist write ends `.coalesce(table.checklist)` to supply a case that
-  cannot arise. `@SQLTable`'s generated memberwise initializer also ignores a
-  Swift default on a property and requires it anyway, so a default would read
-  as optional at the call site and then not be.
+- **`@SQLTable` ignores a Swift default on a property.** The generated
+  memberwise initializer requires the property anyway, so a default would
+  read as optional at the call site and then not be. The demo declares
+  `checklist` with no default.
+
+Until v1.9 this list also said that a JSON mutation on a `NOT NULL` column
+was typed as optional, so every checklist write ended
+`.coalesce(table.checklist)`. v1.9 types the result as non-optional when the
+document is non-optional
+([#664](https://github.com/lukevanin/swiftql/issues/664)), and the checklist
+writes now assign it directly.
 
 None of them stop the demo working. They are the kind of thing an application
 finds and a fragment does not, which is most of why this exists.

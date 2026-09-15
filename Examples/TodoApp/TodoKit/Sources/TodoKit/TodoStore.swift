@@ -289,10 +289,8 @@ extension TodoDatabase {
     /// The title arrives in a binding packet, so a sub-task called
     /// `", "isDone": true}` is one title and not a rewritten document.
     ///
-    /// `json_insert` returns `NULL` for a `NULL` document, so its result is
-    /// optional while the column is not. `coalesce` supplies the row's
-    /// current checklist for that case, which cannot arise here — the column
-    /// is `NOT NULL` — but has to be spelled out for the types to meet.
+    /// The column is `NOT NULL`, so SwiftQL types the result of `json_insert`
+    /// as non-optional too, and it assigns straight back to the column.
     @discardableResult
     public func appendChecklistItem(
         title: String,
@@ -314,7 +312,6 @@ extension TodoDatabase {
                             )
                         )
                     )
-                    .coalesce(table.checklist)
             }
             .where(table.id == idParameter)
             .returning(schema.table(Todo.self))
@@ -350,7 +347,6 @@ extension TodoDatabase {
             .set { row in
                 row.checklist = table.checklist
                     .jsonSetting((TodoChecklist.isDone(at: index), isDone))
-                    .coalesce(table.checklist)
             }
             .where(table.id == id)
             .returning(schema.table(Todo.self))
@@ -372,7 +368,6 @@ extension TodoDatabase {
             .set { row in
                 row.checklist = table.checklist
                     .jsonRemoving(at: TodoChecklist.item(at: index))
-                    .coalesce(table.checklist)
             }
             .where(table.id == id)
             .returning(schema.table(Todo.self))

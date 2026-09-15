@@ -208,6 +208,91 @@ extension XLExpression {
 
 
 ///
+/// The JSONB mutation functions on a document that is not `NULL`.
+///
+/// These follow the same rule as the non-optional JSON text mutations: when
+/// the document's type is `Data`, the result is `Data` too, and it assigns to
+/// a `NOT NULL` column without `coalesce`. `jsonb_remove` returns `NULL` when
+/// it removes the root, so a root path is reported as
+/// ``XLSQLValueEncodingError/jsonRootRemoval(function:)``.
+/// `jsonbPatched(with:)` has no form here, because a `NULL` patch also gives
+/// `NULL`.
+///
+/// Needs SQLite 3.45.0 or later.
+///
+extension XLExpression where T == Data {
+
+    ///
+    /// Adds a value at each path that does not already hold one, rendering
+    /// SQLite's `jsonb_insert(X, P, V, ...)`.
+    ///
+    /// Needs SQLite 3.45.0 or later.
+    ///
+    public func jsonbInserting(
+        _ first: (XLJSONPath, any XLExpression),
+        _ rest: (XLJSONPath, any XLExpression)...
+    ) -> some XLExpression<Data> {
+        XLFunction<Data>(
+            name: "jsonb_insert",
+            parameters: [self] + Self.flattenedJSONBAssignments([first] + rest, function: "jsonb_insert")
+        )
+    }
+
+    ///
+    /// Overwrites the value at each path that already holds one, rendering
+    /// SQLite's `jsonb_replace(X, P, V, ...)`.
+    ///
+    /// Needs SQLite 3.45.0 or later.
+    ///
+    public func jsonbReplacing(
+        _ first: (XLJSONPath, any XLExpression),
+        _ rest: (XLJSONPath, any XLExpression)...
+    ) -> some XLExpression<Data> {
+        XLFunction<Data>(
+            name: "jsonb_replace",
+            parameters: [self] + Self.flattenedJSONBAssignments([first] + rest, function: "jsonb_replace")
+        )
+    }
+
+    ///
+    /// Writes a value at each path, whether or not one is already there,
+    /// rendering SQLite's `jsonb_set(X, P, V, ...)`.
+    ///
+    /// Needs SQLite 3.45.0 or later.
+    ///
+    public func jsonbSetting(
+        _ first: (XLJSONPath, any XLExpression),
+        _ rest: (XLJSONPath, any XLExpression)...
+    ) -> some XLExpression<Data> {
+        XLFunction<Data>(
+            name: "jsonb_set",
+            parameters: [self] + Self.flattenedJSONBAssignments([first] + rest, function: "jsonb_set")
+        )
+    }
+
+    ///
+    /// Deletes the value at each path, rendering SQLite's
+    /// `jsonb_remove(X, P, ...)`.
+    ///
+    /// A root path is reported as
+    /// ``XLSQLValueEncodingError/jsonRootRemoval(function:)`` before SQLite
+    /// prepares the statement.
+    ///
+    /// Needs SQLite 3.45.0 or later.
+    ///
+    public func jsonbRemoving(
+        at first: XLJSONPath,
+        _ rest: XLJSONPath...
+    ) -> some XLExpression<Data> {
+        XLFunction<Data>(
+            name: "jsonb_remove",
+            parameters: [self] + XLJSONRemovedPath.wrapping([first] + rest, function: "jsonb_remove")
+        )
+    }
+}
+
+
+///
 /// Builds a JSONB array from `elements`, rendering SQLite's
 /// `jsonb_array(...)`.
 ///

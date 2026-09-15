@@ -3107,7 +3107,6 @@ extension XLDocumentationTests {
             Setting(note) { row in
                 row.metadata = note.metadata
                     .jsonSetting((XLJSONPath.root.key("priority"), 1))
-                    .coalesce(note.metadata)
             }
             Where(note.id == "note-1")
         }
