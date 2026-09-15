@@ -90,7 +90,53 @@
   optional key no longer decodes as an absent field. A file that decoded on
   1.8 because it had an extra key now fails. Remove or correct the key.
 
+- **Declared queries generate more members** (issue #659). `@SQLQueries`
+  adds a `declaredQueries` property to the extended type and to its
+  `Context`, and `@SQLQuery` adds a `<name>DeclaredQuery()` method beside each
+  declaration. A type that already declares a member with one of these names
+  gets a redeclaration error. Rename that member. Every generated member is
+  an instance member that copies no specification body, so a declaration
+  that compiled on 1.8 still compiles. The generated executors, their
+  rendered SQL, and their runtime behaviour do not change.
+
 ### Added
+
+- **Declared queries lower to a static descriptor** (issue #659). The macros
+  emit what they know about each declaration: its name, cardinality,
+  parameter names and types, row type, and value-free statement. The new
+  `XLDeclaredQuery` type assembles that data into an `XLStaticQueryDescriptor`
+  with `makeDescriptor()`. It renders the SQL with the encoder of the
+  database the query was read from, takes the parameter layout from the
+  rendered statement, and takes the result columns from a static row layout's
+  metadata or from the row reader. The definition identity is the database
+  type name, qualified by its enclosing types, and the specification name at
+  version 1, so the descriptor identity does not change between builds of an
+  unchanged declaration. No catalog is needed.
+
+- **Declared-query discovery** (issue #659). The new
+  `SwiftQLDeclaredQueryRegistryPlugin` build-tool plugin scans a target's
+  sources with SwiftSyntax on every build and generates a
+  `<Target>DeclaredQueries` registry into the target. Its `queries(for:)`
+  method returns every `@SQLQueries` and `@SQLQuery` declaration of the
+  database instances passed to it, and throws when a declaring type has no
+  instance. A declaration the registry cannot reach is a build warning, and
+  `// swiftql-registry: ignore` leaves one out without the warning. The scan
+  reads every file of the target, and the registry keeps the source's `#if`
+  conditions on imports, database types, and declarations. The plugin owns
+  the name `<Target>DeclaredQueries` in the target. The
+  `swiftql-declared-query-registry` executable is the tool the plugin runs.
+
+- **A build-validation manifest from declarations** (issue #659). The new
+  `SwiftQLSQLiteBuildValidationDeclaredQueries` library projects declared
+  queries into a format version 2 manifest without fixture provenance.
+  `SQLiteBuildValidationDeclaredQueryManifest.makeManifest(queries:snapshotIdentifier:snapshotURL:)`
+  returns the manifest and the queries it had to skip, each with a reason.
+  Generation does not validate: the validator and the build plugin stay the
+  only validation step. The to-do demo now generates its manifest from its
+  registry, and the hand-written list it used before is kept as a test
+  fixture. `IntegrationTests/DeclaredQueryRegistryFixture` checks in CI that a
+  query added to a target reaches the manifest and validates with no list or
+  generator edited.
 
 - **`@SQLBindings` generates a typed packet for the named bindings of a
   statement value** (issue #663). Attach the macro to a struct that has one

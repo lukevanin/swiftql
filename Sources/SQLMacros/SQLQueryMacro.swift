@@ -46,6 +46,7 @@ extension SQLQueryMacro: PeerMacro {
             try makeDecl(builder.makeRenderOnceCacheDeclaration()),
             try makeDecl(builder.makeExecutorFunction()),
             try makeDecl(builder.makePreparedQueryFunction()),
+            try makeDecl(builder.makeDeclaredQueryPeer()),
         ]
     }
 }

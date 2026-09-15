@@ -135,6 +135,7 @@ extension SQLQueriesMacro: MemberMacro {
             members.append(builder.makeDatabaseExecutorFunction(modifierPrefix: modifierPrefix))
         }
         members.append(makePreparedQueriesProperty(modifierPrefix: modifierPrefix))
+        members.append(makeDatabaseDeclaredQueriesMember(modifierPrefix: modifierPrefix))
         return try members.map(makeDecl)
     }
 
@@ -218,6 +219,8 @@ extension SQLQueriesMacro: MemberMacro {
             lines.append("")
             lines.append(indent(builder.makeContextExecutorFunction(modifierPrefix: modifierPrefix), by: 4))
         }
+        lines.append("")
+        lines.append(indent(makeContextDeclaredQueriesMember(builders: builders, modifierPrefix: modifierPrefix), by: 4))
         lines.append("")
         lines.append(indent(makePreparedQueriesStruct(
             databaseType: databaseType,

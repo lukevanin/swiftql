@@ -36,6 +36,16 @@
       "name": "SwiftQLSQLiteIndexAdvisor",
       "source_root": "Sources/SwiftQLSQLiteIndexAdvisor",
       "allowed_uninstrumented_sources": []
+    },
+    {
+      "name": "SwiftQLSQLiteBuildValidationDeclaredQueries",
+      "source_root": "Sources/SwiftQLSQLiteBuildValidationDeclaredQueries",
+      "allowed_uninstrumented_sources": []
+    },
+    {
+      "name": "SwiftQLDeclaredQueryDiscovery",
+      "source_root": "Sources/SwiftQLDeclaredQueryDiscovery",
+      "allowed_uninstrumented_sources": []
     }
   ],
   "excluded_source_roots": [
@@ -46,6 +56,10 @@
     {
       "source_root": "Sources/SwiftQLSQLiteIndexAdvisorCLI",
       "reason": "Executable target swiftql-index-advisor; the coverage test binary does not link it."
+    },
+    {
+      "source_root": "Sources/SwiftQLDeclaredQueryRegistryCLI",
+      "reason": "Executable target swiftql-declared-query-registry; the coverage test binary does not link it."
     }
   ]
 }
