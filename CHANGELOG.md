@@ -32,9 +32,9 @@
   version. The Swift documentation tests compare those claims with the newest
   dated CHANGELOG heading instead of a literal, and no longer pin SKILL.md's
   release sentence verbatim, so a version bump touches no test file.
-- **To-do demo: live-query tests await state.** A new `TodoKitTestSupport`
-  target, which is not a product, gives the demo's tests an Observation-driven
-  wait. The tests no longer poll with `Task.sleep`.
+- **To-do demo: live-query tests await state.** The demo's test target gains
+  an Observation-driven wait with a named 10-second backstop. The tests no
+  longer poll with `Task.sleep`, and no shipping product imports XCTest.
 
 ## [1.8.1] - 2026-09-15
 

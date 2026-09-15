@@ -14,7 +14,9 @@
 # Each claim is matched as a whole sentence, after collapsing whitespace, so a
 # claim re-wrapped across lines still counts. Every Swift Package Manager
 # requirement on SwiftQL in the same documents must name the version too, so a
-# bumped sentence cannot sit beside a stale `from:` line.
+# bumped sentence cannot sit beside a stale `from:` line. For the same reason,
+# every published-version sentence in those documents must name the version:
+# a current claim added beside a stale one still fails.
 #
 # Test tags below `release-test/` are skipped outright, exactly as
 # check-release-changelog.sh skips them: their version is a placeholder that
@@ -133,6 +135,29 @@ require_claim SKILL.md "\`$version\` is the latest published package"
 require_claim Website/index.html \
     ".package(url: \"https://github.com/lukevanin/swiftql.git\", from: \"$version\")"
 
+# Every "X.Y.Z is the latest published package" or "Version X.Y.Z is the
+# published package" sentence, in any of the forms the six claims use, must
+# name the version, so a stale claim cannot hide beside a current one.
+require_no_stale_claims() {
+    local document="$1"
+    local contents
+    local claimed
+
+    [[ -f "$repository_root/$document" && ! -L "$repository_root/$document" ]] ||
+        return 0
+    contents="$(normalized < "$repository_root/$document")"
+    while IFS= read -r claimed; do
+        [[ -n "$claimed" ]] || continue
+        if [[ "$claimed" != "$version" ]]; then
+            report "$document still claims $claimed is published"
+        fi
+    done < <(
+        grep -oE '[0-9]+\.[0-9]+\.[0-9]+`? is the (latest )?published package' \
+            <<< "$contents" |
+            grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || true
+    )
+}
+
 for document in \
     README.md \
     Sources/SwiftQL/SwiftQL.docc/GettingStarted.md \
@@ -140,6 +165,7 @@ for document in \
     SKILL.md \
     Website/index.html; do
     require_current_package_requirements "$document"
+    require_no_stale_claims "$document"
 done
 
 if (( failures != 0 )); then

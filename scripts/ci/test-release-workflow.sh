@@ -504,6 +504,21 @@ write_version_claims "$stale_requirement" 1.1.0
 sed -i.bak 's/from: "1\.1\.0"/from: "1.0.9"/' "$stale_requirement/README.md"
 expect_failure "$check_version_claims" v1.1.0 v1.1.0 "$stale_requirement"
 
+# A stale claim beside a current one still fails, in the backticked README
+# form and the "Version X.Y.Z" DocC form.
+extra_stale_readme="$test_root/claims-extra-stale-readme"
+write_version_claims "$extra_stale_readme" 1.1.0
+printf '%s\n' '`1.0.9` is the latest published package.' >> "$extra_stale_readme/README.md"
+expect_failure "$check_version_claims" v1.1.0 v1.1.0 "$extra_stale_readme"
+output="$("$check_version_claims" v1.1.0 v1.1.0 "$extra_stale_readme" 2>&1 || true)"
+grep -Fq "README.md still claims 1.0.9 is published" <<< "$output" ||
+    fail 'a stale README claim beside a current one was not reported'
+extra_stale_docc="$test_root/claims-extra-stale-docc"
+write_version_claims "$extra_stale_docc" 1.1.0
+printf '%s\n' 'Version 1.0.9 is the published' 'package.' \
+    >> "$extra_stale_docc/Sources/SwiftQL/SwiftQL.docc/GettingStarted.md"
+expect_failure "$check_version_claims" v1.1.0 v1.1.0 "$extra_stale_docc"
+
 # A missing claim document fails rather than being skipped.
 missing_document="$test_root/claims-missing-document"
 write_version_claims "$missing_document" 1.1.0

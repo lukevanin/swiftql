@@ -2,7 +2,6 @@ import XCTest
 
 import SwiftQL
 import TodoKit
-import TodoKitTestSupport
 
 /// Proves the interface's central claim: a write updates every view that
 /// reads the affected tables, with no refetch call anywhere.

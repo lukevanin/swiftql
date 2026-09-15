@@ -228,6 +228,15 @@ the milestone actually shipped, and correct:
   bump therefore touches no test file. A bump that dates the heading but
   misses a document fails the suite, and a tag whose documents still name the
   previous version fails the release gate before the compiler matrix runs.
+  The gate also fails when any published-version sentence in those documents
+  names another version, so a stale claim cannot sit beside a current one.
+
+  One file under `Tests/` still carries a release-line version:
+  `Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json`
+  records `inventory_version`. That file is conformance data, not test code,
+  and it changes only when the inventory itself is bumped (see "Conformance
+  inventory" below), not for every version bump. It is the one exception; no
+  test source pins a version.
 
 The landing page at [Website/index.html](Website/index.html) restates the
 tagline, the comparison table, the "Choose something else when" list, and the
