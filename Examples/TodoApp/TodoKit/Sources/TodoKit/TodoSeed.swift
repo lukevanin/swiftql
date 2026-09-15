@@ -89,8 +89,7 @@ public struct TodoSeed: Sendable {
                 priority: .normal,
                 isCompleted: false,
                 position: 1,
-                createdAt: createdAt,
-                checklist: TodoChecklist.empty
+                createdAt: createdAt
             ),
             Todo(
                 id: Self.sharpenKnivesID,
@@ -116,8 +115,7 @@ public struct TodoSeed: Sendable {
                 priority: .high,
                 isCompleted: true,
                 position: 1,
-                createdAt: createdAt,
-                checklist: TodoChecklist.empty
+                createdAt: createdAt
             ),
             Todo(
                 id: Self.returnLibraryBookID,
@@ -128,8 +126,7 @@ public struct TodoSeed: Sendable {
                 priority: .normal,
                 isCompleted: false,
                 position: 0,
-                createdAt: createdAt,
-                checklist: TodoChecklist.empty
+                createdAt: createdAt
             ),
             Todo(
                 id: Self.finishNovelID,
@@ -140,8 +137,7 @@ public struct TodoSeed: Sendable {
                 priority: .low,
                 isCompleted: true,
                 position: 1,
-                createdAt: createdAt,
-                checklist: TodoChecklist.empty
+                createdAt: createdAt
             ),
         ]
 

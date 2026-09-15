@@ -96,6 +96,20 @@
 
 ### Fixed
 
+- **A `@SQLTable` or `@SQLResult` property default now applies** (issue #665,
+  recorded on #469). The generated memberwise initializer gives a `var`
+  property with an initial value a default for its parameter, so a call can
+  leave that property out. Before this change, the initializer ignored the
+  initial value and required the argument. The default refers to a generated
+  `@usableFromInline` static accessor that returns the initial value. Thus a
+  `public` model whose initial value refers to a `private` member still
+  compiles. The change is source compatible: every existing call passes every
+  argument and so still compiles. The value is a Swift default only and does
+  not add a SQL `DEFAULT` clause. A `let` property with an initial value is
+  still an error, because the initializer cannot assign it. The diagnostic
+  now says that the value cannot be used as a default. The to-do demo gives
+  `Todo.checklist` its default again.
+
 - `XLJSONPath.key(_:)` quotes a key that begins with `"` or holds a control
   character (issue #671). SQLite rejected the unquoted form of a leading-quote
   key as a bad JSON path on every version. Such a key resolves on a SQLite
