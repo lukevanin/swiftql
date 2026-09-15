@@ -77,7 +77,11 @@
   `<Target>DeclaredQueries` registry into the target. Its `queries(for:)`
   method returns every `@SQLQueries` and `@SQLQuery` declaration of the
   database instances passed to it, and throws when a declaring type has no
-  instance. A declaration the registry cannot reach is a build warning. The
+  instance. A declaration the registry cannot reach is a build warning, and
+  `// swiftql-registry: ignore` leaves one out without the warning. The scan
+  reads every file of the target, and the registry keeps the source's `#if`
+  conditions on imports, database types, and declarations. The plugin owns
+  the name `<Target>DeclaredQueries` in the target. The
   `swiftql-declared-query-registry` executable is the tool the plugin runs.
 
 - **A build-validation manifest from declarations** (issue #659). The new

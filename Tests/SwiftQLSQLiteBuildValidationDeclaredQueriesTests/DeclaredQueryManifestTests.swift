@@ -242,6 +242,15 @@ extension GRDBDatabase {
                 Where(book.genre == genre && book.code == code)
             }
         }
+
+        func declaredOnlyAuthor(id: String) -> DeclaredManifestAuthor {
+            sqlResult { schema in
+                let author = schema.table(DeclaredManifestAuthor.self)
+                Select(author)
+                From(author)
+                Where(author.id == id)
+            }
+        }
     }
 }
 
@@ -347,6 +356,12 @@ final class DeclaredManifestSQLTrace: @unchecked Sendable {
     func append(_ sql: String) {
         lock.lock()
         recorded.append(sql)
+        lock.unlock()
+    }
+
+    func clear() {
+        lock.lock()
+        recorded.removeAll()
         lock.unlock()
     }
 
@@ -461,12 +476,13 @@ final class DeclaredQueryManifestTests: XCTestCase {
             "GRDBDatabase.declaredTitles",
             "GRDBDatabase.declaredAuthorsRated",
             "GRDBDatabase.declaredBooks",
+            "GRDBDatabase.declaredOnlyAuthor",
             "GRDBDatabase.declaredHighlyRated",
             "GRDBDatabase.declaredEvents",
             "GRDBDatabase.declaredMissingRows",
             "DeclaredMutatingDatabase.declaredMutatingAuthors",
         ])
-        XCTAssertEqual(queries.count, 9)
+        XCTAssertEqual(queries.count, 10)
     }
 
     func testTheRegistryRefusesToLeaveADatabaseTypeOut() throws {
@@ -489,10 +505,11 @@ final class DeclaredQueryManifestTests: XCTestCase {
             "declaredTitles",
             "declaredAuthorsRated",
             "declaredBooks",
+            "declaredOnlyAuthor",
         ])
         XCTAssertEqual(
             database.declaredQueries.map(\.cardinality),
-            [.many, .zeroOrOne, .many, .many, .many]
+            [.many, .zeroOrOne, .many, .many, .many, .exactlyOne]
         )
     }
 
@@ -580,6 +597,13 @@ final class DeclaredQueryManifestTests: XCTestCase {
                 { try self.declared("declaredBooks", in: database) }
             ),
             (
+                "container, exactly one row",
+                // The table is empty, so the executor throws after SQLite
+                // ran the statement.
+                { _ = try? database.declaredOnlyAuthor(id: "a") },
+                { try self.declared("declaredOnlyAuthor", in: database) }
+            ),
+            (
                 "peer, body reads the database instance",
                 { _ = try database.fetchDeclaredHighlyRated() },
                 { database.declaredHighlyRatedDeclaredQuery() }
@@ -592,11 +616,13 @@ final class DeclaredQueryManifestTests: XCTestCase {
         ]
 
         for testCase in cases {
+            // Cleared per case, so a match cannot come from an earlier case.
+            trace.clear()
             try testCase.run()
             let sql = try testCase.query().makeDescriptor().descriptor.sql
             XCTAssertTrue(
                 trace.statements.contains(sql),
-                "\(testCase.label): \(sql) is not among \(trace.statements.suffix(4))"
+                "\(testCase.label): \(sql) is not among \(trace.statements)"
             )
         }
 
@@ -690,7 +716,7 @@ final class DeclaredQueryManifestTests: XCTestCase {
         XCTAssertEqual(manifest.formatVersion, .v2)
         XCTAssertNil(manifest.conformanceInventoryVersion)
         XCTAssertNil(manifest.combinatorialManifestVersion)
-        XCTAssertEqual(manifest.queries.count, 6)
+        XCTAssertEqual(manifest.queries.count, 7)
 
         let report = try SQLiteBuildValidator.validate(
             manifest: manifest,

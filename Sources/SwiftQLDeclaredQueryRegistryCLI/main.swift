@@ -47,17 +47,22 @@ guard let targetName, let outputPath else {
     fail("usage: swiftql-declared-query-registry --target-name NAME --output PATH FILE...")
 }
 
-var scan = DeclaredQueryScan()
+// Every file is scanned together: a database type declared in one file can
+// carry declarations in another, and only its own declaration says whether it
+// is generic or conditional.
+var sourceFiles: [DeclaredQueryScanner.SourceFile] = []
 for file in files.sorted() {
-    let source: String
     do {
-        source = try String(contentsOfFile: file, encoding: .utf8)
+        sourceFiles.append(DeclaredQueryScanner.SourceFile(
+            path: file,
+            source: try String(contentsOfFile: file, encoding: .utf8)
+        ))
     }
     catch {
         fail("cannot read \(file): \(error.localizedDescription)")
     }
-    scan.merge(DeclaredQueryScanner.scan(source: source, file: file))
 }
+let scan = DeclaredQueryScanner.scan(sourceFiles)
 
 for skipped in scan.skipped {
     FileHandle.standardError.write(Data("\(skipped.file):\(skipped.line): warning: \(skipped.reason)\n".utf8))

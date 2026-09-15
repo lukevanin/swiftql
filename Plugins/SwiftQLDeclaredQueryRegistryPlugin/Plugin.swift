@@ -21,6 +21,11 @@ import PackagePlugin
 /// Every Swift source of the target is a declared input, and the registry is
 /// a declared output, so SwiftPM reruns the scan only when a source changes.
 ///
+/// The plugin owns the name `<Target>DeclaredQueries` in the target: a type
+/// or a source file of that name in the target collides with the generated
+/// registry. Write `// swiftql-registry: ignore` before a declaration's
+/// attribute to leave it out of the registry without a warning.
+///
 /// Like `swiftql-build-validate`, the tool's target and product names are
 /// both `swiftql-declared-query-registry`, so `context.tool(named:)` resolves
 /// it under Xcode as well as SwiftPM (#492).

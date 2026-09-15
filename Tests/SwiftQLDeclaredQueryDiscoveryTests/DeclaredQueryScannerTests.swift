@@ -6,6 +6,7 @@
 //  registry source rendered from it.
 //
 
+import Foundation
 import SwiftQLDeclaredQueryDiscovery
 import XCTest
 
@@ -14,6 +15,12 @@ final class DeclaredQueryScannerTests: XCTestCase {
 
     private func scan(_ source: String) -> DeclaredQueryScan {
         DeclaredQueryScanner.scan(source: source, file: "/tmp/Queries.swift")
+    }
+
+    private func scan(files: [String: String]) -> DeclaredQueryScan {
+        DeclaredQueryScanner.scan(files.keys.sorted().map { name in
+            DeclaredQueryScanner.SourceFile(path: "/tmp/\(name)", source: files[name] ?? "")
+        })
     }
 
     func testFindsContainersAndPeersOnTheirDatabaseTypes() {
@@ -54,7 +61,10 @@ final class DeclaredQueryScannerTests: XCTestCase {
             .peer(functionName: "rows", isMutating: false),
         ])
         XCTAssertEqual(result.declarations.map(\.line), [4, 12, 15, 21])
-        XCTAssertEqual(result.imports, ["Foundation", "SwiftQL"])
+        XCTAssertEqual(result.imports, [
+            DeclaredQueryImport(declaration: "import Foundation", condition: nil),
+            DeclaredQueryImport(declaration: "import SwiftQL", condition: nil),
+        ])
         XCTAssertEqual(result.skipped, [])
     }
 
@@ -81,6 +91,48 @@ final class DeclaredQueryScannerTests: XCTestCase {
         XCTAssertTrue(result.skipped[0].reason.contains("private or fileprivate"))
         XCTAssertTrue(result.skipped[1].reason.contains("'hidden'"))
         XCTAssertTrue(result.skipped[2].reason.contains("generic or constrained"))
+        XCTAssertTrue(result.skipped[2].reason.contains(DeclaredQueryScanner.exclusionMarker))
+    }
+
+    func testAnExtensionOfAGenericTypeDeclaredInAnotherFileIsSkipped() {
+        let result = scan(files: [
+            "Types.swift": """
+                struct Box<Value> {}
+
+                enum Outer<Value> {
+                    enum Inner {}
+                }
+                """,
+            "Queries.swift": """
+                extension Box {
+                    @SQLQuery
+                    func boxed() -> [Person] { sqlResult { _ in fatalError() } }
+                }
+
+                extension Outer.Inner {
+                    @SQLQuery
+                    func nested() -> [Person] { sqlResult { _ in fatalError() } }
+                }
+                """,
+        ])
+
+        XCTAssertEqual(result.declarations, [])
+        XCTAssertEqual(result.skipped.count, 2)
+        XCTAssertTrue(result.skipped.allSatisfy { $0.reason.contains("generic or constrained") })
+    }
+
+    func testTheExclusionMarkerLeavesADeclarationOutWithoutAWarning() {
+        let result = scan("""
+            extension Box where Value == Int {
+                // swiftql-registry: ignore
+                @SQLQuery
+                func constrained() -> [Person] { sqlResult { _ in fatalError() } }
+            }
+            """)
+
+        XCTAssertEqual(result.declarations, [])
+        XCTAssertEqual(result.skipped, [])
+        XCTAssertEqual(result.excluded.map(\.line), [3])
     }
 
     func testKeepsTheConditionADeclarationIsCompiledUnder() {
@@ -104,10 +156,54 @@ final class DeclaredQueryScannerTests: XCTestCase {
             "(!(DEBUG) && (os(Linux)))",
             "(!(DEBUG) && !(os(Linux)))",
         ])
+        XCTAssertEqual(result.declarations.map(\.typeCondition), [nil, nil, nil])
     }
 
-    func testAFileWithoutEitherMacroIsNotParsed() {
-        XCTAssertEqual(scan("struct Plain {}"), DeclaredQueryScan())
+    func testATypesConditionComesFromItsOwnDeclarationInAnyFile() {
+        let result = scan(files: [
+            "Types.swift": """
+                #if DEBUG
+                struct DebugDatabase {
+                    struct Nested {}
+                }
+                #endif
+                """,
+            "Queries.swift": """
+                extension DebugDatabase {
+                    @SQLQuery
+                    func rows() -> [Person] { sqlResult { _ in fatalError() } }
+                }
+
+                extension DebugDatabase.Nested {
+                    @SQLQuery
+                    func nestedRows() -> [Person] { sqlResult { _ in fatalError() } }
+                }
+                """,
+        ])
+
+        XCTAssertEqual(result.declarations.map(\.condition), [nil, nil])
+        XCTAssertEqual(result.declarations.map(\.typeCondition), ["((DEBUG))", "((DEBUG)) && ((DEBUG))"])
+    }
+
+    func testImportsKeepTheirConditionsAndAttributes() {
+        let result = scan("""
+            #if canImport(UIKit)
+            import UIKit
+            #endif
+            @testable import Store
+            @preconcurrency import Dispatch
+
+            extension GRDBDatabase {
+                @SQLQuery
+                func rows() -> [Person] { sqlResult { _ in fatalError() } }
+            }
+            """)
+
+        XCTAssertEqual(result.imports, [
+            DeclaredQueryImport(declaration: "import UIKit", condition: "((canImport(UIKit)))"),
+            DeclaredQueryImport(declaration: "@testable import Store", condition: nil),
+            DeclaredQueryImport(declaration: "@preconcurrency import Dispatch", condition: nil),
+        ])
     }
 
     func testTheRegistryTypeNameIsAnIdentifierFromTheTargetName() {
@@ -145,10 +241,92 @@ final class DeclaredQueryScannerTests: XCTestCase {
         XCTAssertTrue(source.contains("import SwiftQL\n"), source)
     }
 
+    ///
+    /// Type-checks a rendered registry with the Swift compiler, with warnings
+    /// as errors, under both values of the conditions it uses. Stubs stand in
+    /// for SwiftQL and for the members the macros generate.
+    ///
+    func testTheGeneratedRegistryCompilesUnderEveryConditionValue() throws {
+        let scanned = scan(files: [
+            "Types.swift": """
+                #if DEBUG
+                struct DebugDatabase {
+                    @SQLQuery
+                    func rows() -> [Person] { sqlResult { _ in fatalError() } }
+                }
+                #endif
+
+                struct Box<Value> {}
+                """,
+            "Queries.swift": """
+                import SwiftQL
+                #if canImport(SwiftQLNoSuchModuleForRegistryTests)
+                import SwiftQLNoSuchModuleForRegistryTests
+                #endif
+
+                @SQLQueries
+                extension GRDBDatabase {
+                    struct Query {}
+                }
+
+                extension Box {
+                    @SQLQuery
+                    func boxed() -> [Person] { sqlResult { _ in fatalError() } }
+                }
+                """,
+        ])
+        let registry = DeclaredQueryRegistryRenderer.render(targetName: "Fixture", scan: scanned)
+            .replacingOccurrences(of: "import SwiftQL\n", with: "")
+        let stubs = """
+
+            public struct XLDeclaredQuery {}
+
+            public enum XLDeclaredQueryError: Error {
+                case missingDatabaseInstance(typeName: String)
+            }
+
+            struct GRDBDatabase {
+                var declaredQueries: [XLDeclaredQuery] { [] }
+            }
+
+            #if DEBUG
+            struct DebugDatabase {
+                func rowsDeclaredQuery() -> XLDeclaredQuery { XLDeclaredQuery() }
+            }
+            #endif
+
+            """
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("DeclaredQueryRegistry-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("Registry.swift")
+        try (registry + stubs).write(to: file, atomically: true, encoding: .utf8)
+
+        for definesDebug in [false, true] {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            process.arguments = ["swiftc", "-typecheck", "-warnings-as-errors"]
+                + (definesDebug ? ["-D", "DEBUG"] : [])
+                + [file.path]
+            let output = Pipe()
+            process.standardOutput = output
+            process.standardError = output
+            try process.run()
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            XCTAssertEqual(
+                process.terminationStatus,
+                0,
+                "DEBUG=\(definesDebug):\n\(String(decoding: data, as: UTF8.self))\n\(registry)"
+            )
+        }
+    }
+
     func testAnEmptyRegistryReturnsNoQueries() {
         let source = DeclaredQueryRegistryRenderer.render(targetName: "Empty", scan: DeclaredQueryScan())
 
-        XCTAssertTrue(source.contains("public static let databaseTypeNames: [String] = []"), source)
-        XCTAssertTrue(source.contains("    public static func queries(for databases: [Any]) throws -> [XLDeclaredQuery] {\n        []\n    }"), source)
+        XCTAssertTrue(source.contains("names.reserveCapacity(0)"), source)
+        XCTAssertTrue(source.contains("        return queries\n"), source)
     }
 }

@@ -15,6 +15,8 @@ public enum DeclaredQueryRegistryRenderer {
     /// The registry's type name for a target: the target name as an upper
     /// camel case identifier, followed by `DeclaredQueries`.
     ///
+    /// The target must not declare a type with this name itself.
+    ///
     public static func typeName(forTarget target: String) -> String {
         var result = ""
         var capitalizesNext = true
@@ -49,6 +51,11 @@ public enum DeclaredQueryRegistryRenderer {
     /// reads every declaration's generated member from the first matching
     /// instance, and throws when no instance of that type was passed.
     ///
+    /// Everything that names a type or a declaration compiles under the same
+    /// `#if` conditions the source does: an import under its own condition,
+    /// a database type's whole block under the type's condition, and each
+    /// call under the declaration's condition.
+    ///
     public static func render(targetName: String, scan: DeclaredQueryScan) -> String {
         let registry = typeName(forTarget: targetName)
         var order: [String] = []
@@ -68,42 +75,55 @@ public enum DeclaredQueryRegistryRenderer {
             lines.append("//")
             lines.append("// Skipped \(fileName):\(skipped.line): \(skipped.reason)")
         }
+        for excluded in scan.excluded {
+            let fileName = URL(fileURLWithPath: excluded.file).lastPathComponent
+            lines.append("//")
+            lines.append("// Excluded \(fileName):\(excluded.line): \(excluded.reason)")
+        }
         lines.append("")
+
         var imports = scan.imports
-        if !imports.contains("SwiftQL") {
-            imports.append("SwiftQL")
+        if !imports.contains(DeclaredQueryImport(declaration: "import SwiftQL", condition: nil)) {
+            imports.append(DeclaredQueryImport(declaration: "import SwiftQL", condition: nil))
         }
-        for module in imports.sorted() {
-            lines.append("import \(module)")
+        for declaredImport in imports where declaredImport.condition == nil {
+            lines.append(declaredImport.declaration)
+        }
+        for declaredImport in imports {
+            guard let condition = declaredImport.condition else {
+                continue
+            }
+            lines.append("#if \(condition)")
+            lines.append(declaredImport.declaration)
+            lines.append("#endif")
         }
         lines.append("")
+
         lines.append("/// Every declared query in target '\(targetName)' that generated code can reach.")
         lines.append("public enum \(registry) {")
         lines.append("")
         lines.append("    /// The database types that declare queries, as the declarations spell them.")
-        if order.isEmpty {
-            lines.append("    public static let databaseTypeNames: [String] = []")
+        lines.append("    public static var databaseTypeNames: [String] {")
+        lines.append("        var names: [String] = []")
+        lines.append("        names.reserveCapacity(\(order.count))")
+        for type in order {
+            appendConditional(
+                ["        names.append(\"\(type)\")"],
+                condition: byType[type]?.first?.typeCondition,
+                indent: "        ",
+                to: &lines
+            )
         }
-        else {
-            lines.append("    public static let databaseTypeNames: [String] = [")
-            for type in order {
-                lines.append("        \"\(type)\",")
-            }
-            lines.append("    ]")
-        }
+        lines.append("        return names")
+        lines.append("    }")
         lines.append("")
         lines.append("    /// The declared queries of the database instances in `databases`.")
         lines.append("    ///")
         lines.append("    /// - Throws: `XLDeclaredQueryError.missingDatabaseInstance` when")
         lines.append("    ///   `databases` holds no instance of a type that declares queries.")
         lines.append("    public static func queries(for databases: [Any]) throws -> [XLDeclaredQuery] {")
-        if order.isEmpty {
-            lines.append("        []")
-            lines.append("    }")
-            lines.append("}")
-            return lines.joined(separator: "\n") + "\n"
-        }
         lines.append("        var queries: [XLDeclaredQuery] = []")
+        lines.append("        queries.reserveCapacity(databases.count)")
         for (offset, type) in order.enumerated() {
             let declarations = byType[type] ?? []
             let needsVariable = declarations.contains { declaration in
@@ -112,39 +132,49 @@ public enum DeclaredQueryRegistryRenderer {
                 }
                 return false
             }
-            lines.append("")
-            lines.append("        var found\(offset) = false")
-            lines.append("        for element in databases {")
-            lines.append("            guard \(needsVariable ? "var" : "let") database = element as? \(type) else {")
-            lines.append("                continue")
-            lines.append("            }")
-            lines.append("            found\(offset) = true")
+            var block: [String] = []
+            block.append("        var found\(offset) = false")
+            block.append("        for element in databases {")
+            block.append("            guard \(needsVariable ? "var" : "let") database = element as? \(type) else {")
+            block.append("                continue")
+            block.append("            }")
+            block.append("            found\(offset) = true")
             for declaration in declarations {
                 let call: String
                 switch declaration.form {
                 case .container:
-                    call = "queries += database.declaredQueries"
+                    call = "            queries += database.declaredQueries"
                 case .peer(let functionName, _):
-                    call = "queries.append(database.\(functionName)DeclaredQuery())"
+                    call = "            queries.append(database.\(functionName)DeclaredQuery())"
                 }
-                if let condition = declaration.condition {
-                    lines.append("            #if \(condition)")
-                    lines.append("            \(call)")
-                    lines.append("            #endif")
-                }
-                else {
-                    lines.append("            \(call)")
-                }
+                appendConditional([call], condition: declaration.condition, indent: "            ", to: &block)
             }
-            lines.append("            break")
-            lines.append("        }")
-            lines.append("        if !found\(offset) {")
-            lines.append("            throw XLDeclaredQueryError.missingDatabaseInstance(typeName: \"\(type)\")")
-            lines.append("        }")
+            block.append("            break")
+            block.append("        }")
+            block.append("        if !found\(offset) {")
+            block.append("            throw XLDeclaredQueryError.missingDatabaseInstance(typeName: \"\(type)\")")
+            block.append("        }")
+            lines.append("")
+            appendConditional(block, condition: declarations.first?.typeCondition, indent: "        ", to: &lines)
         }
         lines.append("        return queries")
         lines.append("    }")
         lines.append("}")
         return lines.joined(separator: "\n") + "\n"
+    }
+
+    private static func appendConditional(
+        _ block: [String],
+        condition: String?,
+        indent: String,
+        to lines: inout [String]
+    ) {
+        guard let condition else {
+            lines.append(contentsOf: block)
+            return
+        }
+        lines.append("\(indent)#if \(condition)")
+        lines.append(contentsOf: block)
+        lines.append("\(indent)#endif")
     }
 }
