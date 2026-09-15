@@ -45,6 +45,7 @@ extension SQLQueryMacro: PeerMacro {
             try makeDecl(builder.makeStatementFunction()),
             try makeDecl(builder.makeRenderOnceCacheDeclaration()),
             try makeDecl(builder.makeExecutorFunction()),
+            try makeDecl(builder.makePreparedQueryFunction()),
         ]
     }
 }
@@ -588,6 +589,10 @@ internal struct SQLQueryBuilder {
         "fetch\(function.name.text.prefix(1).uppercased())\(function.name.text.dropFirst())"
     }
 
+    private var preparedQueryFunctionName: String {
+        "\(function.name.text)PreparedQuery"
+    }
+
     // Not `private`: shared with the `@SQLQueries` container executor
     // generation in `SQLQueriesMacro.swift`, a different file in this target.
     var renderOnceCacheName: String {
@@ -714,8 +719,56 @@ internal struct SQLQueryBuilder {
         preparing statementExpression: String,
         against databaseExpression: String
     ) -> [String] {
+        var lines = makePreparationLines(
+            preparing: statementExpression,
+            against: databaseExpression
+        )
+        for fetchLine in makeFetchLines(requestVariable: "__xlRequest", packetVariable: "__xlPacket") {
+            lines.append("    " + fetchLine)
+        }
+        return lines
+    }
+
+    ///
+    /// Generates the `@SQLQuery` peer that prepares one invocation for
+    /// observation (issue #660): the same render-once request and binding
+    /// packet the executor builds, returned as an `XLPreparedQuery` instead of
+    /// being fetched.
+    ///
+    func makePreparedQueryFunction() -> String {
+        let parameterClause = function.signature.parameterClause.trimmedDescription
         var lines: [String] = []
-        lines.append("    let __xlRequest = Self.\(renderOnceCacheName).request(for: \(databaseExpression)) {")
+        lines.append("\(modifierPrefix)func \(preparedQueryFunctionName)\(parameterClause) throws -> XLPreparedQuery<\(rowType)> {")
+        lines.append(
+            contentsOf: makePreparationLines(
+                preparing: statementFunctionName,
+                against: "self"
+            )
+        )
+        lines.append("    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)")
+        lines.append("}")
+        return lines.joined(separator: "\n")
+    }
+
+    ///
+    /// Generates the lines every declared-query executor and prepare function
+    /// share (issue #660): take the render-once request as `__xlRequest` and
+    /// bind each rewritten parameter into the immutable packet `__xlPacket`.
+    ///
+    /// The executor fetches with these two values and the prepare function
+    /// returns them, so an observed declared query uses exactly the cached
+    /// request and the packet the called form uses.
+    ///
+    /// - Parameter cacheOwner: The type that holds the render-once cache --
+    ///   `Self` wherever the cache is a sibling, `Context` from the container's
+    ///   nested `PreparedQueries` type.
+    func makePreparationLines(
+        preparing statementExpression: String,
+        against databaseExpression: String,
+        cacheOwner: String = "Self"
+    ) -> [String] {
+        var lines: [String] = []
+        lines.append("    let __xlRequest = \(cacheOwner).\(renderOnceCacheName).request(for: \(databaseExpression)) {")
         lines.append("        \(statementExpression)()")
         lines.append("    }")
         lines.append("    let __xlLayout = __xlRequest.parameterLayout")
@@ -731,9 +784,6 @@ internal struct SQLQueryBuilder {
             }
             lines.append("        ]")
             lines.append("    ).validatingComplete()")
-        }
-        for fetchLine in makeFetchLines(requestVariable: "__xlRequest", packetVariable: "__xlPacket") {
-            lines.append("    " + fetchLine)
         }
         return lines
     }

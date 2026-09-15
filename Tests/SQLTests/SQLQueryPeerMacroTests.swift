@@ -108,6 +108,22 @@ extension GRDBDatabase {
         }
     }
 
+    // Issue #660: observed through the generated `PreparedQuery` peer. The probe
+    // counts statement builds, so a test can prove that the executor and the
+    // prepared form share one render.
+
+    @SQLQuery
+    func observedRowsWithIDLike(pattern: String) -> [TestTable] {
+        sqlResult { schema in
+            let _ = DeclaredQueryRenderProbe.peerObservedRows.record()
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            Where(table.id.like(pattern))
+            OrderBy(table.value.ascending())
+        }
+    }
+
     @SQLQuery
     func rowsWithIDMatchingExpression(expression: String) -> [TestTable] {
         sqlResult { schema in
@@ -459,6 +475,56 @@ final class XLQueryPeerMacroTests: XCTestCase {
             try database.fetchRowsWithIDMatchingExpression(expression: "a$").map(\.id),
             ["alpha", "beta"]
         )
+    }
+
+
+    // MARK: - Observation (issue #660)
+
+    func testPrepareSharesTheExecutorsRenderAndBindings() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "beta", value: 2))
+
+        let rendersBefore = DeclaredQueryRenderProbe.peerObservedRows.count
+        let prepared = try database.observedRowsWithIDLikePreparedQuery(pattern: "al%")
+        let called = try database.fetchObservedRowsWithIDLike(pattern: "al%")
+        XCTAssertEqual(
+            DeclaredQueryRenderProbe.peerObservedRows.count - rendersBefore,
+            1,
+            "the prepare peer and the executor must share one render"
+        )
+
+        let layout = prepared.request.parameterLayout
+        let slot = try XCTUnwrap(layout.slot(for: .named("pattern")))
+        let expectedBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: layout,
+            bindings: [try XLInvocationBinding(slot: slot, value: .text("al%"))]
+        ).validatingComplete()
+        XCTAssertEqual(prepared.bindings, expectedBindings)
+        XCTAssertEqual(called, [TestTable(id: "alpha", value: 1)])
+        XCTAssertEqual(try prepared.request.fetchAll(bindings: prepared.bindings), called)
+    }
+
+    func testPreparedPeerStreamEmitsUpdatedRowsAfterAWrite() async throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+
+        let query = try database.observedRowsWithIDLikePreparedQuery(pattern: "al%")
+        let updatedRows = [TestTable(id: "alpha", value: 1), TestTable(id: "alpine", value: 2)]
+
+        var snapshots = 0
+        for try await rows in query.stream() {
+            snapshots += 1
+            if snapshots == 1 {
+                XCTAssertEqual(rows, [TestTable(id: "alpha", value: 1)])
+                try insert(TestTable(id: "alpine", value: 2))
+                continue
+            }
+            if rows == updatedRows {
+                break
+            }
+        }
+        XCTAssertGreaterThan(snapshots, 1, "the observation must deliver the write")
     }
 
 
