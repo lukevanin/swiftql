@@ -57,12 +57,18 @@ PEAK_RSS_LINE = re.compile(
     r"^\s*(\d+)\s+maximum resident set size\s*$",
     re.MULTILINE,
 )
-# SwiftPM's own build duration, printed once at the end of a successful build:
+# SwiftPM's own build duration, printed at the end of a successful build:
 # `Build of product 'ConsumerLibrary' complete! (9.83s)`. The product clause is
-# optional so a plain `Build complete! (0.31s)` also parses.
+# optional so a plain `Build complete! (0.31s)` also parses. The decimal mark
+# can be `.` or `,` (a locale-formatted `(9,83s)`), and the unit can be `s`,
+# `sec`, or `seconds`. `parse_swiftpm_duration` documents how ANSI codes,
+# carriage returns, and more than one `complete!` line are handled.
 SWIFTPM_COMPLETE_LINE = re.compile(
-    r"^Build (?:of product '[^']+' )?complete! \(([0-9]+(?:\.[0-9]+)?)s\)\s*$",
-    re.MULTILINE,
+    r"^\s*Build (?:of product '[^']+' )?complete! "
+    r"\(([0-9]+(?:[.,][0-9]+)?) ?(?:s|sec|seconds)\)\s*$"
+)
+ANSI_ESCAPE = re.compile(
+    r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-Z\\-_])"
 )
 
 # A sample is rejected when its `/usr/bin/time` wall time is greater than
@@ -88,18 +94,46 @@ class ValidationError(RuntimeError):
     """The report is internally inconsistent or disagrees with its raw logs."""
 
 
-def parse_swiftpm_duration(text: str) -> float:
-    """Return the duration from the one SwiftPM `complete!` line in `text`."""
+def swiftpm_durations(text: str) -> list[float]:
+    """Every SwiftPM `complete!` duration in `text`, in order.
 
-    matches = SWIFTPM_COMPLETE_LINE.findall(text)
+    ANSI escape sequences are removed first. The text is then split on line
+    feeds and on carriage returns, so a `complete!` line that follows a `\\r`
+    progress update on the same terminal line is still found. A `,` decimal
+    mark is read as `.`.
+    """
+
+    plain = ANSI_ESCAPE.sub("", text)
+    durations: list[float] = []
+    for segment in re.split(r"\r\n|\r|\n", plain):
+        match = SWIFTPM_COMPLETE_LINE.match(segment)
+        if match:
+            durations.append(float(match.group(1).replace(",", ".")))
+    return durations
+
+
+def parse_swiftpm_duration(text: str) -> float:
+    """Return SwiftPM's build duration for one timed `swift build` process.
+
+    When the log has more than one `complete!` line, the result is the sum of
+    their durations. Every such line reports a build that ran inside the same
+    timed process, so that process's wall time must cover all of them. The sum
+    is therefore the honest comparator: it never rejects a sample that any
+    single line would keep.
+    """
+
+    durations = swiftpm_durations(text)
     require(
-        len(matches) == 1,
-        "log does not contain exactly one SwiftPM "
+        bool(durations),
+        "log does not contain a SwiftPM "
         "\"Build of product '...' complete! (N.NNs)\" line",
     )
-    duration = float(matches[0])
-    require(duration > 0.0, f"SwiftPM build duration must be positive: {duration}")
-    return duration
+    for duration in durations:
+        require(
+            duration > 0.0,
+            f"SwiftPM build duration must be positive: {duration}",
+        )
+    return sum(durations)
 
 
 def wall_limit_seconds(swiftpm_seconds: float) -> float:
@@ -601,7 +635,42 @@ def rejection_rule_description() -> str:
     )
 
 
-def render_rejections(rejections: Sequence[dict[str, object]]) -> str:
+def medians_without_rejected(
+    measurements: Sequence[dict[str, object]],
+    rejections: Sequence[dict[str, object]],
+) -> dict[str, dict[str, object]]:
+    """For each cell with a rejected sample, its medians with and without them.
+
+    `medianWallSecondsWithoutRejected` is `None` when every sample in the cell
+    was rejected.
+    """
+
+    rejected_logs = {str(rejection["rawLog"]) for rejection in rejections}
+    affected = {measurement_key(rejection) for rejection in rejections}
+    result: dict[str, dict[str, object]] = {}
+    for key in sorted(affected):
+        group = [item for item in measurements if measurement_key(item) == key]
+        walls = [float(item["wallSeconds"]) for item in group]
+        accepted = [
+            float(item["wallSeconds"])
+            for item in group
+            if str(item["rawLog"]) not in rejected_logs
+        ]
+        result[key] = {
+            "sampleCount": len(group),
+            "acceptedSampleCount": len(accepted),
+            "medianWallSeconds": statistics.median(walls) if walls else None,
+            "medianWallSecondsWithoutRejected": (
+                statistics.median(accepted) if accepted else None
+            ),
+        }
+    return result
+
+
+def render_rejections(
+    rejections: Sequence[dict[str, object]],
+    measurements: Sequence[dict[str, object]] = (),
+) -> str:
     heading = "Rejected samples"
     lines = [heading, "-" * len(heading)]
     lines.append(f"  Rule: {rejection_rule_description()}.")
@@ -624,9 +693,27 @@ def render_rejections(rejections: Sequence[dict[str, object]]) -> str:
             f"({wall / swiftpm:,.1f}x)"
         )
         lines.append(f"      {rejection['rawLog']}")
+    if measurements:
+        lines.append("  Median wall time of each affected cell:")
+        for key, medians in medians_without_rejected(measurements, rejections).items():
+            consumer, tables, queries, mode = key.split("|")
+            with_all = medians["medianWallSeconds"]
+            without = medians["medianWallSecondsWithoutRejected"]
+            without_text = (
+                f"{format_seconds(float(without))} from "
+                f"{medians['acceptedSampleCount']} of {medians['sampleCount']} samples"
+                if without is not None
+                else f"none (0 of {medians['sampleCount']} samples accepted)"
+            )
+            lines.append(
+                f"    {consumer} {point_label(int(tables), int(queries))} {mode}: "
+                f"with rejected samples {format_seconds(float(with_all))}; "
+                f"without rejected samples {without_text}"
+            )
     lines.append(
         "  A cell marked [R] in the matrix contains at least one rejected "
-        "sample, so its median does not measure build cost."
+        "sample. Its matrix median includes that sample, so it does not "
+        "measure build cost; use the median without rejected samples above."
     )
     return "\n".join(lines) + "\n"
 
@@ -821,6 +908,11 @@ def render(
         heading = f"Median wall time - {mode}"
         lines.append(heading)
         lines.append("-" * len(heading))
+        if rejected_keys:
+            lines.append(
+                "  Medians include every recorded sample, rejected samples too. "
+                "See \"Rejected samples\" for [R] cells without them."
+            )
         header = f"  {'scale':<24}" + "".join(
             f"{identifier:>22}" for identifier in relevant
         )
@@ -869,7 +961,7 @@ def render(
             f"{format_bytes(artifact['pluginGeneratedSwiftBytes']):>14}"
         )
     lines.append("")
-    lines.append(render_rejections(rejections).rstrip("\n"))
+    lines.append(render_rejections(rejections, measurements).rstrip("\n"))
     lines.append("")
     lines.append(
         "Peak RSS is the peak of the whole `swift build` process tree, not an "
@@ -995,7 +1087,9 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help=(
             "exit 0 even when a sample's wall time is inconsistent with "
             "SwiftPM's build duration in its own log; the rejected samples "
-            "are still reported"
+            "are still reported. The matrix medians always include rejected "
+            "samples; the \"Rejected samples\" section also prints each "
+            "affected cell's median without them"
         ),
     )
     return parser

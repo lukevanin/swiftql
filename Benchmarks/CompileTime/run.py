@@ -793,8 +793,11 @@ PEAK_RSS_LINE = re.compile(
 # to summarize.py, which documents why these values were chosen; test_run.py
 # checks that the two modules agree.
 SWIFTPM_COMPLETE_LINE = re.compile(
-    r"^Build (?:of product '[^']+' )?complete! \(([0-9]+(?:\.[0-9]+)?)s\)\s*$",
-    re.MULTILINE,
+    r"^\s*Build (?:of product '[^']+' )?complete! "
+    r"\(([0-9]+(?:[.,][0-9]+)?) ?(?:s|sec|seconds)\)\s*$"
+)
+ANSI_ESCAPE = re.compile(
+    r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-Z\\-_])"
 )
 WALL_TO_SWIFTPM_FACTOR = 2.0
 WALL_TO_SWIFTPM_ALLOWANCE_SECONDS = 2.0
@@ -924,16 +927,30 @@ def parse_peak_rss(text: str) -> int:
 
 
 def parse_swiftpm_duration(text: str) -> float:
-    matches = SWIFTPM_COMPLETE_LINE.findall(text)
-    if len(matches) != 1:
+    """SwiftPM's build duration, with exactly the rules of summarize.py.
+
+    ANSI codes are removed, the text is split on line feeds and carriage
+    returns, a `,` decimal mark is read as `.`, and more than one `complete!`
+    line yields the sum of their durations.
+    """
+
+    plain = ANSI_ESCAPE.sub("", text)
+    durations: list[float] = []
+    for segment in re.split(r"\r\n|\r|\n", plain):
+        match = SWIFTPM_COMPLETE_LINE.match(segment)
+        if match:
+            durations.append(float(match.group(1).replace(",", ".")))
+    if not durations:
         raise HarnessError(
-            "could not find one SwiftPM \"Build of product '...' complete! "
+            "could not find a SwiftPM \"Build of product '...' complete! "
             "(N.NNs)\" line in the build output"
         )
-    duration = float(matches[0])
-    if duration <= 0.0:
-        raise HarnessError(f"SwiftPM build duration must be positive: {duration}")
-    return duration
+    for duration in durations:
+        if duration <= 0.0:
+            raise HarnessError(
+                f"SwiftPM build duration must be positive: {duration}"
+            )
+    return sum(durations)
 
 
 def wall_limit_seconds(swiftpm_seconds: float) -> float:

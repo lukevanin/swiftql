@@ -154,6 +154,26 @@ run() {
   fi
 }
 
+# The comparison writes straight into $comparison_target, and an existing
+# target blocks a retry. If that step fails or is interrupted, move the partial
+# directory out of the checkout, into the stage, and keep its raw logs there.
+# The target did not exist when the script started, so everything in it came
+# from this run.
+comparison_in_progress=0
+move_partial_comparison() {
+  local status=$?
+  if [[ "$comparison_in_progress" -eq 1 && "$dry_run" -eq 0 && -e "$comparison_target" ]]; then
+    local kept="$stage/failed-comparison-${stem}"
+    mv -- "$comparison_target" "$kept"
+    echo "error: the comparison step did not finish; moved its partial output to $kept" >&2
+    echo "       $comparison_target no longer exists, so the step can run again" >&2
+  fi
+  return "$status"
+}
+trap move_partial_comparison EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 echo "SwiftQL baseline recording"
 echo "  revision:     $expected_commit"
 echo "  date/machine: $stem"
@@ -190,6 +210,7 @@ if [[ "$record_comparison" -eq 1 ]]; then
   # Last, and directly into the repository: see the comment at the top.
   echo "== Cross-library comparison =="
   run mkdir -p Benchmarks/Comparison/Recordings
+  comparison_in_progress=1
   run python3 Benchmarks/Comparison/run.py \
     --workspace "$stage/workspaces/comparison" \
     --swiftql-checkout "$root" \
@@ -197,6 +218,7 @@ if [[ "$record_comparison" -eq 1 ]]; then
     --cooldown-seconds 180
   run python3 Benchmarks/Comparison/summarize.py \
     "$comparison_target/comparison-results.json"
+  comparison_in_progress=0
   echo
 fi
 

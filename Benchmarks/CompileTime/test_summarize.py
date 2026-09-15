@@ -449,14 +449,49 @@ class SwiftPMDurationParserTests(unittest.TestCase):
             0.31,
         )
 
-    def test_rejects_a_missing_or_repeated_line(self) -> None:
+    def test_rejects_a_missing_line(self) -> None:
         for text in (
             "Build of product 'ConsumerLibrary' complete!\n",
-            f"{CITED_COMPLETE_LINE}\n{CITED_COMPLETE_LINE}\n",
+            "Compiling Consumer Queries.swift (9.83s)\n",
             "",
         ):
             with self.assertRaises(summarize.ValidationError):
                 summarize.parse_swiftpm_duration(text)
+
+    def test_accepts_a_comma_decimal_mark(self) -> None:
+        self.assertEqual(
+            summarize.parse_swiftpm_duration(
+                "Build of product 'ConsumerLibrary' complete! (9,83s)\n"
+            ),
+            9.83,
+        )
+        self.assertEqual(
+            summarize.parse_swiftpm_duration("Build complete! (43,01 sec)\n"),
+            43.01,
+        )
+
+    def test_strips_ansi_colour_codes(self) -> None:
+        text = (
+            "\x1b[1;32mBuild of product 'ConsumerLibrary' complete!\x1b[0m "
+            "\x1b[2m(9.83s)\x1b[0m\n"
+        )
+        self.assertEqual(summarize.parse_swiftpm_duration(text), 9.83)
+
+    def test_reads_a_line_after_a_carriage_return_progress_update(self) -> None:
+        text = (
+            "[5/6] Compiling Consumer Queries.swift\r"
+            "Build of product 'ConsumerLibrary' complete! (9.83s)\r\n"
+            f"{CITED_TIME_LINE}\n"
+        )
+        self.assertEqual(summarize.parse_swiftpm_duration(text), 9.83)
+
+    def test_sums_the_durations_of_more_than_one_line(self) -> None:
+        text = (
+            "Build of product 'ConsumerLibrary' complete! (9.83s)\n"
+            "Build of product 'OtherLibrary' complete! (1,17s)\n"
+        )
+        self.assertEqual(summarize.swiftpm_durations(text), [9.83, 1.17])
+        self.assertAlmostEqual(summarize.parse_swiftpm_duration(text), 11.0)
 
 
 class RejectionRuleTests(unittest.TestCase):
@@ -556,6 +591,57 @@ class RejectedSampleReportTests(unittest.TestCase):
         self.assertIn("912.21 s", output)
         self.assertIn("[R]", output)
         self.assertIn("1 rejected sample", errors)
+
+    def test_the_median_without_rejected_samples_is_printed_too(self) -> None:
+        measurement = self.install_cited_sample()
+        document = summarize.load_report(self.report)
+        summarize.validate(document, self.report, require_full_matrix=False)
+        rejections = summarize.rejected_samples(document, self.report)
+        key = summarize.measurement_key(measurement)
+        medians = summarize.medians_without_rejected(
+            document["measurements"], rejections
+        )
+        self.assertEqual(list(medians), [key])
+        # The synthetic cell's other two walls are 3.00 s and 3.25 s.
+        self.assertEqual(medians[key]["sampleCount"], 3)
+        self.assertEqual(medians[key]["acceptedSampleCount"], 2)
+        self.assertAlmostEqual(medians[key]["medianWallSeconds"], 3.25)
+        self.assertAlmostEqual(medians[key]["medianWallSecondsWithoutRejected"], 3.125)
+
+        status, output, _ = self.run_main("--allow-rejected-samples")
+        self.assertEqual(status, 0)
+        self.assertIn("Medians include every recorded sample", output)
+        self.assertIn(
+            "with rejected samples 3.25 s; without rejected samples 3.12 s from 2 of 3 samples",
+            output,
+        )
+
+    def test_a_cell_with_every_sample_rejected_has_no_accepted_median(self) -> None:
+        measurements = [
+            {
+                "consumer": "c",
+                "tableCount": 1,
+                "queryCount": 1,
+                "buildMode": "noop_incremental",
+                "rawLog": f"Runs/{index}.log",
+                "wallSeconds": 900.0,
+            }
+            for index in range(2)
+        ]
+        medians = summarize.medians_without_rejected(measurements, measurements)
+        self.assertIsNone(
+            medians["c|1|1|noop_incremental"]["medianWallSecondsWithoutRejected"]
+        )
+        self.assertIn(
+            "none (0 of 2 samples accepted)",
+            summarize.render_rejections(
+                [
+                    dict(item, repetition=1, userSeconds=1.0, swiftpmSeconds=0.5, wallLimitSeconds=3.0)
+                    for item in measurements
+                ],
+                measurements,
+            ),
+        )
 
     def test_rejected_samples_can_be_allowed_but_are_still_reported(self) -> None:
         self.install_cited_sample()

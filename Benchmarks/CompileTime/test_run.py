@@ -13,6 +13,21 @@ from pathlib import Path
 from unittest import mock
 
 
+# Build outputs that both parsers must read the same way (issue #670 review).
+SWIFTPM_DURATION_CASES = (
+    ("Build of product 'ConsumerLibrary' complete! (9.83s)\n", 9.83),
+    ("Build of product 'ConsumerLibrary' complete! (9,83s)\n", 9.83),
+    ("Build complete! (43,01 sec)\n", 43.01),
+    ("\x1b[1;32mBuild of product 'ConsumerLibrary' complete!\x1b[0m (9.83s)\n", 9.83),
+    ("[5/6] Compiling Consumer\rBuild of product 'ConsumerLibrary' complete! (9.83s)\r\n", 9.83),
+    (
+        "Build of product 'ConsumerLibrary' complete! (9.83s)\n"
+        "Build of product 'OtherLibrary' complete! (1.17s)\n",
+        11.0,
+    ),
+)
+
+
 MODULE_PATH = Path(__file__).with_name("run.py")
 SPEC = importlib.util.spec_from_file_location("compile_time_run", MODULE_PATH)
 assert SPEC is not None and SPEC.loader is not None
@@ -340,6 +355,16 @@ class RejectedSampleTests(unittest.TestCase):
             compile_time_run.WALL_TO_SWIFTPM_ALLOWANCE_SECONDS,
             compile_time_summarize.WALL_TO_SWIFTPM_ALLOWANCE_SECONDS,
         )
+
+    def test_both_parsers_read_every_build_output_the_same_way(self) -> None:
+        for text, expected in SWIFTPM_DURATION_CASES:
+            with self.subTest(text=text):
+                self.assertAlmostEqual(
+                    compile_time_run.parse_swiftpm_duration(text), expected
+                )
+                self.assertAlmostEqual(
+                    compile_time_summarize.parse_swiftpm_duration(text), expected
+                )
 
     def test_parses_swiftpm_duration_and_rejects_the_cited_cell(self) -> None:
         text = fake_build_output(wall=912.21, swiftpm=9.83).decode("utf-8")

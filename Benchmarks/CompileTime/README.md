@@ -175,7 +175,12 @@ does not cover all four canonical scales.
 it spends waiting. SwiftPM also prints its own build duration on the last line
 of a successful build, for example
 `Build of product 'ConsumerLibrary' complete! (9.83s)`. Validation requires
-that line in every raw log, and rejects a sample when
+that line in every raw log. The parser removes ANSI colour codes, splits the
+log on line feeds and carriage returns (so a line after a `\r` progress update
+is found), and accepts `.` or `,` as the decimal mark and `s` or `sec` as the
+unit. When a log has more than one `complete!` line, the SwiftPM duration is
+the sum of them: every such build ran inside the one timed process, so its
+wall time must cover all of them. Validation rejects a sample when
 
 ```
 wallSeconds > 2 x swiftpmSeconds + 2 s
@@ -193,7 +198,9 @@ host.
 
 `summarize.py` lists every rejected sample, marks each affected cell with
 `[R]`, and exits with status 1. `--allow-rejected-samples` still reports them
-but exits with status 0. `run.py` applies the same rule while it records: it
+but exits with status 0. The matrix medians always include every recorded
+sample, rejected ones too, so the "Rejected samples" section also prints each
+affected cell's median with and without its rejected samples. `run.py` applies the same rule while it records: it
 keeps the rejected raw output as `<stem>.rejected-NN.build.log`, puts the
 consumer back into the build mode's starting state, and builds again. After
 `--rejected-sample-retries` extra attempts (default 2), the run fails.
