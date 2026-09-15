@@ -73,7 +73,7 @@ deleting a sub-task are each one `UPDATE`:
 <!-- source: Examples/TodoApp/TodoKit/Sources/TodoKit/TodoStore.swift -->
 ```swift
                 row.checklist = table.checklist
-                    .jsonSetting((TodoChecklist.isDone(at: index), flag))
+                    .jsonSetting((TodoChecklist.isDone(at: index), isDone))
                     .coalesce(table.checklist)
 ```
 

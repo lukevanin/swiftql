@@ -36,6 +36,11 @@ struct Note: Identifiable {
 
 Use ``XLExpression/validJSONOrNull()`` in a `CHECK` constraint or a test if
 the column must hold well-formed JSON. SQLite does not enforce that by itself.
+That check reads JSON text only: it reports false for every JSONB blob, even
+a well-formed one. For a column that can hold JSONB, use
+``XLExpression/validJSONOrJSONBOrNull()``, which renders `json_valid(X, 9)`,
+checks text as JSON, accepts a blob as JSONB or as JSON text, and needs
+SQLite 3.45.0.
 
 ## Naming a value with a path
 
@@ -147,6 +152,30 @@ The five functions differ only in when they write:
 | ``XLExpression/jsonRemoving(at:_:)`` | Deletes each named path |
 | ``XLExpression/jsonPatched(with:)`` | Applies an RFC 7396 merge patch |
 
+## Writing a Bool or a blob
+
+SQLite has no boolean. A Swift `Bool` is the integer `1` or `0` everywhere
+else in SQL, and that is what `json_set` would store. Wherever SwiftQL writes
+a value into JSON — `jsonArray`, `jsonObject`, the insert, replace and set
+functions, the aggregates, and their JSONB twins — a `Bool` value becomes a
+JSON `true` or `false` instead, so a `Codable` reader of a `Bool` field reads
+it back. A `Bool` literal renders as `json('true')` or `json('false')`. Any
+other `Bool` expression, such as a column or a bound parameter, renders
+through a `CASE` that reads it once and keeps SQL `NULL` as JSON `null`.
+
+JSON has no form for a blob. A `Data` value written into JSON fails with
+``XLSQLValueEncodingError/blobInJSONValue(valueType:function:)`` before SQLite
+prepares the statement. The one exception is the result of a `jsonb`
+function: that is JSONB, and SQLite nests it as a document. To nest JSONB held
+in a `Data` column or parameter, pass it through
+``XLExpression/minifiedJSONB()`` first.
+
+The check reads the value's static type, not its value at run time. A `Data?`
+column or parameter is therefore rejected even for a row where it is SQL
+`NULL`, which SQLite would have written as JSON `null`. Pass such a column
+through ``XLExpression/minifiedJSONB()``, which keeps `NULL` as `NULL`, or
+leave it out of the document.
+
 ## Building JSON in a query
 
 `jsonArray` and `jsonObject` build a document from expressions:
@@ -180,7 +209,8 @@ returns `NULL`: an empty group gives `[]` and `{}`.
 ## Inspecting a document
 
 ``XLExpression/jsonType()`` reports what is at the root or at a path,
-``XLExpression/jsonArrayLength()`` counts an array,
+``XLExpression/jsonArrayLength()`` counts an array (a value that is not an
+array counts as `0`, and only a path that selects nothing gives `NULL`),
 ``XLExpression/validJSONOrNull()`` reports whether the text parses, and
 ``XLExpression/jsonErrorPosition()`` says where it stopped parsing when it
 does not. ``XLExpression/minifiedJSON()`` and ``XLExpression/prettyJSON()``
@@ -220,7 +250,9 @@ let compact = sql { schema in
 
 The functions whose result is a SQL value rather than JSON — `json_type`,
 `json_valid`, `json_array_length`, `json_quote`, `json_error_position` and
-`json_pretty` — have no JSONB twin. They read a JSONB input directly.
+`json_pretty` — have no JSONB twin. They read a JSONB input directly, with one
+exception: `json_valid` without a flag reports false for every JSONB blob. Use
+``XLExpression/validJSONOrJSONBOrNull()`` to check a value that can be JSONB.
 
 ## SQLite versions
 
@@ -232,7 +264,7 @@ the SQL either way; it is the engine that refuses.
 | `json_extract`, the mutation functions, the aggregates, `json_type`, `json_valid`, `json_array_length`, `json_quote` | SQLite 3.9.0 |
 | `->` and `->>` | SQLite 3.38.0 |
 | `json_error_position` | SQLite 3.42.0 |
-| `json_valid(X, F)` with flags, and every `jsonb_` function | SQLite 3.45.0 |
+| `json_valid(X, F)` with flags, `validJSONOrJSONBOrNull()`, and every `jsonb_` function | SQLite 3.45.0 |
 | `json_pretty` | SQLite 3.46.0 |
 
 Apple's platforms ship the system SQLite, and its version follows the OS

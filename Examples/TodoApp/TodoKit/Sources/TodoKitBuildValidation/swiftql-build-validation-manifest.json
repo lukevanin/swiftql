@@ -1,7 +1,5 @@
 {
-  "combinatorial_manifest_version" : "c191-v2",
-  "conformance_inventory_version" : "190.1.0",
-  "format_version" : 1,
+  "format_version" : 2,
   "queries" : [
     {
       "cardinality" : 3,

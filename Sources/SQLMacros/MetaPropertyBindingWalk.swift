@@ -153,10 +153,14 @@ internal enum MetaPropertyBindingWalk {
                 continue
             }
 
+            // Issue #665: an initial value becomes the default of the generated initializer's
+            // parameter. A `let` cannot take one, because Swift rejects assigning a `let` that
+            // already has a value, so the default would be silently ignored; it is reported
+            // instead.
             if mutability == .immutable, binding.initializer != nil {
                 report(
                     binding, id: "immutable-initial-value",
-                    "A 'let' property with an initial value cannot be assigned by the generated initializer. Use 'var', or remove the initial value."
+                    "A 'let' property with an initial value cannot be assigned by the generated initializer, so the value cannot be used as a default. Use 'var' to make the value the initializer's default, or remove the initial value."
                 )
                 continue
             }
@@ -186,7 +190,8 @@ internal enum MetaPropertyBindingWalk {
                     alias: columnName,
                     optional: resolvedType.optional,
                     type: resolvedType.type,
-                    codecKeyExpression: codecKeyExpression
+                    codecKeyExpression: codecKeyExpression,
+                    defaultValueExpression: binding.initializer?.value.trimmedDescription
                 )
             )
         }
