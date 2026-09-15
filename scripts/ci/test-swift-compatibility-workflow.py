@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -147,8 +148,29 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
 
         self.assertIn(
             '.package(url: "https://github.com/OpenCombine/OpenCombine.git", '
-            'exact: "0.14.0")',
+            'from: "0.14.0")',
             manifest,
+        )
+        # Issue #669: OpenCombine is linked on Linux only. Every product
+        # reference must carry the Linux platform condition, so no Apple build
+        # compiles or links an OpenCombine module.
+        product_references = re.findall(
+            r'\.product\(name: "OpenCombine\w*", package: "OpenCombine"[^)]*\)',
+            manifest,
+        )
+        self.assertTrue(product_references)
+        for reference in product_references:
+            self.assertIn(
+                "condition: .when(platforms: [.linux])",
+                reference,
+            )
+        # The committed lockfile keeps the tested 0.14.0 pin.
+        self.assertIn(
+            b'"location" : "https://github.com/OpenCombine/OpenCombine.git",\n'
+            b'      "state" : {\n'
+            b'        "revision" : "8576f0d579b27020beccbccc3ea6844f3ddfc2c2",\n'
+            b'        "version" : "0.14.0"',
+            root_lockfile,
         )
         self.assertIn("import OpenCombine", bridge)
         self.assertIn("remainingDemand", bridge)
