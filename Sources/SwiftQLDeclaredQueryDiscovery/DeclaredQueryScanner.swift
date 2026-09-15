@@ -179,18 +179,24 @@ public enum DeclaredQueryScanner {
                 guard !raw.hasConditionalAttribute else {
                     scan.skipped.append(skip(
                         raw,
-                        "has its attribute inside an #if in the attribute list, which the scanner does not evaluate"
+                        because: "has its attribute inside an #if in the attribute list, which the scanner does not evaluate",
+                        fix: "Put the #if around the whole declaration to validate it"
                     ))
                     continue
                 }
                 guard let typeName = raw.typeName else {
-                    scan.skipped.append(skip(raw, "is not declared in a type"))
+                    scan.skipped.append(skip(
+                        raw,
+                        because: "is not declared in a type",
+                        fix: nil
+                    ))
                     continue
                 }
                 guard !raw.isPrivate else {
                     scan.skipped.append(skip(
                         raw,
-                        "on \(typeName) is private or fileprivate, so the generated registry cannot reach it. Give it internal or wider access to validate it"
+                        because: "on \(typeName) is private or fileprivate, which the generated registry cannot reach",
+                        fix: "Give it internal or wider access to validate it"
                     ))
                     continue
                 }
@@ -198,7 +204,8 @@ public enum DeclaredQueryScanner {
                 guard !raw.isGeneric, !resolution.isGeneric else {
                     scan.skipped.append(skip(
                         raw,
-                        "on \(typeName) is declared on a generic or constrained type, in an extension of one, or in a type nested in a type this target does not declare, which the generated registry cannot name"
+                        because: "on \(typeName) is declared on a generic or constrained type, in an extension of one, or in a type nested in a type this target does not declare, which the generated registry cannot name",
+                        fix: nil
                     ))
                     continue
                 }
@@ -220,12 +227,20 @@ public enum DeclaredQueryScanner {
         return scan
     }
 
-    private static func skip(_ raw: RawDeclaration, _ explanation: String) -> SkippedDeclaredQueryDeclaration {
-        SkippedDeclaredQueryDeclaration(
-            file: raw.file,
-            line: raw.line,
-            reason: "\(raw.subject) \(explanation), so it is not in the declared-query registry and is not validated. Mark it '// \(exclusionMarker)' to leave it out without this warning."
-        )
+    /// A skip warning in three parts: why the registry cannot call the
+    /// declaration, what that means, and how to change it, if it can be
+    /// changed.
+    private static func skip(
+        _ raw: RawDeclaration,
+        because cause: String,
+        fix: String?
+    ) -> SkippedDeclaredQueryDeclaration {
+        var reason = "\(raw.subject) \(cause). It is not in the declared-query registry and is not validated."
+        if let fix {
+            reason += " \(fix)."
+        }
+        reason += " To leave it out without this warning, mark it '// \(exclusionMarker)'."
+        return SkippedDeclaredQueryDeclaration(file: raw.file, line: raw.line, reason: reason)
     }
 
     /// The generic flag and `#if` condition of a qualified type name,
