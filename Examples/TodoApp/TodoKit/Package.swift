@@ -98,6 +98,11 @@ let package = Package(
             ]
         ),
 
+        // The awaitable Observation helper the live-query tests use lives in
+        // this test target (ObservedStateWaiting.swift), not in a regular
+        // target: a regular target gets no XCTest search paths, so importing
+        // XCTest there breaks a plain `swift build`, and a test target is
+        // never part of anything that ships.
         .testTarget(
             name: "TodoKitTests",
             dependencies: [

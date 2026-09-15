@@ -84,160 +84,6 @@ jobs:
           git diff --exit-code
           test -z "$(git status --porcelain)"
 
-  coverage:
-    name: Swift 6.0 / first-party source coverage
-    # Release-evidence sweep: pushes to main and release workflow_call runs
-    # only. Pull requests get their compatibility signal from the
-    # compatibility job's pinned Linux and macOS cells.
-    if: ${{ github.event_name != 'pull_request' }}
-    runs-on: macos-15
-    timeout-minutes: 60
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
-      COVERAGE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-
-    steps:
-      - name: Check out exact source commit
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          ref: ${{ env.COVERAGE_SOURCE_SHA }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Verify exact source commit
-        run: test "$(git rev-parse HEAD)" = "$COVERAGE_SOURCE_SHA"
-
-      - name: Validate pinned Swift 6 coverage environment
-        env:
-          EXPECTED_XCODE_VERSION: "16.2"
-          EXPECTED_XCODE_BUILD: 16C5032a
-          EXPECTED_SWIFT_SERIES: "6.0"
-          EXPECTED_SDK_VERSION: "15.2"
-          EXPECTED_DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
-        run: scripts/ci/check-compatibility-environment.sh
-
-      - name: Run source coverage reporting fixtures
-        run: python3 scripts/ci/test-source-coverage-report.py
-
-      - name: Capture first clean coverage run
-        id: coverage-run-1
-        env:
-          SWIFTQL_COVERAGE_SCRATCH_PATH: ${{ runner.temp }}/swiftql-coverage-build-1
-        run: |
-          scripts/ci/run-source-coverage.sh \
-            "$RUNNER_TEMP/swiftql-coverage-run-1"
-
-      - name: Capture second clean coverage run
-        id: coverage-run-2
-        env:
-          SWIFTQL_COVERAGE_SCRATCH_PATH: ${{ runner.temp }}/swiftql-coverage-build-2
-        run: |
-          scripts/ci/run-source-coverage.sh \
-            "$RUNNER_TEMP/swiftql-coverage-run-2"
-
-      - name: Verify reproducible first-party source selection
-        id: coverage-reproducibility
-        run: |
-          scripts/ci/verify-source-coverage-reproducibility.sh \
-            "$RUNNER_TEMP/swiftql-coverage-run-1" \
-            "$RUNNER_TEMP/swiftql-coverage-run-2" \
-            "$RUNNER_TEMP/swiftql-coverage-run-1/reproducibility.json"
-          cat "$RUNNER_TEMP/swiftql-coverage-run-1/summary.md" \
-            >> "$GITHUB_STEP_SUMMARY"
-
-      # Diagnostic evidence upload, not a release gate (Coverage/README.md) -- failure here
-      # must never fail this job, hence fail_ci_if_error: false.
-      - name: Upload coverage evidence to Codecov
-        id: codecov-upload
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ runner.temp }}/swiftql-coverage-run-1/llvm-coverage.lcov
-          fail_ci_if_error: false
-
-      # The upload above is intentionally non-fatal, which previously let a
-      # missing token rot the coverage badge to "unknown" without any signal.
-      # Record the token's presence and the step outcome so a silent upload
-      # failure is visible in the job summary instead of invisible.
-      - name: Report Codecov upload outcome
-        if: ${{ always() && !cancelled() }}
-        env:
-          UPLOAD_OUTCOME: ${{ steps.codecov-upload.outcome }}
-          UPLOAD_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [[ -n "$UPLOAD_TOKEN" ]]; then
-            token_state=present
-          else
-            token_state=missing
-          fi
-          {
-            printf '\n## Codecov upload\n\n'
-            printf -- '- Token: `%s`\n' "$token_state"
-            printf -- '- Outcome: `%s`\n' "$UPLOAD_OUTCOME"
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [[ "$token_state" == missing ]]; then
-            printf '::warning::CODECOV_TOKEN is unavailable; coverage was not published.\n'
-          elif [[ "$UPLOAD_OUTCOME" != success ]]; then
-            printf '::warning::Codecov upload did not succeed (%s); coverage may be stale.\n' \
-              "$UPLOAD_OUTCOME"
-          fi
-
-      - name: Prepare retained source coverage evidence
-        if: ${{ always() && !cancelled() }}
-        env:
-          FIRST_CAPTURE_OUTCOME: ${{ steps.coverage-run-1.outcome }}
-          SECOND_CAPTURE_OUTCOME: ${{ steps.coverage-run-2.outcome }}
-          REPRODUCIBILITY_OUTCOME: ${{ steps.coverage-reproducibility.outcome }}
-        run: |
-          set -euo pipefail
-          for run in 1 2; do
-            directory="$RUNNER_TEMP/swiftql-coverage-run-$run"
-            mkdir -p "$directory"
-            if [[ ! -e "$directory/first-party-coverage.json" ]]; then
-              printf 'Capture did not produce a normalized report.\n' \
-                > "$directory/capture-status.txt"
-            fi
-          done
-          {
-            printf 'first_capture=%s\n' "$FIRST_CAPTURE_OUTCOME"
-            printf 'second_capture=%s\n' "$SECOND_CAPTURE_OUTCOME"
-            printf 'reproducibility=%s\n' "$REPRODUCIBILITY_OUTCOME"
-          } > "$RUNNER_TEMP/swiftql-coverage-run-1/workflow-step-outcomes.txt"
-
-      - name: Upload retained source coverage evidence
-        id: coverage-artifact
-        if: ${{ always() && !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: swiftql-source-coverage-${{ env.COVERAGE_SOURCE_SHA }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/swiftql-coverage-run-1
-            ${{ runner.temp }}/swiftql-coverage-run-2
-          if-no-files-found: error
-          retention-days: 30
-          compression-level: 9
-
-      - name: Link retained evidence from the job summary
-        if: ${{ always() && !cancelled() && steps.coverage-artifact.outcome == 'success' }}
-        env:
-          ARTIFACT_URL: ${{ steps.coverage-artifact.outputs.artifact-url }}
-          ARTIFACT_DIGEST: ${{ steps.coverage-artifact.outputs.artifact-digest }}
-        run: |
-          printf '\n## Retained raw evidence\n\n' >> "$GITHUB_STEP_SUMMARY"
-          printf -- '- [Download the source coverage artifact](%s)\n' \
-            "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
-          printf -- '- Artifact SHA-256: `%s`\n' \
-            "$ARTIFACT_DIGEST" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Verify checkout remains clean
-        run: |
-          rm -rf codecov* .codecov*
-          git status --porcelain
-          git diff --exit-code
-          test -z "$(git status --porcelain)"
-
-
   swift-series:
     name: Swift ${{ matrix.swift_series }} / Apple clean resolution
     # Full-series sweep: pushes to main and release workflow_call runs only.
@@ -430,6 +276,9 @@ jobs:
             swift_series: "5.9"
             swift_version: "5.9.2"
             swift_command_mode: path
+            swift_toolchain_url: https://download.swift.org/swift-5.9.2-release/ubuntu2204/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz
+            swift_toolchain_signature_sha256: 325657c10c0a917cb0126aaf2ce0fe1c72bb9bf14657a89f82330839003959ed
+            swift_signing_fingerprint: A62AE125BBBFBB96A6E042EC925CC1CCED3D1561
             sdk_version: ""
             image_os: ubuntu22
             architecture: x86_64
@@ -438,6 +287,7 @@ jobs:
             target_triple: x86_64-unknown-linux-gnu
             sqlite_version: "3.53.3"
             resolution: committed
+            source_coverage: false
           - name: Swift 5.9 / clean resolution
             runner: ubuntu-22.04
             platform: linux
@@ -447,6 +297,9 @@ jobs:
             swift_series: "5.9"
             swift_version: "5.9.2"
             swift_command_mode: path
+            swift_toolchain_url: https://download.swift.org/swift-5.9.2-release/ubuntu2204/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz
+            swift_toolchain_signature_sha256: 325657c10c0a917cb0126aaf2ce0fe1c72bb9bf14657a89f82330839003959ed
+            swift_signing_fingerprint: A62AE125BBBFBB96A6E042EC925CC1CCED3D1561
             sdk_version: ""
             image_os: ubuntu22
             architecture: x86_64
@@ -455,6 +308,28 @@ jobs:
             target_triple: x86_64-unknown-linux-gnu
             sqlite_version: "3.53.3"
             resolution: clean
+            source_coverage: false
+          - name: Swift 6.3 / Linux clean resolution
+            runner: ubuntu-22.04
+            platform: linux
+            developer_dir: ""
+            xcode_version: ""
+            xcode_build: ""
+            swift_series: "6.3"
+            swift_version: "6.3.2"
+            swift_command_mode: path
+            swift_toolchain_url: https://download.swift.org/swift-6.3.2-release/ubuntu2204/swift-6.3.2-RELEASE/swift-6.3.2-RELEASE-ubuntu22.04.tar.gz
+            swift_toolchain_signature_sha256: 06fcd8d2f92d9d4b557d3f832efc26a5539f7238d8ed47e0ba4e409477286581
+            swift_signing_fingerprint: 52BB7E3DE28A71BE22EC05FFEF80A866B47A981F
+            sdk_version: ""
+            image_os: ubuntu22
+            architecture: x86_64
+            os_id: ubuntu
+            os_version_id: "22.04"
+            target_triple: x86_64-unknown-linux-gnu
+            sqlite_version: "3.53.3"
+            resolution: clean
+            source_coverage: false
           - name: Swift 6.0 / committed resolution
             runner: macos-15
             platform: macos
@@ -464,6 +339,9 @@ jobs:
             swift_series: "6.0"
             swift_version: ""
             swift_command_mode: xcrun
+            swift_toolchain_url: ""
+            swift_toolchain_signature_sha256: ""
+            swift_signing_fingerprint: ""
             sdk_version: "15.2"
             image_os: macos15
             architecture: arm64
@@ -472,6 +350,7 @@ jobs:
             target_triple: ""
             sqlite_version: ""
             resolution: committed
+            source_coverage: true
           - name: Swift 6.0 / clean resolution
             runner: macos-15
             platform: macos
@@ -481,6 +360,9 @@ jobs:
             swift_series: "6.0"
             swift_version: ""
             swift_command_mode: xcrun
+            swift_toolchain_url: ""
+            swift_toolchain_signature_sha256: ""
+            swift_signing_fingerprint: ""
             sdk_version: "15.2"
             image_os: macos15
             architecture: arm64
@@ -489,6 +371,7 @@ jobs:
             target_triple: ""
             sqlite_version: ""
             resolution: clean
+            source_coverage: false
 
     env:
       DEVELOPER_DIR: ${{ matrix.developer_dir }}
@@ -503,20 +386,34 @@ jobs:
       - name: Verify exact source commit
         run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
-      - name: Install exact Swift 5.9.2 toolchain and SQLite 3.53.3
+      # Every Linux cell, Swift 5.9.2 and Swift 6.3.2 alike, installs its
+      # toolchain through this one verified path: an immutable Swift.org
+      # archive URL, a pinned detached-signature digest, and a GPG signature
+      # check against the pinned release-signing-key fingerprint for that
+      # Swift major version. The matrix supplies only the pins.
+      - name: Install exact Swift ${{ matrix.swift_version }} toolchain and SQLite 3.53.3
         if: ${{ matrix.platform == 'linux' }}
         env:
-          SWIFT_TOOLCHAIN_URL: https://download.swift.org/swift-5.9.2-release/ubuntu2204/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz
-          SWIFT_TOOLCHAIN_SIGNATURE_URL: https://download.swift.org/swift-5.9.2-release/ubuntu2204/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz.sig
-          SWIFT_TOOLCHAIN_SIGNATURE_SHA256: 325657c10c0a917cb0126aaf2ce0fe1c72bb9bf14657a89f82330839003959ed
+          SWIFT_VERSION: ${{ matrix.swift_version }}
+          SWIFT_TOOLCHAIN_URL: ${{ matrix.swift_toolchain_url }}
+          SWIFT_TOOLCHAIN_SIGNATURE_URL: ${{ matrix.swift_toolchain_url }}.sig
+          SWIFT_TOOLCHAIN_SIGNATURE_SHA256: ${{ matrix.swift_toolchain_signature_sha256 }}
           SWIFT_SIGNING_KEYS_URL: https://www.swift.org/keys/all-keys.asc
-          SWIFT_SIGNING_KEY_FALLBACK_URL: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xA62AE125BBBFBB96A6E042EC925CC1CCED3D1561
-          SWIFT_SIGNING_FINGERPRINT: A62AE125BBBFBB96A6E042EC925CC1CCED3D1561
+          SWIFT_SIGNING_KEY_FALLBACK_URL: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${{ matrix.swift_signing_fingerprint }}
+          SWIFT_SIGNING_FINGERPRINT: ${{ matrix.swift_signing_fingerprint }}
           SQLITE_AMALGAMATION_URL: https://www.sqlite.org/2026/sqlite-amalgamation-3530300.zip
           SQLITE_AMALGAMATION_SHA3_256: d45c688a8cb23f68611a894a756a12d7eb6ab6e9e2468ca70adbeab3808b5ab9
         run: |
           set -euo pipefail
-          archive="$RUNNER_TEMP/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz"
+          # The archive URL must be the immutable release URL for exactly the
+          # version the environment check later requires, so a matrix edit
+          # cannot pair one version's pins with another version's archive.
+          expected_toolchain_url="https://download.swift.org/swift-$SWIFT_VERSION-release/ubuntu2204/swift-$SWIFT_VERSION-RELEASE/swift-$SWIFT_VERSION-RELEASE-ubuntu22.04.tar.gz"
+          [[ "$SWIFT_TOOLCHAIN_URL" == "$expected_toolchain_url" ]]
+          [[ "$SWIFT_TOOLCHAIN_SIGNATURE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$SWIFT_SIGNING_FINGERPRINT" =~ ^[0-9A-F]{40}$ ]]
+          toolchain_name="swift-$SWIFT_VERSION-RELEASE-ubuntu22.04"
+          archive="$RUNNER_TEMP/$toolchain_name.tar.gz"
           signature="$archive.sig"
           signing_keys="$RUNNER_TEMP/swift-signing-keys.asc"
           keyring_directory="$RUNNER_TEMP/swift-signing-keyring"
@@ -604,7 +501,7 @@ jobs:
             <<< "$signature_status"
 
           tar -xzf "$archive" -C "$RUNNER_TEMP"
-          toolchain_bin="$RUNNER_TEMP/swift-5.9.2-RELEASE-ubuntu22.04/usr/bin"
+          toolchain_bin="$RUNNER_TEMP/$toolchain_name/usr/bin"
           test -x "$toolchain_bin/swift"
           test -x "$toolchain_bin/swiftc"
           test -x "$toolchain_bin/swift-frontend"
@@ -920,13 +817,17 @@ jobs:
 
       # The Getting Started playground is not compiled by `swift build` or
       # exercised by `swift test`, so an API change can break it silently.
-      # The gate below selects exactly one cell, Swift 6.0 / macOS /
-      # committed resolution. The pages are platform-agnostic Swift, and the
-      # check costs a build and a run of each one, so repeating it across the
-      # matrix would buy nothing.
+      # The gate below selects exactly one cell, Swift 5.9 / Linux /
+      # committed resolution. The pages are platform-agnostic Swift that
+      # needs no Xcode, and the check costs a build and a run of each one, so
+      # repeating it across the matrix would buy nothing. It runs on Linux
+      # because Linux runners do not share the account's small macOS job
+      # limit (COMPATIBILITY.md, "Runner concurrency"), and on Swift 5.9.2
+      # because that compiler crashes on the same #530 one-line fetch shape
+      # Swift 6.0 does, so a reintroduced one-liner still fails here.
       - name: Check the Getting Started playground
         id: playground-pages
-        if: ${{ matrix.platform == 'macos' && matrix.resolution == 'committed' }}
+        if: ${{ matrix.platform == 'linux' && matrix.swift_series == '5.9' && matrix.resolution == 'committed' }}
         run: |
           set -uo pipefail
           cd "$SWIFTQL_SOURCE"
@@ -946,7 +847,7 @@ jobs:
       # printed, which matters most on the runs where the check failed and the
       # step log is the only other copy.
       - name: Prepare retained playground evidence
-        if: ${{ always() && !cancelled() && matrix.platform == 'macos' && matrix.resolution == 'committed' }}
+        if: ${{ always() && !cancelled() && matrix.platform == 'linux' && matrix.swift_series == '5.9' && matrix.resolution == 'committed' }}
         env:
           PLAYGROUND_OUTCOME: ${{ steps.playground-pages.outcome }}
         run: |
@@ -957,7 +858,7 @@ jobs:
             > "$output_directory/workflow-step-outcome.txt"
 
       - name: Upload retained playground evidence
-        if: ${{ always() && !cancelled() && matrix.platform == 'macos' && matrix.resolution == 'committed' }}
+        if: ${{ always() && !cancelled() && matrix.platform == 'linux' && matrix.swift_series == '5.9' && matrix.resolution == 'committed' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: swiftql-playground-${{ github.sha }}-${{ github.run_attempt }}
@@ -1016,13 +917,129 @@ jobs:
             "$ARTIFACT_DIGEST" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run full test suite
+        if: ${{ !matrix.source_coverage }}
         run: |
           set -euo pipefail
           cd "$SWIFTQL_SOURCE"
           swift test --skip-build -v
 
+      # The source-coverage cell runs the full suite exactly once, instrumented,
+      # in place of the plain run above. Coverage used to be its own macOS job
+      # that ran the suite twice to compare the two source selections; the
+      # selection is now derived from `git ls-files` and the coverage config
+      # instead (Coverage/README.md), so that second run and its runner slot
+      # are gone. It runs on pull requests too, so a change that breaks the
+      # capture fails before the merge.
+      - name: Run full test suite with first-party source coverage
+        id: coverage-capture
+        if: ${{ matrix.source_coverage }}
+        env:
+          SWIFTQL_COVERAGE_SCRATCH_PATH: ${{ runner.temp }}/swiftql-coverage-build
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/run-source-coverage.sh "$RUNNER_TEMP/swiftql-coverage"
+
+      - name: Verify coverage source selection against git and the coverage config
+        id: coverage-selection
+        if: ${{ matrix.source_coverage }}
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/verify-source-coverage-reproducibility.sh \
+            "$RUNNER_TEMP/swiftql-coverage" \
+            "$RUNNER_TEMP/swiftql-coverage/reproducibility.json"
+          cat "$RUNNER_TEMP/swiftql-coverage/summary.md" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      # Diagnostic evidence upload, not a release gate (Coverage/README.md) -- failure here
+      # must never fail this job, hence fail_ci_if_error: false. Pull requests
+      # capture and verify coverage but do not publish it.
+      - name: Upload coverage evidence to Codecov
+        id: codecov-upload
+        if: ${{ matrix.source_coverage && github.event_name != 'pull_request' }}
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ runner.temp }}/swiftql-coverage/llvm-coverage.lcov
+          fail_ci_if_error: false
+
+      # The upload above is intentionally non-fatal, which previously let a
+      # missing token rot the coverage badge to "unknown" without any signal.
+      # Record the token's presence and the step outcome so a silent upload
+      # failure is visible in the job summary instead of invisible.
+      - name: Report Codecov upload outcome
+        if: ${{ always() && !cancelled() && matrix.source_coverage && github.event_name != 'pull_request' }}
+        env:
+          UPLOAD_OUTCOME: ${{ steps.codecov-upload.outcome }}
+          UPLOAD_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$UPLOAD_TOKEN" ]]; then
+            token_state=present
+          else
+            token_state=missing
+          fi
+          {
+            printf '\n## Codecov upload\n\n'
+            printf -- '- Token: `%s`\n' "$token_state"
+            printf -- '- Outcome: `%s`\n' "$UPLOAD_OUTCOME"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$token_state" == missing ]]; then
+            printf '::warning::CODECOV_TOKEN is unavailable; coverage was not published.\n'
+          elif [[ "$UPLOAD_OUTCOME" != success ]]; then
+            printf '::warning::Codecov upload did not succeed (%s); coverage may be stale.\n' \
+              "$UPLOAD_OUTCOME"
+          fi
+
+      - name: Prepare retained source coverage evidence
+        if: ${{ always() && !cancelled() && matrix.source_coverage }}
+        env:
+          CAPTURE_OUTCOME: ${{ steps.coverage-capture.outcome }}
+          SELECTION_OUTCOME: ${{ steps.coverage-selection.outcome }}
+        run: |
+          set -euo pipefail
+          directory="$RUNNER_TEMP/swiftql-coverage"
+          mkdir -p "$directory"
+          if [[ ! -e "$directory/first-party-coverage.json" ]]; then
+            printf 'Capture did not produce a normalized report.\n' \
+              > "$directory/capture-status.txt"
+          fi
+          {
+            printf 'capture=%s\n' "$CAPTURE_OUTCOME"
+            printf 'source_selection=%s\n' "$SELECTION_OUTCOME"
+          } > "$directory/workflow-step-outcomes.txt"
+
+      - name: Upload retained source coverage evidence
+        id: coverage-artifact
+        if: ${{ always() && !cancelled() && matrix.source_coverage }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: swiftql-source-coverage-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/swiftql-coverage
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 9
+
+      - name: Link retained source coverage evidence
+        if: ${{ always() && !cancelled() && steps.coverage-artifact.outcome == 'success' }}
+        env:
+          ARTIFACT_URL: ${{ steps.coverage-artifact.outputs.artifact-url }}
+          ARTIFACT_DIGEST: ${{ steps.coverage-artifact.outputs.artifact-digest }}
+        run: |
+          printf '\n## Retained raw coverage evidence\n\n' >> "$GITHUB_STEP_SUMMARY"
+          printf -- '- [Download the source coverage artifact](%s)\n' \
+            "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
+          printf -- '- Artifact SHA-256: `%s`\n' \
+            "$ARTIFACT_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+
+      # One Swift 6.0 cell is enough: both 6.0 cells use the same pinned
+      # Xcode 16.2 compiler over the same first-party sources, and the check
+      # reports first-party diagnostics only. It runs on the clean-resolution
+      # cell, which is not the one carrying source coverage, so the longest
+      # macOS cell does not also carry this clean strict build.
       - name: Check complete strict concurrency
-        if: ${{ matrix.swift_series == '6.0' }}
+        if: ${{ matrix.swift_series == '6.0' && matrix.resolution == 'clean' }}
         run: |
           set -euo pipefail
           cd "$SWIFTQL_SOURCE"
@@ -1087,5 +1104,6 @@ jobs:
         run: |
           set -euo pipefail
           cd "$GITHUB_WORKSPACE"
+          rm -rf codecov* .codecov*
           git diff --exit-code
           test -z "$(git status --porcelain)"
