@@ -7,29 +7,57 @@ establish an arbitrary percentage release gate.
 
 ## Pinned CI environment
 
-The `Swift 6.0 / first-party source coverage` job in
-`.github/workflows/swift.yml` runs on `macos-15` with Xcode 16.2
-(`DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer`) and the
-committed `Package.resolved`. The job records the source commit and clean-tree
-state; Xcode, Swift, SDK, `llvm-cov`, and `llvm-profdata` versions; runner
-platform and architecture; dependency graph; package-resolution digest; and
-exact coverage command in its retained artifact.
+Source coverage runs inside the `Swift 6.0 / committed resolution` cell of the
+compatibility job in `.github/workflows/swift.yml`, on `macos-15` with Xcode
+16.2 (`DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer`) and the
+committed `Package.resolved`. That cell runs the full test suite once, under
+coverage, in place of its plain test run. The capture records the source
+commit and clean-tree state; Xcode, Swift, SDK, `llvm-cov`, and
+`llvm-profdata` versions; runner platform and architecture; dependency graph;
+package-resolution digest; and exact coverage command in its retained
+artifact.
 
-Every coverage job performs two clean builds in independent SwiftPM scratch
-directories. The reproducibility identity requires the same source commit,
-clean-tree state, toolchain and dependency provenance, coverage command,
-filtering metadata, target membership, included and allowed-source manifests,
-and per-file, per-target, and overall static line/function/region counts.
+The cell captures and verifies coverage on every event, pull requests
+included, so a change that breaks the capture fails before the merge. Only
+pushes to `main` and release runs upload the report to Codecov. A pull
+request's capture records the merge commit GitHub tested, which is not a
+durable commit, so treat pull-request artifacts as diagnostics only.
+
+### Verifying the source selection
+
+Coverage used to be a job of its own that ran the full suite twice, in
+independent scratch directories, and compared the two reports. The comparison
+never included hit counters, so the second run re-proved only the source
+selection and the provenance around it. Both of those follow from the checked
+out tree and the coverage config, so the second run is gone.
+`scripts/ci/verify-source-coverage-reproducibility.sh` now checks the single
+capture against a selection it derives itself:
+
+- it re-enumerates tracked `.swift` files under each configured target root
+  with `git ls-files`, with the same enumeration the report uses, and requires
+  the capture's `included-sources.txt` and
+  `allowed-uninstrumented-sources.txt` to equal that derivation byte for byte;
+- it requires the capture's target names and source roots to equal the config;
+- it requires every configured uninstrumented allowance to be a tracked file;
+- it requires the recorded source commit to be the checked-out `HEAD`, the
+  recorded `Package.resolved` digest to match the file, and the capture to be
+  of a clean tree; and
+- it validates the report's structure, including per-file, per-target, and
+  overall static line, function, and region counts that must sum consistently.
 
 Covered and uncovered hit counters, their derived percentages, and the ranked
-largest-gap list are retained as diagnostic evidence but are not part of that
-identity. Concurrent tests can legitimately merge a different number of hits
-into two otherwise equivalent LLVM profiles. The gate records whether the
-complete dynamic reports matched, but it does not turn that observation into a
-percentage threshold or source-selection failure.
-`reproducibility.json` preserves `normalized_reports_match` as the exact-report
-equality observation, so it can be `false` while
-`reproducibility_identity_matches` remains `true` and the gate succeeds.
+largest-gap list are retained as diagnostic evidence but are not verified.
+Concurrent tests can legitimately merge a different number of hits into two
+otherwise equivalent LLVM profiles, which is why they never formed part of the
+old two-run identity either. The static counts are now checked for internal
+consistency within the one capture rather than compared across two runs; a
+compiler that reported different static counts for the same source on a
+second run would no longer be caught. No percentage threshold is enforced.
+
+`reproducibility.json` records the result with `schema_version` 2 and
+`coverage_captures` 1. Its `*_matches*` fields are all `true` whenever the gate
+succeeds. The checked-in 2026-07-17 baseline predates this and keeps its
+`schema_version` 1 two-run record, including `normalized_reports_match`.
 
 ## Filtering contract
 
@@ -99,22 +127,18 @@ Run the fixture tests first:
 python3 scripts/ci/test-source-coverage-report.py
 ```
 
-Then run two real package-test captures with independent clean output and
-scratch directories and compare their reproducibility identities:
+Then run one real package-test capture into a clean output directory and
+verify its source selection against `git ls-files` and the coverage config:
 
 ```bash
 coverage_root="$(mktemp -d "${TMPDIR:-/tmp}/swiftql-coverage.XXXXXX")"
 
-SWIFTQL_COVERAGE_SCRATCH_PATH="$coverage_root/build-1" \
-  scripts/ci/run-source-coverage.sh "$coverage_root/run-1"
-
-SWIFTQL_COVERAGE_SCRATCH_PATH="$coverage_root/build-2" \
-  scripts/ci/run-source-coverage.sh "$coverage_root/run-2"
+SWIFTQL_COVERAGE_SCRATCH_PATH="$coverage_root/build" \
+  scripts/ci/run-source-coverage.sh "$coverage_root/capture"
 
 scripts/ci/verify-source-coverage-reproducibility.sh \
-  "$coverage_root/run-1" \
-  "$coverage_root/run-2" \
-  "$coverage_root/run-1/reproducibility.json"
+  "$coverage_root/capture" \
+  "$coverage_root/capture/reproducibility.json"
 ```
 
 The output directory contains:
@@ -122,26 +146,27 @@ The output directory contains:
 - `llvm-coverage.json`: SwiftPM's unfiltered machine-readable LLVM export;
 - `llvm-coverage.lcov`: the same profile exported in standard LCOV form;
 - `first-party-coverage.json`: normalized per-target and per-file evidence;
-- `included-sources.txt`: deterministic source manifest used by the two-run check;
+- `included-sources.txt`: deterministic source manifest the verifier checks;
 - `allowed-uninstrumented-sources.txt`: explicit zero-region exceptions;
 - `summary.md`: the same concise target totals shown in the GitHub job summary;
 - toolchain, dependency, command, source-commit, and test-log provenance.
 
-After a successful comparison, the first output also contains
-`reproducibility.json` and a copy of the second run's manifest as
-`repeated-included-sources.txt`. Both run directories retain their complete raw
-JSON, LCOV, normalized report, summary, and test log.
+After a successful verification, the output also contains
+`reproducibility.json` and the verifier's own derivation as
+`derived-included-sources.txt` and
+`derived-allowed-uninstrumented-sources.txt`, so the retained artifact shows
+both sides of the comparison.
 
 Use a new output directory for every run. The script refuses to overwrite a
 prior report and refuses to assign a commit to dirty source content. During
 coverage-tool development only, `SWIFTQL_ALLOW_DIRTY_COVERAGE=1` permits a
-diagnostic report marked `dirty`; the two-run reproducibility verifier rejects
-such reports.
+diagnostic report marked `dirty`; the verifier rejects such reports.
 
 ## Baselines and follow-ups
 
-The [initial pinned Xcode 16.2 baseline](Baselines/2026-07-17-xcode-16.2-swift-6.0/README.md)
-records two byte-identical clean reports from source commit
+The [initial pinned Xcode 16.2 baseline](Baselines/2026-07-17-xcode-16.2-swift-6.0/README.md),
+captured under the former two-run procedure, records two byte-identical clean
+reports from source commit
 `9152d8409aa55df5bc96e9c74411b3c4fb166429`, including the source manifests,
 resolved dependencies, full toolchain provenance, target totals, retained
 artifact identity, and two-run verdict.

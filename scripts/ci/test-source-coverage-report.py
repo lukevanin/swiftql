@@ -157,6 +157,7 @@ class SourceCoverageReportTests(unittest.TestCase):
         output_name: str = "output",
         expect_success: bool = True,
         document: Optional[Dict[str, Any]] = None,
+        source_commit: str = "0123456789abcdef0123456789abcdef01234567",
     ) -> subprocess.CompletedProcess[str]:
         raw_report = self.write_raw_report(
             entries, f"{output_name}-raw.json", document=document
@@ -173,7 +174,7 @@ class SourceCoverageReportTests(unittest.TestCase):
             "--output-directory",
             str(self.root / output_name),
             "--source-commit",
-            "0123456789abcdef0123456789abcdef01234567",
+            source_commit,
             "--xcode-version",
             "Xcode fixture",
             "--swift-version",
@@ -202,16 +203,62 @@ class SourceCoverageReportTests(unittest.TestCase):
             self.fail("report unexpectedly succeeded")
         return result
 
+    def commit_fixture(self) -> str:
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(self.root),
+                "-c",
+                "user.name=Coverage Fixture",
+                "-c",
+                "user.email=coverage-fixture@example.invalid",
+                "commit",
+                "-q",
+                "--allow-empty",
+                "-m",
+                "fixture",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return subprocess.run(
+            ["git", "-C", str(self.root), "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+    def capture(
+        self,
+        output_name: str,
+        entries: Optional[Sequence[Dict[str, Any]]] = None,
+    ) -> None:
+        """A report at the fixture repository's committed HEAD."""
+        self.run_report(
+            entries
+            if entries is not None
+            else [file_entry(self.sql_macros), file_entry(self.swiftql)],
+            output_name,
+            source_commit=self.commit_fixture(),
+        )
+
     def run_verifier(
         self,
-        first_name: str,
-        second_name: str,
+        capture_name: str,
         output_name: str = "reproducibility.json",
     ) -> subprocess.CompletedProcess[str]:
-        first = self.root / first_name
-        second = self.root / second_name
+        capture = self.root / capture_name
         return subprocess.run(
-            [str(VERIFY_SCRIPT), str(first), str(second), str(first / output_name)],
+            [
+                str(VERIFY_SCRIPT),
+                str(capture),
+                str(capture / output_name),
+                "--repository-root",
+                str(self.root),
+                "--config",
+                str(self.config),
+            ],
             text=True,
             capture_output=True,
             check=False,
@@ -522,89 +569,117 @@ class SourceCoverageReportTests(unittest.TestCase):
             {"other_repository_sources": 1},
         )
 
-    def test_reproducibility_verifier_accepts_equal_reports(self) -> None:
-        entries = [file_entry(self.sql_macros), file_entry(self.swiftql)]
-        self.run_report(entries, "repro-first")
-        self.run_report(entries, "repro-second")
-        success = self.run_verifier("repro-first", "repro-second")
+    def test_verifier_accepts_capture_matching_git_and_config(self) -> None:
+        self.capture("selection")
+        success = self.run_verifier("selection")
         self.assertEqual(success.returncode, 0, success.stderr)
+        self.assertIn("SWIFTQL_SOURCE_COVERAGE_SELECTION_VERIFIED", success.stdout)
         evidence = json.loads(
-            (
-                self.root
-                / "repro-first/reproducibility.json"
-            ).read_text(encoding="utf-8")
+            (self.root / "selection/reproducibility.json").read_text(
+                encoding="utf-8"
+            )
         )
+        self.assertEqual(evidence["schema_version"], 2)
+        self.assertEqual(evidence["coverage_captures"], 1)
+        self.assertTrue(evidence["source_commit_matches_checkout"])
+        self.assertTrue(evidence["package_resolution_matches_checkout"])
+        self.assertTrue(evidence["target_topology_matches_config"])
         self.assertTrue(evidence["included_source_sets_match"])
-        self.assertTrue(evidence["reproducibility_identity_matches"])
-        self.assertTrue(evidence["normalized_reports_match"])
-        self.assertTrue(evidence["dynamic_coverage_metrics_match"])
-
-    def test_reproducibility_verifier_accepts_dynamic_counter_drift(self) -> None:
-        self.run_report(
-            [
-                file_entry(self.sql_macros, (8, 4), (4, 2)),
-                file_entry(self.swiftql, (10, 5), (2, 1)),
-            ],
-            "dynamic-first",
+        self.assertTrue(evidence["allowed_uninstrumented_source_sets_match"])
+        self.assertEqual(
+            (self.root / "selection/derived-included-sources.txt").read_bytes(),
+            (self.root / "selection/included-sources.txt").read_bytes(),
         )
-        self.run_report(
-            [
-                file_entry(self.sql_macros, (8, 4), (4, 2)),
-                file_entry(self.swiftql, (10, 4), (2, 1)),
-            ],
-            "dynamic-second",
-        )
-        self.assertNotEqual(
-            self.read_normalized_report("dynamic-first"),
-            self.read_normalized_report("dynamic-second"),
-        )
-        self.assertNotEqual(
-            (self.root / "dynamic-first/summary.md").read_bytes(),
-            (self.root / "dynamic-second/summary.md").read_bytes(),
-        )
-        success = self.run_verifier("dynamic-first", "dynamic-second")
-        self.assertEqual(success.returncode, 0, success.stderr)
-        evidence = json.loads(
+        self.assertEqual(
             (
-                self.root
-                / "dynamic-first/reproducibility.json"
-            ).read_text(encoding="utf-8")
+                self.root / "selection/derived-allowed-uninstrumented-sources.txt"
+            ).read_bytes(),
+            (self.root / "selection/allowed-uninstrumented-sources.txt").read_bytes(),
         )
-        self.assertTrue(evidence["reproducibility_identity_matches"])
-        self.assertFalse(evidence["normalized_reports_match"])
-        self.assertFalse(evidence["dynamic_coverage_metrics_match"])
 
-    def test_reproducibility_verifier_rejects_added_or_removed_source(self) -> None:
-        entries = [file_entry(self.sql_macros), file_entry(self.swiftql)]
-        self.run_report(entries, "source-first")
-        added = self.make_source("Sources/SwiftQL/Added.swift")
-        subprocess.run(
+    def test_verifier_ignores_dynamic_hit_counters(self) -> None:
+        # Hit counters were never part of the identity: the concurrent suite
+        # can merge a different number of hits. Only static counts must stay
+        # internally consistent.
+        self.capture(
+            "dynamic",
             [
-                "git",
-                "-C",
-                str(self.root),
-                "add",
-                "--",
-                "Sources/SwiftQL/Added.swift",
+                file_entry(self.sql_macros, (8, 0), (4, 0)),
+                file_entry(self.swiftql, (10, 10), (2, 2)),
             ],
+        )
+        success = self.run_verifier("dynamic")
+        self.assertEqual(success.returncode, 0, success.stderr)
+
+    def test_verifier_derives_allowed_uninstrumented_sources_from_config(
+        self,
+    ) -> None:
+        self.make_source("Sources/SwiftQL/Allowed.swift")
+        subprocess.run(
+            ["git", "-C", str(self.root), "add", "--", "Sources/SwiftQL/Allowed.swift"],
             check=True,
             capture_output=True,
         )
-        self.run_report(entries + [file_entry(added)], "source-second")
-        failure = self.run_verifier("source-first", "source-second")
-        self.assertNotEqual(failure.returncode, 0)
-        self.assertIn("included source manifests differ", failure.stderr)
-        reverse_failure = self.run_verifier(
-            "source-second",
-            "source-first",
-            "removed-source.json",
+        self.write_config(allowed=["Sources/SwiftQL/Allowed.swift"])
+        self.capture("allowed")
+        success = self.run_verifier("allowed")
+        self.assertEqual(success.returncode, 0, success.stderr)
+        self.assertEqual(
+            (
+                self.root / "allowed/derived-allowed-uninstrumented-sources.txt"
+            ).read_text(encoding="utf-8"),
+            "SwiftQL\tSources/SwiftQL/Allowed.swift\n",
         )
-        self.assertNotEqual(reverse_failure.returncode, 0)
-        self.assertIn("included source manifests differ", reverse_failure.stderr)
 
-    def test_reproducibility_verifier_rejects_target_reassignment(self) -> None:
-        entries = [file_entry(self.sql_macros), file_entry(self.swiftql)]
-        self.run_report(entries, "target-first")
+    def test_verifier_rejects_capture_of_an_older_commit(self) -> None:
+        self.capture("older")
+        self.make_source("Sources/SwiftQL/Added.swift")
+        subprocess.run(
+            ["git", "-C", str(self.root), "add", "--", "Sources/SwiftQL/Added.swift"],
+            check=True,
+            capture_output=True,
+        )
+        self.commit_fixture()
+        failure = self.run_verifier("older")
+        self.assertNotEqual(failure.returncode, 0)
+        self.assertIn("is not the checked-out commit", failure.stderr)
+
+    def test_verifier_rejects_manifest_that_disagrees_with_git(self) -> None:
+        # A capture of the original sources, relabelled as a capture of a
+        # later commit that tracks one more source. Its manifests are
+        # internally consistent, so only the derived selection can catch it --
+        # the case a second full run used to catch.
+        self.capture("forged")
+        added = self.make_source("Sources/SwiftQL/Added.swift")
+        subprocess.run(
+            ["git", "-C", str(self.root), "add", "--", "Sources/SwiftQL/Added.swift"],
+            check=True,
+            capture_output=True,
+        )
+        self.capture(
+            "complete",
+            [
+                file_entry(self.sql_macros),
+                file_entry(self.swiftql),
+                file_entry(added),
+            ],
+        )
+        head = self.read_normalized_report("complete")["source_commit"]
+        self.replace_report_value("forged", ("source_commit",), head)
+
+        failure = self.run_verifier("forged")
+        self.assertNotEqual(failure.returncode, 0)
+        self.assertIn(
+            "included source manifest does not match the selection derived "
+            "from git ls-files and the coverage config",
+            failure.stderr,
+        )
+        self.assertNotIn("Traceback", failure.stderr)
+        success = self.run_verifier("complete")
+        self.assertEqual(success.returncode, 0, success.stderr)
+
+    def test_verifier_rejects_target_reassignment_in_config(self) -> None:
+        self.capture("target")
         self.write_config(
             targets=[
                 {
@@ -619,38 +694,28 @@ class SourceCoverageReportTests(unittest.TestCase):
                 },
             ]
         )
-        self.run_report(entries, "target-second")
-        failure = self.run_verifier("target-first", "target-second")
+        failure = self.run_verifier("target")
         self.assertNotEqual(failure.returncode, 0)
-        self.assertIn("included source manifests differ", failure.stderr)
+        self.assertIn("target topology does not match the coverage config", failure.stderr)
 
-    def test_reproducibility_verifier_rejects_manifest_report_disagreement(
-        self,
-    ) -> None:
+    def test_verifier_rejects_allowance_that_git_does_not_track(self) -> None:
+        self.capture("untracked-allowance")
+        self.write_config(allowed=["Sources/SwiftQL/Missing.swift"])
+        failure = self.run_verifier("untracked-allowance")
+        self.assertNotEqual(failure.returncode, 0)
+        self.assertIn("allows uninstrumented sources git does not track", failure.stderr)
+        self.assertNotIn("Traceback", failure.stderr)
+
+    def test_verifier_rejects_manifest_report_disagreement(self) -> None:
         allowed = self.make_source("Sources/SwiftQL/Allowed.swift")
         subprocess.run(
-            [
-                "git",
-                "-C",
-                str(self.root),
-                "add",
-                "--",
-                "Sources/SwiftQL/Allowed.swift",
-            ],
+            ["git", "-C", str(self.root), "add", "--", "Sources/SwiftQL/Allowed.swift"],
             check=True,
             capture_output=True,
         )
-        self.write_config(allowed=["Sources/SwiftQL/Allowed.swift"])
-        entries = [file_entry(self.sql_macros), file_entry(self.swiftql)]
-        output_names = ("manifest-first", "manifest-second")
-        for output_name in output_names:
-            self.run_report(entries, output_name)
-        originals = {
-            output_name: (
-                self.root / output_name / "first-party-coverage.json"
-            ).read_bytes()
-            for output_name in output_names
-        }
+        self.write_config(allowed=[str(allowed.relative_to(self.root))])
+        self.capture("manifest")
+        original = (self.root / "manifest/first-party-coverage.json").read_bytes()
         disagreements = {
             "included": (
                 ("targets", "SwiftQL", "files", 0, "path"),
@@ -658,103 +723,72 @@ class SourceCoverageReportTests(unittest.TestCase):
                 "included-source manifest does not match report target topology",
             ),
             "allowed": (
-                (
-                    "targets",
-                    "SwiftQL",
-                    "allowed_uninstrumented_source_files",
-                    0,
-                ),
+                ("targets", "SwiftQL", "allowed_uninstrumented_source_files", 0),
                 "Sources/SwiftQL/AlternativeAllowed.swift",
                 "allowed-source manifest does not match report target topology",
             ),
         }
         for name, (path, value, message) in disagreements.items():
             with self.subTest(name=name):
-                for output_name in output_names:
-                    (
-                        self.root / output_name / "first-party-coverage.json"
-                    ).write_bytes(originals[output_name])
-                    self.replace_report_value(output_name, path, value)
-                failure = self.run_verifier(
-                    "manifest-first",
-                    "manifest-second",
-                    f"failure-{name}-manifest.json",
-                )
+                (self.root / "manifest/first-party-coverage.json").write_bytes(original)
+                self.replace_report_value("manifest", path, value)
+                failure = self.run_verifier("manifest", f"failure-{name}.json")
                 self.assertNotEqual(failure.returncode, 0)
                 self.assertIn(message, failure.stderr)
                 self.assertNotIn("Traceback", failure.stderr)
 
-    def test_reproducibility_verifier_rejects_static_total_drift(self) -> None:
-        self.run_report(
-            [file_entry(self.sql_macros), file_entry(self.swiftql, (10, 5))],
-            "static-first",
+    def test_verifier_rejects_inconsistent_static_totals(self) -> None:
+        self.capture("static")
+        # A self-consistent metric (count, covered, uncovered, percent) whose
+        # count no longer equals the sum of the target's files.
+        self.replace_report_value(
+            "static",
+            ("targets", "SwiftQL", "totals", "lines"),
+            {"count": 11, "covered": 5, "uncovered": 6, "percent": 45.45},
         )
-        self.run_report(
-            [file_entry(self.sql_macros), file_entry(self.swiftql, (11, 5))],
-            "static-second",
-        )
-        failure = self.run_verifier("static-first", "static-second")
+        failure = self.run_verifier("static")
         self.assertNotEqual(failure.returncode, 0)
-        self.assertIn("reproducibility identities differ", failure.stderr)
-        self.assertIn("overall", failure.stderr)
-        self.assertIn("targets", failure.stderr)
+        self.assertIn("totals.lines.count does not match its files", failure.stderr)
 
-    def test_reproducibility_verifier_rejects_provenance_or_filtering_drift(
+    def test_verifier_rejects_provenance_that_disagrees_with_checkout(
         self,
     ) -> None:
-        entries = [file_entry(self.sql_macros), file_entry(self.swiftql)]
-        self.run_report(entries, "provenance-first")
-        self.run_report(entries, "provenance-second")
-        original = (
-            self.root / "provenance-second/first-party-coverage.json"
-        ).read_bytes()
+        self.capture("provenance")
+        original = (self.root / "provenance/first-party-coverage.json").read_bytes()
         mutations = {
             "source-commit": (
                 ("source_commit",),
                 "fedcba9876543210fedcba9876543210fedcba98",
-            ),
-            "toolchain": (("toolchain", "runner_image"), "different runner"),
-            "coverage-command": (
-                ("coverage_command",),
-                "swift test --enable-code-coverage --different",
+                "is not the checked-out commit",
             ),
             "package-resolution": (
                 ("package_resolved_sha256",),
                 "0" * 64,
-            ),
-            "filtering": (
-                ("filtering", "rule"),
-                "A different first-party filtering rule.",
+                "Package.resolved digest does not match the checkout",
             ),
         }
-        for name, (path, value) in mutations.items():
+        for name, (path, value, message) in mutations.items():
             with self.subTest(name=name):
-                (
-                    self.root / "provenance-second/first-party-coverage.json"
-                ).write_bytes(original)
-                self.replace_report_value("provenance-second", path, value)
-                failure = self.run_verifier(
-                    "provenance-first",
-                    "provenance-second",
-                    f"failure-{name}.json",
+                (self.root / "provenance/first-party-coverage.json").write_bytes(
+                    original
                 )
+                self.replace_report_value("provenance", path, value)
+                failure = self.run_verifier("provenance", f"failure-{name}.json")
                 self.assertNotEqual(failure.returncode, 0)
-                self.assertIn("reproducibility identities differ", failure.stderr)
+                self.assertIn(message, failure.stderr)
                 self.assertNotIn("Traceback", failure.stderr)
 
-    def test_reproducibility_verifier_rejects_identically_malformed_schema(
-        self,
-    ) -> None:
-        entries = [file_entry(self.sql_macros), file_entry(self.swiftql)]
-        output_names = ("schema-first", "schema-second")
-        for output_name in output_names:
-            self.run_report(entries, output_name)
-        originals = {
-            output_name: (
-                self.root / output_name / "first-party-coverage.json"
-            ).read_bytes()
-            for output_name in output_names
-        }
+        (self.root / "provenance/first-party-coverage.json").write_bytes(original)
+        (self.root / "Package.resolved").write_text(
+            '{"pins":[{"identity":"changed"}],"version":2}\n', encoding="utf-8"
+        )
+        failure = self.run_verifier("provenance", "failure-resolved-file.json")
+        self.assertNotEqual(failure.returncode, 0)
+        self.assertIn("Package.resolved digest does not match the checkout", failure.stderr)
+
+    def test_verifier_rejects_malformed_schema(self) -> None:
+        self.capture("schema")
+        original = (self.root / "schema/first-party-coverage.json").read_bytes()
         missing_fields = {
             "source-commit": ("source_commit",),
             "toolchain-field": ("toolchain", "xcode"),
@@ -763,29 +797,16 @@ class SourceCoverageReportTests(unittest.TestCase):
         }
         for name, path in missing_fields.items():
             with self.subTest(name=name):
-                for output_name in output_names:
-                    (
-                        self.root / output_name / "first-party-coverage.json"
-                    ).write_bytes(originals[output_name])
-                    self.delete_report_value(output_name, path)
-                failure = self.run_verifier(
-                    "schema-first",
-                    "schema-second",
-                    f"failure-{name}.json",
-                )
+                (self.root / "schema/first-party-coverage.json").write_bytes(original)
+                self.delete_report_value("schema", path)
+                failure = self.run_verifier("schema", f"failure-{name}.json")
                 self.assertNotEqual(failure.returncode, 0)
                 self.assertIn("error: source coverage reproducibility", failure.stderr)
                 self.assertNotIn("Traceback", failure.stderr)
 
-    def test_reproducibility_verifier_rejects_malformed_nested_reports(
-        self,
-    ) -> None:
-        entries = [file_entry(self.sql_macros), file_entry(self.swiftql)]
-        self.run_report(entries, "malformed-first")
-        self.run_report(entries, "malformed-second")
-        original = (
-            self.root / "malformed-second/first-party-coverage.json"
-        ).read_bytes()
+    def test_verifier_rejects_malformed_nested_reports(self) -> None:
+        self.capture("malformed")
+        original = (self.root / "malformed/first-party-coverage.json").read_bytes()
         malformations = {
             "targets-array": (("targets",), []),
             "target-files-object": (("targets", "SwiftQL", "files"), {}),
@@ -802,35 +823,23 @@ class SourceCoverageReportTests(unittest.TestCase):
         }
         for name, (path, value) in malformations.items():
             with self.subTest(name=name):
-                (
-                    self.root / "malformed-second/first-party-coverage.json"
-                ).write_bytes(original)
-                self.replace_report_value("malformed-second", path, value)
-                failure = self.run_verifier(
-                    "malformed-first",
-                    "malformed-second",
-                    f"failure-{name}.json",
-                )
+                (self.root / "malformed/first-party-coverage.json").write_bytes(original)
+                self.replace_report_value("malformed", path, value)
+                failure = self.run_verifier("malformed", f"failure-{name}.json")
                 self.assertNotEqual(failure.returncode, 0)
                 self.assertIn("error: source coverage reproducibility", failure.stderr)
                 self.assertNotIn("Traceback", failure.stderr)
 
-    def test_reproducibility_verifier_rejects_dirty_reports(self) -> None:
-        entries = [file_entry(self.sql_macros), file_entry(self.swiftql)]
-        self.run_report(entries, "dirty-first")
-        self.run_report(entries, "dirty-second")
-        self.replace_report_value(
-            "dirty-second", ("source_tree_state",), "dirty"
-        )
-        failure = self.run_verifier("dirty-first", "dirty-second")
+    def test_verifier_rejects_dirty_reports(self) -> None:
+        self.capture("dirty")
+        self.replace_report_value("dirty", ("source_tree_state",), "dirty")
+        failure = self.run_verifier("dirty")
         self.assertNotEqual(failure.returncode, 0)
         self.assertIn("did not capture a clean tree", failure.stderr)
 
 
 class CoverageWorkflowTests(unittest.TestCase):
-    def test_coverage_artifact_retains_complete_raw_reports_for_both_runs(
-        self,
-    ) -> None:
+    def test_coverage_artifact_retains_complete_raw_report(self) -> None:
         run_script = RUN_SCRIPT.read_text(encoding="utf-8")
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn(
@@ -841,33 +850,27 @@ class CoverageWorkflowTests(unittest.TestCase):
             '> "$output_directory/llvm-coverage.lcov"',
             run_script,
         )
+        self.assertIn("path: ${{ runner.temp }}/swiftql-coverage\n", workflow)
         self.assertIn(
-            "${{ runner.temp }}/swiftql-coverage-run-1",
+            "files: ${{ runner.temp }}/swiftql-coverage/llvm-coverage.lcov",
             workflow,
         )
-        self.assertIn(
-            "${{ runner.temp }}/swiftql-coverage-run-2",
-            workflow,
-        )
+        # The second instrumented run is gone; the selection is derived.
+        self.assertNotIn("swiftql-coverage-run-", workflow)
 
-    def test_pull_request_capture_uses_durable_head_commit(self) -> None:
+    def test_coverage_artifact_names_the_exact_tested_commit(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn(
-            "COVERAGE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}",
+            "name: swiftql-source-coverage-${{ github.sha }}-${{ github.run_attempt }}",
             workflow,
         )
-        self.assertIn("ref: ${{ env.COVERAGE_SOURCE_SHA }}", workflow)
-        self.assertIn(
-            'test "$(git rev-parse HEAD)" = "$COVERAGE_SOURCE_SHA"', workflow
-        )
-        self.assertIn(
-            "name: swiftql-source-coverage-${{ env.COVERAGE_SOURCE_SHA }}-",
-            workflow,
-        )
+        self.assertIn('test "$(git rev-parse HEAD)" = "$GITHUB_SHA"', workflow)
 
     def test_baseline_fixture_jobs_checkout_historical_source_commit(self) -> None:
+        # Only the release-tooling job needs full history: it reads the
+        # historical baseline commit with `git ls-tree`.
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        self.assertEqual(workflow.count("fetch-depth: 0"), 2)
+        self.assertEqual(workflow.count("fetch-depth: 0"), 1)
 
     def test_checked_in_initial_baseline_is_internally_consistent(self) -> None:
         report = json.loads(
@@ -1092,14 +1095,15 @@ class SourceTargetMembershipTests(unittest.TestCase):
     ) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         release_tooling = workflow.split("\n  release-tooling:\n", maxsplit=1)[1]
-        release_tooling, coverage = release_tooling.split(
-            "\n  coverage:\n", maxsplit=1
+        release_tooling, later_jobs = release_tooling.split(
+            "\n  swift-series:\n", maxsplit=1
         )
-        coverage = coverage.split("\n  swift-series:\n", maxsplit=1)[0]
         command = "python3 scripts/ci/check-source-target-membership.py"
         self.assertIn(command, release_tooling)
         self.assertNotIn("github.event_name", release_tooling)
-        self.assertNotIn(command, coverage)
+        # The coverage capture no longer re-runs a check the pull request
+        # already passed.
+        self.assertNotIn(command, later_jobs)
 
 
 if __name__ == "__main__":
