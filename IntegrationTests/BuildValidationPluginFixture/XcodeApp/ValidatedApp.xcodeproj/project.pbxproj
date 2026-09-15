@@ -1,0 +1,250 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		7E0000000000000000000031 /* ValidatedApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000011 /* ValidatedApp.swift */; };
+		7E0000000000000000000032 /* swiftql-build-validation-manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000012 /* swiftql-build-validation-manifest.json */; };
+		7E0000000000000000000033 /* swiftql-build-validation-snapshot.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000013 /* swiftql-build-validation-snapshot.sqlite */; };
+		7E0000000000000000000034 /* swiftql-plan-analysis.json in Resources */ = {isa = PBXBuildFile; fileRef = 7E0000000000000000000014 /* swiftql-plan-analysis.json */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		7E0000000000000000000001 /* ValidatedApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ValidatedApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7E0000000000000000000011 /* ValidatedApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ValidatedApp.swift; sourceTree = "<group>"; };
+		7E0000000000000000000012 /* swiftql-build-validation-manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "swiftql-build-validation-manifest.json"; sourceTree = "<group>"; };
+		7E0000000000000000000013 /* swiftql-build-validation-snapshot.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = "swiftql-build-validation-snapshot.sqlite"; sourceTree = "<group>"; };
+		7E0000000000000000000014 /* swiftql-plan-analysis.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "swiftql-plan-analysis.json"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7E0000000000000000000020 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		7E0000000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				7E0000000000000000000010 /* ValidatedApp */,
+				7E0000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		7E0000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7E0000000000000000000001 /* ValidatedApp.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		7E0000000000000000000010 /* ValidatedApp */ = {
+			isa = PBXGroup;
+			children = (
+				7E0000000000000000000011 /* ValidatedApp.swift */,
+				7E0000000000000000000012 /* swiftql-build-validation-manifest.json */,
+				7E0000000000000000000013 /* swiftql-build-validation-snapshot.sqlite */,
+				7E0000000000000000000014 /* swiftql-plan-analysis.json */,
+			);
+			path = ValidatedApp;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		7E0000000000000000000004 /* ValidatedApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7E0000000000000000000007 /* Build configuration list for PBXNativeTarget "ValidatedApp" */;
+			buildPhases = (
+				7E0000000000000000000021 /* Sources */,
+				7E0000000000000000000020 /* Frameworks */,
+				7E0000000000000000000022 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7E0000000000000000000060 /* PBXTargetDependency */,
+			);
+			name = ValidatedApp;
+			productName = ValidatedApp;
+			productReference = 7E0000000000000000000001 /* ValidatedApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		7E0000000000000000000005 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					7E0000000000000000000004 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 7E0000000000000000000006 /* Build configuration list for PBXProject "ValidatedApp" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 7E0000000000000000000002;
+			packageReferences = (
+				7E0000000000000000000050 /* XCLocalSwiftPackageReference "../../.." */,
+			);
+			productRefGroup = 7E0000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				7E0000000000000000000004 /* ValidatedApp */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		7E0000000000000000000022 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7E0000000000000000000032 /* swiftql-build-validation-manifest.json in Resources */,
+				7E0000000000000000000033 /* swiftql-build-validation-snapshot.sqlite in Resources */,
+				7E0000000000000000000034 /* swiftql-plan-analysis.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7E0000000000000000000021 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7E0000000000000000000031 /* ValidatedApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7E0000000000000000000060 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = 7E0000000000000000000040 /* SwiftQLSQLiteBuildValidationPlugin */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		7E0000000000000000000008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		7E0000000000000000000009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		7E000000000000000000000A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.swiftql.fixtures.ValidatedApp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		7E000000000000000000000B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.swiftql.fixtures.ValidatedApp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7E0000000000000000000006 /* Build configuration list for PBXProject "ValidatedApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7E0000000000000000000008 /* Debug */,
+				7E0000000000000000000009 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7E0000000000000000000007 /* Build configuration list for PBXNativeTarget "ValidatedApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7E000000000000000000000A /* Debug */,
+				7E000000000000000000000B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		7E0000000000000000000050 /* XCLocalSwiftPackageReference "../../.." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		7E0000000000000000000040 /* SwiftQLSQLiteBuildValidationPlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = "plugin:SwiftQLSQLiteBuildValidationPlugin";
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 7E0000000000000000000005 /* Project object */;
+}
