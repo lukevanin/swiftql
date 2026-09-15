@@ -155,8 +155,7 @@ extension TodoDatabase {
                 priority: priority,
                 isCompleted: false,
                 position: try Self.nextPosition(inList: listID, in: scope),
-                createdAt: now,
-                checklist: TodoChecklist.empty
+                createdAt: now
             )
             let schema = XLSchema()
             let table = schema.table(Todo.self)

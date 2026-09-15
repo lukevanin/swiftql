@@ -91,6 +91,16 @@ against `IntegrationTests/BuildValidationPluginFixture`: `verify.sh` drives
 'platform=macOS'`, and both assert the same outcomes — a valid manifest builds,
 and an invalid one fails with the validator's own diagnostic.
 
+From v1.9.0 an Xcode project target, such as an application, can adopt the
+plugin as well as a SwiftPM target, through its `XcodeBuildToolPlugin`
+conformance (#666). On v1.5.6 through v1.8.x only a SwiftPM target can, so an
+application puts its validated queries in a local package. `verify-xcode.sh`
+builds the fixture's `XcodeApp/ValidatedApp.xcodeproj` application target and
+asserts the correctness report, the plan sidecar, and the failure on an invalid
+manifest. The application-target path is verified on Xcode 27.0 (27A266a),
+macOS 26.6.2 (25G83) arm64, only. Older Xcode versions are not verified for
+it, even where they verify the SwiftPM-target path above.
+
 `verify.sh` runs in CI on every cell of the pinned compatibility matrix, so the
 `swift build` contract is gated on each supported Swift series and platform.
 `verify-xcode.sh` remains a manual check: Xcode is not part of that matrix.

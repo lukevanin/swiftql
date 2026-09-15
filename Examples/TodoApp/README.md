@@ -169,8 +169,8 @@ up the v1.8 indices on its next launch regardless, because they are
 
 ## Known rough edges
 
-Building a whole application on v1.5 through v1.8 surfaced five places where
-the API resists, all recorded on
+Building a whole application on v1.5 through v1.8 surfaced places where the
+API resists, all recorded on
 [#469](https://github.com/lukevanin/swiftql/issues/469):
 
 - **Indices have no SwiftQL spelling.** `@SQLTable` declares a table and
@@ -191,12 +191,8 @@ the API resists, all recorded on
 - **A declared query cannot be called inside `withTransaction`.** The generated
   executor opens its own transaction, and SwiftQL rejects nesting, so reads
   inside a transaction use plain requests.
-- **`@SQLTable` ignores a Swift default on a property.** The generated
-  memberwise initializer requires the property anyway, so a default would
-  read as optional at the call site and then not be. The demo declares
-  `checklist` with no default.
 
-Until v1.9 this list also said that a JSON mutation on a `NOT NULL` column
+Until v1.9 this list had a fifth item: a JSON mutation on a `NOT NULL` column
 was typed as optional, so every checklist write ended
 `.coalesce(table.checklist)`. v1.9 types the result as non-optional when the
 document is non-optional

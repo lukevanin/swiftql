@@ -72,6 +72,21 @@
   `jsonbPatched(with:)` stay optional, because a `NULL` patch also gives
   `NULL`. The to-do demo's checklist writes no longer end with `coalesce`.
 
+- **Build-time validation from an Xcode application target.**
+  `SwiftQLSQLiteBuildValidationPlugin` now also conforms to
+  `XcodeBuildToolPlugin`, so an Xcode project target, such as an app, can add
+  it under "Run Build Tool Plug-ins" (issue #666). Before, only a SwiftPM
+  target could adopt it. The target makes
+  `swiftql-build-validation-manifest.json` and
+  `swiftql-build-validation-snapshot.sqlite` member files, in one folder. It
+  can add `swiftql-plan-analysis.json` beside them to turn on plan analysis.
+  The plugin finds these files by name among the target's input files, and
+  runs the same validator command as the SwiftPM path. An invalid manifest
+  fails the app's build with the validator's diagnostic.
+  `IntegrationTests/BuildValidationPluginFixture/verify-xcode.sh` now builds
+  an application target and checks the correctness report, the plan sidecar,
+  and the failure on an invalid manifest. SwiftPM targets see no change.
+
 - `validJSONOrJSONBOrNull()` renders `json_valid(X, 9)` (issue #671). It
   checks text as RFC 8259 JSON, accepts a blob that is well-formed JSONB or
   that holds well-formed JSON text, and needs SQLite 3.45.0.
@@ -117,6 +132,20 @@
   the committed-resolution CI cells still build against it.
 
 ### Fixed
+
+- **A `@SQLTable` or `@SQLResult` property default now applies** (issue #665,
+  recorded on #469). The generated memberwise initializer gives a `var`
+  property with an initial value a default for its parameter, so a call can
+  leave that property out. Before this change, the initializer ignored the
+  initial value and required the argument. The default refers to a generated
+  `@usableFromInline` static accessor that returns the initial value. Thus a
+  `public` model whose initial value refers to a `private` member still
+  compiles. The change is source compatible: every existing call passes every
+  argument and so still compiles. The value is a Swift default only and does
+  not add a SQL `DEFAULT` clause. A `let` property with an initial value is
+  still an error, because the initializer cannot assign it. The diagnostic
+  now says that the value cannot be used as a default. The to-do demo gives
+  `Todo.checklist` its default again.
 
 - `XLJSONPath.key(_:)` quotes a key that begins with `"` or holds a control
   character (issue #671). SQLite rejected the unquoted form of a leading-quote
