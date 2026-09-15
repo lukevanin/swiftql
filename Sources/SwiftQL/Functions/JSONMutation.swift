@@ -74,7 +74,7 @@ extension XLExpression {
     /// function.
     ///
     /// A path that already holds a value is left alone. Use
-    /// ``jsonSetting(_:_:)`` to add or overwrite, and ``jsonReplacing(_:_:)``
+    /// `jsonSetting(_:_:)` to add or overwrite, and `jsonReplacing(_:_:)`
     /// to overwrite only.
     ///
     /// The result is the whole document, and it is optional because a `NULL`
