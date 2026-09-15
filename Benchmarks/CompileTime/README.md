@@ -70,7 +70,16 @@ of declarations in one file, and one huge file would measure the compiler's
 per-file behavior instead of the declarations. The first file keeps its
 historical name, so every scale up to 50 generates the same bytes as the
 2026-08-02 recording, and the one-query edit still changes only
-`Queries.swift`. `--generate-only` writes every selected point's sources under
+`Queries.swift`. One consumer directory is reused for every point, so before
+it writes a point, the harness deletes each generated `Tables<N>.swift` or
+`Queries<N>.swift` file that the point does not produce. It deletes only names
+that match that pattern, never a template file. The first 2026-09-15 recording
+attempt found this bug: the 1-table x 10-query SwiftQL cell compiled 451 stale
+tables left by the 500-table cell. The harness now also checks, before it
+builds a point, that `Sources/Consumer` holds exactly the template and
+generated files. It records that list as `consumerSourceFiles`, and validation
+rejects a report whose generated file names disagree with the declared scale or
+whose recorded source files contain any other file. `--generate-only` writes every selected point's sources under
 `<workspace>/Generated` without running SwiftPM, so you can inspect a large
 scale before you time it.
 

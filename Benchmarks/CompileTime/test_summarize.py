@@ -375,7 +375,9 @@ class ValidatorTests(unittest.TestCase):
     def test_rejects_an_artifact_point_without_measurements(self) -> None:
         def mutate(document: dict) -> None:
             extra = copy.deepcopy(document["artifacts"][0])
-            extra["tableCount"] = 100
+            # Two tables still fit in one Tables.swift, so the generated-file
+            # scale check passes and only the point mismatch remains.
+            extra["tableCount"] = 2
             document["artifacts"].append(extra)
 
         self.assertRejected(mutate, "artifact points and measured points disagree")
@@ -720,6 +722,81 @@ class SwiftBuildLogTests(unittest.TestCase):
         self.assertIsNotNone(
             summarize.RECOMPILE_MARKER.search("swiftc -module-name Consumer -Onone\n")
         )
+
+
+class GeneratedSourceScaleTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._directory = tempfile.TemporaryDirectory()
+        self.report = synthesize(Path(self._directory.name))
+
+    def tearDown(self) -> None:
+        self._directory.cleanup()
+
+    def validate_with(self, mutate) -> None:
+        document = json.loads(self.report.read_text(encoding="utf-8"))
+        mutate(document)
+        summarize.validate_artifacts(document)
+
+    def test_expected_generated_files_follow_the_scale(self) -> None:
+        tables = summarize.expected_generated_files(
+            500, 1, schema_only=False, declarations_per_file=50
+        )
+        self.assertEqual(len([name for name in tables if "/Tables" in name]), 10)
+        self.assertIn("Sources/Consumer/Tables10.swift", tables)
+        self.assertEqual(
+            summarize.expected_generated_files(1, 120, schema_only=False, declarations_per_file=50),
+            [
+                "Sources/Consumer/Queries.swift",
+                "Sources/Consumer/Queries2.swift",
+                "Sources/Consumer/Queries3.swift",
+                "Sources/Consumer/Tables.swift",
+            ],
+        )
+        self.assertEqual(
+            summarize.expected_generated_files(500, 1, schema_only=True, declarations_per_file=50),
+            ["Sources/Consumer/schema.sql"],
+        )
+
+    def test_a_synthesized_report_matches_its_scale(self) -> None:
+        self.validate_with(lambda document: None)
+
+    def test_a_generated_file_that_disagrees_with_the_scale_fails(self) -> None:
+        def mutate(document: dict) -> None:
+            artifact = next(item for item in document["artifacts"] if item["tableCount"] == 1)
+            artifact["generatedSourceSHA256"]["Sources/Consumer/Tables2.swift"] = "c" * 64
+
+        with self.assertRaises(summarize.ValidationError) as context:
+            self.validate_with(mutate)
+        self.assertIn("disagree with the declared scale", str(context.exception))
+
+    def test_consumer_source_files_must_be_exactly_the_generated_files(self) -> None:
+        def exact(document: dict) -> None:
+            for artifact in document["artifacts"]:
+                artifact["consumerSourceFiles"] = sorted(artifact["generatedSourceSHA256"])
+
+        self.validate_with(exact)
+
+        def stale(document: dict) -> None:
+            exact(document)
+            document["artifacts"][0]["consumerSourceFiles"].append(
+                "Sources/Consumer/Tables2.swift"
+            )
+
+        with self.assertRaises(summarize.ValidationError) as context:
+            self.validate_with(stale)
+        self.assertIn("Tables2.swift", str(context.exception))
+
+    def test_template_files_count_as_expected_sources(self) -> None:
+        self.assertEqual(
+            summarize.template_source_files("ControlRawSQLite"),
+            {"Sources/Consumer/Support.swift"},
+        )
+
+    def test_the_checked_in_report_still_validates_its_generated_files(self) -> None:
+        document = summarize.load_report(
+            Path(__file__).with_name("compile-time-results.json")
+        )
+        summarize.validate_artifacts(document)
 
 
 class ComparisonTests(unittest.TestCase):

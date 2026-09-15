@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import re
 import statistics
 import sys
@@ -465,6 +466,47 @@ def validate_matrix_coverage(document: dict[str, object]) -> None:
         require(not extra, f"{identifier} recorded unexpected measurements: {extra!r}")
 
 
+CONSUMER_TEMPLATE_DIRECTORY = Path(__file__).resolve().parent / "Consumers"
+DEFAULT_DECLARATIONS_PER_FILE = 50
+
+
+def expected_generated_files(
+    table_count: int,
+    query_count: int,
+    *,
+    schema_only: bool,
+    declarations_per_file: int,
+) -> list[str]:
+    """The generated file names that a table and query scale must produce.
+
+    Swift consumers split tables and queries into files of at most
+    `declarations_per_file` declarations: `Tables.swift`, `Tables2.swift`, and
+    so on. A schema-only consumer (Lighter) generates one `schema.sql`.
+    """
+
+    if schema_only:
+        return ["Sources/Consumer/schema.sql"]
+
+    def names(stem: str, count: int) -> list[str]:
+        return [
+            f"Sources/Consumer/{stem}{'' if index == 0 else index + 1}.swift"
+            for index in range(math.ceil(count / declarations_per_file))
+        ]
+
+    return sorted(names("Tables", table_count) + names("Queries", query_count))
+
+
+def template_source_files(template: str) -> set[str]:
+    directory = CONSUMER_TEMPLATE_DIRECTORY / template / "Sources" / "Consumer"
+    if not directory.is_dir():
+        return set()
+    return {
+        f"Sources/Consumer/{path.name}"
+        for path in directory.iterdir()
+        if path.is_file() and not path.name.startswith(".")
+    }
+
+
 def validate_artifacts(document: dict[str, object]) -> None:
     workload = document["workload"]
     artifacts = document["artifacts"]
@@ -475,6 +517,11 @@ def validate_artifacts(document: dict[str, object]) -> None:
     measured_points = {
         (str(item["consumer"]), int(item["tableCount"]), int(item["queryCount"]))
         for item in measurements
+    }
+    templates = {
+        str(consumer.get("identifier")): str(consumer.get("template"))
+        for consumer in document.get("consumers", [])
+        if isinstance(consumer, dict) and consumer.get("template")
     }
     artifact_points: set[tuple[str, int, int]] = set()
     for artifact in artifacts:
@@ -502,6 +549,46 @@ def validate_artifacts(document: dict[str, object]) -> None:
             ),
             f"generatedSourceSHA256 must hash every generated file for {key!r}",
         )
+        # The generated file names must match the declared scale, so a report
+        # cannot claim a 1-table point while its generator wrote 500 tables.
+        declarations_per_file = workload.get(
+            "declarationsPerFile", DEFAULT_DECLARATIONS_PER_FILE
+        )
+        require(
+            isinstance(declarations_per_file, int) and declarations_per_file >= 1,
+            "declarationsPerFile must be a positive integer",
+        )
+        expected_names = expected_generated_files(
+            key[1],
+            key[2],
+            schema_only=any(str(name).endswith(".sql") for name in digests),
+            declarations_per_file=declarations_per_file,
+        )
+        require(
+            sorted(digests) == expected_names,
+            f"generated files for {key!r} disagree with the declared scale: "
+            f"{sorted(digests)!r} != {expected_names!r}",
+        )
+        # Reports from issue #670 on also record the files actually present in
+        # the consumer's Sources/Consumer when it was built. Any file that is
+        # neither generated for this point nor part of the checked-in template,
+        # such as a stale Tables2.swift from a larger point, fails validation.
+        if "consumerSourceFiles" in artifact:
+            files = artifact["consumerSourceFiles"]
+            require(
+                isinstance(files, list) and all(isinstance(name, str) for name in files),
+                f"consumerSourceFiles must be a list of paths for {key!r}",
+            )
+            template = templates.get(key[0])
+            expected_files = set(digests) | (
+                template_source_files(template) if template else set()
+            )
+            require(
+                set(files) == expected_files,
+                f"consumer sources for {key!r} are not exactly the generated and "
+                f"template files: extra {sorted(set(files) - expected_files)!r}, "
+                f"missing {sorted(expected_files - set(files))!r}",
+            )
         for optional_key in (
             "swiftmoduleBytes",
             "objectBytes",

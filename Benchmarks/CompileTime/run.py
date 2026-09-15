@@ -718,6 +718,78 @@ def prepare_consumer(
     return destination
 
 
+# The only file names the generators write into `Sources/Consumer`:
+# `Tables.swift`, `Tables2.swift`, ..., `Queries.swift`, `Queries2.swift`, ...
+# Nothing else in that directory is ever removed.
+GENERATED_SWIFT_FILE = re.compile(r"^(?:Tables|Queries)(?:[2-9]|[1-9][0-9]+)?\.swift$")
+
+
+def remove_stale_generated_sources(
+    consumer_root: Path,
+    sources: dict[str, str],
+) -> list[str]:
+    """Delete generated `Tables*.swift`/`Queries*.swift` files this scale does not produce.
+
+    One consumer directory is reused for every point, and a large point splits
+    its declarations over more files than a small point. Without this, the
+    files a 500-table point wrote stay in place and a later 1-table point
+    compiles them too (issue #670). Only names that match the generator's own
+    pattern are candidates; template files such as `Support.swift` stay.
+    """
+
+    directory = consumer_root / "Sources" / "Consumer"
+    if not directory.is_dir():
+        return []
+    removed: list[str] = []
+    for path in sorted(directory.iterdir()):
+        relative = f"Sources/Consumer/{path.name}"
+        if (
+            path.is_file()
+            and GENERATED_SWIFT_FILE.match(path.name)
+            and relative not in sources
+        ):
+            path.unlink()
+            removed.append(relative)
+    return removed
+
+
+def consumer_source_files(consumer_root: Path) -> list[str]:
+    """Every file directly in the consumer's `Sources/Consumer`, as relative paths."""
+
+    directory = consumer_root / "Sources" / "Consumer"
+    if not directory.is_dir():
+        return []
+    return sorted(
+        f"Sources/Consumer/{path.name}"
+        for path in directory.iterdir()
+        if path.is_file() and not path.name.startswith(".")
+    )
+
+
+def template_source_files(spec: ConsumerSpec) -> list[str]:
+    """The checked-in, hand-written files of a consumer template's `Sources/Consumer`."""
+
+    return consumer_source_files(CONSUMER_TEMPLATE_DIRECTORY / spec.template_name)
+
+
+def verify_consumer_sources(
+    consumer_root: Path,
+    spec: ConsumerSpec,
+    generated: dict[str, str],
+) -> list[str]:
+    """Require that `Sources/Consumer` holds exactly the template and generated files."""
+
+    expected = sorted(set(template_source_files(spec)) | set(generated))
+    actual = consumer_source_files(consumer_root)
+    if actual != expected:
+        raise HarnessError(
+            f"{spec.identifier} Sources/Consumer does not hold exactly its template "
+            f"and generated files: extra {sorted(set(actual) - set(expected))!r}, "
+            f"missing {sorted(set(expected) - set(actual))!r}"
+        )
+    return actual
+
+
 def write_generated_sources(
     consumer_root: Path,
     spec: ConsumerSpec,
@@ -736,6 +808,7 @@ def write_generated_sources(
     """
 
     sources = generate_sources(spec, table_count, query_count, edit_token)
+    remove_stale_generated_sources(consumer_root, sources)
     digests: dict[str, str] = {}
     written: list[str] = []
     for relative, text in sorted(sources.items()):
@@ -1670,6 +1743,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 BASE_EDIT_TOKEN,
                 rewrite_unchanged=True,
             )
+            verify_consumer_sources(consumer_root, spec, source_digests)
             print(
                 f"+ warm and validate {spec.identifier} tables={table_count} "
                 f"queries={query_count}",
@@ -1693,6 +1767,11 @@ def main(arguments: Sequence[str] | None = None) -> int:
                         query_count,
                     ),
                     "generatedSourceSHA256": dict(sorted(source_digests.items())),
+                    "consumerSourceFiles": verify_consumer_sources(
+                        consumer_root,
+                        spec,
+                        source_digests,
+                    ),
                     **collect_artifacts(consumer_root, spec),
                 }
             )

@@ -675,6 +675,68 @@ class BuildSystemTests(unittest.TestCase):
             self.assertEqual(artifacts["staticLibraryBytes"], 3)
 
 
+class StaleGeneratedSourceTests(unittest.TestCase):
+    def test_a_small_cell_after_a_large_cell_leaves_only_its_own_files(self) -> None:
+        for identifier in ("swiftql", "control_raw_sqlite", "grdb", "sqlite_swift"):
+            spec = compile_time_run.CONSUMERS_BY_IDENTIFIER[identifier]
+            with self.subTest(consumer=identifier), tempfile.TemporaryDirectory() as name:
+                root = Path(name)
+                directory = root / "Sources" / "Consumer"
+                directory.mkdir(parents=True)
+                # Files the generator never writes must survive.
+                for kept in ("Support.swift", "TablesHelper.swift", "Tables1.swift", "Queries.txt"):
+                    (directory / kept).write_text("// kept\n", encoding="utf-8")
+
+                compile_time_run.write_generated_sources(root, spec, 500, 120, "base")
+                self.assertTrue((directory / "Tables10.swift").is_file())
+                self.assertTrue((directory / "Queries3.swift").is_file())
+
+                digests, _ = compile_time_run.write_generated_sources(
+                    root, spec, 1, 10, "base"
+                )
+                self.assertEqual(
+                    sorted(path.name for path in directory.iterdir()),
+                    [
+                        "Queries.swift",
+                        "Queries.txt",
+                        "Support.swift",
+                        "Tables.swift",
+                        "Tables1.swift",
+                        "TablesHelper.swift",
+                    ],
+                )
+                self.assertEqual(
+                    sorted(digests),
+                    ["Sources/Consumer/Queries.swift", "Sources/Consumer/Tables.swift"],
+                )
+
+    def test_the_generated_name_pattern(self) -> None:
+        pattern = compile_time_run.GENERATED_SWIFT_FILE
+        for name in ("Tables.swift", "Tables2.swift", "Tables10.swift", "Queries.swift", "Queries11.swift"):
+            self.assertIsNotNone(pattern.match(name), name)
+        for name in ("Support.swift", "Tables1.swift", "Tables0.swift", "TablesHelper.swift", "Tables2.swift.bak", "schema.sql"):
+            self.assertIsNone(pattern.match(name), name)
+
+    def test_verify_consumer_sources_rejects_a_stale_file(self) -> None:
+        spec = compile_time_run.CONSUMERS_BY_IDENTIFIER["control_raw_sqlite"]
+        with tempfile.TemporaryDirectory() as name:
+            workspace = Path(name)
+            root = compile_time_run.prepare_consumer(workspace, spec, workspace)
+            digests, _ = compile_time_run.write_generated_sources(root, spec, 1, 10, "base")
+            self.assertEqual(
+                compile_time_run.verify_consumer_sources(root, spec, digests),
+                [
+                    "Sources/Consumer/Queries.swift",
+                    "Sources/Consumer/Support.swift",
+                    "Sources/Consumer/Tables.swift",
+                ],
+            )
+            (root / "Sources/Consumer/Tables2.swift").write_text("// stale\n", encoding="utf-8")
+            with self.assertRaises(compile_time_run.HarnessError) as context:
+                compile_time_run.verify_consumer_sources(root, spec, digests)
+            self.assertIn("Tables2.swift", str(context.exception))
+
+
 class StatisticsTests(unittest.TestCase):
     @staticmethod
     def measurement(wall: float, peak: int | None = 1024) -> dict[str, object]:

@@ -253,7 +253,11 @@
     generates the same bytes as before. Timed builds run `swift build -v`, so
     the runner detects a recompilation under Swift Build, the default build
     system from Swift 6.4, as well as under the native build system. Each
-    measurement records the build system that ran.
+    measurement records the build system that ran. Before it builds a point,
+    the runner deletes generated files that the point does not produce, and it
+    checks that the consumer holds exactly its template and generated files.
+    Validation rejects a report whose generated files disagree with the
+    declared scale.
   - The phase harness writes report format version 2. Each SQL case adds six
     phases on SwiftQL's own path: `swiftql_binding`, `swiftql_execution`,
     `swiftql_row_materialization`, `swiftql_row_decoding`,
