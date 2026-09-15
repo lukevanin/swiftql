@@ -33,10 +33,14 @@ import Foundation
 /// A key may instead be enclosed in double quotes, where SQLite parses it as
 /// a JSON string.
 ///
-/// A key is quoted only when it has to be: when it is empty, or when it holds
-/// a `.` or a `[`. Those are the two characters that end an unquoted label,
-/// and an empty name has no unquoted spelling. Every other key is rendered as
-/// it is, which keeps the rendered SQL readable.
+/// A key is quoted only when it has to be: when it is empty, when it holds a
+/// `.` or a `[`, when it begins with a `"`, or when it holds a control
+/// character. `.` and `[` end an unquoted label, an empty name has no
+/// unquoted spelling, and SQLite reads a label that begins with `"` as the
+/// start of a quoted label, so `$."ab` is a path error on every version. A
+/// control character is quoted and written as a JSON escape, so the rendered
+/// path holds no raw control character. Every other key is rendered as it
+/// is, which keeps the rendered SQL readable.
 ///
 /// ## One key shape is not portable
 ///
@@ -49,8 +53,10 @@ import Foundation
 ///
 /// SwiftQL renders for the newer behaviour, which is what SQLite documents.
 /// On an older engine such a path selects nothing rather than reporting an
-/// error. Every other key — including `.`, `[`, `]`, `#`, non-ASCII text, and
-/// the empty name — resolves the same way on every supported SQLite.
+/// error. This includes a key that begins with a `"`, which renders quoted
+/// and escaped. Every other key — including `.`, `[`, `]`, `#`, non-ASCII
+/// text, and the empty name — resolves the same way on every supported
+/// SQLite.
 ///
 /// See: https://www.sqlite.org/json1.html#path_arguments
 ///
@@ -77,8 +83,9 @@ public struct XLJSONPath: XLExpression, Hashable, Sendable, CustomStringConverti
     /// Adds an object member.
     ///
     /// The name is quoted only when SQLite's path grammar needs it: when the
-    /// name is empty, or when it holds a `.` or a `[`. A name holding a `"`,
-    /// a `\`, or a control character resolves only on a SQLite that unescapes
+    /// name is empty, when it holds a `.` or a `[`, when it begins with a
+    /// `"`, or when it holds a control character. A name holding a `"`, a
+    /// `\`, or a control character resolves only on a SQLite that unescapes
     /// JSON labels; see the type's documentation.
     ///
     public func key(_ name: String) -> XLJSONPath {
@@ -165,12 +172,18 @@ public struct XLJSONPath: XLExpression, Hashable, Sendable, CustomStringConverti
     }
 
     ///
-    /// Reports whether SQLite's path grammar forces this name into the quoted
-    /// form. An empty name has no unquoted spelling, and `.` and `[` are the
-    /// two characters that end an unquoted label.
+    /// Reports whether this name has to be rendered in the quoted form. An
+    /// empty name has no unquoted spelling, `.` and `[` end an unquoted
+    /// label, a leading `"` starts a quoted label, and a control character
+    /// is written as a JSON escape, which only a quoted label can hold.
     ///
     private static func needsQuoting(_ name: String) -> Bool {
-        name.isEmpty || name.contains(".") || name.contains("[")
+        if name.isEmpty || name.hasPrefix("\"") {
+            return true
+        }
+        return name.unicodeScalars.contains { scalar in
+            scalar == "." || scalar == "[" || scalar.value < 0x20 || scalar.value == 0x7F
+        }
     }
 
     ///

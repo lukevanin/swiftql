@@ -1,5 +1,53 @@
 # Changelog
 
+## [1.9.0] - Unreleased
+
+### Migration
+
+- **A `Data` value written into JSON fails before SQLite prepares the
+  statement** (issue #671). This applies to a value passed to `jsonArray`,
+  `jsonObject`, `jsonInserting`, `jsonReplacing`, `jsonSetting`,
+  `jsonGroupArray`, `jsonGroupObject`, or one of their JSONB twins. The
+  statement fails with the new case
+  `XLSQLValueEncodingError.blobInJSONValue(valueType:function:)`. On 1.8.1,
+  SQLite reported `JSON cannot hold BLOB values`, or it silently read the
+  bytes as a document when they were valid JSONB. The result of a `jsonb`
+  function is still accepted. To nest JSONB held in a `Data` column or
+  parameter, pass it through `minifiedJSONB()` first. This check runs when the
+  statement renders, not at compile time. The JSON value parameters take
+  `any XLExpression`, and a compile-time constraint would reject every opaque
+  function result and every existential value that code passes today. A
+  `switch` over `XLSQLValueEncodingError` with no `default` clause must handle
+  the new case.
+
+### Changed
+
+- **A `Bool` written into JSON is a JSON boolean** (issue #671). The same
+  functions as above write a Swift `Bool` as `true` or `false`, not as `1` or
+  `0`. A `Bool` literal renders as `json('true')` or `json('false')`. Any
+  other `Bool` expression renders as
+  `json(CASE X <> 0 WHEN 1 THEN 'true' WHEN 0 THEN 'false' END)`, so SQL
+  `NULL` stays JSON `null`. A `Codable` reader of a `Bool` field now reads the
+  stored document. Code that reads such a member as a number must change.
+  The to-do demo no longer writes `json('true')` by hand.
+
+### Added
+
+- `validJSONOrJSONBOrNull()` renders `json_valid(X, 9)` (issue #671). It
+  checks text as RFC 8259 JSON and a blob strictly as JSONB, and it needs
+  SQLite 3.45.0. `validJSONOrNull()` still renders `json_valid(X)`, which
+  reports false for every JSONB blob.
+
+### Fixed
+
+- `XLJSONPath.key(_:)` quotes a key that begins with `"` or holds a control
+  character (issue #671). SQLite rejected the unquoted form of a leading-quote
+  key as a bad JSON path on every version. Such a key resolves on a SQLite
+  that unescapes JSON labels, as the type documentation states.
+- The documentation of `jsonArrayLength` states what SQLite returns: `0` for a
+  value that is not an array, and `NULL` only for a path that selects nothing
+  (issue #671).
+
 ## [1.8.1] - 2026-09-15
 
 v1.8.1 is a correctness and safety patch for the 1.8 line. It removes process
