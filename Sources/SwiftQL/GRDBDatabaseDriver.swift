@@ -646,7 +646,10 @@ struct GRDBDatabaseDriverConnection:
         }
         #if DEBUG
         if let preparationCountBefore, liveStatementCount() > preparationCountBefore {
-            GRDBStatementPreparationTestHooks.shared.notifyPrepared(sql: statement.sql)
+            GRDBStatementPreparationTestHooks.shared.notifyPrepared(
+                sql: statement.sql,
+                databasePath: mainDatabasePath()
+            )
         }
         #endif
         return GRDBPhysicalStatement(
@@ -1077,7 +1080,42 @@ struct GRDBDatabaseDriverConnection:
         }
         return count
     }
+
+    /// The path of this connection's main database file, or `nil` for an
+    /// in-memory or temporary database. The preparation test hook filters by
+    /// it (issue #668).
+    private func mainDatabasePath() -> String? {
+        guard
+            let connection = database.sqliteConnection,
+            let filename = sqlite3_db_filename(connection, "main"),
+            filename.pointee != 0
+        else {
+            return nil
+        }
+        return String(cString: filename)
+    }
     #endif
+
+    ///
+    /// Runs `operation` on this connection inside a SQLite savepoint (issue
+    /// #668).
+    ///
+    /// The savepoint is released when `operation` returns. When `operation`
+    /// throws, every change it made is rolled back to the savepoint, the
+    /// savepoint is released, and the original error is rethrown, so the
+    /// savepoint is closed on every path out of this call. Must run inside an
+    /// open transaction, which a pinned transaction scope always is.
+    ///
+    mutating func withSavepoint(
+        _ operation: (inout GRDBDatabaseDriverConnection) throws -> Void
+    ) throws {
+        var connection = self
+        try database.inSavepoint {
+            try operation(&connection)
+            return .commit
+        }
+        self = connection
+    }
 
     private func validateOwnership(of statement: GRDBPhysicalStatement) throws {
         guard statement.connectionIdentifier == connectionIdentifier else {
@@ -1262,13 +1300,24 @@ final class GRDBOpenCursorStatements: @unchecked Sendable {
 /// reported. It exists only in DEBUG builds, and the driver counts statements
 /// only while an observer is attached, so release builds pay nothing.
 ///
+/// The hook is process-wide, so each observer names the database file it
+/// watches, and a preparation on any other file is not reported to it. Two
+/// tests that run at the same time in one process -- `swift test --parallel`
+/// runs test classes in separate processes -- therefore see only their own
+/// database's preparations.
+///
 final class GRDBStatementPreparationTestHooks: @unchecked Sendable {
+
+    private struct Observer {
+        let databasePath: String
+        let report: (String) -> Void
+    }
 
     static let shared = GRDBStatementPreparationTestHooks()
 
     private let lock = NSLock()
 
-    private var observers: [UUID: (String) -> Void] = [:]
+    private var observers: [UUID: Observer] = [:]
 
     private init() {}
 
@@ -1278,15 +1327,20 @@ final class GRDBStatementPreparationTestHooks: @unchecked Sendable {
         return !observers.isEmpty
     }
 
-    /// Calls `observer` with the SQL of every statement prepared while `body`
-    /// runs, and always detaches it afterward.
+    /// Calls `observer` with the SQL of every statement prepared on the
+    /// database file at `databasePath` while `body` runs, and always detaches
+    /// it afterward.
     func observe<Result>(
+        databasePath: String,
         _ observer: @escaping (String) -> Void,
         during body: () throws -> Result
     ) rethrows -> Result {
         let identifier = UUID()
         lock.lock()
-        observers[identifier] = observer
+        observers[identifier] = Observer(
+            databasePath: Self.canonicalPath(databasePath),
+            report: observer
+        )
         lock.unlock()
         defer {
             lock.lock()
@@ -1296,13 +1350,23 @@ final class GRDBStatementPreparationTestHooks: @unchecked Sendable {
         return try body()
     }
 
-    func notifyPrepared(sql: String) {
-        lock.lock()
-        let observers = Array(observers.values)
-        lock.unlock()
-        for observer in observers {
-            observer(sql)
+    func notifyPrepared(sql: String, databasePath: String?) {
+        guard let databasePath else {
+            return
         }
+        let path = Self.canonicalPath(databasePath)
+        lock.lock()
+        let matching = observers.values.filter { $0.databasePath == path }
+        lock.unlock()
+        for observer in matching {
+            observer.report(sql)
+        }
+    }
+
+    /// Resolves symbolic links, so `/var/...` and `/private/var/...` name the
+    /// same file.
+    private static func canonicalPath(_ path: String) -> String {
+        URL(fileURLWithPath: path).resolvingSymlinksInPath().path
     }
 }
 #endif

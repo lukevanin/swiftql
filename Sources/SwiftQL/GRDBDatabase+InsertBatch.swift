@@ -29,13 +29,24 @@ extension GRDBDatabase {
     /// GRDB's per-connection statement cache prepares it once per connection
     /// and reuses it for every later row.
     ///
-    /// All rows run on one connection, in sequence order:
+    /// All rows run on one connection, in sequence order, and the call is one
+    /// unit: when a row fails, no row of this call stays written.
     ///
     /// - On a transaction scope -- the value ``withTransaction(_:)`` passes to
-    ///   its body -- the rows are written inside that transaction, and they
-    ///   commit or roll back with it.
+    ///   its body -- the rows are written inside a savepoint in that
+    ///   transaction. When a row fails, the savepoint rolls back every row of
+    ///   this call and is released before the error is thrown. Writes the body
+    ///   made before or after the call are not affected, so a body that catches
+    ///   the error and returns normally commits without any row of the batch.
+    ///   On success the savepoint is released, and the rows commit or roll back
+    ///   with the enclosing transaction.
     /// - On any other database, the call opens one write transaction for all
-    ///   rows. Either every row commits or, when a row fails, none does.
+    ///   rows. Either every row commits or none does.
+    ///
+    /// `rows` is read inside the connection access, one element at a time, and
+    /// only after the database or scope has been checked. A lazily produced
+    /// element must not use a database itself: the root database is rejected
+    /// from inside the access, as it is from inside a transaction body.
     ///
     /// SwiftQL keeps only the rendered SQL and its parameter layout between
     /// rows. The prepared statement stays owned by the connection that
@@ -49,12 +60,13 @@ extension GRDBDatabase {
     /// a non-finite `Double`. Such a row therefore fails with the same error
     /// the single-row path reports.
     ///
-    /// An empty sequence does nothing and does not access a connection.
+    /// An empty sequence renders and writes nothing. It still checks the
+    /// database or scope, so an escaped scope throws
+    /// ``XLTransactionScopeError/scopeEscaped`` for an empty sequence too.
     ///
     /// - Parameter rows: The rows to insert.
     /// - Throws: The first error a row's rendering, binding, or execution
-    ///   raises, after the rows already written by this call are rolled back
-    ///   with their transaction;
+    ///   raises, after every row written by this call is rolled back;
     ///   ``XLTransactionScopeError/scopeEscaped`` when called on a transaction
     ///   scope after its body returned; or
     ///   ``XLTransactionScopeError/nestedTransactionUnsupported`` when called on
@@ -67,19 +79,35 @@ extension GRDBDatabase {
         Rows.Element.MetaNamedResult.Row == Rows.Element,
         Rows.Element.MetaInsert.Row == Rows.Element
     {
-        var iterator = rows.makeIterator()
-        guard let firstRow = iterator.next() else {
-            return
-        }
-        let batch = GRDBInsertBatch<Rows.Element>(
-            database: self,
-            templateRow: firstRow
-        )
         var driver = driver
+        // A pool-backed call owns its whole transaction, which already rolls
+        // back every row on failure. A scope's transaction belongs to the
+        // body, so the batch takes its own savepoint to stay one unit.
+        let usesSavepoint = driver.isPinned
         try driver.withTransaction { connection in
-            try batch.insert(firstRow, in: &connection)
-            while let row = iterator.next() {
-                try batch.insert(row, in: &connection)
+            var iterator = rows.makeIterator()
+            guard let firstRow = iterator.next() else {
+                return
+            }
+            let batch = GRDBInsertBatch<Rows.Element>(
+                database: self,
+                templateRow: firstRow
+            )
+            if usesSavepoint {
+                try connection.withSavepoint { connection in
+                    try batch.insertRows(
+                        first: firstRow,
+                        rest: &iterator,
+                        in: &connection
+                    )
+                }
+            }
+            else {
+                try batch.insertRows(
+                    first: firstRow,
+                    rest: &iterator,
+                    in: &connection
+                )
             }
         }
     }
@@ -177,6 +205,18 @@ where
             shape: recorder.shape,
             slots: slots
         )
+    }
+
+    /// Inserts `first`, then every row `rest` still produces, on `connection`.
+    func insertRows<Rest>(
+        first: Row,
+        rest: inout Rest,
+        in connection: inout GRDBDatabaseDriverConnection
+    ) throws where Rest: IteratorProtocol, Rest.Element == Row {
+        try insert(first, in: &connection)
+        while let row = rest.next() {
+            try insert(row, in: &connection)
+        }
     }
 
     /// Inserts `row` on `connection`, which the caller holds for the whole

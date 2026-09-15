@@ -288,9 +288,15 @@ The guarantees:
 - **One render, one preparation.** The SQL text is the same for every row, so
   GRDB's per-connection statement cache prepares it once per connection. A
   100-row batch renders once and prepares once.
-- **One connection, one transaction.** On a transaction scope the rows join
-  that scope's transaction. On any other database the call opens one write
-  transaction for all rows, so either every row commits or none does.
+- **One connection, one unit.** On a transaction scope the rows run inside a
+  savepoint in that scope's transaction. When a row fails, the savepoint rolls
+  back every row of the call and the error is thrown. Writes the body made
+  before or after the call stay, so a body that catches the error and returns
+  commits without any row of the batch. On any other database the call opens
+  one write transaction for all rows, so either every row commits or none does.
+- **The sequence is read inside the connection access.** Elements are produced
+  one at a time after the scope is checked. An escaped scope throws before a
+  lazy sequence produces anything, and it throws for an empty sequence too.
 - **No statement outlives its connection.** SwiftQL keeps only the rendered SQL
   and its parameter layout between rows. The prepared statement stays owned by
   the connection, and the call does not keep it past its connection access. A

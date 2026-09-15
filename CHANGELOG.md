@@ -14,9 +14,10 @@
   statement once per connection. A 100-row batch inside one transaction renders
   once and prepares once, where the per-row loop renders and prepares 100
   times.
-  - On a `withTransaction(_:)` scope the rows join that transaction. On any
-    other database the call opens one write transaction, so either every row
-    commits or none does.
+  - On a `withTransaction(_:)` scope the rows run inside a savepoint in that
+    transaction. When a row fails, every row of the call rolls back and the
+    body's other writes stay. On any other database the call opens one write
+    transaction, so either every row commits or none does.
   - SwiftQL keeps only the rendered SQL between rows. The prepared statement
     stays owned by its connection and never outlives the call's connection
     access, so a pooled connection or an ended scope cannot keep it.
