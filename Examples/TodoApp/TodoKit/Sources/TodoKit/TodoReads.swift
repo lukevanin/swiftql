@@ -51,6 +51,73 @@ extension GRDBDatabase {
             }
         }
 
+        /// The list view's read: one statement covering every filter, sort,
+        /// and search the app offers.
+        ///
+        /// The filter is three booleans the `Where` clause reads rather than
+        /// a mode the query branches on. The search is always applied, with
+        /// the empty pattern standing in for an empty box, because every
+        /// subject contains it. The sort selects which ordering keys have any
+        /// effect. One statement, rendered once, serves all of it.
+        ///
+        /// Search is `REGEXP`, and the pattern is a parameter passed to
+        /// `regexp(_:)`. Before v1.9 the frozen-literal guard rejected any
+        /// parameter passed to a call, so this read had to be written with
+        /// hand-built named bindings instead of as a declaration (#661).
+        ///
+        /// The highest `OrderBy` term wins. A term whose condition is false
+        /// collapses to a constant, which orders every row equally and so
+        /// contributes nothing — the next term decides. `title` last makes
+        /// the order total, so the result is stable between runs.
+        ///
+        /// A missing due date becomes the distant future rather than staying
+        /// `NULL`, because SQLite sorts `NULL` first ascending and a to-do
+        /// with no deadline belongs at the end, not the top.
+        ///
+        /// The list view observes this read, and a live query needs a
+        /// request, which a declaration does not provide. `TodoFilteredRead`
+        /// therefore mirrors this statement for the observation.
+        func filteredTodos(
+            listID: TodoUUID,
+            includesCompleted: Bool,
+            includesActive: Bool,
+            overdueOnly: Bool,
+            referenceDate: TodoDate,
+            searchPattern: String,
+            sortOrder: Int
+        ) -> [Todo] {
+            sqlResult { schema in
+                let todo = schema.table(Todo.self)
+                Select(todo)
+                From(todo)
+                Where(
+                    todo.listID == listID
+                    && (todo.isCompleted == includesCompleted
+                        || todo.isCompleted != includesActive)
+                    && (overdueOnly == false
+                        || (todo.dueAt < referenceDate
+                            && todo.isCompleted == false))
+                    && (todo.title.regexp(searchPattern)
+                        || todo.notes.regexp(searchPattern))
+                )
+                OrderBy(
+                    (sortOrder == TodoSort.dueDate.rawValue).iif(
+                        then: todo.dueAt ?? TodoDate.distantFuture,
+                        else: TodoDate.distantFuture
+                    ).ascending(),
+                    (sortOrder == TodoSort.priority.rawValue).iif(
+                        then: todo.priority,
+                        else: TodoPriority.low
+                    ).descending(),
+                    (sortOrder == TodoSort.manual.rawValue).iif(
+                        then: todo.position,
+                        else: 0
+                    ).ascending(),
+                    todo.title.ascending()
+                )
+            }
+        }
+
         /// One row per to-do in a list, summarising its checklist.
         ///
         /// The counting happens in SQLite. `json_array_length` reads the

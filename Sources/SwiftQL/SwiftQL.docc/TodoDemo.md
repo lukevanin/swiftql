@@ -158,11 +158,28 @@ the same way: each `OrderBy` term is a conditional on the sort parameter, and a
 term whose condition is false collapses to a constant that orders every row
 equally, so it contributes nothing and the next term decides.
 
-This is the one read in the demo that is not a declared query. A declared
-query's frozen-literal guard rejects a parameter passed as an argument to a
-call, and matching is a method — so text search cannot appear in a declaration.
-The demo uses named bindings for that statement instead, and says so where it
-does.
+The read is a declared query like the others. Its search pattern is a
+parameter passed to `regexp(_:)`, which a declaration accepts since v1.9
+([#661](https://github.com/lukevanin/swiftql/issues/661)):
+
+<!-- source: Examples/TodoApp/TodoKit/Sources/TodoKit/TodoReads.swift -->
+```swift
+                Where(
+                    todo.listID == listID
+                    && (todo.isCompleted == includesCompleted
+                        || todo.isCompleted != includesActive)
+                    && (overdueOnly == false
+                        || (todo.dueAt < referenceDate
+                            && todo.isCompleted == false))
+                    && (todo.title.regexp(searchPattern)
+                        || todo.notes.regexp(searchPattern))
+                )
+```
+
+The list view also observes this read, and a live query needs a request that a
+declaration does not provide. `TodoFilteredRead.swift` therefore holds the same
+statement for the observation, as `TodoLiveReads.swift` does for the other
+observed reads.
 
 ## Two regular expressions, for two different reasons
 
