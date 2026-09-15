@@ -189,6 +189,9 @@ final class MacroRegressionCorpusTests: XCTestCase {
             "duplicate-or-conflicting-generated-names",
             "malformed-property-shapes",
             "source-located-diagnostics",
+            // Issue #665: both shapes of a property default, honoured and
+            // diagnosed.
+            "property-defaults",
         ]
         let missing = requiredCategories.subtracting(categories)
         XCTAssertTrue(missing.isEmpty, "missing required categories: \(missing.sorted())")

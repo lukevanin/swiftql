@@ -205,11 +205,10 @@ cover joins, grouping, subqueries, common table expressions, and operators.
 - Executor names derive from the specification's base name only, so two
   specifications sharing a base name collide with a duplicate-declaration error.
 - The frozen-literal guard rejects, at the declaration site, every parameter
-  reference it cannot turn into a named placeholder: string interpolation,
-  nested-closure capture, a direct call argument, a local-binding initializer,
-  a hand-constructed binding, a shadowing declaration, member access on a
-  parameter, a collection parameter, and an unreferenced parameter. Write
-  `column == parameter`; never route around a diagnostic by interpolating.
+  use it cannot bind: string interpolation, member access, a name shared with
+  a key-path component or callee, a hand-constructed binding, shadowing, a
+  collection parameter, and an unreferenced parameter. `column.like(pattern)`
+  and `Limit(count)` bind like `column == parameter`; never interpolate.
 
 ## Bind parameters and decode results
 

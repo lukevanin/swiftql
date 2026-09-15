@@ -326,6 +326,69 @@
       ]
     },
     {
+      "id": "macro.property-default-honoured",
+      "category": "property-defaults",
+      "title": "A 'var' property's initial value becomes the generated initializer's default",
+      "description": "Issue #665 (recorded on #469): a stored 'var' with an initial value gives its memberwise-initializer parameter a default, so a caller may omit it. The default names a generated '@usableFromInline' static accessor that returns the initial value verbatim, rather than restating the value, because a public initializer's default argument may not reference a private member that the initial value may reference. In 'var a, b: Int = 1' only 'b' is defaulted.",
+      "provenance": {
+        "inspiration": "Feature-native; mirrors the Swift compiler's own implicit memberwise initializer, which defaults a 'var' that has an initial value. No upstream code copied.",
+        "upstream_reference": null,
+        "license_note": "n/a -- this repository's own code"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "SQLMacroExpansionTests.test_memberwiseInitializer_propertyDefaults"
+        },
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "MetaBuilderTests.test_defaultValueAccessors_returnEachInitialValueVerbatim"
+        },
+        {
+          "layer": "parse",
+          "source_path": "Tests/SQLMacrosTests/MetaModelTests.swift",
+          "test_case": "MetaPropertyBindingWalkTests.testAnInitialValueDefaultsOnlyItsOwnBinding"
+        },
+        {
+          "layer": "downstream-build",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "DefaultedDownstreamRow / validatePropertyDefaults"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "validatePropertyDefaults"
+        }
+      ]
+    },
+    {
+      "id": "macro.property-default-diagnosed",
+      "category": "property-defaults",
+      "title": "A 'let' property with an initial value is diagnosed, not silently ignored",
+      "description": "Issue #665: a 'let' with an initial value cannot be assigned by the generated initializer, because Swift rejects assigning a 'let' that already has a value, so its value cannot become a default. The macro reports the declaration at the binding and tells the author to use 'var' or remove the value.",
+      "provenance": {
+        "inspiration": "Feature-native; the only stored-property shape whose initial value the generated initializer cannot honour. No upstream code copied.",
+        "upstream_reference": null,
+        "license_note": "n/a -- this repository's own code"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "diagnostic",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "SQLMacroDiagnosticTests.test_letWithInitialValue_emitsError"
+        },
+        {
+          "layer": "parse",
+          "source_path": "Tests/SQLMacrosTests/MetaModelTests.swift",
+          "test_case": "MetaPropertyBindingWalkTests.testAnImmutableBindingWithAnInitialValueIsReported"
+        }
+      ]
+    },
+    {
       "id": "macro.optional-composite-property",
       "category": "optionals",
       "title": "Optional composite (nested @SQLTable/@SQLResult) properties are not yet supported",
@@ -346,6 +409,69 @@
         ]
       },
       "evidence": []
+    },
+    {
+      "id": "macro.declared-query-method-and-clause-arguments",
+      "category": "declared-query-parameter-positions",
+      "title": "Declared-query parameter passed to a DSL matching method or clause",
+      "description": "Issue #661: an @SQLQuery or @SQLQueries parameter passed as the argument of like(_:), regexp(_:), or Limit(_:) is rewritten to its named binding, and every invocation binds its own value. The container form is covered too, because it inlines the rewritten statement where the parameter's value is in scope.",
+      "provenance": {
+        "inspiration": "n/a -- recorded from this repository's own issue #661 and the to-do demo's search read (#469), not adapted from an external case.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLQueryMacroTests.swift",
+          "test_case": "SQLQueryMacroExpansionTests.test_matchingMethodAndClauseArguments_rewriteToNamedBindings"
+        },
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLQueriesMacroTests.swift",
+          "test_case": "SQLQueriesMacroExpansionTests.test_matchingMethodAndLimitArguments_rewriteInsideContextExecutor"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "Tests/SQLTests/SQLQueryPeerMacroTests.swift",
+          "test_case": "XLQueryPeerMacroTests.testLikeAndLimitExecutorBindsEachInvocation / testRegexpExecutorBindsEachInvocation"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "Tests/SQLTests/SQLQueriesContainerTests.swift",
+          "test_case": "XLQueriesContainerTests.testContainerExecutorBindsLikeRegexpAndLimitParameters"
+        }
+      ]
+    },
+    {
+      "id": "macro.declared-query-parameter-name-collisions",
+      "category": "source-located-diagnostics",
+      "title": "Declared-query parameter named like a key-path component or a DSL callee",
+      "description": "Issue #661: a parameter whose name is also a key-path component (name in \\Person.name) or the callee of a call (From in From(person), or Limit in Limit<Int>(10)) produces a diagnostic at the declaration instead of a corrupt rewrite. The rewrite leaves both positions unchanged. String interpolation and member access on a parameter stay rejected.",
+      "provenance": {
+        "inspiration": "n/a -- recorded from this repository's own issue #661, not adapted from an external case.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "diagnostics",
+          "source_path": "Tests/SQLMacrosTests/SQLQueryMacroTests.swift",
+          "test_case": "SQLQueryMacroDiagnosticTests.test_parameterNamedLikeKeyPathComponent_emitsError / test_parameterNamedLikeDSLCallee_emitsError / test_parameterNamedLikeGenericCallee_emitsError"
+        },
+        {
+          "layer": "diagnostics",
+          "source_path": "Tests/SQLMacrosTests/SQLQueryMacroTests.swift",
+          "test_case": "SQLQueryMacroDiagnosticTests.test_stringInterpolationParameter_emitsError / test_parameterMemberAccess_emitsError"
+        },
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLQueryMacroTests.swift",
+          "test_case": "SQLQueryMacroExpansionTests.test_rewriter_leavesKeyPathComponentsAndCalleesUnchanged"
+        }
+      ]
     }
   ]
 }

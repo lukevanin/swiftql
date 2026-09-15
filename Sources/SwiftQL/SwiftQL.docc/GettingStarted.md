@@ -69,6 +69,12 @@ These mappings provide type safety for Swift expressions, bindings, and decoded
 results. Optional properties can store `NULL`; non-optional properties are
 emitted with a `NOT NULL` constraint.
 
+`@SQLTable` also generates a memberwise initializer. A `var` property with an
+initial value, such as `var age: Int = 0`, gives its parameter that value as a
+default, so a call can leave it out. The value is a Swift default only: it does
+not add a SQL `DEFAULT` clause to the table. A `let` property with an initial
+value can never be assigned, so the macro reports it as an error.
+
 On Swift 6.0 and later, a table declared `public` or `package` also conforms to
 `Sendable`, so rows can be passed between tasks and held in `static let`
 constants without tripping strict-concurrency checking. A `static var` is

@@ -18,6 +18,7 @@ enum MacroRegressionFixtureError: Error {
     case unexpectedRichlyTypedRows([RichlyTypedRow])
     case unexpectedWideRow(WideDownstreamRow?)
     case unexpectedCompositeRows([DownstreamEmployeeCompany])
+    case unexpectedDefaultedRows([DefaultedDownstreamRow])
 }
 
 // MARK: - Reserved, escaped, Unicode, and SQL-keyword-like identifiers
@@ -328,6 +329,52 @@ private func validateCompositeResultSelection(
     }
 }
 
+// MARK: - Property defaults, issue #665
+//
+// A `var` with an initial value can be omitted from the generated
+// initializer. The model is `public` and `title`'s initial value references a
+// `private` member, which a public initializer's default argument may not
+// name directly: this pins that the generated default still compiles for
+// that shape.
+
+@SQLTable(name: "DefaultedDownstreamRow")
+public struct DefaultedDownstreamRow: Equatable {
+    public var id: Int
+    public var title: String = DefaultedDownstreamRow.untitled
+    public var note: String? = nil
+    public var tags: String = "[]"
+}
+
+extension DefaultedDownstreamRow {
+    private static let untitled = "untitled"
+}
+
+private func validatePropertyDefaults(
+    database: GRDBDatabase
+) throws {
+    try database.makeRequest(with: sqlCreate(DefaultedDownstreamRow.self)).execute()
+    try database.makeRequest(
+        with: sqlInsert(DefaultedDownstreamRow(id: 1))
+    ).execute()
+    try database.makeRequest(
+        with: sqlInsert(DefaultedDownstreamRow(id: 2, note: "given"))
+    ).execute()
+
+    let statement = sql { schema in
+        let row = schema.table(DefaultedDownstreamRow.self)
+        Select(row)
+        From(row)
+        OrderBy(row.id.ascending())
+    }
+    let rows = try database.makeRequest(with: statement).fetchAll()
+    guard rows == [
+        DefaultedDownstreamRow(id: 1, title: "untitled", note: nil, tags: "[]"),
+        DefaultedDownstreamRow(id: 2, title: "untitled", note: "given", tags: "[]"),
+    ] else {
+        throw MacroRegressionFixtureError.unexpectedDefaultedRows(rows)
+    }
+}
+
 // MARK: - Entry point
 
 func runMacroRegressionFixtures(database: GRDBDatabase) throws {
@@ -335,4 +382,5 @@ func runMacroRegressionFixtures(database: GRDBDatabase) throws {
     try validateBlobOptionalAndEnumColumns(database: database)
     try validateManyStoredProperties(database: database)
     try validateCompositeResultSelection(database: database)
+    try validatePropertyDefaults(database: database)
 }

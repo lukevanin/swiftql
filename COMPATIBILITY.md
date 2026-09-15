@@ -42,8 +42,8 @@ have separate responsibilities:
   performance diagnostic executables, not application runtime dependencies or
   database adapters.
 
-The manifest's dependency bounds are SwiftSyntax 509.0.0, GRDB 6.29.3 or later,
-Swift-DocC plugin 1.0.0 or later, and OpenCombine 0.14.0 or later. SwiftSyntax also
+The manifest's dependency bounds are SwiftSyntax 509.0.0, GRDB 6.29.3 or a later
+6.x release, Swift-DocC plugin 1.0.0 or later, and OpenCombine 0.14.0 or later. SwiftSyntax also
 retains its existing compatible-from-509.0.0 manifest range. OpenCombine is a
 Linux-only dependency: every OpenCombine product carries
 `condition: .when(platforms: [.linux])`, so an Apple-platform build compiles and
@@ -54,6 +54,18 @@ graph; clean-resolution jobs prove that the declared ranges still resolve and
 pass. The exact resolved versions and loaded SQLite source ID are CI evidence,
 not a promise that every future dependency version in those ranges is already
 supported.
+
+SwiftQL 1.x supports GRDB 6 only. The manifest declares `from: "6.29.3"`, which
+SwiftPM reads as `6.29.3..<7.0.0`. SwiftPM allows one GRDB version in a package
+graph, so an application that already depends on GRDB 7 gets a
+dependency-resolution conflict when it adds SwiftQL 1.x. GRDB 7 renames the
+`CSQLite` product that SwiftQL's validator links, stops re-exporting the SQLite
+C module from `import GRDB`, and requires `Sendable` observation and function
+closures. One manifest cannot name that product for both majors, and a clean
+concurrency build on GRDB 7 needs the v2.0 `Row: Sendable` decision
+([#685](https://github.com/lukevanin/swiftql/issues/685)). The complete break
+list and the decision are in
+[Research/GRDB7Evaluation.md](Research/GRDB7Evaluation.md).
 
 The reusable-query ownership model introduced in v1.2 remains unchanged in
 v1.3. An `XLStaticQueryDescriptor` and `XLInvocationBindings` are immutable,
@@ -79,6 +91,16 @@ against `IntegrationTests/BuildValidationPluginFixture`: `verify.sh` drives
 `swift build` and `verify-xcode.sh` drives `xcodebuild -destination
 'platform=macOS'`, and both assert the same outcomes — a valid manifest builds,
 and an invalid one fails with the validator's own diagnostic.
+
+From v1.9.0 an Xcode project target, such as an application, can adopt the
+plugin as well as a SwiftPM target, through its `XcodeBuildToolPlugin`
+conformance (#666). On v1.5.6 through v1.8.x only a SwiftPM target can, so an
+application puts its validated queries in a local package. `verify-xcode.sh`
+builds the fixture's `XcodeApp/ValidatedApp.xcodeproj` application target and
+asserts the correctness report, the plan sidecar, and the failure on an invalid
+manifest. The application-target path is verified on Xcode 27.0 (27A266a),
+macOS 26.6.2 (25G83) arm64, only. Older Xcode versions are not verified for
+it, even where they verify the SwiftPM-target path above.
 
 `verify.sh` runs in CI on every cell of the pinned compatibility matrix, so the
 `swift build` contract is gated on each supported Swift series and platform.
@@ -493,6 +515,30 @@ The matrix is therefore laid out against that limit:
 - The longest macOS cell carries as little as it can. It no longer repeats the
   strict-concurrency build, which the Swift 6.0 clean cell runs with the same
   compiler, or the playground check.
+
+Measured job durations after the change come from pull request run
+[34984313416](https://github.com/lukevanin/swiftql/actions/runs/34984313416)
+at commit `12c52ff9`. The longest macOS cell, Swift 6.0 committed resolution,
+ran 26.3 minutes; it ran 24.3, 29.9, and 32.5 minutes in the three runs above.
+A pull request run has no Swift 6.1, 6.2, or 6.3 Apple cells and no
+documentation build, and that run waited behind other pull requests for macOS
+slots, so its own wall time is not a `main` figure. The figure for `main` is
+therefore modelled. The model takes each changed job's duration from the pull
+request run and each unchanged job's duration from the `main` run, and then
+queues the jobs on five macOS slots in the order that `main` run started them:
+
+| Start order from `main` run | Measured before | Modelled before | Modelled after |
+| --- | --- | --- | --- |
+| 34253969337 | 32 min | 29.6 min | 26.3 min |
+| 34956094216 | 44 min | 39.1 min | 35.5 min |
+| 34964533434 | 53 min | 40.1 min | 30.0 min |
+
+The model assumes this repository has all five slots, so it gives lower
+figures than the measured runs, where other pull requests also held slots.
+Compare the modelled columns with each other: on the same start orders, the
+change lowers the modelled wall time by 3 to 10 minutes. The first push to
+`main` after the v1.9 release work merges confirms the real figure; record it
+here.
 
 Keep new macOS-only work inside an existing macOS job where it fits, and put
 anything that does not need Xcode on a Linux cell. If the account moves to a

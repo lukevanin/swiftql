@@ -8582,6 +8582,13 @@
           ]
         },
         {
+          "symbol": "XLExpression.validJSONOrJSONBOrNull",
+          "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
+          "source_tokens": [
+            "validJSONOrJSONBOrNull"
+          ]
+        },
+        {
           "symbol": "XLExpression.jsonArrayLength",
           "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
           "source_tokens": [
@@ -8682,7 +8689,7 @@
         "evidence.syntax.expression.render-json-surface"
       ],
       "deviations": [
-        "Two members need a newer SQLite than the oldest runtime in the supported matrix: json_valid(X, F) needs 3.45.0 and json_pretty needs 3.46.0, while the macOS cells run 3.43.2. Both are covered by execution tests that ask the connection what it defines and skip otherwise, and neither has a combinatorial case, because a missing capability is a failure in that harness rather than a skip.",
+        "Two members need a newer SQLite than the oldest runtime in the supported matrix: json_valid(X, F), including validJSONOrJSONBOrNull(), needs 3.45.0 and json_pretty needs 3.46.0, while the macOS cells run 3.43.2. Both are covered by execution tests that ask the connection what it defines and skip otherwise, and neither has a combinatorial case, because a missing capability is a failure in that harness rather than a skip.",
         "SQLite returns NULL rather than false for json_valid(NULL), so validJSON() is deprecated in favour of validJSONOrNull(), whose result is optional. The deprecated spelling still compiles and renders identical SQL."
       ],
       "follow_up_issues": [],
