@@ -1097,6 +1097,31 @@ struct GRDBDatabaseDriverConnection:
     #endif
 
     ///
+    /// Executes one row of a batch insert: `packet`'s values, bound by position
+    /// to `statement` (issue #668).
+    ///
+    /// The batch prepares `statement` once, on this connection, inside the
+    /// connection access that runs every row, and drops it when that access
+    /// returns. Binding by position is correct because every slot of a batch
+    /// statement is a named parameter in logical index order, which is exactly
+    /// the positional table `statementArguments(_:)` builds for such a layout.
+    /// This path skips that per-row dictionary. GRDB still checks the argument
+    /// count against the statement's parameters before it binds.
+    ///
+    mutating func executeBatchRow(
+        _ statement: GRDBPhysicalStatement,
+        bindings packet: XLInvocationBindings<XLSQLiteValue>
+    ) throws {
+        try validateOwnership(of: statement)
+        var arguments: [(any DatabaseValueConvertible)?] = []
+        arguments.reserveCapacity(packet.bindings.count)
+        for binding in packet.bindings {
+            arguments.append(binding.value.databaseValue)
+        }
+        try statement.statement.execute(arguments: StatementArguments(arguments))
+    }
+
+    ///
     /// Runs `operation` on this connection inside a SQLite savepoint (issue
     /// #668).
     ///

@@ -9,8 +9,8 @@
 //  a loop of `makeRequest(with: sqlInsert(row)).execute()` renders one
 //  statement per row, and every distinct row is a distinct SQL string that
 //  SQLite prepares again. `insert(contentsOf:)` renders the insert once with a
-//  placeholder where each literal was, and binds every row's values through an
-//  invocation packet.
+//  placeholder where each literal was, prepares it once for the call, and
+//  binds every row's values through an invocation packet.
 //
 
 import Foundation
@@ -24,10 +24,8 @@ extension GRDBDatabase {
     ///
     /// The statement is the one `sqlInsert(_:)` renders for the first row, with
     /// a bound parameter in place of each literal value. It is rendered once
-    /// per call, and each row binds its values to it through an immutable
-    /// invocation packet. Because the SQL text is the same for every row,
-    /// GRDB's per-connection statement cache prepares it once per connection
-    /// and reuses it for every later row.
+    /// and prepared once per call, and each row binds its values to it through
+    /// an immutable invocation packet.
     ///
     /// All rows run on one connection, in sequence order, and the call is one
     /// unit: when a row fails, no row of this call stays written.
@@ -48,12 +46,16 @@ extension GRDBDatabase {
     /// element must not use a database itself: the root database is rejected
     /// from inside the access, as it is from inside a transaction body.
     ///
-    /// SwiftQL keeps only the rendered SQL and its parameter layout between
-    /// rows. The prepared statement stays owned by the connection that
-    /// prepared it and is never kept past the connection access of this call.
+    /// SwiftQL keeps the prepared statement only for the duration of this
+    /// call's connection access, on the connection that prepared it. It is
+    /// dropped before the call returns, so a pooled connection or an ended
+    /// scope never keeps it.
     ///
-    /// A row whose values cannot be bound to the shared statement is rendered
-    /// and executed exactly as `sqlInsert(_:)` would, inside the same
+    /// The first row's packet is validated exactly as every request's packet
+    /// is. Each later row is bound only after its values clause is shown to
+    /// have the same shape as the first row's, so its values match the same
+    /// slots. A row whose values cannot be bound to the shared statement is
+    /// rendered and executed exactly as `sqlInsert(_:)` would, inside the same
     /// transaction. That covers a value that renders as more than one literal
     /// or as SQL other than a literal, such as a custom literal type that wraps
     /// its value in a function call, and a value that fails to render, such as
@@ -119,8 +121,9 @@ extension GRDBDatabase {
 /// `insert(contentsOf:)` call (issue #668).
 ///
 /// Holds the logical statement only: SQL text, parameter layout, and the
-/// recorded shape of the values clause. A physical statement is looked up on
-/// the connection for each row and is never stored here.
+/// recorded shape of the values clause. The physical statement is prepared by
+/// `insertRows(first:rest:in:)` on the connection it is given, and is a local
+/// value of that method.
 ///
 struct GRDBInsertBatch<Row>
 where
@@ -137,9 +140,6 @@ where
         /// row binds to the template only when its values clause records the
         /// same shape.
         let shape: [XLInsertValueCaptureToken]
-
-        /// The parameter slot for each captured value, in capture order.
-        let slots: [XLParameterSlot]
     }
 
     private let database: GRDBDatabase
@@ -157,7 +157,7 @@ where
         database: GRDBDatabase,
         row: Row
     ) -> Template? {
-        let recorder = XLInsertValueCaptureRecorder(expectedShape: nil)
+        let recorder = XLInsertValueCaptureRecorder()
         let schema = XLSchema()
         let table = schema.table(Row.self)
         // The same statement `sqlInsert(_:)` builds, except that the values
@@ -176,21 +176,22 @@ where
             encoding.valueEncodingError == nil,
             encoding.parameterLayoutError == nil,
             encoding.customFunctions.isEmpty,
-            encoding.parameterLayout.count == recorder.values.count
+            encoding.parameterLayout.count == recorder.valueCount
         else {
             return nil
         }
-        var slots: [XLParameterSlot] = []
-        slots.reserveCapacity(recorder.values.count)
-        for index in recorder.values.indices {
+        // Rows bind their values by position, which is correct only when every
+        // slot is the named parameter this capture declared, in render order,
+        // with no codec.
+        for (offset, slot) in encoding.parameterLayout.slots.enumerated() {
             guard
-                let slot = encoding.parameterLayout.slot(
-                    for: XLInsertValueCaptureRecorder.key(forValueAt: index)
-                )
+                slot.index.rawValue == offset,
+                slot.key == XLInsertValueCaptureRecorder.key(forValueAt: offset),
+                slot.codecIdentity == nil,
+                slot.nullability == .nullable
             else {
                 return nil
             }
-            slots.append(slot)
         }
         return Template(
             executor: GRDBInvocationExecutor(
@@ -202,8 +203,7 @@ where
                 valueEncodingError: encoding.valueEncodingError,
                 customFunctions: encoding.customFunctions
             ),
-            shape: recorder.shape,
-            slots: slots
+            shape: recorder.shape
         )
     }
 
@@ -213,47 +213,52 @@ where
         rest: inout Rest,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws where Rest: IteratorProtocol, Rest.Element == Row {
-        try insert(first, in: &connection)
-        while let row = rest.next() {
-            try insert(row, in: &connection)
-        }
-    }
-
-    /// Inserts `row` on `connection`, which the caller holds for the whole
-    /// batch.
-    func insert(
-        _ row: Row,
-        in connection: inout GRDBDatabaseDriverConnection
-    ) throws {
-        if let template {
-            let recorder = XLInsertValueCaptureRecorder(
-                expectedShape: template.shape
-            )
-            var capture: XLBuilder = XLInsertValueCaptureBuilder(
-                base: nil,
-                recorder: recorder
-            )
-            Row.MetaInsert(row).makeSQL(context: &capture)
-            if recorder.matchesExpectedShape {
-                var bindings: [XLInvocationBinding<XLSQLiteValue>] = []
-                bindings.reserveCapacity(template.slots.count)
-                for (slot, value) in zip(template.slots, recorder.values) {
-                    bindings.append(
-                        try XLInvocationBinding(slot: slot, value: value)
-                    )
-                }
-                try execute(
-                    XLInvocationBindings(
-                        layout: template.executor.parameterLayout,
-                        bindings: bindings
-                    ),
-                    executor: template.executor,
-                    in: &connection
-                )
-                return
+        guard let template else {
+            try insertRendered(first, in: &connection)
+            while let row = rest.next() {
+                try insertRendered(row, in: &connection)
             }
+            return
         }
-        try insertRendered(row, in: &connection)
+        let executor = template.executor
+        let layout = executor.parameterLayout
+        // Prepared once for this call, on this connection. It is a local value,
+        // so it cannot outlive the connection access the caller holds.
+        try connection.registerCustomFunctions(executor.customFunctions)
+        let statement = try connection.prepare(executor.logicalStatement)
+        let capture = XLInsertValueRecorder(expectedShape: template.shape)
+        var isFirstRow = true
+        var next: Row? = first
+        while let row = next {
+            if let values = capture.capture(Row.MetaInsert(row)) {
+                if isFirstRow {
+                    // The first row's packet goes through the same checks as
+                    // every request's packet. Later rows have the same shape,
+                    // so their values match the same slots.
+                    var bindings: [XLInvocationBinding<XLSQLiteValue>] = []
+                    bindings.reserveCapacity(values.count)
+                    for (slot, value) in zip(layout.slots, values) {
+                        bindings.append(try XLInvocationBinding(slot: slot, value: value))
+                    }
+                    _ = try executor.sqlitePacket(
+                        XLInvocationBindings(layout: layout, bindings: bindings)
+                    )
+                    isFirstRow = false
+                }
+                let packet = XLInvocationBindings(
+                    layout: layout,
+                    trustedValuesInSlotOrder: values
+                )
+                database.logger?.debug(
+                    "execute: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>"
+                )
+                try connection.executeBatchRow(statement, bindings: packet)
+            }
+            else {
+                try insertRendered(row, in: &connection)
+            }
+            next = rest.next()
+        }
     }
 
     /// Renders and executes `row` exactly as
@@ -278,19 +283,9 @@ where
         if let error = executor.parameterLayoutError {
             throw error
         }
-        try execute(
-            XLInvocationBindings<XLSQLiteValue>(layout: executor.parameterLayout),
-            executor: executor,
-            in: &connection
+        let packet = try executor.sqlitePacket(
+            XLInvocationBindings<XLSQLiteValue>(layout: executor.parameterLayout)
         )
-    }
-
-    private func execute(
-        _ bindings: XLInvocationBindings<XLSQLiteValue>,
-        executor: GRDBInvocationExecutor,
-        in connection: inout GRDBDatabaseDriverConnection
-    ) throws {
-        let packet = try executor.sqlitePacket(bindings)
         database.logger?.debug(
             "execute: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>"
         )
@@ -325,40 +320,21 @@ enum XLInsertValueCaptureToken: Equatable {
 
 
 ///
-/// Shared state of one values-clause capture: the literal values in render
-/// order, the recorded shape, and whether the clause can be bound.
+/// What the template row's capture recorded: its shape, how many literal
+/// values it replaced with parameters, and whether it could replace them all.
 ///
 final class XLInsertValueCaptureRecorder {
 
-    /// The captured literal values, in render order.
-    private(set) var values: [XLSQLiteValue] = []
-
-    /// The recorded shape. Empty when an expected shape was given.
+    /// The recorded shape.
     private(set) var shape: [XLInsertValueCaptureToken] = []
+
+    /// How many literal values became parameters.
+    private(set) var valueCount = 0
 
     /// `false` once the clause rendered something other than the literal
     /// values, names, lists, blocks, and prefixes a generated `MetaInsert`
     /// renders, or a literal that fails to render.
     private(set) var isParameterizable = true
-
-    private let expectedShape: [XLInsertValueCaptureToken]?
-
-    private var position = 0
-
-    init(expectedShape: [XLInsertValueCaptureToken]?) {
-        self.expectedShape = expectedShape
-        if let expectedShape {
-            values.reserveCapacity(expectedShape.count)
-        }
-    }
-
-    /// Whether a capture against an expected shape matched all of it.
-    var matchesExpectedShape: Bool {
-        guard let expectedShape else {
-            return false
-        }
-        return isParameterizable && position == expectedShape.count
-    }
 
     /// The parameter key for the value at `index` in render order.
     static func key(forValueAt index: Int) -> XLBindingKey {
@@ -369,23 +345,15 @@ final class XLInsertValueCaptureRecorder {
         guard isParameterizable else {
             return
         }
-        guard let expectedShape else {
-            shape.append(token)
-            return
-        }
-        guard position < expectedShape.count, expectedShape[position] == token else {
-            isParameterizable = false
-            return
-        }
-        position += 1
+        shape.append(token)
     }
 
     /// Records a literal value and returns the declaration of the parameter
     /// that takes its place.
-    func recordValue(_ value: XLSQLiteValue) -> XLParameterDeclaration {
+    func recordValue() -> XLParameterDeclaration {
         record(.value)
-        let key = Self.key(forValueAt: values.count)
-        values.append(value)
+        let key = Self.key(forValueAt: valueCount)
+        valueCount += 1
         return XLParameterDeclaration(
             key: key,
             valueTypeIdentifier: XLValueTypeIdentifier(
@@ -428,23 +396,21 @@ struct XLInsertValueParameterization: XLEncodable {
 
 
 ///
-/// A builder that records the calls a generated `MetaInsert` makes and
-/// forwards them to `base`, with a parameter in place of each literal value.
-///
-/// With no `base`, it only records. That is how a later row's values are
-/// captured without rendering any SQL.
+/// A builder that records the calls a generated `MetaInsert` makes for the
+/// template row and forwards them to `base`, with a parameter in place of each
+/// literal value. It runs once per `insert(contentsOf:)` call.
 ///
 /// Every call a generated `MetaInsert` does not make marks the capture as not
 /// parameterizable and is forwarded unchanged, so the rendered text stays well
-/// formed and the caller renders that row as `sqlInsert(_:)` does.
+/// formed and the caller renders every row as `sqlInsert(_:)` does.
 ///
 struct XLInsertValueCaptureBuilder: XLBuilder {
 
-    private(set) var base: XLBuilder?
+    private(set) var base: XLBuilder
 
     let recorder: XLInsertValueCaptureRecorder
 
-    init(base: XLBuilder?, recorder: XLInsertValueCaptureRecorder) {
+    init(base: XLBuilder, recorder: XLInsertValueCaptureRecorder) {
         self.base = base
         self.recorder = recorder
     }
@@ -461,112 +427,79 @@ struct XLInsertValueCaptureBuilder: XLBuilder {
             recorder: recorder
         )
         body(&capture)
-        guard
-            let captured = capture as? XLInsertValueCaptureBuilder,
-            let base = captured.base
-        else {
+        guard let captured = capture as? XLInsertValueCaptureBuilder else {
             recorder.reject()
             return
         }
-        builder = base
-    }
-
-    /// Runs `body` against a nested builder: a capturing builder over
-    /// `nested` when forwarding, or a recording-only builder otherwise.
-    private func nested(
-        _ nested: inout XLBuilder,
-        _ body: (inout XLBuilder) -> Void
-    ) {
-        Self.forward(&nested, recorder: recorder, body: body)
-    }
-
-    private func recordOnly(_ body: (inout XLBuilder) -> Void) {
-        var capture: XLBuilder = XLInsertValueCaptureBuilder(
-            base: nil,
-            recorder: recorder
-        )
-        body(&capture)
+        builder = captured.base
     }
 
     // MARK: Recorded calls
 
     func build() -> String {
-        base?.build() ?? ""
+        base.build()
     }
 
     func entities() -> Set<String> {
-        base?.entities() ?? []
+        base.entities()
     }
 
     mutating func null() {
-        value(.null)
+        value()
     }
 
     mutating func integer(_ value: Int) {
-        self.value(.integer(Int64(value)))
+        self.value()
     }
 
     mutating func real(_ value: Double) {
         guard value.isFinite else {
             // The literal path reports a non-finite value as a rendering
             // error, where a bound parameter would store it. Keep the literal
-            // path's behavior by rendering this row as a literal.
+            // path's behavior by rendering every row as a literal.
             recorder.reject()
-            base?.real(value)
+            base.real(value)
             return
         }
-        self.value(.real(value))
+        self.value()
     }
 
     mutating func text(_ value: String) {
         guard !value.utf8.contains(0) else {
             recorder.reject()
-            base?.text(value)
+            base.text(value)
             return
         }
-        self.value(.text(value))
+        self.value()
     }
 
     mutating func blob(_ value: Data) {
-        self.value(.blob(value))
+        self.value()
     }
 
-    private mutating func value(_ value: XLSQLiteValue) {
-        let declaration = recorder.recordValue(value)
-        base?.parameter(declaration)
+    private mutating func value() {
+        base.parameter(recorder.recordValue())
     }
 
     mutating func name(_ value: XLName) {
         recorder.record(.name(value))
-        base?.name(value)
+        base.name(value)
     }
 
     mutating func list(separator: String, items: ListBuilder) {
         recorder.record(.listBegin(separator: separator))
         let recorder = recorder
-        if base != nil {
-            base!.list(separator: separator) { listBuilder in
-                var capture: XLListBuilder = XLInsertValueCaptureListBuilder(
-                    base: listBuilder,
-                    recorder: recorder
-                )
-                items(&capture)
-                guard
-                    let captured = capture as? XLInsertValueCaptureListBuilder,
-                    let base = captured.base
-                else {
-                    recorder.reject()
-                    return
-                }
-                listBuilder = base
-            }
-        }
-        else {
+        base.list(separator: separator) { listBuilder in
             var capture: XLListBuilder = XLInsertValueCaptureListBuilder(
-                base: nil,
+                base: listBuilder,
                 recorder: recorder
             )
             items(&capture)
+            guard let captured = capture as? XLInsertValueCaptureListBuilder else {
+                recorder.reject()
+                return
+            }
+            listBuilder = captured.base
         }
         recorder.record(.listEnd)
     }
@@ -580,32 +513,22 @@ struct XLInsertValueCaptureBuilder: XLBuilder {
         recorder.record(
             .blockBegin(prefix: prefix, suffix: suffix, separator: separator)
         )
-        if base != nil {
-            let capture = self
-            base!.block(
-                beginsWith: prefix,
-                endsWith: suffix,
-                separator: separator
-            ) { nested in
-                capture.nested(&nested, contents)
-            }
-        }
-        else {
-            recordOnly(contents)
+        let recorder = recorder
+        base.block(
+            beginsWith: prefix,
+            endsWith: suffix,
+            separator: separator
+        ) { nested in
+            Self.forward(&nested, recorder: recorder, body: contents)
         }
         recorder.record(.blockEnd)
     }
 
     mutating func unaryPrefix(_ operator: String, expression: Builder) {
         recorder.record(.unaryPrefixBegin(`operator`))
-        if base != nil {
-            let capture = self
-            base!.unaryPrefix(`operator`) { nested in
-                capture.nested(&nested, expression)
-            }
-        }
-        else {
-            recordOnly(expression)
+        let recorder = recorder
+        base.unaryPrefix(`operator`) { nested in
+            Self.forward(&nested, recorder: recorder, body: expression)
         }
         recorder.record(.unaryPrefixEnd)
     }
@@ -614,97 +537,97 @@ struct XLInsertValueCaptureBuilder: XLBuilder {
 
     mutating func entity(_ name: String) {
         recorder.reject()
-        base?.entity(name)
+        base.entity(name)
     }
 
     mutating func customFunction(_ registration: XLCustomFunctionRegistration) {
         recorder.reject()
-        base?.customFunction(registration)
+        base.customFunction(registration)
     }
 
     mutating func valueEncodingFailed(_ error: XLSQLValueEncodingError) {
         recorder.reject()
-        base?.valueEncodingFailed(error)
+        base.valueEncodingFailed(error)
     }
 
     mutating func qualifiedName(_ value: XLQualifiedName) {
         recorder.reject()
-        base?.qualifiedName(value)
+        base.qualifiedName(value)
     }
 
     mutating func namedBinding(_ name: XLName) {
         recorder.reject()
-        base?.namedBinding(name)
+        base.namedBinding(name)
     }
 
     mutating func indexedBinding(_ index: Int) {
         recorder.reject()
-        base?.indexedBinding(index)
+        base.indexedBinding(index)
     }
 
     mutating func parameter(_ slot: XLParameterSlot) {
         recorder.reject()
-        base?.parameter(slot)
+        base.parameter(slot)
     }
 
     mutating func parameter(_ declaration: XLParameterDeclaration) {
         recorder.reject()
-        base?.parameter(declaration)
+        base.parameter(declaration)
     }
 
     mutating func unarySuffix(_ operator: String, expression: Builder) {
         recorder.reject()
-        base?.unarySuffix(`operator`, expression: expression)
+        base.unarySuffix(`operator`, expression: expression)
     }
 
     mutating func unaryOperator(_ operator: String, expression: Builder) {
         recorder.reject()
-        base?.unaryOperator(`operator`, expression: expression)
+        base.unaryOperator(`operator`, expression: expression)
     }
 
     mutating func binaryOperator(_ operator: String, left: Builder, right: Builder) {
         recorder.reject()
-        base?.binaryOperator(`operator`, left: left, right: right)
+        base.binaryOperator(`operator`, left: left, right: right)
     }
 
     mutating func between(term: Builder, minimum: Builder, maximum: Builder) {
         recorder.reject()
-        base?.between(term: term, minimum: minimum, maximum: maximum)
+        base.between(term: term, minimum: minimum, maximum: maximum)
     }
 
     mutating func cast(type: String, expression: Builder) {
         recorder.reject()
-        base?.cast(type: type, expression: expression)
+        base.cast(type: type, expression: expression)
     }
 
     mutating func simpleFunction(name: String, parameters: ListBuilder) {
         recorder.reject()
-        base?.simpleFunction(name: name, parameters: parameters)
+        base.simpleFunction(name: name, parameters: parameters)
     }
 
     mutating func aggregateFunction(name: String, distinct: Bool, parameters: ListBuilder) {
         recorder.reject()
-        base?.aggregateFunction(name: name, distinct: distinct, parameters: parameters)
+        base.aggregateFunction(name: name, distinct: distinct, parameters: parameters)
     }
 
     mutating func alias(_ name: XLName, expression: Builder) {
         recorder.reject()
-        base?.alias(name, expression: expression)
+        base.alias(name, expression: expression)
     }
 
     mutating func commonTables(builder: CommonTablesBuilder) {
         recorder.reject()
-        base?.commonTables(builder: builder)
+        base.commonTables(builder: builder)
     }
 
     mutating func createTable(_ name: XLQualifiedName) {
         recorder.reject()
-        base?.createTable(name)
+        base.createTable(name)
     }
 
     mutating func createTable(_ name: XLQualifiedName, builder: ColumnsBuilder) {
         recorder.reject()
-        base?.createTable(name, builder: builder)
+        base.createTable(name, builder: builder)
     }
 }
 
@@ -714,42 +637,266 @@ struct XLInsertValueCaptureBuilder: XLBuilder {
 ///
 struct XLInsertValueCaptureListBuilder: XLListBuilder {
 
-    private(set) var base: XLListBuilder?
+    private(set) var base: XLListBuilder
 
     let recorder: XLInsertValueCaptureRecorder
 
-    init(base: XLListBuilder?, recorder: XLInsertValueCaptureRecorder) {
+    init(base: XLListBuilder, recorder: XLInsertValueCaptureRecorder) {
         self.base = base
         self.recorder = recorder
     }
 
     func build() -> String {
-        base?.build() ?? ""
+        base.build()
     }
 
     func entities() -> Set<String> {
-        base?.entities() ?? []
+        base.entities()
     }
 
     mutating func listItem(expression: Builder) {
         recorder.record(.listItemBegin)
         let recorder = recorder
-        if base != nil {
-            base!.listItem { nested in
-                XLInsertValueCaptureBuilder.forward(
-                    &nested,
-                    recorder: recorder,
-                    body: expression
-                )
-            }
-        }
-        else {
-            var capture: XLBuilder = XLInsertValueCaptureBuilder(
-                base: nil,
-                recorder: recorder
+        base.listItem { nested in
+            XLInsertValueCaptureBuilder.forward(
+                &nested,
+                recorder: recorder,
+                body: expression
             )
-            expression(&capture)
         }
         recorder.record(.listItemEnd)
+    }
+}
+
+
+///
+/// Captures a later row's literal values without rendering any SQL, and checks
+/// that its values clause has the template row's shape (issue #668).
+///
+/// One instance serves every row of one `insert(contentsOf:)` call. It is a
+/// class that is both the builder and the list builder, so the nested builder
+/// a generated `MetaInsert` passes to each closure is this same reference: no
+/// builder is boxed, copied, or cast per nesting level, and the values array
+/// keeps its storage from row to row.
+///
+final class XLInsertValueRecorder: XLBuilder, XLListBuilder {
+
+    private let expectedShape: [XLInsertValueCaptureToken]
+
+    private var position = 0
+
+    private var isMatching = true
+
+    private var values: [XLSQLiteValue] = []
+
+    init(expectedShape: [XLInsertValueCaptureToken]) {
+        self.expectedShape = expectedShape
+        values.reserveCapacity(
+            expectedShape.reduce(0) { count, token in
+                token == .value ? count + 1 : count
+            }
+        )
+    }
+
+    /// The literal values `meta` renders, in render order, or `nil` when its
+    /// values clause does not have the expected shape or has a value that
+    /// cannot be bound.
+    func capture(_ meta: some XLEncodable) -> [XLSQLiteValue]? {
+        position = 0
+        isMatching = true
+        values.removeAll(keepingCapacity: true)
+        var builder: XLBuilder = self
+        meta.makeSQL(context: &builder)
+        guard isMatching, position == expectedShape.count else {
+            return nil
+        }
+        return values
+    }
+
+    private func record(_ token: XLInsertValueCaptureToken) {
+        guard isMatching else {
+            return
+        }
+        guard position < expectedShape.count, expectedShape[position] == token else {
+            isMatching = false
+            return
+        }
+        position += 1
+    }
+
+    private func recordValue(_ value: XLSQLiteValue) {
+        record(.value)
+        if isMatching {
+            values.append(value)
+        }
+    }
+
+    private func mismatch() {
+        isMatching = false
+    }
+
+    // MARK: Recorded calls
+
+    func build() -> String {
+        ""
+    }
+
+    func entities() -> Set<String> {
+        []
+    }
+
+    func null() {
+        recordValue(.null)
+    }
+
+    func integer(_ value: Int) {
+        recordValue(.integer(Int64(value)))
+    }
+
+    func real(_ value: Double) {
+        guard value.isFinite else {
+            mismatch()
+            return
+        }
+        recordValue(.real(value))
+    }
+
+    func text(_ value: String) {
+        guard !value.utf8.contains(0) else {
+            mismatch()
+            return
+        }
+        recordValue(.text(value))
+    }
+
+    func blob(_ value: Data) {
+        recordValue(.blob(value))
+    }
+
+    func name(_ value: XLName) {
+        record(.name(value))
+    }
+
+    func list(separator: String, items: ListBuilder) {
+        record(.listBegin(separator: separator))
+        guard isMatching else {
+            return
+        }
+        var listBuilder: XLListBuilder = self
+        items(&listBuilder)
+        record(.listEnd)
+    }
+
+    func listItem(expression: Builder) {
+        record(.listItemBegin)
+        guard isMatching else {
+            return
+        }
+        var builder: XLBuilder = self
+        expression(&builder)
+        record(.listItemEnd)
+    }
+
+    func block(
+        beginsWith prefix: String,
+        endsWith suffix: String,
+        separator: XLSeparator,
+        contents: Builder
+    ) {
+        record(.blockBegin(prefix: prefix, suffix: suffix, separator: separator))
+        guard isMatching else {
+            return
+        }
+        var builder: XLBuilder = self
+        contents(&builder)
+        record(.blockEnd)
+    }
+
+    func unaryPrefix(_ operator: String, expression: Builder) {
+        record(.unaryPrefixBegin(`operator`))
+        guard isMatching else {
+            return
+        }
+        var builder: XLBuilder = self
+        expression(&builder)
+        record(.unaryPrefixEnd)
+    }
+
+    // MARK: Calls a generated MetaInsert does not make
+
+    func entity(_ name: String) {
+        mismatch()
+    }
+
+    func customFunction(_ registration: XLCustomFunctionRegistration) {
+        mismatch()
+    }
+
+    func valueEncodingFailed(_ error: XLSQLValueEncodingError) {
+        mismatch()
+    }
+
+    func qualifiedName(_ value: XLQualifiedName) {
+        mismatch()
+    }
+
+    func namedBinding(_ name: XLName) {
+        mismatch()
+    }
+
+    func indexedBinding(_ index: Int) {
+        mismatch()
+    }
+
+    func parameter(_ slot: XLParameterSlot) {
+        mismatch()
+    }
+
+    func parameter(_ declaration: XLParameterDeclaration) {
+        mismatch()
+    }
+
+    func unarySuffix(_ operator: String, expression: Builder) {
+        mismatch()
+    }
+
+    func unaryOperator(_ operator: String, expression: Builder) {
+        mismatch()
+    }
+
+    func binaryOperator(_ operator: String, left: Builder, right: Builder) {
+        mismatch()
+    }
+
+    func between(term: Builder, minimum: Builder, maximum: Builder) {
+        mismatch()
+    }
+
+    func cast(type: String, expression: Builder) {
+        mismatch()
+    }
+
+    func simpleFunction(name: String, parameters: ListBuilder) {
+        mismatch()
+    }
+
+    func aggregateFunction(name: String, distinct: Bool, parameters: ListBuilder) {
+        mismatch()
+    }
+
+    func alias(_ name: XLName, expression: Builder) {
+        mismatch()
+    }
+
+    func commonTables(builder: CommonTablesBuilder) {
+        mismatch()
+    }
+
+    func createTable(_ name: XLQualifiedName) {
+        mismatch()
+    }
+
+    func createTable(_ name: XLQualifiedName, builder: ColumnsBuilder) {
+        mismatch()
     }
 }
