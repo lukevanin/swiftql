@@ -11,7 +11,7 @@ release, are immutable. A new release never rewrites them.
 
 The [Verified release workflow](.github/workflows/release.yml) treats a tag as
 an untrusted request. It publishes only after it has proved that the exact tag
-commit is still reachable from `main`, run the seven-cell Swift compatibility
+commit is still reachable from `main`, run the eight-cell Swift compatibility
 matrix, and built the exact commit's validated DocC artifact.
 
 ## Before a release
@@ -62,17 +62,21 @@ matrix, and built the exact commit's validated DocC artifact.
    and the per-release evidence recorded in the release issue are still
    required in that case; only the checked-in audit document is deferred.
 2. Confirm the latest `main` runs of **Swift compatibility** and
-   **Documentation** pass. The compatibility run must contain all seven
+   **Documentation** pass. The compatibility run must contain all eight
    release-blocking compiler cells: committed and clean resolution for each of
-   the pinned Swift 5.9 and Swift 6.0 support points, plus clean resolution for
-   Swift 6.1, 6.2, and 6.3. Verify the deployed documentation provenance names
-   that `main` commit.
+   the pinned Swift 5.9 and Swift 6.0 support points, clean resolution for
+   Swift 6.1, 6.2, and 6.3 on macOS, and clean resolution for Swift 6.3 on
+   Linux. The Swift 6.0 committed cell also carries the source coverage
+   capture. Verify the deployed documentation provenance names that `main`
+   commit.
 3. Run `scripts/ci/test-release-workflow.sh` locally. This exercises the tag,
    reachability, packaging, dry-run, partial-draft, rerun, and conflict paths
    without calling GitHub's write APIs.
 4. Run the safe test tags below while the changelog still says `Unreleased`.
-   `scripts/ci/check-release-changelog.sh` skips `release-test/` tags outright,
-   so the dry runs neither need nor exercise the dated heading.
+   `scripts/ci/check-release-changelog.sh` and
+   `scripts/ci/check-release-version-claims.sh` skip `release-test/` tags
+   outright, so the dry runs neither need nor exercise the dated heading or the
+   version bump.
 
    After they pass, date the heading for the version, replacing
    `## [X.Y.Z] - Unreleased` with exactly `## [X.Y.Z] - YYYY-MM-DD`. Production
@@ -212,12 +216,27 @@ the milestone actually shipped, and correct:
   version is published lives in six places, and every one of them ships stale
   if it is missed: README.md, `Sources/SwiftQL/SwiftQL.docc/GettingStarted.md`,
   `Sources/SwiftQL/SwiftQL.docc/SwiftQL.md`, SKILL.md's front-matter
-  description and its body, and Website/index.html. Bump them together.
-  `SQLDocumentationCatalogTests.testV13PublicDocumentsShareReleaseAndBoundaryContract`
-  and `SQLSkillDocumentationTests` pin the exact strings, so the pins move in
-  the same change — a bump that updates the prose but not the test fails the
-  suite, and one that updates neither passes it while shipping the wrong
-  number.
+  description and its body, and Website/index.html. Bump them together, in
+  the same change that dates the changelog heading.
+  `scripts/ci/check-release-version-claims.sh` runs in the release workflow's
+  validation job, on the exact tag commit, and fails a production tag unless
+  all six claims, and every `.package(url: ..., from:)` requirement on
+  SwiftQL in those documents, name the tag's version. The Swift test suite
+  pins no version: `SQLDocumentationCatalogTests` and
+  `SQLSkillDocumentationTests` require only that the claims agree with the
+  newest dated `## [X.Y.Z] - YYYY-MM-DD` heading in CHANGELOG.md. A version
+  bump therefore touches no test file. A bump that dates the heading but
+  misses a document fails the suite, and a tag whose documents still name the
+  previous version fails the release gate before the compiler matrix runs.
+  The gate also fails when any published-version sentence in those documents
+  names another version, so a stale claim cannot sit beside a current one.
+
+  One file under `Tests/` still carries a release-line version:
+  `Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json`
+  records `inventory_version`. That file is conformance data, not test code,
+  and it changes only when the inventory itself is bumped (see "Conformance
+  inventory" below), not for every version bump. It is the one exception; no
+  test source pins a version.
 
 The landing page at [Website/index.html](Website/index.html) restates the
 tagline, the comparison table, the "Choose something else when" list, and the
@@ -413,7 +432,7 @@ The release workflow:
 
 1. validates and peels the event SHA and tag ref;
 2. proves the commit is reachable from current `origin/main`;
-3. invokes the reusable compatibility workflow and requires all seven compiler
+3. invokes the reusable compatibility workflow and requires all eight compiler
    cells;
 4. invokes the reusable documentation workflow without deploying Pages;
 5. packages the Pages tar as `swiftql-docc-$release_tag.tar.gz` and creates
@@ -422,8 +441,8 @@ The release workflow:
    marker;
 7. uploads and verifies all three assets, then immediately refetches and
    revalidates the exact tag and `main` reachability before publication; the
-   dated changelog was validated from that same exact tag commit in the initial
-   validation job; the release issue owns the separate authenticated live
+   dated changelog and the six published-version claims were validated from
+   that same exact tag commit in the initial validation job; the release issue owns the separate authenticated live
    milestone check, because the retained readiness script is intentionally
    v1.1-only and skips every later version;
 8. publishes only a draft that already contains generated notes, polls until
@@ -442,7 +461,7 @@ Do not close the release issue when its workflow PR merges. After the tag run
 succeeds, independently verify:
 
 - the run event, ref, and head SHA match the release tag and recorded commit;
-- all seven compatibility cells and the documentation build passed;
+- all eight compatibility cells and the documentation build passed;
 - the tag still peels to that commit and remains reachable from `main`;
 - the release is published, is not a prerelease, and its generated notes contain
   the exact commit marker;

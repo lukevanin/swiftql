@@ -31,16 +31,18 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertNotIn("runner: macos-14", matrix)
         self.assertEqual(matrix.count('swift_series: "5.9"'), 2)
         self.assertEqual(matrix.count('swift_version: "5.9.2"'), 2)
-        self.assertEqual(matrix.count("swift_command_mode: path"), 2)
-        self.assertEqual(matrix.count("runner: ubuntu-22.04"), 2)
+        # Every Linux cell -- the two Swift 5.9 cells and the Swift 6.3 cell
+        # added by #672 -- installs its toolchain on PATH.
+        self.assertEqual(matrix.count("swift_command_mode: path"), 3)
+        self.assertEqual(matrix.count("runner: ubuntu-22.04"), 3)
         self.assertEqual(matrix.count("\n            runner: macos-15\n"), 2)
-        self.assertEqual(matrix.count("platform: linux"), 2)
+        self.assertEqual(matrix.count("platform: linux"), 3)
         self.assertEqual(matrix.count("platform: macos"), 2)
-        self.assertEqual(matrix.count("image_os: ubuntu22"), 2)
+        self.assertEqual(matrix.count("image_os: ubuntu22"), 3)
         self.assertEqual(matrix.count("image_os: macos15"), 2)
-        self.assertEqual(matrix.count("architecture: x86_64"), 2)
+        self.assertEqual(matrix.count("architecture: x86_64"), 3)
         self.assertEqual(matrix.count("architecture: arm64"), 2)
-        self.assertEqual(matrix.count('sqlite_version: "3.53.3"'), 2)
+        self.assertEqual(matrix.count('sqlite_version: "3.53.3"'), 3)
 
         self.assertNotIn("swift-actions/setup-swift", compatibility)
         self.assertIn(
@@ -52,15 +54,36 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
             "swift-5.9.2-RELEASE-ubuntu22.04.tar.gz",
             compatibility,
         )
-        self.assertIn("SWIFT_TOOLCHAIN_SIGNATURE_URL", compatibility)
         self.assertIn(
-            "SWIFT_TOOLCHAIN_SIGNATURE_SHA256: "
-            "325657c10c0a917cb0126aaf2ce0fe1c72bb9bf14657a89f82330839003959ed",
+            "SWIFT_TOOLCHAIN_SIGNATURE_URL: "
+            "${{ matrix.swift_toolchain_url }}.sig",
             compatibility,
         )
         self.assertIn(
-            "SWIFT_SIGNING_FINGERPRINT: "
-            "A62AE125BBBFBB96A6E042EC925CC1CCED3D1561",
+            "SWIFT_TOOLCHAIN_SIGNATURE_SHA256: "
+            "${{ matrix.swift_toolchain_signature_sha256 }}",
+            compatibility,
+        )
+        self.assertEqual(
+            matrix.count(
+                "swift_toolchain_signature_sha256: "
+                "325657c10c0a917cb0126aaf2ce0fe1c72bb9bf14657a89f82330839003959ed"
+            ),
+            2,
+        )
+        self.assertEqual(
+            matrix.count(
+                "swift_signing_fingerprint: "
+                "A62AE125BBBFBB96A6E042EC925CC1CCED3D1561"
+            ),
+            2,
+        )
+        self.assertIn(
+            "SWIFT_SIGNING_FINGERPRINT: ${{ matrix.swift_signing_fingerprint }}",
+            compatibility,
+        )
+        self.assertIn(
+            '[[ "$SWIFT_TOOLCHAIN_URL" == "$expected_toolchain_url" ]]',
             compatibility,
         )
         self.assertIn("https://keyserver.ubuntu.com/pks/lookup", compatibility)
@@ -130,6 +153,114 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn("Check named binding packet type safety", compatibility)
         self.assertIn(
             "scripts/ci/check-named-binding-packet-type-safety.sh", compatibility
+        )
+
+    def test_linux_swift6_cell_reuses_the_verified_toolchain_bootstrap(
+        self,
+    ) -> None:
+        # Issue #672: one Linux cell on Swift 6, so the OpenCombine bridge and
+        # the Foundation-backed codecs run under swift-foundation. It must use
+        # the same signature-verified archive path and pinned SQLite build as
+        # the Swift 5.9 cells, not an unverified toolchain action.
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        compatibility = workflow.split("\n  compatibility:\n", maxsplit=1)[1]
+        matrix = compatibility.split("\n    env:\n", maxsplit=1)[0]
+        entries = matrix.split("\n          - name: ")[1:]
+        linux_swift6 = [
+            entry
+            for entry in entries
+            if "platform: linux" in entry and 'swift_series: "6.' in entry
+        ]
+
+        self.assertEqual(len(linux_swift6), 1)
+        cell = linux_swift6[0]
+        self.assertTrue(cell.startswith("Swift 6.3 / Linux clean resolution\n"))
+        for expected in (
+            'swift_series: "6.3"',
+            'swift_version: "6.3.2"',
+            "swift_command_mode: path",
+            "swift_toolchain_url: https://download.swift.org/swift-6.3.2-release/"
+            "ubuntu2204/swift-6.3.2-RELEASE/swift-6.3.2-RELEASE-ubuntu22.04.tar.gz",
+            "swift_toolchain_signature_sha256: "
+            "06fcd8d2f92d9d4b557d3f832efc26a5539f7238d8ed47e0ba4e409477286581",
+            # The Swift 6.x release signing key, not the 5.x key.
+            "swift_signing_fingerprint: 52BB7E3DE28A71BE22EC05FFEF80A866B47A981F",
+            "runner: ubuntu-22.04",
+            'os_version_id: "22.04"',
+            "target_triple: x86_64-unknown-linux-gnu",
+            'sqlite_version: "3.53.3"',
+            "resolution: clean",
+            "source_coverage: false",
+        ):
+            self.assertIn(expected, cell)
+        # The macOS-only gates stay off the Linux Swift 6 cell: they are keyed
+        # to Swift 6.0, and this cell's series is 6.3.
+        self.assertNotIn('swift_series: "6.0"', cell)
+
+    def test_source_coverage_runs_once_inside_the_swift60_committed_cell(
+        self,
+    ) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertNotIn("\n  coverage:\n", workflow)
+        self.assertNotIn("swiftql-coverage-run-2", workflow)
+        compatibility = workflow.split("\n  compatibility:\n", maxsplit=1)[1]
+        matrix = compatibility.split("\n    env:\n", maxsplit=1)[0]
+        entries = matrix.split("\n          - name: ")[1:]
+        coverage_cells = [
+            entry for entry in entries if "source_coverage: true" in entry
+        ]
+        self.assertEqual(len(coverage_cells), 1)
+        self.assertTrue(
+            coverage_cells[0].startswith("Swift 6.0 / committed resolution\n")
+        )
+        self.assertEqual(matrix.count("source_coverage: false"), len(entries) - 1)
+
+        # The coverage run replaces the plain full-suite run in that cell, so
+        # the suite still runs exactly once per cell.
+        self.assertIn(
+            "      - name: Run full test suite\n"
+            "        if: ${{ !matrix.source_coverage }}\n",
+            compatibility,
+        )
+        self.assertIn(
+            "        id: coverage-capture\n"
+            "        if: ${{ matrix.source_coverage }}\n",
+            compatibility,
+        )
+        self.assertIn(
+            'scripts/ci/run-source-coverage.sh "$RUNNER_TEMP/swiftql-coverage"',
+            compatibility,
+        )
+        self.assertIn(
+            "scripts/ci/verify-source-coverage-reproducibility.sh",
+            compatibility,
+        )
+        self.assertIn(
+            "if: ${{ matrix.source_coverage && "
+            "github.event_name != 'pull_request' }}",
+            compatibility,
+        )
+
+    def test_xcode_free_gates_leave_the_longest_macos_cell(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        compatibility = workflow.split("\n  compatibility:\n", maxsplit=1)[1]
+
+        playground_step = compatibility.split(
+            "      - name: Check the Getting Started playground\n", maxsplit=1
+        )[1].split("\n      - name: ", maxsplit=1)[0]
+        self.assertIn(
+            "if: ${{ matrix.platform == 'linux' && "
+            "matrix.swift_series == '5.9' && "
+            "matrix.resolution == 'committed' }}",
+            playground_step,
+        )
+        strict_step = compatibility.split(
+            "      - name: Check complete strict concurrency\n", maxsplit=1
+        )[1].split("\n      - name: ", maxsplit=1)[0]
+        self.assertIn(
+            "if: ${{ matrix.swift_series == '6.0' && "
+            "matrix.resolution == 'clean' }}",
+            strict_step,
         )
 
     def test_linux_surface_uses_opencombine_without_conditional_exclusion(self) -> None:
@@ -219,17 +350,18 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertNotIn("cancel-in-progress: true", workflow)
 
         release_tooling = workflow.split("\n  release-tooling:\n", maxsplit=1)[1]
-        coverage = release_tooling.split("\n  coverage:\n", maxsplit=1)[1]
-        swift_series = coverage.split("\n  swift-series:\n", maxsplit=1)[1]
+        swift_series = release_tooling.split("\n  swift-series:\n", maxsplit=1)[1]
         compatibility = swift_series.split(
             "\n  compatibility:\n", maxsplit=1
         )[1]
-        release_tooling = release_tooling.split("\n  coverage:\n", maxsplit=1)[0]
-        coverage = coverage.split("\n  swift-series:\n", maxsplit=1)[0]
+        release_tooling = release_tooling.split("\n  swift-series:\n", maxsplit=1)[0]
         swift_series = swift_series.split("\n  compatibility:\n", maxsplit=1)[0]
 
+        # Source coverage is no longer a job of its own (#672); it runs inside
+        # the compatibility job's Swift 6.0 committed cell, which pull
+        # requests keep.
+        self.assertNotIn("\n  coverage:\n", workflow)
         pull_request_skip = "if: ${{ github.event_name != 'pull_request' }}"
-        self.assertIn(pull_request_skip, coverage)
         self.assertIn(pull_request_skip, swift_series)
         self.assertNotIn(pull_request_skip, release_tooling)
         self.assertNotIn(pull_request_skip, compatibility)
@@ -238,7 +370,7 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         # release-tooling job on pull requests instead of after the merge.
         membership_check = "python3 scripts/ci/check-source-target-membership.py"
         self.assertIn(membership_check, release_tooling)
-        self.assertNotIn(membership_check, coverage)
+        self.assertNotIn(membership_check, compatibility)
 
     def test_documentation_runs_cancel_superseded_pull_request_runs(
         self,

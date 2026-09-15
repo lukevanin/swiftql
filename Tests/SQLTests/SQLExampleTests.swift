@@ -1541,6 +1541,19 @@ extension XLDocumentationTests {
             3,
             "The outer body's insert must roll back with the rejected transaction."
         )
+
+        let newPeople = [
+            Person(id: "batch-1", occupationId: nil, name: "Kim", age: 41),
+            Person(id: "batch-2", occupationId: nil, name: "Lee", age: 37),
+        ]
+        try database.withTransaction { scope in
+            try scope.insert(contentsOf: newPeople)
+        }
+        XCTAssertEqual(
+            try preparedInvocation.fetchAllValues(bindings: invocationBindings).count,
+            5,
+            "Both rows of the batch must commit with the transaction."
+        )
     }
 
     /// A nullable column is assigned in a `Setting` closure the same way an
@@ -3115,7 +3128,6 @@ extension XLDocumentationTests {
             Setting(note) { row in
                 row.metadata = note.metadata
                     .jsonSetting((XLJSONPath.root.key("priority"), 1))
-                    .coalesce(note.metadata)
             }
             Where(note.id == "note-1")
         }

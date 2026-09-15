@@ -301,6 +301,56 @@ the clock covers requires a fresh recording.
 | SQLite.swift | typed query builder | 724.15 us | 1.02 ms | 138,094 | 6.1% | 8.3 MiB |
 | SwiftQL | typed transaction scope | 995.94 us | 1.27 ms | 100,408 | 1.8% | 10.3 MiB |
 
+This table describes the SwiftQL adapter as it was recorded: one
+`makeRequest(with: sqlInsert(record)).execute()` per row. Issue #668 changed
+what SwiftQL's clock covers, so the new figure is a fresh recording, below.
+
+### `transactional_write` after issue #668
+
+[Issue #668](https://github.com/lukevanin/swiftql/issues/668) changed the
+SwiftQL write adapter to one `scope.insert(contentsOf:)` call per transaction.
+The call renders the insert once, prepares it once, and binds each row through
+an invocation packet, inside a savepoint in the scope's transaction. The
+contract, the batch, the oracle, and the other two libraries' adapters did not
+change.
+
+Four reports under [`Issue668/`](Issue668/) were recorded on 2026-09-15 on the
+same Mac16,8 (Apple M4 Pro, 14 cores, 24 GiB), now on macOS 26.6.2 (25G83),
+Xcode 27.0, and Swift 6.4. Each run built the release prototype, waited out a
+60-second cooldown, and ran five independent processes per workload and
+implementation, with 10 warmups and 100 timed samples each. Every raw sample
+log is kept beside its report. The runs alternated between two clean
+revisions: "before" is `35e78e53` (`version/1.9`, per-row `sqlInsert(_:)`), and
+"after" is `54abf673` (`insert(contentsOf:)`). Other agents were building
+software on the host throughout; the one-minute load average was between 3.6
+and 11.9 on 14 cores.
+
+| Recording | SwiftQL write path | SwiftQL median | SwiftQL spread | GRDB median | GRDB spread |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 2026-08-02 (`f1202ce9`) | per-row `sqlInsert(_:)` | 995.94 us | 1.8% | 431.54 us | 8.7% |
+| 2026-09-15 before, round 1 (`35e78e53`) | per-row `sqlInsert(_:)` | 993.42 us | 5.1% | 393.31 us | 8.0% |
+| 2026-09-15 before, round 2 (`35e78e53`) | per-row `sqlInsert(_:)` | 1.00 ms | 4.0% | 394.23 us | 1.8% |
+| 2026-09-15 after, round 1 (`54abf673`) | `insert(contentsOf:)` | 363.98 us | 5.3% | 394.08 us | 15.9% |
+| 2026-09-15 after, round 2 (`54abf673`) | `insert(contentsOf:)` | 358.17 us | 4.5% | 387.06 us | 5.0% |
+
+What these runs support:
+
+- **The batch path is about 2.8x faster than the per-row path.** SwiftQL's
+  median fell from 993.42 us and 1.00 ms to 363.98 us and 358.17 us, against
+  process spreads of 4.0% to 5.3%. The two "before" runs also agree with the
+  2026-08-02 figure within 1%.
+- **The runs do not establish an order between SwiftQL and GRDB.** SwiftQL's
+  median is 7.6% and 7.5% below GRDB's in the two "after" runs. In round 1 that
+  gap is smaller than GRDB's 15.9% spread, and in round 2 it only just clears
+  GRDB's 5.0% spread, so a quiet host and more processes are needed before any
+  ordering is claimed.
+- **The per-row figure measures rendering, not preparation.** The workload
+  inserts the same batch every iteration, so after warmup GRDB's statement cache
+  already holds all 100 literal statements the per-row path renders, and that
+  path prepares nothing. A workload with different values every iteration would
+  add 100 preparations per transaction to the per-row path only. That workload
+  was not measured here.
+
 ### What these three prototypes showed
 
 **`transactional_write` is the one result this run supports.** SwiftQL is 2.3x
@@ -310,7 +360,8 @@ statement per row inside the transaction scope where GRDB's
 `PersistableRecord.insert` reuses a cached statement. This is a workload-design
 finding rather than a regression: no earlier measurement of this path exists to
 regress against, which is precisely the gap the family fills, since the
-full-fetch baseline contains no write at all.
+full-fetch baseline contains no write at all. Issue #668 was the change that
+closed this gap; the section above records the new figure.
 
 **`point_lookup` carries no ordering conclusion from this run.** The medians
 separate the three libraries by 20-56%, but SwiftQL's process spread is 88.4%

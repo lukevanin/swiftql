@@ -71,8 +71,10 @@ extension GRDBDatabase {
 }
 
 /// SwiftQL adapter. Every workload uses SwiftQL's own typed surface: declared
-/// queries for the two reads and `withTransaction` plus `sqlInsert` for the
-/// write.
+/// queries for the two reads and `withTransaction` plus
+/// `insert(contentsOf:)` for the write. Before issue #668 the write called
+/// `makeRequest(with: sqlInsert(record)).execute()` once per row, which
+/// rendered and prepared one statement per row.
 final class SwiftQLPrototypeAdapter {
     private let database: GRDBDatabase
     /// Captured once at initialisation, before the first warmup, so no timed
@@ -125,14 +127,15 @@ final class SwiftQLPrototypeAdapter {
 
     func transactionalWrite() throws -> Int {
         try database.withTransaction { scope in
-            for row in writeBatch {
-                let record = SwiftQLPrototypeWriteRow(
+            // `lazy` keeps each record's construction inside the timed
+            // transaction, as the per-row loop this replaces did.
+            try scope.insert(contentsOf: writeBatch.lazy.map { row in
+                SwiftQLPrototypeWriteRow(
                     id: row.id,
                     name: row.name,
                     amount: row.amount
                 )
-                try scope.makeRequest(with: sqlInsert(record)).execute()
-            }
+            })
         }
         return writeBatch.count
     }

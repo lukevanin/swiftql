@@ -526,7 +526,13 @@ final class SQLiteBuildValidatorIntegrationTests: XCTestCase {
     func testValidatorRejectsDatabaseWithAdjacentSidecar() throws {
         try Support.withValidatorOwnedNorthwindURL { url in
             let journalPath = url.path + "-journal"
-            FileManager.default.createFile(atPath: journalPath, contents: Data())
+            // Asserted, not discarded: swift-foundation on Linux does not mark
+            // createFile @discardableResult, and a sidecar that was never
+            // created would let this test pass for the wrong reason.
+            XCTAssertTrue(
+                FileManager.default.createFile(atPath: journalPath, contents: Data()),
+                "could not create the adjacent sidecar at \(journalPath)"
+            )
             defer { try? FileManager.default.removeItem(atPath: journalPath) }
 
             XCTAssertThrowsError(
