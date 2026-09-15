@@ -1,5 +1,10 @@
 # Checked-in performance baseline
 
+[BENCHMARKS.md](../../BENCHMARKS.md#current-baseline) names the current
+baseline. The 2026-07-17 reports described below are historical, report format
+version 1, and are kept unchanged. `Benchmarks/record-baselines.sh` writes new
+reports next to them under new dated names.
+
 This directory contains the first reproducible SwiftQL performance baseline.
 It establishes evidence for future profiling and regression investigation; it
 does not define absolute CI performance thresholds.

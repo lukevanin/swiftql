@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import importlib.util
+import io
+import json
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 MODULE_PATH = Path(__file__).with_name("run.py")
@@ -298,6 +303,239 @@ class ParsingTests(unittest.TestCase):
                 "Building for debugging...\nBuild complete! (0.31s)\n"
             )
         )
+
+
+SUMMARIZE_PATH = Path(__file__).with_name("summarize.py")
+SUMMARIZE_SPEC = importlib.util.spec_from_file_location(
+    "compile_time_summarize_for_run_tests",
+    SUMMARIZE_PATH,
+)
+assert SUMMARIZE_SPEC is not None and SUMMARIZE_SPEC.loader is not None
+compile_time_summarize = importlib.util.module_from_spec(SUMMARIZE_SPEC)
+sys.modules[SUMMARIZE_SPEC.name] = compile_time_summarize
+SUMMARIZE_SPEC.loader.exec_module(compile_time_summarize)
+
+
+def fake_build_output(*, wall: float, swiftpm: float, recompiled: bool = True) -> bytes:
+    lines = ["Building for debugging..."]
+    if recompiled:
+        lines.append("[1/2] Compiling Consumer Tables.swift")
+    lines.append(f"Build of product 'ConsumerLibrary' complete! ({swiftpm:.2f}s)")
+    lines.append(f"        {wall:.2f} real        17.66 user         0.49 sys")
+    lines.append("          123456789  maximum resident set size")
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+class RejectedSampleTests(unittest.TestCase):
+    def test_rule_matches_the_summarizer(self) -> None:
+        self.assertEqual(
+            compile_time_run.SWIFTPM_COMPLETE_LINE.pattern,
+            compile_time_summarize.SWIFTPM_COMPLETE_LINE.pattern,
+        )
+        self.assertEqual(
+            compile_time_run.WALL_TO_SWIFTPM_FACTOR,
+            compile_time_summarize.WALL_TO_SWIFTPM_FACTOR,
+        )
+        self.assertEqual(
+            compile_time_run.WALL_TO_SWIFTPM_ALLOWANCE_SECONDS,
+            compile_time_summarize.WALL_TO_SWIFTPM_ALLOWANCE_SECONDS,
+        )
+
+    def test_parses_swiftpm_duration_and_rejects_the_cited_cell(self) -> None:
+        text = fake_build_output(wall=912.21, swiftpm=9.83).decode("utf-8")
+        self.assertEqual(compile_time_run.parse_swiftpm_duration(text), 9.83)
+        self.assertFalse(compile_time_run.wall_is_consistent(912.21, 9.83))
+        self.assertTrue(compile_time_run.wall_is_consistent(13.35, 12.84))
+        with self.assertRaises(compile_time_run.HarnessError):
+            compile_time_run.parse_swiftpm_duration("Build complete!\n")
+
+    def request(self, directory: Path, prepared: list[int], attempts: int):
+        return compile_time_run.MeasurementRequest(
+            spec=compile_time_run.CONSUMERS_BY_IDENTIFIER["swiftql"],
+            consumer_root=directory,
+            table_count=10,
+            query_count=1,
+            build_mode="clean_dependency_warm",
+            repetition=1,
+            schedule_index=1,
+            runs_directory=directory,
+            output_directory=directory,
+            total_measurements=1,
+            prepare=prepared.append,
+            max_attempts=attempts,
+        )
+
+    def run_with_outputs(self, outputs: list[bytes], attempts: int):
+        directory_handle = tempfile.TemporaryDirectory()
+        self.addCleanup(directory_handle.cleanup)
+        directory = Path(directory_handle.name)
+        prepared: list[int] = []
+        completed = [
+            subprocess.CompletedProcess(args=[], returncode=0, stdout=output)
+            for output in outputs
+        ]
+        with mock.patch.object(
+            compile_time_run, "macos_time_available", return_value=True
+        ), mock.patch.object(
+            compile_time_run.subprocess, "run", side_effect=completed
+        ), contextlib.redirect_stdout(io.StringIO()):
+            try:
+                result = compile_time_run.measure_build(
+                    self.request(directory, prepared, attempts)
+                )
+            except compile_time_run.HarnessError as error:
+                result = error
+        return directory, prepared, result
+
+    def test_a_rejected_attempt_is_kept_and_measured_again(self) -> None:
+        directory, prepared, result = self.run_with_outputs(
+            [
+                fake_build_output(wall=912.21, swiftpm=9.83),
+                fake_build_output(wall=13.35, swiftpm=12.84),
+            ],
+            attempts=3,
+        )
+        self.assertIsInstance(result, dict)
+        self.assertEqual(prepared, [1, 2])
+        self.assertEqual(result["wallSeconds"], 13.35)
+        stem = "swiftql-t010-q001-clean_dependency_warm-rep-01"
+        self.assertIn(
+            "912.21 real",
+            (directory / f"{stem}.rejected-01.build.log").read_text(encoding="utf-8"),
+        )
+        self.assertIn(
+            "13.35 real",
+            (directory / f"{stem}.build.log").read_text(encoding="utf-8"),
+        )
+        self.assertEqual(result["rawLog"], f"{stem}.build.log")
+
+    def test_the_run_fails_when_every_attempt_is_rejected(self) -> None:
+        _, prepared, result = self.run_with_outputs(
+            [
+                fake_build_output(wall=912.21, swiftpm=9.83),
+                fake_build_output(wall=911.65, swiftpm=9.56),
+            ],
+            attempts=2,
+        )
+        self.assertIsInstance(result, compile_time_run.HarnessError)
+        self.assertIn("No attempts remain", str(result))
+        self.assertEqual(prepared, [1, 2])
+
+    def test_a_retried_query_edit_changes_the_literal_again(self) -> None:
+        spec = compile_time_run.CONSUMERS_BY_IDENTIFIER["swiftql"]
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            compile_time_run.write_generated_sources(root, spec, 1, 3, "base")
+            for attempt in (1, 2):
+                compile_time_run.prepare_build_mode(
+                    root, spec, 1, 3, "one_query_edit", 1, attempt
+                )
+            self.assertIn(
+                "edit1retry2",
+                (root / "Sources/Consumer/Queries.swift").read_text(encoding="utf-8"),
+            )
+
+
+class ExtendedScaleTests(unittest.TestCase):
+    def test_presets_extend_past_ten_tables(self) -> None:
+        tables, queries = compile_time_run.resolve_matrix("extended", None, None)
+        self.assertEqual(tables, (1, 10, 100, 500))
+        self.assertEqual(queries, (1, 10, 100))
+        self.assertTrue(set(tables) <= set(compile_time_run.CANONICAL_SCALES))
+        self.assertEqual(
+            compile_time_run.resolve_matrix(None, None, None),
+            (compile_time_run.CANONICAL_SCALES, compile_time_run.CANONICAL_SCALES),
+        )
+        self.assertEqual(
+            compile_time_run.resolve_matrix("reduced", (1, 100), None),
+            ((1, 100), (1, 10)),
+        )
+
+    def test_large_scales_split_declarations_across_files(self) -> None:
+        for spec in compile_time_run.CONSUMER_SPECS:
+            sources = compile_time_run.generate_sources(spec, 500, 120, "base")
+            if spec.generator == "lighter":
+                self.assertEqual(list(sources), ["Sources/Consumer/schema.sql"])
+                self.assertEqual(
+                    sources["Sources/Consumer/schema.sql"].count("CREATE TABLE"),
+                    500,
+                )
+                continue
+            table_files = [name for name in sources if "/Tables" in name]
+            query_files = [name for name in sources if "/Queries" in name]
+            self.assertEqual(len(table_files), 10, spec.identifier)
+            self.assertEqual(len(query_files), 3, spec.identifier)
+            self.assertIn("Sources/Consumer/Tables10.swift", sources)
+            joined = "\n".join(sources.values())
+            self.assertRegex(joined, rf"\b{compile_time_run.table_type(500)}\b")
+            self.assertNotRegex(joined, rf"\b{compile_time_run.table_type(501)}\b")
+            self.assertIn(f"{compile_time_run.query_name(120)}(", joined)
+            for name in query_files:
+                text = sources[name]
+                self.assertTrue(text.startswith("import Foundation"), name)
+                if spec.generator == "swiftql":
+                    self.assertTrue(text.rstrip().endswith("}"), name)
+                    self.assertIn("extension GRDBDatabase {", text)
+
+    def test_a_query_edit_at_a_large_scale_touches_only_the_first_query_file(self) -> None:
+        spec = compile_time_run.CONSUMERS_BY_IDENTIFIER["swiftql"]
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            compile_time_run.write_generated_sources(root, spec, 100, 120, "base")
+            _, written = compile_time_run.write_generated_sources(
+                root, spec, 100, 120, "edit1"
+            )
+            self.assertEqual(written, ["Sources/Consumer/Queries.swift"])
+
+    def test_checked_in_points_generate_byte_identical_sources(self) -> None:
+        report = json.loads(
+            Path(__file__).with_name("compile-time-results.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        for artifact in report["artifacts"]:
+            spec = compile_time_run.CONSUMERS_BY_IDENTIFIER[artifact["consumer"]]
+            sources = compile_time_run.generate_sources(
+                spec,
+                artifact["tableCount"],
+                artifact["queryCount"],
+                compile_time_run.BASE_EDIT_TOKEN,
+            )
+            self.assertEqual(
+                {
+                    relative: compile_time_run.sha256_text(text)
+                    for relative, text in sources.items()
+                },
+                artifact["generatedSourceSHA256"],
+                f"{artifact['consumer']} {artifact['tableCount']}x{artifact['queryCount']}",
+            )
+
+    def test_generate_only_writes_sources_without_swiftpm(self) -> None:
+        with tempfile.TemporaryDirectory() as name:
+            workspace = Path(name) / "workspace"
+            with mock.patch.object(
+                compile_time_run.subprocess,
+                "run",
+                side_effect=AssertionError("SwiftPM must not run"),
+            ), contextlib.redirect_stdout(io.StringIO()):
+                status = compile_time_run.main(
+                    [
+                        "--workspace", str(workspace),
+                        "--swiftql-checkout", str(Path(name)),
+                        "--consumers", "swiftql,lighter",
+                        "--tables", "1,100",
+                        "--queries", "1",
+                        "--generate-only",
+                    ]
+                )
+            self.assertEqual(status, 0)
+            generated = workspace / "Generated"
+            self.assertTrue(
+                (generated / "swiftql/t100-q001/Sources/Consumer/Tables2.swift").is_file()
+            )
+            self.assertTrue(
+                (generated / "lighter/t100-q001/Sources/Consumer/schema.sql").is_file()
+            )
 
 
 class StatisticsTests(unittest.TestCase):

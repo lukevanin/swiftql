@@ -100,6 +100,74 @@ enum BenchmarkQueries {
         }
     }
 
+    // Plain-value variants. Each Swift value below is rendered inline as a
+    // SQL literal, which is SwiftQL's default path when a query does not use a
+    // named binding, so the statement has no parameters to bind.
+
+    static func simpleLookupInlineLiterals(
+        personID: Int
+    ) -> any XLQueryStatement<BenchmarkPerson> {
+        sqlQuery { schema in
+            let person = schema.table(BenchmarkPerson.self)
+            return select(person)
+                .from(person)
+                .where(person.id == personID)
+        }
+    }
+
+    static func multiJoinReadInlineLiterals(
+        companyID: Int,
+        minimumScore: Double
+    ) -> any XLQueryStatement<BenchmarkJoinedRow> {
+        sqlQuery { schema in
+            let person = schema.table(BenchmarkPerson.self)
+            let department = schema.table(BenchmarkDepartment.self)
+            let company = schema.table(BenchmarkCompany.self)
+            let row = BenchmarkJoinedRow.columns(
+                personID: person.id,
+                personName: person.name,
+                departmentName: department.name,
+                companyName: company.name,
+                score: person.score,
+                isActive: person.isActive
+            )
+            return select(row)
+                .from(person)
+                .innerJoin(department, on: department.id == person.departmentID)
+                .innerJoin(company, on: company.id == department.companyID)
+                .where((company.id == companyID) && (person.score >= minimumScore))
+                .orderBy(person.score.descending())
+                .limit(32)
+        }
+    }
+
+    static func boundedWriteInlineLiterals(
+        startID: Int,
+        endID: Int,
+        scoreDelta: Double
+    ) -> any XLUpdateStatement<BenchmarkPerson> {
+        sqlUpdate { schema in
+            let person = schema.into(BenchmarkPerson.self)
+            return update(person)
+                .set { row in
+                    row.score = person.score + scoreDelta
+                }
+                .where((person.id >= startID) && (person.id < endID))
+        }
+    }
+
+    static func deterministicDecodeInlineLiterals(
+        maximumID: Int
+    ) -> any XLQueryStatement<BenchmarkDecodeFixture> {
+        sqlQuery { schema in
+            let fixture = schema.table(BenchmarkDecodeFixture.self)
+            return select(fixture)
+                .from(fixture)
+                .where(fixture.id <= maximumID)
+                .orderBy(fixture.id.ascending())
+        }
+    }
+
     static func deterministicDecode() -> any XLQueryStatement<BenchmarkDecodeFixture> {
         sqlQuery { schema in
             let fixture = schema.table(BenchmarkDecodeFixture.self)

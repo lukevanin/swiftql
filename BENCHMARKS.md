@@ -25,6 +25,53 @@ built debug executable with zero warmups and one sample. That smoke run checks
 the complete report structure, real SQLite metadata, expected row/change
 counts, and write rollback behavior without enforcing machine-dependent time.
 
+## Current baseline
+
+This section names the baseline that describes the code that ships. Earlier
+baselines stay in the repository as history; they are not deleted or rewritten.
+
+**Current baseline: not recorded yet.** Issue #670 records it on the final
+v1.9 code, on an idle host, with [`Benchmarks/record-baselines.sh`](#re-record-the-baselines).
+Until then, no row below has a revision or a date, and the figures in the
+historical baselines predate the August 2026 decode work.
+
+| Evidence | Files | Revision | Recorded |
+| --- | --- | --- | --- |
+| Phase harness, format version 2 | `Benchmarks/Baselines/<YYYY-MM-DD>-<machine>-run-{1,2,3}.json` | _not recorded yet_ | _not recorded yet_ |
+| Cross-library full fetch | `Benchmarks/Comparison/Recordings/<YYYY-MM-DD>-<machine>/` | _not recorded yet_ | _not recorded yet_ |
+| Consumer compile time, `extended` matrix | `Benchmarks/CompileTime/Recordings/<YYYY-MM-DD>-<machine>/` | _not recorded yet_ | _not recorded yet_ |
+
+Historical baselines:
+
+| Evidence | Files | Revision | Recorded |
+| --- | --- | --- | --- |
+| Phase harness, format version 1 | `Benchmarks/Baselines/2026-07-17-mac16-8-run-{1,2,3}.json` | `6645cc57` | 2026-07-17 |
+| Cross-library full fetch | `Benchmarks/Comparison/2026-07-18-mac16-8.json` | `6b417ef9` | 2026-07-18 |
+| Consumer compile time, reduced matrix | `Benchmarks/CompileTime/compile-time-results.json` | `8183cb95` | 2026-08-02 |
+
+The 2026-08-02 compile-time report contains three samples whose wall time is
+inconsistent with SwiftPM's own build duration in the same log, so
+`summarize.py` rejects them. See
+[Benchmarks/CompileTime](Benchmarks/CompileTime/README.md#rejected-samples).
+
+## Re-record the baselines
+
+Record on an otherwise idle host, from a clean checkout of the revision:
+
+```sh
+git checkout <revision>
+Benchmarks/record-baselines.sh --revision <revision>
+```
+
+The script builds and runs the phase harness three times in release mode
+(50 warmups, 500 samples), runs the cross-library comparison, and runs the
+compile-time `extended` matrix. It writes each report to a new dated file,
+validates each with its own summarizer, and refuses to overwrite a file that
+exists. `--dry-run` prints every command without running any of them, and
+`--skip-phase`, `--skip-comparison`, and `--skip-compile-time` record a subset.
+After it finishes, fill in the current-baseline table above with the revision
+and the date, and commit the new files.
+
 ## Cases
 
 The deterministic, integer-seeded fixture is a temporary file-backed SQLite
@@ -34,21 +81,41 @@ rows. Every run covers the same matrix:
 | Case | Contract |
 | --- | --- |
 | `simple_parameterized_lookup` | Indexed lookup of one person by `:personID`. |
+| `simple_lookup_inline_literals` | The same lookup with the person ID rendered inline as a SQL literal. |
 | `representative_multi_join_read` | Two joins, columns from all three tables, deterministic order, and 32 rows. |
+| `representative_multi_join_read_inline_literals` | The same join with its company ID and minimum score rendered inline. |
 | `bounded_write` | Range update of exactly 64 rows, rolled back after every timing. |
+| `bounded_write_inline_literals` | The same update with its ID range and score delta rendered inline. |
 | `deterministic_row_decode` | Two wide rows covering INTEGER, REAL, TEXT, BLOB, Bool, and nullable values. |
+| `deterministic_row_decode_inline_literals` | The same decode with its maximum ID rendered inline. |
 | `contextual_value_codec` | One deterministic application value transported as SQLite INTEGER through an immutable contextual codec configuration. |
 
-Each case contains all six phase slots. The current five-case harness therefore
-contains 30 slots and 25 measurements. `bounded_write × row_decoding` is not
-applicable because the UPDATE has no `RETURNING` clause. The contextual-codec
-case measures only `statement_reset_and_binding` and `row_decoding`; SQL DSL
-construction and statement preparation/cache lookup do not exercise the
-conversion contract it isolates. Its execution slot is not applicable because
-the public request API necessarily decodes the scalar result and therefore
-cannot satisfy the SQLite-only execution boundary. The three historical
-baseline JSON files predate that case and intentionally remain valid four-case,
-23-measurement reports rather than being rewritten.
+Each query has a named-binding variant and a plain-value variant next to it.
+SwiftQL renders a plain Swift value in a query as an inline SQL literal, which
+is its default path, so a plain-value variant has no parameter to bind.
+
+Report format version 2 gives each case twelve phase slots: the six version 1
+slots and six SwiftQL production slots. The current nine-case harness therefore
+contains 108 slots and 84 measurements:
+
+- A read case measures 11 slots. `swiftql_execute` is not applicable, because
+  a SELECT runs through `fetchAll()`.
+- A write case measures 8 slots. `row_decoding`, `swiftql_row_materialization`,
+  `swiftql_row_decoding`, and `swiftql_fetch_all` are not applicable, because
+  the UPDATE has no `RETURNING` clause.
+- The contextual-codec case measures only `statement_reset_and_binding` and
+  `row_decoding`. SQL DSL construction and statement preparation/cache lookup
+  do not exercise the conversion contract it isolates. Its execution slot is
+  not applicable because the public request API necessarily decodes the scalar
+  result and therefore cannot satisfy the SQLite-only execution boundary. The
+  six SwiftQL production slots are not applicable, because the SQL cases
+  already measure that path.
+
+The three 2026-07-17 baseline JSON files are format version 1. They predate the
+contextual-codec case, the plain-value variants, and the production phases, and
+intentionally remain valid four-case, 23-measurement reports rather than being
+rewritten. The validator accepts version 1 with its six phases and version 2
+with all twelve.
 
 ## Phase boundaries
 
@@ -68,9 +135,28 @@ overhead, trim outliers, or combine phases.
 | `execution` | GRDB's required pre-execution reset and SQLite stepping through all result rows, or the bounded UPDATE. The contextual-codec case is not applicable because its public request path also decodes the scalar result. | Preparation, explicit binding, GRDB row materialization, SwiftQL decoding, savepoint entry, and rollback. |
 | `row_decoding` | For SQL result cases, the complete captured result set decoded into an output array through the production `GRDBRowAdapter` → `XLColumnValuesRowReader` path shared by a package-private decoder. For `contextual_value_codec`, one captured GRDB INTEGER is normalized to `XLSQLiteValue`, then storage-validated and decoded through a pre-resolved immutable codec slot. | SQL execution, captured GRDB-row creation, semantic verification, checksumming, and decoded-value destruction. |
 
+The version 1 phases above time raw GRDB calls for preparation, binding, and
+execution, and decode rows captured before sampling. Format version 2 adds six
+phases that run on SwiftQL's own production path, through the same internal
+functions that `fetchAll()` and `execute()` call. A package-scoped probe,
+`GRDBRequestPhaseProbe`, lends those functions to the harness one phase at a
+time; it is not public API. The phases for render, bind, execute, materialize,
+and decode are `swiftql_construction_and_rendering` and the first four rows
+below.
+
+| Phase | Included | Excluded |
+| --- | --- | --- |
+| `swiftql_binding` | Building the request's invocation packet from its named bindings (empty for inline literals), packet validation against the parameter layout, the connection's cached statement, binding the validated values, and GRDB argument validation. | Request construction, rendering, and connection access. |
+| `swiftql_execution` | For a read, opening GRDB's row cursor on the bound production statement (reset and SQLite argument binding) and stepping every row without reading a column. For a write, one execution of the bound statement. | SwiftQL binding, column materialization, decoding, and, for a write, savepoint entry, rollback, and release. |
+| `swiftql_row_materialization` | Opening and stepping the cursor, and normalizing every column of every row to `XLSQLiteValue` through the production cursor loop. | Decoding. |
+| `swiftql_row_decoding` | Decoding the complete result, materialized once before sampling, through `GRDBRowDecoder.decode(values:)`, the per-row call inside `fetchAll()`, including the output array. | Execution and materialization. |
+| `swiftql_fetch_all` | Public `XLRequest.fetchAll()` on a prepared request with its bindings set: packet validation, one pooled read access, binding, stepping, materialization, and decoding. | Request construction and rendering. |
+| `swiftql_execute` | Public `XLWriteRequest.execute()` on a prepared request with its bindings set: packet validation, one pooled write transaction with its commit, binding, and the UPDATE. | Request construction, rendering, and restoring the 64 scores after each sample. |
+
 Phase medians are not additive. In particular, public GRDB execution performs
 its own pre-execution reset even though reset is also part of the separately
-measured `setArguments` contract.
+measured `setArguments` contract, and `swiftql_row_materialization` includes
+the stepping that `swiftql_execution` measures on its own.
 
 ## Report contents
 
@@ -113,7 +199,9 @@ outside `Benchmarks/Baselines`, so collecting current evidence cannot overwrite
 the historical v1.1 baseline.
 
 The first checked-in measurements and their cross-run variance are documented
-in [Benchmarks/Baselines/README.md](Benchmarks/Baselines/README.md). Optimize a
+in [Benchmarks/Baselines/README.md](Benchmarks/Baselines/README.md). The
+[current baseline](#current-baseline) section names the baseline to compare
+against. Optimize a
 phase only after repeatable measurements and profiling identify a material
 cost. CI intentionally has no absolute time threshold.
 
