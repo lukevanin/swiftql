@@ -408,6 +408,45 @@ final class XLQueryRenderOnceCacheTests: XCTestCase {
         )
     }
 
+    ///
+    /// Issue #662: the `@SQLQueries` database-level executor calls
+    /// `_xlWithDeclaredQueryScope` and prepares through its declaration's
+    /// cache. That generated cache is `private`, so this test drives the same
+    /// helper and the same `request(for:)` call through a cache it owns, and
+    /// reads the entry count directly: many scopes and the database hold one
+    /// entry and render once.
+    ///
+    func testDeclaredQueryScopeHelperOnManyScopesKeepsOneCacheEntry() throws {
+        try createTestTable()
+        let cache = XLRenderOnceCache<TestTable>()
+        var buildCount = 0
+
+        for index in 0 ..< 100 {
+            let id = "row-\(index)"
+            let rows = try database.withTransaction { scope in
+                try scope.makeRequest(with: sqlInsert(TestTable(id: id, value: index))).execute()
+                return try _xlWithDeclaredQueryScope(scope) { joined in
+                    try cache.request(for: joined) {
+                        buildCount += 1
+                        return self.allRowsStatement()
+                    }.fetchAll()
+                }
+            }
+            XCTAssertEqual(rows.count, index + 1, "the scope must see its own uncommitted insert")
+        }
+        XCTAssertEqual(cache.entryCount, 1, "transaction scopes must not add cache entries")
+
+        let rootRows = try _xlWithDeclaredQueryScope(database) { root in
+            try cache.request(for: root) {
+                buildCount += 1
+                return self.allRowsStatement()
+            }.fetchAll()
+        }
+        XCTAssertEqual(rootRows.count, 100)
+        XCTAssertEqual(cache.entryCount, 1)
+        XCTAssertEqual(buildCount, 1, "the database and every scope must share one render")
+    }
+
 
     // MARK: - Benchmark (allocation-anchored)
 

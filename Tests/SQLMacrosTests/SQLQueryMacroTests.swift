@@ -79,6 +79,20 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
+                func personByNamePreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlPersonByNameCache.request(for: self) {
+                        personByNameStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
+                }
+
                 func personByNameDeclaredQuery() -> XLDeclaredQuery {
                     let __xlStatement: any XLQueryStatement<Person> = personByNameStatement()
                     return XLDeclaredQuery(
@@ -150,6 +164,21 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+
+                public func peopleInCohortPreparedQuery(name: String, minimumAge: Int) throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlPeopleInCohortCache.request(for: self) {
+                        peopleInCohortStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                            try _xlQueryParameterBinding(minimumAge, named: "minimumAge", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
 
                 public func peopleInCohortDeclaredQuery() -> XLDeclaredQuery {
@@ -225,6 +254,20 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
+                func peopleByNicknamePreparedQuery(nickname: String?) throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlPeopleByNicknameCache.request(for: self) {
+                        peopleByNicknameStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(nickname, named: "nickname", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
+                }
+
                 func peopleByNicknameDeclaredQuery() -> XLDeclaredQuery {
                     let __xlStatement: any XLQueryStatement<Person> = peopleByNicknameStatement()
                     return XLDeclaredQuery(
@@ -295,6 +338,20 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+
+                func personByNamePreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlPersonByNameCache.request(for: self) {
+                        personByNameStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
 
                 func personByNameDeclaredQuery() -> XLDeclaredQuery {
@@ -369,6 +426,20 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
+                func rowsForKindPreparedQuery(`class`: String) throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlRowsForKindCache.request(for: self) {
+                        rowsForKindStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(`class`, named: "class", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
+                }
+
                 func rowsForKindDeclaredQuery() -> XLDeclaredQuery {
                     let __xlStatement: any XLQueryStatement<Person> = rowsForKindStatement()
                     return XLDeclaredQuery(
@@ -431,6 +502,15 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     let __xlLayout = __xlRequest.parameterLayout
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+
+                func allPeoplePreparedQuery() throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlAllPeopleCache.request(for: self) {
+                        allPeopleStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
 
                 func allPeopleDeclaredQuery() -> XLDeclaredQuery {
@@ -511,6 +591,15 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
+                func peopleForTenantPreparedQuery() throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlPeopleForTenantCache.request(for: self) {
+                        peopleForTenantStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
+                }
+
                 func peopleForTenantDeclaredQuery() -> XLDeclaredQuery {
                     let __xlStatement: any XLQueryStatement<Person> = peopleForTenantStatement()
                     return XLDeclaredQuery(
@@ -586,6 +675,20 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
+                public mutating func peopleNamedPreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlPeopleNamedCache.request(for: self) {
+                        peopleNamedStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
+                }
+
                 public mutating func peopleNamedDeclaredQuery() -> XLDeclaredQuery {
                     let __xlStatement: any XLQueryStatement<Person> = peopleNamedStatement()
                     return XLDeclaredQuery(
@@ -657,6 +760,20 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+
+                func personByNamePreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlPersonByNameCache.request(for: self) {
+                        personByNameStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
 
                 func personByNameDeclaredQuery() -> XLDeclaredQuery {
@@ -743,6 +860,22 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
+                func peopleMatchingPreparedQuery(pattern: String, expression: String, limit: Int) throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlPeopleMatchingCache.request(for: self) {
+                        peopleMatchingStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(pattern, named: "pattern", in: __xlLayout),
+                            try _xlQueryParameterBinding(expression, named: "expression", in: __xlLayout),
+                            try _xlQueryParameterBinding(limit, named: "limit", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
+                }
+
                 func peopleMatchingDeclaredQuery() -> XLDeclaredQuery {
                     let __xlStatement: any XLQueryStatement<Person> = peopleMatchingStatement()
                     return XLDeclaredQuery(
@@ -827,6 +960,20 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
+                func personByNamePreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlPersonByNameCache.request(for: self) {
+                        personByNameStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
+                }
+
                 func personByNameDeclaredQuery() -> XLDeclaredQuery {
                     let __xlStatement: any XLQueryStatement<Person> = personByNameStatement()
                     return XLDeclaredQuery(
@@ -864,6 +1011,59 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
         XCTAssertEqual(
             rewritten.description,
             #"From(\Person.name, XLNamedBindingReference<String>(name: "name")) + From<Int>(XLNamedBindingReference<Int>(name: "From"))"#
+        )
+    }
+
+    ///
+    /// Issue #660: the `PreparedQuery` peer must take the same render-once request
+    /// and build the same binding packet as the executor, so an observed
+    /// declared query can never bind differently from a called one. The two
+    /// functions are compared line by line up to the point where the executor
+    /// fetches and the prepare peer returns. A bare `Row` result is used
+    /// because its fetch block is the longest.
+    ///
+    func test_preparedQueryFunction_sharesPreparationLinesWithExecutor() throws {
+        let source = Parser.parse(source: """
+            func personNamed(name: String, minimumAge: Int?) -> Person {
+                sqlResult { schema in
+                    let person = schema.table(Person.self)
+                    Select(person)
+                    From(person)
+                    Where(person.name == name && person.age >= minimumAge)
+                }
+            }
+            """)
+        let function = try XCTUnwrap(source.statements.first?.item.as(FunctionDeclSyntax.self))
+        let builder = try SQLQueryBuilder(
+            node: AttributeSyntax(attributeName: IdentifierTypeSyntax(name: .identifier("SQLQuery"))),
+            declaration: function
+        )
+        let executor = builder.makeExecutorFunction().components(separatedBy: "\n")
+        let prepare = builder.makePreparedQueryFunction().components(separatedBy: "\n")
+
+        XCTAssertEqual(
+            prepare.first,
+            "func personNamedPreparedQuery(name: String, minimumAge: Int?) throws -> XLPreparedQuery<Person> {"
+        )
+        XCTAssertEqual(prepare.suffix(2), [
+            "    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)",
+            "}",
+        ])
+
+        let sharedCount = prepare.count - 3
+        let sharedPreparation = Array(prepare.dropFirst().prefix(sharedCount))
+        XCTAssertEqual(Array(executor.dropFirst().prefix(sharedCount)), sharedPreparation)
+        XCTAssertEqual(
+            sharedPreparation.first,
+            "    let __xlRequest = Self.__xlPersonNamedCache.request(for: self) {"
+        )
+        XCTAssertTrue(sharedPreparation.contains(
+            "            try _xlQueryParameterBinding(minimumAge, named: \"minimumAge\", in: __xlLayout),"
+        ))
+        XCTAssertEqual(
+            executor[sharedCount + 1],
+            "    let __xlRows = try __xlRequest.fetchAtMost(2, bindings: __xlPacket)",
+            "the executor must fetch immediately after the shared preparation lines"
         )
     }
 
@@ -921,6 +1121,20 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchOne(bindings: __xlPacket)
+                }
+
+                func personByExactNamePreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlPersonByExactNameCache.request(for: self) {
+                        personByExactNameStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
 
                 func personByExactNameDeclaredQuery() -> XLDeclaredQuery {
@@ -1009,6 +1223,20 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     }
                 }
 
+                func theOnlyPersonPreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlTheOnlyPersonCache.request(for: self) {
+                        theOnlyPersonStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
+                }
+
                 func theOnlyPersonDeclaredQuery() -> XLDeclaredQuery {
                     let __xlStatement: any XLQueryStatement<Person> = theOnlyPersonStatement()
                     return XLDeclaredQuery(
@@ -1088,6 +1316,20 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+
+                func auditedPersonByNamePreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlAuditedPersonByNameCache.request(for: self) {
+                        auditedPersonByNameStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
 
                 func auditedPersonByNameDeclaredQuery() -> XLDeclaredQuery {

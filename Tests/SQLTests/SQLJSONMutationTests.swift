@@ -117,13 +117,110 @@ final class XLJSONMutationRenderingTests: XCTestCase {
         )
     }
 
-    func testEveryMutationResultIsOptional() {
+    func testAMutationOnANullableDocumentIsOptional() {
         let a = XLJSONPath.root.key("a")
-        assertExpressionType(document().jsonInserting((a, 1)), String?.self)
-        assertExpressionType(document().jsonReplacing((a, 1)), String?.self)
-        assertExpressionType(document().jsonSetting((a, 1)), String?.self)
-        assertExpressionType(document().jsonRemoving(at: a), String?.self)
-        assertExpressionType(document().jsonPatched(with: "{}"), String?.self)
+        let nullable = XLNamedBindingReference<String?>(name: "document")
+        assertExpressionType(nullable.jsonInserting((a, 1)), String?.self)
+        assertExpressionType(nullable.jsonReplacing((a, 1)), String?.self)
+        assertExpressionType(nullable.jsonSetting((a, 1)), String?.self)
+        assertExpressionType(nullable.jsonRemoving(at: a), String?.self)
+        assertExpressionType(nullable.jsonPatched(with: "{}"), String?.self)
+    }
+
+    func testAMutationOnANonNullDocumentIsNotOptional() {
+        // Each `let` is inferred, so the assertion names the overload Swift
+        // picks when nothing else constrains the result.
+        let a = XLJSONPath.root.key("a")
+        let inserted = document().jsonInserting((a, 1))
+        let replaced = document().jsonReplacing((a, 1))
+        let set = document().jsonSetting((a, 1), (a, "x"))
+        let removed = document().jsonRemoving(at: a, a)
+        assertExpressionType(inserted, String.self)
+        assertExpressionType(replaced, String.self)
+        assertExpressionType(set, String.self)
+        assertExpressionType(removed, String.self)
+        // `json_patch` gives `NULL` for a `NULL` patch, so it stays optional.
+        let patched = document().jsonPatched(with: "{}")
+        assertExpressionType(patched, String?.self)
+    }
+
+    func testTheOptionalFormStillServesAnOptionalContext() {
+        // A call site written before the non-optional overloads existed:
+        // an optional context and `coalesce` both still resolve, and render
+        // the same SQL.
+        let a = XLJSONPath.root.key("a")
+        let optional: any XLExpression<String?> = document().jsonSetting((a, 1))
+        assertSQL(optional, "json_set(:document, '$.a', 1)")
+        assertSQL(
+            document().jsonSetting((a, 1)).coalesce(document()),
+            "COALESCE(json_set(:document, '$.a', 1), :document)"
+        )
+        assertSQL(
+            document().jsonRemoving(at: a).coalesce(document()),
+            "COALESCE(json_remove(:document, '$.a'), :document)"
+        )
+    }
+
+    func testAMutationAssignsToANonNullAndToANullableColumn() {
+        // `Person.name` is `String` and `Person.occupationId` is `String?`.
+        let statement = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                // A non-null column takes the result without `coalesce`.
+                row.name = person.name
+                    .jsonSetting((XLJSONPath.root.key("a"), 1))
+                // A nullable column takes the optional result.
+                row.occupationId = person.occupationId
+                    .jsonRemoving(at: XLJSONPath.root.key("a"))
+            }
+            Where(person.id == "p")
+        }
+        let coalesced = sql { schema in
+            let person = schema.into(Person.self)
+            Update(person)
+            Setting(person) { row in
+                // The spelling used before the non-optional form existed.
+                row.name = person.name
+                    .jsonInserting((XLJSONPath.root.key("a"), 1))
+                    .coalesce(person.name)
+                // A non-null document into a nullable column.
+                row.occupationId = person.name
+                    .jsonReplacing((XLJSONPath.root.key("a"), 1))
+            }
+            Where(person.id == "p")
+        }
+        let sql = encoder.makeSQL(statement).sql
+        XCTAssertTrue(sql.contains("name = json_set(t0.name, '$.a', 1)"), sql)
+        XCTAssertTrue(sql.contains("occupationId = json_remove(t0.occupationId, '$.a')"), sql)
+        let coalescedSQL = encoder.makeSQL(coalesced).sql
+        XCTAssertTrue(
+            coalescedSQL.contains("name = COALESCE(json_insert(t0.name, '$.a', 1), t0.name)"),
+            coalescedSQL
+        )
+        XCTAssertTrue(
+            coalescedSQL.contains("occupationId = json_replace(t0.name, '$.a', 1)"),
+            coalescedSQL
+        )
+    }
+
+    func testANonOptionalRemovalRejectsTheRootPath() {
+        XCTAssertEqual(
+            encoder.makeSQL(
+                document().jsonRemoving(at: XLJSONPath.root.key("a"), .root)
+            ).valueEncodingError,
+            .jsonRootRemoval(function: "json_remove")
+        )
+        XCTAssertNil(
+            encoder.makeSQL(
+                document().jsonRemoving(at: XLJSONPath.root.key("a"))
+            ).valueEncodingError
+        )
+        // The optional form can hold `NULL`, so it still renders the root.
+        let nullable = XLNamedBindingReference<String?>(name: "document")
+        let rendered = encoder.makeSQL(nullable.jsonRemoving(at: .root))
+        XCTAssertNil(rendered.valueEncodingError)
+        XCTAssertEqual(rendered.sql, "json_remove(:document, '$')")
     }
 
     private func assertSQL<T>(
@@ -373,16 +470,29 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         XCTAssertNil(column)
     }
 
+    func testANonOptionalRootRemovalFailsBeforeSQLitePreparesTheStatement() {
+        let statement = sql { _ in
+            Select(document().jsonRemoving(at: .root))
+        }
+        var request = database.makeRequest(with: statement)
+        request.set(document(), "{}")
+        XCTAssertThrowsError(try request.fetchOne()) { error in
+            XCTAssertEqual(
+                error as? XLSQLValueEncodingError,
+                .jsonRootRemoval(function: "json_remove")
+            )
+        }
+    }
+
     // MARK: - Written values
 
     func testAWrittenLiteralHoldingQuotesAndBackslashesRoundTrips() throws {
         let awkward = #"he said "hi" \ and ' too"#
         guard
-            let row = try evaluate(
+            let written = try evaluate(
                 document().jsonSetting((XLJSONPath.root.key("a"), awkward)),
                 document: "{}"
-            ),
-            let written = row
+            )
         else {
             XCTFail("the statement should return one document")
             return
@@ -408,7 +518,7 @@ final class XLJSONMutationExecutionTests: XCTestCase {
         var request = database.makeRequest(with: statement)
         request.set(document(), "{}")
         request.set(value, awkward)
-        guard let row = try request.fetchOne(), let written = row else {
+        guard let written = try request.fetchOne() else {
             XCTFail("the statement should return one document")
             return
         }

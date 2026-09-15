@@ -327,5 +327,6 @@ extension SQLResultMacro: ExtensionMacro {
         SQLFunctionMacro.self,
         SQLCodecMacro.self,
         SQLRowMacro.self,
+        SQLBindingsMacro.self,
     ]
 }

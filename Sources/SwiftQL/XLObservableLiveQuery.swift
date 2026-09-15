@@ -280,4 +280,31 @@ public final class XLObservableQueryRow<Row>: @unchecked Sendable {
         self.isLoading = false
     }
 }
+
+
+@available(iOS 17, macOS 14, *)
+extension XLObservableQuery {
+
+    ///
+    /// Starts observing one prepared declared-query invocation immediately (issue #660): the
+    /// `@Observable` analog of ``XLPreparedQuery/stream()``. Uses the prepared query's cached request
+    /// and its binding packet, exactly as ``init(_:bindings:)`` would.
+    ///
+    public convenience init(_ query: XLPreparedQuery<Row>) {
+        self.init(query.request, bindings: query.bindings)
+    }
+}
+
+
+@available(iOS 17, macOS 14, *)
+extension XLObservableQueryRow {
+
+    ///
+    /// Starts observing the first row of one prepared declared-query invocation immediately (issue
+    /// #660): the `@Observable` analog of ``XLPreparedQuery/streamOne()``.
+    ///
+    public convenience init(_ query: XLPreparedQuery<Row>) {
+        self.init(query.request, bindings: query.bindings)
+    }
+}
 #endif

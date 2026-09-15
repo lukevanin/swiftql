@@ -4,6 +4,33 @@
 
 ### Migration
 
+- **Declared queries generate new members** (issue #660). A member with the
+  same name can stop compiling. Rename that member or specification.
+  - `@SQLQueries` adds a `preparedQueries` property on the database type and a
+    nested `Context.PreparedQueries` type. The macro reports these collisions
+    at the declaration:
+    - a query specification named `preparedQueries`, with or without
+      parameters;
+    - a property named `preparedQueries`, or a method `preparedQueries()` with
+      no parameters, in the `@SQLQueries` extension itself.
+  - The macro cannot see members outside its extension. A property named
+    `preparedQueries`, or a method `preparedQueries()` with no parameters,
+    declared in the type body or in another extension gives an
+    "invalid redeclaration" error in generated code. A method named
+    `preparedQueries` that has parameters does not collide.
+  - `@SQLQuery` adds a peer `<name>PreparedQuery(...)` beside each executor,
+    such as `personByNamePreparedQuery(name:)`. It has the parameters of the
+    specification and returns `XLPreparedQuery<Row>`. A peer macro cannot see
+    other members with swift-syntax 509, so the macro reports no collision.
+    These declarations collide:
+    - a property named `<name>PreparedQuery`, when the specification has no
+      parameters: "invalid redeclaration";
+    - a method `<name>PreparedQuery` with the same argument labels and
+      parameter types that returns `XLPreparedQuery<Row>`: "invalid
+      redeclaration";
+    - the same method with a different return type: the declarations compile,
+      but a call without a type annotation is ambiguous.
+
 - **A `Data` value written into JSON fails before SQLite prepares the
   statement** (issue #671). This applies to a value passed to `jsonArray`,
   `jsonObject`, `jsonInserting`, `jsonReplacing`, `jsonSetting`,
@@ -24,6 +51,21 @@
   function result and every existential value that code passes today. A
   `switch` over `XLSQLValueEncodingError` with no `default` clause must handle
   the new case.
+- **A JSON mutation on a non-optional document has a non-optional result**
+  (issue #664). This applies to `jsonInserting`, `jsonReplacing`,
+  `jsonSetting`, and `jsonRemoving` on a `String` document, and to their
+  JSONB twins on a `Data` document. Where the call site gives no other type,
+  Swift now infers `String` or `Data` instead of `String?` or `Data?`. Code
+  that unwraps such a result twice, for example
+  `if let row = try request.fetchOne(), let value = row`, must unwrap it
+  once. The non-optional `jsonRemoving` and `jsonbRemoving` report the root
+  path `$` with the new case
+  `XLSQLValueEncodingError.jsonRootRemoval(function:)`, because SQLite
+  returns `NULL` when it removes the root. On 1.8.1 that call returned SQL
+  `NULL`. A `switch` over `XLSQLValueEncodingError` with no `default` clause
+  must handle the new case. A call site that assigns the result to an
+  optional column, or that passes it to `coalesce`, still compiles and
+  renders the same SQL.
 
 - **Build-validation manifest format version 2** (issue #658). New manifests
   are written as `format_version: 2`, and the reader accepts versions 1 and 2.
@@ -96,6 +138,86 @@
   query added to a target reaches the manifest and validates with no list or
   generator edited.
 
+- **`@SQLBindings` generates a typed packet for the named bindings of a
+  statement value** (issue #663). Attach the macro to a struct that has one
+  stored property for each named binding. For each property, the macro
+  generates a static `XLNamedBindingReference` with the name and type of the
+  property. The statement uses these references. The macro also generates
+  `bindings(in:)` and `bindings(for:)`, which encode the property values into
+  an immutable `XLInvocationBindings` packet for a layout or a request. A
+  misspelled binding name, a misspelled value label, or a missing value is now
+  a compile error. Before, a caller found each slot with a string name, and a
+  typo failed at runtime. The macro reports an error for a property with an
+  initial value and for an initializer in the struct, because either one would
+  let a call leave a value out. The packet still throws when the statement does
+  not use a declared binding, or uses a binding that the struct does not
+  declare, so declare one struct for each statement shape. Generated members
+  are `public` or `package` only when the struct itself is written that way.
+  `scripts/ci/check-named-binding-packet-type-safety.sh` proves the compile
+  errors in CI. The to-do demo builds all of its packets with `@SQLBindings`
+  and has no slot-lookup helper.
+
+- **A declared query can be observed** (issue #660). The prepared form of a
+  declared query returns an `XLPreparedQuery<Row>`: the request from the
+  declaration's render-once cache and the binding packet for one set of
+  arguments. Call `stream()`, `streamOne()`, `publish()`, or `publishOne()` on
+  it, or pass it to `XLObservableQuery` or `XLObservableQueryRow`. For
+  `@SQLQueries`, call `database.preparedQueries.personByName(name:)`. For `@SQLQuery`,
+  call `database.personByNamePreparedQuery(name:)`. The prepared form and the
+  executor use the same cache entry and the same binding code, so the
+  statement renders at most once for each database. An observation does not
+  enforce the exactly-one cardinality of a `Row` declaration: when the row goes
+  away, `streamOne()` delivers `nil`. The to-do demo observes its declared
+  reads directly, and `TodoLiveReads.swift` and `TodoFilteredRead.swift` are
+  removed.
+- **A declared query can be called inside `withTransaction`** (issue #662).
+  An `@SQLQueries` database-level executor called on the scope that
+  `withTransaction(_:)` gives its body now runs on that scope. It runs on the
+  transaction's connection and sees the transaction's uncommitted writes.
+  Before, it opened a transaction of its own and threw
+  `nestedTransactionUnsupported`. On a database, the executor still opens a
+  transaction as before. The executor uses the render-once cache entry of the
+  database and the same binding packet, so a scope adds no cache entry and no
+  render. The scope rules do not change: an ended scope throws `scopeEscaped`,
+  the original database used inside a body and `execute(_:)` called on a scope
+  throw `nestedTransactionUnsupported`, and a query prepared on a scope cannot
+  be observed. The `@SQLQuery` peer executor already ran on a scope. The to-do
+  demo's transactions now use its declared reads.
+
+- The JSON mutation functions have overloads whose result follows the
+  document's nullability (issue #664). A mutation on a `NOT NULL` column
+  assigns back to that column without `coalesce`. A `String?` or `Data?`
+  document keeps the optional result. `jsonPatched(with:)` and
+  `jsonbPatched(with:)` stay optional, because a `NULL` patch also gives
+  `NULL`. The to-do demo's checklist writes no longer end with `coalesce`.
+
+- **`GRDBDatabase.insert(contentsOf:)` inserts many rows through one
+  statement** (issue #668). A loop of
+  `makeRequest(with: sqlInsert(row)).execute()` renders each row's values into
+  the SQL as literals, so every row renders a new statement and SQLite prepares
+  every distinct row again. `insert(contentsOf:)` renders the insert once, with
+  a bound parameter in place of each literal, prepares it once for the call,
+  and binds each row through an invocation packet. A 100-row batch inside one
+  transaction renders once and prepares once, where the per-row loop renders
+  and prepares 100 times.
+  - On a `withTransaction(_:)` scope the rows run inside a savepoint in that
+    transaction. When a row fails, every row of the call rolls back and the
+    body's other writes stay. On any other database the call opens one write
+    transaction, so either every row commits or none does.
+  - The prepared statement is a local value of the call, on the connection that
+    prepared it. It never outlives the call's connection access, so a pooled
+    connection or an ended scope cannot keep it.
+  - A row whose values cannot be bound -- a value that renders as SQL other
+    than one literal, or a value that fails to render, such as a non-finite
+    `Double` -- renders on its own as `sqlInsert(_:)` does, in the same
+    transaction, and fails with the same error.
+  - The SQL `sqlInsert(_:)` renders for one row does not change.
+  - On the Issue259 `transactional_write` workload, SwiftQL's median for one
+    100-row transaction fell from 993.42 us and 1.00 ms (per-row
+    `sqlInsert(_:)`, process spreads 5.1% and 4.0%) to 363.98 us and
+    358.17 us (`insert(contentsOf:)`, spreads 5.3% and 4.5%), in alternating
+    runs on one shared host. See `Benchmarks/Comparison/Issue259/README.md`.
+
 - **Build-time validation from an Xcode application target.**
   `SwiftQLSQLiteBuildValidationPlugin` now also conforms to
   `XcodeBuildToolPlugin`, so an Xcode project target, such as an app, can add
@@ -110,7 +232,6 @@
   `IntegrationTests/BuildValidationPluginFixture/verify-xcode.sh` now builds
   an application target and checks the correctness report, the plan sidecar,
   and the failure on an invalid manifest. SwiftPM targets see no change.
-
 - `validJSONOrJSONBOrNull()` renders `json_valid(X, 9)` (issue #671). It
   checks text as RFC 8259 JSON, accepts a blob that is well-formed JSONB or
   that holds well-formed JSON text, and needs SQLite 3.45.0.
@@ -154,6 +275,28 @@
   `from: "0.14.0"`. A consumer graph that needs a later compatible OpenCombine
   release now resolves. `Package.resolved` keeps the tested 0.14.0 pin, and
   the committed-resolution CI cells still build against it.
+- **CI: Linux on Swift 6, and a shorter main-branch run.** The compatibility
+  matrix adds a Swift 6.3.2 Linux cell (issue #672). It installs its toolchain
+  through the same signature-verified Swift.org archive path and pinned SQLite
+  3.53.3 build as the Swift 5.9.2 cells, so the OpenCombine bridge and the
+  Foundation-backed codecs now run under swift-foundation. Source coverage is
+  no longer a separate macOS job that runs the suite twice: the Swift 6.0
+  committed cell runs the suite once under coverage, and a verifier derives the
+  expected source selection from `git ls-files` and the coverage config. The
+  Getting Started playground check moves to the Swift 5.9 Linux committed cell,
+  and complete strict concurrency runs once, on the Swift 6.0 clean cell.
+  `COMPATIBILITY.md` records the account's macOS runner limit that these moves
+  work around.
+- **Release: version claims are a release gate, not test pins.** The release
+  workflow runs `scripts/ci/check-release-version-claims.sh` on the exact tag
+  commit and fails unless the six published-version claims name the tag's
+  version. The Swift documentation tests compare those claims with the newest
+  dated CHANGELOG heading instead of a literal, and no longer pin SKILL.md's
+  release sentence verbatim, so a version bump touches no test file.
+- **To-do demo: live-query tests await state.** The demo's test target gains
+  an Observation-driven wait with a named 10-second backstop. The tests no
+  longer poll with `Task.sleep`, and no shipping product imports XCTest.
+
 - **A declared query accepts a parameter as a method or clause argument**
   (issue #661). `@SQLQuery` and `@SQLQueries` now rewrite a parameter passed
   to a DSL method or clause, such as `column.like(pattern)`,

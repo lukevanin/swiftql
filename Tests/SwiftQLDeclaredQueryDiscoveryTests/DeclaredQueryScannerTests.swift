@@ -301,6 +301,24 @@ final class DeclaredQueryScannerTests: XCTestCase {
         XCTAssertEqual(lines.filter { $0.hasSuffix("import SwiftQL") }, ["internal import SwiftQL"], source)
     }
 
+    func testABindingsStructIsNotADeclaredQuery() {
+        let result = scan("""
+            @SQLBindings
+            struct RenamePacket {
+                let id: TodoUUID
+                let name: String
+            }
+
+            extension GRDBDatabase {
+                @SQLQuery
+                func rows() -> [Person] { sqlResult { _ in fatalError() } }
+            }
+            """)
+
+        XCTAssertEqual(result.declarations.map(\.form), [.peer(functionName: "rows", isMutating: false)])
+        XCTAssertEqual(result.skipped, [])
+    }
+
     func testTheRegistryTypeNameIsAnIdentifierFromTheTargetName() {
         XCTAssertEqual(DeclaredQueryRegistryRenderer.typeName(forTarget: "TodoKit"), "TodoKitDeclaredQueries")
         XCTAssertEqual(DeclaredQueryRegistryRenderer.typeName(forTarget: "my-app_core"), "MyApp_coreDeclaredQueries")

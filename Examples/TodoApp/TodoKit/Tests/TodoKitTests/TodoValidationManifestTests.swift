@@ -262,7 +262,43 @@ private enum HandWrittenManifestFixture {
         ),
         Query(
             declaredID: "GRDBDatabase.filteredTodos",
-            statement: TodoFilteredRead.statement,
+            statement: sql { schema in
+                let todo = schema.table(Todo.self)
+                let listID = XLNamedBindingReference<TodoUUID>(name: "listID")
+                let includesCompleted = XLNamedBindingReference<Bool>(name: "includesCompleted")
+                let includesActive = XLNamedBindingReference<Bool>(name: "includesActive")
+                let overdueOnly = XLNamedBindingReference<Bool>(name: "overdueOnly")
+                let referenceDate = XLNamedBindingReference<TodoDate>(name: "referenceDate")
+                let searchPattern = XLNamedBindingReference<String>(name: "searchPattern")
+                let sortOrder = XLNamedBindingReference<Int>(name: "sortOrder")
+                Select(todo)
+                From(todo)
+                Where(
+                    todo.listID == listID
+                    && (todo.isCompleted == includesCompleted
+                        || todo.isCompleted != includesActive)
+                    && (overdueOnly == false
+                        || (todo.dueAt < referenceDate
+                            && todo.isCompleted == false))
+                    && (todo.title.regexp(searchPattern)
+                        || todo.notes.regexp(searchPattern))
+                )
+                OrderBy(
+                    (sortOrder == TodoSort.dueDate.rawValue).iif(
+                        then: todo.dueAt ?? TodoDate.distantFuture,
+                        else: TodoDate.distantFuture
+                    ).ascending(),
+                    (sortOrder == TodoSort.priority.rawValue).iif(
+                        then: todo.priority,
+                        else: TodoPriority.low
+                    ).descending(),
+                    (sortOrder == TodoSort.manual.rawValue).iif(
+                        then: todo.position,
+                        else: 0
+                    ).ascending(),
+                    todo.title.ascending()
+                )
+            },
             cardinality: .many,
             parameters: [
                 "listID": .text,

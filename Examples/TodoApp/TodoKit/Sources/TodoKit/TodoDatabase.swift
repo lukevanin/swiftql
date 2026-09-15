@@ -16,13 +16,16 @@ public final class TodoDatabase {
     /// `true` when this instance created the file and seeded it.
     public let didSeed: Bool
 
-    /// The reads a live query observes, each rendered once and reused.
-    /// Values arrive per call in a binding packet, not in the request.
-    let filteredTodosRequest: any XLRequest<Todo>
-    let listsRequest: any XLRequest<TodoList>
-    let listCountsRequest: any XLRequest<TodoListCounts>
-    let todoByIDRequest: any XLRequest<Todo>
+    /// The link read, rendered once and reused. Values arrive per call in a
+    /// binding packet, not in the request.
     let linkedTodoIDsRequest: any XLRequest<TodoUUID>
+
+    /// The sidebar's two declared reads, prepared for observation. Neither
+    /// takes an argument, so one prepared query serves every sidebar; each
+    /// observation of it is still independent. The reads that take arguments
+    /// are prepared where they are observed, in `TodoModels.swift`.
+    let listsQuery: XLPreparedQuery<TodoList>
+    let listCountsQuery: XLPreparedQuery<TodoListCounts>
 
     /// Opens the database, creating and seeding it the first time only.
     ///
@@ -42,16 +45,14 @@ public final class TodoDatabase {
 
         self.url = url
         database = try GRDBDatabase(url: url, logger: nil)
-        filteredTodosRequest = database.makeRequest(
-            with: TodoFilteredRead.statement
-        )
-        listsRequest = database.makeRequest(with: TodoLiveReads.lists)
-        listCountsRequest = database.makeRequest(with: TodoLiveReads.listCounts)
-        todoByIDRequest = database.makeRequest(with: TodoLiveReads.todoByID)
         linkedTodoIDsRequest = database.makeRequest(with: TodoLinks.statement)
+        listsQuery = try database.preparedQueries.todoLists()
+        listCountsQuery = try database.preparedQueries.listCounts()
         didSeed = try database.withTransaction { scope in
             try Self.createSchema(in: scope)
-            guard try Self.isUnseeded(scope) else {
+            // The declared read, called on the scope, runs on the
+            // transaction's connection, so it sees the schema just created.
+            guard try scope.todoLists().isEmpty else {
                 return false
             }
             try Self.insert(TodoSeed(referenceDate: referenceDate), in: scope)
@@ -63,21 +64,6 @@ public final class TodoDatabase {
         // Both steps are `IF NOT EXISTS`, so a crash between them is repaired
         // on the next launch rather than leaving a half-built schema.
         try TodoIndices.create(in: database.databasePool)
-    }
-
-    /// Whether the database holds no lists yet.
-    ///
-    /// A plain request rather than the declared `todoLists()` read: a
-    /// generated executor opens a transaction of its own, and SwiftQL rejects
-    /// a nested one with `XLTransactionScopeError.nestedTransactionUnsupported`.
-    private static func isUnseeded(_ scope: GRDBDatabase) throws -> Bool {
-        let anyList = sql { schema in
-            let list = schema.table(TodoList.self)
-            Select(list.id)
-            From(list)
-            Limit(1)
-        }
-        return try scope.makeRequest(with: anyList).fetchOne() == nil
     }
 
     /// Opens the demo's durable database in Application Support.

@@ -125,6 +125,192 @@ the pinned scope, not the original database — pass it to `makeRequest(with:)`
 for any operation the closure needs beyond the container's own declared
 queries.
 
+## Call a declared query inside a transaction
+
+Since v1.9 ([#662](https://github.com/lukevanin/swiftql/issues/662)) you can
+call a declared query on the scope that `withTransaction(_:)` gives its body.
+The query runs on the transaction's connection, so it sees the writes the body
+made before it, and it commits or rolls back with them:
+
+<!-- test: XLDocumentationTests.testDocumentationDeclaredQueries -->
+```swift
+let matches = try database.withTransaction { scope in
+    try scope.makeRequest(with: sqlInsert(candidate)).execute()
+    return try scope.personByName(name: candidate.name)
+}
+```
+
+- **On a scope, the executor joins the transaction.** The `@SQLQueries`
+  database-level executor opens a transaction when you call it on a database.
+  When you call it on a scope, it runs on the scope instead. The
+  `@SQLQuery` peer executor (`scope.fetchPersonByName(name:)`) never opens a
+  transaction, so it runs on the scope too.
+- **The same cached request and packet.** The call uses the database's
+  render-once cache entry, bound to the scope's connection, and the binding
+  packet a call on the database builds. See "Inside a transaction" under
+  "Render-once caching" below.
+- **The scope rules do not change.** A scope used after its body returns
+  throws `XLTransactionScopeError.scopeEscaped`. The original database, called
+  inside a body, and `execute(_:)`, called on a scope, still open a transaction
+  of their own and throw `nestedTransactionUnsupported`.
+- **Fetch, do not observe.** A declared query called on a scope fetches. An
+  observation from a scope fails with `liveQueriesUnsupportedInTransaction`;
+  see "Observe a declared query" below.
+
+## Observe a declared query
+
+Since v1.9 ([#660](https://github.com/lukevanin/swiftql/issues/660)) a
+declared query has a **prepared form** that a live query can observe, so a
+read that a view observes is written once. The prepared form takes the same
+arguments as the executor and returns an ``XLPreparedQuery``: the request from
+the declaration's render-once cache and the binding packet for those arguments.
+
+| Form | Executor | Prepared form |
+| --- | --- | --- |
+| `@SQLQuery` | `try database.fetchPersonByName(name:)` | `try database.personByNamePreparedQuery(name:)` |
+| `@SQLQueries` | `try database.personByName(name:)` | `try database.preparedQueries.personByName(name:)` |
+
+Observe the prepared query with the same methods a request has, or pass it to
+the `@Observable` wrappers:
+
+<!-- test: XLDocumentationTests.testDocumentationDeclaredQueries -->
+```swift
+let query = try database.preparedQueries.personByName(name: "John Doe")
+
+for try await matches in query.stream() {
+    print("Fetched matches: \(matches)")
+}
+
+let cancellable = query.publish().sink(
+    receiveCompletion: { _ in },
+    receiveValue: { matches in print("Fetched matches: \(matches)") }
+)
+
+let model = XLObservableQuery(query)
+```
+
+- **One render.** The prepared form and the executor emit the same generated
+  preparation code and read the same cache entry. The statement renders at
+  most once for each database, whichever form runs first.
+- **The same bindings.** The packet holds exactly the values the executor
+  would bind for the same arguments. The observation captures that packet once
+  for its initial fetch, every refresh, and every retry, as
+  `stream(bindings:)` does. New argument values need a new prepared query and
+  a new observation.
+- **Cardinality.** Use `stream()` or `publish()` for a declaration that
+  returns `[Row]`. Use `streamOne()`, `publishOne()`, or
+  ``XLObservableQueryRow`` for one that returns `Row?` or `Row`. An observation
+  does not enforce the exactly-one cardinality of a `Row` declaration: when the
+  row goes away, `streamOne()` delivers `nil` instead of throwing.
+- **Prepare an observed query on the database.** A transaction scope is also a
+  database, so `scope.preparedQueries.personByName(name:)` compiles, and its
+  request fetches on the transaction's connection. Observation needs the
+  connection pool, so `stream()`, `streamOne()`, `publish()`, and
+  `publishOne()` on a query prepared from a scope fail with
+  `XLTransactionScopeError.liveQueriesUnsupportedInTransaction`. They never
+  observe the scope's connection.
+- **Not `Sendable`.** ``XLPreparedQuery`` holds an `any XLRequest<Row>`, and
+  ``XLRequest`` is not `Sendable`. It is a public protocol, and SwiftQL cannot
+  promise that every conforming request is safe to share across tasks. With
+  strict concurrency checking, prepare the query in the isolation domain that
+  observes it, for example in the initializer of a `@MainActor` model. Send the
+  arguments across the boundary, not the prepared query.
+
+### Generated names
+
+`@SQLQueries` adds one property, `preparedQueries`, and one nested type,
+`Context.PreparedQueries`, for any number of specifications. `@SQLQuery` adds
+one peer for each declaration, with the `PreparedQuery` suffix, in the same
+way that its statement builder has the `Statement` suffix. These names are
+unlikely to be the name of a member an application declares. A single generic
+entry point, such as `database.prepare(\.personByName, name:)`, is not
+possible, because a Swift key path cannot refer to a method.
+
+`@SQLQueries` reports each collision that it can see, at your declaration: a
+specification named `preparedQueries`, and a property or a zero-parameter
+method named `preparedQueries` in the same extension. A member macro cannot
+see members that are declared outside its extension. On the Swift 5.9
+toolchain floor (swift-syntax 509), a peer macro sees only the declaration it
+is attached to. `@SQLQuery` therefore cannot report a member that collides
+with its `PreparedQuery` peer. These collisions fail as a redeclaration error
+in generated code. The 1.9.0 CHANGELOG lists each case.
+
+## Named bindings for a statement value
+
+A declared query binds its parameters for you, and its prepared form lets a
+live query observe it. Some statements are not declared queries, for example
+a write, with or without `RETURNING`. Such a statement uses named bindings,
+and each call needs a packet of values.
+
+Attach `@SQLBindings` to a struct with one stored property for each named
+binding. The macro generates a static typed reference for each property, which
+the statement uses, and `bindings(for:)` and `bindings(in:)`, which build the
+immutable `XLInvocationBindings` packet from the property values:
+
+<!-- test: XLDocumentationTests.testDocumentationDeclaredQueries -->
+```swift
+@SQLBindings
+struct PersonSearchBindings {
+    var name: String
+    var minimumAge: Int
+}
+
+let searchStatement = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    Where(
+        person.name == PersonSearchBindings.name
+        && person.age >= PersonSearchBindings.minimumAge
+    )
+}
+let searchRequest = database.makeRequest(with: searchStatement)
+let adults = try searchRequest.fetchAll(
+    bindings: PersonSearchBindings(name: "John Doe", minimumAge: 21)
+        .bindings(for: searchRequest)
+)
+```
+
+The property is the only place the binding's name and type are written:
+
+- A misspelled reference, such as `PersonSearchBindings.nmae`, is a missing
+  static member, so it does not compile.
+- A missing value or a misspelled value label is a memberwise-initializer
+  error, so it does not compile either.
+- The packet binds each value under its property name. `nil` in an optional
+  property is a present SQL `NULL`, not a missing binding.
+- Do not give a property an initial value, and do not declare an initializer
+  in the struct. Either one would let a call leave a value out, so the macro
+  reports an error for both. The macro cannot see an initializer that is
+  declared in an extension, so do not declare one there either.
+- The packet is still checked against the request's parameter layout. If the
+  statement does not use a declared binding, building the packet throws
+  `XLInvocationBindingError.parameterDeclarationNotInLayout`. If the statement
+  uses a binding that the struct does not declare, it throws
+  `XLInvocationBindingError.missingBindings`.
+
+Pass the packet to `fetchAll(bindings:)`, `fetchOne(bindings:)`,
+`execute(bindings:)`, a packet-backed publisher, or an `XLObservableQuery`.
+
+Declare one `@SQLBindings` struct for each statement shape. A statement that
+you build conditionally, for example with a filter term only when the filter
+is set, has a different parameter layout for each shape. A struct that
+declares the conditional binding throws `parameterDeclarationNotInLayout` for
+the shape that does not use it. Give each shape its own struct.
+
+Generated members are `public` or `package` only when the struct itself is
+written `public` or `package`. A struct that is public only because it is
+inside a `public extension` gets internal generated members. Write the access
+modifier on the struct.
+
+`bindings(for:)` has one overload for an `XLRequest` and one for an
+`XLWriteRequest`. If your own request type conforms to both protocols, a call
+to `bindings(for:)` is ambiguous, and the compiler error does not name the
+cause. For such a type, call `bindings(in: request.parameterLayout)` instead.
+
+Do not put a binding property or an initializer inside an `#if` block. The
+generated members are not conditional, so the macro reports an error for both.
+
 ## Render-once caching
 
 The generated executor does not render SQL on every call. Each declaration
