@@ -230,7 +230,7 @@ swift run bookshop-manifest Sources/BookshopValidation
 ```
 
 ```
-Build complete! (15,33 sec)
+Build complete! (15,11 sec)
 wrote 2 queries to swiftql-build-validation-manifest.json
 ```
 
@@ -381,11 +381,10 @@ Building for debugging...
 [Planning deferred tasks]
 [19 / 96]
 [22 / 43] swiftql-build-validate-product
-[26 / 45] swiftql-build-validate-product
 [27 / 45] swiftql-build-validate-product
 [34 / 46] BookshopValidation
 [44 / 49] Bookshop_BookshopValidation
-Build complete! (1,93 sec)
+Build complete! (1,88 sec)
 ```
 
 A passing validation is quiet. It leaves a report behind at:
