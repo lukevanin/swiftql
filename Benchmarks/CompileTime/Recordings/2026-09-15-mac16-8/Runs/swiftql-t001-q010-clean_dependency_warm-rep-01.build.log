@@ -1,0 +1,219 @@
+Building for debugging...
+Planning build
+[Computing dependencies]
+info: Building targets in dependency order
+info: Target dependency graph (25 targets)
+info: Target 'ConsumerLibrary-product' in project 'SwiftQLConsumer'
+info: ➜ Explicit dependency on target 'Consumer' in project 'SwiftQLConsumer'
+info: ➜ Explicit dependency on target 'SwiftQL-product' in project 'SwiftQL'
+info: Target 'Consumer' in project 'SwiftQLConsumer'
+info: ➜ Explicit dependency on target 'SwiftQL-product' in project 'SwiftQL'
+info: Target 'SwiftQL-product' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'SwiftQL' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'SwiftQLCore' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'SQLMacros' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'GRDB-product' in project 'GRDB'
+info: Target 'SwiftQL' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'SwiftQLCore' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'SQLMacros' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'GRDB-product' in project 'GRDB'
+info: Target 'GRDB-product' in project 'GRDB'
+info: ➜ Explicit dependency on target 'GRDB' in project 'GRDB'
+info: ➜ Explicit dependency on target 'GRDB_GRDB' in project 'GRDB'
+info: Target 'GRDB' in project 'GRDB'
+info: ➜ Explicit dependency on target 'GRDB_GRDB' in project 'GRDB'
+info: ➜ Explicit dependency on target 'CSQLite' in project 'GRDB'
+info: Target 'CSQLite' in project 'GRDB' (no dependencies)
+info: Target 'GRDB_GRDB' in project 'GRDB' (no dependencies)
+info: Target 'SQLMacros' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacros-product' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftCompilerPlugin-product' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser-product' in project 'swift-syntax'
+info: Target 'SwiftParser-product' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: Target 'SwiftCompilerPlugin-product' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftCompilerPlugin' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftOperators' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxBuilder' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacros' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacroExpansion' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftCompilerPluginMessageHandling' in project 'swift-syntax'
+info: Target 'SwiftCompilerPlugin' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftOperators' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxBuilder' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacros' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacroExpansion' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftCompilerPluginMessageHandling' in project 'swift-syntax'
+info: Target 'SwiftCompilerPluginMessageHandling' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftOperators' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxBuilder' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacros' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacroExpansion' in project 'swift-syntax'
+info: Target 'SwiftSyntaxMacroExpansion' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxBuilder' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacros' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftOperators' in project 'swift-syntax'
+info: Target 'SwiftOperators' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: Target 'SwiftSyntaxMacros-product' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacros' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxBuilder' in project 'swift-syntax'
+info: Target 'SwiftSyntaxMacros' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxBuilder' in project 'swift-syntax'
+info: Target 'SwiftSyntaxBuilder' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: Target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: Target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: Target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: Target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: Target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: Target 'SwiftSyntax509' in project 'swift-syntax' (no dependencies)
+info: Target 'SwiftQLCore' in project 'SwiftQL' (no dependencies)
+Compute target dependency graph
+Gather provisioning inputs
+Planning complete
+Create build description
+Build stat cache for /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk
+    cd /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -o /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/SDKStatCaches.noindex/macosx27.0-26A425-a0facfad118c1a7a18f0aad9463f65497231f6df4def33e022ae2eb8f782df1a.sdkstatcache
+
+Target PACKAGE-TARGET:SwiftSyntax509 up to date.
+Target PACKAGE-TARGET:SwiftSyntax up to date.
+Target PACKAGE-TARGET:SwiftDiagnostics up to date.
+Target PACKAGE-TARGET:SwiftParser up to date.
+Target PACKAGE-TARGET:SwiftBasicFormat up to date.
+Target PACKAGE-TARGET:SwiftParserDiagnostics up to date.
+Target PACKAGE-TARGET:SwiftSyntaxBuilder up to date.
+Target PACKAGE-TARGET:SwiftSyntaxMacros up to date.
+Target PACKAGE-TARGET:SwiftOperators up to date.
+Target PACKAGE-TARGET:SwiftSyntaxMacroExpansion up to date.
+Target PACKAGE-TARGET:SwiftCompilerPluginMessageHandling up to date.
+Target PACKAGE-TARGET:SwiftCompilerPlugin up to date.
+Target PACKAGE-TARGET:SQLMacros up to date.
+Target PACKAGE-TARGET:SwiftQLCore up to date.
+Target PACKAGE-RESOURCE:GRDB up to date.
+[1 / 3] GRDB
+Target PACKAGE-TARGET:GRDB up to date.
+Target PACKAGE-TARGET:SwiftQL up to date.
+Planning Swift module Consumer (arm64)
+    cd /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -parse-as-library -module-name Consumer -Onone @/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -Xcc -fmodule-map-file\=/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/checkouts/GRDB.swift/Sources/CSQLite/module.modulemap -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -target arm64-apple-macos13.0 -g -module-cache-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -index-store-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 5 -I /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug/PackageFrameworks -F /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -Xfrontend -load-plugin-executable -Xfrontend /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug/SQLMacros\#SQLMacros -c -j14 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/SDKStatCaches.noindex/macosx27.0-26A425-a0facfad118c1a7a18f0aad9463f65497231f6df4def33e022ae2eb8f782df1a.sdkstatcache -output-file-map /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer-OutputFileMap.json -save-temps -color-diagnostics -explicit-module-build -module-cache-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/ModuleCache.noindex -sdk-module-cache-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -package-name swiftql_consumer -emit-const-values -const-gather-protocols-list /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer_const_extract_protocols.json -Xcc -I/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug/include -Xcc -I/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/DerivedSources-normal/arm64 -Xcc -I/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/DerivedSources/arm64 -Xcc -I/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer-Swift.h -working-directory /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers -experimental-emit-module-separately -disable-cmo
+
+[2 / 5] Consumer
+Compile
+    cd /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers
+    
+
+Emitting module for Consumer
+[3 / 6] Consumer
+Discovering Swift tasks after 'Emitting module for Consumer'
+Unblock downstream dependents of Consumer (arm64)
+    cd /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers
+    builtin-Swift-Compilation-Requirements -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -parse-as-library -module-name Consumer -Onone @/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -Xcc -fmodule-map-file\=/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/checkouts/GRDB.swift/Sources/CSQLite/module.modulemap -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -target arm64-apple-macos13.0 -g -module-cache-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -index-store-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 5 -I /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug/PackageFrameworks -F /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -Xfrontend -load-plugin-executable -Xfrontend /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug/SQLMacros\#SQLMacros -c -j14 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/SDKStatCaches.noindex/macosx27.0-26A425-a0facfad118c1a7a18f0aad9463f65497231f6df4def33e022ae2eb8f782df1a.sdkstatcache -output-file-map /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer-OutputFileMap.json -save-temps -color-diagnostics -explicit-module-build -module-cache-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/ModuleCache.noindex -sdk-module-cache-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -package-name swiftql_consumer -emit-const-values -const-gather-protocols-list /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer_const_extract_protocols.json -Xcc -I/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug/include -Xcc -I/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/DerivedSources-normal/arm64 -Xcc -I/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/DerivedSources/arm64 -Xcc -I/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer-Swift.h -working-directory /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers -experimental-emit-module-separately -disable-cmo
+
+Compile Tables.swift
+    cd /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers
+    builtin-SwiftPerFileCompile Tables.swift
+
+Compiling Tables.swift
+[6 / 9] Consumer
+Discovering Swift tasks after 'Compiling Tables.swift'
+Compile Queries.swift
+    cd /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers
+    builtin-SwiftPerFileCompile Queries.swift
+
+Compiling Queries.swift
+Discovering Swift tasks after 'Compiling Queries.swift'
+Compile Consumer (arm64)
+    cd /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers
+    builtin-Swift-Compilation -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -parse-as-library -module-name Consumer -Onone @/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -Xcc -fmodule-map-file\=/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/checkouts/GRDB.swift/Sources/CSQLite/module.modulemap -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -target arm64-apple-macos13.0 -g -module-cache-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -index-store-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 5 -I /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug/PackageFrameworks -F /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -Xfrontend -load-plugin-executable -Xfrontend /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug/SQLMacros\#SQLMacros -c -j14 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/SDKStatCaches.noindex/macosx27.0-26A425-a0facfad118c1a7a18f0aad9463f65497231f6df4def33e022ae2eb8f782df1a.sdkstatcache -output-file-map /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer-OutputFileMap.json -save-temps -color-diagnostics -explicit-module-build -module-cache-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/ModuleCache.noindex -sdk-module-cache-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -package-name swiftql_consumer -emit-const-values -const-gather-protocols-list /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer_const_extract_protocols.json -Xcc -I/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug/include -Xcc -I/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/DerivedSources-normal/arm64 -Xcc -I/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/DerivedSources/arm64 -Xcc -I/private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer-Swift.h -working-directory /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers -experimental-emit-module-separately -disable-cmo
+
+Copy Consumer.swiftsourceinfo (arm64)
+    cd /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer.swiftsourceinfo /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug/Consumer.swiftmodule/Project/arm64-apple-macos.swiftsourceinfo
+
+Copy Consumer.abi.json (arm64)
+    cd /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftQLConsumer.build/Debug/Consumer-t.build/Objects-normal/arm64/Consumer.abi.json /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Products/Debug/Consumer.swiftmodule/arm64-apple-macos.abi.json
+
+Target PACKAGE-PRODUCT:swiftql-consumer_ConsumerLibrary.ConsumerLibrary up to date.
+Prune stale explicit modules at /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/ExplicitPrecompiledModules
+Prune stale explicit modules at /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/SDKExplicitPrecompiledModules
+Prune stale explicit modules at /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftExplicitPrecompiledModules
+Build complete! (2,06 sec)
+        2.61 real         3.10 user         0.43 sys
+           284131328  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               80126  page reclaims
+                1109  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   6  messages sent
+                   0  messages received
+                   0  signals received
+                 167  voluntary context switches
+                6634  involuntary context switches
+         17157233884  instructions retired
+          4799701695  cycles elapsed
+           187155536  peak memory footprint

@@ -238,6 +238,37 @@
   `validJSONOrNull()` still renders `json_valid(X)`, which reports false for
   every JSONB blob.
 
+- **Benchmark evidence checks and SwiftQL production phases** (issue #670).
+  - The compile-time summarizer reads SwiftPM's
+    `Build of product '...' complete! (N.NNs)` line from each raw log. It
+    rejects a sample when the wall time is greater than 2 x that duration
+    + 2 s. It lists each rejected sample and exits with status 1, unless
+    `--allow-rejected-samples` is given. The 2026-08-02 report has three
+    rejected samples, in the 10-table SwiftQL clean cell and the 10-query raw
+    SQLite edit cell. The runner applies the same rule and builds a rejected
+    sample again, up to two more times.
+  - The compile-time runner gets `--matrix extended` (1, 10, 100, and 500
+    tables; 1, 10, and 100 queries) and `--generate-only`. It splits tables
+    and queries into files of at most 50 declarations. Every scale up to 50
+    generates the same bytes as before. Timed builds run `swift build -v`, so
+    the runner detects a recompilation under Swift Build, the default build
+    system from Swift 6.4, as well as under the native build system. Each
+    measurement records the build system that ran. Before it builds a point,
+    the runner deletes generated files that the point does not produce, and it
+    checks that the consumer holds exactly its template and generated files.
+    Validation rejects a report whose generated files disagree with the
+    declared scale.
+  - The phase harness writes report format version 2. Each SQL case adds six
+    phases on SwiftQL's own path: `swiftql_binding`, `swiftql_execution`,
+    `swiftql_row_materialization`, `swiftql_row_decoding`,
+    `swiftql_fetch_all`, and `swiftql_execute`. Each query also gets a
+    plain-value variant that renders its values as inline SQL literals. The
+    six version 1 phases keep their names and boundaries, and version 1
+    reports still validate.
+  - `Benchmarks/record-baselines.sh` records the phase, comparison, and
+    compile-time baselines at one revision into new dated files.
+    `BENCHMARKS.md` gets a current-baseline section.
+
 ### Changed
 
 - **A `Bool` written into JSON is a JSON boolean** (issue #671). The same

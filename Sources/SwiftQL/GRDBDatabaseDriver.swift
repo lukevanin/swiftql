@@ -504,7 +504,9 @@ struct GRDBInvocationExecutor: Sendable {
         return validatedPacket
     }
 
-    private func boundStatement(
+    /// Internal rather than private so that `GRDBRequestPhaseConnection` can
+    /// time this exact binding step on its own (issue #670).
+    func boundStatement(
         packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws -> GRDBPhysicalStatement {
@@ -759,6 +761,31 @@ struct GRDBDatabaseDriverConnection:
                 }
             }
         }
+    }
+
+    /// Steps every result row of `statement` without reading or normalizing a
+    /// column, and returns the row count. This is `forEachRow(_:_:)` without
+    /// its value loop, so the performance harness can time SQLite stepping
+    /// apart from column materialization (issue #670).
+    mutating func stepAllRows(_ statement: GRDBPhysicalStatement) throws -> Int {
+        try validateOwnership(of: statement)
+        let cursor = try Row.fetchCursor(
+            statement.statement,
+            arguments: statementArguments(statement)
+        )
+        var rowCount = 0
+        try GRDBOpenCursorStatements.shared.withOpenCursor(on: statement.statement) {
+            while try cursor.next() != nil {
+                rowCount += 1
+            }
+        }
+        return rowCount
+    }
+
+    /// The GRDB connection this value wraps. `GRDBRequestPhaseConnection` uses
+    /// it for unmeasured work, such as a savepoint around one sample.
+    var grdbDatabase: Database {
+        database
     }
 
     ///
