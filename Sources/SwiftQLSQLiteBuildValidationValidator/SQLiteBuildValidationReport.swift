@@ -255,8 +255,10 @@ public struct SQLiteBuildValidationQueryOutcome:
 public struct SQLiteBuildValidationReport: Codable, Equatable, Sendable {
     public let formatVersion: Int
     public let manifestFormatVersion: Int
-    public let conformanceInventoryVersion: String
-    public let combinatorialManifestVersion: String
+    /// Copied from the manifest. `nil`, and omitted from the JSON, when a
+    /// format version 2 manifest records no fixture provenance.
+    public let conformanceInventoryVersion: String?
+    public let combinatorialManifestVersion: String?
     public let schemaSnapshot: SQLiteBuildValidationSchemaSnapshot
     public let observedDatabaseByteCount: Int?
     public let observedDatabaseSHA256: String?

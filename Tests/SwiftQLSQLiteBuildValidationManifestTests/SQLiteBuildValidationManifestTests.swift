@@ -202,7 +202,7 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
         let earlierRange = try XCTUnwrap(json.range(of: "a-earlier"))
         let laterRange = try XCTUnwrap(json.range(of: "z-later"))
         XCTAssertLessThan(earlierRange.lowerBound, laterRange.lowerBound)
-        XCTAssertTrue(json.contains("\"format_version\" : 1"))
+        XCTAssertTrue(json.contains("\"format_version\" : 2"))
 
         // No nondeterministic evidence anywhere in the schema.
         for excluded in ["timestamp", "hostname", "host_name", "process_id", "elapsed", "duration"] {
@@ -214,7 +214,7 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
 
     func testManifestRejectsUnsupportedFormatVersion() {
         let manifest = SQLiteBuildValidationManifest(
-            formatVersion: SQLiteBuildValidationManifestFormatVersion(rawValue: 2),
+            formatVersion: SQLiteBuildValidationManifestFormatVersion(rawValue: 3),
             conformanceInventoryVersion: "190.1.0",
             combinatorialManifestVersion: "c191-v2",
             schemaSnapshot: Support.schemaSnapshot(),
@@ -223,7 +223,7 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
         XCTAssertThrowsError(try manifest.validating()) { error in
             XCTAssertEqual(
                 error as? SQLiteBuildValidationManifestError,
-                .unsupportedFormatVersion(SQLiteBuildValidationManifestFormatVersion(rawValue: 2))
+                .unsupportedFormatVersion(SQLiteBuildValidationManifestFormatVersion(rawValue: 3))
             )
         }
     }
@@ -617,7 +617,7 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
 
     func testDecodeFailsClosedOnUnknownFormatVersion() throws {
         let manifest = SQLiteBuildValidationManifest(
-            formatVersion: SQLiteBuildValidationManifestFormatVersion(rawValue: 2),
+            formatVersion: SQLiteBuildValidationManifestFormatVersion(rawValue: 3),
             conformanceInventoryVersion: "190.1.0",
             combinatorialManifestVersion: "c191-v2",
             schemaSnapshot: Support.schemaSnapshot(),
@@ -627,8 +627,275 @@ final class SQLiteBuildValidationManifestTests: XCTestCase {
         XCTAssertThrowsError(try SQLiteBuildValidationManifest.decode(data)) { error in
             XCTAssertEqual(
                 error as? SQLiteBuildValidationManifestError,
-                .unsupportedFormatVersion(SQLiteBuildValidationManifestFormatVersion(rawValue: 2))
+                .unsupportedFormatVersion(SQLiteBuildValidationManifestFormatVersion(rawValue: 3))
             )
+        }
+    }
+
+    /// `format_version` is read before the body, so a document in a version
+    /// this reader does not know reports that version, not a `keyNotFound` or
+    /// type mismatch from a body shape it cannot decode. Both entry points
+    /// behave the same way.
+    func testDecodeReportsUnsupportedVersionBeforeDecodingTheBody() {
+        let unsupported = SQLiteBuildValidationManifestError.unsupportedFormatVersion(
+            SQLiteBuildValidationManifestFormatVersion(rawValue: 3)
+        )
+        for document in [
+            #"{"format_version": 3}"#,
+            #"{"format_version": 3, "queries": "not an array", "surprise": true}"#,
+        ] {
+            let data = Data(document.utf8)
+            XCTAssertThrowsError(try SQLiteBuildValidationManifest.decode(data), document) { error in
+                XCTAssertEqual(error as? SQLiteBuildValidationManifestError, unsupported)
+            }
+            XCTAssertThrowsError(
+                try JSONDecoder().decode(SQLiteBuildValidationManifest.self, from: data),
+                document
+            ) { error in
+                XCTAssertEqual(error as? SQLiteBuildValidationManifestError, unsupported)
+            }
+        }
+    }
+
+    // MARK: - Format version 2 (#658)
+
+    /// The shape an application's generated manifest takes (#659): no
+    /// fixture provenance, and possibly no declared queries at all.
+    func testGeneratedManifestWithoutFixtureProvenanceOrQueriesValidates() throws {
+        let manifest = SQLiteBuildValidationManifest(
+            schemaSnapshot: Support.schemaSnapshot(),
+            queries: []
+        )
+        XCTAssertEqual(manifest.formatVersion, .v2)
+
+        let validated = try manifest.validating()
+        let data = try manifest.canonicalJSONData()
+        let json = try XCTUnwrap(String(data: data, encoding: .utf8))
+        XCTAssertTrue(json.contains("\"format_version\" : 2"))
+        XCTAssertFalse(json.contains("conformance_inventory_version"))
+        XCTAssertFalse(json.contains("combinatorial_manifest_version"))
+        XCTAssertFalse(json.contains("null"))
+
+        let decoded = try SQLiteBuildValidationManifest.decode(data)
+        XCTAssertEqual(decoded, validated)
+        XCTAssertEqual(try decoded.canonicalJSONData(), data)
+    }
+
+    func testVersion2AcceptsSlotsWithoutValueTypeNameButVersion1DoesNot() throws {
+        let parameter = SQLiteBuildValidationParameterEntry(
+            logicalIndex: 0,
+            physicalIndex: 1,
+            identity: "parameter/first",
+            keyKind: .named,
+            keyName: "first",
+            keyIndex: nil,
+            valueTypeIdentifier: "swift.int",
+            nullability: "required",
+            codec: nil,
+            storageIdentifier: "integer"
+        )
+        let result = SQLiteBuildValidationResultEntry(
+            index: 0,
+            identity: "result/first",
+            declaredAlias: "first",
+            valueTypeIdentifier: "swift.int",
+            nullability: "required",
+            codec: nil,
+            storageIdentifier: "integer"
+        )
+        let query = Support.query(
+            sql: "SELECT :first AS first",
+            parameters: [parameter],
+            results: [result]
+        )
+
+        let version2 = Support.manifest(queries: [query])
+        let data = try version2.canonicalJSONData()
+        XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("value_type_name"))
+        XCTAssertEqual(try SQLiteBuildValidationManifest.decode(data), try version2.validating())
+
+        XCTAssertThrowsError(
+            try Support.manifest(formatVersion: .v1, queries: [query]).validating()
+        ) { error in
+            XCTAssertEqual(
+                error as? SQLiteBuildValidationManifestError,
+                .invalidQuery(query.id, "parameter metadata must be contiguous and complete")
+            )
+        }
+
+        let emptyName = SQLiteBuildValidationResultEntry(
+            index: 0,
+            identity: "result/first",
+            declaredAlias: "first",
+            valueTypeIdentifier: "swift.int",
+            valueTypeName: "",
+            nullability: "required",
+            codec: nil,
+            storageIdentifier: "integer"
+        )
+        assertInvalidQuery(
+            Support.query(results: [emptyName]),
+            contains: "result metadata must be contiguous and complete"
+        )
+    }
+
+    /// Version 1 keeps every check it had before version 2 existed.
+    func testVersion1StillRequiresFixtureProvenanceAndQueries() {
+        let cases: [(SQLiteBuildValidationManifest, String)] = [
+            (
+                Support.manifest(
+                    formatVersion: .v1,
+                    conformanceInventoryVersion: nil,
+                    queries: [Support.query()]
+                ),
+                "conformance_inventory_version must not be empty"
+            ),
+            (
+                Support.manifest(
+                    formatVersion: .v1,
+                    combinatorialManifestVersion: "",
+                    queries: [Support.query()]
+                ),
+                "combinatorial_manifest_version must not be empty"
+            ),
+            (
+                Support.manifest(formatVersion: .v1, queries: []),
+                "queries must not be empty"
+            ),
+        ]
+        for (manifest, reason) in cases {
+            XCTAssertThrowsError(try manifest.validating(), reason) { error in
+                XCTAssertEqual(
+                    error as? SQLiteBuildValidationManifestError,
+                    .invalidManifest(reason)
+                )
+            }
+        }
+    }
+
+    func testVersion2RejectsEmptyProvenanceAndUntraceableFixtureReferences() {
+        XCTAssertThrowsError(
+            try Support.manifest(conformanceInventoryVersion: "", queries: []).validating()
+        ) { error in
+            XCTAssertEqual(
+                error as? SQLiteBuildValidationManifestError,
+                .invalidManifest("conformance_inventory_version must be omitted or nonempty")
+            )
+        }
+
+        XCTAssertThrowsError(
+            try Support.manifest(
+                conformanceInventoryVersion: nil,
+                queries: [Support.query(id: "q", conformanceFeatureIDs: ["binding.named"])]
+            ).validating()
+        ) { error in
+            XCTAssertEqual(
+                error as? SQLiteBuildValidationManifestError,
+                .invalidQuery("q", "conformance_feature_ids require conformance_inventory_version")
+            )
+        }
+
+        XCTAssertThrowsError(
+            try Support.manifest(
+                combinatorialManifestVersion: nil,
+                queries: [Support.query(id: "q", conformanceCaseIDs: ["c191.v1.case"])]
+            ).validating()
+        ) { error in
+            XCTAssertEqual(
+                error as? SQLiteBuildValidationManifestError,
+                .invalidQuery("q", "conformance_case_ids require combinatorial_manifest_version")
+            )
+        }
+    }
+
+    /// A version 2 reader still reads version 1: the build-plugin fixture is
+    /// a checked-in version 1 manifest, and decoding then re-encoding it must
+    /// reproduce its bytes exactly.
+    func testCheckedInVersion1ManifestDecodesAndReencodesByteIdentically() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent(
+                "IntegrationTests/BuildValidationPluginFixture/Sources/ValidatedLibrary/swiftql-build-validation-manifest.json"
+            )
+        let data = try Data(contentsOf: url)
+
+        let manifest = try SQLiteBuildValidationManifest.decode(data)
+
+        XCTAssertEqual(manifest.formatVersion, .v1)
+        XCTAssertNotNil(manifest.conformanceInventoryVersion)
+        XCTAssertEqual(try manifest.canonicalJSONData(), data)
+    }
+
+    // MARK: - Unknown keys fail closed (#658)
+
+    /// Synthesized decoding ignores an unknown key, so a misspelled optional
+    /// key would decode as "absent". Every manifest type rejects one instead,
+    /// and names where it is.
+    func testDecodeRejectsAStrayKeyAtEveryLevel() throws {
+        let manifest = Support.manifest(queries: [
+            Support.query(
+                sql: "SELECT :first AS first",
+                parameters: [Support.parameter(codec: Support.codec())],
+                results: [Support.result(codec: Support.codec())],
+                requiredCapabilities: ["function:ABS"]
+            ),
+        ])
+        let canonical = try XCTUnwrap(
+            String(data: try manifest.canonicalJSONData(), encoding: .utf8)
+        )
+        XCTAssertNoThrow(try SQLiteBuildValidationManifest.decode(Data(canonical.utf8)))
+
+        let cases: [(original: String, replacement: String, path: String)] = [
+            (
+                #""conformance_inventory_version" :"#,
+                #""conformance_inventory_versoin" :"#,
+                "conformance_inventory_versoin"
+            ),
+            (
+                #""database_byte_count" :"#,
+                #""database_sha_256" : "x", "database_byte_count" :"#,
+                "schema_snapshot.database_sha_256"
+            ),
+            (
+                #""definition_identity" :"#,
+                #""definition_id" : "x", "definition_identity" :"#,
+                "queries[0].definition_id"
+            ),
+            (
+                #""key_kind" :"#,
+                #""key_nmae" : "first", "key_kind" :"#,
+                "queries[0].parameters[0].key_nmae"
+            ),
+            (
+                #""key_id" :"#,
+                #""key_ver" : 1, "key_id" :"#,
+                "queries[0].parameters[0].codec.key_ver"
+            ),
+            (
+                #""declared_alias" :"#,
+                #""alias" : "first", "declared_alias" :"#,
+                "queries[0].results[0].alias"
+            ),
+            (
+                #""id" : "function:ABS""#,
+                #""id" : "function:ABS", "name" : "ABS""#,
+                "queries[0].required_capabilities[0].name"
+            ),
+        ]
+        for (original, replacement, path) in cases {
+            let range = try XCTUnwrap(canonical.range(of: original), original)
+            let document = canonical.replacingCharacters(in: range, with: replacement)
+            XCTAssertThrowsError(
+                try SQLiteBuildValidationManifest.decode(Data(document.utf8)),
+                path
+            ) { error in
+                XCTAssertEqual(
+                    error as? SQLiteBuildValidationManifestError,
+                    .unknownKey(path: path)
+                )
+            }
         }
     }
 }
