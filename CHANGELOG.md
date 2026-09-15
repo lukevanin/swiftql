@@ -189,6 +189,15 @@
   that `import GRDB` no longer re-exports, and the `Sendable` closure and value
   requirements. The `Sendable` findings go to the v2.0 `Row` decision (issue
   #685).
+- The blog post on build-time SQLite validation is back, rewritten for v1.9
+  (issue #495). It sets up the validation plugin on a package that uses
+  `@SQLQuery` and `@SQLQueries` declarations. The declared-query registry
+  plugin finds the queries, and `makeManifest` generates the manifest from
+  them. A hand-written manifest is now the fallback. The post states the
+  current limits: the registry plugin runs only in a SwiftPM target (issue
+  #766), and the validation plugin also runs in an Xcode app target (issue
+  #666). `check-blog-output.sh` and the deployed-post check in
+  `documentation.yml` list the post again.
 
 ## [1.8.1] - 2026-09-15
 
