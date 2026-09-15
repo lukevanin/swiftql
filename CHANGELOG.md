@@ -108,8 +108,29 @@
   `from: "0.14.0"`. A consumer graph that needs a later compatible OpenCombine
   release now resolves. `Package.resolved` keeps the tested 0.14.0 pin, and
   the committed-resolution CI cells still build against it.
+- **A declared query accepts a parameter as a method or clause argument**
+  (issue #661). `@SQLQuery` and `@SQLQueries` now rewrite a parameter passed
+  to a DSL method or clause, such as `column.like(pattern)`,
+  `column.regexp(pattern)`, or `Limit(count)`, into its named binding, so a
+  declared query can match text and limit its rows with parameters. The
+  frozen-literal guard no longer rejects a call argument, a local binding
+  initialized from a parameter, or a parameter in a nested closure, because
+  the rewrite replaces each of these references. It still rejects string
+  interpolation and member access on a parameter. A parameter passed to a call
+  whose parameter type is `Any` or generic, such as `String(describing:)`, is
+  not a binding: the call renders the description of a binding reference as a
+  constant literal, and the macro does not detect it. Pass parameters only to
+  SwiftQL expression APIs. The to-do demo's filtered read is a declared query
+  again.
 
 ### Fixed
+
+- **A parameter named like a key-path component or a callee gets a
+  diagnostic** (issue #661). A parameter named `name` in a body that also
+  contains `\Person.name` made the rewrite produce invalid code. A parameter
+  named `From` rewrote the `From(…)` clause. The rewrite now leaves key-path
+  components and callees unchanged, and the macro reports the shared name at
+  the declaration.
 
 - **A `@SQLTable` or `@SQLResult` property default now applies** (issue #665,
   recorded on #469). The generated memberwise initializer gives a `var`
