@@ -12,18 +12,27 @@ import SwiftQLCore
 /// authoritative; this is a sidecar, not a second structural query model, and
 /// it performs no SQLite database I/O — that is the standalone validator's
 /// responsibility (#293).
+///
+/// See ``SQLiteBuildValidationManifestFormatVersion`` for what each format
+/// version requires.
 public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
 
     public let formatVersion: SQLiteBuildValidationManifestFormatVersion
-    public let conformanceInventoryVersion: String
-    public let combinatorialManifestVersion: String
+    /// The #190 `inventory_version` the manifest was authored against, or
+    /// `nil` when it was not authored against SwiftQL's fixtures. Required in
+    /// format version 1.
+    public let conformanceInventoryVersion: String?
+    /// The #191 `generator_version` the manifest was authored against, or
+    /// `nil` when it was not authored against SwiftQL's fixtures. Required in
+    /// format version 1.
+    public let combinatorialManifestVersion: String?
     public let schemaSnapshot: SQLiteBuildValidationSchemaSnapshot
     public let queries: [SQLiteBuildValidationQueryEntry]
 
     public init(
         formatVersion: SQLiteBuildValidationManifestFormatVersion = .current,
-        conformanceInventoryVersion: String,
-        combinatorialManifestVersion: String,
+        conformanceInventoryVersion: String? = nil,
+        combinatorialManifestVersion: String? = nil,
         schemaSnapshot: SQLiteBuildValidationSchemaSnapshot,
         queries: [SQLiteBuildValidationQueryEntry]
     ) {
@@ -34,11 +43,61 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
         self.queries = queries.map { $0.normalized() }.sorted { $0.id < $1.id }
     }
 
+    /// Decodes a manifest's JSON object.
+    ///
+    /// Reads `format_version` before anything else and fails with
+    /// ``SQLiteBuildValidationManifestError/unsupportedFormatVersion(_:)``
+    /// when this reader does not know it, whatever the rest of the document
+    /// contains. An unknown key at any level fails with
+    /// ``SQLiteBuildValidationManifestError/unknownKey(path:)``. Stored values
+    /// are kept as written; ``validating()`` canonicalizes and checks them.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let formatVersion = try container.decode(
+            SQLiteBuildValidationManifestFormatVersion.self,
+            forKey: .formatVersion
+        )
+        guard formatVersion.isSupported else {
+            throw SQLiteBuildValidationManifestError.unsupportedFormatVersion(formatVersion)
+        }
+        try sqliteBuildValidationManifestRejectUnknownKeys(
+            in: decoder,
+            allowedKeys: CodingKeys.self
+        )
+        self.formatVersion = formatVersion
+        self.conformanceInventoryVersion = try container.decodeIfPresent(
+            String.self,
+            forKey: .conformanceInventoryVersion
+        )
+        self.combinatorialManifestVersion = try container.decodeIfPresent(
+            String.self,
+            forKey: .combinatorialManifestVersion
+        )
+        self.schemaSnapshot = try container.decode(
+            SQLiteBuildValidationSchemaSnapshot.self,
+            forKey: .schemaSnapshot
+        )
+        self.queries = try container.decode(
+            [SQLiteBuildValidationQueryEntry].self,
+            forKey: .queries
+        )
+    }
+
     /// Decodes and structurally validates a manifest. Reference resolution
     /// against #190/#191/#254 is a separate step; see
     /// ``validating(against:)``.
+    ///
+    /// `format_version` is decoded alone first, so a document in an unknown
+    /// version reports that version rather than a decoding error from a body
+    /// shape this reader does not know.
     public static func decode(_ data: Data) throws -> Self {
-        try JSONDecoder().decode(Self.self, from: data).validating()
+        let formatVersion = SQLiteBuildValidationManifestFormatVersion(
+            rawValue: try SQLiteBuildValidationFormatVersionProbe.decode(data)
+        )
+        guard formatVersion.isSupported else {
+            throw SQLiteBuildValidationManifestError.unsupportedFormatVersion(formatVersion)
+        }
+        return try JSONDecoder().decode(Self.self, from: data).validating()
     }
 
     public static func decode(contentsOf url: URL) throws -> Self {
@@ -47,28 +106,34 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
 
     /// Structural, registry-independent validation.
     ///
-    /// Fails closed on an unsupported format version, empty inventory
-    /// versions, an invalid schema snapshot, duplicate query ids, malformed
-    /// physical parameter slots, and incomplete codec metadata. This alone
-    /// cannot detect an unresolved #190/#191/#254 reference, since resolving
-    /// one requires external registry data not present in the manifest bytes.
+    /// Fails closed on an unsupported format version, an invalid schema
+    /// snapshot, duplicate query ids, malformed physical parameter slots, and
+    /// incomplete codec metadata. Format version 1 also requires both
+    /// inventory versions, at least one query, and `value_type_name` on every
+    /// slot. Format version 2 accepts their absence, but still rejects an
+    /// empty string where one is present, and rejects a #190 feature or #191
+    /// case reference when the matching inventory version is absent. This
+    /// alone cannot detect an unresolved #190/#191/#254 reference, since
+    /// resolving one requires external registry data not present in the
+    /// manifest bytes.
     public func validating() throws -> Self {
-        guard formatVersion == .current else {
+        guard formatVersion.isSupported else {
             throw SQLiteBuildValidationManifestError.unsupportedFormatVersion(
                 formatVersion
             )
         }
-        guard !conformanceInventoryVersion.isEmpty else {
-            throw SQLiteBuildValidationManifestError.invalidManifest(
-                "conformance_inventory_version must not be empty"
-            )
-        }
-        guard !combinatorialManifestVersion.isEmpty else {
-            throw SQLiteBuildValidationManifestError.invalidManifest(
-                "combinatorial_manifest_version must not be empty"
-            )
-        }
-        guard !queries.isEmpty else {
+        let requiresFixtureProvenance = formatVersion == .v1
+        try Self.validateProvenance(
+            conformanceInventoryVersion,
+            key: "conformance_inventory_version",
+            required: requiresFixtureProvenance
+        )
+        try Self.validateProvenance(
+            combinatorialManifestVersion,
+            key: "combinatorial_manifest_version",
+            required: requiresFixtureProvenance
+        )
+        guard !requiresFixtureProvenance || !queries.isEmpty else {
             throw SQLiteBuildValidationManifestError.invalidManifest(
                 "queries must not be empty"
             )
@@ -83,13 +148,12 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
             )
         }
 
-        // `Codable`'s synthesized initializer decodes each stored property
-        // directly and never calls the canonicalizing memberwise
-        // initializer below, so a manifest fresh off `JSONDecoder` may still
-        // have unsorted/undeduplicated queries, parameters, results, or
-        // id-set fields even though it is otherwise semantically valid.
-        // Re-normalize before running structural checks against it so a
-        // reordered-but-valid manifest doesn't spuriously fail contiguity
+        // A decoded manifest keeps its stored values exactly as written and
+        // never calls the canonicalizing memberwise initializer below, so it
+        // may still have unsorted/undeduplicated queries, parameters,
+        // results, or id-set fields even though it is otherwise semantically
+        // valid. Re-normalize before running structural checks against it so
+        // a reordered-but-valid manifest doesn't spuriously fail contiguity
         // checks that assume canonical ordering.
         let normalizedQueries = Self(
             formatVersion: formatVersion,
@@ -112,7 +176,24 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
             throw SQLiteBuildValidationManifestError.duplicateQueryID(duplicateQueryID)
         }
         for query in normalizedQueries {
-            try Self.validateStructure(query)
+            try Self.validateStructure(
+                query,
+                requiresValueTypeName: requiresFixtureProvenance
+            )
+            // A fixture reference with no recorded fixture version cannot be
+            // traced to the inventory it was authored against.
+            if conformanceInventoryVersion == nil, !query.conformanceFeatureIDs.isEmpty {
+                throw SQLiteBuildValidationManifestError.invalidQuery(
+                    query.id,
+                    "conformance_feature_ids require conformance_inventory_version"
+                )
+            }
+            if combinatorialManifestVersion == nil, !query.conformanceCaseIDs.isEmpty {
+                throw SQLiteBuildValidationManifestError.invalidQuery(
+                    query.id,
+                    "conformance_case_ids require combinatorial_manifest_version"
+                )
+            }
         }
         return Self(
             formatVersion: formatVersion,
@@ -165,14 +246,38 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
     /// Canonical JSON: pretty-printed, sorted keys, exactly one trailing
     /// newline. Set-like fields and the query list are sorted at construction
     /// time, so two manifests with the same reordered content encode to
-    /// byte-identical output. No timestamp, hostname, process ID, local path,
-    /// or elapsed-time field exists anywhere in this schema.
+    /// byte-identical output. An absent optional field is omitted rather than
+    /// written as `null`, so a version 1 manifest encodes exactly as it did
+    /// before version 2 existed. No timestamp, hostname, process ID, local
+    /// path, or elapsed-time field exists anywhere in this schema.
     public func canonicalJSONData() throws -> Data {
         try SQLiteBuildValidationCanonicalJSON.encode(validating())
     }
 
+    private static func validateProvenance(
+        _ value: String?,
+        key: String,
+        required: Bool
+    ) throws {
+        switch value {
+        case .none where required:
+            throw SQLiteBuildValidationManifestError.invalidManifest(
+                "\(key) must not be empty"
+            )
+        case .some(let version) where version.isEmpty:
+            throw SQLiteBuildValidationManifestError.invalidManifest(
+                required
+                    ? "\(key) must not be empty"
+                    : "\(key) must be omitted or nonempty"
+            )
+        default:
+            return
+        }
+    }
+
     private static func validateStructure(
-        _ query: SQLiteBuildValidationQueryEntry
+        _ query: SQLiteBuildValidationQueryEntry,
+        requiresValueTypeName: Bool
     ) throws {
         guard !query.id.isEmpty,
               !query.definitionIdentity.isEmpty,
@@ -221,7 +326,10 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
                   parameter.physicalIndex > 0,
                   !parameter.identity.isEmpty,
                   !parameter.valueTypeIdentifier.isEmpty,
-                  !parameter.valueTypeName.isEmpty,
+                  isValidValueTypeName(
+                      parameter.valueTypeName,
+                      required: requiresValueTypeName
+                  ),
                   !parameter.storageIdentifier.isEmpty else {
                 throw SQLiteBuildValidationManifestError.invalidQuery(
                     query.id,
@@ -264,7 +372,10 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
             guard result.index == offset,
                   !result.identity.isEmpty,
                   !result.valueTypeIdentifier.isEmpty,
-                  !result.valueTypeName.isEmpty,
+                  isValidValueTypeName(
+                      result.valueTypeName,
+                      required: requiresValueTypeName
+                  ),
                   !result.storageIdentifier.isEmpty,
                   result.declaredAlias?.isEmpty != true else {
                 throw SQLiteBuildValidationManifestError.invalidQuery(
@@ -275,6 +386,18 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
             try validateNullability(result.nullability, queryID: query.id)
             try validateCodec(result.codec, queryID: query.id)
         }
+    }
+
+    /// Format version 1 requires a nonempty `value_type_name`. Version 2
+    /// accepts its absence, but an empty string is never a type name.
+    private static func isValidValueTypeName(
+        _ valueTypeName: String?,
+        required: Bool
+    ) -> Bool {
+        guard let valueTypeName else {
+            return !required
+        }
+        return !valueTypeName.isEmpty
     }
 
     /// Cross-checks declared parameter metadata against the placeholders
@@ -348,7 +471,7 @@ public struct SQLiteBuildValidationManifest: Codable, Equatable, Sendable {
         }
     }
 
-    private enum CodingKeys: String, CodingKey {
+    private enum CodingKeys: String, CodingKey, CaseIterable {
         case formatVersion = "format_version"
         case conformanceInventoryVersion = "conformance_inventory_version"
         case combinatorialManifestVersion = "combinatorial_manifest_version"
