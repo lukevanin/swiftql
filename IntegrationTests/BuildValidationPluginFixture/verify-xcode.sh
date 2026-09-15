@@ -197,6 +197,16 @@ if ! xcode_build /tmp/swiftql-plugin-verify-xcode-4.log; then
     exit 1
 fi
 assert_no_missing_input_error /tmp/swiftql-plugin-verify-xcode-4.log
+# Check 3 left a failed report at ValidatedLibrary's path, so a build that
+# succeeds without re-running the validator still fails here. Same IFS
+# handling as check 1.
+OLD_IFS=$IFS
+IFS='
+'
+for REPORT in $REPORTS; do
+    assert_passed_report "$REPORT"
+done
+IFS=$OLD_IFS
 echo "OK"
 
 echo "== 5. An Xcode application target adopts the plugin and produces both outputs =="
@@ -253,6 +263,10 @@ if ! xcode_app_build /tmp/swiftql-plugin-verify-xcode-7.log; then
     tail -50 /tmp/swiftql-plugin-verify-xcode-7.log
     exit 1
 fi
+assert_no_missing_input_error /tmp/swiftql-plugin-verify-xcode-7.log
+# Check 6 left a failed report at this path, so a build that succeeds without
+# re-running the validator still fails here.
+assert_passed_report "$APP_REPORTS"
 echo "OK"
 
 echo

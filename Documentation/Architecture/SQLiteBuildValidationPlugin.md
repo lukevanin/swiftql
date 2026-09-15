@@ -91,6 +91,18 @@ bundle, and Xcode also copies the declared report and sidecar there. The
 fixture application shows this: its bundle's `Resources` holds all five files.
 None of them is needed at runtime.
 
+**Check what a shipped app contains.** With that setup, a release build ships
+the manifest, which contains the SQL of every validated query, the schema
+snapshot, and the reports. Xcode passes a file to the plugin only when the file
+is a member of a build phase: a file that is only in the project navigator
+fails the build with the missing-files error above. Verified on Xcode 27.0, a
+target can keep the manifest, snapshot, and opt-in out of the bundle by adding
+them to **Compile Sources** instead of **Copy Bundle Resources**. The plugin
+still runs, and Xcode warns "no rule to process file" once for each of the
+three files. Xcode still copies the declared report and sidecar into the
+bundle's `Resources` in both setups. Before a release, check the contents of
+the built bundle, and remove any of these files that the app must not ship.
+
 Reports land under the plugin's own work directory for the target, in
 `Build/Intermediates.noindex/BuildToolPluginIntermediates/<target>.output/<target>/SwiftQLSQLiteBuildValidationPlugin/<target>/`
 inside derived data.
