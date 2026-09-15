@@ -43,6 +43,14 @@ internal struct MetaProperty {
     /// property's own declaration.
     var codecKeyExpression: String? = nil
 
+    /// The trimmed source text of this property's initial value, or `nil` if it declares none
+    /// (issue #665). The generated memberwise initializer offers it as the parameter's default, so
+    /// a caller may omit a property the declaration already gives a value. Like
+    /// `codecKeyExpression`, the macro never evaluates it: it is spliced verbatim into a generated
+    /// static accessor on the type, where it type-checks in the same context as the original
+    /// initial value.
+    var defaultValueExpression: String? = nil
+
     var qualifiedType: String {
         if optional {
             type + "?"
