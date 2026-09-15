@@ -28,9 +28,13 @@ public struct DeclaredQueryImport: Equatable, Sendable {
     /// The `#if` condition the import is compiled under, or `nil`.
     public let condition: String?
 
-    public init(declaration: String, condition: String?) {
+    /// The imported module, the first component of the import path.
+    public let module: String
+
+    public init(declaration: String, condition: String?, module: String) {
         self.declaration = declaration
         self.condition = condition
+        self.module = module
     }
 }
 
@@ -103,7 +107,10 @@ public enum DeclaredQueryScanner {
 
     ///
     /// A comment that leaves one declaration out of the registry without a
-    /// warning. Write it on the line before the declaration's attribute:
+    /// warning. Write it directly above the declaration, before its first
+    /// attribute. The scanner reads only the comments in front of the
+    /// declaration's first token, so a comment between two attributes, or
+    /// between an attribute and `func`, is not seen:
     ///
     ///     // swiftql-registry: ignore
     ///     @SQLQuery
@@ -169,6 +176,13 @@ public enum DeclaredQueryScanner {
                     continue
                 }
                 holdsDeclaration = true
+                guard !raw.hasConditionalAttribute else {
+                    scan.skipped.append(skip(
+                        raw,
+                        "has its attribute inside an #if in the attribute list, which the scanner does not evaluate"
+                    ))
+                    continue
+                }
                 guard let typeName = raw.typeName else {
                     scan.skipped.append(skip(raw, "is not declared in a type"))
                     continue
@@ -184,7 +198,7 @@ public enum DeclaredQueryScanner {
                 guard !raw.isGeneric, !resolution.isGeneric else {
                     scan.skipped.append(skip(
                         raw,
-                        "on \(typeName) is declared on a generic or constrained type, or in an extension of one, which the generated registry cannot name"
+                        "on \(typeName) is declared on a generic or constrained type, in an extension of one, or in a type nested in a type this target does not declare, which the generated registry cannot name"
                     ))
                     continue
                 }
@@ -222,27 +236,42 @@ public enum DeclaredQueryScanner {
     ) -> (isGeneric: Bool, condition: String?) {
         let components = topLevelComponents(of: typeName)
         var isGeneric = false
-        var conjuncts: [String] = []
+        var clauses: [String] = []
+        var passedUndeclaredType = false
         for count in 1 ... max(components.count, 1) {
             let prefix = components.prefix(count).joined(separator: ".")
             guard let records = types[prefix] else {
+                passedUndeclaredType = true
                 continue
             }
-            if records.contains(where: \.isGeneric) {
+            // The target declares this type inside one it does not declare,
+            // such as `extension Array { struct Inner {} }`. The scanner
+            // cannot see whether that outer type is generic, and naming a
+            // generic type without arguments does not compile, so the type
+            // is treated as unreachable.
+            if passedUndeclaredType || records.contains(where: \.isGeneric) {
                 isGeneric = true
             }
             // A type declared unconditionally anywhere needs no condition.
             guard !records.contains(where: { $0.conditions.isEmpty }) else {
                 continue
             }
-            let alternatives = records.compactMap { conditionExpression($0.conditions) }
-            conjuncts.append(
-                alternatives.count == 1
-                    ? alternatives[0]
-                    : "(" + alternatives.joined(separator: " || ") + ")"
-            )
+            if records.count == 1 {
+                // A nested type repeats its enclosing type's clauses.
+                for clause in records[0].conditions where !clauses.contains(clause) {
+                    clauses.append(clause)
+                }
+            }
+            else {
+                let alternatives = records
+                    .compactMap { conditionExpression($0.conditions) }
+                    .joined(separator: " || ")
+                if !clauses.contains(alternatives) {
+                    clauses.append(alternatives)
+                }
+            }
         }
-        return (isGeneric, conjuncts.isEmpty ? nil : conjuncts.joined(separator: " && "))
+        return (isGeneric, conditionExpression(clauses))
     }
 
     /// A dotted type name split at the dots outside generic arguments.
@@ -297,6 +326,7 @@ private struct RawDeclaration {
     let isPrivate: Bool
     let isGeneric: Bool
     let isExcluded: Bool
+    let hasConditionalAttribute: Bool
     let conditions: [String]
     let file: String
     let line: Int
@@ -344,7 +374,8 @@ private struct Walker {
                 .joined(separator: " ")
             let declaredImport = DeclaredQueryImport(
                 declaration: declaration,
-                condition: DeclaredQueryScanner.conditionExpression(scope.conditions)
+                condition: DeclaredQueryScanner.conditionExpression(scope.conditions),
+                module: importDecl.path.first?.name.text ?? declaration
             )
             if !imports.contains(declaredImport) {
                 imports.append(declaredImport)
@@ -361,23 +392,36 @@ private struct Walker {
             inner.typeName = typeName
             inner.isPrivate = scope.isPrivate || Self.isPrivate(extensionDecl.modifiers)
             inner.isGeneric = extensionDecl.genericWhereClause != nil || typeName.contains("<")
-            if Self.hasAttribute(extensionDecl.attributes, named: "SQLQueries") {
+            let hasAttribute = Self.hasAttribute(extensionDecl.attributes, named: "SQLQueries")
+            let hasConditionalAttribute = Self.hasConditionalAttribute(extensionDecl.attributes, named: "SQLQueries")
+            if hasAttribute || hasConditionalAttribute {
                 record(
                     .container,
                     subject: "The @SQLQueries extension",
                     node: Syntax(extensionDecl),
                     isExcluded: Self.isExcluded(Syntax(extensionDecl)),
+                    hasConditionalAttribute: !hasAttribute,
                     scope: inner
                 )
             }
             visit(members: extensionDecl.memberBlock.members, scope: inner)
             return
         }
+        if let alias = decl.as(TypeAliasDeclSyntax.self) {
+            // `typealias Boxed<V> = Box<V>` cannot be named without
+            // arguments either, so a generic alias counts as a generic type.
+            types.append(TypeRecord(
+                name: scope.typeName.map { "\($0).\(alias.name.text)" } ?? alias.name.text,
+                isGeneric: scope.isGeneric || alias.genericParameterClause != nil,
+                conditions: scope.conditions
+            ))
+            return
+        }
         if let nominal = Self.nominal(decl) {
             let name = scope.typeName.map { "\($0).\(nominal.name)" } ?? nominal.name
             types.append(TypeRecord(
                 name: name,
-                isGeneric: nominal.isGeneric,
+                isGeneric: scope.isGeneric || nominal.isGeneric,
                 conditions: scope.conditions
             ))
             var inner = scope
@@ -388,7 +432,8 @@ private struct Walker {
             return
         }
         if let function = decl.as(FunctionDeclSyntax.self),
-           Self.hasAttribute(function.attributes, named: "SQLQuery") {
+           Self.hasAttribute(function.attributes, named: "SQLQuery")
+            || Self.hasConditionalAttribute(function.attributes, named: "SQLQuery") {
             let isTypeLevel = function.modifiers.contains { modifier in
                 modifier.name.text == "static" || modifier.name.text == "class"
             }
@@ -405,6 +450,7 @@ private struct Walker {
                 subject: "@SQLQuery '\(function.name.text)'",
                 node: Syntax(function),
                 isExcluded: Self.isExcluded(Syntax(function)),
+                hasConditionalAttribute: !Self.hasAttribute(function.attributes, named: "SQLQuery"),
                 scope: inner
             )
         }
@@ -439,6 +485,7 @@ private struct Walker {
         subject: String,
         node: Syntax,
         isExcluded: Bool,
+        hasConditionalAttribute: Bool,
         scope: Scope
     ) {
         declarations.append(RawDeclaration(
@@ -448,6 +495,7 @@ private struct Walker {
             isPrivate: scope.isPrivate,
             isGeneric: scope.isGeneric,
             isExcluded: isExcluded,
+            hasConditionalAttribute: hasConditionalAttribute,
             conditions: scope.conditions,
             file: file,
             line: node.startLocation(converter: converter).line
@@ -505,6 +553,17 @@ private struct Walker {
         modifiers.contains { modifier in
             (modifier.name.text == "private" || modifier.name.text == "fileprivate")
                 && modifier.detail == nil
+        }
+    }
+
+    /// Whether the attribute appears only inside an `#if` in the attribute
+    /// list (`#if DEBUG @SQLQuery #endif`).
+    private static func hasConditionalAttribute(_ attributes: AttributeListSyntax, named name: String) -> Bool {
+        attributes.contains { element in
+            guard case .ifConfigDecl(let ifConfig) = element else {
+                return false
+            }
+            return ifConfig.description.contains("@\(name)")
         }
     }
 

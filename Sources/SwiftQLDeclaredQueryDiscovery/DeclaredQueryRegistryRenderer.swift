@@ -82,9 +82,18 @@ public enum DeclaredQueryRegistryRenderer {
         }
         lines.append("")
 
-        var imports = scan.imports
-        if !imports.contains(DeclaredQueryImport(declaration: "import SwiftQL", condition: nil)) {
-            imports.append(DeclaredQueryImport(declaration: "import SwiftQL", condition: nil))
+        // One import per module and condition. Two spellings of one import
+        // in a file (`import SwiftQL` and `internal import SwiftQL`) are an
+        // "ambiguous implicit access level" error, so the first one found
+        // wins, and SwiftQL is added only when no file imports it.
+        var imports: [DeclaredQueryImport] = []
+        for declaredImport in scan.imports where !imports.contains(where: {
+            $0.module == declaredImport.module && $0.condition == declaredImport.condition
+        }) {
+            imports.append(declaredImport)
+        }
+        if !imports.contains(where: { $0.module == "SwiftQL" }) {
+            imports.append(DeclaredQueryImport(declaration: "import SwiftQL", condition: nil, module: "SwiftQL"))
         }
         for declaredImport in imports where declaredImport.condition == nil {
             lines.append(declaredImport.declaration)
