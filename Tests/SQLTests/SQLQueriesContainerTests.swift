@@ -571,7 +571,10 @@ final class XLQueriesContainerTests: XCTestCase {
     ///
     /// The #642 rule, through the generated executor: many scopes share the
     /// database's entry. The cache adds an entry only when it renders, so one
-    /// render across every scope and the database means one entry.
+    /// render across every scope and the database means one entry. The
+    /// generated cache is `private`; `XLQueryRenderOnceCacheTests.
+    /// testDeclaredQueryScopeHelperOnManyScopesKeepsOneCacheEntry` reads
+    /// `entryCount` directly through the same helper.
     ///
     func testDatabaseExecutorOnManyScopesRendersOnceAndAddsNoEntryPerScope() throws {
         try createTestTable()
