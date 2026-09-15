@@ -3369,6 +3369,13 @@ extension XLDocumentationTests {
             XLQueriesContainerTests.testContainerExecutorBindsLikeRegexpAndLimitParameters
         let _: (XLQueryRenderOnceCacheTests) -> () throws -> Void =
             XLQueryRenderOnceCacheTests.testCachedExecutorServesDifferentArgumentsWithStablePlaceholderSQL
+        // Issue #660: the prepared form, observed as a stream and a publisher.
+        let _: (XLQueriesContainerTests) -> () throws -> Void =
+            XLQueriesContainerTests.testPreparedQueryUsesTheExecutorsCachedRequestAndBindings
+        let _: (XLQueriesContainerTests) -> () async throws -> Void =
+            XLQueriesContainerTests.testPreparedQueryStreamEmitsUpdatedRowsAfterAWrite
+        let _: (XLQueriesContainerTests) -> () throws -> Void =
+            XLQueriesContainerTests.testPreparedQueryPublisherEmitsUpdatedRowsAfterAWrite
     }
 
     func testDocumentationNumericDateCodecs() throws {

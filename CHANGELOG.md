@@ -4,6 +4,33 @@
 
 ### Migration
 
+- **Declared queries generate new members** (issue #660). A member with the
+  same name can stop compiling. Rename that member or specification.
+  - `@SQLQueries` adds a `preparedQueries` property on the database type and a
+    nested `Context.PreparedQueries` type. The macro reports these collisions
+    at the declaration:
+    - a query specification named `preparedQueries`, with or without
+      parameters;
+    - a property named `preparedQueries`, or a method `preparedQueries()` with
+      no parameters, in the `@SQLQueries` extension itself.
+  - The macro cannot see members outside its extension. A property named
+    `preparedQueries`, or a method `preparedQueries()` with no parameters,
+    declared in the type body or in another extension gives an
+    "invalid redeclaration" error in generated code. A method named
+    `preparedQueries` that has parameters does not collide.
+  - `@SQLQuery` adds a peer `<name>PreparedQuery(...)` beside each executor,
+    such as `personByNamePreparedQuery(name:)`. It has the parameters of the
+    specification and returns `XLPreparedQuery<Row>`. A peer macro cannot see
+    other members with swift-syntax 509, so the macro reports no collision.
+    These declarations collide:
+    - a property named `<name>PreparedQuery`, when the specification has no
+      parameters: "invalid redeclaration";
+    - a method `<name>PreparedQuery` with the same argument labels and
+      parameter types that returns `XLPreparedQuery<Row>`: "invalid
+      redeclaration";
+    - the same method with a different return type: the declarations compile,
+      but a call without a type annotation is ambiguous.
+
 - **A `Data` value written into JSON fails before SQLite prepares the
   statement** (issue #671). This applies to a value passed to `jsonArray`,
   `jsonObject`, `jsonInserting`, `jsonReplacing`, `jsonSetting`,
@@ -64,6 +91,20 @@
   1.8 because it had an extra key now fails. Remove or correct the key.
 
 ### Added
+
+- **A declared query can be observed** (issue #660). The prepared form of a
+  declared query returns an `XLPreparedQuery<Row>`: the request from the
+  declaration's render-once cache and the binding packet for one set of
+  arguments. Call `stream()`, `streamOne()`, `publish()`, or `publishOne()` on
+  it, or pass it to `XLObservableQuery` or `XLObservableQueryRow`. For
+  `@SQLQueries`, call `database.preparedQueries.personByName(name:)`. For `@SQLQuery`,
+  call `database.personByNamePreparedQuery(name:)`. The prepared form and the
+  executor use the same cache entry and the same binding code, so the
+  statement renders at most once for each database. An observation does not
+  enforce the exactly-one cardinality of a `Row` declaration: when the row goes
+  away, `streamOne()` delivers `nil`. The to-do demo observes its declared
+  reads directly, and `TodoLiveReads.swift` and `TodoFilteredRead.swift` are
+  removed.
 
 - The JSON mutation functions have overloads whose result follows the
   document's nullability (issue #664). A mutation on a `NOT NULL` column

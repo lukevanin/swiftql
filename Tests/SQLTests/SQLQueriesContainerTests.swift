@@ -12,9 +12,45 @@
 //
 
 import Foundation
+#if canImport(Combine)
+import Combine
+#else
+import OpenCombine
+#endif
 import XCTest
 import GRDB
 import SwiftQL
+
+
+/// Counts how many times a declared query's statement is built (issue #660).
+///
+/// `sql { }` runs its builder closure immediately, and the render-once cache
+/// calls the statement builder only when it renders, so a probe inside the
+/// specification body counts renders without any internal hook.
+final class DeclaredQueryRenderProbe: @unchecked Sendable {
+
+    static let containerObservedRows = DeclaredQueryRenderProbe()
+
+    static let peerObservedRows = DeclaredQueryRenderProbe()
+
+    private let lock = NSLock()
+
+    private var value = 0
+
+    var count: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
+
+    @discardableResult
+    func record() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        value += 1
+        return value
+    }
+}
 
 
 @SQLQueries
@@ -78,6 +114,20 @@ extension GRDBDatabase {
                 Where(table.id.like(alias))
                 OrderBy(table.value.ascending())
                 Limit { count }
+            }
+        }
+
+        // Issue #660: observed through `preparedQueries`. The probe counts statement
+        // builds, so a test can prove that the executor and the prepared form
+        // share one render.
+        func containerObservedRows(pattern: String) -> [TestTable] {
+            sqlResult { schema in
+                let _ = DeclaredQueryRenderProbe.containerObservedRows.record()
+                let table = schema.table(TestTable.self)
+                Select(table)
+                From(table)
+                Where(table.id.like(pattern))
+                OrderBy(table.value.ascending())
             }
         }
     }
@@ -284,6 +334,179 @@ final class XLQueriesContainerTests: XCTestCase {
             try database.containerRowsThroughAliasAndClosure(pattern: "al%", count: 1).map(\.id),
             ["alpha"]
         )
+    }
+
+
+    // MARK: - Observation (issue #660)
+
+    ///
+    /// The prepared form and the executor emit the same preparation code, so
+    /// they must share one render and one packet. The probe proves one render
+    /// across both forms, the logged fetch lines prove the same SQL text and
+    /// the same bound values, and the packet equals the one built by hand.
+    ///
+    func testPreparedQueryUsesTheExecutorsCachedRequestAndBindings() throws {
+        let logger = RecordingLogger()
+        let formatter = XLiteFormatter(identifierFormattingOptions: .mysqlCompatible)
+        let loggingDatabase = try GRDBDatabase(databasePool: databasePool, formatter: formatter, logger: logger)
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "alpine", value: 2))
+        try insert(TestTable(id: "beta", value: 3))
+
+        let rendersBefore = DeclaredQueryRenderProbe.containerObservedRows.count
+        let called = try loggingDatabase.containerObservedRows(pattern: "al%")
+        let prepared = try loggingDatabase.preparedQueries.containerObservedRows(pattern: "al%")
+        let preparedAgain = try loggingDatabase.preparedQueries.containerObservedRows(pattern: "al%")
+        XCTAssertEqual(
+            DeclaredQueryRenderProbe.containerObservedRows.count - rendersBefore,
+            1,
+            "the executor and the prepared form must share one render"
+        )
+
+        XCTAssertEqual(called.map(\.id), ["alpha", "alpine"])
+        XCTAssertEqual(try prepared.request.fetchAll(bindings: prepared.bindings), called)
+
+        let layout = prepared.request.parameterLayout
+        let slot = try XCTUnwrap(layout.slot(for: .named("pattern")))
+        let expectedBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: layout,
+            bindings: [try XLInvocationBinding(slot: slot, value: .text("al%"))]
+        ).validatingComplete()
+        XCTAssertEqual(prepared.bindings, expectedBindings)
+        XCTAssertEqual(preparedAgain.bindings, expectedBindings)
+
+        let fetchLogs = logger.allMessages.filter { $0.contains("fetchAll:") }
+        XCTAssertEqual(fetchLogs.count, 2, "expected one log line for the executor and one for the prepared fetch")
+        XCTAssertEqual(
+            Set(fetchLogs).count,
+            1,
+            "the executor and the prepared form must fetch the same SQL text with the same bindings"
+        )
+        let fetchLog = try XCTUnwrap(fetchLogs.first)
+        XCTAssertTrue(fetchLog.contains(":pattern"), "the shared SQL must bind a placeholder")
+        XCTAssertFalse(fetchLog.contains("LIKE 'al%'"), "no argument may be inlined as a literal")
+    }
+
+    func testPreparedQueryStreamEmitsUpdatedRowsAfterAWrite() async throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "beta", value: 2))
+
+        let query = try database.preparedQueries.containerObservedRows(pattern: "al%")
+        let initialRows = [TestTable(id: "alpha", value: 1)]
+        let updatedRows = [TestTable(id: "alpha", value: 1), TestTable(id: "alpine", value: 3)]
+
+        var snapshots = 0
+        for try await rows in query.stream() {
+            snapshots += 1
+            if snapshots == 1 {
+                XCTAssertEqual(rows, initialRows)
+                // Neither write matches the pattern except `alpine`, so the
+                // observation must deliver it and never `beta` or `gamma`.
+                try insert(TestTable(id: "gamma", value: 4))
+                try insert(TestTable(id: "alpine", value: 3))
+                continue
+            }
+            XCTAssertTrue(
+                rows == initialRows || rows == updatedRows,
+                "the packet must keep selecting the pattern 'al%', got \(rows)"
+            )
+            if rows == updatedRows {
+                break
+            }
+        }
+        XCTAssertGreaterThan(snapshots, 1, "the observation must deliver the write")
+    }
+
+    func testPreparedQueryPublisherEmitsUpdatedRowsAfterAWrite() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+
+        let query = try database.preparedQueries.containerObservedRows(pattern: "al%")
+        let initialExpectation = expectation(description: "initial snapshot")
+        let updateExpectation = expectation(description: "snapshot after the write")
+        var sawInitial = false
+        var sawUpdate = false
+        var cancellables = Set<AnyCancellable>()
+
+        query.publish()
+            .sink(
+                receiveCompletion: { completion in
+                    if case .failure(let error) = completion {
+                        XCTFail("Unexpected publisher failure: \(error)")
+                    }
+                },
+                receiveValue: { rows in
+                    if !sawInitial {
+                        sawInitial = true
+                        XCTAssertEqual(rows, [TestTable(id: "alpha", value: 1)])
+                        initialExpectation.fulfill()
+                    }
+                    else if rows.map(\.id) == ["alpha", "alpine"] && !sawUpdate {
+                        sawUpdate = true
+                        updateExpectation.fulfill()
+                    }
+                }
+            )
+            .store(in: &cancellables)
+
+        wait(for: [initialExpectation], timeout: 2)
+        try insert(TestTable(id: "alpine", value: 2))
+        wait(for: [updateExpectation], timeout: 2)
+        cancellables.removeAll()
+    }
+
+    ///
+    /// A transaction scope is a `GRDBDatabase` too, so `preparedQueries`
+    /// compiles on it and its request fetches on the transaction's
+    /// connection. Observation needs the pool, so the publisher fails at once
+    /// with a typed error instead of observing the scope's connection.
+    ///
+    func testPreparedQueryFromATransactionScopePublishesATypedError() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+
+        var failure: Error?
+        var receivedValue = false
+        try database.withTransaction { scope in
+            let query = try scope.preparedQueries.containerObservedRows(pattern: "al%")
+            XCTAssertEqual(try query.request.fetchAll(bindings: query.bindings).map(\.id), ["alpha"])
+            let cancellable = query.publish().sink(
+                receiveCompletion: { completion in
+                    if case .failure(let error) = completion {
+                        failure = error
+                    }
+                },
+                receiveValue: { _ in
+                    receivedValue = true
+                }
+            )
+            cancellable.cancel()
+        }
+
+        XCTAssertFalse(receivedValue, "a scope-prepared query must never deliver a snapshot")
+        XCTAssertEqual(failure as? XLTransactionScopeError, .liveQueriesUnsupportedInTransaction)
+    }
+
+    func testPreparedQueryFromATransactionScopeStreamThrowsATypedError() async throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+
+        let query = try database.withTransaction { scope in
+            try scope.preparedQueries.containerObservedRows(pattern: "al%")
+        }
+
+        do {
+            for try await rows in query.stream() {
+                XCTFail("a scope-prepared query must never deliver a snapshot, got \(rows)")
+                break
+            }
+            XCTFail("the stream must throw")
+        }
+        catch {
+            XCTAssertEqual(error as? XLTransactionScopeError, .liveQueriesUnsupportedInTransaction)
+        }
     }
 
 
