@@ -108,7 +108,7 @@ extension GRDBDatabase {
         }
     }
 
-    // Issue #660: observed through the generated `prepare` peer. The probe
+    // Issue #660: observed through the generated `PreparedQuery` peer. The probe
     // counts statement builds, so a test can prove that the executor and the
     // prepared form share one render.
 
@@ -486,7 +486,7 @@ final class XLQueryPeerMacroTests: XCTestCase {
         try insert(TestTable(id: "beta", value: 2))
 
         let rendersBefore = DeclaredQueryRenderProbe.peerObservedRows.count
-        let prepared = try database.prepareObservedRowsWithIDLike(pattern: "al%")
+        let prepared = try database.observedRowsWithIDLikePreparedQuery(pattern: "al%")
         let called = try database.fetchObservedRowsWithIDLike(pattern: "al%")
         XCTAssertEqual(
             DeclaredQueryRenderProbe.peerObservedRows.count - rendersBefore,
@@ -509,7 +509,7 @@ final class XLQueryPeerMacroTests: XCTestCase {
         try createTestTable()
         try insert(TestTable(id: "alpha", value: 1))
 
-        let query = try database.prepareObservedRowsWithIDLike(pattern: "al%")
+        let query = try database.observedRowsWithIDLikePreparedQuery(pattern: "al%")
         let updatedRows = [TestTable(id: "alpha", value: 1), TestTable(id: "alpine", value: 2)]
 
         var snapshots = 0

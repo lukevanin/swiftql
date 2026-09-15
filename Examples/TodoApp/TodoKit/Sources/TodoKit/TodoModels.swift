@@ -153,16 +153,16 @@ public final class TodoListModel {
         }
     }
 
-    /// Observes the declared `filteredTodos` read. `prepared` hands back the
-    /// same cached request and binding packet the declaration's executor
-    /// uses, so the statement is written once, in `TodoReads.swift`.
+    /// Observes the declared `filteredTodos` read. Its prepared form hands
+    /// back the same cached request and binding packet the declaration's
+    /// executor uses, so the statement is written once, in `TodoReads.swift`.
     private static func observe(
         _ query: TodoQuery,
         in database: TodoDatabase
     ) throws -> XLObservableQuery<Todo> {
         let flags = query.filter.flags
         return XLObservableQuery(
-            try database.database.prepared.filteredTodos(
+            try database.database.preparedQueries.filteredTodos(
                 listID: query.listID,
                 includesCompleted: flags.includesCompleted,
                 includesActive: flags.includesActive,
@@ -197,7 +197,7 @@ public final class TodoDetailModel {
         self.database = database
         self.todoID = todoID
         todo = XLObservableQueryRow(
-            try database.database.prepared.todo(id: todoID)
+            try database.database.preparedQueries.todo(id: todoID)
         )
         reloadTags()
     }

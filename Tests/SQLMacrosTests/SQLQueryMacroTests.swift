@@ -79,7 +79,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
-                func preparePersonByName(name: String) throws -> XLPreparedQuery<Person> {
+                func personByNamePreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
                     let __xlRequest = Self.__xlPersonByNameCache.request(for: self) {
                         personByNameStatement()
                     }
@@ -150,7 +150,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
-                public func preparePeopleInCohort(name: String, minimumAge: Int) throws -> XLPreparedQuery<Person> {
+                public func peopleInCohortPreparedQuery(name: String, minimumAge: Int) throws -> XLPreparedQuery<Person> {
                     let __xlRequest = Self.__xlPeopleInCohortCache.request(for: self) {
                         peopleInCohortStatement()
                     }
@@ -221,7 +221,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
-                func preparePeopleByNickname(nickname: String?) throws -> XLPreparedQuery<Person> {
+                func peopleByNicknamePreparedQuery(nickname: String?) throws -> XLPreparedQuery<Person> {
                     let __xlRequest = Self.__xlPeopleByNicknameCache.request(for: self) {
                         peopleByNicknameStatement()
                     }
@@ -291,7 +291,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
-                func preparePersonByName(name: String) throws -> XLPreparedQuery<Person> {
+                func personByNamePreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
                     let __xlRequest = Self.__xlPersonByNameCache.request(for: self) {
                         personByNameStatement()
                     }
@@ -361,7 +361,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
-                func prepareRowsForKind(`class`: String) throws -> XLPreparedQuery<Person> {
+                func rowsForKindPreparedQuery(`class`: String) throws -> XLPreparedQuery<Person> {
                     let __xlRequest = Self.__xlRowsForKindCache.request(for: self) {
                         rowsForKindStatement()
                     }
@@ -423,7 +423,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
-                func prepareAllPeople() throws -> XLPreparedQuery<Person> {
+                func allPeoplePreparedQuery() throws -> XLPreparedQuery<Person> {
                     let __xlRequest = Self.__xlAllPeopleCache.request(for: self) {
                         allPeopleStatement()
                     }
@@ -496,7 +496,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
-                func preparePersonByName(name: String) throws -> XLPreparedQuery<Person> {
+                func personByNamePreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
                     let __xlRequest = Self.__xlPersonByNameCache.request(for: self) {
                         personByNameStatement()
                     }
@@ -578,7 +578,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
-                func preparePeopleMatching(pattern: String, expression: String, limit: Int) throws -> XLPreparedQuery<Person> {
+                func peopleMatchingPreparedQuery(pattern: String, expression: String, limit: Int) throws -> XLPreparedQuery<Person> {
                     let __xlRequest = Self.__xlPeopleMatchingCache.request(for: self) {
                         peopleMatchingStatement()
                     }
@@ -660,7 +660,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
-                func preparePersonByName(name: String) throws -> XLPreparedQuery<Person> {
+                func personByNamePreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
                     let __xlRequest = Self.__xlPersonByNameCache.request(for: self) {
                         personByNameStatement()
                     }
@@ -699,14 +699,14 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
     }
 
     ///
-    /// Issue #660: the `prepare` peer must take the same render-once request
+    /// Issue #660: the `PreparedQuery` peer must take the same render-once request
     /// and build the same binding packet as the executor, so an observed
     /// declared query can never bind differently from a called one. The two
     /// functions are compared line by line up to the point where the executor
     /// fetches and the prepare peer returns. A bare `Row` result is used
     /// because its fetch block is the longest.
     ///
-    func test_prepareFunction_sharesPreparationLinesWithExecutor() throws {
+    func test_preparedQueryFunction_sharesPreparationLinesWithExecutor() throws {
         let source = Parser.parse(source: """
             func personNamed(name: String, minimumAge: Int?) -> Person {
                 sqlResult { schema in
@@ -723,11 +723,11 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
             declaration: function
         )
         let executor = builder.makeExecutorFunction().components(separatedBy: "\n")
-        let prepare = builder.makePrepareFunction().components(separatedBy: "\n")
+        let prepare = builder.makePreparedQueryFunction().components(separatedBy: "\n")
 
         XCTAssertEqual(
             prepare.first,
-            "func preparePersonNamed(name: String, minimumAge: Int?) throws -> XLPreparedQuery<Person> {"
+            "func personNamedPreparedQuery(name: String, minimumAge: Int?) throws -> XLPreparedQuery<Person> {"
         )
         XCTAssertEqual(prepare.suffix(2), [
             "    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)",
@@ -807,7 +807,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchOne(bindings: __xlPacket)
                 }
 
-                func preparePersonByExactName(name: String) throws -> XLPreparedQuery<Person> {
+                func personByExactNamePreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
                     let __xlRequest = Self.__xlPersonByExactNameCache.request(for: self) {
                         personByExactNameStatement()
                     }
@@ -891,7 +891,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     }
                 }
 
-                func prepareTheOnlyPerson(name: String) throws -> XLPreparedQuery<Person> {
+                func theOnlyPersonPreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
                     let __xlRequest = Self.__xlTheOnlyPersonCache.request(for: self) {
                         theOnlyPersonStatement()
                     }
@@ -970,7 +970,7 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
 
-                func prepareAuditedPersonByName(name: String) throws -> XLPreparedQuery<Person> {
+                func auditedPersonByNamePreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
                     let __xlRequest = Self.__xlAuditedPersonByNameCache.request(for: self) {
                         auditedPersonByNameStatement()
                     }

@@ -45,7 +45,7 @@ extension SQLQueryMacro: PeerMacro {
             try makeDecl(builder.makeStatementFunction()),
             try makeDecl(builder.makeRenderOnceCacheDeclaration()),
             try makeDecl(builder.makeExecutorFunction()),
-            try makeDecl(builder.makePrepareFunction()),
+            try makeDecl(builder.makePreparedQueryFunction()),
         ]
     }
 }
@@ -589,8 +589,8 @@ internal struct SQLQueryBuilder {
         "fetch\(function.name.text.prefix(1).uppercased())\(function.name.text.dropFirst())"
     }
 
-    private var prepareFunctionName: String {
-        "prepare\(function.name.text.prefix(1).uppercased())\(function.name.text.dropFirst())"
+    private var preparedQueryFunctionName: String {
+        "\(function.name.text)PreparedQuery"
     }
 
     // Not `private`: shared with the `@SQLQueries` container executor
@@ -735,10 +735,10 @@ internal struct SQLQueryBuilder {
     /// packet the executor builds, returned as an `XLPreparedQuery` instead of
     /// being fetched.
     ///
-    func makePrepareFunction() -> String {
+    func makePreparedQueryFunction() -> String {
         let parameterClause = function.signature.parameterClause.trimmedDescription
         var lines: [String] = []
-        lines.append("\(modifierPrefix)func \(prepareFunctionName)\(parameterClause) throws -> XLPreparedQuery<\(rowType)> {")
+        lines.append("\(modifierPrefix)func \(preparedQueryFunctionName)\(parameterClause) throws -> XLPreparedQuery<\(rowType)> {")
         lines.append(
             contentsOf: makePreparationLines(
                 preparing: statementFunctionName,
@@ -761,7 +761,7 @@ internal struct SQLQueryBuilder {
     ///
     /// - Parameter cacheOwner: The type that holds the render-once cache --
     ///   `Self` wherever the cache is a sibling, `Context` from the container's
-    ///   nested `Prepared` type.
+    ///   nested `PreparedQueries` type.
     func makePreparationLines(
         preparing statementExpression: String,
         against databaseExpression: String,

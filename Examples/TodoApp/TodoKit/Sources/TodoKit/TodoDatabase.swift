@@ -46,8 +46,8 @@ public final class TodoDatabase {
         self.url = url
         database = try GRDBDatabase(url: url, logger: nil)
         linkedTodoIDsRequest = database.makeRequest(with: TodoLinks.statement)
-        listsQuery = try database.prepared.todoLists()
-        listCountsQuery = try database.prepared.listCounts()
+        listsQuery = try database.preparedQueries.todoLists()
+        listCountsQuery = try database.preparedQueries.listCounts()
         didSeed = try database.withTransaction { scope in
             try Self.createSchema(in: scope)
             // The declared read, called on the scope, runs on the

@@ -153,10 +153,9 @@ let matches = try database.withTransaction { scope in
   throws `XLTransactionScopeError.scopeEscaped`. The original database, called
   inside a body, and `execute(_:)`, called on a scope, still open a transaction
   of their own and throw `nestedTransactionUnsupported`.
-- **Fetch, do not observe.** A query prepared on a scope fetches on the
-  transaction's connection, but `stream()` and `publish()` on it fail with
-  `liveQueriesUnsupportedInTransaction`. Prepare an observed query on the
-  database.
+- **Fetch, do not observe.** A declared query called on a scope fetches. An
+  observation from a scope fails with `liveQueriesUnsupportedInTransaction`;
+  see "Observe a declared query" below.
 
 ## Observe a declared query
 
@@ -168,15 +167,15 @@ the declaration's render-once cache and the binding packet for those arguments.
 
 | Form | Executor | Prepared form |
 | --- | --- | --- |
-| `@SQLQuery` | `try database.fetchPersonByName(name:)` | `try database.preparePersonByName(name:)` |
-| `@SQLQueries` | `try database.personByName(name:)` | `try database.prepared.personByName(name:)` |
+| `@SQLQuery` | `try database.fetchPersonByName(name:)` | `try database.personByNamePreparedQuery(name:)` |
+| `@SQLQueries` | `try database.personByName(name:)` | `try database.preparedQueries.personByName(name:)` |
 
 Observe the prepared query with the same methods a request has, or pass it to
 the `@Observable` wrappers:
 
 <!-- test: XLDocumentationTests.testDocumentationDeclaredQueries -->
 ```swift
-let query = try database.prepared.personByName(name: "John Doe")
+let query = try database.preparedQueries.personByName(name: "John Doe")
 
 for try await matches in query.stream() {
     print("Fetched matches: \(matches)")
@@ -203,10 +202,38 @@ let model = XLObservableQuery(query)
   ``XLObservableQueryRow`` for one that returns `Row?` or `Row`. An observation
   does not enforce the exactly-one cardinality of a `Row` declaration: when the
   row goes away, `streamOne()` delivers `nil` instead of throwing.
-- **The database, not a transaction.** `prepared` is a member of the database,
-  not of `Context`, because an observation continues after any one transaction
-  ends. A query prepared on a transaction scope cannot be observed: `stream()`
-  and `publish()` fail with `liveQueriesUnsupportedInTransaction`.
+- **Prepare an observed query on the database.** A transaction scope is also a
+  database, so `scope.preparedQueries.personByName(name:)` compiles, and its
+  request fetches on the transaction's connection. Observation needs the
+  connection pool, so `stream()`, `streamOne()`, `publish()`, and
+  `publishOne()` on a query prepared from a scope fail with
+  `XLTransactionScopeError.liveQueriesUnsupportedInTransaction`. They never
+  observe the scope's connection.
+- **Not `Sendable`.** ``XLPreparedQuery`` holds an `any XLRequest<Row>`, and
+  ``XLRequest`` is not `Sendable`. It is a public protocol, and SwiftQL cannot
+  promise that every conforming request is safe to share across tasks. With
+  strict concurrency checking, prepare the query in the isolation domain that
+  observes it, for example in the initializer of a `@MainActor` model. Send the
+  arguments across the boundary, not the prepared query.
+
+### Generated names
+
+`@SQLQueries` adds one property, `preparedQueries`, and one nested type,
+`Context.PreparedQueries`, for any number of specifications. `@SQLQuery` adds
+one peer for each declaration, with the `PreparedQuery` suffix, in the same
+way that its statement builder has the `Statement` suffix. These names are
+unlikely to be the name of a member an application declares. A single generic
+entry point, such as `database.prepare(\.personByName, name:)`, is not
+possible, because a Swift key path cannot refer to a method.
+
+`@SQLQueries` reports each collision that it can see, at your declaration: a
+specification named `preparedQueries`, and a property or a zero-parameter
+method named `preparedQueries` in the same extension. A member macro cannot
+see members that are declared outside its extension. On the Swift 5.9
+toolchain floor (swift-syntax 509), a peer macro sees only the declaration it
+is attached to. `@SQLQuery` therefore cannot report a member that collides
+with its `PreparedQuery` peer. These collisions fail as a redeclaration error
+in generated code. The 1.9.0 CHANGELOG lists each case.
 
 ## Render-once caching
 

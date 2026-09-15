@@ -75,7 +75,7 @@ extension GRDBDatabase {
         /// with no deadline belongs at the end, not the top.
         ///
         /// The list view observes this read through
-        /// `database.prepared.filteredTodos(...)`, which hands the live query
+        /// `database.preparedQueries.filteredTodos(...)`, which hands the live query
         /// the same cached request and binding packet this declaration's
         /// executor uses. Before v1.9 a declaration had no observable form,
         /// so the observation needed its own copy of the statement (#660).

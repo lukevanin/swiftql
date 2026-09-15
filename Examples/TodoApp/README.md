@@ -74,9 +74,9 @@ declared query like the others, with the search pattern passed to
 
 **A declared read is also the observed read.** Each read a view observes is
 written once, in `TodoReads.swift`. The models observe it through the
-`prepared` form that `@SQLQueries` generates, for example
-`XLObservableQueryRow(try database.database.prepared.todo(id: todoID))` in
-`TodoModels.swift`. The prepared form hands the live query the declaration's
+`preparedQueries` property that `@SQLQueries` generates, for example
+`XLObservableQueryRow(try database.database.preparedQueries.todo(id: todoID))`
+in `TodoModels.swift`. The prepared form hands the live query the declaration's
 cached request and a binding packet built by the same generated code the
 executor runs.
 
