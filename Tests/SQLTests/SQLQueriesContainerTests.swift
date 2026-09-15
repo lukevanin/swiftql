@@ -33,6 +33,8 @@ final class DeclaredQueryRenderProbe: @unchecked Sendable {
 
     static let peerObservedRows = DeclaredQueryRenderProbe()
 
+    static let containerScopedRows = DeclaredQueryRenderProbe()
+
     private let lock = NSLock()
 
     private var value = 0
@@ -128,6 +130,19 @@ extension GRDBDatabase {
                 From(table)
                 Where(table.id.like(pattern))
                 OrderBy(table.value.ascending())
+            }
+        }
+
+        // Issue #662: called on many transaction scopes. The probe counts
+        // renders, and the cache adds an entry only when it renders, so one
+        // render proves one entry however many scopes call it.
+        func containerScopedRows(id: String) -> [TestTable] {
+            sqlResult { schema in
+                let _ = DeclaredQueryRenderProbe.containerScopedRows.record()
+                let table = schema.table(TestTable.self)
+                Select(table)
+                From(table)
+                Where(table.id == id)
             }
         }
     }
@@ -506,6 +521,154 @@ final class XLQueriesContainerTests: XCTestCase {
         }
         catch {
             XCTAssertEqual(error as? XLTransactionScopeError, .liveQueriesUnsupportedInTransaction)
+        }
+    }
+
+
+    // MARK: - Inside a transaction (issue #662)
+
+    ///
+    /// A database-level executor called on the scope joins the open
+    /// transaction. It sees a write the transaction has not committed, which a
+    /// pool connection could not see, so it runs on the transaction's
+    /// connection. Every cardinality takes the same path.
+    ///
+    func testDatabaseExecutorCalledOnATransactionScopeSeesTheUncommittedWrite() throws {
+        try createTestTable()
+
+        let rows = try database.withTransaction { scope in
+            try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+            XCTAssertEqual(try scope.containerRowMatchingID(id: "alpha"), TestTable(id: "alpha", value: 1))
+            XCTAssertEqual(try scope.containerTheOnlyRowMatchingID(id: "alpha"), TestTable(id: "alpha", value: 1))
+            return try scope.containerRowsMatchingID(id: "alpha")
+        }
+
+        XCTAssertEqual(rows, [TestTable(id: "alpha", value: 1)])
+        XCTAssertEqual(try database.containerRowsMatchingID(id: "alpha"), rows)
+    }
+
+    ///
+    /// The declared query runs inside the transaction, not in one of its own,
+    /// so a failure later in the body rolls back the write it read.
+    ///
+    func testDeclaredQueryInsideARolledBackTransactionLeavesNothingCommitted() throws {
+        struct Abort: Error {}
+        try createTestTable()
+
+        XCTAssertThrowsError(
+            try database.withTransaction { scope in
+                try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+                XCTAssertEqual(try scope.containerRowsMatchingID(id: "alpha").count, 1)
+                throw Abort()
+            }
+        ) { error in
+            XCTAssertTrue(error is Abort, "expected the body's own error, got \(error)")
+        }
+
+        XCTAssertEqual(try database.containerRowsMatchingID(id: "alpha"), [])
+    }
+
+    ///
+    /// The #642 rule, through the generated executor: many scopes share the
+    /// database's entry. The cache adds an entry only when it renders, so one
+    /// render across every scope and the database means one entry. The
+    /// generated cache is `private`; `XLQueryRenderOnceCacheTests.
+    /// testDeclaredQueryScopeHelperOnManyScopesKeepsOneCacheEntry` reads
+    /// `entryCount` directly through the same helper.
+    ///
+    func testDatabaseExecutorOnManyScopesRendersOnceAndAddsNoEntryPerScope() throws {
+        try createTestTable()
+        let rendersBefore = DeclaredQueryRenderProbe.containerScopedRows.count
+
+        for index in 0 ..< 100 {
+            let id = "row-\(index)"
+            let rows = try database.withTransaction { scope in
+                try scope.makeRequest(with: sqlInsert(TestTable(id: id, value: index))).execute()
+                return try scope.containerScopedRows(id: id)
+            }
+            XCTAssertEqual(rows, [TestTable(id: id, value: index)])
+        }
+        XCTAssertEqual(try database.containerScopedRows(id: "row-7"), [TestTable(id: "row-7", value: 7)])
+
+        XCTAssertEqual(
+            DeclaredQueryRenderProbe.containerScopedRows.count - rendersBefore,
+            1,
+            "the database and every scope must share one render and one cache entry"
+        )
+    }
+
+    func testDatabaseExecutorOnAnEscapedScopeThrowsScopeEscaped() throws {
+        try createTestTable()
+        var escaped: GRDBDatabase?
+        try database.withTransaction { scope in
+            escaped = scope
+        }
+        let scope = try XCTUnwrap(escaped)
+
+        XCTAssertThrowsError(try scope.containerRowsMatchingID(id: "alpha")) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .scopeEscaped)
+        }
+        XCTAssertThrowsError(try scope.containerTheOnlyRowMatchingID(id: "alpha")) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .scopeEscaped)
+        }
+    }
+
+    ///
+    /// Only the scope joins. The root database captured inside a body, and
+    /// `execute(_:)` called on the scope, each still open a transaction of
+    /// their own and are rejected before they touch the pool.
+    ///
+    func testRootDatabaseAndExecuteInsideATransactionAreStillRejected() throws {
+        try createTestTable()
+
+        XCTAssertThrowsError(
+            try database.withTransaction { _ in
+                _ = try self.database.containerRowsMatchingID(id: "alpha")
+            }
+        ) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .nestedTransactionUnsupported)
+        }
+        XCTAssertThrowsError(
+            try database.withTransaction { scope in
+                _ = try scope.execute { context in
+                    try context.containerRowsMatchingID(id: "alpha")
+                }
+            }
+        ) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .nestedTransactionUnsupported)
+        }
+    }
+
+    ///
+    /// A query prepared on a scope is bound to the transaction's connection.
+    /// It fetches there, but it cannot be observed: an observation outlives the
+    /// transaction, so the pinned-driver guard fails it at once. After the
+    /// scope ends, a fetch throws `.scopeEscaped`.
+    ///
+    func testQueryPreparedOnATransactionScopeFetchesThereButCannotBeObserved() async throws {
+        try createTestTable()
+
+        let database = try XCTUnwrap(self.database)
+        var escaped: XLPreparedQuery<TestTable>?
+        try database.withTransaction { scope in
+            try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+            let query = try scope.preparedQueries.containerObservedRows(pattern: "al%")
+            XCTAssertEqual(try query.request.fetchAll(bindings: query.bindings).map(\.id), ["alpha"])
+            escaped = query
+        }
+        let query = try XCTUnwrap(escaped)
+
+        do {
+            for try await _ in query.stream() {
+                XCTFail("an observation of a scope's query must not deliver rows")
+            }
+            XCTFail("an observation of a scope's query must fail")
+        }
+        catch {
+            XCTAssertEqual(error as? XLTransactionScopeError, .liveQueriesUnsupportedInTransaction)
+        }
+        XCTAssertThrowsError(try query.request.fetchAll(bindings: query.bindings)) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .scopeEscaped)
         }
     }
 

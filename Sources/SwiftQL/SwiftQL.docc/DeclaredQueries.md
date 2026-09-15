@@ -125,6 +125,38 @@ the pinned scope, not the original database — pass it to `makeRequest(with:)`
 for any operation the closure needs beyond the container's own declared
 queries.
 
+## Call a declared query inside a transaction
+
+Since v1.9 ([#662](https://github.com/lukevanin/swiftql/issues/662)) you can
+call a declared query on the scope that `withTransaction(_:)` gives its body.
+The query runs on the transaction's connection, so it sees the writes the body
+made before it, and it commits or rolls back with them:
+
+<!-- test: XLDocumentationTests.testDocumentationDeclaredQueries -->
+```swift
+let matches = try database.withTransaction { scope in
+    try scope.makeRequest(with: sqlInsert(candidate)).execute()
+    return try scope.personByName(name: candidate.name)
+}
+```
+
+- **On a scope, the executor joins the transaction.** The `@SQLQueries`
+  database-level executor opens a transaction when you call it on a database.
+  When you call it on a scope, it runs on the scope instead. The
+  `@SQLQuery` peer executor (`scope.fetchPersonByName(name:)`) never opens a
+  transaction, so it runs on the scope too.
+- **The same cached request and packet.** The call uses the database's
+  render-once cache entry, bound to the scope's connection, and the binding
+  packet a call on the database builds. See "Inside a transaction" under
+  "Render-once caching" below.
+- **The scope rules do not change.** A scope used after its body returns
+  throws `XLTransactionScopeError.scopeEscaped`. The original database, called
+  inside a body, and `execute(_:)`, called on a scope, still open a transaction
+  of their own and throw `nestedTransactionUnsupported`.
+- **Fetch, do not observe.** A declared query called on a scope fetches. An
+  observation from a scope fails with `liveQueriesUnsupportedInTransaction`;
+  see "Observe a declared query" below.
+
 ## Observe a declared query
 
 Since v1.9 ([#660](https://github.com/lukevanin/swiftql/issues/660)) a
