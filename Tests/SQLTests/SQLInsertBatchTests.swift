@@ -449,15 +449,19 @@ final class SQLInsertBatchTests: XCTestCase {
     func testBatchReadsItsOwnWritesInsideTheScope() throws {
         try createTestTableWithPrimaryKey(in: database)
         let rows = makeTestRows(count: 3)
+        // Built outside the transaction closure: Swift 5.9.2 crashes in SIL
+        // generation on a `sql { ... }` builder nested in that closure.
+        let allRowsQuery = sql { schema in
+            let test = schema.table(TestTable.self)
+            Select(test)
+            From(test)
+            OrderBy(test.id.ascending())
+        }
 
-        let visible = try database.withTransaction { scope -> [TestTable] in
+        var visible: [TestTable] = []
+        try database.withTransaction { scope in
             try scope.insert(contentsOf: rows)
-            return try scope.makeRequest(with: sql { schema in
-                let test = schema.table(TestTable.self)
-                Select(test)
-                From(test)
-                OrderBy(test.id.ascending())
-            }).fetchAll()
+            visible = try scope.makeRequest(with: allRowsQuery).fetchAll()
         }
         XCTAssertEqual(visible, rows)
     }
