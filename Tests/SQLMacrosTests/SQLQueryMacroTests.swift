@@ -92,6 +92,22 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
+
+                func personByNameDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = personByNameStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "personByName",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -164,6 +180,23 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
+
+                public func peopleInCohortDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = peopleInCohortStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "peopleInCohort",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                            XLDeclaredQueryParameter(name: "minimumAge", valueType: Int.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -233,6 +266,22 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
+                }
+
+                func peopleByNicknameDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = peopleByNicknameStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "peopleByNickname",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "nickname", valueType: String?.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
                 }
             }
             """,
@@ -304,6 +353,22 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
+
+                func personByNameDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = personByNameStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "personByName",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -374,6 +439,22 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
+
+                func rowsForKindDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = rowsForKindStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "rowsForKind",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "class", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -430,6 +511,20 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     let __xlLayout = __xlRequest.parameterLayout
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
+                }
+
+                func allPeopleDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = allPeopleStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "allPeople",
+                        cardinality: .many,
+                        parameters: [],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
                 }
             }
             """,
@@ -494,6 +589,15 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     let __xlLayout = __xlRequest.parameterLayout
                     let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+
+                func peopleForTenantPreparedQuery() throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlPeopleForTenantCache.request(for: self) {
+                        peopleForTenantStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(layout: __xlLayout, bindings: []).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
 
                 func peopleForTenantDeclaredQuery() -> XLDeclaredQuery {
@@ -569,6 +673,20 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+
+                public mutating func peopleNamedPreparedQuery(name: String) throws -> XLPreparedQuery<Person> {
+                    let __xlRequest = Self.__xlPeopleNamedCache.request(for: self) {
+                        peopleNamedStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
 
                 public mutating func peopleNamedDeclaredQuery() -> XLDeclaredQuery {
@@ -657,6 +775,22 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
+
+                func personByNameDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = personByNameStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "personByName",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -741,6 +875,24 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
+
+                func peopleMatchingDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = peopleMatchingStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "peopleMatching",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "pattern", valueType: String.self),
+                            XLDeclaredQueryParameter(name: "expression", valueType: String.self),
+                            XLDeclaredQueryParameter(name: "limit", valueType: Int.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -820,6 +972,22 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
+                }
+
+                func personByNameDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = personByNameStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "personByName",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
                 }
             }
             """,
@@ -968,6 +1136,22 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
+
+                func personByExactNameDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = personByExactNameStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "personByExactName",
+                        cardinality: .zeroOrOne,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -1052,6 +1236,22 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
                 }
+
+                func theOnlyPersonDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = theOnlyPersonStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "theOnlyPerson",
+                        cardinality: .exactlyOne,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -1130,6 +1330,22 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         ]
                     ).validatingComplete()
                     return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)
+                }
+
+                func auditedPersonByNameDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = auditedPersonByNameStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "auditedPersonByName",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
                 }
             }
             """,
