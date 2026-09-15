@@ -133,7 +133,7 @@ extension GRDBDatabase {
 
 In 1.9 both macros also describe each query as data, and `SwiftQLDeclaredQueryRegistryPlugin` scans the target's sources on every build and compiles a `BookshopDeclaredQueries` enum into it. Its `queries(for:)` method takes your database instances and returns every declared query it found, across every file in the target.
 
-A declaration the generated registry cannot reach from another file, such as a `private` or `fileprivate` one, is not dropped silently. The build warns about it, naming the query and the file and line it is on. To leave a declaration out on purpose, put `// swiftql-registry: ignore` on the line before its attribute.
+A declaration the generated registry cannot reach from another file, such as a `private` or `fileprivate` one, is not dropped silently. The build warns about it, naming the query and the file and line it is on. To leave a declaration out on purpose, put `// swiftql-registry: ignore` directly above it, before its first attribute.
 
 ## Step 2: generate the snapshot and the manifest
 
@@ -222,7 +222,7 @@ swift run bookshop-manifest Sources/BookshopValidation
 ```
 
 ```
-Build complete! (16,47 sec)
+Build complete! (16,06 sec)
 wrote 2 queries to swiftql-build-validation-manifest.json
 ```
 
@@ -368,16 +368,16 @@ swift build
 ```
 Building for debugging...
 [Computing dependencies]
-[Provisioning 2 / 41]
+[Provisioning 3 / 41]
 [Pre-planning 1 / 858]
 [Planning deferred tasks]
-[18 / 97] BookshopValidation
+[19 / 97] BookshopValidation
 [22 / 43] swiftql-build-validate-product
 [26 / 45] swiftql-build-validate-product
 [27 / 45] swiftql-build-validate-product
 [34 / 46] BookshopValidation
 [44 / 49] Bookshop_BookshopValidation
-Build complete! (2,09 sec)
+Build complete! (1,99 sec)
 ```
 
 A passing validation is quiet. It leaves a report behind at:
