@@ -293,9 +293,14 @@ because the generated members keep their declaration's access level. A
 declaration the registry cannot reach from another file -- one that is
 `private` or `fileprivate`, one on a generic or constrained type or in an
 extension of one, or one outside a type -- is reported as a build warning
-rather than left out silently. To leave one declaration out without the
-warning, write `// swiftql-registry: ignore` on the line before its
-attribute.
+rather than left out silently. So is a type nested in a type the target does
+not declare (`extension Array { struct Inner {} }`), a generic typealias, and
+an `@SQLQuery` or `@SQLQueries` attribute inside an `#if` in the attribute
+list. To leave one declaration out without the warning, write
+`// swiftql-registry: ignore` directly above the declaration, before its
+first attribute. The scanner reads only the comments in front of the
+declaration's first token, so the comment is not seen between two
+attributes.
 
 The scan reads every Swift file of the target, so a database type declared in
 one file and extended with declarations in another is handled. Everything the
@@ -351,6 +356,11 @@ function.
   `@SQLQueries`-attached extension of the same database type would
   redeclare `Context` and `execute(_:)`. Declare every specification for one
   database type in a single `@SQLQueries` extension's `Query` container.
+- **An extension of a generic type from another module is not detected.**
+  The scanner sees only the target's own sources, so it cannot tell that a
+  type declared elsewhere is generic. A declaration directly in such an
+  extension makes the generated registry fail to compile. Mark it with
+  `// swiftql-registry: ignore`.
 - **The registry's name belongs to the plugin.** The plugin generates a type
   and a file named `<Target>DeclaredQueries` in the target it is applied to.
   A target that already declares a type or holds a file with that name gets a

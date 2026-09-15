@@ -62,8 +62,8 @@ final class DeclaredQueryScannerTests: XCTestCase {
         ])
         XCTAssertEqual(result.declarations.map(\.line), [4, 12, 15, 21])
         XCTAssertEqual(result.imports, [
-            DeclaredQueryImport(declaration: "import Foundation", condition: nil),
-            DeclaredQueryImport(declaration: "import SwiftQL", condition: nil),
+            DeclaredQueryImport(declaration: "import Foundation", condition: nil, module: "Foundation"),
+            DeclaredQueryImport(declaration: "import SwiftQL", condition: nil, module: "SwiftQL"),
         ])
         XCTAssertEqual(result.skipped, [])
     }
@@ -182,7 +182,7 @@ final class DeclaredQueryScannerTests: XCTestCase {
         ])
 
         XCTAssertEqual(result.declarations.map(\.condition), [nil, nil])
-        XCTAssertEqual(result.declarations.map(\.typeCondition), ["((DEBUG))", "((DEBUG)) && ((DEBUG))"])
+        XCTAssertEqual(result.declarations.map(\.typeCondition), ["((DEBUG))", "((DEBUG))"])
     }
 
     func testImportsKeepTheirConditionsAndAttributes() {
@@ -200,10 +200,102 @@ final class DeclaredQueryScannerTests: XCTestCase {
             """)
 
         XCTAssertEqual(result.imports, [
-            DeclaredQueryImport(declaration: "import UIKit", condition: "((canImport(UIKit)))"),
-            DeclaredQueryImport(declaration: "@testable import Store", condition: nil),
-            DeclaredQueryImport(declaration: "@preconcurrency import Dispatch", condition: nil),
+            DeclaredQueryImport(declaration: "import UIKit", condition: "((canImport(UIKit)))", module: "UIKit"),
+            DeclaredQueryImport(declaration: "@testable import Store", condition: nil, module: "Store"),
+            DeclaredQueryImport(declaration: "@preconcurrency import Dispatch", condition: nil, module: "Dispatch"),
         ])
+    }
+
+    func testAnExtensionOfAGenericTypealiasIsSkipped() {
+        let result = scan(files: [
+            "Types.swift": """
+                struct Box<Value> {}
+                typealias Boxed<Value> = Box<Value>
+                typealias Database = GRDBDatabase
+                """,
+            "Queries.swift": """
+                extension Boxed {
+                    @SQLQuery
+                    func boxed() -> [Person] { sqlResult { _ in fatalError() } }
+                }
+
+                extension Database {
+                    @SQLQuery
+                    func aliased() -> [Person] { sqlResult { _ in fatalError() } }
+                }
+                """,
+        ])
+
+        XCTAssertEqual(result.declarations.map(\.databaseType), ["Database"])
+        XCTAssertEqual(result.skipped.count, 1)
+        XCTAssertTrue(result.skipped[0].reason.contains("'boxed'"))
+    }
+
+    func testATypeNestedInAnExtensionOfAnUndeclaredTypeIsSkipped() {
+        let result = scan(files: [
+            "Types.swift": """
+                extension Array {
+                    struct Inner {}
+                }
+                """,
+            "Queries.swift": """
+                extension Array.Inner {
+                    @SQLQuery
+                    func nested() -> [Person] { sqlResult { _ in fatalError() } }
+                }
+
+                extension SwiftQL.GRDBDatabase {
+                    @SQLQuery
+                    func qualified() -> [Person] { sqlResult { _ in fatalError() } }
+                }
+                """,
+        ])
+
+        XCTAssertEqual(result.declarations.map(\.databaseType), ["SwiftQL.GRDBDatabase"])
+        XCTAssertEqual(result.skipped.count, 1)
+        XCTAssertTrue(result.skipped[0].reason.contains("does not declare"))
+    }
+
+    func testAnAttributeInsideAnIfInTheAttributeListIsReported() {
+        let result = scan("""
+            extension GRDBDatabase {
+                #if DEBUG
+                @SQLQuery
+                #endif
+                func maybeDeclared() -> [Person] { sqlResult { _ in fatalError() } }
+            }
+            """)
+
+        XCTAssertEqual(result.declarations, [])
+        XCTAssertEqual(result.skipped.count, 1)
+        XCTAssertTrue(result.skipped[0].reason.contains("#if in the attribute list"))
+    }
+
+    func testTheRegistryKeepsOneImportPerModule() {
+        let source = DeclaredQueryRegistryRenderer.render(
+            targetName: "Fixture",
+            scan: scan(files: [
+                "A.swift": """
+                    internal import SwiftQL
+
+                    extension GRDBDatabase {
+                        @SQLQuery
+                        func a() -> [Person] { sqlResult { _ in fatalError() } }
+                    }
+                    """,
+                "B.swift": """
+                    import SwiftQL
+
+                    extension GRDBDatabase {
+                        @SQLQuery
+                        func b() -> [Person] { sqlResult { _ in fatalError() } }
+                    }
+                    """,
+            ])
+        )
+        let lines = source.components(separatedBy: "\n")
+
+        XCTAssertEqual(lines.filter { $0.hasSuffix("import SwiftQL") }, ["internal import SwiftQL"], source)
     }
 
     func testTheRegistryTypeNameIsAnIdentifierFromTheTargetName() {
