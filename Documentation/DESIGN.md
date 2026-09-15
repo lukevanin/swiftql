@@ -250,7 +250,10 @@ not exist yet.
 ## What is still wrong
 
 **Too much boilerplate, particularly around variables.** This is the most
-visible remaining wart and is targeted for upcoming versions.
+visible remaining wart and is targeted for upcoming versions. v1.9 removes one
+part of it: `@SQLBindings` generates the typed packet for a statement's named
+bindings, so a caller no longer looks up a parameter slot by a string name and
+a misspelled name no longer waits until runtime to fail.
 
 **Two syntaxes.** Supporting both chaining and result builders splits the
 surface area and the documentation. Chaining moves to its own library.
