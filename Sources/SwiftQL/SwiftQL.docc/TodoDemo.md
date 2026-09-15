@@ -74,13 +74,12 @@ deleting a sub-task are each one `UPDATE`:
 ```swift
                 row.checklist = table.checklist
                     .jsonSetting((TodoChecklist.isDone(at: index), isDone))
-                    .coalesce(table.checklist)
 ```
 
 The app never loads a to-do, edits the array in Swift, and writes it back, so
 two people ticking different sub-tasks cannot overwrite each other. The
-`coalesce` is there because `json_set` returns `NULL` for a `NULL` document,
-which makes its result optional even though the column is not.
+column is `NOT NULL`, so the result of `json_set` is not optional either, and
+it assigns straight back to the column.
 
 Reading follows the same rule. The list rows need a count and a first title,
 not the arrays, so the query asks SQLite for exactly those:

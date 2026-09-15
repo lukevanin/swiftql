@@ -51,6 +51,21 @@
   function result and every existential value that code passes today. A
   `switch` over `XLSQLValueEncodingError` with no `default` clause must handle
   the new case.
+- **A JSON mutation on a non-optional document has a non-optional result**
+  (issue #664). This applies to `jsonInserting`, `jsonReplacing`,
+  `jsonSetting`, and `jsonRemoving` on a `String` document, and to their
+  JSONB twins on a `Data` document. Where the call site gives no other type,
+  Swift now infers `String` or `Data` instead of `String?` or `Data?`. Code
+  that unwraps such a result twice, for example
+  `if let row = try request.fetchOne(), let value = row`, must unwrap it
+  once. The non-optional `jsonRemoving` and `jsonbRemoving` report the root
+  path `$` with the new case
+  `XLSQLValueEncodingError.jsonRootRemoval(function:)`, because SQLite
+  returns `NULL` when it removes the root. On 1.8.1 that call returned SQL
+  `NULL`. A `switch` over `XLSQLValueEncodingError` with no `default` clause
+  must handle the new case. A call site that assigns the result to an
+  optional column, or that passes it to `coalesce`, still compiles and
+  renders the same SQL.
 
 - **Build-validation manifest format version 2** (issue #658). New manifests
   are written as `format_version: 2`, and the reader accepts versions 1 and 2.
@@ -90,6 +105,13 @@
   away, `streamOne()` delivers `nil`. The to-do demo observes its declared
   reads directly, and `TodoLiveReads.swift` and `TodoFilteredRead.swift` are
   removed.
+
+- The JSON mutation functions have overloads whose result follows the
+  document's nullability (issue #664). A mutation on a `NOT NULL` column
+  assigns back to that column without `coalesce`. A `String?` or `Data?`
+  document keeps the optional result. `jsonPatched(with:)` and
+  `jsonbPatched(with:)` stay optional, because a `NULL` patch also gives
+  `NULL`. The to-do demo's checklist writes no longer end with `coalesce`.
 
 - **`GRDBDatabase.insert(contentsOf:)` inserts many rows through one
   statement** (issue #668). A loop of

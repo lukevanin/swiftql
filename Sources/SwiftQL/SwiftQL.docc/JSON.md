@@ -131,25 +131,33 @@ let promote = sql { schema in
     Setting(note) { row in
         row.metadata = note.metadata
             .jsonSetting((XLJSONPath.root.key("priority"), 1))
-            .coalesce(note.metadata)
     }
     Where(note.id == "note-1")
 }
 ```
 
-Every mutation result is optional, because SQLite returns `NULL` when the
-document is `NULL`. `metadata` is declared non-optional here, so `coalesce`
-supplies the original document for that case and the types line up. A column
-declared `String?` takes the result directly.
+SQLite returns `NULL` when the document is `NULL`, so the result's
+nullability follows the document's. `metadata` is declared `String` here, so
+the result is `String`, and it assigns back without `coalesce`. A `String?`
+document gives a `String?` result. The JSONB twins follow the same rule for a
+`Data` document.
+
+Two functions are exceptions. `json_remove` also returns `NULL` when it
+removes the root, so the non-optional `jsonRemoving(at:_:)`
+reports a root path as
+``XLSQLValueEncodingError/jsonRootRemoval(function:)`` before SQLite prepares
+the statement. `json_patch` also returns `NULL` for a `NULL` patch, so
+``XLExpression/jsonPatched(with:)`` is always optional. Add `coalesce` to
+store its result in a non-optional column.
 
 The five functions differ only in when they write:
 
 | Function | Writes |
 | --- | --- |
-| ``XLExpression/jsonInserting(_:_:)`` | Only where nothing is there |
-| ``XLExpression/jsonReplacing(_:_:)`` | Only where something is there |
-| ``XLExpression/jsonSetting(_:_:)`` | Either way |
-| ``XLExpression/jsonRemoving(at:_:)`` | Deletes each named path |
+| `jsonInserting(_:_:)` | Only where nothing is there |
+| `jsonReplacing(_:_:)` | Only where something is there |
+| `jsonSetting(_:_:)` | Either way |
+| `jsonRemoving(at:_:)` | Deletes each named path |
 | ``XLExpression/jsonPatched(with:)`` | Applies an RFC 7396 merge patch |
 
 ## Writing a Bool or a blob
