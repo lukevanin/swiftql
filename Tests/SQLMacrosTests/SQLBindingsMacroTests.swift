@@ -424,6 +424,114 @@ final class SQLBindingsMacroDiagnosticTests: XCTestCase {
         )
     }
 
+    /// An initializer inside `#if` removes the missing-value guarantee in the
+    /// configurations that compile it, so it is reported like a direct one.
+    func test_initializerInsideIfConfig_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLBindings
+            struct Sample {
+                var id: String
+                #if DEBUG
+                init() {
+                    self.id = ""
+                }
+                #endif
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var id: String
+                #if DEBUG
+                init() {
+                    self.id = ""
+                }
+                #endif
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLBindings' cannot be applied to a struct that declares an initializer. The memberwise initializer is what makes a missing value a compile error. Remove the initializer, and build the values in a function that calls the memberwise initializer.",
+                    line: 5,
+                    column: 5
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    /// An initial value inside `#if` is reported like a direct one.
+    func test_propertyWithInitialValueInsideIfConfig_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLBindings
+            struct Sample {
+                var id: String
+                #if DEBUG
+                var name: String = ""
+                #endif
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var id: String
+                #if DEBUG
+                var name: String = ""
+                #endif
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Property 'name' cannot have an initial value when it is used as a named binding. The initial value makes the memberwise-initializer argument optional, so a call that leaves the value out would compile and bind the initial value. Remove the initial value.",
+                    line: 5,
+                    column: 22
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    /// A valid property inside `#if` is still an error: the generated
+    /// members are not conditional, so they cannot match every configuration.
+    func test_propertyInsideIfConfig_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLBindings
+            struct Sample {
+                var id: String
+                #if DEBUG
+                var name: String
+                #else
+                var label: String
+                #endif
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var id: String
+                #if DEBUG
+                var name: String
+                #else
+                var label: String
+                #endif
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Property 'name' cannot be declared inside '#if' when it is used as a named binding. The generated references and packet builders are not conditional, so the binding would not match every build configuration. Move the property out of the '#if' block, or declare a separate '@SQLBindings' struct for each configuration.",
+                    line: 5,
+                    column: 5
+                ),
+                DiagnosticSpec(
+                    message: "Property 'label' cannot be declared inside '#if' when it is used as a named binding. The generated references and packet builders are not conditional, so the binding would not match every build configuration. Move the property out of the '#if' block, or declare a separate '@SQLBindings' struct for each configuration.",
+                    line: 7,
+                    column: 5
+                ),
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
     /// Every invalid property is reported in one pass, in source order.
     func test_severalInvalidProperties_reportEveryOne() {
         assertMacroExpansion(

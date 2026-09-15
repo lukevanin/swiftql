@@ -61,7 +61,50 @@ internal struct SQLBindingsBuilder {
 
         var diagnostics = MacroDiagnosticCollector()
         var properties: [SQLBindingsProperty] = []
-        for member in structDeclaration.memberBlock.members {
+        Self.classifyMembers(
+            structDeclaration.memberBlock.members,
+            isConditional: false,
+            properties: &properties,
+            diagnostics: &diagnostics
+        )
+        try diagnostics.throwIfNotEmpty()
+
+        self.accessPrefix = Self.accessPrefix(of: structDeclaration.modifiers)
+        self.properties = properties
+    }
+
+    ///
+    /// Classifies the members of the struct, including the members of every
+    /// `#if` clause.
+    ///
+    /// An initializer or an initial value inside `#if` removes the
+    /// missing-value guarantee in the configurations that compile it, so it is
+    /// reported exactly like a direct member. A valid stored property inside
+    /// `#if` is reported too: the generated references and packet builders are
+    /// not conditional, so they would refer to a property that some
+    /// configurations do not declare, or leave out one that they do.
+    ///
+    private static func classifyMembers(
+        _ members: MemberBlockItemListSyntax,
+        isConditional: Bool,
+        properties: inout [SQLBindingsProperty],
+        diagnostics: inout MacroDiagnosticCollector
+    ) {
+        for member in members {
+            if let ifConfig = member.decl.as(IfConfigDeclSyntax.self) {
+                for clause in ifConfig.clauses {
+                    guard case .decls(let clauseMembers)? = clause.elements else {
+                        continue
+                    }
+                    classifyMembers(
+                        clauseMembers,
+                        isConditional: true,
+                        properties: &properties,
+                        diagnostics: &diagnostics
+                    )
+                }
+                continue
+            }
             if let initializer = member.decl.as(InitializerDeclSyntax.self) {
                 // A declared initializer can supply a value itself, so a
                 // call that leaves the value out would still compile.
@@ -75,17 +118,22 @@ internal struct SQLBindingsBuilder {
             guard let variable = member.decl.as(VariableDeclSyntax.self) else {
                 continue
             }
-            properties.append(
-                contentsOf: Self.collectProperties(
-                    variable: variable,
-                    diagnostics: &diagnostics
-                )
+            let collected = collectProperties(
+                variable: variable,
+                diagnostics: &diagnostics
             )
+            guard isConditional else {
+                properties.append(contentsOf: collected)
+                continue
+            }
+            for property in collected {
+                diagnostics.report(
+                    variable.bindingSpecifier,
+                    id: "sqlbindings-conditional-property",
+                    "Property '\(property.placeholderName)' cannot be declared inside '#if' when it is used as a named binding. The generated references and packet builders are not conditional, so the binding would not match every build configuration. Move the property out of the '#if' block, or declare a separate '@SQLBindings' struct for each configuration."
+                )
+            }
         }
-        try diagnostics.throwIfNotEmpty()
-
-        self.accessPrefix = Self.accessPrefix(of: structDeclaration.modifiers)
-        self.properties = properties
     }
 
     private static func collectProperties(
@@ -235,7 +283,12 @@ internal struct SQLBindingsBuilder {
     /// Generates the packet builder for a prepared write request. A write
     /// without `RETURNING` prepares an `XLWriteRequest`, which is not an
     /// `XLRequest`. No SwiftQL request type conforms to both protocols, so the
-    /// two overloads never make a call ambiguous.
+    /// two overloads do not make a call with a SwiftQL request ambiguous.
+    ///
+    /// A caller's own request type that conforms to both `XLRequest` and
+    /// `XLWriteRequest` makes `bindings(for:)` ambiguous, and the compiler
+    /// error does not name that cause. Such a caller uses
+    /// `bindings(in: request.parameterLayout)` instead.
     ///
     func makeWriteRequestPacketFunction() -> String {
         """

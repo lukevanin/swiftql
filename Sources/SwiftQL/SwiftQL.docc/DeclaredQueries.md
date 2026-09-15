@@ -193,6 +193,14 @@ written `public` or `package`. A struct that is public only because it is
 inside a `public extension` gets internal generated members. Write the access
 modifier on the struct.
 
+`bindings(for:)` has one overload for an `XLRequest` and one for an
+`XLWriteRequest`. If your own request type conforms to both protocols, a call
+to `bindings(for:)` is ambiguous, and the compiler error does not name the
+cause. For such a type, call `bindings(in: request.parameterLayout)` instead.
+
+Do not put a binding property or an initializer inside an `#if` block. The
+generated members are not conditional, so the macro reports an error for both.
+
 ## Render-once caching
 
 The generated executor does not render SQL on every call. Each declaration
