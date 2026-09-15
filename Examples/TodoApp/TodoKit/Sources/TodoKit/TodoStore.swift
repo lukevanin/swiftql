@@ -49,15 +49,18 @@ extension TodoDatabase {
     /// The to-dos matching one query, already filtered, searched, and sorted
     /// by SQLite.
     ///
-    /// One request serves every combination — see ``TodoFilteredRead`` for
-    /// how, and for why this one read is not a declared query.
+    /// One declared read serves every combination. `Query.filteredTodos` in
+    /// `TodoReads.swift` shows how.
     public func todos(matching query: TodoQuery) throws -> [Todo] {
-        let request = filteredTodosRequest
-        return try request.fetchAll(
-            bindings: TodoFilteredRead.bindings(
-                for: query,
-                layout: request.parameterLayout
-            )
+        let flags = query.filter.flags
+        return try database.filteredTodos(
+            listID: query.listID,
+            includesCompleted: flags.includesCompleted,
+            includesActive: flags.includesActive,
+            overdueOnly: flags.overdueOnly,
+            referenceDate: query.referenceDate,
+            searchPattern: query.searchPattern,
+            sortOrder: query.sort.rawValue
         )
     }
 

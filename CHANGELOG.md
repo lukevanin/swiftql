@@ -130,8 +130,51 @@
   `from: "0.14.0"`. A consumer graph that needs a later compatible OpenCombine
   release now resolves. `Package.resolved` keeps the tested 0.14.0 pin, and
   the committed-resolution CI cells still build against it.
+- **CI: Linux on Swift 6, and a shorter main-branch run.** The compatibility
+  matrix adds a Swift 6.3.2 Linux cell (issue #672). It installs its toolchain
+  through the same signature-verified Swift.org archive path and pinned SQLite
+  3.53.3 build as the Swift 5.9.2 cells, so the OpenCombine bridge and the
+  Foundation-backed codecs now run under swift-foundation. Source coverage is
+  no longer a separate macOS job that runs the suite twice: the Swift 6.0
+  committed cell runs the suite once under coverage, and a verifier derives the
+  expected source selection from `git ls-files` and the coverage config. The
+  Getting Started playground check moves to the Swift 5.9 Linux committed cell,
+  and complete strict concurrency runs once, on the Swift 6.0 clean cell.
+  `COMPATIBILITY.md` records the account's macOS runner limit that these moves
+  work around.
+- **Release: version claims are a release gate, not test pins.** The release
+  workflow runs `scripts/ci/check-release-version-claims.sh` on the exact tag
+  commit and fails unless the six published-version claims name the tag's
+  version. The Swift documentation tests compare those claims with the newest
+  dated CHANGELOG heading instead of a literal, and no longer pin SKILL.md's
+  release sentence verbatim, so a version bump touches no test file.
+- **To-do demo: live-query tests await state.** The demo's test target gains
+  an Observation-driven wait with a named 10-second backstop. The tests no
+  longer poll with `Task.sleep`, and no shipping product imports XCTest.
+
+- **A declared query accepts a parameter as a method or clause argument**
+  (issue #661). `@SQLQuery` and `@SQLQueries` now rewrite a parameter passed
+  to a DSL method or clause, such as `column.like(pattern)`,
+  `column.regexp(pattern)`, or `Limit(count)`, into its named binding, so a
+  declared query can match text and limit its rows with parameters. The
+  frozen-literal guard no longer rejects a call argument, a local binding
+  initialized from a parameter, or a parameter in a nested closure, because
+  the rewrite replaces each of these references. It still rejects string
+  interpolation and member access on a parameter. A parameter passed to a call
+  whose parameter type is `Any` or generic, such as `String(describing:)`, is
+  not a binding: the call renders the description of a binding reference as a
+  constant literal, and the macro does not detect it. Pass parameters only to
+  SwiftQL expression APIs. The to-do demo's filtered read is a declared query
+  again.
 
 ### Fixed
+
+- **A parameter named like a key-path component or a callee gets a
+  diagnostic** (issue #661). A parameter named `name` in a body that also
+  contains `\Person.name` made the rewrite produce invalid code. A parameter
+  named `From` rewrote the `From(…)` clause. The rewrite now leaves key-path
+  components and callees unchanged, and the macro reports the shared name at
+  the declaration.
 
 - **A `@SQLTable` or `@SQLResult` property default now applies** (issue #665,
   recorded on #469). The generated memberwise initializer gives a `var`

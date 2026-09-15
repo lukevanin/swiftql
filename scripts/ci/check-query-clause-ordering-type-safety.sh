@@ -69,6 +69,27 @@ for module_search_path in "${module_search_paths[@]}"; do
     )
 done
 
+# Swift 6 on Linux loads every module SwiftQL depends on, including
+# OpenCombine's C helper target, COpenCombineHelpers. That target has no
+# checked-in module map; SwiftPM generates one in the target's build
+# directory. Swift 5.9 tolerated its absence, but Swift 6.3 fails with
+# "missing required module". Pass each generated C-target module map. Host
+# tool copies (`*-tool.build`) would redefine the same modules, and Swift
+# targets' generated maps (`-Swift.h`) are not C modules, so both are skipped.
+# Apple builds link no OpenCombine (#669), so the macOS invocation is left
+# unchanged.
+if [[ "$(uname -s)" == Linux ]]; then
+    while IFS= read -r generated_module_map; do
+        if grep -Fq -- '-Swift.h' "$generated_module_map"; then
+            continue
+        fi
+        compiler+=(-Xcc "-fmodule-map-file=$generated_module_map")
+    done < <(
+        find "$bin_path" -name '*-tool.build' -prune -o \
+            -path '*.build/module.modulemap' -print | sort
+    )
+fi
+
 # Prove that the standalone compiler invocation accepts each valid transition
 # before interpreting failures from the negative fixtures as API evidence.
 "${compiler[@]}" "$positive_fixture"

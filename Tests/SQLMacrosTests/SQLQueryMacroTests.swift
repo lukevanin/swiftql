@@ -422,6 +422,159 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
     }
 
     ///
+    /// Issue #661: a parameter passed to a DSL matching method (`like`,
+    /// `regexp`) or to a clause (`Limit`) is rewritten to its named binding
+    /// like a comparison operand. The callees themselves — `Where`, `Limit`,
+    /// and the member names `like` and `regexp` — are left unchanged, and a
+    /// parameter called `limit` does not collide with the `Limit` clause.
+    ///
+    func test_matchingMethodAndClauseArguments_rewriteToNamedBindings() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func peopleMatching(pattern: String, expression: String, limit: Int) -> [Person] {
+                    sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name.like(pattern) || person.notes.regexp(expression))
+                        Limit(limit)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func peopleMatching(pattern: String, expression: String, limit: Int) -> [Person] {
+                    sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name.like(pattern) || person.notes.regexp(expression))
+                        Limit(limit)
+                    }
+                }
+
+                func peopleMatchingStatement() -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        Select(person)
+                        From(person)
+                        Where(person.name.like(XLNamedBindingReference<String>(name: "pattern")) || person.notes.regexp(XLNamedBindingReference<String>(name: "expression")))
+                        Limit(XLNamedBindingReference<Int>(name: "limit"))
+                    }
+                }
+
+                private static let __xlPeopleMatchingCache = XLRenderOnceCache<Person>()
+
+                func fetchPeopleMatching(pattern: String, expression: String, limit: Int) throws -> [Person] {
+                    let __xlRequest = Self.__xlPeopleMatchingCache.request(for: self) {
+                        peopleMatchingStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(pattern, named: "pattern", in: __xlLayout),
+                            try _xlQueryParameterBinding(expression, named: "expression", in: __xlLayout),
+                            try _xlQueryParameterBinding(limit, named: "limit", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// Issue #661: a local binding initialized from a parameter and a nested
+    /// closure that references one are both inside the rewrite's reach, so
+    /// every reference becomes the named binding and the declaration expands.
+    ///
+    func test_localBindingAndNestedClosureReferences_rewriteToNamedBindings() {
+        assertMacroExpansion(
+            """
+            extension MyDatabase {
+                @SQLQuery
+                func personByName(name: String) -> [Person] {
+                    sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        let alias = name
+                        Select(person)
+                        From(person)
+                        Where(person.name == alias && person.tags.contains { $0 == name })
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                func personByName(name: String) -> [Person] {
+                    sqlResult { schema in
+                        let person = schema.table(Person.self)
+                        let alias = name
+                        Select(person)
+                        From(person)
+                        Where(person.name == alias && person.tags.contains { $0 == name })
+                    }
+                }
+
+                func personByNameStatement() -> any XLQueryStatement<Person> {
+                    sql { schema in
+                        let person = schema.table(Person.self)
+                        let alias = XLNamedBindingReference<String>(name: "name")
+                        Select(person)
+                        From(person)
+                        Where(person.name == alias && person.tags.contains {
+                                $0 == XLNamedBindingReference<String>(name: "name")
+                            })
+                    }
+                }
+
+                private static let __xlPersonByNameCache = XLRenderOnceCache<Person>()
+
+                func fetchPersonByName(name: String) throws -> [Person] {
+                    let __xlRequest = Self.__xlPersonByNameCache.request(for: self) {
+                        personByNameStatement()
+                    }
+                    let __xlLayout = __xlRequest.parameterLayout
+                    let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                        layout: __xlLayout,
+                        bindings: [
+                            try _xlQueryParameterBinding(name, named: "name", in: __xlLayout),
+                        ]
+                    ).validatingComplete()
+                    return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// The rewrite on its own leaves a key-path component and a plain callee
+    /// unchanged, even where either shares a parameter's name. The guard
+    /// reports both shapes before a declaration reaches the rewrite, so this
+    /// pins the rewrite directly.
+    ///
+    func test_rewriter_leavesKeyPathComponentsAndCalleesUnchanged() {
+        let parameters = [
+            SQLQueryParameter(swiftName: "name", placeholderName: "name", type: "String"),
+            SQLQueryParameter(swiftName: "From", placeholderName: "From", type: "Int"),
+        ]
+        let source = Parser.parse(source: #"From(\Person.name, name) + From<Int>(From)"#)
+        let rewritten = SQLQueryParameterRewriter(parameters: parameters).visit(source)
+        XCTAssertEqual(
+            rewritten.description,
+            #"From(\Person.name, XLNamedBindingReference<String>(name: "name")) + From<Int>(XLNamedBindingReference<Int>(name: "From"))"#
+        )
+    }
+
+    ///
     /// A `Row?` direct-result signature dispatches to `fetchOne` and returns an
     /// optional row. This is the only source of the cardinality — the return
     /// annotation — since the macro is declaration-local.
@@ -1259,41 +1412,45 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
     }
 
     ///
-    /// A parameter captured by a nested closure escapes the rewrite, which only
-    /// reaches the statement builder itself.
+    /// Issue #661: a key-path component that shares a parameter's name is not a
+    /// reference to the parameter. The rewrite leaves it unchanged, and the
+    /// guard reports the shared name instead of letting the rewrite corrupt the
+    /// key path.
     ///
-    func test_nestedClosureParameter_emitsError() {
+    func test_parameterNamedLikeKeyPathComponent_emitsError() {
         assertMacroExpansion(
             """
             extension MyDatabase {
                 @SQLQuery
-                func personByName(name: String) -> any XLQueryStatement<Person> {
-                    sql { schema in
+                func personByName(name: String) -> [Person] {
+                    sqlResult { schema in
                         let person = schema.table(Person.self)
                         Select(person)
                         From(person)
-                        Where(person.tags.contains { $0 == name })
+                        Where(person.name == name)
+                        OrderBy(\\Person.name)
                     }
                 }
             }
             """,
             expandedSource: """
             extension MyDatabase {
-                func personByName(name: String) -> any XLQueryStatement<Person> {
-                    sql { schema in
+                func personByName(name: String) -> [Person] {
+                    sqlResult { schema in
                         let person = schema.table(Person.self)
                         Select(person)
                         From(person)
-                        Where(person.tags.contains { $0 == name })
+                        Where(person.name == name)
+                        OrderBy(\\Person.name)
                     }
                 }
             }
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "'name' is captured by a nested closure in the '@SQLQuery' body. The rewrite only reaches references in the statement builder itself, so a value captured deeper can escape into the cached SQL as a frozen literal. Reference the parameter directly in the statement.",
-                    line: 8,
-                    column: 48
+                    message: "'name' is a query parameter and also a key-path component in the '@SQLQuery' body. The rewrite leaves a key-path component unchanged, so the two uses of the name mean different things. Rename the parameter.",
+                    line: 9,
+                    column: 29
                 )
             ],
             macros: makeTestMacros()
@@ -1301,41 +1458,42 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
     }
 
     ///
-    /// A parameter passed to a helper call is invisible to the rewrite, so its
-    /// value freezes into the cached SQL on the first invocation.
+    /// Issue #661: a parameter named like a DSL callee would otherwise rewrite
+    /// the clause itself (`From(person)`). The rewrite leaves a callee
+    /// unchanged, and the guard reports the shared name.
     ///
-    func test_helperCallArgumentParameter_emitsError() {
+    func test_parameterNamedLikeDSLCallee_emitsError() {
         assertMacroExpansion(
             """
             extension MyDatabase {
                 @SQLQuery
-                func personByName(name: String) -> any XLQueryStatement<Person> {
-                    sql { schema in
+                func people(From: String) -> [Person] {
+                    sqlResult { schema in
                         let person = schema.table(Person.self)
                         Select(person)
                         From(person)
-                        Where(matches(name))
+                        Where(person.name == From)
                     }
                 }
             }
             """,
             expandedSource: """
             extension MyDatabase {
-                func personByName(name: String) -> any XLQueryStatement<Person> {
-                    sql { schema in
+                func people(From: String) -> [Person] {
+                    sqlResult { schema in
                         let person = schema.table(Person.self)
                         Select(person)
                         From(person)
-                        Where(matches(name))
+                        Where(person.name == From)
                     }
                 }
             }
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "'name' is passed as an argument to a function call in the '@SQLQuery' body. The rewrite cannot see through the call, so the value would be frozen into the cached SQL on the first invocation. Use the parameter directly as a comparison operand (for example 'column == name') instead of passing it to a helper.",
-                    line: 8,
-                    column: 27
+                    message: "'From' is a query parameter and also the name of a called function or type in the '@SQLQuery' body. The rewrite leaves a callee unchanged, and a parameter value cannot be called, so the two uses of the name mean different things. Rename the parameter.",
+                    line: 7,
+                    column: 13
                 )
             ],
             macros: makeTestMacros()
@@ -1343,43 +1501,42 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
     }
 
     ///
-    /// A parameter used to initialize a local binding escapes the rewrite
-    /// through the binding's later uses.
+    /// The callee check also covers a callee with generic arguments.
     ///
-    func test_parameterInLocalBindingInitializer_emitsError() {
+    func test_parameterNamedLikeGenericCallee_emitsError() {
         assertMacroExpansion(
             """
             extension MyDatabase {
                 @SQLQuery
-                func personByName(name: String) -> any XLQueryStatement<Person> {
-                    sql { schema in
+                func people(Limit: Int) -> [Person] {
+                    sqlResult { schema in
                         let person = schema.table(Person.self)
-                        let alias = name
                         Select(person)
                         From(person)
-                        Where(person.name == alias)
+                        Where(person.age == Limit)
+                        Limit<Int>(10)
                     }
                 }
             }
             """,
             expandedSource: """
             extension MyDatabase {
-                func personByName(name: String) -> any XLQueryStatement<Person> {
-                    sql { schema in
+                func people(Limit: Int) -> [Person] {
+                    sqlResult { schema in
                         let person = schema.table(Person.self)
-                        let alias = name
                         Select(person)
                         From(person)
-                        Where(person.name == alias)
+                        Where(person.age == Limit)
+                        Limit<Int>(10)
                     }
                 }
             }
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "'name' is used to initialize a local binding in the '@SQLQuery' body. The binding's later uses are outside the rewrite's reach, so the value can freeze into the cached SQL. Reference the parameter directly in the statement instead of storing it in a local.",
-                    line: 6,
-                    column: 25
+                    message: "'Limit' is a query parameter and also the name of a called function or type in the '@SQLQuery' body. The rewrite leaves a callee unchanged, and a parameter value cannot be called, so the two uses of the name mean different things. Rename the parameter.",
+                    line: 9,
+                    column: 13
                 )
             ],
             macros: makeTestMacros()

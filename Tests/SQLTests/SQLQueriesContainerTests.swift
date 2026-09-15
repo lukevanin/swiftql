@@ -51,6 +51,35 @@ extension GRDBDatabase {
                 Where(table.id == id)
             }
         }
+
+        // Issue #661: the container inlines the rewritten statement where the
+        // parameter values are in scope, so this pins that `like`, `regexp`,
+        // and `Limit` arguments bind rather than capture.
+        func containerRowsMatching(pattern: String, expression: String, count: Int) -> [TestTable] {
+            sqlResult { schema in
+                let table = schema.table(TestTable.self)
+                Select(table)
+                From(table)
+                Where(table.id.like(pattern) && table.id.regexp(expression))
+                OrderBy(table.value.ascending())
+                Limit(count)
+            }
+        }
+
+        // Issue #661: a parameter reached through a local binding and through
+        // a nested closure (`Limit`'s builder closure) is still rewritten, so
+        // each call binds its own values rather than capturing the first.
+        func containerRowsThroughAliasAndClosure(pattern: String, count: Int) -> [TestTable] {
+            sqlResult { schema in
+                let table = schema.table(TestTable.self)
+                let alias = pattern
+                Select(table)
+                From(table)
+                Where(table.id.like(alias))
+                OrderBy(table.value.ascending())
+                Limit { count }
+            }
+        }
     }
 }
 
@@ -212,6 +241,49 @@ final class XLQueriesContainerTests: XCTestCase {
         XCTAssertTrue(renderedSQL.contains(":id"), "the reused SQL must bind a placeholder")
         XCTAssertFalse(renderedSQL.contains("'alpha'"), "no call's argument may be inlined as a literal")
         XCTAssertFalse(renderedSQL.contains("'beta'"), "no call's argument may be inlined as a literal")
+    }
+
+    func testContainerExecutorBindsLikeRegexpAndLimitParameters() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "alpine", value: 2))
+        try insert(TestTable(id: "alps", value: 3))
+        try insert(TestTable(id: "beta", value: 4))
+
+        XCTAssertEqual(
+            try database.containerRowsMatching(pattern: "al%", expression: "p", count: 10).map(\.id),
+            ["alpha", "alpine", "alps"]
+        )
+        XCTAssertEqual(
+            try database.containerRowsMatching(pattern: "al%", expression: "e$", count: 10).map(\.id),
+            ["alpine"]
+        )
+        XCTAssertEqual(
+            try database.containerRowsMatching(pattern: "%", expression: "a", count: 2).map(\.id),
+            ["alpha", "alpine"]
+        )
+    }
+
+    func testContainerExecutorBindsParametersThroughLocalBindingAndNestedClosure() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "alpine", value: 2))
+        try insert(TestTable(id: "beta", value: 3))
+
+        XCTAssertEqual(
+            try database.containerRowsThroughAliasAndClosure(pattern: "al%", count: 10).map(\.id),
+            ["alpha", "alpine"]
+        )
+        // A different value through the local binding changes the rows.
+        XCTAssertEqual(
+            try database.containerRowsThroughAliasAndClosure(pattern: "b%", count: 10).map(\.id),
+            ["beta"]
+        )
+        // A different value through the nested closure changes the row count.
+        XCTAssertEqual(
+            try database.containerRowsThroughAliasAndClosure(pattern: "al%", count: 1).map(\.id),
+            ["alpha"]
+        )
     }
 
 
