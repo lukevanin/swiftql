@@ -42,8 +42,12 @@ have separate responsibilities:
   database adapters.
 
 The manifest's dependency bounds are SwiftSyntax 509.0.0, GRDB 6.29.3 or later,
-Swift-DocC plugin 1.0.0 or later, and exact OpenCombine 0.14.0. SwiftSyntax also
-retains its existing compatible-from-509.0.0 manifest range.
+Swift-DocC plugin 1.0.0 or later, and OpenCombine 0.14.0 or later. SwiftSyntax also
+retains its existing compatible-from-509.0.0 manifest range. OpenCombine is a
+Linux-only dependency: every OpenCombine product carries
+`condition: .when(platforms: [.linux])`, so an Apple-platform build compiles and
+links no OpenCombine module. SwiftPM can still fetch the package on Apple
+platforms. The committed `Package.resolved` pins the tested OpenCombine 0.14.0.
 Committed-resolution jobs prove the checked-in
 graph; clean-resolution jobs prove that the declared ranges still resolve and
 pass. The exact resolved versions and loaded SQLite source ID are CI evidence,
@@ -165,8 +169,8 @@ extracting it. The detached signature bytes also have a pinned SHA-256 digest
 with bounded download retries. The signing key comes from Swift.org's published
 bundle, with Swift's documented Ubuntu keyserver as an exact-fingerprint
 fallback; the imported full fingerprint is checked before signature
-verification. SwiftQL uses Apple's Combine on Apple platforms and the exact
-OpenCombine 0.14.0 dependency on Linux. A small GRDB observation bridge
+verification. SwiftQL uses Apple's Combine on Apple platforms and the
+Linux-only OpenCombine dependency, pinned at the tested 0.14.0, on Linux. A small GRDB observation bridge
 preserves positive-demand startup, independent subscriber state, error
 delivery, and cancellation. The same publisher, retry-policy, codec, SQLite,
 macro, benchmark, and full-suite tests execute on Linux; the lane does not

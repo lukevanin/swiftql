@@ -988,11 +988,13 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         // replacing `Unreleased` with the release date; update this pin in the
         // same change.
         //
-        // 1.9.0 is the version this branch develops, so its heading is the
-        // first one in the file. The release gate
-        // (`scripts/ci/check-release-changelog.sh`) reads the heading for the
-        // version being tagged rather than the first heading, so this pin
-        // records the changelog's shape rather than gating the release.
+        // 1.9.0 is the newest version, so its heading is the first one in the
+        // file. The release gate (`scripts/ci/check-release-changelog.sh`)
+        // reads the heading for the version being tagged rather than the first
+        // heading, so this pin records the changelog's shape rather than
+        // gating the release. While a later line is developed on its own
+        // branch, that branch's heading is the first one and this pin names it
+        // there.
         XCTAssertEqual(firstReleaseHeading, "## [1.9.0] - Unreleased")
     }
 

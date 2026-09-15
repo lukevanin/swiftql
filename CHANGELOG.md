@@ -25,6 +25,14 @@
   `switch` over `XLSQLValueEncodingError` with no `default` clause must handle
   the new case.
 
+### Added
+
+- `validJSONOrJSONBOrNull()` renders `json_valid(X, 9)` (issue #671). It
+  checks text as RFC 8259 JSON, accepts a blob that is well-formed JSONB or
+  that holds well-formed JSON text, and needs SQLite 3.45.0.
+  `validJSONOrNull()` still renders `json_valid(X)`, which reports false for
+  every JSONB blob.
+
 ### Changed
 
 - **A `Bool` written into JSON is a JSON boolean** (issue #671). The same
@@ -35,13 +43,16 @@
   `NULL` stays JSON `null`. A `Codable` reader of a `Bool` field now reads the
   stored document. Code that reads such a member as a number must change.
   The to-do demo no longer writes `json('true')` by hand.
-
-### Added
-
-- `validJSONOrJSONBOrNull()` renders `json_valid(X, 9)` (issue #671). It
-  checks text as RFC 8259 JSON, accepts a blob that is well-formed JSONB or
-  that holds well-formed JSON text, and needs SQLite 3.45.0. `validJSONOrNull()` still renders `json_valid(X)`, which
-  reports false for every JSONB blob.
+- OpenCombine is a Linux-only dependency (issue #669). The `SwiftQL` target
+  and the test targets that import OpenCombine now use
+  `condition: .when(platforms: [.linux])` on the `OpenCombine`,
+  `OpenCombineDispatch`, and `OpenCombineFoundation` products. An Apple-platform
+  build uses Combine and compiles and links no OpenCombine module. SwiftPM can
+  still fetch the package on Apple platforms, because the manifest declares it.
+- The OpenCombine requirement changes from `exact: "0.14.0"` to
+  `from: "0.14.0"`. A consumer graph that needs a later compatible OpenCombine
+  release now resolves. `Package.resolved` keeps the tested 0.14.0 pin, and
+  the committed-resolution CI cells still build against it.
 
 ### Fixed
 
