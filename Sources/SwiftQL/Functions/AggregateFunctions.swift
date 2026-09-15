@@ -181,13 +181,17 @@ extension XLExpression {
     /// as a nested structure. Pass it through ``XLExpression/minifiedJSON()``
     /// first to nest it.
     ///
+    /// A `Bool` value is collected as JSON `true` or `false`, not `1` or `0`.
+    /// A `Data` value is rejected before SQLite prepares the statement unless
+    /// it is the result of a `jsonb` function.
+    ///
     public func jsonGroupArray(
         distinct: Bool = false
     ) -> some XLExpression<String> where T: XLLiteral {
         XLFunction<String>(
             name: "json_group_array",
             distinct: distinct,
-            parameters: [self]
+            parameters: [XLJSONValueArgument(self, function: "json_group_array")]
         )
     }
 }
@@ -217,5 +221,11 @@ public func jsonGroupObject(
     name: any XLExpression<String>,
     value: any XLExpression
 ) -> some XLExpression<String> {
-    XLFunction<String>(name: "json_group_object", parameters: [name, value])
+    XLFunction<String>(
+        name: "json_group_object",
+        parameters: [
+            name,
+            XLJSONValueArgument(value, function: "json_group_object"),
+        ]
+    )
 }

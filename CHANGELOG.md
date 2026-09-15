@@ -4,6 +4,27 @@
 
 ### Migration
 
+- **A `Data` value written into JSON fails before SQLite prepares the
+  statement** (issue #671). This applies to a value passed to `jsonArray`,
+  `jsonObject`, `jsonInserting`, `jsonReplacing`, `jsonSetting`,
+  `jsonGroupArray`, `jsonGroupObject`, or one of their JSONB twins. The
+  statement fails with the new case
+  `XLSQLValueEncodingError.blobInJSONValue(valueType:function:)`. On 1.8.1,
+  SQLite reported `JSON cannot hold BLOB values`, or it silently read the
+  bytes as a document when they were valid JSONB. The result of a `jsonb`
+  function is still accepted. To nest JSONB held in a `Data` column or
+  parameter, pass it through `minifiedJSONB()` first. The check reads the
+  static type, so a `Data?` value is rejected even when it is SQL `NULL`. For
+  example, `jsonObject(("avatar", user.avatar))` with a nullable `Data` column
+  wrote JSON `null` for a `NULL` row on 1.8.1, and now always throws
+  `blobInJSONValue`. Pass the column through `minifiedJSONB()`, which keeps
+  `NULL` as `NULL`, or leave it out of the document. This check runs when the
+  statement renders, not at compile time. The JSON value parameters take
+  `any XLExpression`, and a compile-time constraint would reject every opaque
+  function result and every existential value that code passes today. A
+  `switch` over `XLSQLValueEncodingError` with no `default` clause must handle
+  the new case.
+
 - **Build-validation manifest format version 2** (issue #658). New manifests
   are written as `format_version: 2`, and the reader accepts versions 1 and 2.
   A version 1 manifest decodes, validates, and encodes to the same bytes as on
@@ -27,7 +48,24 @@
   optional key no longer decodes as an absent field. A file that decoded on
   1.8 because it had an extra key now fails. Remove or correct the key.
 
+### Added
+
+- `validJSONOrJSONBOrNull()` renders `json_valid(X, 9)` (issue #671). It
+  checks text as RFC 8259 JSON, accepts a blob that is well-formed JSONB or
+  that holds well-formed JSON text, and needs SQLite 3.45.0.
+  `validJSONOrNull()` still renders `json_valid(X)`, which reports false for
+  every JSONB blob.
+
 ### Changed
+
+- **A `Bool` written into JSON is a JSON boolean** (issue #671). The same
+  functions as above write a Swift `Bool` as `true` or `false`, not as `1` or
+  `0`. A `Bool` literal renders as `json('true')` or `json('false')`. Any
+  other `Bool` expression renders as
+  `json(CASE X <> 0 WHEN 1 THEN 'true' WHEN 0 THEN 'false' END)`, so SQL
+  `NULL` stays JSON `null`. A `Codable` reader of a `Bool` field now reads the
+  stored document. Code that reads such a member as a number must change.
+  The to-do demo no longer writes `json('true')` by hand.
 
 - **Manifest format version 2** (issue #658) lets a generated manifest be
   valid without invented provenance. In version 2,
@@ -45,7 +83,6 @@
   in a version the reader does not know fails with `unsupportedFormatVersion`,
   not with a decoding error from its body. `SQLiteBuildValidationPlanSuppressions`
   gains `decode(_:)` for in-memory data.
-
 - OpenCombine is a Linux-only dependency (issue #669). The `SwiftQL` target
   and the test targets that import OpenCombine now use
   `condition: .when(platforms: [.linux])` on the `OpenCombine`,
@@ -72,6 +109,14 @@
   still an error, because the initializer cannot assign it. The diagnostic
   now says that the value cannot be used as a default. The to-do demo gives
   `Todo.checklist` its default again.
+
+- `XLJSONPath.key(_:)` quotes a key that begins with `"` or holds a control
+  character (issue #671). SQLite rejected the unquoted form of a leading-quote
+  key as a bad JSON path on every version. Such a key resolves on a SQLite
+  that unescapes JSON labels, as the type documentation states.
+- The documentation of `jsonArrayLength` states what SQLite returns: `0` for a
+  value that is not an array, and `NULL` only for a path that selects nothing
+  (issue #671).
 
 ### Documentation
 
