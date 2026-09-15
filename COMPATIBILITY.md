@@ -3,6 +3,7 @@
 SwiftQL 1.x keeps `swift-tools-version: 5.9`. CI retains two pinned compiler
 support points and also runs the complete package test suite with every Swift
 series currently listed by Swift Package Index: Swift 6.0 through Swift 6.3.
+Linux runs on two verified toolchains, Swift 5.9.2 and Swift 6.3.2.
 All Swift 6 compilers run the package in Swift 5 language mode; SwiftQL does not
 opt into Swift 6 language mode.
 
@@ -184,6 +185,23 @@ python3 scripts/ci/sqlite-conformance-inventory.py check
 | Swift 5.9 | `ubuntu-22.04` | official Swift 5.9.2 Linux | 5.9.2 | GRDB + OpenCombine + SQLite 3.53.3 |
 | Swift 6.0 | `macos-15` | Xcode 16.2 (`16C5032a`) | 6.0 series | macOS 15.2 SDK + Combine |
 
+### Verified Linux toolchains
+
+| Linux cell | GitHub runner | Toolchain | Signing key | Runtime surface |
+| --- | --- | --- | --- | --- |
+| Swift 5.9 / committed and clean resolution | `ubuntu-22.04` (x86_64) | official Swift 5.9.2 Ubuntu 22.04 archive | Swift 5.x release key `A62AE125BBBFBB96A6E042EC925CC1CCED3D1561` | GRDB + OpenCombine + SQLite 3.53.3 |
+| Swift 6.3 / Linux clean resolution | `ubuntu-22.04` (x86_64) | official Swift 6.3.2 Ubuntu 22.04 archive | Swift 6.x release key `52BB7E3DE28A71BE22EC05FFEF80A866B47A981F` | GRDB + OpenCombine + SQLite 3.53.3, under swift-foundation |
+
+These are the only Linux toolchains CI verifies. Swift 6 on Linux replaces the
+Foundation that Swift 5.9 used with swift-foundation, so the Swift 6.3 cell is
+what exercises the Linux-only OpenCombine bridge and the Foundation-backed
+codecs (dates, JSON, UUID, and decimal text) on that implementation. It uses
+the same installation path as the Swift 5.9 cells, not a container image or a
+setup action: the workflow reads the archive URL, detached-signature SHA-256,
+and signing-key fingerprint from the matrix, requires the URL to be the
+immutable release URL for exactly the cell's version, verifies the signature
+with GPG, and builds and links the same pinned SQLite amalgamation.
+
 The Swift 5.9 cells use GitHub's maintained Ubuntu 22.04 image and install the
 exact official Swift 5.9.2 Ubuntu 22.04 archive from Swift.org. CI verifies its
 detached signature against Swift's pinned signing-key fingerprint before
@@ -209,8 +227,8 @@ for the older runner library.
 
 Every cell verifies the compiler series, runner OS family, architecture, and
 target metadata, then reports the runner image version, dependency graph, and
-SQLite runtime. Linux additionally verifies exact Swift 5.9.2, Ubuntu 22.04,
-and the `x86_64-unknown-linux-gnu` target. macOS additionally verifies the exact
+SQLite runtime. Linux additionally verifies the exact Swift version (5.9.2 or
+6.3.2), Ubuntu 22.04, and the `x86_64-unknown-linux-gnu` target. macOS additionally verifies the exact
 Xcode version, build, and SDK. Toolchain or image drift therefore fails instead
 of silently redefining support.
 
@@ -358,9 +376,10 @@ Swift 6.1 (Xcode 16.4) compiles every one of those spellings, verified by
 running the same set of cases on both toolchains while diagnosing #530. The
 library needs no `#if` for this, because the workaround is source that
 compiles on every supported cell. The to-do demo and the Getting Started
-playground are both written in the two-step form, and CI builds both on the
-pinned Swift 6.0 cell, so a reintroduced one-liner fails there rather than in
-a user's project.
+playground are both written in the two-step form. CI builds the demo on the
+pinned Swift 6.0 cell and the playground on the pinned Swift 5.9.2 Linux cell,
+and both compilers crash on the one-line shape, so a reintroduced one-liner
+fails there rather than in a user's project.
 
 ## Swift 6 series coverage
 
@@ -370,9 +389,13 @@ a user's project.
 | Swift 6.1 | `macos-15` | 16.4 (`16F6`) | 6.1 series | 15.5 |
 | Swift 6.2 | `macos-15` | 26.3 (`17C529`) | 6.2.3 | 26.2 |
 | Swift 6.3 | `macos-26` | 26.5 (`17F42`) | 6.3.2 | 26.5 |
+| Swift 6.3 (Linux) | `ubuntu-22.04` | none; official Swift.org archive | 6.3.2 | none |
 
 The Swift 6.0 row is exercised by both pinned resolution cells above. Swift 6.1,
 6.2, and 6.3 each have an additional release-blocking clean-resolution cell.
+Swift 6.3 also has a release-blocking Linux clean-resolution cell, described
+under "Verified Linux toolchains" above; it runs the same compatibility steps
+as the Swift 5.9 Linux cells.
 Every cell selects an exact Xcode version and build, verifies the compiler
 series and SDK, resolves dependencies without either committed lockfile, runs
 the first-party warning gate, executes the SQLite runtime probe, and runs the
@@ -396,8 +419,9 @@ Each pinned compiler support point runs two independent dependency modes:
   removes the exported lockfile, resolves from the manifest's declared ranges,
   and reports the resulting versions. It never modifies the checkout.
 
-All four pinned support cells and all three additional Swift-series cells form
-seven release-blocking compiler cells. Every cell builds every first-party
+All four pinned support cells, the three additional Apple Swift-series cells,
+and the Linux Swift 6.3 cell form
+eight release-blocking compiler cells. Every cell builds every first-party
 target and runs the complete test suite. No cell is
 conditional, allowed to fail, or represented by a skipped job. The workflow
 does not share build caches across compilers or resolution modes.
@@ -455,7 +479,70 @@ swift test --skip-build -v
 The workflow is the canonical executable specification for both procedures.
 Use the Xcode values in the Swift-series table to reproduce a 6.1, 6.2, or 6.3
 cell. Those jobs use the same clean-source procedure and remove both lockfiles
-before resolution.
+before resolution. To reproduce the Linux Swift 6.3 cell, install exact Swift
+6.3.2 the same way, verify its signature against the Swift 6.x key, and use
+`EXPECTED_SWIFT_SERIES=6.3` and `EXPECTED_SWIFT_VERSION=6.3.2` with the clean
+procedure.
+
+## Runner concurrency
+
+The repository belongs to a personal account on GitHub's Free plan. That plan
+runs at most 20 jobs at once, and at most **5 macOS jobs** at once. Both limits
+are per account, so every workflow and every open pull request in the account
+shares the same five macOS slots. A macOS job that finds them full waits in the
+queue, and its wait counts toward the run's wall time as much as its work does.
+
+Before issue #672 a push to `main` scheduled eight macOS jobs across the Swift
+compatibility and Documentation workflows: the Swift 6.0 committed and clean
+cells, the Swift 6.1, 6.2, and 6.3 cells, the to-do demo, a separate source
+coverage job that ran the full suite twice, and the documentation build. Their
+job timestamps show strict hand-offs as slots freed. Run
+[34253969337](https://github.com/lukevanin/swiftql/actions/runs/34253969337)
+took 32 minutes against a longest job of 24, and runs
+[34956094216](https://github.com/lukevanin/swiftql/actions/runs/34956094216)
+and
+[34964533434](https://github.com/lukevanin/swiftql/actions/runs/34964533434)
+took 44 and 53 minutes, because the longest cell, Swift 6.0 committed
+resolution, waited 12 and 21 minutes for a slot.
+
+The matrix is therefore laid out against that limit:
+
+- A push to `main` schedules seven macOS jobs, not eight. Source coverage runs
+  inside the Swift 6.0 committed cell, once, instead of as its own job.
+- Work that needs no Xcode runs on Linux, which the macOS limit does not
+  constrain. The new Swift 6.3 cell and the Getting Started playground check
+  run there.
+- The longest macOS cell carries as little as it can. It no longer repeats the
+  strict-concurrency build, which the Swift 6.0 clean cell runs with the same
+  compiler, or the playground check.
+
+Measured job durations after the change come from pull request run
+[34984313416](https://github.com/lukevanin/swiftql/actions/runs/34984313416)
+at commit `12c52ff9`. The longest macOS cell, Swift 6.0 committed resolution,
+ran 26.3 minutes; it ran 24.3, 29.9, and 32.5 minutes in the three runs above.
+A pull request run has no Swift 6.1, 6.2, or 6.3 Apple cells and no
+documentation build, and that run waited behind other pull requests for macOS
+slots, so its own wall time is not a `main` figure. The figure for `main` is
+therefore modelled. The model takes each changed job's duration from the pull
+request run and each unchanged job's duration from the `main` run, and then
+queues the jobs on five macOS slots in the order that `main` run started them:
+
+| Start order from `main` run | Measured before | Modelled before | Modelled after |
+| --- | --- | --- | --- |
+| 34253969337 | 32 min | 29.6 min | 26.3 min |
+| 34956094216 | 44 min | 39.1 min | 35.5 min |
+| 34964533434 | 53 min | 40.1 min | 30.0 min |
+
+The model assumes this repository has all five slots, so it gives lower
+figures than the measured runs, where other pull requests also held slots.
+Compare the modelled columns with each other: on the same start orders, the
+change lowers the modelled wall time by 3 to 10 minutes. The first push to
+`main` after the v1.9 release work merges confirms the real figure; record it
+here.
+
+Keep new macOS-only work inside an existing macOS job where it fits, and put
+anything that does not need Xcode on a Linux cell. If the account moves to a
+plan with more macOS concurrency, record the new limit here.
 
 ## Downstream Swift 5 language-mode client
 
@@ -649,7 +736,10 @@ is a build artifact and is not tracked in Git.
 
 The pinned Swift 6.0 support point also checks every first-party product and test
 target with complete strict-concurrency diagnostics while remaining in Swift 5
-language mode. Select Xcode 16.2, then run:
+language mode. CI runs the check on the Swift 6.0 clean-resolution cell. The
+committed-resolution cell uses the same Xcode 16.2 compiler over the same
+first-party sources, and the check reports first-party diagnostics only, so it
+is not repeated there (see "Runner concurrency"). Select Xcode 16.2, then run:
 
 ```sh
 export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
@@ -692,9 +782,9 @@ warnings in separate, searchable sections for every applicable cell:
 
 - First-party warnings and unclassified warning headers are release blockers;
   there is no message-based exception list.
-- Complete strict-concurrency warnings are release blockers in the pinned Swift
-  6.0 cells; `check-strict-concurrency.sh` enforces that boundary after the
-  standard build and tests.
+- Complete strict-concurrency warnings are release blockers at the pinned Swift
+  6.0 support point; `check-strict-concurrency.sh` enforces that boundary on
+  the Swift 6.0 clean-resolution cell after the standard build and tests.
 - Verbose builds on both pinned compiler support points currently emit
   dependency-prefixed manifest compiler command lines for `swift-docc-plugin`,
   `grdb.swift`, `swift-syntax`, `OpenCombine`, and `swift-docc-symbolkit`. They
@@ -720,8 +810,13 @@ documented Ubuntu keyserver and verifies that fingerprint before use. The
 download receives no repository secret or persistent runner access. Each job
 runs on a fresh GitHub-hosted VM with read-only contents permission.
 
-Repository maintainers own the Swift.org release URLs, signature digest,
-signing-key fingerprint and fallback, SQLite.org amalgamation URL and published
+The Swift 6.3.2 Linux cell follows the same policy with its own pins: the
+Swift 6.3.2 archive URL, its detached-signature SHA-256, and the Swift 6.x
+release signing key. A failure in that cell is a hard failure too; do not
+replace it with an unverified toolchain, and do not drop it to recover.
+
+Repository maintainers own the Swift.org release URLs, signature digests,
+signing-key fingerprints and fallbacks, SQLite.org amalgamation URL and published
 SHA3-256, OpenCombine pin, GRDB Linux compiler define, and environment pins.
 Review them when GitHub changes the Ubuntu 22.04 image, Swift publishes a
 signing-key revocation, SQLite publishes a security update, or the GRDB/SQLite
