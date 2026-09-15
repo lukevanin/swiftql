@@ -74,9 +74,11 @@ extension GRDBDatabase {
         /// `NULL`, because SQLite sorts `NULL` first ascending and a to-do
         /// with no deadline belongs at the end, not the top.
         ///
-        /// The list view observes this read, and a live query needs a
-        /// request, which a declaration does not provide. `TodoFilteredRead`
-        /// therefore mirrors this statement for the observation.
+        /// The list view observes this read through
+        /// `database.preparedQueries.filteredTodos(...)`, which hands the live query
+        /// the same cached request and binding packet this declaration's
+        /// executor uses. Before v1.9 a declaration had no observable form,
+        /// so the observation needed its own copy of the statement (#660).
         func filteredTodos(
             listID: TodoUUID,
             includesCompleted: Bool,

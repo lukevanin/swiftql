@@ -150,6 +150,10 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         )
         self.assertIn("Check BETWEEN type safety", compatibility)
         self.assertIn("scripts/ci/check-between-type-safety.sh", compatibility)
+        self.assertIn("Check named binding packet type safety", compatibility)
+        self.assertIn(
+            "scripts/ci/check-named-binding-packet-type-safety.sh", compatibility
+        )
 
     def test_linux_swift6_cell_reuses_the_verified_toolchain_bootstrap(
         self,

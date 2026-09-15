@@ -414,7 +414,7 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
         XCTAssertEqual(try evaluate(true.jsonGroupArray()), "[true]")
         // A `Codable` reader of a `Bool` field is the reader the integer
         // form broke.
-        guard let row = setting, let written = row else {
+        guard let written = setting else {
             XCTFail("the statement should return one document")
             return
         }

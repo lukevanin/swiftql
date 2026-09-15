@@ -43,8 +43,7 @@ in `TodoKit`, a local package beside it.
 | `TodoKit/Sources/TodoKit/TodoSeed.swift` | The rows a fresh database starts with |
 | `TodoKit/Sources/TodoKit/TodoDatabase.swift` | Opening, creating, seeding, resetting |
 | `TodoKit/Sources/TodoKit/TodoIndices.swift` | The nine indices the v1.8 advisor verified |
-| `TodoKit/Sources/TodoKit/TodoReads.swift` | The declared queries |
-| `TodoKit/Sources/TodoKit/TodoFilteredRead.swift` | The statement the list view's live query observes |
+| `TodoKit/Sources/TodoKit/TodoReads.swift` | The declared queries, which the live queries also observe |
 | `TodoKit/Sources/TodoKit/TodoStore.swift` | Writes and the move transaction |
 | `TodoKit/Sources/TodoKit/TodoModels.swift` | The `@Observable` live-query models |
 | `TodoKit/Tests/` | 80 tests over the query layer |
@@ -71,8 +70,22 @@ in one statement: the filter arrives as three booleans the `Where` clause
 reads, the search is always applied with the empty pattern standing in for an
 empty box, and the sort decides which `OrderBy` terms have any effect. It is a
 declared query like the others, with the search pattern passed to
-`regexp(_:)`. `TodoFilteredRead.swift` holds the same statement for the live
-query that observes it.
+`regexp(_:)`.
+
+**A declared read is also the observed read.** Each read a view observes is
+written once, in `TodoReads.swift`. The models observe it through the
+`preparedQueries` property that `@SQLQueries` generates, for example
+`XLObservableQueryRow(try database.database.preparedQueries.todo(id: todoID))`
+in `TodoModels.swift`. The prepared form hands the live query the declaration's
+cached request and a binding packet built by the same generated code the
+executor runs.
+
+**Bindings are checked by name at compile time.** A statement that is not a
+declared query — the edits in `TodoStore.swift` and the link read in
+`TodoLinks.swift` — takes its values in a binding packet. Each one declares its bindings as an
+`@SQLBindings` struct, so the statement reads typed references and the packet
+binds values under the same names. A misspelled name or a forgotten value does
+not compile.
 
 **Search is a regular expression, matched in SQLite.** v1.7 ships the `regexp`
 implementation SQLite lacks, so the list view's search is `REGEXP` rather than
@@ -173,10 +186,15 @@ up the v1.8 indices on its next launch regardless, because they are
 
 Building a whole application on v1.5 through v1.8 surfaced five places where
 the API resists, all recorded on
-[#469](https://github.com/lukevanin/swiftql/issues/469). v1.9 removed one of
-them: a declared query can now pass a parameter to `regexp(_:)` or `like(_:)`,
+[#469](https://github.com/lukevanin/swiftql/issues/469). v1.9 removed three
+of them. A declared query can now pass a parameter to `regexp(_:)` or `like(_:)`,
 so the list view's search is a declaration again
-([#661](https://github.com/lukevanin/swiftql/issues/661)). Four remain, also
+([#661](https://github.com/lukevanin/swiftql/issues/661)). A JSON mutation on
+a `NOT NULL` column now has a non-optional result, so the checklist writes no
+longer end with `.coalesce(table.checklist)`
+([#664](https://github.com/lukevanin/swiftql/issues/664)). A declared query can
+now be observed, so each read a view observes is written once
+([#660](https://github.com/lukevanin/swiftql/issues/660)). Two remain, also
 recorded on
 [#469](https://github.com/lukevanin/swiftql/issues/469):
 
@@ -187,18 +205,9 @@ recorded on
   ([#139](https://github.com/lukevanin/swiftql/issues/139)); the advisor can
   tell you exactly which index to add and prove the plan improves, and the
   library still cannot run it for you.
-- **Live queries and declared queries do not compose.** `XLObservableQuery`
-  observes an `XLRequest`, and `@SQLQueries` does not produce one, so the four
-  reads a view observes exist twice — once as a declaration, once as a
-  statement.
 - **A declared query cannot be called inside `withTransaction`.** The generated
   executor opens its own transaction, and SwiftQL rejects nesting, so reads
   inside a transaction use plain requests.
-- **A JSON mutation cannot be assigned to a `NOT NULL` column without
-  `coalesce`.** `json_set` and its siblings return `NULL` for a `NULL`
-  document, so their result is optional even when the column is not. Every
-  checklist write ends `.coalesce(table.checklist)` to supply a case that
-  cannot arise.
 
 None of them stop the demo working. They are the kind of thing an application
 finds and a fragment does not, which is most of why this exists.

@@ -79,8 +79,16 @@ public enum XLSQLValueEncodingError:
     /// the result of a `jsonb` function is accepted as a blob JSON value.
     case blobInJSONValue(valueType: String, function: String)
 
+    /// The non-optional form of `jsonRemoving(at:_:)` or
+    /// `jsonbRemoving(at:_:)` names the root path `$`. SQLite returns SQL
+    /// `NULL` when it removes the root, and that form's result type cannot
+    /// hold `NULL`.
+    case jsonRootRemoval(function: String)
+
     public var errorDescription: String? {
         switch self {
+        case .jsonRootRemoval(let function):
+            return "Cannot remove the root path $ with \(function) on a non-optional document: SQLite returns SQL NULL when it removes the root, and the result type is not optional. Remove a path inside the document, or store NULL through an optional column."
         case .blobInJSONValue(let valueType, let function):
             return "Cannot pass a \(valueType) value to \(function) as a JSON value: SQLite cannot hold a blob in JSON, and reads a blob whose bytes are valid JSONB as a document. Pass a JSONB function result, such as minifiedJSONB(), to nest a JSONB document."
         case .nulCharacterInText(let valueType, let context):

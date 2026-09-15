@@ -114,6 +114,11 @@ extension SQLQueriesMacro: MemberMacro {
             }
         }
 
+        diagnostics.append(contentsOf: preparedQueriesCollisionDiagnostics(
+            container: container,
+            extensionDecl: extensionDecl
+        ))
+
         guard diagnostics.isEmpty else {
             throw DiagnosticsError(diagnostics: diagnostics)
         }
@@ -128,7 +133,70 @@ extension SQLQueriesMacro: MemberMacro {
         for builder in builders {
             members.append(builder.makeDatabaseExecutorFunction(modifierPrefix: modifierPrefix))
         }
+        members.append(makePreparedQueriesProperty(modifierPrefix: modifierPrefix))
         return try members.map(makeDecl)
+    }
+
+    ///
+    /// The name of the database-level property that holds the prepared forms
+    /// (issue #660).
+    ///
+    static let preparedQueriesPropertyName = "preparedQueries"
+
+    ///
+    /// Reports the collisions with the generated `preparedQueries` property
+    /// that this expansion can see (issue #660), at the user's declaration
+    /// instead of as a redeclaration error in generated code.
+    ///
+    /// A member macro sees only its own extension. A `preparedQueries` member
+    /// declared in the type body or in another extension still collides, and
+    /// the compiler reports that as a redeclaration.
+    ///
+    private static func preparedQueriesCollisionDiagnostics(
+        container: StructDeclSyntax,
+        extensionDecl: ExtensionDeclSyntax
+    ) -> [Diagnostic] {
+        let name = preparedQueriesPropertyName
+        var diagnostics: [Diagnostic] = []
+        for containerMember in container.memberBlock.members {
+            guard let function = containerMember.decl.as(FunctionDeclSyntax.self),
+                  normalizedIdentifier(function.name.text) == name else {
+                continue
+            }
+            diagnostics.append(
+                Diagnostic(
+                    node: function.name,
+                    id: "sqlqueries-reserved-specification-name",
+                    message: "'@SQLQueries' generates a '\(name)' property on the database for observing declared queries, so a query specification cannot be named '\(name)'. Rename the specification."
+                )
+            )
+        }
+        for member in extensionDecl.memberBlock.members {
+            if let variable = member.decl.as(VariableDeclSyntax.self) {
+                for binding in variable.bindings {
+                    guard let pattern = binding.pattern.as(IdentifierPatternSyntax.self),
+                          normalizedIdentifier(pattern.identifier.text) == name else {
+                        continue
+                    }
+                    diagnostics.append(preparedQueriesMemberDiagnostic(at: Syntax(pattern.identifier)))
+                }
+            }
+            else if let function = member.decl.as(FunctionDeclSyntax.self),
+                    normalizedIdentifier(function.name.text) == name,
+                    function.signature.parameterClause.parameters.isEmpty {
+                diagnostics.append(preparedQueriesMemberDiagnostic(at: Syntax(function.name)))
+            }
+        }
+        return diagnostics
+    }
+
+    private static func preparedQueriesMemberDiagnostic(at node: Syntax) -> Diagnostic {
+        let name = preparedQueriesPropertyName
+        return Diagnostic(
+            node: node,
+            id: "sqlqueries-prepared-queries-collision",
+            message: "'\(name)' collides with the property '@SQLQueries' generates on the database for observing declared queries. Rename this member."
+        )
     }
 
     ///
@@ -149,6 +217,49 @@ extension SQLQueriesMacro: MemberMacro {
             lines.append("")
             lines.append(indent(builder.makeContextExecutorFunction(modifierPrefix: modifierPrefix), by: 4))
         }
+        lines.append("")
+        lines.append(indent(makePreparedQueriesStruct(
+            databaseType: databaseType,
+            builders: builders,
+            modifierPrefix: modifierPrefix
+        ), by: 4))
+        lines.append("}")
+        return lines.joined(separator: "\n")
+    }
+
+    ///
+    /// Generates `Context.PreparedQueries` (issue #660): one function per
+    /// specification that returns an `XLPreparedQuery` for observation.
+    ///
+    /// It is nested in `Context` so it can reach each specification's private
+    /// render-once cache. The prepared form and the executor therefore share
+    /// one cache entry and emit the same preparation lines.
+    ///
+    private static func makePreparedQueriesStruct(
+        databaseType: String,
+        builders: [SQLQueryBuilder],
+        modifierPrefix: String
+    ) -> String {
+        var lines: [String] = []
+        lines.append("\(modifierPrefix)struct PreparedQueries {")
+        lines.append("    let database: \(databaseType)")
+        for builder in builders {
+            lines.append("")
+            lines.append(indent(builder.makePreparedQueriesFunction(modifierPrefix: modifierPrefix), by: 4))
+        }
+        lines.append("}")
+        return lines.joined(separator: "\n")
+    }
+
+    ///
+    /// Generates the database-level `preparedQueries` namespace. It binds to the
+    /// database itself, not to a transaction scope, because an observation
+    /// outlives any one transaction.
+    ///
+    private static func makePreparedQueriesProperty(modifierPrefix: String) -> String {
+        var lines: [String] = []
+        lines.append("\(modifierPrefix)var preparedQueries: Context.PreparedQueries {")
+        lines.append("    Context.PreparedQueries(database: self)")
         lines.append("}")
         return lines.joined(separator: "\n")
     }
@@ -212,6 +323,29 @@ extension SQLQueryBuilder {
                 against: "database"
             )
         )
+        lines.append("}")
+        return lines.joined(separator: "\n")
+    }
+
+    ///
+    /// Generates one function of `Context.PreparedQueries` (issue #660). It emits the
+    /// preparation lines the context executor emits, with the cache reached
+    /// through `Context`, and returns the request and packet instead of
+    /// fetching.
+    ///
+    func makePreparedQueriesFunction(modifierPrefix: String) -> String {
+        let parameterClause = function.signature.parameterClause.trimmedDescription
+        let statementExpression = indentSkippingFirstLine(rewrittenBodyText, by: 8)
+        var lines: [String] = []
+        lines.append("\(modifierPrefix)func \(function.name.text)\(parameterClause) throws -> XLPreparedQuery<\(rowType)> {")
+        lines.append(
+            contentsOf: makePreparationLines(
+                preparing: statementExpression,
+                against: "database",
+                cacheOwner: "Context"
+            )
+        )
+        lines.append("    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)")
         lines.append("}")
         return lines.joined(separator: "\n")
     }
