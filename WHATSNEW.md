@@ -49,7 +49,8 @@ whether it affects code you already wrote.
 
 - A `switch` with no `default` over `XLSQLValueEncodingError` or
   `SQLiteIndexAdvisorError` must handle their new cases.
-- `REGEXP` over text longer than 16,384 bytes now throws.
+- `REGEXP` with a pattern longer than 1,024 bytes, or over text longer than
+  16,384 bytes, now throws.
 - A `QueryBuilder` that mixes `and` and `or` now combines them in the order you
   wrote them, which can change the rows it returns.
 - A compound select whose later branch has `ORDER BY`, `LIMIT`, `OFFSET`, or
@@ -63,6 +64,12 @@ whether it affects code you already wrote.
 - Two `XLCustomFunction` types with the same name and argument count now share
   the implementation installed first on each connection.
 - `stream()` values no longer arrive on the main thread.
+- An application function that replaces `regexp` or a SQLite built-in while a
+  query is still running now throws `XLDatabaseContractError.prepareFailure`
+  instead of crashing.
+- A build whose snapshot changes during index verification now fails, and
+  `swiftql-index-advisor --apply` refuses to overwrite a file it did not
+  generate unless you pass `--force`.
 
 The [changelog](CHANGELOG.md)'s Migration section gives the detail for each.
 

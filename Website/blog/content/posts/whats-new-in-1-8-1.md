@@ -96,8 +96,8 @@ let query = QueryBuilder(select: company)
     .or(company.name == "B")
     .and(company.name == "C")
 
-// 1.8.0: WHERE ((name == 'A' AND name == 'C') OR name == 'B')
-// 1.8.1: WHERE ((name == 'A' OR name == 'B') AND name == 'C')
+// 1.8.0 renders the equivalent of: WHERE ((name == 'A' AND name == 'C') OR name == 'B')
+// 1.8.1 renders the equivalent of: WHERE ((name == 'A' OR name == 'B') AND name == 'C')
 ```
 
 A query that uses only `and`, only `or`, or every `and` before every `or` renders
@@ -250,7 +250,8 @@ Before you upgrade, look for:
 
 - a `switch` with no `default` over `XLSQLValueEncodingError` or
   `SQLiteIndexAdvisorError`;
-- `REGEXP` over text that can exceed 16,384 bytes;
+- `REGEXP` with a pattern that can exceed 1,024 bytes, or over text that can
+  exceed 16,384 bytes;
 - a `QueryBuilder` chain that mixes `and` and `or`;
 - a compound branch with `ORDER BY`, `LIMIT`, `OFFSET`, or `WITH`, especially a
   recursive common table limited inside its `unionAll` closure;
@@ -258,7 +259,12 @@ Before you upgrade, look for:
 - tests that pin the SQL of unnamed nested sources, or code that sets only an
   outer automatic binding;
 - two `XLCustomFunction` types that share a name and argument count;
-- code that expects `stream()` values on the main thread.
+- code that expects `stream()` values on the main thread;
+- an application function that replaces `regexp` or a SQLite built-in while a
+  statement is active, which now throws `XLDatabaseContractError.prepareFailure`;
+- a build or script that relies on the validator passing when the snapshot
+  changes during verification, or on `swiftql-index-advisor --apply`
+  overwriting a file without its generated header.
 
 The [changelog](https://github.com/lukevanin/swiftql/blob/main/CHANGELOG.md) has
 a migration step for each one.

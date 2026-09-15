@@ -301,7 +301,7 @@ change, and "Migration" lists every such case first.
   it is prepared (issue #651).
 - A request nested inside a `withResultSet` callback must use the transaction
   scope that opened the result set. A nested request on the root database
-  still stops the process in GRDB (issue #641).
+  can stop the process in GRDB (issue #641).
 
 ## [1.8.0] - 2026-09-08
 
