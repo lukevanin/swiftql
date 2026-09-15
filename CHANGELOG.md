@@ -15,6 +15,17 @@
   release now resolves. `Package.resolved` keeps the tested 0.14.0 pin, and
   the committed-resolution CI cells still build against it.
 
+### Documentation
+
+- SwiftQL 1.x states that it supports GRDB 6 only (issue #667). The manifest
+  range stays `from: "6.29.3"` (`6.29.3..<7.0.0`). `COMPATIBILITY.md` and the
+  README Install section now say that an application on GRDB 7 cannot resolve
+  SwiftQL 1.x. `Research/GRDB7Evaluation.md` records the build against GRDB
+  7.11.1 and the break list: the `CSQLite` product rename, the SQLite C module
+  that `import GRDB` no longer re-exports, and the `Sendable` closure and value
+  requirements. The `Sendable` findings go to the v2.0 `Row` decision (issue
+  #685).
+
 ## [1.8.1] - 2026-09-15
 
 v1.8.1 is a correctness and safety patch for the 1.8 line. It removes process
