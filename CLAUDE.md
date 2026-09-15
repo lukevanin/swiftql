@@ -13,22 +13,31 @@ Repo: `lukevanin/swiftql`. Project board: **#9 "SwiftQL Project Plan"** (owner
 
 ### Tools
 
-All GitHub work goes through the MCP servers — **no `gh` CLI needed**. Two
-servers cover everything: the official server (issues, branches, PRs) and the
-`github-mcp` server (milestones, Projects v2, releases, issue dependencies).
-Local git (status/diff/log/branch/commit/push) still uses `git` via Bash.
+Issue, milestone, project, and dependency **writes** go through the `github-mcp`
+server, which runs under a personal access token. The official GitHub connector
+has **no repository permission**: it can read this public repo, but every write
+returns `403 Resource not accessible by integration`. Treat it as read-only.
+Branch creation uses `git`; PRs use `gh`. Releases are written by neither — the
+tag-triggered workflow owns them (Step 6). Local git
+(status/diff/log/branch/commit/push) still uses `git` via Bash.
 
 | Action | Tool |
 |---|---|
-| Find / create / update an issue | `search_issues` / `issue_write` / `issue_read` |
+| Find / read / list an issue (read-only) | `search_issues` / `issue_read` / `github-mcp` `list_issues` |
+| Create / update an issue | `github-mcp` `create_issue` / `edit_issue` |
 | Create / list a milestone | `github-mcp` `create_milestone` / `list_milestones` |
 | Add an issue to Project #9 (returns `itemId`) | `github-mcp` `add_project_item` |
 | Set a project field (Size, Priority, Status…) | `github-mcp` `set_project_field` |
 | Inspect project fields/options/items | `github-mcp` `get_project` |
 | Mark an issue blocked by another | `github-mcp` `add_blocked_by` |
 | Read dependencies | `github-mcp` `list_blocked_by` / `list_blocking` |
-| Create a branch | `create_branch` (`from_branch: main`) |
-| Open a PR | `create_pull_request` |
+| Decompose an issue into sub-issues | `github-mcp` `add_sub_issue` / `list_sub_issues` |
+| Create a branch | `git branch` + `git push -u origin <name>` |
+| Open a PR | `gh pr create` |
+
+**Never call the official connector's `issue_write`, `sub_issue_write`,
+`create_branch`, or `create_pull_request`.** Those tools are exposed but always
+fail with 403; the table above gives the working equivalent for each.
 
 `set_project_field` and `add_blocked_by` take plain human values / issue numbers
 and resolve the underlying ids themselves — never look up option or node ids by
@@ -51,7 +60,7 @@ across multiple issues, and don't bundle multiple features into one — this is 
 judgement call, not a precise rule.
 
 - `search_issues` first to avoid creating a duplicate.
-- `issue_write` (`method: create`) with: the **milestone number**, a **priority
+- `github-mcp` `create_issue` with: the **milestone number**, a **priority
   label** (`P1`–`P4`), and any relevant **type label** (`bug`, `enhancement`,
   `tests`, `ci`, `macro`, `security`, `documentation`). Size is **not** a label —
   it lives on the project (Step 3).
@@ -70,14 +79,22 @@ For each issue:
    in the correct order. Verify with `list_blocked_by` / `list_blocking`.
 
 Use `add_blocked_by` for *ordering* ("this can't start until that lands").
-Reserve `sub_issue_write` for genuine *decomposition* (a task that breaks into
-children) — it is a hierarchy tool, not an ordering mechanism.
+Reserve `github-mcp` `add_sub_issue` for genuine *decomposition* (a task that
+breaks into children) — it is a hierarchy tool, not an ordering mechanism.
 
 ### Step 4 — Base branch for the milestone
 
-Create the milestone's base branch from `main` with `create_branch`
-(`from_branch: main`), named `version/x.y.z` (e.g. `version/1.4.5`). For an
-experiment/spike, use a descriptive `experiment/<name>` branch instead.
+Create the milestone's base branch from the fetched `origin/main` with `git`,
+named `version/x.y.z`
+(e.g. `version/1.4.5`):
+
+```sh
+git fetch origin
+git branch version/x.y.z origin/main
+git push -u origin version/x.y.z
+```
+
+For an experiment/spike, use a descriptive `experiment/<name>` branch instead.
 
 ### Step 5 — One PR per issue, then hand off
 
