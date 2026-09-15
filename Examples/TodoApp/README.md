@@ -173,10 +173,13 @@ up the v1.8 indices on its next launch regardless, because they are
 
 Building a whole application on v1.5 through v1.8 surfaced five places where
 the API resists, all recorded on
-[#469](https://github.com/lukevanin/swiftql/issues/469). v1.9 removed one of
-them: a declared query can now pass a parameter to `regexp(_:)` or `like(_:)`,
+[#469](https://github.com/lukevanin/swiftql/issues/469). v1.9 removed two of
+them. A declared query can now pass a parameter to `regexp(_:)` or `like(_:)`,
 so the list view's search is a declaration again
-([#661](https://github.com/lukevanin/swiftql/issues/661)). Four remain, also
+([#661](https://github.com/lukevanin/swiftql/issues/661)). A JSON mutation on
+a `NOT NULL` column now has a non-optional result, so the checklist writes no
+longer end with `.coalesce(table.checklist)`
+([#664](https://github.com/lukevanin/swiftql/issues/664)). Three remain, also
 recorded on
 [#469](https://github.com/lukevanin/swiftql/issues/469):
 
@@ -194,11 +197,6 @@ recorded on
 - **A declared query cannot be called inside `withTransaction`.** The generated
   executor opens its own transaction, and SwiftQL rejects nesting, so reads
   inside a transaction use plain requests.
-- **A JSON mutation cannot be assigned to a `NOT NULL` column without
-  `coalesce`.** `json_set` and its siblings return `NULL` for a `NULL`
-  document, so their result is optional even when the column is not. Every
-  checklist write ends `.coalesce(table.checklist)` to supply a case that
-  cannot arise.
 
 None of them stop the demo working. They are the kind of thing an application
 finds and a fragment does not, which is most of why this exists.

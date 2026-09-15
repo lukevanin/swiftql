@@ -108,6 +108,38 @@ final class XLJSONBFunctionRenderingTests: XCTestCase {
         )
     }
 
+    func testAMutationFollowsTheNullabilityOfAJSONBDocument() {
+        // The non-optional JSONB forms take a `Data` document, which is what
+        // a `NOT NULL` JSONB column holds. A text document converts to JSONB
+        // through the optional form, as `testResultTypesAreBinary` shows.
+        let a = XLJSONPath.root.key("a")
+        let blob = XLNamedBindingReference<Data>(name: "blob")
+        let inserted = blob.jsonbInserting((a, 1))
+        let replaced = blob.jsonbReplacing((a, 1))
+        let set = blob.jsonbSetting((a, 1))
+        let removed = blob.jsonbRemoving(at: a)
+        let patched = blob.jsonbPatched(with: "{}")
+        assertExpressionType(inserted, Data.self)
+        assertExpressionType(replaced, Data.self)
+        assertExpressionType(set, Data.self)
+        assertExpressionType(removed, Data.self)
+        assertExpressionType(patched, Data?.self)
+        assertSQL(set, "jsonb_set(:blob, '$.a', 1)")
+        assertSQL(removed, "jsonb_remove(:blob, '$.a')")
+
+        let nullable = XLNamedBindingReference<Data?>(name: "blob")
+        assertExpressionType(nullable.jsonbSetting((a, 1)), Data?.self)
+        assertExpressionType(nullable.jsonbRemoving(at: a), Data?.self)
+
+        XCTAssertEqual(
+            encoder.makeSQL(blob.jsonbRemoving(at: .root)).valueEncodingError,
+            .jsonRootRemoval(function: "jsonb_remove")
+        )
+        XCTAssertNil(
+            encoder.makeSQL(nullable.jsonbRemoving(at: .root)).valueEncodingError
+        )
+    }
+
     private func assertSQL<T>(
         _ expression: any XLExpression<T>,
         _ expected: String,
@@ -335,6 +367,29 @@ final class XLJSONBFunctionExecutionTests: XCTestCase {
             }
             XCTAssertEqual(try text(of: blob), expected)
         }
+    }
+
+    func testANonOptionalMutationOnAJSONBDocumentWritesBack() throws {
+        try requireJSONB()
+        guard
+            let row = try evaluate(
+                document().minifiedJSONB(),
+                document: #"{"a":1,"b":2}"#
+            ),
+            let blob = row
+        else {
+            XCTFail("the statement should return one document")
+            return
+        }
+        guard
+            let set = try evaluate(blob.jsonbSetting((XLJSONPath.root.key("a"), 9))),
+            let removed = try evaluate(blob.jsonbRemoving(at: XLJSONPath.root.key("b")))
+        else {
+            XCTFail("the statements should return one document each")
+            return
+        }
+        XCTAssertEqual(try text(of: set), #"{"a":9,"b":2}"#)
+        XCTAssertEqual(try text(of: removed), #"{"a":1}"#)
     }
 
     func testAMutationOnANullDocumentIsNull() throws {
