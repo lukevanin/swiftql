@@ -12,8 +12,12 @@
   frozen-literal guard no longer rejects a call argument, a local binding
   initialized from a parameter, or a parameter in a nested closure, because
   the rewrite replaces each of these references. It still rejects string
-  interpolation and member access on a parameter. The to-do demo's filtered
-  read is a declared query again.
+  interpolation and member access on a parameter. A parameter passed to a call
+  whose parameter type is `Any` or generic, such as `String(describing:)`, is
+  not a binding: the call renders the description of a binding reference as a
+  constant literal, and the macro does not detect it. Pass parameters only to
+  SwiftQL expression APIs. The to-do demo's filtered read is a declared query
+  again.
 
 ### Fixed
 

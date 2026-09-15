@@ -254,10 +254,15 @@ runtime failure. This means the encoding has **no silent-freeze path**: a
 parameter value either becomes a placeholder, or the declaration fails to
 compile.
 
-A generic helper that accepts any value, such as `String(describing:)`,
-receives the binding reference and not the parameter's value. It cannot
-freeze the value, but its result is not what the author meant, so do not pass
-a parameter to one. A parenthesized member-access base (`(name).lowercased()`)
+A parameter passed to a call whose parameter type is `Any` or generic is **not
+a binding**. For example, `String(describing: name)` receives the binding
+reference, not the parameter's value, and returns the reference's description
+as an ordinary Swift string. That string then renders into the SQL as a
+constant literal, the same for every call, so the query silently compares
+against the wrong text. The macro does not detect this shape. Pass a parameter
+only to SwiftQL expression APIs — an operator, a method such as `like(_:)` or
+`regexp(_:)`, or a clause such as `Limit(_:)` — never to a general Swift
+function. A parenthesized member-access base (`(name).lowercased()`)
 is not lexically detectable and is left to the compiler as a type error on the
 generated code.
 
