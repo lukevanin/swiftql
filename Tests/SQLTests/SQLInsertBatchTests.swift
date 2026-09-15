@@ -52,7 +52,9 @@ struct InsertBatchSignedCode: XLCustomType, Equatable {
             context.integer(rawValue)
             return
         }
-        let magnitude = -rawValue
+        // Typed so the compiler takes Int negation. Without the annotation,
+        // Swift 6.3 selects SwiftQL's expression overload of prefix `-`.
+        let magnitude: Int = -rawValue
         context.unaryOperator("-") { context in
             context.integer(magnitude)
         }
