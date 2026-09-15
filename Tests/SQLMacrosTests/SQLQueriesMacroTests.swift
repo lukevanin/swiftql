@@ -130,7 +130,7 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                         return try __xlRequest.fetchOne(bindings: __xlPacket)
                     }
 
-                    struct Prepared {
+                    struct PreparedQueries {
                         let database: MyDatabase
 
                         func personByName(name: String) throws -> XLPreparedQuery<Person> {
@@ -195,8 +195,8 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                     }
                 }
 
-                var prepared: Context.Prepared {
-                    Context.Prepared(database: self)
+                var preparedQueries: Context.PreparedQueries {
+                    Context.PreparedQueries(database: self)
                 }
             }
             """,
@@ -270,7 +270,7 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                         return try __xlRequest.fetchAll(bindings: __xlPacket)
                     }
 
-                    struct Prepared {
+                    struct PreparedQueries {
                         let database: MyDatabase
 
                         func peopleMatching(pattern: String, count: Int) throws -> XLPreparedQuery<Person> {
@@ -310,8 +310,8 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                     }
                 }
 
-                var prepared: Context.Prepared {
-                    Context.Prepared(database: self)
+                var preparedQueries: Context.PreparedQueries {
+                    Context.PreparedQueries(database: self)
                 }
             }
             """,
@@ -382,7 +382,7 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                         return try __xlRequest.fetchAll(bindings: __xlPacket)
                     }
 
-                    struct Prepared {
+                    struct PreparedQueries {
                         let database: MyDatabase
 
                         func peopleByClass(`class`: String) throws -> XLPreparedQuery<Person> {
@@ -420,8 +420,8 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                     }
                 }
 
-                var prepared: Context.Prepared {
-                    Context.Prepared(database: self)
+                var preparedQueries: Context.PreparedQueries {
+                    Context.PreparedQueries(database: self)
                 }
             }
             """,
@@ -430,13 +430,13 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
     }
 
     ///
-    /// Issue #660: a `Context.Prepared` function must take the same
+    /// Issue #660: a `Context.PreparedQueries` function must take the same
     /// render-once request and build the same binding packet as the context
     /// executor it mirrors. The only permitted difference in the shared lines
     /// is the cache owner: `Prepared` is nested in `Context`, so it names
     /// `Context` where the executor names `Self`.
     ///
-    func test_preparedFunction_sharesPreparationLinesWithContextExecutor() throws {
+    func test_preparedQueriesFunction_sharesPreparationLinesWithContextExecutor() throws {
         let source = Parser.parse(source: """
             func peopleMatching(pattern: String, count: Int) -> [Person] {
                 sqlResult { schema in
@@ -455,7 +455,7 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
             macroName: "@SQLQueries"
         )
         let executor = builder.makeContextExecutorFunction(modifierPrefix: "").components(separatedBy: "\n")
-        let prepared = builder.makePreparedFunction(modifierPrefix: "").components(separatedBy: "\n")
+        let prepared = builder.makePreparedQueriesFunction(modifierPrefix: "").components(separatedBy: "\n")
 
         XCTAssertEqual(
             prepared.first,
@@ -539,7 +539,7 @@ final class SQLQueriesMacroAccessLevelTests: XCTestCase {
                         return try __xlRequest.fetchAll(bindings: __xlPacket)
                     }
 
-                    public struct Prepared {
+                    public struct PreparedQueries {
                         let database: MyDatabase
 
                         public func allPeople() throws -> XLPreparedQuery<Person> {
@@ -571,8 +571,8 @@ final class SQLQueriesMacroAccessLevelTests: XCTestCase {
                     }
                 }
 
-                public var prepared: Context.Prepared {
-                    Context.Prepared(database: self)
+                public var preparedQueries: Context.PreparedQueries {
+                    Context.PreparedQueries(database: self)
                 }
             }
             """,
@@ -736,6 +736,120 @@ final class SQLQueriesMacroDiagnosticTests: XCTestCase {
                     line: 13,
                     column: 5
                 )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// Issue #660: the container generates `preparedQueries` on the database,
+    /// so a specification with that name would be a redeclaration in
+    /// generated code. The macro reports it at the specification instead.
+    ///
+    func test_specificationNamedPreparedQueries_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLQueries
+            extension MyDatabase {
+                private struct Query {
+                    func preparedQueries() -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                private struct Query {
+                    func preparedQueries() -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLQueries' generates a 'preparedQueries' property on the database for observing declared queries, so a query specification cannot be named 'preparedQueries'. Rename the specification.",
+                    line: 4,
+                    column: 14
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
+    /// Issue #660: a property, or a method with no parameters, named
+    /// `preparedQueries` in the attached extension collides with the
+    /// generated property. The macro reports each at the member. A method
+    /// with parameters does not collide, so it gets no diagnostic.
+    ///
+    func test_extensionMemberNamedPreparedQueries_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLQueries
+            extension MyDatabase {
+                var preparedQueries: Int {
+                    0
+                }
+                func preparedQueries() -> Int {
+                    1
+                }
+                func preparedQueries(limit: Int) -> Int {
+                    limit
+                }
+                private struct Query {
+                    func allPeople() -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                var preparedQueries: Int {
+                    0
+                }
+                func preparedQueries() -> Int {
+                    1
+                }
+                func preparedQueries(limit: Int) -> Int {
+                    limit
+                }
+                private struct Query {
+                    func allPeople() -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                        }
+                    }
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'preparedQueries' collides with the property '@SQLQueries' generates on the database for observing declared queries. Rename this member.",
+                    line: 3,
+                    column: 9
+                ),
+                DiagnosticSpec(
+                    message: "'preparedQueries' collides with the property '@SQLQueries' generates on the database for observing declared queries. Rename this member.",
+                    line: 6,
+                    column: 10
+                ),
             ],
             macros: makeTestMacros()
         )

@@ -117,7 +117,7 @@ extension GRDBDatabase {
             }
         }
 
-        // Issue #660: observed through `prepared`. The probe counts statement
+        // Issue #660: observed through `preparedQueries`. The probe counts statement
         // builds, so a test can prove that the executor and the prepared form
         // share one render.
         func containerObservedRows(pattern: String) -> [TestTable] {
@@ -356,8 +356,8 @@ final class XLQueriesContainerTests: XCTestCase {
 
         let rendersBefore = DeclaredQueryRenderProbe.containerObservedRows.count
         let called = try loggingDatabase.containerObservedRows(pattern: "al%")
-        let prepared = try loggingDatabase.prepared.containerObservedRows(pattern: "al%")
-        let preparedAgain = try loggingDatabase.prepared.containerObservedRows(pattern: "al%")
+        let prepared = try loggingDatabase.preparedQueries.containerObservedRows(pattern: "al%")
+        let preparedAgain = try loggingDatabase.preparedQueries.containerObservedRows(pattern: "al%")
         XCTAssertEqual(
             DeclaredQueryRenderProbe.containerObservedRows.count - rendersBefore,
             1,
@@ -393,7 +393,7 @@ final class XLQueriesContainerTests: XCTestCase {
         try insert(TestTable(id: "alpha", value: 1))
         try insert(TestTable(id: "beta", value: 2))
 
-        let query = try database.prepared.containerObservedRows(pattern: "al%")
+        let query = try database.preparedQueries.containerObservedRows(pattern: "al%")
         let initialRows = [TestTable(id: "alpha", value: 1)]
         let updatedRows = [TestTable(id: "alpha", value: 1), TestTable(id: "alpine", value: 3)]
 
@@ -423,7 +423,7 @@ final class XLQueriesContainerTests: XCTestCase {
         try createTestTable()
         try insert(TestTable(id: "alpha", value: 1))
 
-        let query = try database.prepared.containerObservedRows(pattern: "al%")
+        let query = try database.preparedQueries.containerObservedRows(pattern: "al%")
         let initialExpectation = expectation(description: "initial snapshot")
         let updateExpectation = expectation(description: "snapshot after the write")
         var sawInitial = false
@@ -455,6 +455,58 @@ final class XLQueriesContainerTests: XCTestCase {
         try insert(TestTable(id: "alpine", value: 2))
         wait(for: [updateExpectation], timeout: 2)
         cancellables.removeAll()
+    }
+
+    ///
+    /// A transaction scope is a `GRDBDatabase` too, so `preparedQueries`
+    /// compiles on it and its request fetches on the transaction's
+    /// connection. Observation needs the pool, so the publisher fails at once
+    /// with a typed error instead of observing the scope's connection.
+    ///
+    func testPreparedQueryFromATransactionScopePublishesATypedError() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+
+        var failure: Error?
+        var receivedValue = false
+        try database.withTransaction { scope in
+            let query = try scope.preparedQueries.containerObservedRows(pattern: "al%")
+            XCTAssertEqual(try query.request.fetchAll(bindings: query.bindings).map(\.id), ["alpha"])
+            let cancellable = query.publish().sink(
+                receiveCompletion: { completion in
+                    if case .failure(let error) = completion {
+                        failure = error
+                    }
+                },
+                receiveValue: { _ in
+                    receivedValue = true
+                }
+            )
+            cancellable.cancel()
+        }
+
+        XCTAssertFalse(receivedValue, "a scope-prepared query must never deliver a snapshot")
+        XCTAssertEqual(failure as? XLTransactionScopeError, .liveQueriesUnsupportedInTransaction)
+    }
+
+    func testPreparedQueryFromATransactionScopeStreamThrowsATypedError() async throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+
+        let query = try database.withTransaction { scope in
+            try scope.preparedQueries.containerObservedRows(pattern: "al%")
+        }
+
+        do {
+            for try await rows in query.stream() {
+                XCTFail("a scope-prepared query must never deliver a snapshot, got \(rows)")
+                break
+            }
+            XCTFail("the stream must throw")
+        }
+        catch {
+            XCTAssertEqual(error as? XLTransactionScopeError, .liveQueriesUnsupportedInTransaction)
+        }
     }
 
 

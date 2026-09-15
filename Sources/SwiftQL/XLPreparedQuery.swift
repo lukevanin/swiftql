@@ -23,15 +23,15 @@ import OpenCombine
 /// built from the arguments of this invocation.
 ///
 /// You do not construct this type yourself. `@SQLQuery` generates a
-/// `prepare`-prefixed peer beside each executor, and `@SQLQueries` generates
-/// the `prepared` namespace on the database:
+/// `PreparedQuery`-suffixed peer beside each executor, and `@SQLQueries` generates
+/// the `preparedQueries` namespace on the database:
 ///
 /// ```swift
 /// // @SQLQuery
-/// let query = try database.preparePersonByName(name: "John Doe")
+/// let query = try database.personByNamePreparedQuery(name: "John Doe")
 ///
 /// // @SQLQueries
-/// let query = try database.prepared.personByName(name: "John Doe")
+/// let query = try database.preparedQueries.personByName(name: "John Doe")
 ///
 /// for try await people in query.stream() {
 ///     print(people)
@@ -54,6 +54,20 @@ import OpenCombine
 /// A new set of argument values is a new invocation. Call the generated
 /// function again and observe the result, exactly as a new
 /// `stream(bindings:)` call is a new observation.
+///
+/// Prepare a query you observe on the database, not on a transaction scope.
+/// A query prepared from a scope fetches on the scope's connection, but every
+/// observation method fails with
+/// `XLTransactionScopeError.liveQueriesUnsupportedInTransaction`.
+///
+/// This type is not `Sendable`, and it does not conform with
+/// `@unchecked Sendable` either. It holds an `any XLRequest<Row>`, and
+/// ``XLRequest`` is a public protocol whose conformers SwiftQL does not
+/// control, so SwiftQL cannot promise that a request is safe to share across
+/// tasks (see <doc:LiveQueries>, "Packet-backed observations"). With strict
+/// concurrency checking, prepare the query in the isolation domain that
+/// observes it, for example in a `@MainActor` model's initializer, and send
+/// the arguments across the boundary instead.
 ///
 public struct XLPreparedQuery<Row> {
 
