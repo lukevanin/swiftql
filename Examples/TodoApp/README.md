@@ -80,6 +80,13 @@ in `TodoModels.swift`. The prepared form hands the live query the declaration's
 cached request and a binding packet built by the same generated code the
 executor runs.
 
+**Bindings are checked by name at compile time.** A statement that is not a
+declared query — the edits in `TodoStore.swift` and the link read in
+`TodoLinks.swift` — takes its values in a binding packet. Each one declares its bindings as an
+`@SQLBindings` struct, so the statement reads typed references and the packet
+binds values under the same names. A misspelled name or a forgotten value does
+not compile.
+
 **Search is a regular expression, matched in SQLite.** v1.7 ships the `regexp`
 implementation SQLite lacks, so the list view's search is `REGEXP` rather than
 `LIKE`. The user's text is quoted character by character and travels as a bound

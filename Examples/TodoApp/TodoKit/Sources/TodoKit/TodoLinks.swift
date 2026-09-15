@@ -43,8 +43,13 @@ import SwiftQL
 /// demo does both, which is the point of having both.
 public enum TodoLinks {
 
-    /// The list whose to-dos are examined.
-    static let listID = XLNamedBindingReference<TodoUUID>(name: "listID")
+    /// The statement's one named binding. `@SQLBindings` gives it a typed
+    /// reference for ``statement`` and builds the packet under the same name.
+    @SQLBindings
+    struct Bindings {
+        /// The list whose to-dos are examined.
+        var listID: TodoUUID
+    }
 
     /// Matches an `http` or `https` URL anywhere in a note.
     ///
@@ -68,7 +73,7 @@ public enum TodoLinks {
             let todo = schema.table(Todo.self)
             Select(todo.id)
             From(todo)
-            Where(todo.listID == listID && todo.notes.regexp(pattern))
+            Where(todo.listID == Bindings.listID && todo.notes.regexp(pattern))
         }
     }
 
@@ -77,27 +82,6 @@ public enum TodoLinks {
         for listID: TodoUUID,
         layout: XLParameterLayout
     ) throws -> XLInvocationBindings<XLSQLiteValue> {
-        guard let slot = layout.slot(for: .named("listID")) else {
-            throw TodoLinksError.unknownParameter("listID")
-        }
-        return try XLInvocationBindings<XLSQLiteValue>(
-            layout: layout,
-            bindings: [
-                try XLInvocationBinding(slot: slot, value: listID.sqlValue),
-            ]
-        ).validatingComplete()
-    }
-}
-
-
-enum TodoLinksError: Error, LocalizedError {
-
-    case unknownParameter(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .unknownParameter(let name):
-            return "The linked-to-do query has no parameter named \(name)."
-        }
+        try Bindings(listID: listID).bindings(in: layout)
     }
 }

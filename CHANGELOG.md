@@ -138,6 +138,25 @@
   query added to a target reaches the manifest and validates with no list or
   generator edited.
 
+- **`@SQLBindings` generates a typed packet for the named bindings of a
+  statement value** (issue #663). Attach the macro to a struct that has one
+  stored property for each named binding. For each property, the macro
+  generates a static `XLNamedBindingReference` with the name and type of the
+  property. The statement uses these references. The macro also generates
+  `bindings(in:)` and `bindings(for:)`, which encode the property values into
+  an immutable `XLInvocationBindings` packet for a layout or a request. A
+  misspelled binding name, a misspelled value label, or a missing value is now
+  a compile error. Before, a caller found each slot with a string name, and a
+  typo failed at runtime. The macro reports an error for a property with an
+  initial value and for an initializer in the struct, because either one would
+  let a call leave a value out. The packet still throws when the statement does
+  not use a declared binding, or uses a binding that the struct does not
+  declare, so declare one struct for each statement shape. Generated members
+  are `public` or `package` only when the struct itself is written that way.
+  `scripts/ci/check-named-binding-packet-type-safety.sh` proves the compile
+  errors in CI. The to-do demo builds all of its packets with `@SQLBindings`
+  and has no slot-lookup helper.
+
 - **A declared query can be observed** (issue #660). The prepared form of a
   declared query returns an `XLPreparedQuery<Row>`: the request from the
   declaration's render-once cache and the binding packet for one set of
