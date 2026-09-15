@@ -178,6 +178,15 @@ whereas `.null` is a present value and is accepted only for a nullable slot.
 This packet isolation does not make the current request facade `Sendable` or
 promise that one request can be shared directly across tasks.
 
+A declared query does not need a hand-built packet. Its prepared form,
+`database.prepared.personByName(name:)` for `@SQLQueries` or
+`database.preparePersonByName(name:)` for `@SQLQuery`, returns an
+``XLPreparedQuery`` that holds the declaration's cached request and the packet
+for its arguments. ``XLPreparedQuery/stream()``, ``XLPreparedQuery/publish()``,
+and their single-row forms call the packet-backed methods above, and
+``XLObservableQuery`` and ``XLObservableQueryRow`` accept a prepared query
+directly. See <doc:DeclaredQueries>, "Observe a declared query".
+
 ### Combine-compatible publishers (a convenience adapter over streams, issue #309)
 
 `publish()`/`publishOne()` are Combine convenience adapters over `stream()`/`streamOne()`: Combine

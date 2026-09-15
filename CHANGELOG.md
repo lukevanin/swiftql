@@ -2,6 +2,31 @@
 
 ## [1.9.0] - Unreleased
 
+### Migration
+
+- **Declared queries generate new members** (issue #660). `@SQLQueries` adds
+  a `prepared` property and a nested `Context.Prepared` type. `@SQLQuery` adds
+  a `prepare`-prefixed peer beside each `fetch`-prefixed executor, such as
+  `preparePersonByName(name:)`. A database type that already declares a member
+  with one of these names stops compiling with a redeclaration error. Rename
+  that member.
+
+### Added
+
+- **A declared query can be observed** (issue #660). The `prepared` form of a
+  declared query returns an `XLPreparedQuery<Row>`: the request from the
+  declaration's render-once cache and the binding packet for one set of
+  arguments. Call `stream()`, `streamOne()`, `publish()`, or `publishOne()` on
+  it, or pass it to `XLObservableQuery` or `XLObservableQueryRow`. For
+  `@SQLQueries`, call `database.prepared.personByName(name:)`. For `@SQLQuery`,
+  call `database.preparePersonByName(name:)`. The prepared form and the
+  executor use the same cache entry and the same binding code, so the
+  statement renders at most once for each database. An observation does not
+  enforce the exactly-one cardinality of a `Row` declaration: when the row goes
+  away, `streamOne()` delivers `nil`. The to-do demo observes its declared
+  reads directly, and `TodoLiveReads.swift` and `TodoFilteredRead.swift` are
+  removed.
+
 ### Changed
 
 - OpenCombine is a Linux-only dependency (issue #669). The `SwiftQL` target

@@ -125,6 +125,55 @@ the pinned scope, not the original database — pass it to `makeRequest(with:)`
 for any operation the closure needs beyond the container's own declared
 queries.
 
+## Observe a declared query
+
+Since v1.9 ([#660](https://github.com/lukevanin/swiftql/issues/660)) a
+declared query has a **prepared form** that a live query can observe, so a
+read that a view observes is written once. The prepared form takes the same
+arguments as the executor and returns an ``XLPreparedQuery``: the request from
+the declaration's render-once cache and the binding packet for those arguments.
+
+| Form | Executor | Prepared form |
+| --- | --- | --- |
+| `@SQLQuery` | `try database.fetchPersonByName(name:)` | `try database.preparePersonByName(name:)` |
+| `@SQLQueries` | `try database.personByName(name:)` | `try database.prepared.personByName(name:)` |
+
+Observe the prepared query with the same methods a request has, or pass it to
+the `@Observable` wrappers:
+
+<!-- test: XLDocumentationTests.testDocumentationDeclaredQueries -->
+```swift
+let query = try database.prepared.personByName(name: "John Doe")
+
+for try await matches in query.stream() {
+    print("Fetched matches: \(matches)")
+}
+
+let cancellable = query.publish().sink(
+    receiveCompletion: { _ in },
+    receiveValue: { matches in print("Fetched matches: \(matches)") }
+)
+
+let model = XLObservableQuery(query)
+```
+
+- **One render.** The prepared form and the executor emit the same generated
+  preparation code and read the same cache entry. The statement renders at
+  most once for each database, whichever form runs first.
+- **The same bindings.** The packet holds exactly the values the executor
+  would bind for the same arguments. The observation captures that packet once
+  for its initial fetch, every refresh, and every retry, as
+  `stream(bindings:)` does. New argument values need a new prepared query and
+  a new observation.
+- **Cardinality.** Use `stream()` or `publish()` for a declaration that
+  returns `[Row]`. Use `streamOne()`, `publishOne()`, or
+  ``XLObservableQueryRow`` for one that returns `Row?` or `Row`. An observation
+  does not enforce the exactly-one cardinality of a `Row` declaration: when the
+  row goes away, `streamOne()` delivers `nil` instead of throwing.
+- **The database, not a transaction.** `prepared` is a member of the database,
+  not of `Context`, because an observation continues after any one transaction
+  ends.
+
 ## Render-once caching
 
 The generated executor does not render SQL on every call. Each declaration

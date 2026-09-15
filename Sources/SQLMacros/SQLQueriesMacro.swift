@@ -128,6 +128,7 @@ extension SQLQueriesMacro: MemberMacro {
         for builder in builders {
             members.append(builder.makeDatabaseExecutorFunction(modifierPrefix: modifierPrefix))
         }
+        members.append(makePreparedProperty(modifierPrefix: modifierPrefix))
         return try members.map(makeDecl)
     }
 
@@ -149,6 +150,49 @@ extension SQLQueriesMacro: MemberMacro {
             lines.append("")
             lines.append(indent(builder.makeContextExecutorFunction(modifierPrefix: modifierPrefix), by: 4))
         }
+        lines.append("")
+        lines.append(indent(makePreparedStruct(
+            databaseType: databaseType,
+            builders: builders,
+            modifierPrefix: modifierPrefix
+        ), by: 4))
+        lines.append("}")
+        return lines.joined(separator: "\n")
+    }
+
+    ///
+    /// Generates `Context.Prepared` (issue #660): one function per
+    /// specification that returns an `XLPreparedQuery` for observation.
+    ///
+    /// It is nested in `Context` so it can reach each specification's private
+    /// render-once cache. The prepared form and the executor therefore share
+    /// one cache entry and emit the same preparation lines.
+    ///
+    private static func makePreparedStruct(
+        databaseType: String,
+        builders: [SQLQueryBuilder],
+        modifierPrefix: String
+    ) -> String {
+        var lines: [String] = []
+        lines.append("\(modifierPrefix)struct Prepared {")
+        lines.append("    let database: \(databaseType)")
+        for builder in builders {
+            lines.append("")
+            lines.append(indent(builder.makePreparedFunction(modifierPrefix: modifierPrefix), by: 4))
+        }
+        lines.append("}")
+        return lines.joined(separator: "\n")
+    }
+
+    ///
+    /// Generates the database-level `prepared` namespace. It binds to the
+    /// database itself, not to a transaction scope, because an observation
+    /// outlives any one transaction.
+    ///
+    private static func makePreparedProperty(modifierPrefix: String) -> String {
+        var lines: [String] = []
+        lines.append("\(modifierPrefix)var prepared: Context.Prepared {")
+        lines.append("    Context.Prepared(database: self)")
         lines.append("}")
         return lines.joined(separator: "\n")
     }
@@ -212,6 +256,29 @@ extension SQLQueryBuilder {
                 against: "database"
             )
         )
+        lines.append("}")
+        return lines.joined(separator: "\n")
+    }
+
+    ///
+    /// Generates one function of `Context.Prepared` (issue #660). It emits the
+    /// preparation lines the context executor emits, with the cache reached
+    /// through `Context`, and returns the request and packet instead of
+    /// fetching.
+    ///
+    func makePreparedFunction(modifierPrefix: String) -> String {
+        let parameterClause = function.signature.parameterClause.trimmedDescription
+        let statementExpression = indentSkippingFirstLine(rewrittenBodyText, by: 8)
+        var lines: [String] = []
+        lines.append("\(modifierPrefix)func \(function.name.text)\(parameterClause) throws -> XLPreparedQuery<\(rowType)> {")
+        lines.append(
+            contentsOf: makePreparationLines(
+                preparing: statementExpression,
+                against: "database",
+                cacheOwner: "Context"
+            )
+        )
+        lines.append("    return XLPreparedQuery(request: __xlRequest, bindings: __xlPacket)")
         lines.append("}")
         return lines.joined(separator: "\n")
     }

@@ -18,8 +18,8 @@ public final class TodoSidebarModel {
     public let counts: XLObservableQuery<TodoListCounts>
 
     public init(database: TodoDatabase) {
-        lists = XLObservableQuery(database.listsRequest)
-        counts = XLObservableQuery(database.listCountsRequest)
+        lists = XLObservableQuery(database.listsQuery)
+        counts = XLObservableQuery(database.listCountsQuery)
     }
 
     /// Counts for one list, keyed for the view. A list with no to-dos never
@@ -153,16 +153,23 @@ public final class TodoListModel {
         }
     }
 
+    /// Observes the declared `filteredTodos` read. `prepared` hands back the
+    /// same cached request and binding packet the declaration's executor
+    /// uses, so the statement is written once, in `TodoReads.swift`.
     private static func observe(
         _ query: TodoQuery,
         in database: TodoDatabase
     ) throws -> XLObservableQuery<Todo> {
-        let request = database.filteredTodosRequest
+        let flags = query.filter.flags
         return XLObservableQuery(
-            request,
-            bindings: try TodoFilteredRead.bindings(
-                for: query,
-                layout: request.parameterLayout
+            try database.database.prepared.filteredTodos(
+                listID: query.listID,
+                includesCompleted: flags.includesCompleted,
+                includesActive: flags.includesActive,
+                overdueOnly: flags.overdueOnly,
+                referenceDate: query.referenceDate,
+                searchPattern: query.searchPattern,
+                sortOrder: query.sort.rawValue
             )
         )
     }
@@ -189,13 +196,8 @@ public final class TodoDetailModel {
     public init(database: TodoDatabase, todoID: TodoUUID) throws {
         self.database = database
         self.todoID = todoID
-        let request = database.todoByIDRequest
         todo = XLObservableQueryRow(
-            request,
-            bindings: try TodoDatabase.todoIDBindings(
-                todoID,
-                layout: request.parameterLayout
-            )
+            try database.database.prepared.todo(id: todoID)
         )
         reloadTags()
     }
