@@ -346,7 +346,7 @@ final class SQLMacroDiagnosticTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "A 'let' property with an initial value cannot be assigned by the generated initializer. Use 'var', or remove the initial value.",
+                    message: "A 'let' property with an initial value cannot be assigned by the generated initializer, so the value cannot be used as a default. Use 'var' to make the value the initializer's default, or remove the initial value.",
                     line: 3,
                     column: 9
                 )
@@ -923,6 +923,40 @@ final class SQLMacroExpansionTests: XCTestCase {
             macros: makeMemberTestMacros()
         )
     }
+
+    // Issue #665: a `var` with an initial value gives its initializer
+    // parameter a default, so a caller may omit it. In `var a, b: Int = 1`
+    // only `b` has an initial value, so only `b` is defaulted.
+    func test_memberwiseInitializer_propertyDefaults() {
+        assertMacroExpansion(
+            """
+            @SQLTable
+            public struct Sample {
+                public var id: Int
+                public var note: String? = nil
+                public var tags: [String] = []
+                var a, b: Int = 1
+            }
+            """,
+            expandedSource: """
+            public struct Sample {
+                public var id: Int
+                public var note: String? = nil
+                public var tags: [String] = []
+                var a, b: Int = 1
+
+                public init(id: Int, note: String? = Self._swiftQLDefault_note, tags: [String] = Self._swiftQLDefault_tags, a: Int, b: Int = Self._swiftQLDefault_b) {
+                        self.id = id
+                        self.note = note
+                        self.tags = tags
+                        self.a = a
+                        self.b = b
+                  }
+            }
+            """,
+            macros: makeMemberTestMacros()
+        )
+    }
 }
 
 
@@ -1160,6 +1194,58 @@ final class MetaBuilderTests: XCTestCase {
             """
         )
         XCTAssertEqual(builder.tableName, "Sample")
+    }
+
+    // Issue #665: the default names a generated `@usableFromInline` accessor
+    // instead of restating the initial value, because a public initializer's
+    // default argument may not reference the private member `secret`. An
+    // accessor name that a property already uses is not reused.
+    func test_defaultValueAccessors_returnEachInitialValueVerbatim() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            public struct Sample {
+                public var id: Int
+                public var title: String = Sample.secret
+                public var _swiftQLDefault_title: Int = 0
+            }
+            """
+        )
+
+        let initializer = builder.makeMemberwizeInitializer()
+        XCTAssertTrue(
+            initializer.contains(
+                "public init(id: Int, title: String = Self._swiftQLDefault_title_1, _swiftQLDefault_title: Int = Self._swiftQLDefault__swiftQLDefault_title)"
+            ),
+            initializer
+        )
+
+        let accessors = builder.makeDefaultValueAccessors().map { source in
+            source
+                .split(separator: "\n")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .joined(separator: " ")
+        }
+        XCTAssertEqual(
+            accessors,
+            [
+                "@usableFromInline static var _swiftQLDefault_title_1: String { Sample.secret }",
+                "@usableFromInline static var _swiftQLDefault__swiftQLDefault_title: Int { 0 }",
+            ]
+        )
+    }
+
+    func test_defaultValueAccessors_noneWithoutInitialValues() throws {
+        let builder = try makeBuilder(
+            """
+            @SQLTable
+            struct Sample {
+                var id: Int
+            }
+            """
+        )
+        XCTAssertEqual(builder.makeDefaultValueAccessors(), [])
+        XCTAssertFalse(builder.makeMemberwizeInitializer().contains("= Self."))
     }
 
     func test_emptyStruct_generatesSingleParameterlessInitializerPerType() throws {
