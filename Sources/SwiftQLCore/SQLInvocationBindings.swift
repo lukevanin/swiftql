@@ -487,6 +487,32 @@ public struct XLInvocationBindings<Value: XLDialectValue>:
         self.bindings = canonicalBindings
     }
 
+    /// A complete packet that pairs each slot of `layout`, in logical index
+    /// order, with the value at the same offset in `values`, without checking
+    /// either again.
+    ///
+    /// Package-internal (issue #668). `init(layout:bindings:)` checks each
+    /// binding against the layout and sorts again after every one, which is
+    /// quadratic in the slot count. A caller that inserts many rows through one
+    /// statement already knows each row's values match the layout's slots in
+    /// order, so it uses this initializer, which is linear. The caller must
+    /// supply exactly one value per slot, and only for slots without a codec.
+    package init(
+        layout: XLParameterLayout,
+        trustedValuesInSlotOrder values: [Value]
+    ) {
+        precondition(
+            values.count == layout.count,
+            "A trusted packet needs exactly one value for each slot."
+        )
+        var bindings: [XLInvocationBinding<Value>] = []
+        bindings.reserveCapacity(values.count)
+        for (slot, value) in zip(layout.slots, values) {
+            bindings.append(XLInvocationBinding(preparedCodecSlot: slot, value: value))
+        }
+        self.init(layout: layout, canonicalBindings: bindings)
+    }
+
     public var isComplete: Bool {
         bindings.count == layout.count
     }
