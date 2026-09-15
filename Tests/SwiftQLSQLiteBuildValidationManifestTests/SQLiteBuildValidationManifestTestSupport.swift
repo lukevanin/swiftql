@@ -23,12 +23,14 @@ enum SQLiteBuildValidationManifestTestSupport {
     }
 
     static func manifest(
-        conformanceInventoryVersion: String = "190.1.0",
-        combinatorialManifestVersion: String = "c191-v2",
+        formatVersion: SQLiteBuildValidationManifestFormatVersion = .current,
+        conformanceInventoryVersion: String? = "190.1.0",
+        combinatorialManifestVersion: String? = "c191-v2",
         schemaSnapshot: SQLiteBuildValidationSchemaSnapshot? = nil,
         queries: [SQLiteBuildValidationQueryEntry]
     ) -> SQLiteBuildValidationManifest {
         SQLiteBuildValidationManifest(
+            formatVersion: formatVersion,
             conformanceInventoryVersion: conformanceInventoryVersion,
             combinatorialManifestVersion: combinatorialManifestVersion,
             schemaSnapshot: schemaSnapshot ?? Self.schemaSnapshot(),

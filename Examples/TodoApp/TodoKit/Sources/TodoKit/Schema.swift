@@ -53,14 +53,11 @@ public struct Todo: Equatable, Identifiable, Sendable {
     /// deleting one item is a single `UPDATE`. The app never loads a to-do,
     /// changes an item in Swift, and writes the whole thing back.
     ///
-    /// A new to-do starts with ``TodoChecklist/empty``. The property carries
-    /// no Swift default, because `@SQLTable`'s generated memberwise
-    /// initializer requires every property regardless: a default here would
-    /// read as optional at the call site and then not be. Recorded on issue
-    /// #469.
+    /// A new to-do starts with ``TodoChecklist/empty``, so a call to the
+    /// generated memberwise initializer can leave `checklist` out.
     ///
     /// See ``TodoChecklist``.
-    public var checklist: String
+    public var checklist: String = TodoChecklist.empty
 }
 
 /// A label that can apply to any number of to-dos.

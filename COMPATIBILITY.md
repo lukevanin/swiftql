@@ -41,8 +41,8 @@ have separate responsibilities:
   performance diagnostic executables, not application runtime dependencies or
   database adapters.
 
-The manifest's dependency bounds are SwiftSyntax 509.0.0, GRDB 6.29.3 or later,
-Swift-DocC plugin 1.0.0 or later, and OpenCombine 0.14.0 or later. SwiftSyntax also
+The manifest's dependency bounds are SwiftSyntax 509.0.0, GRDB 6.29.3 or a later
+6.x release, Swift-DocC plugin 1.0.0 or later, and OpenCombine 0.14.0 or later. SwiftSyntax also
 retains its existing compatible-from-509.0.0 manifest range. OpenCombine is a
 Linux-only dependency: every OpenCombine product carries
 `condition: .when(platforms: [.linux])`, so an Apple-platform build compiles and
@@ -53,6 +53,18 @@ graph; clean-resolution jobs prove that the declared ranges still resolve and
 pass. The exact resolved versions and loaded SQLite source ID are CI evidence,
 not a promise that every future dependency version in those ranges is already
 supported.
+
+SwiftQL 1.x supports GRDB 6 only. The manifest declares `from: "6.29.3"`, which
+SwiftPM reads as `6.29.3..<7.0.0`. SwiftPM allows one GRDB version in a package
+graph, so an application that already depends on GRDB 7 gets a
+dependency-resolution conflict when it adds SwiftQL 1.x. GRDB 7 renames the
+`CSQLite` product that SwiftQL's validator links, stops re-exporting the SQLite
+C module from `import GRDB`, and requires `Sendable` observation and function
+closures. One manifest cannot name that product for both majors, and a clean
+concurrency build on GRDB 7 needs the v2.0 `Row: Sendable` decision
+([#685](https://github.com/lukevanin/swiftql/issues/685)). The complete break
+list and the decision are in
+[Research/GRDB7Evaluation.md](Research/GRDB7Evaluation.md).
 
 The reusable-query ownership model introduced in v1.2 remains unchanged in
 v1.3. An `XLStaticQueryDescriptor` and `XLInvocationBindings` are immutable,
