@@ -326,6 +326,69 @@
       ]
     },
     {
+      "id": "macro.property-default-honoured",
+      "category": "property-defaults",
+      "title": "A 'var' property's initial value becomes the generated initializer's default",
+      "description": "Issue #665 (recorded on #469): a stored 'var' with an initial value gives its memberwise-initializer parameter a default, so a caller may omit it. The default names a generated '@usableFromInline' static accessor that returns the initial value verbatim, rather than restating the value, because a public initializer's default argument may not reference a private member that the initial value may reference. In 'var a, b: Int = 1' only 'b' is defaulted.",
+      "provenance": {
+        "inspiration": "Feature-native; mirrors the Swift compiler's own implicit memberwise initializer, which defaults a 'var' that has an initial value. No upstream code copied.",
+        "upstream_reference": null,
+        "license_note": "n/a -- this repository's own code"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "SQLMacroExpansionTests.test_memberwiseInitializer_propertyDefaults"
+        },
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "MetaBuilderTests.test_defaultValueAccessors_returnEachInitialValueVerbatim"
+        },
+        {
+          "layer": "parse",
+          "source_path": "Tests/SQLMacrosTests/MetaModelTests.swift",
+          "test_case": "MetaPropertyBindingWalkTests.testAnInitialValueDefaultsOnlyItsOwnBinding"
+        },
+        {
+          "layer": "downstream-build",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "DefaultedDownstreamRow / validatePropertyDefaults"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/MacroRegressionFixtures.swift",
+          "test_case": "validatePropertyDefaults"
+        }
+      ]
+    },
+    {
+      "id": "macro.property-default-diagnosed",
+      "category": "property-defaults",
+      "title": "A 'let' property with an initial value is diagnosed, not silently ignored",
+      "description": "Issue #665: a 'let' with an initial value cannot be assigned by the generated initializer, because Swift rejects assigning a 'let' that already has a value, so its value cannot become a default. The macro reports the declaration at the binding and tells the author to use 'var' or remove the value.",
+      "provenance": {
+        "inspiration": "Feature-native; the only stored-property shape whose initial value the generated initializer cannot honour. No upstream code copied.",
+        "upstream_reference": null,
+        "license_note": "n/a -- this repository's own code"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "diagnostic",
+          "source_path": "Tests/SQLMacrosTests/SQLTests.swift",
+          "test_case": "SQLMacroDiagnosticTests.test_letWithInitialValue_emitsError"
+        },
+        {
+          "layer": "parse",
+          "source_path": "Tests/SQLMacrosTests/MetaModelTests.swift",
+          "test_case": "MetaPropertyBindingWalkTests.testAnImmutableBindingWithAnInitialValueIsReported"
+        }
+      ]
+    },
+    {
       "id": "macro.optional-composite-property",
       "category": "optionals",
       "title": "Optional composite (nested @SQLTable/@SQLResult) properties are not yet supported",

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftQLSQLiteBuildValidationManifest
 
 
 /// The severity a plan diagnostic can carry.
@@ -235,7 +236,26 @@ public struct SQLiteBuildValidationPlanSuppression:
             )
     }
 
-    private enum CodingKeys: String, CodingKey {
+    /// Rejects an unknown key, so a misspelled `query_id` or `table` cannot
+    /// decode as "absent" and silently widen what the rule silences.
+    public init(from decoder: any Decoder) throws {
+        if let path = try sqliteBuildValidationUnknownKeyPath(
+            in: decoder,
+            allowedKeys: CodingKeys.self
+        ) {
+            throw SQLiteBuildValidationPlanSuppressionError.unknownKey(path: path)
+        }
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.code = try container.decode(
+            SQLiteBuildValidationPlanDiagnosticCode.self,
+            forKey: .code
+        )
+        self.queryID = try container.decodeIfPresent(String.self, forKey: .queryID)
+        self.table = try container.decodeIfPresent(String.self, forKey: .table)
+        self.reason = try container.decode(String.self, forKey: .reason)
+    }
+
+    private enum CodingKeys: String, CodingKey, CaseIterable {
         case code
         case queryID = "query_id"
         case table
@@ -251,6 +271,9 @@ public enum SQLiteBuildValidationPlanSuppressionError:
     CustomStringConvertible
 {
     case unsupportedFormatVersion(Int)
+    /// A JSON object carried a key its type does not define. `path` locates
+    /// the key, such as `suppressions[0].query`.
+    case unknownKey(path: String)
     case rulesEverything(code: String)
     case missingReason(code: String)
 
@@ -258,6 +281,8 @@ public enum SQLiteBuildValidationPlanSuppressionError:
         switch self {
         case .unsupportedFormatVersion(let version):
             return "Unsupported plan-suppression format version \(version); this validator reads version \(SQLiteBuildValidationPlanSuppressions.currentFormatVersion)."
+        case .unknownKey(let path):
+            return "A plan-suppression file has the unknown key '\(path)'."
         case .rulesEverything(let code):
             return "A plan suppression for '\(code)' must name a query_id, a table, or both; a rule that silences every occurrence is not expressible."
         case .missingReason(let code):
@@ -305,13 +330,45 @@ public struct SQLiteBuildValidationPlanSuppressions:
         )
     }
 
-    public static func decode(contentsOf url: URL) throws -> Self {
-        try JSONDecoder()
-            .decode(Self.self, from: try Data(contentsOf: url))
-            .validating()
+    /// Decodes `format_version` alone first, so a file in a version this
+    /// validator does not read reports that version rather than a decoding
+    /// error from its body, then decodes and validates the rest.
+    public static func decode(_ data: Data) throws -> Self {
+        let formatVersion = try SQLiteBuildValidationFormatVersionProbe.decode(data)
+        guard formatVersion == Self.currentFormatVersion else {
+            throw SQLiteBuildValidationPlanSuppressionError
+                .unsupportedFormatVersion(formatVersion)
+        }
+        return try JSONDecoder().decode(Self.self, from: data).validating()
     }
 
-    private enum CodingKeys: String, CodingKey {
+    public static func decode(contentsOf url: URL) throws -> Self {
+        try decode(Data(contentsOf: url))
+    }
+
+    /// Checks `format_version` before any other key, then rejects an
+    /// unknown key.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let formatVersion = try container.decode(Int.self, forKey: .formatVersion)
+        guard formatVersion == Self.currentFormatVersion else {
+            throw SQLiteBuildValidationPlanSuppressionError
+                .unsupportedFormatVersion(formatVersion)
+        }
+        if let path = try sqliteBuildValidationUnknownKeyPath(
+            in: decoder,
+            allowedKeys: CodingKeys.self
+        ) {
+            throw SQLiteBuildValidationPlanSuppressionError.unknownKey(path: path)
+        }
+        self.formatVersion = formatVersion
+        self.suppressions = try container.decode(
+            [SQLiteBuildValidationPlanSuppression].self,
+            forKey: .suppressions
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey, CaseIterable {
         case formatVersion = "format_version"
         case suppressions
     }

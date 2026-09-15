@@ -179,15 +179,18 @@ up the v1.8 indices on its next launch regardless, because they are
 
 Building a whole application on v1.5 through v1.8 surfaced five places where
 the API resists, all recorded on
-[#469](https://github.com/lukevanin/swiftql/issues/469). v1.9 removed three of
-them. A declared query can now pass a parameter to `regexp(_:)` or `like(_:)`,
+[#469](https://github.com/lukevanin/swiftql/issues/469). v1.9 removed four
+of them. A declared query can now pass a parameter to `regexp(_:)` or `like(_:)`,
 so the list view's search is a declaration again
-([#661](https://github.com/lukevanin/swiftql/issues/661)). A declared query can
+([#661](https://github.com/lukevanin/swiftql/issues/661)). A JSON mutation on
+a `NOT NULL` column now has a non-optional result, so the checklist writes no
+longer end with `.coalesce(table.checklist)`
+([#664](https://github.com/lukevanin/swiftql/issues/664)). A declared query can
 now be observed, so each read a view observes is written once
 ([#660](https://github.com/lukevanin/swiftql/issues/660)). A declared query can
 now be called on a transaction scope, so the reads inside the demo's
 transactions are its declared reads
-([#662](https://github.com/lukevanin/swiftql/issues/662)). Two remain, also
+([#662](https://github.com/lukevanin/swiftql/issues/662)). One remains, also
 recorded on
 [#469](https://github.com/lukevanin/swiftql/issues/469):
 
@@ -198,13 +201,6 @@ recorded on
   ([#139](https://github.com/lukevanin/swiftql/issues/139)); the advisor can
   tell you exactly which index to add and prove the plan improves, and the
   library still cannot run it for you.
-- **A JSON mutation cannot be assigned to a `NOT NULL` column without
-  `coalesce`.** `json_set` and its siblings return `NULL` for a `NULL`
-  document, so their result is optional even when the column is not. Every
-  checklist write ends `.coalesce(table.checklist)` to supply a case that
-  cannot arise. `@SQLTable`'s generated memberwise initializer also ignores a
-  Swift default on a property and requires it anyway, so a default would read
-  as optional at the call site and then not be.
 
-None of them stop the demo working. They are the kind of thing an application
+It does not stop the demo working. It is the kind of thing an application
 finds and a fragment does not, which is most of why this exists.

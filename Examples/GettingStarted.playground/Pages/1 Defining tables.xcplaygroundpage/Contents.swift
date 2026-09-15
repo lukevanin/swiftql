@@ -51,7 +51,7 @@ import SwiftQLExamples
  would use its durable database URL and reuse one `GRDBDatabase` for that path.
  */
 let file = FileManager.default.temporaryDirectory
-    .appending(path: "getting-started-\(UUID().uuidString).sqlite")
+    .appendingPathComponent("getting-started-\(UUID().uuidString).sqlite")
 let database = try GRDBDatabase(url: file, logger: nil)
 
 /*:

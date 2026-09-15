@@ -158,8 +158,7 @@ extension TodoDatabase {
                 priority: priority,
                 isCompleted: false,
                 position: try Self.nextPosition(inList: listID, in: scope),
-                createdAt: now,
-                checklist: TodoChecklist.empty
+                createdAt: now
             )
             let schema = XLSchema()
             let table = schema.table(Todo.self)
@@ -292,10 +291,8 @@ extension TodoDatabase {
     /// The title arrives in a binding packet, so a sub-task called
     /// `", "isDone": true}` is one title and not a rewritten document.
     ///
-    /// `json_insert` returns `NULL` for a `NULL` document, so its result is
-    /// optional while the column is not. `coalesce` supplies the row's
-    /// current checklist for that case, which cannot arise here — the column
-    /// is `NOT NULL` — but has to be spelled out for the types to meet.
+    /// The column is `NOT NULL`, so SwiftQL types the result of `json_insert`
+    /// as non-optional too, and it assigns straight back to the column.
     @discardableResult
     public func appendChecklistItem(
         title: String,
@@ -313,11 +310,10 @@ extension TodoDatabase {
                             TodoChecklist.end,
                             jsonObject(
                                 ("title", titleParameter),
-                                ("isDone", "false".minifiedJSON())
+                                ("isDone", false)
                             )
                         )
                     )
-                    .coalesce(table.checklist)
             }
             .where(table.id == idParameter)
             .returning(schema.table(Todo.self))
@@ -347,15 +343,12 @@ extension TodoDatabase {
     ) throws -> Todo {
         let schema = XLSchema()
         let table = schema.into(Todo.self)
-        // A JSON boolean, not SQLite's 0 and 1. `json_object('isDone', 0)`
-        // stores the number zero, which is not what a JSON reader expects to
-        // find behind a flag.
-        let flag = (isDone ? "true" : "false").minifiedJSON()
+        // SwiftQL writes a Swift `Bool` as a JSON boolean, `json('true')` or
+        // `json('false')`, so the flag reads back through `Codable`.
         let statement = update(table)
             .set { row in
                 row.checklist = table.checklist
-                    .jsonSetting((TodoChecklist.isDone(at: index), flag))
-                    .coalesce(table.checklist)
+                    .jsonSetting((TodoChecklist.isDone(at: index), isDone))
             }
             .where(table.id == id)
             .returning(schema.table(Todo.self))
@@ -377,7 +370,6 @@ extension TodoDatabase {
             .set { row in
                 row.checklist = table.checklist
                     .jsonRemoving(at: TodoChecklist.item(at: index))
-                    .coalesce(table.checklist)
             }
             .where(table.id == id)
             .returning(schema.table(Todo.self))

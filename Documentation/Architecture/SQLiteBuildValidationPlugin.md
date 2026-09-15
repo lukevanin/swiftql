@@ -49,6 +49,64 @@ declared as `resources:`; expect a benign "found N file(s) which are
 unhandled" build note for them, since they are inputs to the plugin, not
 bundle resources for the target's own product.
 
+## Opting in from an Xcode application target
+
+Since v1.9.0 the plugin also conforms to `XcodeBuildToolPlugin`, behind
+`#if canImport(XcodeProjectPlugin)`, so a native target in an `.xcodeproj`,
+such as an application, can adopt it (#666). `verify-xcode.sh` verifies an
+application target.
+Before v1.9.0 only a SwiftPM target could, and an application had to move its
+validated queries into a local package.
+
+1. Add the SwiftQL package to the project, and add
+   `SwiftQLSQLiteBuildValidationPlugin` to the target under **Build Phases >
+   Run Build Tool Plug-ins**.
+2. Add `swiftql-build-validation-manifest.json` and
+   `swiftql-build-validation-snapshot.sqlite` to the project, in one folder,
+   with the target selected under **Target Membership**. To turn on plan
+   analysis, add `swiftql-plan-analysis.json` to the same folder and target.
+3. Build. The same `swiftql-build-validate` command runs before the target
+   compiles, and an invalid manifest fails the build with the validator's own
+   diagnostic.
+
+An Xcode target has no target directory, so the plugin resolves its inputs
+from the target's input files instead, which are the files that are members
+of the target. It finds the manifest by file name, and the manifest's folder
+takes the place of the target directory: the snapshot and the plan-analysis
+opt-in are found only beside it, just as a SwiftPM target finds all three in
+one directory. From there both conformances call one shared function, so the
+file names, arguments, declared inputs and outputs, and per-target report
+paths cannot drift apart between the two build systems. Two further rules
+apply to an Xcode target only:
+
+- A file that is in the folder but is not a member of the target does not
+  count. The build fails and names the missing file, as it does for a SwiftPM
+  target without the file.
+- More than one member file with an opt-in file name, in any folder, fails the
+  build and lists every copy, because the plugin cannot tell which folder is
+  meant.
+
+A member file in the Copy Bundle Resources phase is copied into the app
+bundle, and Xcode also copies the declared report and sidecar there. The
+fixture application shows this: its bundle's `Resources` holds all five files.
+None of them is needed at runtime.
+
+**Check what a shipped app contains.** With that setup, a release build ships
+the manifest, which contains the SQL of every validated query, the schema
+snapshot, and the reports. Xcode passes a file to the plugin only when the file
+is a member of a build phase: a file that is only in the project navigator
+fails the build with the missing-files error above. Verified on Xcode 27.0, a
+target can keep the manifest, snapshot, and opt-in out of the bundle by adding
+them to **Compile Sources** instead of **Copy Bundle Resources**. The plugin
+still runs, and Xcode warns "no rule to process file" once for each of the
+three files. Xcode still copies the declared report and sidecar into the
+bundle's `Resources` in both setups. Before a release, check the contents of
+the built bundle, and remove any of these files that the app must not ship.
+
+Reports land under the plugin's own work directory for the target, in
+`Build/Intermediates.noindex/BuildToolPluginIntermediates/<target>.output/<target>/SwiftQLSQLiteBuildValidationPlugin/<target>/`
+inside derived data.
+
 ## Quick start
 
 1. Add the plugin to a target's `plugins: [...]` array (see

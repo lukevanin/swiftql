@@ -31,6 +31,65 @@
     - the same method with a different return type: the declarations compile,
       but a call without a type annotation is ambiguous.
 
+- **A `Data` value written into JSON fails before SQLite prepares the
+  statement** (issue #671). This applies to a value passed to `jsonArray`,
+  `jsonObject`, `jsonInserting`, `jsonReplacing`, `jsonSetting`,
+  `jsonGroupArray`, `jsonGroupObject`, or one of their JSONB twins. The
+  statement fails with the new case
+  `XLSQLValueEncodingError.blobInJSONValue(valueType:function:)`. On 1.8.1,
+  SQLite reported `JSON cannot hold BLOB values`, or it silently read the
+  bytes as a document when they were valid JSONB. The result of a `jsonb`
+  function is still accepted. To nest JSONB held in a `Data` column or
+  parameter, pass it through `minifiedJSONB()` first. The check reads the
+  static type, so a `Data?` value is rejected even when it is SQL `NULL`. For
+  example, `jsonObject(("avatar", user.avatar))` with a nullable `Data` column
+  wrote JSON `null` for a `NULL` row on 1.8.1, and now always throws
+  `blobInJSONValue`. Pass the column through `minifiedJSONB()`, which keeps
+  `NULL` as `NULL`, or leave it out of the document. This check runs when the
+  statement renders, not at compile time. The JSON value parameters take
+  `any XLExpression`, and a compile-time constraint would reject every opaque
+  function result and every existential value that code passes today. A
+  `switch` over `XLSQLValueEncodingError` with no `default` clause must handle
+  the new case.
+- **A JSON mutation on a non-optional document has a non-optional result**
+  (issue #664). This applies to `jsonInserting`, `jsonReplacing`,
+  `jsonSetting`, and `jsonRemoving` on a `String` document, and to their
+  JSONB twins on a `Data` document. Where the call site gives no other type,
+  Swift now infers `String` or `Data` instead of `String?` or `Data?`. Code
+  that unwraps such a result twice, for example
+  `if let row = try request.fetchOne(), let value = row`, must unwrap it
+  once. The non-optional `jsonRemoving` and `jsonbRemoving` report the root
+  path `$` with the new case
+  `XLSQLValueEncodingError.jsonRootRemoval(function:)`, because SQLite
+  returns `NULL` when it removes the root. On 1.8.1 that call returned SQL
+  `NULL`. A `switch` over `XLSQLValueEncodingError` with no `default` clause
+  must handle the new case. A call site that assigns the result to an
+  optional column, or that passes it to `coalesce`, still compiles and
+  renders the same SQL.
+
+- **Build-validation manifest format version 2** (issue #658). New manifests
+  are written as `format_version: 2`, and the reader accepts versions 1 and 2.
+  A version 1 manifest decodes, validates, and encodes to the same bytes as on
+  1.8.
+  - `SQLiteBuildValidationManifest.conformanceInventoryVersion` and
+    `combinatorialManifestVersion` are now `String?`, and so are the same
+    properties on `SQLiteBuildValidationReport` and
+    `SQLiteBuildValidationPlanReport`. Code that reads them must handle `nil`.
+    A report omits the two keys when the manifest omits them.
+  - `SQLiteBuildValidationParameterEntry.valueTypeName` and
+    `SQLiteBuildValidationResultEntry.valueTypeName` are now `String?`.
+  - `SQLiteBuildValidationManifestFormatVersion.current` is now `.v2`. To keep
+    writing version 1, pass `formatVersion: .v1`.
+  - `SQLiteBuildValidationManifestError` gains `unknownKey(path:)`, and
+    `SQLiteBuildValidationPlanSuppressionError` gains `unknownKey(path:)`. A
+    `switch` with no `default` clause must handle the new case.
+
+- **Unknown keys fail closed** (issue #658). The manifest and the plan
+  suppression file (`swiftql-plan-analysis.json`) reject a key their schema
+  does not define, at every level, with `unknownKey(path:)`. A misspelled
+  optional key no longer decodes as an absent field. A file that decoded on
+  1.8 because it had an extra key now fails. Remove or correct the key.
+
 ### Added
 
 - **A declared query can be observed** (issue #660). The prepared form of a
@@ -60,8 +119,87 @@
   be observed. The `@SQLQuery` peer executor already ran on a scope. The to-do
   demo's transactions now use its declared reads.
 
+- The JSON mutation functions have overloads whose result follows the
+  document's nullability (issue #664). A mutation on a `NOT NULL` column
+  assigns back to that column without `coalesce`. A `String?` or `Data?`
+  document keeps the optional result. `jsonPatched(with:)` and
+  `jsonbPatched(with:)` stay optional, because a `NULL` patch also gives
+  `NULL`. The to-do demo's checklist writes no longer end with `coalesce`.
+
+- **`GRDBDatabase.insert(contentsOf:)` inserts many rows through one
+  statement** (issue #668). A loop of
+  `makeRequest(with: sqlInsert(row)).execute()` renders each row's values into
+  the SQL as literals, so every row renders a new statement and SQLite prepares
+  every distinct row again. `insert(contentsOf:)` renders the insert once, with
+  a bound parameter in place of each literal, prepares it once for the call,
+  and binds each row through an invocation packet. A 100-row batch inside one
+  transaction renders once and prepares once, where the per-row loop renders
+  and prepares 100 times.
+  - On a `withTransaction(_:)` scope the rows run inside a savepoint in that
+    transaction. When a row fails, every row of the call rolls back and the
+    body's other writes stay. On any other database the call opens one write
+    transaction, so either every row commits or none does.
+  - The prepared statement is a local value of the call, on the connection that
+    prepared it. It never outlives the call's connection access, so a pooled
+    connection or an ended scope cannot keep it.
+  - A row whose values cannot be bound -- a value that renders as SQL other
+    than one literal, or a value that fails to render, such as a non-finite
+    `Double` -- renders on its own as `sqlInsert(_:)` does, in the same
+    transaction, and fails with the same error.
+  - The SQL `sqlInsert(_:)` renders for one row does not change.
+  - On the Issue259 `transactional_write` workload, SwiftQL's median for one
+    100-row transaction fell from 993.42 us and 1.00 ms (per-row
+    `sqlInsert(_:)`, process spreads 5.1% and 4.0%) to 363.98 us and
+    358.17 us (`insert(contentsOf:)`, spreads 5.3% and 4.5%), in alternating
+    runs on one shared host. See `Benchmarks/Comparison/Issue259/README.md`.
+
+- **Build-time validation from an Xcode application target.**
+  `SwiftQLSQLiteBuildValidationPlugin` now also conforms to
+  `XcodeBuildToolPlugin`, so an Xcode project target, such as an app, can add
+  it under "Run Build Tool Plug-ins" (issue #666). Before, only a SwiftPM
+  target could adopt it. The target makes
+  `swiftql-build-validation-manifest.json` and
+  `swiftql-build-validation-snapshot.sqlite` member files, in one folder. It
+  can add `swiftql-plan-analysis.json` beside them to turn on plan analysis.
+  The plugin finds these files by name among the target's input files, and
+  runs the same validator command as the SwiftPM path. An invalid manifest
+  fails the app's build with the validator's diagnostic.
+  `IntegrationTests/BuildValidationPluginFixture/verify-xcode.sh` now builds
+  an application target and checks the correctness report, the plan sidecar,
+  and the failure on an invalid manifest. SwiftPM targets see no change.
+- `validJSONOrJSONBOrNull()` renders `json_valid(X, 9)` (issue #671). It
+  checks text as RFC 8259 JSON, accepts a blob that is well-formed JSONB or
+  that holds well-formed JSON text, and needs SQLite 3.45.0.
+  `validJSONOrNull()` still renders `json_valid(X)`, which reports false for
+  every JSONB blob.
+
 ### Changed
 
+- **A `Bool` written into JSON is a JSON boolean** (issue #671). The same
+  functions as above write a Swift `Bool` as `true` or `false`, not as `1` or
+  `0`. A `Bool` literal renders as `json('true')` or `json('false')`. Any
+  other `Bool` expression renders as
+  `json(CASE X <> 0 WHEN 1 THEN 'true' WHEN 0 THEN 'false' END)`, so SQL
+  `NULL` stays JSON `null`. A `Codable` reader of a `Bool` field now reads the
+  stored document. Code that reads such a member as a number must change.
+  The to-do demo no longer writes `json('true')` by hand.
+
+- **Manifest format version 2** (issue #658) lets a generated manifest be
+  valid without invented provenance. In version 2,
+  `conformance_inventory_version` and `combinatorial_manifest_version` are
+  optional, `queries` can be empty, and `value_type_name` is optional on each
+  parameter and result. An absent provenance field means that the manifest was
+  not authored against SwiftQL's test inventories. A present field must not be
+  empty, and a `conformance_feature_ids` or `conformance_case_ids` reference
+  requires its inventory version. `nullability` stays required, because
+  validation checks it. Version 1 keeps every check it had. The to-do demo's
+  manifest is now version 2 with no provenance.
+
+- **Version-first decoding** (issue #658). The manifest and the plan
+  suppression file decode `format_version` before anything else. A document
+  in a version the reader does not know fails with `unsupportedFormatVersion`,
+  not with a decoding error from its body. `SQLiteBuildValidationPlanSuppressions`
+  gains `decode(_:)` for in-memory data.
 - OpenCombine is a Linux-only dependency (issue #669). The `SwiftQL` target
   and the test targets that import OpenCombine now use
   `condition: .when(platforms: [.linux])` on the `OpenCombine`,
@@ -72,6 +210,28 @@
   `from: "0.14.0"`. A consumer graph that needs a later compatible OpenCombine
   release now resolves. `Package.resolved` keeps the tested 0.14.0 pin, and
   the committed-resolution CI cells still build against it.
+- **CI: Linux on Swift 6, and a shorter main-branch run.** The compatibility
+  matrix adds a Swift 6.3.2 Linux cell (issue #672). It installs its toolchain
+  through the same signature-verified Swift.org archive path and pinned SQLite
+  3.53.3 build as the Swift 5.9.2 cells, so the OpenCombine bridge and the
+  Foundation-backed codecs now run under swift-foundation. Source coverage is
+  no longer a separate macOS job that runs the suite twice: the Swift 6.0
+  committed cell runs the suite once under coverage, and a verifier derives the
+  expected source selection from `git ls-files` and the coverage config. The
+  Getting Started playground check moves to the Swift 5.9 Linux committed cell,
+  and complete strict concurrency runs once, on the Swift 6.0 clean cell.
+  `COMPATIBILITY.md` records the account's macOS runner limit that these moves
+  work around.
+- **Release: version claims are a release gate, not test pins.** The release
+  workflow runs `scripts/ci/check-release-version-claims.sh` on the exact tag
+  commit and fails unless the six published-version claims name the tag's
+  version. The Swift documentation tests compare those claims with the newest
+  dated CHANGELOG heading instead of a literal, and no longer pin SKILL.md's
+  release sentence verbatim, so a version bump touches no test file.
+- **To-do demo: live-query tests await state.** The demo's test target gains
+  an Observation-driven wait with a named 10-second backstop. The tests no
+  longer poll with `Task.sleep`, and no shipping product imports XCTest.
+
 - **A declared query accepts a parameter as a method or clause argument**
   (issue #661). `@SQLQuery` and `@SQLQueries` now rewrite a parameter passed
   to a DSL method or clause, such as `column.like(pattern)`,
@@ -95,6 +255,39 @@
   named `From` rewrote the `From(…)` clause. The rewrite now leaves key-path
   components and callees unchanged, and the macro reports the shared name at
   the declaration.
+
+- **A `@SQLTable` or `@SQLResult` property default now applies** (issue #665,
+  recorded on #469). The generated memberwise initializer gives a `var`
+  property with an initial value a default for its parameter, so a call can
+  leave that property out. Before this change, the initializer ignored the
+  initial value and required the argument. The default refers to a generated
+  `@usableFromInline` static accessor that returns the initial value. Thus a
+  `public` model whose initial value refers to a `private` member still
+  compiles. The change is source compatible: every existing call passes every
+  argument and so still compiles. The value is a Swift default only and does
+  not add a SQL `DEFAULT` clause. A `let` property with an initial value is
+  still an error, because the initializer cannot assign it. The diagnostic
+  now says that the value cannot be used as a default. The to-do demo gives
+  `Todo.checklist` its default again.
+
+- `XLJSONPath.key(_:)` quotes a key that begins with `"` or holds a control
+  character (issue #671). SQLite rejected the unquoted form of a leading-quote
+  key as a bad JSON path on every version. Such a key resolves on a SQLite
+  that unescapes JSON labels, as the type documentation states.
+- The documentation of `jsonArrayLength` states what SQLite returns: `0` for a
+  value that is not an array, and `NULL` only for a path that selects nothing
+  (issue #671).
+
+### Documentation
+
+- SwiftQL 1.x states that it supports GRDB 6 only (issue #667). The manifest
+  range stays `from: "6.29.3"` (`6.29.3..<7.0.0`). `COMPATIBILITY.md` and the
+  README Install section now say that an application on GRDB 7 cannot resolve
+  SwiftQL 1.x. `Research/GRDB7Evaluation.md` records the build against GRDB
+  7.11.1 and the break list: the `CSQLite` product rename, the SQLite C module
+  that `import GRDB` no longer re-exports, and the `Sendable` closure and value
+  requirements. The `Sendable` findings go to the v2.0 `Row` decision (issue
+  #685).
 
 ## [1.8.1] - 2026-09-15
 

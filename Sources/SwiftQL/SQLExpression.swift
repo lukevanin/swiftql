@@ -422,6 +422,24 @@ public struct XLFunction<T>: XLExpression where T: XLLiteral {
 
 
 ///
+/// A function call whose SQL name is known at render time.
+///
+/// JSON value arguments use this to tell a JSONB function result, which
+/// SQLite reads as JSON, from any other blob, which it rejects.
+///
+protocol XLNamedFunction {
+    var functionName: String { get }
+}
+
+
+extension XLFunction: XLNamedFunction {
+    var functionName: String {
+        name
+    }
+}
+
+
+///
 /// An enum that is used as a column on an `SQLTable` or `SQLResult`.
 ///
 /// To use an enum for a column the enum must adhere to the following conditions:
