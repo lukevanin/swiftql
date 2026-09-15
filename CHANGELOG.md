@@ -4,6 +4,16 @@
 
 ### Changed
 
+- OpenCombine is a Linux-only dependency (issue #669). The `SwiftQL` target
+  and the test targets that import OpenCombine now use
+  `condition: .when(platforms: [.linux])` on the `OpenCombine`,
+  `OpenCombineDispatch`, and `OpenCombineFoundation` products. An Apple-platform
+  build uses Combine and compiles and links no OpenCombine module. SwiftPM can
+  still fetch the package on Apple platforms, because the manifest declares it.
+- The OpenCombine requirement changes from `exact: "0.14.0"` to
+  `from: "0.14.0"`. A consumer graph that needs a later compatible OpenCombine
+  release now resolves. `Package.resolved` keeps the tested 0.14.0 pin, and
+  the committed-resolution CI cells still build against it.
 - **A declared query accepts a parameter as a method or clause argument**
   (issue #661). `@SQLQuery` and `@SQLQueries` now rewrite a parameter passed
   to a DSL method or clause, such as `column.like(pattern)`,
