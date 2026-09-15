@@ -49,7 +49,7 @@ owner `lukevanin`).
 A **milestone** is one app-version release **or** one experiment/spike.
 
 - List existing milestones (`list_milestones`, `state: all`) and reuse one if it
-  fits — many versions (v1.4.4–v1.4.6, v1.5–v1.7, v2, v2.1–v2.8) already exist.
+  fits — many versions already exist (v1.8.1, v1.9, and v2.0–v2.10 are open).
 - Otherwise `create_milestone` with a version title (`vX.Y.Z`) for a release, or
   a descriptive title for an experiment/spike.
 
