@@ -68,6 +68,11 @@ extension XLExpression {
     /// Adds a value at each path that does not already hold one, rendering
     /// SQLite's `json_insert(X, P, V, ...)`.
     ///
+    /// In this function and its siblings, a `Bool` value is written as JSON
+    /// `true` or `false`, not `1` or `0`. A `Data` value is rejected before
+    /// SQLite prepares the statement unless it is the result of a `jsonb`
+    /// function.
+    ///
     /// A path that already holds a value is left alone. Use
     /// ``jsonSetting(_:_:)`` to add or overwrite, and ``jsonReplacing(_:_:)``
     /// to overwrite only.
@@ -81,7 +86,7 @@ extension XLExpression {
     ) -> some XLExpression<String?> where T: XLLiteral {
         XLFunction<String?>(
             name: "json_insert",
-            parameters: [self] + Self.flattened([first] + rest)
+            parameters: [self] + Self.flattened([first] + rest, function: "json_insert")
         )
     }
 
@@ -97,7 +102,7 @@ extension XLExpression {
     ) -> some XLExpression<String?> where T: XLLiteral {
         XLFunction<String?>(
             name: "json_replace",
-            parameters: [self] + Self.flattened([first] + rest)
+            parameters: [self] + Self.flattened([first] + rest, function: "json_replace")
         )
     }
 
@@ -111,7 +116,7 @@ extension XLExpression {
     ) -> some XLExpression<String?> where T: XLLiteral {
         XLFunction<String?>(
             name: "json_set",
-            parameters: [self] + Self.flattened([first] + rest)
+            parameters: [self] + Self.flattened([first] + rest, function: "json_set")
         )
     }
 
@@ -151,13 +156,16 @@ extension XLExpression {
     /// Flattens path/value pairs into the flat argument list SQLite takes.
     ///
     private static func flattened(
-        _ assignments: [(XLJSONPath, any XLExpression)]
+        _ assignments: [(XLJSONPath, any XLExpression)],
+        function: String
     ) -> [any XLExpression] {
         var parameters: [any XLExpression] = []
         parameters.reserveCapacity(assignments.count * 2)
         for assignment in assignments {
             parameters.append(assignment.0)
-            parameters.append(assignment.1)
+            parameters.append(
+                XLJSONValueArgument(assignment.1, function: function)
+            )
         }
         return parameters
     }

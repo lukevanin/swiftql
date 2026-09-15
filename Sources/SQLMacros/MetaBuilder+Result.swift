@@ -211,8 +211,14 @@ extension MetaBuilder {
     func makeMemberwizeInitializer() -> String {
         var context = CodeWriter()
         var parameters: [String] = []
+        let defaultValueAccessors = defaultValueAccessorNames()
         for property in properties {
-            parameters.append("\(property.name): \(property.qualifiedType)")
+            if let accessor = defaultValueAccessors[property.name] {
+                parameters.append("\(property.name): \(property.qualifiedType) = Self.\(accessor)")
+            }
+            else {
+                parameters.append("\(property.name): \(property.qualifiedType)")
+            }
         }
         context.block("public init(\(parameters.joined(separator: ", ")))") { context in
             for property in properties {
@@ -220,5 +226,49 @@ extension MetaBuilder {
             }
         }
         return context.build()
+    }
+
+    ///
+    /// One static accessor per property that declares an initial value, returning that value
+    /// (issue #665).
+    ///
+    /// The memberwise initializer names the accessor as the parameter's default rather than
+    /// restating the initial value. The initializer is `public`, and Swift only lets a default
+    /// argument of a public function reference public or `@usableFromInline` declarations, while
+    /// a stored property's initial value may reference anything visible to the type. Restating a
+    /// value that references a `private` member would therefore make a model that compiles today
+    /// fail on the generated initializer. The accessor is `@usableFromInline` so the default may
+    /// name it, and its body is not inlinable, so it may reference whatever the initial value
+    /// does.
+    ///
+    func makeDefaultValueAccessors() -> [String] {
+        let defaultValueAccessors = defaultValueAccessorNames()
+        return properties.compactMap { property in
+            guard
+                let expression = property.defaultValueExpression,
+                let accessor = defaultValueAccessors[property.name]
+            else {
+                return nil
+            }
+            var context = CodeWriter()
+            context.block("@usableFromInline static var \(accessor): \(property.qualifiedType)") { context in
+                context.line(expression)
+            }
+            return context.build()
+        }
+    }
+
+    /// The generated accessor name for each property with an initial value, keyed by property
+    /// name. Both emitters derive their names from here, so the default always names the accessor
+    /// that is generated.
+    private func defaultValueAccessorNames() -> [String: String] {
+        var allocator = GeneratedIdentifierAllocator(
+            used: generatedIdentifierReservations
+        )
+        var names: [String: String] = [:]
+        for property in properties where property.defaultValueExpression != nil {
+            names[property.name] = allocator.allocate("_swiftQLDefault_\(property.alias)")
+        }
+        return names
     }
 }

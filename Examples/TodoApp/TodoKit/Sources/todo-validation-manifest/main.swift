@@ -563,9 +563,9 @@ func manifest(
     schemaRowCount: Int,
     schemaFingerprint: String
 ) -> SQLiteBuildValidationManifest {
+    // Format version 2, with no fixture provenance: the demo's queries are
+    // its own, not authored against SwiftQL's #190/#191 test inventories.
     SQLiteBuildValidationManifest(
-        conformanceInventoryVersion: "190.1.0",
-        combinatorialManifestVersion: "c191-v2",
         schemaSnapshot: SQLiteBuildValidationSchemaSnapshot(
             identifier: "todo-demo.schema",
             databaseSHA256: SQLiteBuildValidationSHA256.hexDigest(
