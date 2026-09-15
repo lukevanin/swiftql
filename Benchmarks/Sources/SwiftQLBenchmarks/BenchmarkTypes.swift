@@ -1,6 +1,6 @@
 import Foundation
 
-public enum BenchmarkPhase: String, Codable, CaseIterable {
+public enum BenchmarkPhase: String, Codable, CaseIterable, Sendable {
     case swiftQLConstructionAndRendering = "swiftql_construction_and_rendering"
     case coldStatementPreparation = "cold_statement_preparation"
     case cachedStatementLookup = "cached_statement_lookup"
