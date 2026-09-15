@@ -50,6 +50,33 @@
 
 ### Added
 
+- **`GRDBDatabase.insert(contentsOf:)` inserts many rows through one
+  statement** (issue #668). A loop of
+  `makeRequest(with: sqlInsert(row)).execute()` renders each row's values into
+  the SQL as literals, so every row renders a new statement and SQLite prepares
+  every distinct row again. `insert(contentsOf:)` renders the insert once, with
+  a bound parameter in place of each literal, prepares it once for the call,
+  and binds each row through an invocation packet. A 100-row batch inside one
+  transaction renders once and prepares once, where the per-row loop renders
+  and prepares 100 times.
+  - On a `withTransaction(_:)` scope the rows run inside a savepoint in that
+    transaction. When a row fails, every row of the call rolls back and the
+    body's other writes stay. On any other database the call opens one write
+    transaction, so either every row commits or none does.
+  - The prepared statement is a local value of the call, on the connection that
+    prepared it. It never outlives the call's connection access, so a pooled
+    connection or an ended scope cannot keep it.
+  - A row whose values cannot be bound -- a value that renders as SQL other
+    than one literal, or a value that fails to render, such as a non-finite
+    `Double` -- renders on its own as `sqlInsert(_:)` does, in the same
+    transaction, and fails with the same error.
+  - The SQL `sqlInsert(_:)` renders for one row does not change.
+  - On the Issue259 `transactional_write` workload, SwiftQL's median for one
+    100-row transaction fell from 993.42 us and 1.00 ms (per-row
+    `sqlInsert(_:)`, process spreads 5.1% and 4.0%) to 363.98 us and
+    358.17 us (`insert(contentsOf:)`, spreads 5.3% and 4.5%), in alternating
+    runs on one shared host. See `Benchmarks/Comparison/Issue259/README.md`.
+
 - **Build-time validation from an Xcode application target.**
   `SwiftQLSQLiteBuildValidationPlugin` now also conforms to
   `XcodeBuildToolPlugin`, so an Xcode project target, such as an app, can add
@@ -64,7 +91,6 @@
   `IntegrationTests/BuildValidationPluginFixture/verify-xcode.sh` now builds
   an application target and checks the correctness report, the plan sidecar,
   and the failure on an invalid manifest. SwiftPM targets see no change.
-
 - `validJSONOrJSONBOrNull()` renders `json_valid(X, 9)` (issue #671). It
   checks text as RFC 8259 JSON, accepts a blob that is well-formed JSONB or
   that holds well-formed JSON text, and needs SQLite 3.45.0.
