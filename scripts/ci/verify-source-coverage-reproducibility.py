@@ -574,7 +574,15 @@ def load_report_module() -> Any:
     if specification is None or specification.loader is None:
         raise ReproducibilityError(f"could not load {path}")
     module = importlib.util.module_from_spec(specification)
-    specification.loader.exec_module(module)
+    # Loading a module by path would otherwise write
+    # scripts/ci/__pycache__/ into the checkout, and CI's clean-checkout gate
+    # fails on that untracked directory.
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        specification.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
     return module
 
 
