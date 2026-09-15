@@ -30,16 +30,39 @@ counts, and write rollback behavior without enforcing machine-dependent time.
 This section names the baseline that describes the code that ships. Earlier
 baselines stay in the repository as history; they are not deleted or rewritten.
 
-**Current baseline: not recorded yet.** Issue #670 records it on the final
-v1.9 code, on an idle host, with [`Benchmarks/record-baselines.sh`](#re-record-the-baselines).
-Until then, no row below has a revision or a date, and the figures in the
-historical baselines predate the August 2026 decode work.
+**Current baseline: revision `ac7ac296`, recorded 2026-09-15 (UTC).** All three
+reports come from one revision and one host, recorded with
+[`Benchmarks/record-baselines.sh`](#re-record-the-baselines) from a clean
+checkout. A later merge of `version/1.9` into the recording branch added
+documentation only, and changed no library, macro, plugin, or benchmark code.
 
 | Evidence | Files | Revision | Recorded |
 | --- | --- | --- | --- |
-| Phase harness, format version 2 | `Benchmarks/Baselines/<YYYY-MM-DD>-<machine>-run-{1,2,3}.json` | _not recorded yet_ | _not recorded yet_ |
-| Cross-library full fetch | `Benchmarks/Comparison/Recordings/<YYYY-MM-DD>-<machine>/` | _not recorded yet_ | _not recorded yet_ |
-| Consumer compile time, `extended` matrix | `Benchmarks/CompileTime/Recordings/<YYYY-MM-DD>-<machine>/` | _not recorded yet_ | _not recorded yet_ |
+| Phase harness, format version 2 | `Benchmarks/Baselines/2026-09-15-mac16-8-run-{1,2,3}.json` | `ac7ac296` | 2026-09-15 |
+| Cross-library full fetch | `Benchmarks/Comparison/Recordings/2026-09-15-mac16-8/` | `ac7ac296` | 2026-09-15 |
+| Consumer compile time, `extended` matrix | `Benchmarks/CompileTime/Recordings/2026-09-15-mac16-8/` | `ac7ac296` | 2026-09-15 |
+
+Recording conditions:
+
+- Host: Mac16,8, Apple M4 Pro, arm64, 14 cores, 24 GiB memory, macOS 26.6.2
+  (25G83).
+- Toolchain: Xcode 27.0 (27A266a), Swift 6.4, SQLite 3.51.0, GRDB 6.29.3.
+  SwiftPM used its default build system, Swift Build.
+- Host load: the one-minute average stayed between 1.36 and 5.74 over 19
+  samples during the run. Every sample came from the recording's own work; no
+  other build ran on the host.
+- Phase harness: three independent release processes, 50 warmups and 500
+  samples per phase, 84 measurements per report.
+- Compile time: 240 measurements, three build processes per cell, tables 1, 10,
+  100, and 500, queries 1, 10, and 100. No sample was rejected.
+- Comparison: three isolated processes per implementation, 10 warmups and 100
+  timed full fetches per process, after a 180-second cooldown.
+
+**These figures do not compare directly with the historical baselines below.**
+The historical reports used Swift 6.3.2 with SwiftPM's native build system, and
+this baseline uses Swift 6.4 with Swift Build. Compile-time figures from the
+two build systems measure different builds, and the runtime figures come from a
+different compiler.
 
 Historical baselines:
 
