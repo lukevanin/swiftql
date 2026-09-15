@@ -749,6 +749,12 @@ internal struct SQLQueryBuilder {
 /// while a parameter also called `name` is still rewritten wherever it appears
 /// as the base of a member access or as a standalone reference.
 ///
+/// Two further positions name something other than the parameter and are
+/// never rewritten either: a key-path component (`\Person.name`) and the
+/// callee of a call (`From(person)`). The frozen-literal guard reports a
+/// parameter whose name appears in either position, so a declaration that
+/// reaches this rewriter has no reference there to lose.
+///
 internal final class SQLQueryParameterRewriter: SyntaxRewriter {
 
     private let replacements: [String: String]
@@ -790,7 +796,21 @@ internal final class SQLQueryParameterRewriter: SyntaxRewriter {
                 .with(\.trailingTrivia, callee.baseName.trailingTrivia)
             node = node.with(\.calledExpression, ExprSyntax(callee.with(\.baseName, token)))
         }
-        return super.visit(node)
+        // A plain identifier callee (`From(…)`, `Limit<…>(…)`) names a function
+        // or type, never a parameter value, so it is restored after the
+        // arguments and trailing closures are rewritten. A member-access
+        // callee (`column.like(…)`) keeps the default treatment: its base is an
+        // expression that may reference a parameter, and its member name is
+        // already left alone.
+        guard SQLQueryFrozenLiteralGuard.calleeIdentifier(of: node.calledExpression) != nil else {
+            return super.visit(node)
+        }
+        let callee = node.calledExpression
+        let rewritten = super.visit(node)
+        guard let call = rewritten.as(FunctionCallExprSyntax.self) else {
+            return rewritten
+        }
+        return ExprSyntax(call.with(\.calledExpression, callee))
     }
 
     override func visit(_ node: MemberAccessExprSyntax) -> ExprSyntax {
@@ -798,6 +818,12 @@ internal final class SQLQueryParameterRewriter: SyntaxRewriter {
             return ExprSyntax(node)
         }
         return ExprSyntax(node.with(\.base, visit(base)))
+    }
+
+    override func visit(_ node: KeyPathPropertyComponentSyntax) -> KeyPathPropertyComponentSyntax {
+        // `\Person.name` names a property. Rewriting the component would put
+        // an expression where the grammar needs an identifier.
+        node
     }
 }
 
@@ -954,11 +980,27 @@ internal final class SQLQueryParameterMemberAccessVisitor: SyntaxVisitor {
 /// text on every call, so any parameter value that escapes the rewrite is
 /// baked into the cached SQL on the first invocation and every later call
 /// silently returns results for the first call's argument — a silent
-/// wrong-results bug. The rewrite can only turn a parameter reference into a
-/// named binding when the reference sits directly in a query-expression
-/// position (an operand of a comparison such as `column == name`). This guard
-/// reports the reference shapes that place a parameter somewhere the rewrite
-/// cannot reach, so the hazard becomes a declaration-site error instead.
+/// wrong-results bug.
+///
+/// The rewrite replaces every expression reference to a parameter, wherever
+/// it sits — a comparison operand, an argument to a DSL method such as
+/// `column.like(pattern)` or `column.regexp(pattern)`, a clause argument such
+/// as `Limit(count)`, a local binding, or a nested closure. The generated
+/// statement therefore never holds the value itself. The type checker then
+/// rejects any use that needs the Swift value rather than an expression.
+///
+/// What remains are the shapes where the replacement is either not an
+/// expression reference or not what the author meant:
+///
+///   * a string interpolation, which renders the binding reference into the
+///     text instead of binding a placeholder;
+///   * a key-path component (`\Person.name`) or a callee (`From(person)`)
+///     that shares a parameter's name. The rewrite leaves both unchanged,
+///     because neither is a reference to the parameter, and the shared name
+///     is reported so a reader never has to work out which one is meant.
+///
+/// Member access on a parameter is reported by
+/// ``SQLQueryParameterMemberAccessVisitor``.
 ///
 /// Every parameter reference actually seen is recorded in
 /// ``referencedParameterNames`` so the builder can additionally flag a
@@ -986,9 +1028,8 @@ internal final class SQLQueryFrozenLiteralGuard: SyntaxVisitor {
         // A hand-constructed binding reference bypasses the signature contract:
         // the macro is the sole authority for the placeholder name and type, so
         // building one by hand can disagree with the rendered layout. A callee
-        // that is itself a parameter of the same name (a function-typed
-        // parameter) is not manual binding construction — it falls to the
-        // compiler like any other callee-is-a-parameter case, so it is skipped.
+        // that shares a parameter's name is not manual binding construction —
+        // the callee diagnostic below reports it, so it is skipped here.
         if let calleeName = Self.calledBaseName(of: node.calledExpression),
            !parameterNames.contains(calleeName),
            calleeName == "XLNamedBindingReference" || calleeName == "contextualBinding" {
@@ -1021,12 +1062,31 @@ internal final class SQLQueryFrozenLiteralGuard: SyntaxVisitor {
     }
 
     ///
-    /// Reports the first recognized hazardous position for a parameter
-    /// reference. A reference that matches none of these is left for the
-    /// rewrite (typically a comparison operand) and any residual type mismatch
-    /// is caught by the compiler on the generated code.
+    /// Reports the first recognized hazardous position for a parameter name.
+    /// A reference that matches none of these is left for the rewrite, and any
+    /// residual type mismatch is caught by the compiler on the generated code.
     ///
     private func classify(reference node: DeclReferenceExprSyntax, identifier: String) {
+        if node.parent?.is(KeyPathPropertyComponentSyntax.self) == true {
+            diagnostics.append(
+                Diagnostic(
+                    node: node,
+                    id: "sqlquery-parameter-key-path-component",
+                    message: "'\(identifier)' is a query parameter and also a key-path component in the '\(macroName)' body. The rewrite leaves a key-path component unchanged, so the two uses of the name mean different things. Rename the parameter."
+                )
+            )
+            return
+        }
+        if Self.isCallee(node) {
+            diagnostics.append(
+                Diagnostic(
+                    node: node,
+                    id: "sqlquery-parameter-callee",
+                    message: "'\(identifier)' is a query parameter and also the name of a called function or type in the '\(macroName)' body. The rewrite leaves a callee unchanged, and a parameter value cannot be called, so the two uses of the name mean different things. Rename the parameter."
+                )
+            )
+            return
+        }
         if hasAncestor(node, upToEnclosingFunction: { $0.is(ExpressionSegmentSyntax.self) }) {
             diagnostics.append(
                 Diagnostic(
@@ -1037,36 +1097,39 @@ internal final class SQLQueryFrozenLiteralGuard: SyntaxVisitor {
             )
             return
         }
-        if closureDepth(of: node) >= 2 {
-            diagnostics.append(
-                Diagnostic(
-                    node: node,
-                    id: "sqlquery-parameter-nested-closure",
-                    message: "'\(identifier)' is captured by a nested closure in the '\(macroName)' body. The rewrite only reaches references in the statement builder itself, so a value captured deeper can escape into the cached SQL as a frozen literal. Reference the parameter directly in the statement."
-                )
-            )
-            return
+    }
+
+    ///
+    /// The identifier of a plain callee — a bare name (`From`) or a bare name
+    /// with generic arguments (`Limit<…>`) — or `nil` for any other called
+    /// expression, such as a member access (`column.like`).
+    ///
+    /// Shared with ``SQLQueryParameterRewriter``, so the position the guard
+    /// reports is exactly the position the rewrite leaves unchanged.
+    ///
+    static func calleeIdentifier(of expression: ExprSyntax) -> DeclReferenceExprSyntax? {
+        if let declReference = expression.as(DeclReferenceExprSyntax.self) {
+            return declReference
         }
-        if isDirectCallArgument(node) {
-            diagnostics.append(
-                Diagnostic(
-                    node: node,
-                    id: "sqlquery-parameter-call-argument",
-                    message: "'\(identifier)' is passed as an argument to a function call in the '\(macroName)' body. The rewrite cannot see through the call, so the value would be frozen into the cached SQL on the first invocation. Use the parameter directly as a comparison operand (for example 'column == \(identifier)') instead of passing it to a helper."
-                )
-            )
-            return
+        if let specialization = expression.as(GenericSpecializationExprSyntax.self) {
+            return specialization.expression.as(DeclReferenceExprSyntax.self)
         }
-        if isVariableInitializer(node) {
-            diagnostics.append(
-                Diagnostic(
-                    node: node,
-                    id: "sqlquery-parameter-local-binding",
-                    message: "'\(identifier)' is used to initialize a local binding in the '\(macroName)' body. The binding's later uses are outside the rewrite's reach, so the value can freeze into the cached SQL. Reference the parameter directly in the statement instead of storing it in a local."
-                )
-            )
-            return
+        return nil
+    }
+
+    ///
+    /// Whether the reference is the plain callee of a function call.
+    ///
+    private static func isCallee(_ node: DeclReferenceExprSyntax) -> Bool {
+        var calleeExpression = Syntax(node)
+        if let specialization = node.parent?.as(GenericSpecializationExprSyntax.self) {
+            calleeExpression = Syntax(specialization)
         }
+        guard let call = calleeExpression.parent?.as(FunctionCallExprSyntax.self),
+              Syntax(call.calledExpression) == calleeExpression else {
+            return false
+        }
+        return calleeIdentifier(of: call.calledExpression) == node
     }
 
     ///
@@ -1106,52 +1169,5 @@ internal final class SQLQueryFrozenLiteralGuard: SyntaxVisitor {
             current = ancestor.parent
         }
         return false
-    }
-
-    ///
-    /// The number of closures enclosing the reference within the specification
-    /// function. The statement builder is itself a closure, so a value of one
-    /// is the normal case and two or more means a further-nested closure.
-    ///
-    private func closureDepth(of node: SyntaxProtocol) -> Int {
-        var depth = 0
-        var current = node.parent
-        while let ancestor = current {
-            if ancestor.is(FunctionDeclSyntax.self) {
-                break
-            }
-            if ancestor.is(ClosureExprSyntax.self) {
-                depth += 1
-            }
-            current = ancestor.parent
-        }
-        return depth
-    }
-
-    ///
-    /// Whether the reference is a direct argument expression of a function
-    /// call. A comparison operand's parent is an infix operator expression, and
-    /// a parenthesized operand's argument list belongs to a tuple, so neither is
-    /// mistaken for a call argument.
-    ///
-    private func isDirectCallArgument(_ node: DeclReferenceExprSyntax) -> Bool {
-        guard let labeled = node.parent?.as(LabeledExprSyntax.self),
-              let list = labeled.parent?.as(LabeledExprListSyntax.self) else {
-            return false
-        }
-        return list.parent?.is(FunctionCallExprSyntax.self) == true
-    }
-
-    ///
-    /// Whether the reference is the initializer value of a local `let`/`var`
-    /// binding (`let alias = name`).
-    ///
-    private func isVariableInitializer(_ node: DeclReferenceExprSyntax) -> Bool {
-        hasAncestor(node, upToEnclosingFunction: { ancestor in
-            guard let initializer = ancestor.as(InitializerClauseSyntax.self) else {
-                return false
-            }
-            return initializer.parent?.is(PatternBindingSyntax.self) == true
-        })
     }
 }

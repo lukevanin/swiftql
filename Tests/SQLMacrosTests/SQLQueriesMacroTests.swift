@@ -204,6 +204,121 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
     }
 
     ///
+    /// Issue #661: in the container form the rewritten statement is inlined
+    /// into the context executor, where the parameter's value is in scope. A
+    /// parameter passed to `like`, `regexp`, or `Limit` must still become its
+    /// named binding there, so no reference is left to capture the value.
+    ///
+    func test_matchingMethodAndLimitArguments_rewriteInsideContextExecutor() {
+        assertMacroExpansion(
+            """
+            @SQLQueries
+            extension MyDatabase {
+                private struct Query {
+                    func peopleMatching(pattern: String, count: Int) -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                            Where(person.name.like(pattern) || person.notes.regexp(pattern))
+                            Limit(count)
+                        }
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            extension MyDatabase {
+                private struct Query {
+                    func peopleMatching(pattern: String, count: Int) -> [Person] {
+                        sqlResult { schema in
+                            let person = schema.table(Person.self)
+                            Select(person)
+                            From(person)
+                            Where(person.name.like(pattern) || person.notes.regexp(pattern))
+                            Limit(count)
+                        }
+                    }
+                }
+
+                struct Context {
+                    let database: MyDatabase
+
+                    private static let __xlPeopleMatchingCache = XLRenderOnceCache<Person>()
+
+                    func peopleMatching(pattern: String, count: Int) throws -> [Person] {
+                        let __xlRequest = Self.__xlPeopleMatchingCache.request(for: database) {
+                            {
+                                sql { schema in
+                                    let person = schema.table(Person.self)
+                                    Select(person)
+                                    From(person)
+                                    Where(person.name.like(XLNamedBindingReference<String>(name: "pattern")) || person.notes.regexp(XLNamedBindingReference<String>(name: "pattern")))
+                                    Limit(XLNamedBindingReference<Int>(name: "count"))
+                                }
+                            }()
+                        }
+                        let __xlLayout = __xlRequest.parameterLayout
+                        let __xlPacket = try XLInvocationBindings<XLSQLiteValue>(
+                            layout: __xlLayout,
+                            bindings: [
+                                try _xlQueryParameterBinding(pattern, named: "pattern", in: __xlLayout),
+                                try _xlQueryParameterBinding(count, named: "count", in: __xlLayout),
+                            ]
+                        ).validatingComplete()
+                        return try __xlRequest.fetchAll(bindings: __xlPacket)
+                    }
+
+                    var declaredQueries: [XLDeclaredQuery] {
+                        let __xlStatement0: any XLQueryStatement<Person> = {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                                Where(person.name.like(XLNamedBindingReference<String>(name: "pattern")) || person.notes.regexp(XLNamedBindingReference<String>(name: "pattern")))
+                                Limit(XLNamedBindingReference<Int>(name: "count"))
+                            }
+                        }()
+                        return [
+                            XLDeclaredQuery(
+                                database: database,
+                                name: "peopleMatching",
+                                cardinality: .many,
+                                parameters: [
+                                    XLDeclaredQueryParameter(name: "pattern", valueType: String.self),
+                                    XLDeclaredQueryParameter(name: "count", valueType: Int.self),
+                                ],
+                                rowType: Person.self,
+                                statement: {
+                                    __xlStatement0
+                                }
+                            ),
+                        ]
+                    }
+                }
+
+                func execute<__XLResult>(_ __xlWork: (Context) throws -> __XLResult) throws -> __XLResult {
+                    try withTransaction { __xlScope in
+                        try __xlWork(Context(database: __xlScope))
+                    }
+                }
+
+                func peopleMatching(pattern: String, count: Int) throws -> [Person] {
+                    try execute { __xlContext in
+                        try __xlContext.peopleMatching(pattern: pattern, count: count)
+                    }
+                }
+
+                var declaredQueries: [XLDeclaredQuery] {
+                    Context(database: self).declaredQueries
+                }
+            }
+            """,
+            macros: makeTestMacros()
+        )
+    }
+
+    ///
     /// A backtick-escaped parameter label (a Swift reserved keyword, e.g.
     /// `class`) must not carry its backticks into the generated database-level
     /// executor's call-site argument label -- Swift call-site labels are never

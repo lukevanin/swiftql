@@ -88,7 +88,10 @@ final class DeclaredQueryScannerTests: XCTestCase {
 
         XCTAssertEqual(result.declarations, [])
         XCTAssertEqual(result.skipped.map(\.line), [1, 7, 12])
-        XCTAssertTrue(result.skipped[0].reason.contains("private or fileprivate"))
+        XCTAssertEqual(
+            result.skipped[0].reason,
+            "The @SQLQueries extension on GRDBDatabase is private or fileprivate, which the generated registry cannot reach. It is not in the declared-query registry and is not validated. Give it internal or wider access to validate it. To leave it out without this warning, mark it '// swiftql-registry: ignore'."
+        )
         XCTAssertTrue(result.skipped[1].reason.contains("'hidden'"))
         XCTAssertTrue(result.skipped[2].reason.contains("generic or constrained"))
         XCTAssertTrue(result.skipped[2].reason.contains(DeclaredQueryScanner.exclusionMarker))

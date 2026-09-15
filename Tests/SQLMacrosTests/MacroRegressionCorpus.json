@@ -409,6 +409,69 @@
         ]
       },
       "evidence": []
+    },
+    {
+      "id": "macro.declared-query-method-and-clause-arguments",
+      "category": "declared-query-parameter-positions",
+      "title": "Declared-query parameter passed to a DSL matching method or clause",
+      "description": "Issue #661: an @SQLQuery or @SQLQueries parameter passed as the argument of like(_:), regexp(_:), or Limit(_:) is rewritten to its named binding, and every invocation binds its own value. The container form is covered too, because it inlines the rewritten statement where the parameter's value is in scope.",
+      "provenance": {
+        "inspiration": "n/a -- recorded from this repository's own issue #661 and the to-do demo's search read (#469), not adapted from an external case.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLQueryMacroTests.swift",
+          "test_case": "SQLQueryMacroExpansionTests.test_matchingMethodAndClauseArguments_rewriteToNamedBindings"
+        },
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLQueriesMacroTests.swift",
+          "test_case": "SQLQueriesMacroExpansionTests.test_matchingMethodAndLimitArguments_rewriteInsideContextExecutor"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "Tests/SQLTests/SQLQueryPeerMacroTests.swift",
+          "test_case": "XLQueryPeerMacroTests.testLikeAndLimitExecutorBindsEachInvocation / testRegexpExecutorBindsEachInvocation"
+        },
+        {
+          "layer": "real-sqlite-execution",
+          "source_path": "Tests/SQLTests/SQLQueriesContainerTests.swift",
+          "test_case": "XLQueriesContainerTests.testContainerExecutorBindsLikeRegexpAndLimitParameters"
+        }
+      ]
+    },
+    {
+      "id": "macro.declared-query-parameter-name-collisions",
+      "category": "source-located-diagnostics",
+      "title": "Declared-query parameter named like a key-path component or a DSL callee",
+      "description": "Issue #661: a parameter whose name is also a key-path component (name in \\Person.name) or the callee of a call (From in From(person), or Limit in Limit<Int>(10)) produces a diagnostic at the declaration instead of a corrupt rewrite. The rewrite leaves both positions unchanged. String interpolation and member access on a parameter stay rejected.",
+      "provenance": {
+        "inspiration": "n/a -- recorded from this repository's own issue #661, not adapted from an external case.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "diagnostics",
+          "source_path": "Tests/SQLMacrosTests/SQLQueryMacroTests.swift",
+          "test_case": "SQLQueryMacroDiagnosticTests.test_parameterNamedLikeKeyPathComponent_emitsError / test_parameterNamedLikeDSLCallee_emitsError / test_parameterNamedLikeGenericCallee_emitsError"
+        },
+        {
+          "layer": "diagnostics",
+          "source_path": "Tests/SQLMacrosTests/SQLQueryMacroTests.swift",
+          "test_case": "SQLQueryMacroDiagnosticTests.test_stringInterpolationParameter_emitsError / test_parameterMemberAccess_emitsError"
+        },
+        {
+          "layer": "expansion",
+          "source_path": "Tests/SQLMacrosTests/SQLQueryMacroTests.swift",
+          "test_case": "SQLQueryMacroExpansionTests.test_rewriter_leavesKeyPathComponentsAndCalleesUnchanged"
+        }
+      ]
     }
   ]
 }

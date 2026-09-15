@@ -33,7 +33,6 @@ final class TodoValidationManifestTests: XCTestCase {
         directories.append(directory)
         let todo = try TodoDatabase(url: directory.appendingPathComponent(TodoDatabase.fileName))
         return try TodoKitDeclaredQueries.queries(for: [todo.database])
-            + [TodoFilteredRead.declaredQuery(for: todo.database)]
     }
 
     // MARK: - The checked-in manifest

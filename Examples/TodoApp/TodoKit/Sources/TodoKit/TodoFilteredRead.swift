@@ -2,32 +2,24 @@ import Foundation
 
 import SwiftQL
 
-/// The list view's read: one statement covering every filter, sort, and
-/// search the app offers.
+/// The statement behind the list view's live query.
 ///
-/// This is the only read in the demo that is not an `@SQLQuery` declaration,
-/// and the reason is the search term. A declared query's frozen-literal guard
-/// rejects a parameter passed as an argument to a call, and matching is a
-/// method — `todo.title.regexp(searchPattern)` fails to compile with
+/// Mirrors `Query.filteredTodos(...)` in `TodoReads.swift`, the declared form
+/// of the same read, which ``TodoDatabase/todos(matching:)`` calls. That
+/// declaration explains the filter, search, and sort.
 ///
-///     'searchPattern' is passed as an argument to a function call in the
-///     '@SQLQueries' body.
+/// A live query observes an `XLRequest`, and a declared query does not give
+/// you one, so the observed read needs a statement value as well. This is the
+/// same duplication `TodoLiveReads.swift` describes for the other observed
+/// reads, and a change to one has to be made in both. Recorded on #469.
 ///
-/// SwiftQL offers no operator spelling of `REGEXP`, and none of `LIKE`, which
-/// this read used before v1.7. Splitting search into a second declared query
-/// would mean two copies of the same filter and sort logic drifting apart, so
-/// the whole read uses named bindings instead. Recorded on #469.
+/// Until v1.9 this was the only form of the read: the frozen-literal guard
+/// rejected a parameter passed to `regexp(_:)`, so the read could not be a
+/// declaration at all (#661).
 ///
-/// Everything else about it is the point: the filter is three booleans the
-/// `Where` clause reads rather than a mode the query branches on, the search
-/// is always applied with the empty pattern standing in for an empty box --
-/// every subject contains it -- and the sort
-/// selects which ordering keys have any effect. One statement, rendered once,
-/// serves all of it.
-///
-/// Public only so the validation-manifest generator, which is a separate
-/// target, can put this exact statement through the validator rather than a
-/// hand-copied twin of it. Call ``TodoDatabase/todos(matching:)`` instead.
+/// Public only so the hand-written manifest fixture in the test target can
+/// compare this exact statement with the manifest entry generated from the
+/// declaration. Call ``TodoDatabase/todos(matching:)`` instead.
 public enum TodoFilteredRead {
 
     static let listID = XLNamedBindingReference<TodoUUID>(name: "listID")
@@ -84,33 +76,6 @@ public enum TodoFilteredRead {
                 todo.title.ascending()
             )
         }
-    }
-
-    /// This read, described the way `@SQLQuery` describes a declaration, so
-    /// the validation manifest lowers it through the same runtime and with
-    /// `database`'s own encoder.
-    ///
-    /// It is the one read the generated `TodoKitDeclaredQueries` registry
-    /// cannot find, because it is a statement rather than a declaration. The
-    /// manifest generator adds it.
-    public static func declaredQuery(for database: GRDBDatabase) -> XLDeclaredQuery {
-        let statement = Self.statement
-        return XLDeclaredQuery(
-            database: database,
-            name: "filteredTodos",
-            cardinality: .many,
-            parameters: [
-                XLDeclaredQueryParameter(name: "listID", valueType: TodoUUID.self),
-                XLDeclaredQueryParameter(name: "includesCompleted", valueType: Bool.self),
-                XLDeclaredQueryParameter(name: "includesActive", valueType: Bool.self),
-                XLDeclaredQueryParameter(name: "overdueOnly", valueType: Bool.self),
-                XLDeclaredQueryParameter(name: "referenceDate", valueType: TodoDate.self),
-                XLDeclaredQueryParameter(name: "searchPattern", valueType: String.self),
-                XLDeclaredQueryParameter(name: "sortOrder", valueType: Int.self),
-            ],
-            rowType: Todo.self,
-            statement: { statement }
-        )
     }
 
     /// Builds the packet for one call. Values live here; the request holds

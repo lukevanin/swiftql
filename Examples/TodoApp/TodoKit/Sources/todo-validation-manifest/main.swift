@@ -21,9 +21,8 @@ import TodoKit
 // This file lists no queries. SwiftQLDeclaredQueryRegistryPlugin scans
 // TodoKit's sources on every build and generates `TodoKitDeclaredQueries`,
 // which reads every @SQLQueries and @SQLQuery declaration from a database
-// instance. The generator adds only the list view's read, which is a
-// statement rather than a declaration. A query added anywhere in TodoKit is
-// in the next manifest without a change here. The hand-written list this
+// instance. A query added anywhere in TodoKit is in the next manifest without
+// a change here. The hand-written list this
 // generator used to carry is kept as a test fixture in
 // TodoValidationManifestTests.swift.
 
@@ -89,7 +88,6 @@ let todoDatabase = try TodoDatabase(
     url: scratchDirectory.appendingPathComponent(TodoDatabase.fileName)
 )
 let queries = try TodoKitDeclaredQueries.queries(for: [todoDatabase.database])
-    + [TodoFilteredRead.declaredQuery(for: todoDatabase.database)]
 
 // MARK: - Manifest
 
