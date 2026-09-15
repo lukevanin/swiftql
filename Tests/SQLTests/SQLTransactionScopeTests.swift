@@ -548,12 +548,22 @@ final class SQLTransactionScopeTests: XCTestCase {
         // Captured locally rather than via `self.database` so the `@Sendable` `Task` closure below
         // does not need to capture the non-Sendable test-case instance.
         let database = self.database!
+        let bodyRan = LockedValue(false)
+
+        // The task must not reach `withTransaction` until after `task.cancel()`. Otherwise the task
+        // can pass the cancellation check first and commit the insert. The task waits for `gate`
+        // to finish, and the test finishes `gate` only after it cancels the task. Cancellation
+        // also ends the wait, so the task is cancelled on every path out of the loop.
+        let (gate, openGate) = AsyncStream<Void>.makeStream()
         let task = Task {
+            for await _ in gate {}
             try database.withTransaction { scope in
+                bodyRan.withValue { $0 = true }
                 try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
             }
         }
         task.cancel()
+        openGate.finish()
 
         do {
             try await task.value
@@ -563,6 +573,7 @@ final class SQLTransactionScopeTests: XCTestCase {
             // Expected.
         }
 
+        XCTAssertFalse(bodyRan.read(), "A cancelled task must not open the transaction.")
         XCTAssertEqual(try freshRows(), [])
     }
 
