@@ -113,8 +113,14 @@ public macro SQLQueries() = #externalMacro(module: "SQLMacros", type: "SQLQuerie
 /// A misspelled binding name is a missing static member, and a missing value
 /// is a missing memberwise-initializer argument, so both fail to compile. A
 /// statement that does not use every declared binding, or that uses a binding
-/// the struct does not declare, still throws when the packet is built. See
-/// <doc:DeclaredQueries>.
+/// the struct does not declare, still throws when the packet is built.
+///
+/// A property with an initial value, or an initializer declared in the
+/// struct, would let a call leave a value out, so the macro reports an error
+/// for both. It cannot see an initializer declared in an extension. Generated
+/// members are `public` or `package` only when the struct itself is written
+/// that way; an enclosing `public extension` does not count. Declare one struct
+/// for each statement shape. See <doc:DeclaredQueries>.
 ///
 @attached(member, names: arbitrary)
 public macro SQLBindings() = #externalMacro(module: "SQLMacros", type: "SQLBindingsMacro")

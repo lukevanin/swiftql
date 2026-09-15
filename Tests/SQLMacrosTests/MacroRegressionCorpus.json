@@ -443,6 +443,30 @@
           "test_case": "XLBindingsMacroExecutionTests.testPacketBindsEveryPropertyUnderItsOwnName / testWriteStatementWithReturningBindsPacket / testStatementThatDoesNotUseADeclaredBindingThrows"
         }
       ]
+    },
+    {
+      "id": "macro.named-binding-packet-memberwise-guarantee",
+      "category": "named-binding-packets",
+      "title": "Named-binding packet declarations that would let a missing value compile",
+      "description": "Issue #663 review: an @SQLBindings property with an initial value gives its memberwise-initializer argument a default, and a declared initializer can fill in a value, so either one would let a call leave a value out and silently bind a constant. The macro reports an error at the initial value and at the initializer instead. An initializer declared in an extension is not visible to the macro and is documented as unsupported.",
+      "provenance": {
+        "inspiration": "n/a -- recorded from this repository's own issue #663 review, not adapted from an external case.",
+        "upstream_reference": null,
+        "license_note": "n/a -- no code copied"
+      },
+      "disposition": "supported",
+      "evidence": [
+        {
+          "layer": "diagnostics",
+          "source_path": "Tests/SQLMacrosTests/SQLBindingsMacroTests.swift",
+          "test_case": "SQLBindingsMacroDiagnosticTests.test_propertyWithInitialValue_emitsError / test_letPropertyWithInitialValue_emitsError / test_structWithInitializer_emitsError"
+        },
+        {
+          "layer": "downstream-build",
+          "source_path": "scripts/ci/check-named-binding-packet-type-safety.sh",
+          "test_case": "NamedBindingPacketInitialValue / NamedBindingPacketCustomInitializer"
+        }
+      ]
     }
   ]
 }

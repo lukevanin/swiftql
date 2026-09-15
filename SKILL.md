@@ -97,28 +97,19 @@ SQL:
 
 <!-- compile-test: IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/SkillQuickStart.swift#lifecycle -->
 ```swift
-enum SkillQueryError: Error {
-    case missingParameter(String)
+// A request owns rendered SQL and an immutable parameter layout. Values for
+// one call live in a separate packet. `@SQLBindings` generates a typed
+// reference per property and the packet builder, so a misspelled binding
+// name or a missing value does not compile.
+@SQLBindings
+struct SkillRenameBindings {
+    var id: String
+    var name: String
 }
 
-// A request owns rendered SQL and an immutable parameter layout. Values for
-// one call live in a separate packet built against that layout.
-func skillTextPacket(
-    _ parameters: [(name: String, value: String)],
-    for layout: XLParameterLayout
-) throws -> XLInvocationBindings<XLSQLiteValue> {
-    try XLInvocationBindings<XLSQLiteValue>(
-        layout: layout,
-        bindings: try parameters.map { parameter in
-            guard let slot = layout.slot(for: .named(parameter.name)) else {
-                throw SkillQueryError.missingParameter(parameter.name)
-            }
-            return try XLInvocationBinding(
-                slot: slot,
-                value: .text(parameter.value)
-            )
-        }
-    ).validatingComplete()
+@SQLBindings
+struct SkillPersonIDBindings {
+    var id: String
 }
 
 func runSkillLifecycle(in database: GRDBDatabase) throws -> [SkillPerson] {
@@ -143,40 +134,30 @@ func runSkillLifecycle(in database: GRDBDatabase) throws -> [SkillPerson] {
 
     // Writes are not a declared-query shape in v1.5, so they keep their values
     // out of the rendered SQL with named bindings instead.
-    let idParameter = XLNamedBindingReference<String>(name: "id")
-    let nameParameter = XLNamedBindingReference<String>(name: "name")
     let renameRequest = database.makeRequest(
         with: sql { schema in
             let person = schema.into(SkillPerson.self)
             Update(person)
             Setting(person) { row in
-                row.name = nameParameter
+                row.name = SkillRenameBindings.name
             }
-            Where(person.id == idParameter)
+            Where(person.id == SkillRenameBindings.id)
         }
     )
     try renameRequest.execute(
-        bindings: try skillTextPacket(
-            [
-                (name: "id", value: "grace"),
-                (name: "name", value: "Grace B. Hopper"),
-            ],
-            for: renameRequest.parameterLayout
-        )
+        bindings: try SkillRenameBindings(id: "grace", name: "Grace B. Hopper")
+            .bindings(for: renameRequest)
     )
 
     let deleteRequest = database.makeRequest(
         with: sql { schema in
             let person = schema.into(SkillPerson.self)
             Delete(person)
-            Where(person.id == idParameter)
+            Where(person.id == SkillPersonIDBindings.id)
         }
     )
     try deleteRequest.execute(
-        bindings: try skillTextPacket(
-            [(name: "id", value: "grace")],
-            for: deleteRequest.parameterLayout
-        )
+        bindings: try SkillPersonIDBindings(id: "grace").bindings(for: deleteRequest)
     )
 
     return try database.skillPeopleByName(name: "Ada Lovelace")
@@ -257,23 +238,25 @@ than a second observation engine.
 
 <!-- compile-test: IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/SkillQuickStart.swift#live -->
 ```swift
+@SQLBindings
+struct SkillPersonNameBindings {
+    var name: String
+}
+
 func observeSkillPeople(
     named name: String,
     in database: GRDBDatabase
 ) async throws {
-    let nameParameter = XLNamedBindingReference<String>(name: "name")
     let request = database.makeRequest(
         with: sql { schema in
             let person = schema.table(SkillPerson.self)
             Select(person)
             From(person)
-            Where(person.name == nameParameter)
+            Where(person.name == SkillPersonNameBindings.name)
         }
     )
-    let bindings = try skillTextPacket(
-        [(name: "name", value: name)],
-        for: request.parameterLayout
-    )
+    let bindings = try SkillPersonNameBindings(name: name)
+        .bindings(for: request)
     // The packet is captured once; every refresh and retry reuses it.
     // Cancelling the consuming task ends iteration and tears the observation
     // down, and never throws `CancellationError`.

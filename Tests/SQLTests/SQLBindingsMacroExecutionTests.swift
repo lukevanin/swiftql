@@ -33,6 +33,17 @@ struct TestValueUpdateBindings {
 }
 
 
+/// Covers the value shapes the demo binds: UUID text through a custom type, a
+/// Bool, an enum, and an optional.
+@SQLBindings
+struct TestJobPacketBindings {
+    var owner: MyUUID
+    var includesAll: Bool
+    var priority: JobPriority
+    var previousState: JobState?
+}
+
+
 /// Property names that the generated members could collide with: a keyword,
 /// and the names of the generated builder method and its layout parameter.
 @SQLBindings
@@ -101,6 +112,62 @@ final class XLBindingsMacroExecutionTests: XCTestCase {
             ),
             [TestTable(id: "alpha", value: 1), TestTable(id: "alpha", value: 5)]
         )
+    }
+
+    /// The generated packet is the packet the demo built by hand before
+    /// `@SQLBindings`: the same keys, slots, and normalized values, and the
+    /// same rows when executed.
+    func testGeneratedPacketMatchesHandWrittenSlotLookupPacket() throws {
+        try database.makeRequest(with: sqlCreate(Job.self)).execute()
+        let job = Job(id: "job-1", priority: .high, state: .queued, previousState: nil)
+        try database.makeRequest(with: sqlInsert(job)).execute()
+
+        let owner = MyUUID(UUID(uuidString: "6F9619FF-8B86-D011-B42D-00C04FC964FF")!)
+        let statement = sql { schema in
+            let job = schema.table(Job.self)
+            Select(job)
+            From(job)
+            Where(
+                TestJobPacketBindings.owner == owner
+                && job.priority == TestJobPacketBindings.priority
+                && (job.previousState == TestJobPacketBindings.previousState
+                    || TestJobPacketBindings.includesAll == true)
+            )
+        }
+        let request = database.makeRequest(with: statement)
+        let layout = request.parameterLayout
+
+        func slot(_ name: String) throws -> XLParameterSlot {
+            try XCTUnwrap(layout.slot(for: .named(name)))
+        }
+        let handWritten = try XLInvocationBindings<XLSQLiteValue>(
+            layout: layout,
+            bindings: [
+                try XLInvocationBinding(slot: slot("owner"), value: .text(owner.wrappedValue.uuidString)),
+                try XLInvocationBinding(slot: slot("includesAll"), value: .integer(1)),
+                try XLInvocationBinding(slot: slot("priority"), value: .integer(Int64(JobPriority.high.rawValue))),
+                try XLInvocationBinding(slot: slot("previousState"), value: .null),
+            ]
+        ).validatingComplete()
+        let generated = try TestJobPacketBindings(
+            owner: owner,
+            includesAll: true,
+            priority: .high,
+            previousState: nil
+        ).bindings(for: request)
+
+        XCTAssertEqual(generated.bindings.map(\.slot.key), handWritten.bindings.map(\.slot.key))
+        XCTAssertEqual(generated.bindings.map(\.slot), handWritten.bindings.map(\.slot))
+        XCTAssertEqual(generated.bindings.map(\.value), handWritten.bindings.map(\.value))
+        XCTAssertEqual(generated, handWritten)
+        XCTAssertEqual(
+            generated.binding(for: .named("owner"))?.value,
+            .text("6F9619FF-8B86-D011-B42D-00C04FC964FF")
+        )
+        XCTAssertEqual(generated.binding(for: .named("previousState"))?.slot.nullability, .nullable)
+
+        XCTAssertEqual(try request.fetchAll(bindings: generated), [job])
+        XCTAssertEqual(try request.fetchAll(bindings: handWritten), [job])
     }
 
     func testPropertyOrderDoesNotHaveToMatchTheStatement() throws {
@@ -182,6 +249,39 @@ final class XLBindingsMacroExecutionTests: XCTestCase {
         XCTAssertEqual(
             try database.makeRequest(with: allRows).fetchAll(),
             [TestTable(id: "alpha", value: 1), TestTable(id: "beta", value: 20)]
+        )
+    }
+
+    /// A write without `RETURNING` prepares an `XLWriteRequest`, which is not
+    /// an `XLRequest`, and still takes its packet from `bindings(for:)`.
+    func testWriteRequestWithoutReturningBindsPacket() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "beta", value: 2))
+
+        let statement = sql { schema in
+            let table = schema.into(TestTable.self)
+            Update(table)
+            Setting(table) { row in
+                row.value = TestValueUpdateBindings.value
+            }
+            Where(table.id == TestValueUpdateBindings.id)
+        }
+        let request = database.makeRequest(with: statement)
+        try request.execute(
+            bindings: TestValueUpdateBindings(id: "alpha", value: 10)
+                .bindings(for: request)
+        )
+
+        let allRows = sql { schema in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            OrderBy(table.id.ascending())
+        }
+        XCTAssertEqual(
+            try database.makeRequest(with: allRows).fetchAll(),
+            [TestTable(id: "alpha", value: 10), TestTable(id: "beta", value: 2)]
         )
     }
 

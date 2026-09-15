@@ -169,6 +169,10 @@ The property is the only place the binding's name and type are written:
   error, so it does not compile either.
 - The packet binds each value under its property name. `nil` in an optional
   property is a present SQL `NULL`, not a missing binding.
+- Do not give a property an initial value, and do not declare an initializer
+  in the struct. Either one would let a call leave a value out, so the macro
+  reports an error for both. The macro cannot see an initializer that is
+  declared in an extension, so do not declare one there either.
 - The packet is still checked against the request's parameter layout. If the
   statement does not use a declared binding, building the packet throws
   `XLInvocationBindingError.parameterDeclarationNotInLayout`. If the statement
@@ -177,6 +181,17 @@ The property is the only place the binding's name and type are written:
 
 Pass the packet to `fetchAll(bindings:)`, `fetchOne(bindings:)`,
 `execute(bindings:)`, a packet-backed publisher, or an `XLObservableQuery`.
+
+Declare one `@SQLBindings` struct for each statement shape. A statement that
+you build conditionally, for example with a filter term only when the filter
+is set, has a different parameter layout for each shape. A struct that
+declares the conditional binding throws `parameterDeclarationNotInLayout` for
+the shape that does not use it. Give each shape its own struct.
+
+Generated members are `public` or `package` only when the struct itself is
+written `public` or `package`. A struct that is public only because it is
+inside a `public extension` gets internal generated members. Write the access
+modifier on the struct.
 
 ## Render-once caching
 

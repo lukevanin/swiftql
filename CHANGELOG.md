@@ -13,8 +13,12 @@
   an immutable `XLInvocationBindings` packet for a layout or a request. A
   misspelled binding name, a misspelled value label, or a missing value is now
   a compile error. Before, a caller found each slot with a string name, and a
-  typo failed at runtime. The packet still throws when the statement does not
-  use a declared binding, or uses a binding that the struct does not declare.
+  typo failed at runtime. The macro reports an error for a property with an
+  initial value and for an initializer in the struct, because either one would
+  let a call leave a value out. The packet still throws when the statement does
+  not use a declared binding, or uses a binding that the struct does not
+  declare, so declare one struct for each statement shape. Generated members
+  are `public` or `package` only when the struct itself is written that way.
   `scripts/ci/check-named-binding-packet-type-safety.sh` proves the compile
   errors in CI. The to-do demo builds all of its packets with `@SQLBindings`
   and has no slot-lookup helper.

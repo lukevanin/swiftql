@@ -62,6 +62,16 @@ internal struct SQLBindingsBuilder {
         var diagnostics = MacroDiagnosticCollector()
         var properties: [SQLBindingsProperty] = []
         for member in structDeclaration.memberBlock.members {
+            if let initializer = member.decl.as(InitializerDeclSyntax.self) {
+                // A declared initializer can supply a value itself, so a
+                // call that leaves the value out would still compile.
+                diagnostics.report(
+                    initializer.initKeyword,
+                    id: "sqlbindings-custom-initializer",
+                    "'@SQLBindings' cannot be applied to a struct that declares an initializer. The memberwise initializer is what makes a missing value a compile error. Remove the initializer, and build the values in a function that calls the memberwise initializer."
+                )
+                continue
+            }
             guard let variable = member.decl.as(VariableDeclSyntax.self) else {
                 continue
             }
@@ -125,6 +135,18 @@ internal struct SQLBindingsBuilder {
                 continue
             }
 
+            if let initialValue = binding.initializer {
+                // An initial value gives the memberwise-initializer parameter
+                // a default, so a call that forgets the value would compile
+                // and silently bind the initial value.
+                diagnostics.report(
+                    initialValue,
+                    id: "sqlbindings-initial-value",
+                    "Property '\(normalizedIdentifier(name))' cannot have an initial value when it is used as a named binding. The initial value makes the memberwise-initializer argument optional, so a call that leaves the value out would compile and bind the initial value. Remove the initial value."
+                )
+                continue
+            }
+
             properties.append(
                 SQLBindingsProperty(
                     swiftName: name,
@@ -140,6 +162,12 @@ internal struct SQLBindingsBuilder {
     /// Generated members are visible wherever the struct is. A `private` or
     /// `fileprivate` struct already limits its members, so those members take
     /// the default access level rather than becoming private to the struct.
+    ///
+    /// Only the struct's own modifiers are read. swift-syntax 509, the
+    /// package's floor, gives a member macro no view of an enclosing
+    /// `public extension`, so a struct that is public only through its
+    /// extension gets internal members. The documentation tells callers to
+    /// write the modifier on the struct.
     ///
     private static func accessPrefix(of modifiers: DeclModifierListSyntax) -> String {
         for modifier in modifiers {
@@ -202,6 +230,20 @@ internal struct SQLBindingsBuilder {
         }
         """
     }
+
+    ///
+    /// Generates the packet builder for a prepared write request. A write
+    /// without `RETURNING` prepares an `XLWriteRequest`, which is not an
+    /// `XLRequest`. No SwiftQL request type conforms to both protocols, so the
+    /// two overloads never make a call ambiguous.
+    ///
+    func makeWriteRequestPacketFunction() -> String {
+        """
+        \(accessPrefix)func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+            try self.bindings(in: __xlRequest.parameterLayout)
+        }
+        """
+    }
 }
 
 
@@ -230,6 +272,7 @@ extension SQLBindingsMacro: MemberMacro {
         }
         declarations.append(try makeDecl(builder.makeLayoutPacketFunction()))
         declarations.append(try makeDecl(builder.makeRequestPacketFunction()))
+        declarations.append(try makeDecl(builder.makeWriteRequestPacketFunction()))
         return declarations
     }
 }

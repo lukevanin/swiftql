@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # Issue #663: proves that an `@SQLBindings` packet turns a misspelled binding
-# name, a misspelled value label, and a missing value into compile errors. The
+# name, a misspelled value label, and a missing value into compile errors, and
+# that the macro rejects the two declarations that would let a missing value
+# compile: a property with an initial value and a declared initializer. The
 # fixtures use macros, so the standalone compiler loads SwiftQL's macro plugin.
 
 set -euo pipefail
@@ -13,6 +15,8 @@ negative_fixtures=(
     "$source_root/Tests/CompileFail/NamedBindingPacketMisspelledReference.swift"
     "$source_root/Tests/CompileFail/NamedBindingPacketMisspelledLabel.swift"
     "$source_root/Tests/CompileFail/NamedBindingPacketMissingValue.swift"
+    "$source_root/Tests/CompileFail/NamedBindingPacketInitialValue.swift"
+    "$source_root/Tests/CompileFail/NamedBindingPacketCustomInitializer.swift"
 )
 diagnostic_log="$(
     mktemp "${TMPDIR:-/tmp}/swiftql-named-binding-packet.XXXXXX"

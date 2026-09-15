@@ -59,6 +59,10 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
                 func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
+
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                    try self.bindings(in: __xlRequest.parameterLayout)
+                }
             }
             """,
             macros: makeTestMacros()
@@ -93,6 +97,10 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
                 }
 
                 public func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                    try self.bindings(in: __xlRequest.parameterLayout)
+                }
+
+                public func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
             }
@@ -131,6 +139,10 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
                 func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
+
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                    try self.bindings(in: __xlRequest.parameterLayout)
+                }
             }
             """,
             macros: makeTestMacros()
@@ -167,6 +179,10 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
                 func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
+
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                    try self.bindings(in: __xlRequest.parameterLayout)
+                }
             }
             """,
             macros: makeTestMacros()
@@ -191,6 +207,10 @@ final class SQLBindingsMacroExpansionTests: XCTestCase {
                 }
 
                 func bindings<__XLRequest: XLRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
+                    try self.bindings(in: __xlRequest.parameterLayout)
+                }
+
+                func bindings<__XLRequest: XLWriteRequest>(for __xlRequest: __XLRequest) throws -> XLInvocationBindings<XLSQLiteValue> {
                     try self.bindings(in: __xlRequest.parameterLayout)
                 }
             }
@@ -315,6 +335,89 @@ final class SQLBindingsMacroDiagnosticTests: XCTestCase {
                     message: "Pattern '(id, name)' cannot be used as a named binding. Declare each binding as a separate property with its own name and type.",
                     line: 3,
                     column: 9
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    /// An initial value would give the memberwise-initializer argument a
+    /// default, so `Sample()` would compile and bind the initial value.
+    func test_propertyWithInitialValue_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLBindings
+            struct Sample {
+                var id: String = ""
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var id: String = ""
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Property 'id' cannot have an initial value when it is used as a named binding. The initial value makes the memberwise-initializer argument optional, so a call that leaves the value out would compile and bind the initial value. Remove the initial value.",
+                    line: 3,
+                    column: 20
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    /// A `let` with an initial value is not an initializer argument at all.
+    func test_letPropertyWithInitialValue_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLBindings
+            struct Sample {
+                let id: String = ""
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                let id: String = ""
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Property 'id' cannot have an initial value when it is used as a named binding. The initial value makes the memberwise-initializer argument optional, so a call that leaves the value out would compile and bind the initial value. Remove the initial value.",
+                    line: 3,
+                    column: 20
+                )
+            ],
+            macros: makeTestMacros()
+        )
+    }
+
+    /// A declared initializer can fill in a value, so it removes the
+    /// guarantee that a missing value does not compile.
+    func test_structWithInitializer_emitsError() {
+        assertMacroExpansion(
+            """
+            @SQLBindings
+            struct Sample {
+                var id: String
+                init() {
+                    self.id = ""
+                }
+            }
+            """,
+            expandedSource: """
+            struct Sample {
+                var id: String
+                init() {
+                    self.id = ""
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'@SQLBindings' cannot be applied to a struct that declares an initializer. The memberwise initializer is what makes a missing value a compile error. Remove the initializer, and build the values in a function that calls the memberwise initializer.",
+                    line: 4,
+                    column: 5
                 )
             ],
             macros: makeTestMacros()
