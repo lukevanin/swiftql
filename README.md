@@ -123,10 +123,10 @@ Add the following line to the `dependencies` section in your `Package.swift`
 file:
 
 ```text
-.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.8.0")
+.package(url: "https://github.com/lukevanin/swiftql.git", from: "1.8.1")
 ```
 
-`1.8.0` is the latest published package. The examples above use APIs retained
+`1.8.1` is the latest published package. The examples above use APIs retained
 by v1.3; the static-query surface remains available from version 1.2.0. Pin a
 source revision only when intentionally testing later changes from `main`.
 
@@ -252,7 +252,8 @@ explicit list of the places the correspondence is not exact.
   Compose boolean, numeric, text, optional, conditional, and aggregate
   expressions with Swift operators and generic constraints.
 - **[Queries](https://lukevanin.github.io/swiftql/documentation/swiftql/queries/).**
-  Build selects with inner, left, and cross joins; grouping and `HAVING`;
+  Build selects with inner, left, right, full outer, cross, natural, and
+  `USING` joins; grouping and `HAVING`;
   ordering and pagination; scalar and table subqueries; compound queries; and
   ordinary or recursive common table expressions.
 - **[Writes and table creation](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/).**
@@ -295,6 +296,7 @@ explicit list of the places the correspondence is not exact.
   Match with `like`, `glob`, and `regexp`. `REGEXP` needs no setup: SQLite ships
   no `regexp` function, so SwiftQL supplies one backed by Swift `Regex`,
   keeps compiled patterns per connection rather than compiling once per row,
+  refuses an oversized pattern or subject rather than truncating it,
   and matches a `RegexBuilder` pattern through `XLRegexPattern`.
 - **Your domain.** Extend SQLite with Swift enums, custom value types, and
   type-safe custom SQL functions.
