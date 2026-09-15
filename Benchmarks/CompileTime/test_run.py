@@ -563,6 +563,118 @@ class ExtendedScaleTests(unittest.TestCase):
             )
 
 
+SWIFTBUILD_RECOMPILED_LOG = (
+    "Building for debugging...\n"
+    "Planning Swift module Consumer (arm64)\n"
+    "    builtin-SwiftDriver -- /Applications/Xcode.app/usr/bin/swiftc "
+    "-parse-as-library -module-name Consumer -Onone @/tmp/Consumer.SwiftFileList\n"
+    "[4 / 7] Consumer\n"
+    "Build complete! (0,45 sec)\n"
+)
+SWIFTBUILD_NOOP_LOG = (
+    "Building for debugging...\n"
+    "[Planning deferred tasks]\n"
+    "Build complete! (0,26 sec)\n"
+)
+# A verbose Swift Build no-op build: no compiler invocation, no progress line.
+SWIFTBUILD_VERBOSE_NOOP_LOG = (
+    "info: Target dependency graph (2 targets)\n"
+    "info: Target 'Consumer' in project 'ControlRawSQLiteConsumer' (no dependencies)\n"
+    "Building for debugging...\n"
+    "Planning build\n"
+    "Create build description\n"
+    "Target PACKAGE-TARGET:Consumer up to date.\n"
+    "Target PACKAGE-PRODUCT:control_raw_sqlite-consumer_ConsumerLibrary.ConsumerLibrary up to date.\n"
+    "Build complete! (0,15 sec)\n"
+)
+NATIVE_RECOMPILED_LOG = (
+    "[3/5] Emitting module Consumer\n"
+    "[4/5] Compiling Consumer Tables.swift\n"
+    "Build of product 'ConsumerLibrary' complete! (0.17s)\n"
+)
+
+
+class BuildSystemTests(unittest.TestCase):
+    def test_build_arguments_are_verbose(self) -> None:
+        self.assertIn("-v", compile_time_run.BUILD_ARGUMENTS)
+
+    def test_recompile_marker_reads_both_build_systems(self) -> None:
+        marker = compile_time_run.RECOMPILE_MARKER
+        self.assertIsNotNone(marker.search(SWIFTBUILD_RECOMPILED_LOG))
+        self.assertIsNotNone(marker.search(NATIVE_RECOMPILED_LOG))
+        self.assertIsNone(marker.search(SWIFTBUILD_NOOP_LOG))
+        self.assertIsNone(marker.search(SWIFTBUILD_VERBOSE_NOOP_LOG))
+        self.assertIsNone(
+            compile_time_summarize.RECOMPILE_MARKER.search(SWIFTBUILD_VERBOSE_NOOP_LOG)
+        )
+        self.assertIsNone(marker.search("swiftc -module-name ConsumerLibrary\n"))
+        self.assertEqual(marker.pattern, compile_time_summarize.RECOMPILE_MARKER.pattern)
+
+    def test_detects_the_build_system(self) -> None:
+        self.assertEqual(
+            compile_time_run.detect_build_system(SWIFTBUILD_RECOMPILED_LOG),
+            "swiftbuild",
+        )
+        self.assertEqual(
+            compile_time_run.detect_build_system(SWIFTBUILD_NOOP_LOG), "swiftbuild"
+        )
+        self.assertEqual(
+            compile_time_run.detect_build_system(NATIVE_RECOMPILED_LOG), "native"
+        )
+        self.assertEqual(
+            compile_time_run.detect_build_system(SWIFTBUILD_VERBOSE_NOOP_LOG),
+            "swiftbuild",
+        )
+        self.assertEqual(compile_time_run.detect_build_system(""), "unknown")
+        self.assertEqual(
+            compile_time_run.parse_swiftpm_duration(SWIFTBUILD_RECOMPILED_LOG), 0.45
+        )
+
+    def artifacts(self, root: Path, binary_directory: Path) -> dict[str, object]:
+        with mock.patch.object(
+            compile_time_run, "show_bin_path", return_value=binary_directory
+        ):
+            return compile_time_run.collect_artifacts(
+                root, compile_time_run.CONSUMERS_BY_IDENTIFIER["grdb"]
+            )
+
+    def test_artifacts_in_the_native_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            binary = root / ".build/arm64-apple-macosx/debug"
+            (binary / "Consumer.build").mkdir(parents=True)
+            (binary / "Consumer.build/Tables.swift.o").write_bytes(b"x" * 10)
+            (binary / "Modules").mkdir()
+            (binary / "Modules/Consumer.swiftmodule").write_bytes(b"m" * 7)
+            (binary / "libConsumerLibrary.a").write_bytes(b"a" * 3)
+            artifacts = self.artifacts(root, binary)
+            self.assertEqual(artifacts["objectBytes"], 10)
+            self.assertEqual(artifacts["swiftmoduleBytes"], 7)
+            self.assertEqual(artifacts["staticLibraryBytes"], 3)
+
+    def test_artifacts_in_the_swiftbuild_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            binary = root / ".build/out/Products/Debug"
+            binary.mkdir(parents=True)
+            (binary / "Consumer.o").write_bytes(b"p" * 100)
+            (binary / "Consumer.swiftmodule").mkdir()
+            (binary / "Consumer.swiftmodule/arm64.swiftmodule").write_bytes(b"m" * 5)
+            (binary / "libConsumerLibrary.a").write_bytes(b"a" * 3)
+            objects = root / (
+                ".build/out/Intermediates.noindex/GRDBConsumer.build/Debug/"
+                "Consumer-t.build/Objects-normal/arm64"
+            )
+            objects.mkdir(parents=True)
+            (objects / "Tables.o").write_bytes(b"x" * 11)
+            (objects / "Queries.o").write_bytes(b"y" * 4)
+            artifacts = self.artifacts(root, binary)
+            # The prelinked Products/Debug/Consumer.o is not counted.
+            self.assertEqual(artifacts["objectBytes"], 15)
+            self.assertEqual(artifacts["swiftmoduleBytes"], 5)
+            self.assertEqual(artifacts["staticLibraryBytes"], 3)
+
+
 class StatisticsTests(unittest.TestCase):
     @staticmethod
     def measurement(wall: float, peak: int | None = 1024) -> dict[str, object]:

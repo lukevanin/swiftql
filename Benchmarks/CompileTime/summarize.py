@@ -70,6 +70,14 @@ SWIFTPM_COMPLETE_LINE = re.compile(
 ANSI_ESCAPE = re.compile(
     r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-Z\\-_])"
 )
+# Evidence that the Consumer module compiled. The native build system prints
+# `Compiling Consumer ...` or `Emitting module Consumer`. Swift Build (the
+# default from Swift 6.4 / Xcode 27) prints neither; run.py therefore builds
+# with `-v`, and the verbose compiler driver invocation `-module-name Consumer`
+# is the evidence. A no-op build prints none of the three.
+RECOMPILE_MARKER = re.compile(
+    r"(Compiling Consumer\b|Emitting module Consumer\b|-module-name Consumer\b)"
+)
 
 # A sample is rejected when its `/usr/bin/time` wall time is greater than
 #
@@ -578,9 +586,7 @@ def validate_raw_logs(document: dict[str, object], report_path: Path) -> None:
                 f"peak RSS in {log_path} disagrees with the report",
             )
 
-        recompiled = bool(
-            re.search(r"(Compiling Consumer\b|Emitting module Consumer\b)", text)
-        )
+        recompiled = RECOMPILE_MARKER.search(text) is not None
         require(
             recompiled == bool(measurement["recompiledConsumerTarget"]),
             f"{log_path} recompilation evidence disagrees with the report",

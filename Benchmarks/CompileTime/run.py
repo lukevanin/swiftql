@@ -767,18 +767,48 @@ def generated_source_bytes(
 # --------------------------------------------------------------------------
 
 
+# `-v` makes a recompilation visible in the log under both SwiftPM build
+# systems. The native build system prints `Compiling Consumer ...` and
+# `Emitting module Consumer` even without it. Swift Build (`swiftbuild`, the
+# default from Swift 6.4 / Xcode 27) prints only `[4 / 7] Consumer` progress
+# lines, and only its verbose driver invocation (`... swiftc ... -module-name
+# Consumer ...`) proves that the Consumer module compiled. A no-op build prints
+# no such invocation under either build system.
 BUILD_ARGUMENTS = (
     "swift",
     "build",
+    "-v",
     "--configuration",
     BUILD_CONFIGURATION,
     "--product",
     PRODUCT_NAME,
 )
 
+# Must stay identical to summarize.py; test_run.py checks that they agree.
 RECOMPILE_MARKER = re.compile(
-    rf"(Compiling {TARGET_NAME}\b|Emitting module {TARGET_NAME}\b)"
+    rf"(Compiling {TARGET_NAME}\b|Emitting module {TARGET_NAME}\b"
+    rf"|-module-name {TARGET_NAME}\b)"
 )
+
+
+def detect_build_system(text: str) -> str:
+    """Which SwiftPM build system wrote a build log: native, swiftbuild, or unknown."""
+
+    plain = ANSI_ESCAPE.sub("", text)
+    if re.search(r"^\s*Build of product '[^']+' complete!", plain, re.MULTILINE) or re.search(
+        r"^\s*\[\d+/\d+\] ", plain, re.MULTILINE
+    ):
+        return "native"
+    # Swift Build prints these lines even for a verbose no-op build, which has
+    # no compiler invocation and no `[n / m]` progress line.
+    if re.search(
+        r"builtin-SwiftDriver|^\s*\[Planning deferred tasks\]|^\s*\[\s*\d+ / \d+\]"
+        r"|^Planning build\s*$|^Create build description\s*$|^Target PACKAGE-(?:TARGET|PRODUCT):",
+        plain,
+        re.MULTILINE,
+    ):
+        return "swiftbuild"
+    return "unknown"
 
 TIME_LINE = re.compile(
     r"^\s*([0-9]+\.[0-9]+)\s+real\s+([0-9]+\.[0-9]+)\s+user\s+"
@@ -865,6 +895,43 @@ def optional_file_bytes(path: Path) -> int | None:
     return None
 
 
+def consumer_object_bytes(consumer_root: Path, binary_directory: Path) -> int | None:
+    """The Consumer target's per-file object bytes under either build system.
+
+    The native build system writes them to `<bin>/Consumer.build`. Swift Build
+    writes them to `.build/out/Intermediates.noindex/<Project>.build/<Config>/
+    Consumer-t.build/Objects-normal/<arch>`; its single prelinked
+    `Products/<Config>/Consumer.o` is not counted, so both layouts measure the
+    same per-file objects.
+    """
+
+    native = directory_bytes(binary_directory / f"{TARGET_NAME}.build", ".o")
+    if native is not None:
+        return native
+    intermediates = consumer_root / ".build" / "out" / "Intermediates.noindex"
+    totals = [
+        directory_bytes(path, ".o")
+        for path in sorted(
+            intermediates.glob(
+                f"*.build/{BUILD_CONFIGURATION.capitalize()}/{TARGET_NAME}-t.build"
+            )
+        )
+    ]
+    found = [total for total in totals if total is not None]
+    return sum(found) if found else None
+
+
+def consumer_swiftmodule_bytes(binary_directory: Path) -> int | None:
+    """`<bin>/Modules/Consumer.swiftmodule` (native) or `<bin>/Consumer.swiftmodule` (Swift Build)."""
+
+    native = optional_file_bytes(
+        binary_directory / "Modules" / f"{TARGET_NAME}.swiftmodule"
+    )
+    if native is not None:
+        return native
+    return optional_file_bytes(binary_directory / f"{TARGET_NAME}.swiftmodule")
+
+
 def collect_artifacts(consumer_root: Path, spec: ConsumerSpec) -> dict[str, object]:
     """Measure build outputs outside every timed interval."""
 
@@ -876,12 +943,8 @@ def collect_artifacts(consumer_root: Path, spec: ConsumerSpec) -> dict[str, obje
             f"Enlighter produced no generated Swift for {spec.identifier}"
         )
     return {
-        "swiftmoduleBytes": optional_file_bytes(
-            binary_directory / "Modules" / f"{TARGET_NAME}.swiftmodule"
-        ),
-        "objectBytes": directory_bytes(
-            binary_directory / f"{TARGET_NAME}.build", ".o"
-        ),
+        "swiftmoduleBytes": consumer_swiftmodule_bytes(binary_directory),
+        "objectBytes": consumer_object_bytes(consumer_root, binary_directory),
         "staticLibraryBytes": optional_file_bytes(
             binary_directory / f"lib{PRODUCT_NAME}.a"
         ),
@@ -1083,6 +1146,7 @@ def measure_build(request: MeasurementRequest) -> dict[str, object]:
         "peakRSSBytes": peak_rss,
         "peakRSSUnavailableReason": rss_reason,
         "timingMethod": timing_method,
+        "buildSystem": detect_build_system(text),
         "recompiledConsumerTarget": recompiled,
         "rawLog": str(log_path.relative_to(request.output_directory)),
         "rawLogSHA256": sha256_file(log_path),
@@ -1696,6 +1760,10 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 "recordedTableScales": list(table_scales),
                 "recordedQueryScales": list(query_scales),
                 "matrixPreset": options.matrix,
+                "buildSystems": sorted(
+                    {str(item["buildSystem"]) for item in measurements}
+                ),
+                "buildArguments": list(BUILD_ARGUMENTS),
                 "declarationsPerFile": DECLARATIONS_PER_FILE,
                 "wallToSwiftPMFactor": WALL_TO_SWIFTPM_FACTOR,
                 "wallToSwiftPMAllowanceSeconds": WALL_TO_SWIFTPM_ALLOWANCE_SECONDS,

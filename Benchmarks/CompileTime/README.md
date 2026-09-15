@@ -95,6 +95,16 @@ recompile. A no-op build that recompiled, or a clean build that did not, fails
 the run and fails validation, which is what stops a mode from silently
 measuring nothing.
 
+Every timed build runs `swift build -v`. The native SwiftPM build system prints
+`Compiling Consumer ...` and `Emitting module Consumer` for a recompilation.
+Swift Build, the default build system from Swift 6.4 / Xcode 27, prints only
+progress lines such as `[4 / 7] Consumer`, so its evidence is the verbose
+compiler driver invocation with `-module-name Consumer`. A no-op build prints
+none of these under either build system. Each measurement records the build
+system that wrote its log, and the workload records the set of build systems
+and the exact build arguments. Swift Build writes the per-file objects under
+`.build/out/Intermediates.noindex`, and the harness reads them there.
+
 ## Metrics
 
 Each measurement records wall, user, and system time and peak RSS, all read

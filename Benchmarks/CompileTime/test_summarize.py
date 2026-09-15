@@ -672,6 +672,56 @@ class RejectedSampleReportTests(unittest.TestCase):
         self.assertIn("complete!", str(context.exception))
 
 
+class SwiftBuildLogTests(unittest.TestCase):
+    def test_verbose_swiftbuild_logs_validate(self) -> None:
+        with tempfile.TemporaryDirectory() as name:
+            directory = Path(name)
+            report = synthesize(directory)
+            document = json.loads(report.read_text(encoding="utf-8"))
+            for measurement in document["measurements"]:
+                lines = ["Building for debugging...", "[Planning deferred tasks]"]
+                if measurement["recompiledConsumerTarget"]:
+                    lines.append("Planning Swift module Consumer (arm64)")
+                    lines.append(
+                        "    builtin-SwiftDriver -- /usr/bin/swiftc "
+                        "-parse-as-library -module-name Consumer -Onone"
+                    )
+                    lines.append("[4 / 7] Consumer")
+                duration = f"{float(measurement['wallSeconds']) * 0.8:.2f}".replace(".", ",")
+                lines.append(f"Build complete! ({duration} sec)")
+                lines.append(
+                    f"        {measurement['wallSeconds']:.2f} real         "
+                    f"{measurement['userSeconds']:.2f} user         "
+                    f"{measurement['systemSeconds']:.2f} sys"
+                )
+                lines.append(
+                    f"          {measurement['peakRSSBytes']}  maximum resident set size"
+                )
+                text = "\n".join(lines) + "\n"
+                (directory / measurement["rawLog"]).write_text(text, encoding="utf-8")
+                measurement["rawLogSHA256"] = hashlib.sha256(
+                    text.encode("utf-8")
+                ).hexdigest()
+            report.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+            loaded = summarize.load_report(report)
+            summarize.validate(loaded, report, require_full_matrix=False)
+            self.assertEqual(summarize.rejected_samples(loaded, report), [])
+
+    def test_a_swiftbuild_no_op_log_is_not_a_recompile(self) -> None:
+        self.assertIsNone(
+            summarize.RECOMPILE_MARKER.search(
+                "Building for debugging...\n[Planning deferred tasks]\n"
+                "Build complete! (0,26 sec)\n"
+            )
+        )
+        self.assertIsNone(
+            summarize.RECOMPILE_MARKER.search("swiftc -module-name ConsumerLibrary\n")
+        )
+        self.assertIsNotNone(
+            summarize.RECOMPILE_MARKER.search("swiftc -module-name Consumer -Onone\n")
+        )
+
+
 class ComparisonTests(unittest.TestCase):
     def setUp(self) -> None:
         self._baseline = tempfile.TemporaryDirectory()

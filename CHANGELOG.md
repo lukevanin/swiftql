@@ -250,7 +250,10 @@
   - The compile-time runner gets `--matrix extended` (1, 10, 100, and 500
     tables; 1, 10, and 100 queries) and `--generate-only`. It splits tables
     and queries into files of at most 50 declarations. Every scale up to 50
-    generates the same bytes as before.
+    generates the same bytes as before. Timed builds run `swift build -v`, so
+    the runner detects a recompilation under Swift Build, the default build
+    system from Swift 6.4, as well as under the native build system. Each
+    measurement records the build system that ran.
   - The phase harness writes report format version 2. Each SQL case adds six
     phases on SwiftQL's own path: `swiftql_binding`, `swiftql_execution`,
     `swiftql_row_materialization`, `swiftql_row_decoding`,
