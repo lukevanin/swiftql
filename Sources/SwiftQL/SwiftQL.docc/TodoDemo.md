@@ -261,6 +261,28 @@ Writes are not declarations. Declared queries are `SELECT`-only in v1.5, so the
 demo's writes use the functional statement syntax from <doc:FunctionalSyntax>.
 Still typed, still no SQL strings.
 
+An edit binds what the user typed rather than putting it in the SQL text, so
+each call needs a packet of values. The edit declares its bindings once, as a
+struct, and `@SQLBindings` generates the typed references the statement reads
+and the packet builder the call uses
+([#663](https://github.com/lukevanin/swiftql/issues/663)):
+
+<!-- source: Examples/TodoApp/TodoKit/Sources/TodoKit/TodoStore.swift -->
+```swift
+    @SQLBindings
+    private struct UpdateTodoBindings {
+        var id: TodoUUID
+        var title: String
+        var notes: String
+        var dueAt: TodoDate?
+        var priority: TodoPriority
+    }
+```
+
+The statement sets `row.title = UpdateTodoBindings.title`, and the call builds
+its packet with `UpdateTodoBindings(id:title:notes:dueAt:priority:)`. A
+misspelled name or a forgotten value does not compile.
+
 ## A transaction that has to be all or nothing
 
 Moving a to-do to another list renumbers the list it left and appends it to the

@@ -8,7 +8,6 @@ public enum TodoStoreError: Error, Equatable, LocalizedError {
 
     case todoNotFound(TodoUUID)
     case listNotFound(TodoUUID)
-    case unknownParameter(statement: String, name: String)
 
     public var errorDescription: String? {
         switch self {
@@ -16,8 +15,6 @@ public enum TodoStoreError: Error, Equatable, LocalizedError {
             return "No to-do with identifier \(id.wrappedValue)."
         case .listNotFound(let id):
             return "No list with identifier \(id.wrappedValue)."
-        case .unknownParameter(let statement, let name):
-            return "The \(statement) statement has no parameter named \(name)."
         }
     }
 }
@@ -195,53 +192,38 @@ extension TodoDatabase {
     ) throws -> Todo {
         let schema = XLSchema()
         let table = schema.into(Todo.self)
-        let idParameter = XLNamedBindingReference<TodoUUID>(name: "id")
-        let titleParameter = XLNamedBindingReference<String>(name: "title")
-        let notesParameter = XLNamedBindingReference<String>(name: "notes")
-        let dueAtParameter = XLNamedBindingReference<TodoDate?>(name: "dueAt")
-        let priorityParameter = XLNamedBindingReference<TodoPriority>(name: "priority")
-
         let statement = update(table)
             .set { row in
-                row.title = titleParameter
-                row.notes = notesParameter
-                row.dueAt = dueAtParameter
-                row.priority = priorityParameter
+                row.title = UpdateTodoBindings.title
+                row.notes = UpdateTodoBindings.notes
+                row.dueAt = UpdateTodoBindings.dueAt
+                row.priority = UpdateTodoBindings.priority
             }
-            .where(table.id == idParameter)
+            .where(table.id == UpdateTodoBindings.id)
             .returning(schema.table(Todo.self))
         let request = database.makeRequest(with: statement)
-        let layout = request.parameterLayout
-        let bindings = try XLInvocationBindings<XLSQLiteValue>(
-            layout: layout,
-            bindings: [
-                try Self.binding(layout, "id", id.sqlValue),
-                try Self.binding(layout, "title", .text(title)),
-                try Self.binding(layout, "notes", .text(notes)),
-                try Self.binding(layout, "dueAt", dueAt?.sqlValue ?? .null),
-                try Self.binding(
-                    layout,
-                    "priority",
-                    .integer(Int64(priority.rawValue))
-                ),
-            ]
-        ).validatingComplete()
+        let bindings = try UpdateTodoBindings(
+            id: id,
+            title: title,
+            notes: notes,
+            dueAt: dueAt,
+            priority: priority
+        ).bindings(for: request)
 
         return try written(request.fetchAll(bindings: bindings), or: id)
     }
 
-    private static func binding(
-        _ layout: XLParameterLayout,
-        _ name: String,
-        _ value: XLSQLiteValue
-    ) throws -> XLInvocationBinding<XLSQLiteValue> {
-        guard let slot = layout.slot(for: .named(name)) else {
-            throw TodoStoreError.unknownParameter(
-                statement: "update to-do",
-                name: name
-            )
-        }
-        return try XLInvocationBinding(slot: slot, value: value)
+    /// The named bindings of the ``updateTodo(id:title:notes:dueAt:priority:)``
+    /// statement. `@SQLBindings` gives each property a typed reference for the
+    /// statement and builds the packet under the same names, so a misspelled
+    /// name or a forgotten value does not compile.
+    @SQLBindings
+    private struct UpdateTodoBindings {
+        var id: TodoUUID
+        var title: String
+        var notes: String
+        var dueAt: TodoDate?
+        var priority: TodoPriority
     }
 
     @discardableResult
@@ -300,8 +282,6 @@ extension TodoDatabase {
     ) throws -> Todo {
         let schema = XLSchema()
         let table = schema.into(Todo.self)
-        let idParameter = XLNamedBindingReference<TodoUUID>(name: "id")
-        let titleParameter = XLNamedBindingReference<String>(name: "title")
         let statement = update(table)
             .set { row in
                 row.checklist = table.checklist
@@ -309,25 +289,27 @@ extension TodoDatabase {
                         (
                             TodoChecklist.end,
                             jsonObject(
-                                ("title", titleParameter),
+                                ("title", AppendChecklistItemBindings.title),
                                 ("isDone", false)
                             )
                         )
                     )
             }
-            .where(table.id == idParameter)
+            .where(table.id == AppendChecklistItemBindings.id)
             .returning(schema.table(Todo.self))
 
         let request = database.makeRequest(with: statement)
-        let layout = request.parameterLayout
-        let bindings = try XLInvocationBindings<XLSQLiteValue>(
-            layout: layout,
-            bindings: [
-                try Self.binding(layout, "id", id.sqlValue),
-                try Self.binding(layout, "title", .text(title)),
-            ]
-        ).validatingComplete()
+        let bindings = try AppendChecklistItemBindings(id: id, title: title)
+            .bindings(for: request)
         return try written(request.fetchAll(bindings: bindings), or: id)
+    }
+
+    /// The named bindings of the ``appendChecklistItem(title:todoID:)``
+    /// statement.
+    @SQLBindings
+    private struct AppendChecklistItemBindings {
+        var id: TodoUUID
+        var title: String
     }
 
     /// Ticks or unticks one sub-task, returning the to-do as it now stands.

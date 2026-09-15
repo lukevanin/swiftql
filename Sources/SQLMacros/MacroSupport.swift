@@ -142,6 +142,14 @@ internal struct StoredPropertyRole {
         item: "argument",
         exclusion: "the generated 'makeSQL' implementation"
     )
+
+    /// The named bindings of an `@SQLBindings` packet.
+    static let namedBinding = Self(
+        plural: "named bindings",
+        singular: "a named binding",
+        item: "binding",
+        exclusion: "the generated binding packet"
+    )
 }
 
 
