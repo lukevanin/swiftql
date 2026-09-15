@@ -179,12 +179,15 @@ up the v1.8 indices on its next launch regardless, because they are
 
 Building a whole application on v1.5 through v1.8 surfaced five places where
 the API resists, all recorded on
-[#469](https://github.com/lukevanin/swiftql/issues/469). v1.9 removed two of
+[#469](https://github.com/lukevanin/swiftql/issues/469). v1.9 removed three of
 them. A declared query can now pass a parameter to `regexp(_:)` or `like(_:)`,
 so the list view's search is a declaration again
 ([#661](https://github.com/lukevanin/swiftql/issues/661)). A declared query can
 now be observed, so each read a view observes is written once
-([#660](https://github.com/lukevanin/swiftql/issues/660)). Three remain, also
+([#660](https://github.com/lukevanin/swiftql/issues/660)). A declared query can
+now be called on a transaction scope, so the reads inside the demo's
+transactions are its declared reads
+([#662](https://github.com/lukevanin/swiftql/issues/662)). Two remain, also
 recorded on
 [#469](https://github.com/lukevanin/swiftql/issues/469):
 
@@ -195,9 +198,6 @@ recorded on
   ([#139](https://github.com/lukevanin/swiftql/issues/139)); the advisor can
   tell you exactly which index to add and prove the plan improves, and the
   library still cannot run it for you.
-- **A declared query cannot be called inside `withTransaction`.** The generated
-  executor opens its own transaction, and SwiftQL rejects nesting, so reads
-  inside a transaction use plain requests.
 - **A JSON mutation cannot be assigned to a `NOT NULL` column without
   `coalesce`.** `json_set` and its siblings return `NULL` for a `NULL`
   document, so their result is optional even when the column is not. Every

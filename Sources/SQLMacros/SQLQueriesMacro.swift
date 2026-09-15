@@ -32,9 +32,10 @@ import SwiftSyntaxMacros
 ///     every declared-query call and `context.database.makeRequest(with:)`
 ///     call inside the closure runs on one pinned connection, committing
 ///     together on success and rolling back together on any failure.
-///   * One database-level convenience executor per specification, defined as
-///     sugar over `execute`, so the implicit form is transparently the
-///     explicit one.
+///   * One database-level convenience executor per specification. On a
+///     database it runs the `Context` executor in a new transaction, as
+///     `execute` does; on a transaction scope it runs it on the scope
+///     (issue #662).
 ///
 /// The `Query` container itself is never referenced by the generated code —
 /// it is a pure specification namespace, so the user may declare it `private`
@@ -284,9 +285,13 @@ extension SQLQueryBuilder {
     }
 
     ///
-    /// Generates the database-level convenience executor: sugar over
-    /// `execute`, so the implicit one-shot form is transparently the explicit
-    /// context form.
+    /// Generates the database-level convenience executor. On a database it is
+    /// the explicit context form run in a new transaction, as `execute` runs
+    /// it. On a transaction scope it runs the context executor on the scope
+    /// itself (issue #662), so a declared query joins the open transaction
+    /// instead of throwing `nestedTransactionUnsupported`. The runtime helper
+    /// `_xlWithDeclaredQueryScope` makes that choice, so the context executor
+    /// and its render-once request and packet stay the same on both paths.
     ///
     func makeDatabaseExecutorFunction(modifierPrefix: String) -> String {
         let parameterClause = function.signature.parameterClause.trimmedDescription
@@ -309,8 +314,8 @@ extension SQLQueryBuilder {
         let argumentList = arguments.joined(separator: ", ")
         var lines: [String] = []
         lines.append("\(modifierPrefix)func \(function.name.text)\(parameterClause) throws -> \(executorResultType) {")
-        lines.append("    try execute { __xlContext in")
-        lines.append("        try __xlContext.\(function.name.text)(\(argumentList))")
+        lines.append("    try _xlWithDeclaredQueryScope(self) { __xlDatabase in")
+        lines.append("        try Context(database: __xlDatabase).\(function.name.text)(\(argumentList))")
         lines.append("    }")
         lines.append("}")
         return lines.joined(separator: "\n")

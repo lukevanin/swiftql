@@ -24,6 +24,18 @@ import OpenCombine
 extension GRDBDatabase: @unchecked Sendable {}
 
 
+extension GRDBDatabase: XLTransactionScopeReporting {
+
+    /// `true` for the pinned scope `withTransaction(_:)` hands its body, and
+    /// still `true` after that body returns (issue #662). A generated
+    /// `@SQLQueries` executor called on a scope runs on it rather than opening
+    /// a nested transaction; an ended scope then throws `.scopeEscaped`.
+    var isTransactionScope: Bool {
+        driver.isPinned
+    }
+}
+
+
 extension GRDBDatabase: XLTransactionalDatabase {
 
     /// Runs `body` against one pinned `DatabasePool` connection inside one

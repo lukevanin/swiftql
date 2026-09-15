@@ -3364,6 +3364,9 @@ extension XLDocumentationTests {
             XLQueriesContainerTests.testPreparedQueryStreamEmitsUpdatedRowsAfterAWrite
         let _: (XLQueriesContainerTests) -> () throws -> Void =
             XLQueriesContainerTests.testPreparedQueryPublisherEmitsUpdatedRowsAfterAWrite
+        // Issue #662: a declared query called on a transaction scope.
+        let _: (XLQueriesContainerTests) -> () throws -> Void =
+            XLQueriesContainerTests.testDatabaseExecutorCalledOnATransactionScopeSeesTheUncommittedWrite
     }
 
     func testDocumentationNumericDateCodecs() throws {

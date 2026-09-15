@@ -261,4 +261,7 @@ described in <doc:DeclaredQueries>. Composing with those macros needs no
 separate transaction-aware spelling — a `@SQLQueries` extension's generated
 `execute(_:)` already calls `withTransaction(_:)` internally, so every
 declared query it runs shares the same pinned connection as any
-`makeRequest(with:)` call alongside it in the same body.
+`makeRequest(with:)` call alongside it in the same body. Since v1.9
+([#662](https://github.com/lukevanin/swiftql/issues/662)) a declared query
+called on the scope itself also runs on that pinned connection, instead of
+opening a nested transaction; see <doc:DeclaredQueries>.

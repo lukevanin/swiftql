@@ -26,6 +26,19 @@
   away, `streamOne()` delivers `nil`. The to-do demo observes its declared
   reads directly, and `TodoLiveReads.swift` and `TodoFilteredRead.swift` are
   removed.
+- **A declared query can be called inside `withTransaction`** (issue #662).
+  An `@SQLQueries` database-level executor called on the scope that
+  `withTransaction(_:)` gives its body now runs on that scope. It runs on the
+  transaction's connection and sees the transaction's uncommitted writes.
+  Before, it opened a transaction of its own and threw
+  `nestedTransactionUnsupported`. On a database, the executor still opens a
+  transaction as before. The executor uses the render-once cache entry of the
+  database and the same binding packet, so a scope adds no cache entry and no
+  render. The scope rules do not change: an ended scope throws `scopeEscaped`,
+  the original database used inside a body and `execute(_:)` called on a scope
+  throw `nestedTransactionUnsupported`, and a query prepared on a scope cannot
+  be observed. The `@SQLQuery` peer executor already ran on a scope. The to-do
+  demo's transactions now use its declared reads.
 
 ### Changed
 
