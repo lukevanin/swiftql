@@ -2,13 +2,14 @@ import XCTest
 
 import SwiftQL
 import TodoKit
+import TodoKitTestSupport
 
 /// Proves the interface's central claim: a write updates every view that
 /// reads the affected tables, with no refetch call anywhere.
 ///
-/// Waiting is bounded polling on the main actor, not a sleep — the loop ends
-/// as soon as the snapshot arrives, and fails with a useful message if it
-/// never does.
+/// Every wait awaits the state it needs through Observation, so the model's
+/// own mutation resumes the test. Nothing sleeps or polls on a timer, so a
+/// loaded machine can make these tests slower but cannot change a verdict.
 @available(iOS 17, macOS 14, *)
 @MainActor
 final class TodoLiveQueryTests: XCTestCase {
@@ -30,22 +31,6 @@ final class TodoLiveQueryTests: XCTestCase {
     override func tearDownWithError() throws {
         database = nil
         try? FileManager.default.removeItem(at: directory)
-    }
-
-    /// Polls `condition` until it holds or the budget runs out.
-    private func wait(
-        for description: String,
-        timeout: TimeInterval = 5,
-        until condition: @MainActor () -> Bool
-    ) async throws {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if condition() {
-                return
-            }
-            try await Task.sleep(nanoseconds: 5_000_000)
-        }
-        XCTFail("timed out waiting for \(description)")
     }
 
     /// Lets every main-actor continuation already scheduled run to
@@ -77,7 +62,7 @@ final class TodoLiveQueryTests: XCTestCase {
     func testAListModelDeliversItsFirstSnapshotWithoutBeingAsked() async throws {
         let model = try TodoListModel(database: database, query: query())
 
-        try await wait(for: "the initial snapshot") { !model.todos.isLoading }
+        await waitForObservedState("the initial snapshot") { !model.todos.isLoading }
 
         XCTAssertEqual(
             model.todos.rows.map(\.title),
@@ -91,12 +76,12 @@ final class TodoLiveQueryTests: XCTestCase {
             database: database,
             query: query(filter: .active)
         )
-        try await wait(for: "the initial snapshot") { model.todos.rows.count == 2 }
+        await waitForObservedState("the initial snapshot") { model.todos.rows.count == 2 }
 
         // A write, and nothing else. No reload call follows.
         try database.setCompleted(true, todoID: TodoSeed.renewPassportID)
 
-        try await wait(for: "the completed to-do to leave the active filter") {
+        await waitForObservedState("the completed to-do to leave the active filter") {
             model.todos.rows.count == 1
         }
         XCTAssertEqual(
@@ -107,14 +92,14 @@ final class TodoLiveQueryTests: XCTestCase {
 
     func testCompletingAToDoUpdatesTheSidebarCounts() async throws {
         let sidebar = TodoSidebarModel(database: database)
-        try await wait(for: "the initial counts") {
+        await waitForObservedState("the initial counts") {
             sidebar.counts(for: TodoSeed.todayListID).totalCount == 2
         }
         XCTAssertEqual(sidebar.counts(for: TodoSeed.todayListID).openCount, 2)
 
         try database.setCompleted(true, todoID: TodoSeed.renewPassportID)
 
-        try await wait(for: "the open count to fall") {
+        await waitForObservedState("the open count to fall") {
             sidebar.counts(for: TodoSeed.todayListID).openCount == 1
         }
         XCTAssertEqual(
@@ -130,17 +115,17 @@ final class TodoLiveQueryTests: XCTestCase {
             database: database,
             todoID: TodoSeed.renewPassportID
         )
-        try await wait(for: "both initial snapshots") {
+        await waitForObservedState("both initial snapshots") {
             !list.todos.isLoading && !detail.todo.isLoading
         }
         XCTAssertEqual(detail.todo.row?.isCompleted, false)
 
         try database.toggleCompleted(todoID: TodoSeed.renewPassportID)
 
-        try await wait(for: "the detail to update") {
+        await waitForObservedState("the detail to update") {
             detail.todo.row?.isCompleted == true
         }
-        try await wait(for: "the list to update") {
+        await waitForObservedState("the list to update") {
             list.todos.rows.first { $0.id == TodoSeed.renewPassportID }?
                 .isCompleted == true
         }
@@ -148,7 +133,7 @@ final class TodoLiveQueryTests: XCTestCase {
 
     func testANewToDoAppearsInTheList() async throws {
         let model = try TodoListModel(database: database, query: query())
-        try await wait(for: "the initial snapshot") { model.todos.rows.count == 2 }
+        await waitForObservedState("the initial snapshot") { model.todos.rows.count == 2 }
 
         try database.createTodo(
             listID: TodoSeed.todayListID,
@@ -156,24 +141,24 @@ final class TodoLiveQueryTests: XCTestCase {
             now: TodoDate(referenceDate)
         )
 
-        try await wait(for: "the new to-do") { model.todos.rows.count == 3 }
+        await waitForObservedState("the new to-do") { model.todos.rows.count == 3 }
         XCTAssertTrue(model.todos.rows.contains { $0.title == "Water the plants" })
     }
 
     func testADeletedToDoLeavesTheList() async throws {
         let model = try TodoListModel(database: database, query: query())
-        try await wait(for: "the initial snapshot") { model.todos.rows.count == 2 }
+        await waitForObservedState("the initial snapshot") { model.todos.rows.count == 2 }
 
         try database.deleteTodo(id: TodoSeed.renewPassportID)
 
-        try await wait(for: "the to-do to go") { model.todos.rows.count == 1 }
+        await waitForObservedState("the to-do to go") { model.todos.rows.count == 1 }
     }
 
     // MARK: - Rebinding
 
     func testChangingTheFilterRebindsRatherThanFilteringInSwift() async throws {
         let model = try TodoListModel(database: database, query: query())
-        try await wait(for: "the initial snapshot") { model.todos.rows.count == 2 }
+        await waitForObservedState("the initial snapshot") { model.todos.rows.count == 2 }
         let before = ObjectIdentifier(model.todos)
 
         model.filter = .overdue
@@ -183,7 +168,7 @@ final class TodoLiveQueryTests: XCTestCase {
             before,
             "a new filter is a new observation, not a Swift-side filter"
         )
-        try await wait(for: "the overdue snapshot") {
+        await waitForObservedState("the overdue snapshot") {
             model.todos.rows.map(\.title) == ["Renew passport"]
         }
     }
@@ -193,11 +178,11 @@ final class TodoLiveQueryTests: XCTestCase {
             database: database,
             query: query(TodoSeed.homeListID)
         )
-        try await wait(for: "the initial snapshot") { model.todos.rows.count == 2 }
+        await waitForObservedState("the initial snapshot") { model.todos.rows.count == 2 }
 
         model.sort = .dueDate
 
-        try await wait(for: "the re-sorted snapshot") {
+        await waitForObservedState("the re-sorted snapshot") {
             model.todos.rows.map(\.title)
                 == ["Pay the rent", "Sharpen the kitchen knives"]
         }
@@ -205,18 +190,18 @@ final class TodoLiveQueryTests: XCTestCase {
 
     func testChangingTheSearchRebinds() async throws {
         let model = try TodoListModel(database: database, query: query())
-        try await wait(for: "the initial snapshot") { model.todos.rows.count == 2 }
+        await waitForObservedState("the initial snapshot") { model.todos.rows.count == 2 }
 
         model.searchText = "passport"
 
-        try await wait(for: "the searched snapshot") {
+        await waitForObservedState("the searched snapshot") {
             model.todos.rows.map(\.title) == ["Renew passport"]
         }
     }
 
     func testSettingTheSameQueryDoesNotRebind() async throws {
         let model = try TodoListModel(database: database, query: query())
-        try await wait(for: "the initial snapshot") { !model.todos.isLoading }
+        await waitForObservedState("the initial snapshot") { !model.todos.isLoading }
         let before = ObjectIdentifier(model.todos)
 
         model.filter = .all
@@ -232,21 +217,21 @@ final class TodoLiveQueryTests: XCTestCase {
 
     func testStoppingAModelEndsItsObservation() async throws {
         let model = try TodoListModel(database: database, query: query())
-        try await wait(for: "the initial snapshot") { model.todos.rows.count == 2 }
+        await waitForObservedState("the initial snapshot") { model.todos.rows.count == 2 }
 
         // A probe on the same database, still observing. Waiting for it to
         // see the delete is what bounds the window: once a live observation
         // has delivered this commit, a stopped one has had its chance too.
         // That is a condition to wait on, not a duration to guess at.
         let probe = TodoSidebarModel(database: database)
-        try await wait(for: "the probe's initial counts") {
+        await waitForObservedState("the probe's initial counts") {
             probe.counts(for: TodoSeed.todayListID).totalCount == 2
         }
 
         model.stop()
         try database.deleteTodo(id: TodoSeed.renewPassportID)
 
-        try await wait(for: "the probe to see the delete") {
+        await waitForObservedState("the probe to see the delete") {
             probe.counts(for: TodoSeed.todayListID).totalCount == 1
         }
 
@@ -268,18 +253,18 @@ final class TodoLiveQueryTests: XCTestCase {
         // snapshot arriving for the probe proves the write really happened
         // and the released model simply is not there to receive one.
         let probe = TodoSidebarModel(database: database)
-        try await wait(for: "the probe's initial counts") {
+        await waitForObservedState("the probe's initial counts") {
             probe.counts(for: TodoSeed.todayListID).totalCount == 2
         }
 
         do {
             let model = try TodoListModel(database: database, query: query())
-            try await wait(for: "the model's snapshot") { model.todos.rows.count == 2 }
+            await waitForObservedState("the model's snapshot") { model.todos.rows.count == 2 }
         }
 
         try database.deleteTodo(id: TodoSeed.renewPassportID)
 
-        try await wait(for: "the probe to see the delete") {
+        await waitForObservedState("the probe to see the delete") {
             probe.counts(for: TodoSeed.todayListID).totalCount == 1
         }
     }
@@ -288,7 +273,7 @@ final class TodoLiveQueryTests: XCTestCase {
 
     func testRapidWritesLeaveTheListAtTheFinalState() async throws {
         let model = try TodoListModel(database: database, query: query())
-        try await wait(for: "the initial snapshot") { model.todos.rows.count == 2 }
+        await waitForObservedState("the initial snapshot") { model.todos.rows.count == 2 }
 
         for index in 0..<20 {
             try database.createTodo(
@@ -300,7 +285,7 @@ final class TodoLiveQueryTests: XCTestCase {
 
         // Live queries are state streams, not commit logs: snapshots may
         // coalesce, but the last one has to be current.
-        try await wait(for: "every write to land") { model.todos.rows.count == 22 }
+        await waitForObservedState("every write to land") { model.todos.rows.count == 22 }
         XCTAssertEqual(
             Set(model.todos.rows.map(\.title)).count,
             22,

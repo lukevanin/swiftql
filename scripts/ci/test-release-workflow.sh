@@ -6,6 +6,7 @@ script_directory="$(cd "$(dirname "$0")" && pwd -P)"
 check_ref="$script_directory/check-release-ref.sh"
 check_readiness="$script_directory/check-release-readiness.sh"
 check_changelog="$script_directory/check-release-changelog.sh"
+check_version_claims="$script_directory/check-release-version-claims.sh"
 prepare_assets="$script_directory/prepare-release-assets.sh"
 publish_release="$script_directory/publish-release.sh"
 archive_tool="$script_directory/release-archive.py"
@@ -413,6 +414,101 @@ expect_failure "$check_changelog" \
     v1.1.0 v1.1.0 "$test_root/does-not-exist.md"
 "$check_changelog" \
     release-test/v1.1.0 v1.1.0 "$test_root/does-not-exist.md" > /dev/null
+
+# Production releases require every published-version claim to name the tag's
+# version. These pins used to live in the Swift test suite, which made a
+# version bump a test edit; the release gate owns them now.
+write_version_claims() {
+    local root="$1"
+    local version="$2"
+    mkdir -p "$root/Sources/SwiftQL/SwiftQL.docc" "$root/Website"
+    printf '%s\n' \
+        '```swift' \
+        ".package(url: \"https://github.com/lukevanin/swiftql.git\", from: \"$version\")" \
+        '```' \
+        '' \
+        "\`$version\` is the latest published package." \
+        > "$root/README.md"
+    printf '%s\n' \
+        ".package(url: \"https://github.com/lukevanin/swiftql.git\", from: \"$version\")" \
+        "Version $version is the published package. This guide's basic request" \
+        > "$root/Sources/SwiftQL/SwiftQL.docc/GettingStarted.md"
+    # Wrapped mid-claim on purpose: the gate matches normalized whitespace.
+    printf '%s\n' \
+        "on each physical connection. Version $version is the latest" \
+        'published package.' \
+        > "$root/Sources/SwiftQL/SwiftQL.docc/SwiftQL.md"
+    printf '%s\n' \
+        '---' \
+        'name: swiftql' \
+        "description: Use the checked-out public v1 contract; $version is the latest published package, a fixture." \
+        '---' \
+        '' \
+        "- Read the changelog. \`$version\` is the latest" \
+        '  published package.' \
+        > "$root/SKILL.md"
+    printf '%s\n' \
+        "<div class=\"install\"><code>.package(url: \"https://github.com/lukevanin/swiftql.git\", from: \"$version\")</code></div>" \
+        > "$root/Website/index.html"
+}
+
+claims_ready="$test_root/claims-ready"
+write_version_claims "$claims_ready" 1.1.0
+"$check_version_claims" v1.1.0 v1.1.0 "$claims_ready" > /dev/null
+expect_failure "$check_version_claims" v1.1.1 v1.1.1 "$claims_ready"
+expect_failure "$check_version_claims" v1.1.0 v1.1.1 "$claims_ready"
+expect_failure "$check_version_claims" 1.1.0 1.1.0 "$claims_ready"
+"$check_version_claims" \
+    release-test/v1.1.0 v1.1.0 "$test_root/does-not-exist" > /dev/null
+
+# Each of the six claims fails the gate on its own when it is left stale.
+stale_claim() {
+    local name="$1"
+    local path="$2"
+    local stale_text="$3"
+    local root="$test_root/claims-stale-$name"
+    local contents
+    write_version_claims "$root" 1.1.0
+    contents="$(cat "$root/$path")"
+    printf '%s\n' "${contents//1.1.0/$stale_text}" > "$root/$path"
+    expect_failure "$check_version_claims" v1.1.0 v1.1.0 "$root"
+    # Captured first: under pipefail the gate's own non-zero exit would
+    # otherwise fail the pipeline even when grep finds the report.
+    output="$("$check_version_claims" v1.1.0 v1.1.0 "$root" 2>&1 || true)"
+    grep -Fq "$path" <<< "$output" ||
+        fail "stale $name claim was not reported against $path"
+}
+stale_claim readme README.md 1.0.9
+stale_claim getting-started Sources/SwiftQL/SwiftQL.docc/GettingStarted.md 1.0.9
+stale_claim landing-article Sources/SwiftQL/SwiftQL.docc/SwiftQL.md 1.0.9
+stale_claim website Website/index.html 1.0.9
+
+# SKILL.md carries two independent claims; either one stale fails.
+skill_description="$test_root/claims-stale-skill-description"
+write_version_claims "$skill_description" 1.1.0
+sed -i.bak 's/^description: Use the checked-out public v1 contract; 1\.1\.0/description: Use the checked-out public v1 contract; 1.0.9/' \
+    "$skill_description/SKILL.md"
+expect_failure "$check_version_claims" v1.1.0 v1.1.0 "$skill_description"
+output="$("$check_version_claims" v1.1.0 v1.1.0 "$skill_description" 2>&1 || true)"
+grep -Fq "front-matter description" <<< "$output" ||
+    fail 'stale SKILL.md description claim was not reported'
+skill_body="$test_root/claims-stale-skill-body"
+write_version_claims "$skill_body" 1.1.0
+sed -i.bak 's/^- Read the changelog\. `1\.1\.0`/- Read the changelog. `1.0.9`/' \
+    "$skill_body/SKILL.md"
+expect_failure "$check_version_claims" v1.1.0 v1.1.0 "$skill_body"
+
+# A current sentence beside a stale package requirement still fails.
+stale_requirement="$test_root/claims-stale-requirement"
+write_version_claims "$stale_requirement" 1.1.0
+sed -i.bak 's/from: "1\.1\.0"/from: "1.0.9"/' "$stale_requirement/README.md"
+expect_failure "$check_version_claims" v1.1.0 v1.1.0 "$stale_requirement"
+
+# A missing claim document fails rather than being skipped.
+missing_document="$test_root/claims-missing-document"
+write_version_claims "$missing_document" 1.1.0
+rm "$missing_document/Website/index.html"
+expect_failure "$check_version_claims" v1.1.0 v1.1.0 "$missing_document"
 
 # Build a minimal real Pages tar and prove deterministic release packaging.
 site="$test_root/site"

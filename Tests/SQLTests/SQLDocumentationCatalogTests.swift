@@ -40,11 +40,13 @@ private struct DocumentationConformanceInventory: Decodable {
         }
     }
 
+    let inventoryVersion: String
     let features: [Feature]
     let evidence: [Evidence]
     let sqliteEnvironments: [SQLiteEnvironment]
 
     enum CodingKeys: String, CodingKey {
+        case inventoryVersion = "inventory_version"
         case features
         case evidence
         case sqliteEnvironments = "sqlite_environments"
@@ -862,10 +864,15 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             inventory.features.count,
             "Every inventory feature must contribute to the documented status totals."
         )
+        // The published-version claims are compared against the newest dated
+        // CHANGELOG.md heading, not a literal, so a release bumps them without
+        // editing this file. check-release-version-claims.sh ties them to the
+        // tag in the release workflow (issue #672).
+        let latestRelease = try swiftQLLatestReleasedVersion()
 
         let requiredPhrasesByPath = [
             "README.md": [
-                "`1.8.1` is the latest published package",
+                "`\(latestRelease)` is the latest published package",
             ],
             "COMPATIBILITY.md": [
                 "## v1.3 public products and runtime boundaries",
@@ -873,7 +880,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "SwiftSyntax 509.0.0, GRDB 6.29.3",
                 "The high-level `XLRequest` facade",
                 "only a SQLite dialect and a GRDB database driver",
-                "seven release-blocking compiler cells",
+                "eight release-blocking compiler cells",
                 "It ships no",
                 "public validator, build plugin, macro, schema system, or new v1.3 API",
             ],
@@ -891,7 +898,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "$matches[0].state == \"closed\"",
                 "$matches[0].open_issues == 0",
                 "It is not proof that any later milestone is ready",
-                "must contain all seven",
+                "must contain all eight",
                 "release-blocking compiler cells",
                 "Protect v-prefixed release tags",
                 "A merge commit is mandatory.",
@@ -906,10 +913,10 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "not a claim of complete SQLite",
                 "v1.3 does not ship a public",
                 "validator, build plugin, query macro, schema system",
-                "Version 1.8.1 is the latest published package",
+                "Version \(latestRelease) is the latest published package",
             ],
             "Sources/SwiftQL/SwiftQL.docc/GettingStarted.md": [
-                "Version 1.8.1 is the published package",
+                "Version \(latestRelease) is the published package",
                 "This guide's basic request path remains",
                 "from version 1.2.0 or later",
             ],
@@ -932,9 +939,10 @@ final class SQLDocumentationCatalogTests: XCTestCase {
         let inventoryPhrasesByPath = [
             "COMPATIBILITY.md": [
                 // This label tracks the inventory's own `inventory_version`,
-                // which the v1.8.1 release preparation bumped to 1.8.1. It is unrelated
-                // to the v1.3 source-tree milestone the phrases above pin.
-                "The v1.8.1 inventory contains \(inventory.features.count) feature records and \(inventory.evidence.count) evidence records",
+                // read from the inventory rather than pinned, so bumping it
+                // with a release line edits no test. It is unrelated to the
+                // v1.3 source-tree milestone the phrases above pin.
+                "The v\(inventory.inventoryVersion) inventory contains \(inventory.features.count) feature records and \(inventory.evidence.count) evidence records",
                 "| Supported | \(supportedCount) |",
                 "| Partial | \(partialCount) |",
                 "| Capability-gated | \(capabilityGatedCount) |",
@@ -981,21 +989,24 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             contentsOf: repositoryRoot.appendingPathComponent("CHANGELOG.md"),
             encoding: .utf8
         )
-        let firstReleaseHeading = changelog
-            .components(separatedBy: .newlines)
-            .first(where: { $0.hasPrefix("## [") })
-        // RELEASING.md step 4 dates this heading during release preparation,
-        // replacing `Unreleased` with the release date; update this pin in the
-        // same change.
-        //
-        // 1.8.1 is the newest version, so its heading is the first one in the
-        // file. The release gate (`scripts/ci/check-release-changelog.sh`)
-        // reads the heading for the version being tagged rather than the first
-        // heading, so this pin records the changelog's shape rather than
-        // gating the release. While a later line is developed on its own
-        // branch, that branch's heading is the first one and this pin names it
-        // there.
-        XCTAssertEqual(firstReleaseHeading, "## [1.8.1] - 2026-09-15")
+        let firstReleaseHeading = try XCTUnwrap(
+            changelog
+                .components(separatedBy: .newlines)
+                .first(where: { $0.hasPrefix("## [") })
+        )
+        // The shape of the newest heading only, never its version or date:
+        // either a line still collecting changes (`Unreleased`) or a dated
+        // release. This used to pin the exact heading, so every release edited
+        // this file. The release gate owns the exact fact:
+        // `scripts/ci/check-release-changelog.sh` requires one dated heading
+        // for the tagged version on the tagged commit (issue #672).
+        XCTAssertNotNil(
+            firstReleaseHeading.range(
+                of: #"^## \[[0-9]+\.[0-9]+\.[0-9]+\] - (Unreleased|[0-9]{4}-[0-9]{2}-[0-9]{2})$"#,
+                options: .regularExpression
+            ),
+            "CHANGELOG.md's first version heading is malformed: \(firstReleaseHeading)"
+        )
     }
 
     /// `check-docc-output.sh` proves one built page per catalog article. An
@@ -1074,6 +1085,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
     /// document that restates it (issue #230).
     func testPublicDocumentsAgreeOnTheShippedV15Surface() throws {
         let repositoryRoot = try repositoryRootURL()
+        let latestRelease = try swiftQLLatestReleasedVersion()
         let requiredPhrasesByPath = [
             "README.md": [
                 "Write a query as an ordinary Swift function with `@SQLQuery`",
@@ -1083,7 +1095,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             // Package Manager version drifts silently; it was still on 1.5.4
             // two releases later when #230 found it.
             "Website/index.html": [
-                #".package(url: "https://github.com/lukevanin/swiftql.git", from: "1.8.1")"#,
+                #".package(url: "https://github.com/lukevanin/swiftql.git", from: "\#(latestRelease)")"#,
             ],
             "COMPATIBILITY.md": [
                 "`SwiftQLSQLiteBuildValidationManifest` and",

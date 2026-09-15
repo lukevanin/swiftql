@@ -1,14 +1,27 @@
 #!/usr/bin/env python3
 
-"""Verify two first-party coverage captures came from the same clean source."""
+"""Verify a first-party coverage capture against a source selection derived
+from `git ls-files` and the coverage config.
+
+The capture's reproducibility identity never included hit counters: two runs of
+the concurrent suite can legitimately merge different counts. What a second
+full coverage run re-proved was therefore only the source selection -- which
+tracked files belong to which target, and which are explicitly uninstrumented
+-- plus the provenance around it. Every part of that selection is a function of
+the checked-out tree and the config, so this verifier derives it independently
+from those inputs instead of paying for a second instrumented test run, and
+rejects a capture whose manifests, target topology, source commit, or
+Package.resolved digest disagree.
+"""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import re
-import shutil
+import subprocess
 import sys
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
@@ -541,56 +554,149 @@ def verify_run(
     return report, identity, included, allowed, source_count, source_sha256
 
 
-def differing_top_level_keys(
-    first: Mapping[str, Any], second: Mapping[str, Any]
-) -> Sequence[str]:
-    return sorted(
-        key
-        for key in set(first) | set(second)
-        if first.get(key) != second.get(key)
+SCRIPT_DIRECTORY = Path(__file__).resolve().parent
+DEFAULT_REPOSITORY_ROOT = SCRIPT_DIRECTORY.parents[1]
+DEFAULT_CONFIG = SCRIPT_DIRECTORY / "source-coverage-config.json"
+
+
+def load_report_module() -> Any:
+    """The report script's own source-selection functions.
+
+    Deriving the selection with the same `git ls-files` enumeration and
+    config parser the report uses keeps the two from drifting apart: the
+    verifier re-runs that derivation in a separate process, against the tree
+    as it is now, rather than trusting what the capture wrote down.
+    """
+    path = SCRIPT_DIRECTORY / "source-coverage-report.py"
+    specification = importlib.util.spec_from_file_location(
+        "swiftql_source_coverage_report", path
     )
+    if specification is None or specification.loader is None:
+        raise ReproducibilityError(f"could not load {path}")
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    return module
 
 
-def run(first_directory: Path, second_directory: Path, output_json: Path) -> None:
-    first = verify_run(first_directory)
-    second = verify_run(second_directory)
+def git_head(repository_root: Path) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(repository_root), "rev-parse", "HEAD"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise ReproducibilityError(
+            f"could not read the checked-out commit: {result.stderr.strip()}"
+        )
+    return result.stdout.strip()
+
+
+def derived_selection(
+    repository_root: Path, config: Path
+) -> Tuple[Mapping[str, str], bytes, bytes]:
+    report_module = load_report_module()
+    try:
+        targets = report_module.load_config(config)
+        roots: Dict[str, str] = {}
+        included_lines: List[str] = []
+        allowed_lines: List[str] = []
+        for target in sorted(targets, key=lambda target: target["name"]):
+            name = target["name"]
+            roots[name] = target["source_root"]
+            tracked = report_module.expected_sources(
+                repository_root, target["source_root"]
+            )
+            allowed = sorted(target["allowed_uninstrumented_sources"])
+            untracked_allowances = sorted(set(allowed) - set(tracked))
+            if untracked_allowances:
+                raise ReproducibilityError(
+                    f"{name} allows uninstrumented sources git does not track: "
+                    + ", ".join(untracked_allowances)
+                )
+            included_lines.extend(
+                f"{name}\t{source}" for source in tracked if source not in allowed
+            )
+            allowed_lines.extend(f"{name}\t{source}" for source in allowed)
+    except report_module.CoverageError as error:
+        raise ReproducibilityError(
+            f"could not derive the source selection: {error}"
+        ) from error
+    included = "".join(line + "\n" for line in included_lines).encode("utf-8")
+    allowed_manifest = "".join(line + "\n" for line in allowed_lines).encode("utf-8")
+    return roots, included, allowed_manifest
+
+
+def run(
+    capture_directory: Path,
+    output_json: Path,
+    repository_root: Path,
+    config: Path,
+) -> None:
     (
-        first_report,
-        first_identity,
-        first_included,
-        first_allowed,
+        report,
+        identity,
+        included,
+        allowed,
         source_count,
         source_sha256,
-    ) = first
-    second_report, second_identity, second_included, second_allowed, _, _ = second
+    ) = verify_run(capture_directory)
 
-    if first_included != second_included:
-        raise ReproducibilityError("included source manifests differ between clean runs")
-    if first_allowed != second_allowed:
+    head = git_head(repository_root)
+    if report["source_commit"] != head:
         raise ReproducibilityError(
-            "allowed-uninstrumented source manifests differ between clean runs"
+            f"capture source commit {report['source_commit']} is not the "
+            f"checked-out commit {head}"
         )
-    if first_identity != second_identity:
-        keys = ", ".join(differing_top_level_keys(first_identity, second_identity))
+    package_resolved = repository_root / "Package.resolved"
+    try:
+        package_resolved_sha256 = hashlib.sha256(
+            package_resolved.read_bytes()
+        ).hexdigest()
+    except OSError as error:
         raise ReproducibilityError(
-            f"coverage reproducibility identities differ between clean runs: {keys}"
+            f"could not read {package_resolved}: {error}"
+        ) from error
+    if report["package_resolved_sha256"] != package_resolved_sha256:
+        raise ReproducibilityError(
+            "capture Package.resolved digest does not match the checkout"
         )
 
-    normalized_reports_match = first_report == second_report
+    roots, derived_included, derived_allowed = derived_selection(
+        repository_root, config
+    )
+    captured_roots = {
+        name: target["source_root"] for name, target in identity["targets"].items()
+    }
+    if captured_roots != roots:
+        raise ReproducibilityError(
+            "capture target topology does not match the coverage config"
+        )
+    if included != derived_included:
+        raise ReproducibilityError(
+            "included source manifest does not match the selection derived "
+            "from git ls-files and the coverage config"
+        )
+    if allowed != derived_allowed:
+        raise ReproducibilityError(
+            "allowed-uninstrumented source manifest does not match the "
+            "selection derived from git ls-files and the coverage config"
+        )
 
     evidence: Dict[str, Any] = {
-        "schema_version": 1,
-        "clean_runs_compared": 2,
-        "source_commit": first_report["source_commit"],
+        "schema_version": 2,
+        "method": "single capture verified against git ls-files and the coverage config",
+        "coverage_captures": 1,
+        "source_commit": report["source_commit"],
         "source_tree_state": "clean",
-        "package_resolved_sha256": first_report["package_resolved_sha256"],
-        "coverage_command": first_report["coverage_command"],
-        "toolchain": first_report["toolchain"],
+        "package_resolved_sha256": report["package_resolved_sha256"],
+        "coverage_command": report["coverage_command"],
+        "toolchain": report["toolchain"],
+        "source_commit_matches_checkout": True,
+        "package_resolution_matches_checkout": True,
+        "target_topology_matches_config": True,
         "included_source_sets_match": True,
         "allowed_uninstrumented_source_sets_match": True,
-        "reproducibility_identity_matches": True,
-        "normalized_reports_match": normalized_reports_match,
-        "dynamic_coverage_metrics_match": normalized_reports_match,
         "included_source_files": source_count,
         "included_sources_sha256": source_sha256,
     }
@@ -598,25 +704,35 @@ def run(first_directory: Path, second_directory: Path, output_json: Path) -> Non
     output_json.write_text(
         json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    shutil.copyfile(
-        second_directory / "included-sources.txt",
-        output_json.parent / "repeated-included-sources.txt",
+    (output_json.parent / "derived-included-sources.txt").write_bytes(
+        derived_included
     )
-    print(f"SWIFTQL_SOURCE_COVERAGE_REPRODUCIBLE {source_sha256}")
+    (output_json.parent / "derived-allowed-uninstrumented-sources.txt").write_bytes(
+        derived_allowed
+    )
+    print(f"SWIFTQL_SOURCE_COVERAGE_SELECTION_VERIFIED {source_sha256}")
 
 
 def parse_arguments(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("first_run", type=Path)
-    parser.add_argument("second_run", type=Path)
+    parser.add_argument("capture", type=Path)
     parser.add_argument("output_json", type=Path)
+    parser.add_argument(
+        "--repository-root", type=Path, default=DEFAULT_REPOSITORY_ROOT
+    )
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     return parser.parse_args(argv)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     arguments = parse_arguments(argv)
     try:
-        run(arguments.first_run, arguments.second_run, arguments.output_json)
+        run(
+            arguments.capture,
+            arguments.output_json,
+            arguments.repository_root.resolve(),
+            arguments.config,
+        )
     except ReproducibilityError as error:
         print(f"error: source coverage reproducibility: {error}", file=sys.stderr)
         return 1

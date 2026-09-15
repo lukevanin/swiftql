@@ -83,9 +83,20 @@ let package = Package(
             ]
         ),
 
+        // Awaitable Observation helpers for the demo's live-query tests. It
+        // is a regular target, rather than code inside the test target, so the
+        // helpers stay small and reusable; it imports XCTest so a wait can
+        // report through the test that is waiting. It is deliberately absent
+        // from `products`: no client of this package, and not the app, can
+        // link it, so XCTest never reaches anything that ships.
+        .target(
+            name: "TodoKitTestSupport",
+            path: "Tests/TodoKitTestSupport"
+        ),
+
         .testTarget(
             name: "TodoKitTests",
-            dependencies: ["TodoKit"]
+            dependencies: ["TodoKit", "TodoKitTestSupport"]
         ),
     ]
 )

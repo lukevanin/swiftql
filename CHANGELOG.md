@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.9.0] - Unreleased
+
+### Changed
+
+- **CI: Linux on Swift 6, and a shorter main-branch run.** The compatibility
+  matrix adds a Swift 6.3.2 Linux cell (issue #672). It installs its toolchain
+  through the same signature-verified Swift.org archive path and pinned SQLite
+  3.53.3 build as the Swift 5.9.2 cells, so the OpenCombine bridge and the
+  Foundation-backed codecs now run under swift-foundation. Source coverage is
+  no longer a separate macOS job that runs the suite twice: the Swift 6.0
+  committed cell runs the suite once under coverage, and a verifier derives the
+  expected source selection from `git ls-files` and the coverage config. The
+  Getting Started playground check moves to the Swift 5.9 Linux committed cell,
+  and complete strict concurrency runs once, on the Swift 6.0 clean cell.
+  `COMPATIBILITY.md` records the account's macOS runner limit that these moves
+  work around.
+- **Release: version claims are a release gate, not test pins.** The release
+  workflow runs `scripts/ci/check-release-version-claims.sh` on the exact tag
+  commit and fails unless the six published-version claims name the tag's
+  version. The Swift documentation tests compare those claims with the newest
+  dated CHANGELOG heading instead of a literal, and no longer pin SKILL.md's
+  release sentence verbatim, so a version bump touches no test file.
+- **To-do demo: live-query tests await state.** A new `TodoKitTestSupport`
+  target, which is not a product, gives the demo's tests an Observation-driven
+  wait. The tests no longer poll with `Task.sleep`.
+
 ## [1.8.1] - 2026-09-15
 
 v1.8.1 is a correctness and safety patch for the 1.8 line. It removes process

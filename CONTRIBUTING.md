@@ -5,7 +5,10 @@
 SwiftQL is a Swift package. You need:
 
 - **Xcode 15** or later (macOS), or the **Swift 5.9** toolchain or later
-  (Linux). The CI matrix covers Swift 5.9, 6.0, 6.1, 6.2, and 6.3.
+  (Linux). The CI matrix covers Swift 5.9, 6.0, 6.1, 6.2, and 6.3. On Linux,
+  CI verifies two exact toolchains on Ubuntu 22.04 x86_64: Swift 5.9.2 and
+  Swift 6.3.2. Other Linux toolchains are expected to work but are not
+  verified; see [COMPATIBILITY.md](COMPATIBILITY.md#pinned-compiler-support-points).
 - **macOS 13** or later (for macOS builds). iOS 16 or later is the minimum
   supported iOS version.
 
@@ -131,7 +134,7 @@ orphan the branch commit and break the release workflow's reachability gate.
 
 ## Releases
 
-Releasing SwiftQL involves an exact-tag validation pipeline, a seven-cell Swift
+Releasing SwiftQL involves an exact-tag validation pipeline, an eight-cell Swift
 compatibility matrix, immutable release settings, and a protected tag ruleset.
 That process is documented in full in [RELEASING.md](RELEASING.md). Do not
 publish a release directly through the GitHub API — publication is owned by the
