@@ -268,6 +268,33 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                         ).validatingComplete()
                         return try __xlRequest.fetchAll(bindings: __xlPacket)
                     }
+
+                    var declaredQueries: [XLDeclaredQuery] {
+                        let __xlStatement0: any XLQueryStatement<Person> = {
+                            sql { schema in
+                                let person = schema.table(Person.self)
+                                Select(person)
+                                From(person)
+                                Where(person.name.like(XLNamedBindingReference<String>(name: "pattern")) || person.notes.regexp(XLNamedBindingReference<String>(name: "pattern")))
+                                Limit(XLNamedBindingReference<Int>(name: "count"))
+                            }
+                        }()
+                        return [
+                            XLDeclaredQuery(
+                                database: database,
+                                name: "peopleMatching",
+                                cardinality: .many,
+                                parameters: [
+                                    XLDeclaredQueryParameter(name: "pattern", valueType: String.self),
+                                    XLDeclaredQueryParameter(name: "count", valueType: Int.self),
+                                ],
+                                rowType: Person.self,
+                                statement: {
+                                    __xlStatement0
+                                }
+                            ),
+                        ]
+                    }
                 }
 
                 func execute<__XLResult>(_ __xlWork: (Context) throws -> __XLResult) throws -> __XLResult {
@@ -280,6 +307,10 @@ final class SQLQueriesMacroExpansionTests: XCTestCase {
                     try execute { __xlContext in
                         try __xlContext.peopleMatching(pattern: pattern, count: count)
                     }
+                }
+
+                var declaredQueries: [XLDeclaredQuery] {
+                    Context(database: self).declaredQueries
                 }
             }
             """,

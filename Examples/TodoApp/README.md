@@ -120,7 +120,7 @@ SwiftQL's build-tool plugin prepares each one against that snapshot on every
 build. The manifest is generated from the declarations:
 TodoKit applies `SwiftQLDeclaredQueryRegistryPlugin`, which generates
 `TodoKitDeclaredQueries` from every declared query on each build, and the
-generator in `Sources/todo-validation-manifest` adds only the filtered read. Regenerate both after changing the schema or a query:
+generator in `Sources/todo-validation-manifest` adds no query of its own. Regenerate both after changing the schema or a query:
 
 ```
 Examples/TodoApp/Tools/regenerate-validation-manifest.sh

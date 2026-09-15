@@ -317,12 +317,11 @@ rather than the app.
 The manifest generator lists no queries. TodoKit applies
 `SwiftQLDeclaredQueryRegistryPlugin`, which scans its sources on every build
 and generates `TodoKitDeclaredQueries`. The generator reads every declared
-query from that registry and adds only the list view's read, which is a
-statement rather than a declaration. SwiftQL lowers each query to a static
-descriptor and projects it into the manifest, so a query added anywhere in
-TodoKit is validated after the next regeneration with no change to the
-generator. Xcode asks you to trust the plugin the first time it builds the
-app.
+query from that registry, the filtered read included, and adds none of its
+own. SwiftQL lowers each query to a static descriptor and projects it into
+the manifest, so a query added anywhere in TodoKit is validated after the
+next regeneration with no change to the generator. Xcode asks you to trust
+the plugin the first time it builds the app.
 
 Regenerate both after changing the schema or a query:
 

@@ -408,8 +408,8 @@ private struct Walker {
             return
         }
         if let alias = decl.as(TypeAliasDeclSyntax.self) {
-            // `typealias Boxed<V> = Box<V>` cannot be named without
-            // arguments either, so a generic alias counts as a generic type.
+            // A generic alias cannot be named without its arguments either,
+            // so it counts as a generic type.
             types.append(TypeRecord(
                 name: scope.typeName.map { "\($0).\(alias.name.text)" } ?? alias.name.text,
                 isGeneric: scope.isGeneric || alias.genericParameterClause != nil,

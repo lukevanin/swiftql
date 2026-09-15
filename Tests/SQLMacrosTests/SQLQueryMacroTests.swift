@@ -742,6 +742,24 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
                 }
+
+                func peopleMatchingDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = peopleMatchingStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "peopleMatching",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "pattern", valueType: String.self),
+                            XLDeclaredQueryParameter(name: "expression", valueType: String.self),
+                            XLDeclaredQueryParameter(name: "limit", valueType: Int.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
+                }
             }
             """,
             macros: makeTestMacros()
@@ -807,6 +825,22 @@ final class SQLQueryMacroExpansionTests: XCTestCase {
                         ]
                     ).validatingComplete()
                     return try __xlRequest.fetchAll(bindings: __xlPacket)
+                }
+
+                func personByNameDeclaredQuery() -> XLDeclaredQuery {
+                    let __xlStatement: any XLQueryStatement<Person> = personByNameStatement()
+                    return XLDeclaredQuery(
+                        database: self,
+                        name: "personByName",
+                        cardinality: .many,
+                        parameters: [
+                            XLDeclaredQueryParameter(name: "name", valueType: String.self),
+                        ],
+                        rowType: Person.self,
+                        statement: {
+                            __xlStatement
+                        }
+                    )
                 }
             }
             """,
