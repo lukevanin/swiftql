@@ -28,6 +28,13 @@ public struct Select<Row>: XLEncodable, XLRowReadable {
     
     private let row: (XLRowReader) throws -> Row
 
+    /// The static row layout this select projects, when it was built from
+    /// one. Declared-query lowering reads the layout's metadata instead of
+    /// replaying a row reader that reads raw dialect values (issue #659).
+    var staticLayout: (any XLStaticRowReadable)? {
+        fields as? any XLStaticRowReadable
+    }
+
     /// Builds a select directly from immutable static projection metadata.
     ///
     /// This more-specific overload deliberately does not call `readRow` while

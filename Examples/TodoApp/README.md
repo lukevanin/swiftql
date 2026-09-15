@@ -46,7 +46,7 @@ in `TodoKit`, a local package beside it.
 | `TodoKit/Sources/TodoKit/TodoReads.swift` | The declared queries, which the live queries also observe |
 | `TodoKit/Sources/TodoKit/TodoStore.swift` | Writes and the move transaction |
 | `TodoKit/Sources/TodoKit/TodoModels.swift` | The `@Observable` live-query models |
-| `TodoKit/Tests/` | 80 tests over the query layer |
+| `TodoKit/Tests/` | 82 tests over the query layer |
 
 ## What each part shows
 
@@ -130,7 +130,10 @@ re-binds the live query rather than filtering in Swift.
 **Queries are checked at build time.** `TodoKitBuildValidation` carries a
 checked-in schema snapshot and a manifest of every query the demo runs, and
 SwiftQL's build-tool plugin prepares each one against that snapshot on every
-build. Regenerate both after changing the schema or a query:
+build. The manifest is generated from the declarations:
+TodoKit applies `SwiftQLDeclaredQueryRegistryPlugin`, which generates
+`TodoKitDeclaredQueries` from every declared query on each build, and the
+generator in `Sources/todo-validation-manifest` adds no query of its own. Regenerate both after changing the schema or a query:
 
 ```
 Examples/TodoApp/Tools/regenerate-validation-manifest.sh
@@ -186,7 +189,7 @@ up the v1.8 indices on its next launch regardless, because they are
 
 Building a whole application on v1.5 through v1.8 surfaced five places where
 the API resists, all recorded on
-[#469](https://github.com/lukevanin/swiftql/issues/469). v1.9 removed three
+[#469](https://github.com/lukevanin/swiftql/issues/469). v1.9 removed four
 of them. A declared query can now pass a parameter to `regexp(_:)` or `like(_:)`,
 so the list view's search is a declaration again
 ([#661](https://github.com/lukevanin/swiftql/issues/661)). A JSON mutation on
@@ -194,7 +197,10 @@ a `NOT NULL` column now has a non-optional result, so the checklist writes no
 longer end with `.coalesce(table.checklist)`
 ([#664](https://github.com/lukevanin/swiftql/issues/664)). A declared query can
 now be observed, so each read a view observes is written once
-([#660](https://github.com/lukevanin/swiftql/issues/660)). Two remain, also
+([#660](https://github.com/lukevanin/swiftql/issues/660)). A declared query can
+now be called on a transaction scope, so the reads inside the demo's
+transactions are its declared reads
+([#662](https://github.com/lukevanin/swiftql/issues/662)). One remains, also
 recorded on
 [#469](https://github.com/lukevanin/swiftql/issues/469):
 
@@ -205,9 +211,6 @@ recorded on
   ([#139](https://github.com/lukevanin/swiftql/issues/139)); the advisor can
   tell you exactly which index to add and prove the plan improves, and the
   library still cannot run it for you.
-- **A declared query cannot be called inside `withTransaction`.** The generated
-  executor opens its own transaction, and SwiftQL rejects nesting, so reads
-  inside a transaction use plain requests.
 
-None of them stop the demo working. They are the kind of thing an application
+It does not stop the demo working. It is the kind of thing an application
 finds and a fragment does not, which is most of why this exists.

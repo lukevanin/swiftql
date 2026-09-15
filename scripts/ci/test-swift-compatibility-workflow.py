@@ -154,6 +154,10 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn(
             "scripts/ci/check-named-binding-packet-type-safety.sh", compatibility
         )
+        self.assertIn("Verify declared-query discovery end to end", compatibility)
+        self.assertIn(
+            "IntegrationTests/DeclaredQueryRegistryFixture/verify.sh", compatibility
+        )
 
     def test_linux_swift6_cell_reuses_the_verified_toolchain_bootstrap(
         self,

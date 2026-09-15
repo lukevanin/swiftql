@@ -261,6 +261,7 @@ require_warning_setting() {
         xcodebuild -project "$demo_root/TodoApp.xcodeproj" \
             -scheme TodoApp \
             -destination 'platform=macOS' \
+            -skipPackagePluginValidation \
             -showBuildSettings 2>/dev/null \
             | awk -v key="$setting" '$1 == key { print $3; exit }'
     )"
@@ -285,6 +286,10 @@ build_app() {
     local developer_dir="${5:-}"
 
     rm -rf "$derived_data"
+    # TodoKit applies SwiftQLDeclaredQueryRegistryPlugin (#659). Xcode asks a
+    # person to trust a package plugin before it runs one, and CI has no one
+    # to ask, so the build skips that prompt. The plugin is SwiftQL's own,
+    # built from this checkout.
     # The override lives in a subshell so it cannot leak into a later step.
     (
         if [[ -n "$developer_dir" ]]; then
@@ -295,6 +300,7 @@ build_app() {
             -scheme TodoApp \
             -destination "$destination" \
             -derivedDataPath "$derived_data" \
+            -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO \
             2>&1
     ) | tee "$log" | grep -E '^(\*\*|.*(error|warning):)' || true

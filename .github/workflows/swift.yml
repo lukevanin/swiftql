@@ -1077,6 +1077,16 @@ jobs:
           cd "$SWIFTQL_SOURCE"
           IntegrationTests/BuildValidationPluginFixture/verify.sh
 
+      # Declared-query discovery (#659) is a plugin, a scanning tool, and a
+      # generated registry working together, so like the plugin above it is
+      # checked by building a real package: a query added to the fixture must
+      # reach the manifest and validate with no list or generator edited.
+      - name: Verify declared-query discovery end to end
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          IntegrationTests/DeclaredQueryRegistryFixture/verify.sh
+
       # make-docs.sh builds Website/blog with Hugo as part of the site, so this
       # job needs it for the same reason documentation-build.yml does, and
       # installs the same pinned, checksum-verified release (#611).
