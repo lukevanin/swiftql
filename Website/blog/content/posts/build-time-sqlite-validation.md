@@ -135,15 +135,23 @@ In 1.9 both macros also describe each query as data, and `SwiftQLDeclaredQueryRe
 
 A declaration the generated registry cannot reach from another file, such as a `private` or `fileprivate` one, is not dropped silently. The build warns about it, naming the query and the file and line it is on. To leave a declaration out on purpose, put `// swiftql-registry: ignore` directly above it, before its first attribute.
 
+One case gets no warning. The scanner reads only the target's own sources, so it cannot tell that a type from another module is generic. A declaration directly in an extension of such a type makes the generated registry fail to compile; mark it with `// swiftql-registry: ignore`.
+
 ## Step 2: generate the snapshot and the manifest
 
-Both files go directly in the validation target's source directory, under these exact names:
+The snapshot and the manifest go directly in the validation target's source directory, under these exact names. The generator that writes the manifest is the `bookshop-manifest` target's `main.swift`:
 
 ```
-Sources/BookshopValidation/
-├── BookshopValidation.swift
-├── swiftql-build-validation-manifest.json
-└── swiftql-build-validation-snapshot.sqlite
+Sources/
+├── Bookshop/
+│   ├── Queries.swift
+│   └── Schema.swift
+├── bookshop-manifest/
+│   └── main.swift
+└── BookshopValidation/
+    ├── BookshopValidation.swift
+    ├── swiftql-build-validation-manifest.json
+    └── swiftql-build-validation-snapshot.sqlite
 ```
 
 ### The snapshot
@@ -171,7 +179,7 @@ Use whatever produces your app's schema: a copy of a migrated database works as 
 
 ### The generator
 
-The generator opens a database the way your app does, asks the registry for every declared query, and writes the manifest. It names no query:
+The generator opens a database the way your app does, asks the registry for every declared query, and writes the manifest. It names no query. It is top-level code, so it goes in `Sources/bookshop-manifest/main.swift`:
 
 ```swift
 import Foundation
@@ -214,7 +222,7 @@ error: Target 'BookshopValidation' opts into SwiftQLSQLiteBuildValidationPlugin 
 error: build planning stopped due to build-tool plugin failures
 ```
 
-An empty placeholder is enough to get past planning, since `swift run bookshop-manifest` never builds the validation target:
+An empty placeholder is enough to get past planning, since `swift run bookshop-manifest` never builds the validation target. Removing the need for it is tracked in [#768](https://github.com/lukevanin/swiftql/issues/768):
 
 ```bash
 touch Sources/BookshopValidation/swiftql-build-validation-manifest.json
@@ -222,7 +230,7 @@ swift run bookshop-manifest Sources/BookshopValidation
 ```
 
 ```
-Build complete! (16,06 sec)
+Build complete! (15,33 sec)
 wrote 2 queries to swiftql-build-validation-manifest.json
 ```
 
@@ -368,16 +376,16 @@ swift build
 ```
 Building for debugging...
 [Computing dependencies]
-[Provisioning 3 / 41]
+[Constructing description]
 [Pre-planning 1 / 858]
 [Planning deferred tasks]
-[19 / 97] BookshopValidation
+[19 / 96]
 [22 / 43] swiftql-build-validate-product
 [26 / 45] swiftql-build-validate-product
 [27 / 45] swiftql-build-validate-product
 [34 / 46] BookshopValidation
 [44 / 49] Bookshop_BookshopValidation
-Build complete! (1,99 sec)
+Build complete! (1,93 sec)
 ```
 
 A passing validation is quiet. It leaves a report behind at:
@@ -522,7 +530,7 @@ A few limits are worth knowing before you adopt this.
 
 **Query discovery runs in SwiftPM targets.** `SwiftQLDeclaredQueryRegistryPlugin` is a SwiftPM build-tool plugin, so the target that declares your queries has to be a package target. An Xcode app can depend on that package as usual, but you cannot attach the registry plugin to the app target itself yet ([#766](https://github.com/lukevanin/swiftql/issues/766)).
 
-**Validation also runs in Xcode app targets.** As of 1.9, `SwiftQLSQLiteBuildValidationPlugin` conforms to `XcodeBuildToolPlugin` as well, so you can add it under an app target's **Run Build Tool Plug-ins** build phase and add the manifest and snapshot to the target ([#666](https://github.com/lukevanin/swiftql/issues/666)). That path is checked by a script run by hand rather than in CI for now ([#757](https://github.com/lukevanin/swiftql/issues/757)). If you go that way, check what the built app bundle contains before shipping it: Xcode can copy the manifest, the snapshot, and the report into the bundle.
+**Validation also runs in Xcode app targets.** As of 1.9, `SwiftQLSQLiteBuildValidationPlugin` conforms to `XcodeBuildToolPlugin` as well, so you can add it under an app target's **Run Build Tool Plug-ins** build phase and add the manifest and snapshot to the target ([#666](https://github.com/lukevanin/swiftql/issues/666)). That path is checked by a script run by hand rather than in CI for now ([#757](https://github.com/lukevanin/swiftql/issues/757)). If you go that way, check what the built app bundle contains before shipping it. A member file in **Copy Bundle Resources** is copied into the app, and the manifest holds the SQL of every validated query. Add the manifest and the snapshot to **Compile Sources** instead: the plugin still runs, and Xcode warns "no rule to process file" once for each. Xcode still copies the validation report into the bundle either way, so remove it if the app must not ship it. The [plugin documentation](https://github.com/lukevanin/swiftql/blob/main/Documentation/Architecture/SQLiteBuildValidationPlugin.md#opting-in-from-an-xcode-application-target) has the details.
 
 **The generator needs a `GRDBDatabase`.** Lowering a declared query needs the database's SQL encoder, and `GRDBDatabase` is the adapter that supplies it.
 
