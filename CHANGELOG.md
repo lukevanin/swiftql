@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.9.0] - Unreleased
+
+### Changed
+
+- **A declared query accepts a parameter as a method or clause argument**
+  (issue #661). `@SQLQuery` and `@SQLQueries` now rewrite a parameter passed
+  to a DSL method or clause, such as `column.like(pattern)`,
+  `column.regexp(pattern)`, or `Limit(count)`, into its named binding, so a
+  declared query can match text and limit its rows with parameters. The
+  frozen-literal guard no longer rejects a call argument, a local binding
+  initialized from a parameter, or a parameter in a nested closure, because
+  the rewrite replaces each of these references. It still rejects string
+  interpolation and member access on a parameter. The to-do demo's filtered
+  read is a declared query again.
+
+### Fixed
+
+- **A parameter named like a key-path component or a callee gets a
+  diagnostic** (issue #661). A parameter named `name` in a body that also
+  contains `\Person.name` made the rewrite produce invalid code. A parameter
+  named `From` rewrote the `From(…)` clause. The rewrite now leaves key-path
+  components and callees unchanged, and the macro reports the shared name at
+  the declaration.
+
 ## [1.8.1] - 2026-09-15
 
 v1.8.1 is a correctness and safety patch for the 1.8 line. It removes process

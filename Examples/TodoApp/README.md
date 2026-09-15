@@ -44,7 +44,7 @@ in `TodoKit`, a local package beside it.
 | `TodoKit/Sources/TodoKit/TodoDatabase.swift` | Opening, creating, seeding, resetting |
 | `TodoKit/Sources/TodoKit/TodoIndices.swift` | The nine indices the v1.8 advisor verified |
 | `TodoKit/Sources/TodoKit/TodoReads.swift` | The declared queries |
-| `TodoKit/Sources/TodoKit/TodoFilteredRead.swift` | The list view's one composable read |
+| `TodoKit/Sources/TodoKit/TodoFilteredRead.swift` | The statement the list view's live query observes |
 | `TodoKit/Sources/TodoKit/TodoStore.swift` | Writes and the move transaction |
 | `TodoKit/Sources/TodoKit/TodoModels.swift` | The `@Observable` live-query models |
 | `TodoKit/Tests/` | 80 tests over the query layer |
@@ -65,12 +65,14 @@ extension: lists, a to-do by identifier, the tags on a to-do and on a whole
 list (both joins across `TodoTag`), and open and total counts per list in a
 single grouped aggregate rather than a count per list.
 
-**One query serves every combination.** `TodoFilteredRead.swift` is the list
-view's read. Four filters, three sort orders, and any search text, in one
-statement: the filter arrives as three booleans the `Where` clause reads, the
-search is always applied with the empty pattern standing in for an empty box,
-and the sort decides which `OrderBy` terms have any effect. It is the one read
-that is not a declared query, and the file says why.
+**One query serves every combination.** `filteredTodos` in `TodoReads.swift`
+is the list view's read. Four filters, three sort orders, and any search text,
+in one statement: the filter arrives as three booleans the `Where` clause
+reads, the search is always applied with the empty pattern standing in for an
+empty box, and the sort decides which `OrderBy` terms have any effect. It is a
+declared query like the others, with the search pattern passed to
+`regexp(_:)`. `TodoFilteredRead.swift` holds the same statement for the live
+query that observes it.
 
 **Search is a regular expression, matched in SQLite.** v1.7 ships the `regexp`
 implementation SQLite lacks, so the list view's search is `REGEXP` rather than
@@ -171,6 +173,11 @@ up the v1.8 indices on its next launch regardless, because they are
 
 Building a whole application on v1.5 through v1.8 surfaced five places where
 the API resists, all recorded on
+[#469](https://github.com/lukevanin/swiftql/issues/469). v1.9 removed one of
+them: a declared query can now pass a parameter to `regexp(_:)` or `like(_:)`,
+so the list view's search is a declaration again
+([#661](https://github.com/lukevanin/swiftql/issues/661)). Four remain, also
+recorded on
 [#469](https://github.com/lukevanin/swiftql/issues/469):
 
 - **Indices have no SwiftQL spelling.** `@SQLTable` declares a table and
@@ -180,12 +187,8 @@ the API resists, all recorded on
   ([#139](https://github.com/lukevanin/swiftql/issues/139)); the advisor can
   tell you exactly which index to add and prove the plan improves, and the
   library still cannot run it for you.
-- **Text search cannot appear in a declared query.** The frozen-literal guard
-  rejects a parameter passed to a call, and both `regexp(_:)` and `like(_:)`
-  are methods with no operator spelling. That is why the list view's read uses
-  named bindings.
 - **Live queries and declared queries do not compose.** `XLObservableQuery`
-  observes an `XLRequest`, and `@SQLQueries` does not produce one, so the three
+  observes an `XLRequest`, and `@SQLQueries` does not produce one, so the four
   reads a view observes exist twice — once as a declaration, once as a
   statement.
 - **A declared query cannot be called inside `withTransaction`.** The generated

@@ -91,6 +91,33 @@ extension GRDBDatabase {
             Where(table.value == value)
         }
     }
+
+    // Issue #661: a parameter passed to a DSL matching method or to a clause
+    // binds exactly like a comparison operand. `limit` is also a reminder that
+    // a parameter only collides with a callee of the same spelling.
+
+    @SQLQuery
+    func rowsWithIDLike(pattern: String, limit: Int) -> [TestTable] {
+        sqlResult { schema in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            Where(table.id.like(pattern))
+            OrderBy(table.value.ascending())
+            Limit(limit)
+        }
+    }
+
+    @SQLQuery
+    func rowsWithIDMatchingExpression(expression: String) -> [TestTable] {
+        sqlResult { schema in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            Where(table.id.regexp(expression))
+            OrderBy(table.value.ascending())
+        }
+    }
 }
 
 
@@ -380,6 +407,57 @@ final class XLQueryPeerMacroTests: XCTestCase {
         XCTAssertEqual(
             try database.fetchDoubleRowsMatchingValue(value: 1.5),
             [DoubleTest(id: "finite", value: 1.5)]
+        )
+    }
+
+
+    // MARK: - Matching methods and clause arguments (issue #661)
+
+    func testLikeAndLimitParametersRenderPlaceholders() throws {
+        let encoding = encoder.makeSQL(database.rowsWithIDLikeStatement())
+
+        XCTAssertTrue(encoding.sql.contains("LIKE :pattern"), "expected a LIKE placeholder in \(encoding.sql)")
+        XCTAssertTrue(encoding.sql.contains("LIMIT :limit"), "expected a LIMIT placeholder in \(encoding.sql)")
+        XCTAssertNil(encoding.parameterLayoutError)
+        XCTAssertEqual(
+            encoding.parameterLayout.slots.map(\.key),
+            [.named("pattern"), .named("limit")]
+        )
+    }
+
+    func testLikeAndLimitExecutorBindsEachInvocation() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "alpine", value: 2))
+        try insert(TestTable(id: "beta", value: 3))
+
+        XCTAssertEqual(
+            try database.fetchRowsWithIDLike(pattern: "al%", limit: 10).map(\.id),
+            ["alpha", "alpine"]
+        )
+        XCTAssertEqual(
+            try database.fetchRowsWithIDLike(pattern: "al%", limit: 1).map(\.id),
+            ["alpha"]
+        )
+        XCTAssertEqual(
+            try database.fetchRowsWithIDLike(pattern: "b%", limit: 10).map(\.id),
+            ["beta"]
+        )
+    }
+
+    func testRegexpExecutorBindsEachInvocation() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "alpine", value: 2))
+        try insert(TestTable(id: "beta", value: 3))
+
+        XCTAssertEqual(
+            try database.fetchRowsWithIDMatchingExpression(expression: "^al").map(\.id),
+            ["alpha", "alpine"]
+        )
+        XCTAssertEqual(
+            try database.fetchRowsWithIDMatchingExpression(expression: "a$").map(\.id),
+            ["alpha", "beta"]
         )
     }
 

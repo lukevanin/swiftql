@@ -193,21 +193,56 @@ The render-once cache's central hazard is a parameter value that escapes the
 signature-driven rewrite: if the macro cannot turn every reference to a
 parameter into a named placeholder, that value could freeze into the cached
 SQL text on the very first call, and every later call would silently reuse
-the first call's value. The macro closes this by rejecting, at the
-declaration site, every reference shape it cannot rewrite:
+the first call's value.
+
+The rewrite replaces every expression reference to a parameter with its
+named binding, wherever the reference sits. Since v1.9
+([#661](https://github.com/lukevanin/swiftql/issues/661)) that includes an
+argument to a DSL method or clause, so a declared query can match text and
+limit its rows with parameters:
+
+<!-- test: XLDocumentationTests.testDocumentationDeclaredQueries -->
+```swift
+@SQLQueries
+extension GRDBDatabase {
+
+    private struct Query {
+        func people(matching pattern: String, expression: String, limit: Int) -> [Person] {
+            sqlResult { schema in
+                let person = schema.table(Person.self)
+                Select(person)
+                From(person)
+                Where(person.name.like(pattern) || person.name.regexp(expression))
+                OrderBy(person.name.ascending())
+                Limit(limit)
+            }
+        }
+    }
+}
+```
+
+A comparison operand (`column == name`), a method argument
+(`column.like(pattern)`, `column.regexp(expression)`), a clause argument
+(`Limit(limit)`, `Offset(offset)`), a local binding (`let alias = name`), and
+a reference in a nested closure all become the same named placeholder. The
+generated statement never holds the value, and the compiler rejects a use
+that needs the Swift value instead of an expression, such as a helper that
+takes a `String`.
+
+The macro rejects, at the declaration site, every shape where the rewrite
+cannot produce a correct placeholder:
 
 - a parameter used inside a **string interpolation** (renders into the SQL
   text instead of binding a placeholder),
-- a parameter **captured by a nested closure** (outside the rewrite's reach),
-- a parameter passed as a **direct argument to a function call** (the
-  rewrite cannot see through the call — `matches(name)` is rejected; write
-  `column == name` instead),
-- a parameter used to **initialize a local binding** (`let alias = name`;
-  the binding's later uses are unreachable),
+- a parameter accessed **through member access** (`name.uppercased()`), which
+  transforms the value in Swift where no placeholder can represent it,
+- a parameter whose name is also a **key-path component** (`\Person.name`) or
+  the **callee** of a call (`From(person)`, `Limit(10)`). Neither position is a
+  reference to the parameter, so the rewrite leaves it unchanged and the macro
+  asks you to rename the parameter,
 - a **hand-constructed** `XLNamedBindingReference` or `contextualBinding` (the
   macro is the sole authority for a placeholder's name and type),
-- a declaration that **shadows** a parameter name, or accesses a parameter
-  **through member access** (`name.uppercased()`),
+- a declaration that **shadows** a parameter name,
 - a **collection-typed parameter** (`[T]`, `Set`, `Dictionary`) — a
   variable-length `IN` list would change the rendered SQL text with the
   element count, breaking the stable-SQL premise the cache relies on, and
@@ -215,17 +250,16 @@ declaration site, every reference shape it cannot rewrite:
 - a parameter that is **never referenced** at all.
 
 Every one of these is a compile-time diagnostic at the declaration, not a
-runtime failure, and every remaining reference shape the guard accepts — a
-comparison operand such as `column == name` — is the one shape the rewrite
-can always turn into a named placeholder. This means the encoding has **no
-silent-freeze path**: a parameter value either becomes a placeholder, or the
-declaration fails to compile.
+runtime failure. This means the encoding has **no silent-freeze path**: a
+parameter value either becomes a placeholder, or the declaration fails to
+compile.
 
-Two shapes are not lexically detectable and are intentionally left to the
-compiler as loud type errors on the generated code rather than silently
-accepted: a parameter used as the *callee* of a call (`predicate(x)`), and a
-parenthesized member-access base (`(name).lowercased()`). Neither produces a
-silently wrong result.
+A generic helper that accepts any value, such as `String(describing:)`,
+receives the binding reference and not the parameter's value. It cannot
+freeze the value, but its result is not what the author meant, so do not pass
+a parameter to one. A parenthesized member-access base (`(name).lowercased()`)
+is not lexically detectable and is left to the compiler as a type error on the
+generated code.
 
 ## Diagnostics point at the declaration
 
