@@ -343,7 +343,36 @@
   SwiftQL expression APIs. The to-do demo's filtered read is a declared query
   again.
 
+- Recorded the v1.9.0 surface in the #190 canonical SQLite conformance
+  inventory: the JSON value rules that write a Swift `Bool` as a JSON boolean
+  and reject a blob (issue #671), the non-optional JSON and JSONB mutation
+  results (issue #664), and the batch insert statement and its savepoint
+  rollback (issue #668). The JSON path record states the new quoting rule, the
+  JSON function record states the JSONB-aware validity check and what
+  `jsonArrayLength` returns, and the nested-transaction record states that the
+  driver has an internal savepoint hook. The inventory version is now 1.9.0.
+  It records 120 public-surface feature records: 116
+  supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
+  1 unimplemented. Of the 224 evidence records, 137 exercise real SQLite and
+  cite one captured SQLite 3.51.0 environment.
+
 ### Fixed
+
+- **A prefix `-`, `+`, or `~` on a plain number keeps its type on Swift 6.3**
+  (issue #771). `Int` and `Double` conform to `XLExpression`, so SwiftQL's
+  generic prefix operators over `any XLExpression` also matched such an operand.
+  Swift 6.3 preferred them. In a file that imports SwiftQL, ordinary code such
+  as `let x = -someInt` then gave `x` an expression type, and every later use of
+  `x` as an `Int` failed to compile. `+someInt`, `~someInt`, and `+someDouble`
+  failed the same way. Swift 5.9 and Swift 6.4 always chose the standard library
+  operator. SwiftQL now declares exact-match overloads: `-`, `+`, and `~` for
+  `Int`, and `+` for `Double`. The result is an `Int` or a `Double` on every
+  compiler. `Double` gets a `+` overload only, because Swift 6.3 already chose
+  the standard library operator for `-someDouble`, and a `-` overload for
+  `Double` makes `-someDouble` ambiguous. The operators for SwiftQL expressions,
+  optional expressions included, keep their behaviour. The generic operators
+  date from the first source commit, so the fault applies to user code on every
+  1.x version under Swift 6.3, not only to 1.9.
 
 - **A parameter named like a key-path component or a callee gets a
   diagnostic** (issue #661). A parameter named `name` in a body that also

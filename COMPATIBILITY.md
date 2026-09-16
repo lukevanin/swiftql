@@ -128,20 +128,20 @@ The report is evidence for SwiftQL's existing public SQLite subset; it is not a
 claim of complete SQLite grammar coverage. The inventory remains the source of
 truth, while the report is its readable generated view.
 
-The v1.8.1 inventory contains 117 feature records and 207 evidence records. Its
+The v1.9.0 inventory contains 120 feature records and 224 evidence records. Its
 support-status totals are exact and mutually exclusive:
 
 | Support status | Features |
 | --- | ---: |
-| Supported | 113 |
+| Supported | 116 |
 | Partial | 0 |
 | Capability-gated | 2 |
 | Intentionally unsupported | 1 |
 | Unimplemented | 1 |
 
-Of those 207 evidence records, 126 exercise real SQLite and
+Of those 224 evidence records, 137 exercise real SQLite and
 cite one captured environment, SQLite 3.51.0. An inventory entry is counted in
-the 113 supported features only when it links to successful preparation by a
+the 116 supported features only when it links to successful preparation by a
 real SQLite engine whose version and source ID are recorded. Partial,
 capability-gated, intentionally unsupported, and unimplemented entries remain
 visible with their evidence, requirements, or rationale, but are excluded
@@ -380,6 +380,24 @@ playground are both written in the two-step form. CI builds the demo on the
 pinned Swift 6.0 cell and the playground on the pinned Swift 5.9.2 Linux cell,
 and both compilers crash on the one-line shape, so a reintroduced one-liner
 fails there rather than in a user's project.
+
+### Swift 6.3 selects the expression prefix operator for a number
+
+`Int` and `Double` conform to `XLExpression`, so such an operand also matches
+SwiftQL's generic prefix `-`, `+`, and `~` over `any XLExpression`. Swift 5.9.2
+and Swift 6.4 select the standard library operator for it. Swift 6.3.2 selects
+SwiftQL's. In a file that imports SwiftQL, `let x = -someInt` then gave `x` an
+expression type on Swift 6.3, and each later use of `x` as an `Int` failed to
+compile (issue #771). `+someInt`, `~someInt`, and `+someDouble` failed the same
+way.
+
+Since v1.9 SwiftQL declares exact-match overloads that make every supported
+compiler produce a number: `-`, `+`, and `~` for `Int`, and `+` for `Double`.
+`Double` gets a `+` overload only. Swift 6.3.2 selects the standard library
+operator for `-someDouble` already, and an exact-match `-` overload for `Double`
+makes `-someDouble` ambiguous.
+`Tests/SQLTests/SQLNumericPrefixOperatorTests.swift` holds the compile check. It
+runs on every cell, the Swift 6.3 Linux cell included.
 
 ## Swift 6 series coverage
 

@@ -412,7 +412,8 @@ footer {
     <h1>SQL, as a first-class<br>language in Swift</h1>
     <p class="lede">
       Real SQLite, written in typed, composable, refactorable Swift.
-      No query strings. No stringly typed columns. No ORM hiding the SQL.
+      No raw query strings for supported queries. No stringly typed columns.
+      No ORM hiding the SQL.
     </p>
     <div class="cta">
       <a class="btn btn-primary" href="/__BASE_PATH__/documentation/swiftql/gettingstarted/">Get started</a>
@@ -528,19 +529,23 @@ footer {
       </div>
       <div class="card">
         <h3>Writes</h3>
-        <p>Typed inserts, updates, and deletes with the same SQL-shaped API, plus basic table creation.</p>
+        <p>Typed inserts, updates, and deletes with the same SQL-shaped API, plus basic table creation. <code>insert(contentsOf:)</code> writes a batch of rows through one statement, rendered and prepared once for the call. A row whose values cannot bind to that statement renders on its own, in the same transaction. <code>@SQLBindings</code> generates the typed packet for a statement's named bindings. A misspelled name or a missing value is a compile error.</p>
+      </div>
+      <div class="card">
+        <h3>Declared queries</h3>
+        <p>Write a query as an ordinary Swift function with <code>@SQLQuery</code>, or a container of them with <code>@SQLQueries</code>. Pass a parameter to <code>like</code>, <code>regexp</code>, or <code>Limit</code>. Observe a declaration, or call it on a <code>withTransaction</code> scope. A build-tool plugin finds every declaration in a SwiftPM target and generates a registry. <code>makeManifest</code> builds the build-validation manifest from it.</p>
       </div>
       <div class="card">
         <h3>Live data</h3>
-        <p>Observe typed results with <code>for try await</code> over <code>stream()</code>, through GRDB-backed Combine publishers, or by adopting <code>XLObservableQuery</code> directly from SwiftUI.</p>
+        <p>Observe typed results with <code>for try await</code> over <code>stream()</code>, through GRDB-backed Combine publishers, or by adopting <code>XLObservableQuery</code> directly from SwiftUI. A declared query has a prepared form, so a view observes it without a second copy of the statement.</p>
       </div>
       <div class="card">
         <h3>JSON</h3>
-        <p>Read with <code>-&gt;</code>, <code>-&gt;&gt;</code>, and <code>json_extract</code>; build, change, and collect documents; address any of it with a typed <code>XLJSONPath</code>. JSONB variants included.</p>
+        <p>Read with <code>-&gt;</code>, <code>-&gt;&gt;</code>, and <code>json_extract</code>; build, change, and collect documents; address any of it with a typed <code>XLJSONPath</code>. An insert, replace, set, or remove on a <code>NOT NULL</code> document gives a non-optional result. A patch keeps its optional result. A Swift <code>Bool</code> writes as a JSON boolean. JSONB variants included.</p>
       </div>
       <div class="card">
         <h3>Query plans and index advice</h3>
-        <p>The build plugin can show what SQLite plans to do with each query, warn about full scans and materialized sorts, and name the index that removes them &mdash; proved by creating it on a disposable snapshot copy and re-planning. It is advice: it never fails a build.</p>
+        <p>The build plugin can show what SQLite plans to do with each query, warn about full scans and materialized sorts, and name the index that removes them &mdash; proved by creating it on a disposable snapshot copy and re-planning. It is advice: it never fails a build. A SwiftPM target and an Xcode project target can both run the plugin.</p>
       </div>
       <div class="card">
         <h3>Text matching</h3>
@@ -639,6 +644,7 @@ footer {
       <li><strong>You prefer a chained query builder.</strong> Several Swift libraries express typed queries as method chains. If <code>.select { }.where { }</code> reads better to you than <code>Select</code> / <code>From</code> / <code>Where</code>, that preference is the whole argument.</li>
       <li><strong>You want the database to disappear.</strong> SwiftData is a better fit if you would rather model an object graph than think about tables, and you can require recent Apple platforms.</li>
       <li><strong>You are writing a server with a non-SQLite backend.</strong> Fluent covers PostgreSQL, MySQL, and MongoDB today. SwiftQL is SQLite-only; other dialects are roadmap work, not shipped work.</li>
+      <li><strong>Your package graph is already on GRDB 7.</strong> SwiftQL 1.x supports GRDB 6 only (<code>6.29.3..&lt;7.0.0</code>), so SwiftPM cannot resolve the two together. The <a href="https://github.com/lukevanin/swiftql/blob/main/COMPATIBILITY.md">compatibility guide</a> gives the reasons and links the GRDB 7 evaluation.</li>
       <li><strong>Your queries are already written and working.</strong> The cost of SwiftQL is learning its expression surface. The benefit arrives when the schema changes, so a stable schema you rarely touch may not repay it.</li>
     </ul>
   </div>
