@@ -343,6 +343,19 @@
   SwiftQL expression APIs. The to-do demo's filtered read is a declared query
   again.
 
+- Recorded the v1.9.0 surface in the #190 canonical SQLite conformance
+  inventory: the JSON value rules that write a Swift `Bool` as a JSON boolean
+  and reject a blob (issue #671), the non-optional JSON and JSONB mutation
+  results (issue #664), and the batch insert statement and its savepoint
+  rollback (issue #668). The JSON path record states the new quoting rule, the
+  JSON function record states the JSONB-aware validity check and what
+  `jsonArrayLength` returns, and the nested-transaction record states that the
+  driver has an internal savepoint hook. The inventory version is now 1.9.0.
+  It records 120 public-surface feature records: 116
+  supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
+  1 unimplemented. Of the 224 evidence records, 137 exercise real SQLite and
+  cite one captured SQLite 3.51.0 environment.
+
 ### Fixed
 
 - **A parameter named like a key-path component or a callee gets a
