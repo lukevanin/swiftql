@@ -20,6 +20,14 @@ public prefix func ~<Wrapped>(operand: any XLExpression<Optional<Wrapped>>) -> s
 }
 
 
+// Keeps `~someInt` typed as `Int` on Swift 6.3. NumericOperators.swift explains
+// why the exact-match overload is needed (issue #771).
+
+public prefix func ~(operand: Int) -> Int {
+    operand ^ -1
+}
+
+
 // MARK: - Addition
 
 
