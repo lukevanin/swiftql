@@ -315,6 +315,70 @@
       ]
     },
     {
+      "id": "evidence.execution.batch-insert-one-statement.sqlite",
+      "source_path": "Tests/SQLTests/SQLInsertBatchTests.swift",
+      "test_case": "SQLInsertBatchTests.testHundredRowBatchInsideTransactionRendersAndPreparesOnce",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "rendering",
+        "runtime-metadata"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.execution.batch-insert-row-fallback.sqlite",
+      "source_path": "Tests/SQLTests/SQLInsertBatchTests.swift",
+      "test_case": "SQLInsertBatchTests.testRowWithDifferentShapeRendersOnItsOwnAndLaterRowsStillBind",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "rendering",
+        "runtime-metadata"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.execution.batch-insert-savepoint-rollback.sqlite",
+      "source_path": "Tests/SQLTests/SQLInsertBatchTests.swift",
+      "test_case": "SQLInsertBatchTests.testCaughtFailureInsideScopeRollsBackOnlyTheBatch",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.execution.batch-insert-values.sqlite",
+      "source_path": "Tests/SQLTests/SQLInsertBatchTests.swift",
+      "test_case": "SQLInsertBatchTests.testBatchStoresTheSameValuesAsPerRowInserts",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "semantic-oracle"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
       "id": "evidence.execution.json-aggregates.sqlite",
       "source_path": "Tests/SQLTests/SQLJSONAggregateTests.swift",
       "test_case": "XLJSONAggregateExecutionTests.testGroupArrayCollectsEveryRow",
@@ -3951,7 +4015,7 @@
         "evidence.transaction.unsupported.sqlite"
       ],
       "deviations": [
-        "The v1 driver has no nested transaction or savepoint hook."
+        "The v1 driver exposes no public nested transaction. The GRDB driver has an internal savepoint hook, which `GRDBDatabase.insert(contentsOf:)` uses to make one batch roll back inside an open transaction (issue #668)."
       ],
       "follow_up_issues": [
         113
@@ -7665,6 +7729,54 @@
       "provenance": []
     },
     {
+      "id": "syntax.dml.batch-insert",
+      "kind": "syntax",
+      "family": "dml",
+      "title": "Batch INSERT through one prepared statement with bound row values",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "GRDBDatabase.insert(contentsOf:)",
+          "source_path": "Sources/SwiftQL/GRDBDatabase+InsertBatch.swift",
+          "source_tokens": [
+            "insert"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/lang_insert.html",
+        "https://www.sqlite.org/lang_savepoint.html",
+        "https://www.sqlite.org/lang_expr.html#parameters"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.6.8",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "named-bindings",
+        "sqlite-core-parser",
+        "transactions"
+      ],
+      "schema_requirements": [
+        "A real table receives every row of the batch, and a separate connection reads back the committed rows."
+      ],
+      "evidence_ids": [
+        "evidence.execution.batch-insert-one-statement.sqlite",
+        "evidence.execution.batch-insert-values.sqlite",
+        "evidence.execution.batch-insert-savepoint-rollback.sqlite",
+        "evidence.execution.batch-insert-row-fallback.sqlite"
+      ],
+      "deviations": [
+        "The batch renders the statement that sqlInsert(_:) renders for the first row, with a bound parameter in place of each literal value, and prepares it one time for the call. sqlInsert(_:) renders each row's values as literals, so this statement shape is reached only through insert(contentsOf:). The SQL sqlInsert(_:) renders for one row does not change.",
+        "A row whose values clause has a different shape from the first row's renders on its own, with its literals, exactly as sqlInsert(_:) does, in the same transaction. That covers a value that renders as more than one literal or as SQL other than a literal, and a value that fails to render, such as a non-finite Double. Such a row fails with the error the single-row path reports.",
+        "On a transaction scope the rows run inside a SAVEPOINT in that transaction, so a failed row rolls back every row of the call and leaves the body's other writes. On any other database the call opens one write transaction, so either every row commits or none does. The savepoint hook is internal; SwiftQL exposes no public nested transaction."
+      ],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": []
+    },
+    {
       "id": "syntax.dml.conflict-clause",
       "kind": "syntax",
       "family": "dml",
@@ -9123,6 +9235,62 @@
           "source_tokens": [
             "blobInJSONValue"
           ]
+        },
+        {
+          "symbol": "XLExpression.jsonInserting",
+          "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
+          "source_tokens": [
+            "jsonInserting"
+          ]
+        },
+        {
+          "symbol": "XLExpression.jsonReplacing",
+          "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
+          "source_tokens": [
+            "jsonReplacing"
+          ]
+        },
+        {
+          "symbol": "XLExpression.jsonbInserting",
+          "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
+          "source_tokens": [
+            "jsonbInserting"
+          ]
+        },
+        {
+          "symbol": "XLExpression.jsonbReplacing",
+          "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
+          "source_tokens": [
+            "jsonbReplacing"
+          ]
+        },
+        {
+          "symbol": "jsonbArray",
+          "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
+          "source_tokens": [
+            "jsonbArray"
+          ]
+        },
+        {
+          "symbol": "jsonbObject",
+          "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
+          "source_tokens": [
+            "jsonbObject"
+          ]
+        },
+        {
+          "symbol": "XLExpression.jsonbGroupArray",
+          "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
+          "source_tokens": [
+            "jsonbGroupArray"
+          ]
+        },
+        {
+          "symbol": "jsonbGroupObject",
+          "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
+          "source_tokens": [
+            "jsonbGroupObject"
+          ]
         }
       ],
       "sqlite_documentation_urls": [
@@ -9148,7 +9316,8 @@
       ],
       "deviations": [
         "SQLite has no boolean storage class, so a Bool literal renders as json('true') or json('false'), and any other Bool expression renders as json(CASE X <> 0 WHEN 1 THEN 'true' WHEN 0 THEN 'false' END), which reads X once and keeps SQL NULL as JSON null. Before this record a Bool reached SQLite as the integer 1 or 0, and a Codable reader of a Bool field failed.",
-        "A Data value is reported as XLSQLValueEncodingError.blobInJSONValue(valueType:function:) before SQLite prepares the statement, unless it is the result of a jsonb function. SQLite rejects a blob JSON value with 'JSON cannot hold BLOB values', or reads the bytes as a document when they are valid JSONB. The check reads the static type, so a Data? value is rejected even when it is SQL NULL at run time."
+        "A Data value is reported as XLSQLValueEncodingError.blobInJSONValue(valueType:function:) before SQLite prepares the statement, unless it is the result of a jsonb function. SQLite rejects a blob JSON value with 'JSON cannot hold BLOB values', or reads the bytes as a document when they are valid JSONB. The check reads the static type, so a Data? value is rejected even when it is SQL NULL at run time.",
+        "The JSONB forms need SQLite 3.45.0, which is newer than the oldest runtime in the supported matrix, so their execution case asks the connection whether it defines jsonb before it runs."
       ],
       "follow_up_issues": [],
       "deferral": null,
