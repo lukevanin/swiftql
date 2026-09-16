@@ -392,15 +392,14 @@ spreads of 4.0% to 5.3%. The two "before" runs also agree with the older
 2026-08-02 figure within 1%.
 
 Two things the table does **not** support. It establishes no ordering between
-SwiftQL and GRDB: SwiftQL's median is 7.6% and 7.5% below GRDB's, in round 1 that
-gap is smaller than GRDB's own 15.9% spread, and in round 2 it only just clears
-GRDB's 5.0% spread. A quiet host and more processes are needed before anyone
-claims an order. And the per-row figure
-measures rendering rather than preparation, because the workload inserts the
-same batch every iteration, so GRDB's statement cache already holds all 100
-literal statements after warmup. A workload with different values every
-iteration would add 100 preparations per transaction to the per-row path only.
-That workload was not measured.
+SwiftQL and GRDB: SwiftQL's median is 7.6% and 7.5% below GRDB's, in round 1
+that gap is smaller than GRDB's own 15.9% spread, and in round 2 it only just
+clears GRDB's 5.0% spread. A quiet host and more processes are needed before
+anyone claims an order. And the per-row figure measures rendering rather than
+preparation, because the workload inserts the same batch every iteration, so
+GRDB's statement cache already holds all 100 literal statements after warmup. A
+workload with different values every iteration would add 100 preparations per
+transaction to the per-row path only. That workload was not measured.
 
 Other agents were building software on the host throughout these runs; the
 one-minute load average stayed between 3.6 and 11.9 on 14 cores. Every raw
@@ -499,11 +498,14 @@ first if you store JSON.
    accepts version 1 and re-encodes it to the same bytes. Several report
    properties are now `String?`, and both `SQLiteBuildValidationManifestError`
    and `SQLiteBuildValidationPlanSuppressionError` gain `unknownKey(path:)`.
+   `SQLiteBuildValidationManifestFormatVersion.current` is `.v2` now; pass
+   `formatVersion: .v1` to keep writing version 1.
 6. **A `Bool` you already wrote into a JSON document.** New writes store
-   `true` or `false` where they stored `1` or `0`. Nothing stops compiling, and
-   nothing throws. A reader that reads the member as a number gets the wrong
-   answer on a new row, and a `Codable` reader gets the wrong answer on an old
-   one. Migrate the stored documents, or read both forms until you have.
+   `true` or `false` where they stored `1` or `0`. Nothing stops compiling, so
+   the change stays invisible until something reads the document. A reader that
+   reads the member as a number gets the wrong answer on a new row, and a
+   `Codable` reader fails on an old one. Migrate the stored documents, or read
+   both forms until you have.
 
 The [changelog](https://github.com/lukevanin/swiftql/blob/main/CHANGELOG.md) has
 the exhaustive detail, and its Migration section covers each break above.

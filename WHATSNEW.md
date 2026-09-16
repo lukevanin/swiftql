@@ -17,6 +17,8 @@ entry below ends with whether it affects code you already wrote.
 
 ## 1.9.0 — Declared queries do everything a query does
 
+*Unreleased.*
+
 - A declared query can be observed. Every declaration gets a prepared form that
   `stream()`, `publish()`, and the `@Observable` wrappers accept, so a view and
   a fetch share one statement. Call `database.preparedQueries.personByName(name:)`
@@ -28,8 +30,8 @@ entry below ends with whether it affects code you already wrote.
   threw.
 - A declared query can match text and limit its rows. A parameter passed to a
   DSL method or clause, such as `column.like(pattern)`, `column.regexp(pattern)`,
-  or `Limit(count)`, now becomes a named binding. Before, the frozen-literal
-  guard rejected it.
+  or `Limit(count)`, now becomes a named binding. Before, the macro refused it,
+  because the value would be frozen into the SQL.
 - You no longer type the build-validation manifest. A new build-tool plugin
   reads every declaration in a target and generates a registry, and
   `makeManifest` turns that registry into a manifest. A hand-written manifest is
