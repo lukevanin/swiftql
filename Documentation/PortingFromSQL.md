@@ -58,7 +58,7 @@ and a rename leads the compiler to every query affected.
 | `GROUP BY x` | `GroupBy(person.occupationId)` |
 | `HAVING x` | `Having(row.numberOfPeople >= 2)` |
 | `ORDER BY x ASC, y DESC` | `OrderBy(person.name.ascending(), person.age.descending())` |
-| `LIMIT n` | `Limit(5)` |
+| `LIMIT n` | `Limit(5)`, or `Limit(count)` with a declared-query parameter |
 | `OFFSET n` | `Offset(10)` |
 | `UNION` | `Union()` |
 | `UNION ALL` | `UnionAll()` |
@@ -72,13 +72,13 @@ and a rename leads the compiler to every query affected.
 | `MIN(x)` / `MAX(x)` / `SUM(x)` | `person.age.minOrNull()` / `.maxOrNull()` / `.sumOrNull()` |
 | `COALESCE(x, 0)` | `person.age.sumOrNull().coalesce(0)` |
 | `x IS NULL` / `x IS NOT NULL` | `family.died.isNull()` / `person.occupationId.notNull()` |
-| `x LIKE y` | `person.name.like("F%")`, or `like(_:escape:)` for an explicit `ESCAPE` |
+| `x LIKE y` | `person.name.like("F%")`, or `like(_:escape:)` for an explicit `ESCAPE`; `like(pattern)` takes a declared-query parameter |
 | `x GLOB y` | `person.name.glob("F*")` |
-| `x REGEXP y` | `person.name.regexp("^F")`, or `regexp(_:)` with an `XLRegexPattern` built from `RegexBuilder` |
+| `x REGEXP y` | `person.name.regexp("^F")`, or `regexp(_:)` with an `XLRegexPattern` built from `RegexBuilder`; `regexp(expression)` takes a declared-query parameter |
 | `AND` / `OR` / `NOT` | `&&` / `\|\|` / `!` |
 | `CREATE TABLE` | `sqlCreate(Person.self)` |
 | `INSERT INTO t VALUES (...)` | `sqlInsert(person)` |
-| One `INSERT INTO t VALUES (?, ?)` prepared once for many rows | `database.insert(contentsOf: people)` |
+| One `INSERT INTO t VALUES (...)` prepared once for many rows | `database.insert(contentsOf: people)` |
 | `UPDATE t SET c = v` | `Update(person)` plus `Setting(person) { row in row.age = 42 }` |
 | `DELETE FROM t` | `Delete(person)` |
 | `:name` bind parameter | `XLNamedBindingReference<String>(name: "name")`, or one stored property of an `@SQLBindings` struct |
@@ -287,10 +287,12 @@ statement.
 
 `@SQLBindings` writes that packet for you. Attach it to a struct with one
 stored property for each named binding of the statement. The macro generates a
-typed reference for each property, and a `bindings(in:)` method that encodes
-the property values into the packet. The statement then uses those references
-instead of a reference you declare by hand, and a misspelled or missing
-binding name is a compile error.
+typed reference for each property. It also generates `bindings(in:)` for a
+parameter layout and `bindings(for:)` for a prepared request. Both encode the
+property values into the packet. The statement then uses those references
+instead of a reference you declare by hand. A misspelled name or a missing
+value is a compile error. A statement that uses a binding the struct does not
+declare still throws when the packet is built.
 
 Types without a native SQLite representation, notably `Date` and `UUID`, are
 handled by codecs rather than by conversion at every call site. SwiftQL ships

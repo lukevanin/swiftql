@@ -529,11 +529,11 @@ footer {
       </div>
       <div class="card">
         <h3>Writes</h3>
-        <p>Typed inserts, updates, and deletes with the same SQL-shaped API, plus basic table creation. <code>insert(contentsOf:)</code> writes a batch of rows through one statement, rendered and prepared once for the call.</p>
+        <p>Typed inserts, updates, and deletes with the same SQL-shaped API, plus basic table creation. <code>insert(contentsOf:)</code> writes a batch of rows through one statement, rendered and prepared once for the call. A row whose values cannot bind to that statement renders on its own, in the same transaction. <code>@SQLBindings</code> generates the typed packet for a statement's named bindings. A misspelled name or a missing value is a compile error.</p>
       </div>
       <div class="card">
         <h3>Declared queries</h3>
-        <p>Write a query as an ordinary Swift function with <code>@SQLQuery</code>, or a container of them with <code>@SQLQueries</code>. Pass a parameter to <code>like</code>, <code>regexp</code>, or <code>Limit</code>. Observe a declaration, or call it on a <code>withTransaction</code> scope. A build-tool plugin finds every declaration in a SwiftPM target and writes the build-validation manifest from it.</p>
+        <p>Write a query as an ordinary Swift function with <code>@SQLQuery</code>, or a container of them with <code>@SQLQueries</code>. Pass a parameter to <code>like</code>, <code>regexp</code>, or <code>Limit</code>. Observe a declaration, or call it on a <code>withTransaction</code> scope. A build-tool plugin finds every declaration in a SwiftPM target. <code>makeManifest</code> builds the build-validation manifest from the registry.</p>
       </div>
       <div class="card">
         <h3>Live data</h3>
@@ -541,7 +541,7 @@ footer {
       </div>
       <div class="card">
         <h3>JSON</h3>
-        <p>Read with <code>-&gt;</code>, <code>-&gt;&gt;</code>, and <code>json_extract</code>; build, change, and collect documents; address any of it with a typed <code>XLJSONPath</code>. A mutation on a <code>NOT NULL</code> document gives a non-optional result, and a Swift <code>Bool</code> writes as a JSON boolean. JSONB variants included.</p>
+        <p>Read with <code>-&gt;</code>, <code>-&gt;&gt;</code>, and <code>json_extract</code>; build, change, and collect documents; address any of it with a typed <code>XLJSONPath</code>. An insert, replace, set, or remove on a <code>NOT NULL</code> document gives a non-optional result. A patch keeps its optional result. A Swift <code>Bool</code> writes as a JSON boolean. JSONB variants included.</p>
       </div>
       <div class="card">
         <h3>Query plans and index advice</h3>

@@ -256,7 +256,9 @@ explicit list of the places the correspondence is not exact.
 - **[Tables](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/)
   and [projections](https://lukevanin.github.io/swiftql/documentation/swiftql/queries/).**
   `@SQLTable` and `@SQLResult` derive typed table, column, and result metadata
-  at compile time. There are no generated model files to keep in sync.
+  at compile time. There are no generated model files to keep in sync. A `var`
+  property with an initial value gives the generated initializer a default, so
+  a call can leave it out.
 - **[Expressions](https://lukevanin.github.io/swiftql/documentation/swiftql/expressions/).**
   Compose boolean, numeric, text, optional, conditional, and aggregate
   expressions with Swift operators and generic constraints.
@@ -268,12 +270,16 @@ explicit list of the places the correspondence is not exact.
 - **[Writes and table creation](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/).**
   Create basic tables and construct typed inserts, updates, and deletes with
   the same SQL-shaped API. `insert(contentsOf:)` writes a batch of rows
-  through one statement, rendered and prepared once for the call.
+  through one statement, rendered and prepared once for the call. A row whose
+  values cannot bind to that statement renders on its own, in the same
+  transaction.
 - **[Bindings and results](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/).**
   Keep invocation values in fresh immutable binding packets, then decode
   `fetchAll()` and `fetchOne()` results directly into Swift values.
-  `@SQLBindings` generates the typed packet for a statement's named bindings,
-  so a misspelled or missing binding name is a compile error.
+  `@SQLBindings` generates the typed packet for a statement's named bindings.
+  A misspelled name or a missing value is a compile error. A statement that
+  uses a binding the struct does not declare still throws when the packet is
+  built.
 - **[Static query contracts](https://lukevanin.github.io/swiftql/documentation/swiftql/staticqueries/).**
   Define database-independent SQL, parameter, result, identity, and cardinality
   metadata before opening a database, then prepare it against a compatible
@@ -283,11 +289,12 @@ explicit list of the places the correspondence is not exact.
   container of them with `@SQLQueries`, and call it like any other function.
   Pass a parameter to `like`, `regexp`, or `Limit`. Observe a declaration
   through its prepared form, or call it on a `withTransaction` scope. In a
-  SwiftPM target, a build-tool plugin finds every declaration and writes the
-  build-validation manifest from it, so no hand-written query list is
-  necessary. A second build-tool plugin prepares every declared query against
-  a schema snapshot at build time. Both a SwiftPM target and an Xcode project
-  target can run that validation; see
+  SwiftPM target, a build-tool plugin finds every declaration and generates a
+  registry. `makeManifest` builds the build-validation manifest from that
+  registry. No hand-written query list is necessary. A second build-tool
+  plugin prepares every declared query against a schema snapshot at build
+  time. Both a SwiftPM target and an Xcode project target can run that
+  validation; see
   [COMPATIBILITY.md](COMPATIBILITY.md) for the build systems it runs under.
 - **[Live data](https://lukevanin.github.io/swiftql/documentation/swiftql/livequeries/).**
   Observe typed query results with `for try await` over `stream()` and
@@ -301,11 +308,12 @@ explicit list of the places the correspondence is not exact.
   `jsonExtract`, build documents with `jsonArray` and `jsonObject`, change them
   with the insert, replace, set, remove, and patch functions, collect rows with
   `jsonGroupArray` and `jsonGroupObject`, and address any of it with
-  `XLJSONPath` instead of a path string. A mutation on a `NOT NULL` document
-  gives a non-optional result, so the call assigns back to the column without
-  `coalesce`. A Swift `Bool` writes as a JSON boolean. The JSONB variants read
-  and write SQLite's binary representation, and `validJSONOrJSONBOrNull()`
-  checks a value that can hold either form.
+  `XLJSONPath` instead of a path string. An insert, replace, set, or remove on
+  a `NOT NULL` document gives a non-optional result. The call then assigns
+  back to the column without `coalesce`. A patch keeps its optional result.
+  A Swift `Bool` writes as a JSON boolean. The JSONB variants read and write
+  SQLite's binary representation. `validJSONOrJSONBOrNull()` checks a value
+  that can hold either form, on SQLite 3.45.0 and later.
 - **[Query plans and index advice](https://lukevanin.github.io/swiftql/documentation/swiftql/queryplanadvice/).**
   The validation plugin can also capture what SQLite plans to do with each
   declared query, warn about full scans and sorts it has to materialize, and
