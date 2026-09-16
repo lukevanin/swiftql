@@ -78,15 +78,17 @@ and a rename leads the compiler to every query affected.
 | `AND` / `OR` / `NOT` | `&&` / `\|\|` / `!` |
 | `CREATE TABLE` | `sqlCreate(Person.self)` |
 | `INSERT INTO t VALUES (...)` | `sqlInsert(person)` |
+| One `INSERT INTO t VALUES (?, ?)` prepared once for many rows | `database.insert(contentsOf: people)` |
 | `UPDATE t SET c = v` | `Update(person)` plus `Setting(person) { row in row.age = 42 }` |
 | `DELETE FROM t` | `Delete(person)` |
-| `:name` bind parameter | `XLNamedBindingReference<String>(name: "name")` |
+| `:name` bind parameter | `XLNamedBindingReference<String>(name: "name")`, or one stored property of an `@SQLBindings` struct |
 | `x -> '$.a'` | `note.metadata.jsonElement(at: .root.key("a"))` |
 | `x ->> '$.a'` | `note.metadata.jsonValue(at: .root.key("a"), as: String.self)` |
 | `JSON_EXTRACT(x, '$.a')` | `note.metadata.jsonExtract(at: .root.key("a"), as: String.self)` |
 | `JSON_ARRAY(a, b)` / `JSON_OBJECT('k', v)` | `jsonArray(a, b)` / `jsonObject(("k", v))` |
 | `JSON(x)` / `JSON_PRETTY(x)` / `JSON_QUOTE(x)` | `x.minifiedJSON()` / `x.prettyJSON()` / `x.jsonQuoted()` |
 | `JSON_TYPE(x)` / `JSON_VALID(x)` / `JSON_ARRAY_LENGTH(x)` | `x.jsonType()` / `x.validJSONOrNull()` / `x.jsonArrayLength()` |
+| `JSON_VALID(x, 9)` | `x.validJSONOrJSONBOrNull()` (SQLite 3.45.0) |
 | `JSON_INSERT(x, p, v)` / `JSON_REPLACE` / `JSON_SET` | `x.jsonInserting((p, v))` / `x.jsonReplacing((p, v))` / `x.jsonSetting((p, v))` |
 | `JSON_REMOVE(x, p)` / `JSON_PATCH(x, y)` | `x.jsonRemoving(at: p)` / `x.jsonPatched(with: y)` |
 | `JSON_GROUP_ARRAY(x)` / `JSON_GROUP_OBJECT(k, v)` | `x.jsonGroupArray()` / `jsonGroupObject(name: k, value: v)` |
@@ -282,6 +284,13 @@ invocation time through `XLInvocationBindings`, which is what keeps the prepared
 statement cacheable. If you are porting code that concatenates values into a SQL
 string, this is the change that matters most: the values stop being part of the
 statement.
+
+`@SQLBindings` writes that packet for you. Attach it to a struct with one
+stored property for each named binding of the statement. The macro generates a
+typed reference for each property, and a `bindings(in:)` method that encodes
+the property values into the packet. The statement then uses those references
+instead of a reference you declare by hand, and a misspelled or missing
+binding name is a compile error.
 
 Types without a native SQLite representation, notably `Date` and `UUID`, are
 handled by codecs rather than by conversion at every call site. SwiftQL ships

@@ -243,6 +243,10 @@ explicit list of the places the correspondence is not exact.
 - **You are writing a server with a non-SQLite backend.** Fluent covers
   PostgreSQL, MySQL, and MongoDB today. SwiftQL is SQLite-only; other dialects are
   [roadmap](ROADMAP.md) work, not shipped work.
+- **Your package graph is already on GRDB 7.** SwiftQL 1.x supports GRDB 6
+  only (`6.29.3..<7.0.0`), so SwiftPM cannot resolve the two together. The
+  [compatibility guide](COMPATIBILITY.md) gives the reasons and links the
+  GRDB 7 evaluation.
 - **Your queries are already written and working.** The cost of SwiftQL is
   learning its expression surface. The benefit arrives when the schema
   changes, so a stable schema you rarely touch may not repay it.
@@ -263,10 +267,13 @@ explicit list of the places the correspondence is not exact.
   ordinary or recursive common table expressions.
 - **[Writes and table creation](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/).**
   Create basic tables and construct typed inserts, updates, and deletes with
-  the same SQL-shaped API.
+  the same SQL-shaped API. `insert(contentsOf:)` writes a batch of rows
+  through one statement, rendered and prepared once for the call.
 - **[Bindings and results](https://lukevanin.github.io/swiftql/documentation/swiftql/gettingstarted/).**
   Keep invocation values in fresh immutable binding packets, then decode
   `fetchAll()` and `fetchOne()` results directly into Swift values.
+  `@SQLBindings` generates the typed packet for a statement's named bindings,
+  so a misspelled or missing binding name is a compile error.
 - **[Static query contracts](https://lukevanin.github.io/swiftql/documentation/swiftql/staticqueries/).**
   Define database-independent SQL, parameter, result, identity, and cardinality
   metadata before opening a database, then prepare it against a compatible
@@ -274,23 +281,33 @@ explicit list of the places the correspondence is not exact.
 - **[Declared queries](https://lukevanin.github.io/swiftql/documentation/swiftql/declaredqueries/).**
   Write a query as an ordinary Swift function with `@SQLQuery`, or a whole
   container of them with `@SQLQueries`, and call it like any other function.
-  A SwiftPM build-tool plugin can prepare every declared query against a
-  schema snapshot at build time; see
+  Pass a parameter to `like`, `regexp`, or `Limit`. Observe a declaration
+  through its prepared form, or call it on a `withTransaction` scope. In a
+  SwiftPM target, a build-tool plugin finds every declaration and writes the
+  build-validation manifest from it, so no hand-written query list is
+  necessary. A second build-tool plugin prepares every declared query against
+  a schema snapshot at build time. Both a SwiftPM target and an Xcode project
+  target can run that validation; see
   [COMPATIBILITY.md](COMPATIBILITY.md) for the build systems it runs under.
 - **[Live data](https://lukevanin.github.io/swiftql/documentation/swiftql/livequeries/).**
   Observe typed query results with `for try await` over `stream()` and
   `streamOne()`, the canonical live-query API. GRDB-backed Combine publishers
   track the same database region a query reads, and `XLObservableQuery` or
-  `XLQueryObserver` adopt either one from SwiftUI.
+  `XLQueryObserver` adopt either one from SwiftUI. A declared query has a
+  prepared form, so a view observes it without a second copy of the
+  statement.
 - **[JSON](https://lukevanin.github.io/swiftql/documentation/swiftql/json/).**
   Read into a JSON document with the `->` and `->>` selection operators and
   `jsonExtract`, build documents with `jsonArray` and `jsonObject`, change them
   with the insert, replace, set, remove, and patch functions, collect rows with
   `jsonGroupArray` and `jsonGroupObject`, and address any of it with
-  `XLJSONPath` instead of a path string. The JSONB variants read and write
-  SQLite's binary representation.
+  `XLJSONPath` instead of a path string. A mutation on a `NOT NULL` document
+  gives a non-optional result, so the call assigns back to the column without
+  `coalesce`. A Swift `Bool` writes as a JSON boolean. The JSONB variants read
+  and write SQLite's binary representation, and `validJSONOrJSONBOrNull()`
+  checks a value that can hold either form.
 - **[Query plans and index advice](https://lukevanin.github.io/swiftql/documentation/swiftql/queryplanadvice/).**
-  The same build-tool plugin can capture what SQLite plans to do with each
+  The validation plugin can also capture what SQLite plans to do with each
   declared query, warn about full scans and sorts it has to materialize, and
   name the index that removes them. Every recommendation is proved first, by
   creating the index on a disposable copy of the schema snapshot and

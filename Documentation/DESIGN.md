@@ -244,16 +244,27 @@ worth being explicit that it is a trade.
 in the mechanics of decoding rows out of SQLite. Moving to the native SQLite C
 interface should remove that overhead. I expect a large improvement, possibly an
 order of magnitude, but that is an expectation and not a measurement - the
-current numbers are in [BENCHMARKS.md](../BENCHMARKS.md) and the comparison does
-not exist yet.
+current numbers are in [BENCHMARKS.md](../BENCHMARKS.md).
+
+The cross-library comparison now exists. It found one gap that cleared its own
+noise: a 100-row transactional write, where SwiftQL rendered a fresh statement
+for each row. v1.9 closed that gap with `GRDBDatabase.insert(contentsOf:)`,
+which renders and prepares the insert once for the whole batch and binds each
+row through an invocation packet. The batch path is about 2.8 times faster
+than the per-row path, and the runs no longer establish an order between
+SwiftQL and GRDB on that workload. See
+[`Benchmarks/Comparison/Issue259/README.md`](../Benchmarks/Comparison/Issue259/README.md).
 
 ## What is still wrong
 
 **Too much boilerplate, particularly around variables.** This is the most
-visible remaining wart and is targeted for upcoming versions. v1.9 removes one
-part of it: `@SQLBindings` generates the typed packet for a statement's named
+visible remaining wart and is targeted for upcoming versions. v1.9 removes two
+parts of it. `@SQLBindings` generates the typed packet for a statement's named
 bindings, so a caller no longer looks up a parameter slot by a string name and
-a misspelled name no longer waits until runtime to fail.
+a misspelled name no longer waits until runtime to fail. A Swift default on a
+`@SQLTable` or `@SQLResult` property now reaches the generated memberwise
+initializer, so a call can leave that property out instead of repeating the
+value.
 
 **Two syntaxes.** Supporting both chaining and result builders splits the
 surface area and the documentation. Chaining moves to its own library.
