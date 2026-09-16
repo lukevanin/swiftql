@@ -17,7 +17,7 @@ entry below ends with whether it affects code you already wrote.
 
 ## 1.9.0 — Declared queries do everything a query does
 
-*Unreleased.*
+*Released 16 September 2026.*
 
 - A declared query can be observed. Every declaration gets a prepared form that
   `stream()`, `publish()`, and the `@Observable` wrappers accept, so a view and
