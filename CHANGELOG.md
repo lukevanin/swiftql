@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.9.0] - Unreleased
+## [1.9.0] - 2026-09-16
 
 ### Migration
 

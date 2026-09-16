@@ -1,6 +1,6 @@
 ---
 name: swiftql
-description: Use when Codex works in a Swift package or Apple application that uses SwiftQL to define typed tables and results, declare or modify SQLite queries, run typed transactions, observe live results, pass immutable bindings, add contextual codecs, prepare static queries, integrate a database adapter, or diagnose SwiftQL execution boundaries. Use the checked-out public v1 contract; 1.8.1 is the latest published package, a correctness and safety patch (functions installed once per connection, bounded `REGEXP` operands, distinct aliases and bindings in nested query scopes built from the enclosing schema, and typed errors in place of process traps and silently wrong results) over v1.8, which adds advisory query-plan analysis to the build validator -- normalised `EXPLAIN QUERY PLAN` records, warnings for full scans and materialized sorts, and index recommendations each proved by re-planning on a disposable snapshot copy and applied by the `swiftql-index-advisor` command -- on top of v1.7 `REGEXP` with no application registration, v1.6 SQLite JSON support (the `->` and `->>` selection operators, a typed `XLJSONPath`, the JSON constructor, inspection, extraction, mutation, and aggregate functions, and their JSONB variants), v1.5.6 nullable-column assignment in `Setting` closures, v1.5.5 async live-query streams, `@Observable` query wrappers, and lazy result sets, v1.5.4 method-style scalar functions and observers, v1.5.3 contextual codec presets and `@SQLCodec`, v1.5.2 build-time query validation, and v1.5.1 declared-query macros (`@SQLQuery`/`@SQLQueries`) and typed transaction scopes. Do not use this skill to teach SQL generally or claim unshipped features.
+description: Use when Codex works in a Swift package or Apple application that uses SwiftQL to define typed tables and results, declare or modify SQLite queries, run typed transactions, observe live results, pass immutable bindings, add contextual codecs, prepare static queries, integrate a database adapter, or diagnose SwiftQL execution boundaries. Use the checked-out public v1 contract; 1.9.0 is the latest published package, which completes the declared-query surface (a prepared form of every declaration, which `stream()`, `publish()`, and the `@Observable` wrappers accept, a declared query called on the scope that `withTransaction` gives its body, a parameter passed to `like`, `regexp`, or `Limit`, descriptor lowering with a build-tool plugin that generates a registry from which `makeManifest` builds the build-validation manifest, the `@SQLBindings` typed binding packet, and one insert rendered and prepared for a whole batch by `GRDBDatabase.insert(contentsOf:)`) over v1.8.1, a correctness and safety patch (functions installed once per connection, bounded `REGEXP` operands, distinct aliases and bindings in nested query scopes built from the enclosing schema, and typed errors in place of process traps and silently wrong results) over v1.8, which adds advisory query-plan analysis to the build validator -- normalised `EXPLAIN QUERY PLAN` records, warnings for full scans and materialized sorts, and index recommendations each proved by re-planning on a disposable snapshot copy and applied by the `swiftql-index-advisor` command -- on top of v1.7 `REGEXP` with no application registration, v1.6 SQLite JSON support (the `->` and `->>` selection operators, a typed `XLJSONPath`, the JSON constructor, inspection, extraction, mutation, and aggregate functions, and their JSONB variants), v1.5.6 nullable-column assignment in `Setting` closures, v1.5.5 async live-query streams, `@Observable` query wrappers, and lazy result sets, v1.5.4 method-style scalar functions and observers, v1.5.3 contextual codec presets and `@SQLCodec`, v1.5.2 build-time query validation, and v1.5.1 declared-query macros (`@SQLQuery`/`@SQLQueries`) and typed transaction scopes. Do not use this skill to teach SQL generally or claim unshipped features.
 ---
 
 # SwiftQL
@@ -32,7 +32,7 @@ roadmap work as shipped API.
   `SQLRow6`) require Swift 6.1 or later, because earlier compilers crash during
   IR generation. `#row`'s single-column shape works everywhere.
 - Read [the changelog](CHANGELOG.md) before choosing a package requirement.
-  `1.8.1` is the latest published package. Pin a source revision only when
+  `1.9.0` is the latest published package. Pin a source revision only when
   intentionally testing later changes from `main`.
 
 ## Prefer the v1.5 declared-query workflow
@@ -320,8 +320,8 @@ opened, or a raw-value handle that can cross tasks.
   `SwiftQLSQLiteBuildValidationPlugin` check a manifest of static descriptors
   against a checked-in schema snapshot during `swift build`. They prove the SQL
   parses and that schema, parameter, and capability metadata agree, and prove
-  nothing about result values, row counts, or behavior. No macro emits a
-  manifest from a `@SQLQuery` declaration yet. On the published v1.5.2 through
+  nothing about result values, row counts, or behavior. Before v1.9 no macro emitted a
+  manifest from a `@SQLQuery` declaration. On the published v1.5.2 through
   v1.5.5 packages a plugin-adopting target also fails to build under Xcode 26.5
   before validation runs, which is issue #492; drive it with `swift build`
   there. v1.5.6 fixes that and builds under both.
@@ -332,6 +332,13 @@ opened, or a raw-value handle that can cross tasks.
   Nothing it produces changes a correctness verdict or the exit status.
   `swiftql-index-advisor` turns the verified recommendations into a checked-in
   SQL artifact when a developer runs it; no build applies them.
+- v1.9 generates the manifest. The macros lower each declaration to a static
+  descriptor, the `SwiftQLDeclaredQueryRegistryPlugin` build-tool plugin reads
+  every declaration in a target and generates a registry, and `makeManifest`
+  builds the manifest from that registry. Two limits apply. The registry
+  plugin runs only in a SwiftPM target, which is issue #766. Only
+  `SELECT`-shaped declarations exist, so a write still goes into the manifest
+  by hand.
 
 Read the [static-query guide](https://lukevanin.github.io/swiftql/documentation/swiftql/staticqueries/)
 for descriptor construction, captures, cardinality, preparation, and typed
