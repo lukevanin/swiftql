@@ -294,8 +294,8 @@ explicit list of the places the correspondence is not exact.
   registry. No hand-written query list is necessary. A second build-tool
   plugin prepares every declared query against a schema snapshot at build
   time. Both a SwiftPM target and an Xcode project target can run that
-  validation; see
-  [COMPATIBILITY.md](COMPATIBILITY.md) for the build systems it runs under.
+  validation. See [COMPATIBILITY.md](COMPATIBILITY.md) for the build systems
+  it runs under.
 - **[Live data](https://lukevanin.github.io/swiftql/documentation/swiftql/livequeries/).**
   Observe typed query results with `for try await` over `stream()` and
   `streamOne()`, the canonical live-query API. GRDB-backed Combine publishers

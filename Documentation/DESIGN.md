@@ -253,7 +253,8 @@ rendered a fresh statement for each row. v1.9 closed the gap with
 once for the batch, and binds each row through an invocation packet. A row
 whose values cannot bind to that statement renders on its own, in the same
 transaction. The batch path is about 2.8 times faster than the per-row path.
-The runs no longer establish an order between SwiftQL and GRDB. See
+The runs no longer establish an order between SwiftQL and GRDB on that
+workload. See
 [`Benchmarks/Comparison/Issue259/README.md`](../Benchmarks/Comparison/Issue259/README.md).
 
 ## What is still wrong

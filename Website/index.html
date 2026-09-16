@@ -533,7 +533,7 @@ footer {
       </div>
       <div class="card">
         <h3>Declared queries</h3>
-        <p>Write a query as an ordinary Swift function with <code>@SQLQuery</code>, or a container of them with <code>@SQLQueries</code>. Pass a parameter to <code>like</code>, <code>regexp</code>, or <code>Limit</code>. Observe a declaration, or call it on a <code>withTransaction</code> scope. A build-tool plugin finds every declaration in a SwiftPM target. <code>makeManifest</code> builds the build-validation manifest from the registry.</p>
+        <p>Write a query as an ordinary Swift function with <code>@SQLQuery</code>, or a container of them with <code>@SQLQueries</code>. Pass a parameter to <code>like</code>, <code>regexp</code>, or <code>Limit</code>. Observe a declaration, or call it on a <code>withTransaction</code> scope. A build-tool plugin finds every declaration in a SwiftPM target and generates a registry. <code>makeManifest</code> builds the build-validation manifest from it.</p>
       </div>
       <div class="card">
         <h3>Live data</h3>
