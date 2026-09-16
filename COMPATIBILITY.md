@@ -381,6 +381,24 @@ pinned Swift 6.0 cell and the playground on the pinned Swift 5.9.2 Linux cell,
 and both compilers crash on the one-line shape, so a reintroduced one-liner
 fails there rather than in a user's project.
 
+### Swift 6.3 selects the expression prefix operator for a number
+
+`Int` and `Double` conform to `XLExpression`, so such an operand also matches
+SwiftQL's generic prefix `-`, `+`, and `~` over `any XLExpression`. Swift 5.9.2
+and Swift 6.4 select the standard library operator for it. Swift 6.3.2 selects
+SwiftQL's. In a file that imports SwiftQL, `let x = -someInt` then gave `x` an
+expression type on Swift 6.3, and each later use of `x` as an `Int` failed to
+compile (issue #771). `+someInt`, `~someInt`, and `+someDouble` failed the same
+way.
+
+Since v1.9 SwiftQL declares exact-match overloads that make every supported
+compiler produce a number: `-`, `+`, and `~` for `Int`, and `+` for `Double`.
+`Double` gets a `+` overload only. Swift 6.3.2 selects the standard library
+operator for `-someDouble` already, and an exact-match `-` overload for `Double`
+makes `-someDouble` ambiguous.
+`Tests/SQLTests/SQLNumericPrefixOperatorTests.swift` holds the compile check. It
+runs on every cell, the Swift 6.3 Linux cell included.
+
 ## Swift 6 series coverage
 
 | Swift series | GitHub runner | Xcode | Swift | macOS SDK |

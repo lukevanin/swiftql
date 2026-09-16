@@ -358,6 +358,22 @@
 
 ### Fixed
 
+- **A prefix `-`, `+`, or `~` on a plain number keeps its type on Swift 6.3**
+  (issue #771). `Int` and `Double` conform to `XLExpression`, so SwiftQL's
+  generic prefix operators over `any XLExpression` also matched such an operand.
+  Swift 6.3 preferred them. In a file that imports SwiftQL, ordinary code such
+  as `let x = -someInt` then gave `x` an expression type, and every later use of
+  `x` as an `Int` failed to compile. `+someInt`, `~someInt`, and `+someDouble`
+  failed the same way. Swift 5.9 and Swift 6.4 always chose the standard library
+  operator. SwiftQL now declares exact-match overloads: `-`, `+`, and `~` for
+  `Int`, and `+` for `Double`. The result is an `Int` or a `Double` on every
+  compiler. `Double` gets a `+` overload only, because Swift 6.3 already chose
+  the standard library operator for `-someDouble`, and a `-` overload for
+  `Double` makes `-someDouble` ambiguous. The operators for SwiftQL expressions,
+  optional expressions included, keep their behaviour. The generic operators
+  date from the first source commit, so the fault applies to user code on every
+  1.x version under Swift 6.3, not only to 1.9.
+
 - **A parameter named like a key-path component or a callee gets a
   diagnostic** (issue #661). A parameter named `name` in a body that also
   contains `\Person.name` made the rewrite produce invalid code. A parameter
