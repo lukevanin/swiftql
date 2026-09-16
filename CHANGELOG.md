@@ -356,6 +356,27 @@
   1 unimplemented. Of the 224 evidence records, 137 exercise real SQLite and
   cite one captured SQLite 3.51.0 environment.
 
+- **CI: the declared-query discovery fixture survives a kill by the runner**
+  (issue #772). The macOS cell killed
+  `IntegrationTests/DeclaredQueryRegistryFixture/verify.sh` with SIGKILL five
+  times, always after the build of `fixture-manifest` reported that it was
+  complete. The script built and ran the generator with one `swift run`
+  command, so it reported the kill as a failed validation.
+  - The script now builds the generator and runs it as two steps. A build
+    failure fails the fixture at once with its own message, and only the run
+    gives a check its result.
+  - The script limits SwiftPM to two compiler processes. Local measurements
+    give the peak memory of a cold build as 3.42 GB at 14 processes, 1.78 GB
+    at 3, and 1.38 GB at 2. No measurement of the runner itself exists, so
+    this cap lowers the peak but does not prove that it stops the kill.
+  - The build and the run each have a time limit, and the script retries a
+    step after a SIGKILL only. A retry writes a `::warning::` annotation, so
+    the flake stays visible. Every other failure fails the fixture at once.
+  - The three checks the fixture makes do not change. Set
+    `SWIFTQL_FIXTURE_JOBS`, `SWIFTQL_FIXTURE_BUILD_LIMIT`,
+    `SWIFTQL_FIXTURE_RUN_LIMIT`, or `SWIFTQL_FIXTURE_SIGKILL_RETRIES` to
+    change these values.
+
 ### Fixed
 
 - **A parameter named like a key-path component or a callee gets a
