@@ -91,6 +91,49 @@ extension GRDBDatabase {
             Where(table.value == value)
         }
     }
+
+    // Issue #661: a parameter passed to a DSL matching method or to a clause
+    // binds exactly like a comparison operand. `limit` is also a reminder that
+    // a parameter only collides with a callee of the same spelling.
+
+    @SQLQuery
+    func rowsWithIDLike(pattern: String, limit: Int) -> [TestTable] {
+        sqlResult { schema in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            Where(table.id.like(pattern))
+            OrderBy(table.value.ascending())
+            Limit(limit)
+        }
+    }
+
+    // Issue #660: observed through the generated `PreparedQuery` peer. The probe
+    // counts statement builds, so a test can prove that the executor and the
+    // prepared form share one render.
+
+    @SQLQuery
+    func observedRowsWithIDLike(pattern: String) -> [TestTable] {
+        sqlResult { schema in
+            let _ = DeclaredQueryRenderProbe.peerObservedRows.record()
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            Where(table.id.like(pattern))
+            OrderBy(table.value.ascending())
+        }
+    }
+
+    @SQLQuery
+    func rowsWithIDMatchingExpression(expression: String) -> [TestTable] {
+        sqlResult { schema in
+            let table = schema.table(TestTable.self)
+            Select(table)
+            From(table)
+            Where(table.id.regexp(expression))
+            OrderBy(table.value.ascending())
+        }
+    }
 }
 
 
@@ -381,6 +424,107 @@ final class XLQueryPeerMacroTests: XCTestCase {
             try database.fetchDoubleRowsMatchingValue(value: 1.5),
             [DoubleTest(id: "finite", value: 1.5)]
         )
+    }
+
+
+    // MARK: - Matching methods and clause arguments (issue #661)
+
+    func testLikeAndLimitParametersRenderPlaceholders() throws {
+        let encoding = encoder.makeSQL(database.rowsWithIDLikeStatement())
+
+        XCTAssertTrue(encoding.sql.contains("LIKE :pattern"), "expected a LIKE placeholder in \(encoding.sql)")
+        XCTAssertTrue(encoding.sql.contains("LIMIT :limit"), "expected a LIMIT placeholder in \(encoding.sql)")
+        XCTAssertNil(encoding.parameterLayoutError)
+        XCTAssertEqual(
+            encoding.parameterLayout.slots.map(\.key),
+            [.named("pattern"), .named("limit")]
+        )
+    }
+
+    func testLikeAndLimitExecutorBindsEachInvocation() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "alpine", value: 2))
+        try insert(TestTable(id: "beta", value: 3))
+
+        XCTAssertEqual(
+            try database.fetchRowsWithIDLike(pattern: "al%", limit: 10).map(\.id),
+            ["alpha", "alpine"]
+        )
+        XCTAssertEqual(
+            try database.fetchRowsWithIDLike(pattern: "al%", limit: 1).map(\.id),
+            ["alpha"]
+        )
+        XCTAssertEqual(
+            try database.fetchRowsWithIDLike(pattern: "b%", limit: 10).map(\.id),
+            ["beta"]
+        )
+    }
+
+    func testRegexpExecutorBindsEachInvocation() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "alpine", value: 2))
+        try insert(TestTable(id: "beta", value: 3))
+
+        XCTAssertEqual(
+            try database.fetchRowsWithIDMatchingExpression(expression: "^al").map(\.id),
+            ["alpha", "alpine"]
+        )
+        XCTAssertEqual(
+            try database.fetchRowsWithIDMatchingExpression(expression: "a$").map(\.id),
+            ["alpha", "beta"]
+        )
+    }
+
+
+    // MARK: - Observation (issue #660)
+
+    func testPrepareSharesTheExecutorsRenderAndBindings() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "beta", value: 2))
+
+        let rendersBefore = DeclaredQueryRenderProbe.peerObservedRows.count
+        let prepared = try database.observedRowsWithIDLikePreparedQuery(pattern: "al%")
+        let called = try database.fetchObservedRowsWithIDLike(pattern: "al%")
+        XCTAssertEqual(
+            DeclaredQueryRenderProbe.peerObservedRows.count - rendersBefore,
+            1,
+            "the prepare peer and the executor must share one render"
+        )
+
+        let layout = prepared.request.parameterLayout
+        let slot = try XCTUnwrap(layout.slot(for: .named("pattern")))
+        let expectedBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: layout,
+            bindings: [try XLInvocationBinding(slot: slot, value: .text("al%"))]
+        ).validatingComplete()
+        XCTAssertEqual(prepared.bindings, expectedBindings)
+        XCTAssertEqual(called, [TestTable(id: "alpha", value: 1)])
+        XCTAssertEqual(try prepared.request.fetchAll(bindings: prepared.bindings), called)
+    }
+
+    func testPreparedPeerStreamEmitsUpdatedRowsAfterAWrite() async throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+
+        let query = try database.observedRowsWithIDLikePreparedQuery(pattern: "al%")
+        let updatedRows = [TestTable(id: "alpha", value: 1), TestTable(id: "alpine", value: 2)]
+
+        var snapshots = 0
+        for try await rows in query.stream() {
+            snapshots += 1
+            if snapshots == 1 {
+                XCTAssertEqual(rows, [TestTable(id: "alpha", value: 1)])
+                try insert(TestTable(id: "alpine", value: 2))
+                continue
+            }
+            if rows == updatedRows {
+                break
+            }
+        }
+        XCTAssertGreaterThan(snapshots, 1, "the observation must deliver the write")
     }
 
 

@@ -153,6 +153,10 @@ private func makeCodecAwareMembers(builder: MetaBuilder) throws -> [DeclSyntax] 
     members.append(
         contentsOf: try builder.makeCodecResultFieldFunctions().map(makeDecl)
     )
+    // Issue #665: the accessors the memberwise initializer names as its defaults.
+    members.append(
+        contentsOf: try builder.makeDefaultValueAccessors().map(makeDecl)
+    )
     return members
 }
 
@@ -323,5 +327,6 @@ extension SQLResultMacro: ExtensionMacro {
         SQLFunctionMacro.self,
         SQLCodecMacro.self,
         SQLRowMacro.self,
+        SQLBindingsMacro.self,
     ]
 }

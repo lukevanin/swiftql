@@ -73,8 +73,24 @@ public enum XLSQLValueEncodingError:
     /// operator, and groups compound operators from the left.
     case unsupportedCompoundBranchClause(compoundOperator: String, clause: String)
 
+    /// A `Data` value was passed as a JSON value to `function`. SQLite
+    /// rejects a blob there with `JSON cannot hold BLOB values`, or silently
+    /// reads it as a document when its bytes happen to be valid JSONB. Only
+    /// the result of a `jsonb` function is accepted as a blob JSON value.
+    case blobInJSONValue(valueType: String, function: String)
+
+    /// The non-optional form of `jsonRemoving(at:_:)` or
+    /// `jsonbRemoving(at:_:)` names the root path `$`. SQLite returns SQL
+    /// `NULL` when it removes the root, and that form's result type cannot
+    /// hold `NULL`.
+    case jsonRootRemoval(function: String)
+
     public var errorDescription: String? {
         switch self {
+        case .jsonRootRemoval(let function):
+            return "Cannot remove the root path $ with \(function) on a non-optional document: SQLite returns SQL NULL when it removes the root, and the result type is not optional. Remove a path inside the document, or store NULL through an optional column."
+        case .blobInJSONValue(let valueType, let function):
+            return "Cannot pass a \(valueType) value to \(function) as a JSON value: SQLite cannot hold a blob in JSON, and reads a blob whose bytes are valid JSONB as a document. Pass a JSONB function result, such as minifiedJSONB(), to nest a JSONB document."
         case .nulCharacterInText(let valueType, let context):
             let site = context.map { " at \($0)" } ?? ""
             return "Cannot use a \(valueType) text value that contains U+0000\(site): SQLite reads text only up to the first NUL, so the value would be truncated. Store such data as a blob."

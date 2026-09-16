@@ -46,30 +46,30 @@ public enum TodoIndices {
     /// schema was written but whose indices were not is a state a crash can
     /// leave behind, and re-running repairs it for nothing.
     public static let statements: [String] = [
-        // todo-demo.tags-for-list, todo-demo.tags-for-todo:
+        // GRDBDatabase.tagsForList, GRDBDatabase.tagsForTodo:
         // automatic_covering_index -> index_search on the tag lookup.
         #"CREATE INDEX IF NOT EXISTS "ix_advisor_tag_id_name" ON "Tag" ("id", "name" ASC)"#,
-        // todo-demo.tags: removes the temporary B-tree for ORDER BY name.
+        // GRDBDatabase.tags: removes the temporary B-tree for ORDER BY name.
         #"CREATE INDEX IF NOT EXISTS "ix_advisor_tag_name" ON "Tag" ("name" ASC)"#,
-        // todo-demo.todos: removes the temporary B-tree for the created-at
+        // GRDBDatabase.todos: removes the temporary B-tree for the created-at
         // ordering.
         #"CREATE INDEX IF NOT EXISTS "ix_advisor_todo_createdat_position" ON "Todo" ("createdAt" ASC, "position" ASC)"#,
-        // todo-demo.todo-by-id: full_table_scan -> index_search. The demo has
+        // GRDBDatabase.todo: full_table_scan -> index_search. The demo has
         // no primary key, so this is the only thing that makes a lookup by
         // identifier a seek.
         #"CREATE INDEX IF NOT EXISTS "ix_advisor_todo_id" ON "Todo" ("id")"#,
-        // todo-demo.tags-for-list: full_table_scan -> covering index search
+        // GRDBDatabase.tagsForList: full_table_scan -> covering index search
         // on the driving side of the join.
         #"CREATE INDEX IF NOT EXISTS "ix_advisor_todo_listid_id" ON "Todo" ("listID", "id")"#,
-        // todo-demo.checklist-summaries: full_table_scan -> index_search, and
+        // GRDBDatabase.checklistSummaries: full_table_scan -> index_search, and
         // the ORDER BY sort disappears with it.
         #"CREATE INDEX IF NOT EXISTS "ix_advisor_todo_listid_position" ON "Todo" ("listID", "position" ASC)"#,
-        // todo-demo.todo-list-by-id: full_table_scan -> index_search.
+        // GRDBDatabase.todoList: full_table_scan -> index_search.
         #"CREATE INDEX IF NOT EXISTS "ix_advisor_todolist_id" ON "TodoList" ("id")"#,
-        // todo-demo.todo-lists: removes the temporary B-tree for the sidebar
+        // GRDBDatabase.todoLists: removes the temporary B-tree for the sidebar
         // ordering.
         #"CREATE INDEX IF NOT EXISTS "ix_advisor_todolist_position_name" ON "TodoList" ("position" ASC, "name" ASC)"#,
-        // todo-demo.tags-for-list, todo-demo.tags-for-todo:
+        // GRDBDatabase.tagsForList, GRDBDatabase.tagsForTodo:
         // automatic_covering_index -> covering index search on the link table.
         #"CREATE INDEX IF NOT EXISTS "ix_advisor_todotag_todoid_tagid" ON "TodoTag" ("todoID", "tagID")"#,
     ]

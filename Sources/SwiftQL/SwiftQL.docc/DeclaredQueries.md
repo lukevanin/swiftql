@@ -125,6 +125,192 @@ the pinned scope, not the original database — pass it to `makeRequest(with:)`
 for any operation the closure needs beyond the container's own declared
 queries.
 
+## Call a declared query inside a transaction
+
+Since v1.9 ([#662](https://github.com/lukevanin/swiftql/issues/662)) you can
+call a declared query on the scope that `withTransaction(_:)` gives its body.
+The query runs on the transaction's connection, so it sees the writes the body
+made before it, and it commits or rolls back with them:
+
+<!-- test: XLDocumentationTests.testDocumentationDeclaredQueries -->
+```swift
+let matches = try database.withTransaction { scope in
+    try scope.makeRequest(with: sqlInsert(candidate)).execute()
+    return try scope.personByName(name: candidate.name)
+}
+```
+
+- **On a scope, the executor joins the transaction.** The `@SQLQueries`
+  database-level executor opens a transaction when you call it on a database.
+  When you call it on a scope, it runs on the scope instead. The
+  `@SQLQuery` peer executor (`scope.fetchPersonByName(name:)`) never opens a
+  transaction, so it runs on the scope too.
+- **The same cached request and packet.** The call uses the database's
+  render-once cache entry, bound to the scope's connection, and the binding
+  packet a call on the database builds. See "Inside a transaction" under
+  "Render-once caching" below.
+- **The scope rules do not change.** A scope used after its body returns
+  throws `XLTransactionScopeError.scopeEscaped`. The original database, called
+  inside a body, and `execute(_:)`, called on a scope, still open a transaction
+  of their own and throw `nestedTransactionUnsupported`.
+- **Fetch, do not observe.** A declared query called on a scope fetches. An
+  observation from a scope fails with `liveQueriesUnsupportedInTransaction`;
+  see "Observe a declared query" below.
+
+## Observe a declared query
+
+Since v1.9 ([#660](https://github.com/lukevanin/swiftql/issues/660)) a
+declared query has a **prepared form** that a live query can observe, so a
+read that a view observes is written once. The prepared form takes the same
+arguments as the executor and returns an ``XLPreparedQuery``: the request from
+the declaration's render-once cache and the binding packet for those arguments.
+
+| Form | Executor | Prepared form |
+| --- | --- | --- |
+| `@SQLQuery` | `try database.fetchPersonByName(name:)` | `try database.personByNamePreparedQuery(name:)` |
+| `@SQLQueries` | `try database.personByName(name:)` | `try database.preparedQueries.personByName(name:)` |
+
+Observe the prepared query with the same methods a request has, or pass it to
+the `@Observable` wrappers:
+
+<!-- test: XLDocumentationTests.testDocumentationDeclaredQueries -->
+```swift
+let query = try database.preparedQueries.personByName(name: "John Doe")
+
+for try await matches in query.stream() {
+    print("Fetched matches: \(matches)")
+}
+
+let cancellable = query.publish().sink(
+    receiveCompletion: { _ in },
+    receiveValue: { matches in print("Fetched matches: \(matches)") }
+)
+
+let model = XLObservableQuery(query)
+```
+
+- **One render.** The prepared form and the executor emit the same generated
+  preparation code and read the same cache entry. The statement renders at
+  most once for each database, whichever form runs first.
+- **The same bindings.** The packet holds exactly the values the executor
+  would bind for the same arguments. The observation captures that packet once
+  for its initial fetch, every refresh, and every retry, as
+  `stream(bindings:)` does. New argument values need a new prepared query and
+  a new observation.
+- **Cardinality.** Use `stream()` or `publish()` for a declaration that
+  returns `[Row]`. Use `streamOne()`, `publishOne()`, or
+  ``XLObservableQueryRow`` for one that returns `Row?` or `Row`. An observation
+  does not enforce the exactly-one cardinality of a `Row` declaration: when the
+  row goes away, `streamOne()` delivers `nil` instead of throwing.
+- **Prepare an observed query on the database.** A transaction scope is also a
+  database, so `scope.preparedQueries.personByName(name:)` compiles, and its
+  request fetches on the transaction's connection. Observation needs the
+  connection pool, so `stream()`, `streamOne()`, `publish()`, and
+  `publishOne()` on a query prepared from a scope fail with
+  `XLTransactionScopeError.liveQueriesUnsupportedInTransaction`. They never
+  observe the scope's connection.
+- **Not `Sendable`.** ``XLPreparedQuery`` holds an `any XLRequest<Row>`, and
+  ``XLRequest`` is not `Sendable`. It is a public protocol, and SwiftQL cannot
+  promise that every conforming request is safe to share across tasks. With
+  strict concurrency checking, prepare the query in the isolation domain that
+  observes it, for example in the initializer of a `@MainActor` model. Send the
+  arguments across the boundary, not the prepared query.
+
+### Generated names
+
+`@SQLQueries` adds one property, `preparedQueries`, and one nested type,
+`Context.PreparedQueries`, for any number of specifications. `@SQLQuery` adds
+one peer for each declaration, with the `PreparedQuery` suffix, in the same
+way that its statement builder has the `Statement` suffix. These names are
+unlikely to be the name of a member an application declares. A single generic
+entry point, such as `database.prepare(\.personByName, name:)`, is not
+possible, because a Swift key path cannot refer to a method.
+
+`@SQLQueries` reports each collision that it can see, at your declaration: a
+specification named `preparedQueries`, and a property or a zero-parameter
+method named `preparedQueries` in the same extension. A member macro cannot
+see members that are declared outside its extension. On the Swift 5.9
+toolchain floor (swift-syntax 509), a peer macro sees only the declaration it
+is attached to. `@SQLQuery` therefore cannot report a member that collides
+with its `PreparedQuery` peer. These collisions fail as a redeclaration error
+in generated code. The 1.9.0 CHANGELOG lists each case.
+
+## Named bindings for a statement value
+
+A declared query binds its parameters for you, and its prepared form lets a
+live query observe it. Some statements are not declared queries, for example
+a write, with or without `RETURNING`. Such a statement uses named bindings,
+and each call needs a packet of values.
+
+Attach `@SQLBindings` to a struct with one stored property for each named
+binding. The macro generates a static typed reference for each property, which
+the statement uses, and `bindings(for:)` and `bindings(in:)`, which build the
+immutable `XLInvocationBindings` packet from the property values:
+
+<!-- test: XLDocumentationTests.testDocumentationDeclaredQueries -->
+```swift
+@SQLBindings
+struct PersonSearchBindings {
+    var name: String
+    var minimumAge: Int
+}
+
+let searchStatement = sql { schema in
+    let person = schema.table(Person.self)
+    Select(person)
+    From(person)
+    Where(
+        person.name == PersonSearchBindings.name
+        && person.age >= PersonSearchBindings.minimumAge
+    )
+}
+let searchRequest = database.makeRequest(with: searchStatement)
+let adults = try searchRequest.fetchAll(
+    bindings: PersonSearchBindings(name: "John Doe", minimumAge: 21)
+        .bindings(for: searchRequest)
+)
+```
+
+The property is the only place the binding's name and type are written:
+
+- A misspelled reference, such as `PersonSearchBindings.nmae`, is a missing
+  static member, so it does not compile.
+- A missing value or a misspelled value label is a memberwise-initializer
+  error, so it does not compile either.
+- The packet binds each value under its property name. `nil` in an optional
+  property is a present SQL `NULL`, not a missing binding.
+- Do not give a property an initial value, and do not declare an initializer
+  in the struct. Either one would let a call leave a value out, so the macro
+  reports an error for both. The macro cannot see an initializer that is
+  declared in an extension, so do not declare one there either.
+- The packet is still checked against the request's parameter layout. If the
+  statement does not use a declared binding, building the packet throws
+  `XLInvocationBindingError.parameterDeclarationNotInLayout`. If the statement
+  uses a binding that the struct does not declare, it throws
+  `XLInvocationBindingError.missingBindings`.
+
+Pass the packet to `fetchAll(bindings:)`, `fetchOne(bindings:)`,
+`execute(bindings:)`, a packet-backed publisher, or an `XLObservableQuery`.
+
+Declare one `@SQLBindings` struct for each statement shape. A statement that
+you build conditionally, for example with a filter term only when the filter
+is set, has a different parameter layout for each shape. A struct that
+declares the conditional binding throws `parameterDeclarationNotInLayout` for
+the shape that does not use it. Give each shape its own struct.
+
+Generated members are `public` or `package` only when the struct itself is
+written `public` or `package`. A struct that is public only because it is
+inside a `public extension` gets internal generated members. Write the access
+modifier on the struct.
+
+`bindings(for:)` has one overload for an `XLRequest` and one for an
+`XLWriteRequest`. If your own request type conforms to both protocols, a call
+to `bindings(for:)` is ambiguous, and the compiler error does not name the
+cause. For such a type, call `bindings(in: request.parameterLayout)` instead.
+
+Do not put a binding property or an initializer inside an `#if` block. The
+generated members are not conditional, so the macro reports an error for both.
+
 ## Render-once caching
 
 The generated executor does not render SQL on every call. Each declaration
@@ -193,21 +379,56 @@ The render-once cache's central hazard is a parameter value that escapes the
 signature-driven rewrite: if the macro cannot turn every reference to a
 parameter into a named placeholder, that value could freeze into the cached
 SQL text on the very first call, and every later call would silently reuse
-the first call's value. The macro closes this by rejecting, at the
-declaration site, every reference shape it cannot rewrite:
+the first call's value.
+
+The rewrite replaces every expression reference to a parameter with its
+named binding, wherever the reference sits. Since v1.9
+([#661](https://github.com/lukevanin/swiftql/issues/661)) that includes an
+argument to a DSL method or clause, so a declared query can match text and
+limit its rows with parameters:
+
+<!-- test: XLDocumentationTests.testDocumentationDeclaredQueries -->
+```swift
+@SQLQueries
+extension GRDBDatabase {
+
+    private struct Query {
+        func people(matching pattern: String, expression: String, limit: Int) -> [Person] {
+            sqlResult { schema in
+                let person = schema.table(Person.self)
+                Select(person)
+                From(person)
+                Where(person.name.like(pattern) || person.name.regexp(expression))
+                OrderBy(person.name.ascending())
+                Limit(limit)
+            }
+        }
+    }
+}
+```
+
+A comparison operand (`column == name`), a method argument
+(`column.like(pattern)`, `column.regexp(expression)`), a clause argument
+(`Limit(limit)`, `Offset(offset)`), a local binding (`let alias = name`), and
+a reference in a nested closure all become the same named placeholder. The
+generated statement never holds the value, and the compiler rejects a use
+that needs the Swift value instead of an expression, such as a helper that
+takes a `String`.
+
+The macro rejects, at the declaration site, every shape where the rewrite
+cannot produce a correct placeholder:
 
 - a parameter used inside a **string interpolation** (renders into the SQL
   text instead of binding a placeholder),
-- a parameter **captured by a nested closure** (outside the rewrite's reach),
-- a parameter passed as a **direct argument to a function call** (the
-  rewrite cannot see through the call — `matches(name)` is rejected; write
-  `column == name` instead),
-- a parameter used to **initialize a local binding** (`let alias = name`;
-  the binding's later uses are unreachable),
+- a parameter accessed **through member access** (`name.uppercased()`), which
+  transforms the value in Swift where no placeholder can represent it,
+- a parameter whose name is also a **key-path component** (`\Person.name`) or
+  the **callee** of a call (`From(person)`, `Limit(10)`). Neither position is a
+  reference to the parameter, so the rewrite leaves it unchanged and the macro
+  asks you to rename the parameter,
 - a **hand-constructed** `XLNamedBindingReference` or `contextualBinding` (the
   macro is the sole authority for a placeholder's name and type),
-- a declaration that **shadows** a parameter name, or accesses a parameter
-  **through member access** (`name.uppercased()`),
+- a declaration that **shadows** a parameter name,
 - a **collection-typed parameter** (`[T]`, `Set`, `Dictionary`) — a
   variable-length `IN` list would change the rendered SQL text with the
   element count, breaking the stable-SQL premise the cache relies on, and
@@ -215,17 +436,21 @@ declaration site, every reference shape it cannot rewrite:
 - a parameter that is **never referenced** at all.
 
 Every one of these is a compile-time diagnostic at the declaration, not a
-runtime failure, and every remaining reference shape the guard accepts — a
-comparison operand such as `column == name` — is the one shape the rewrite
-can always turn into a named placeholder. This means the encoding has **no
-silent-freeze path**: a parameter value either becomes a placeholder, or the
-declaration fails to compile.
+runtime failure. This means the encoding has **no silent-freeze path**: a
+parameter value either becomes a placeholder, or the declaration fails to
+compile.
 
-Two shapes are not lexically detectable and are intentionally left to the
-compiler as loud type errors on the generated code rather than silently
-accepted: a parameter used as the *callee* of a call (`predicate(x)`), and a
-parenthesized member-access base (`(name).lowercased()`). Neither produces a
-silently wrong result.
+A parameter passed to a call whose parameter type is `Any` or generic is **not
+a binding**. For example, `String(describing: name)` receives the binding
+reference, not the parameter's value, and returns the reference's description
+as an ordinary Swift string. That string then renders into the SQL as a
+constant literal, the same for every call, so the query silently compares
+against the wrong text. The macro does not detect this shape. Pass a parameter
+only to SwiftQL expression APIs — an operator, a method such as `like(_:)` or
+`regexp(_:)`, or a clause such as `Limit(_:)` — never to a general Swift
+function. A parenthesized member-access base (`(name).lowercased()`)
+is not lexically detectable and is left to the compiler as a type error on the
+generated code.
 
 ## Diagnostics point at the declaration
 
@@ -236,18 +461,103 @@ reported on the specification's own source location, not on the generated
 code. A malformed declaration therefore never produces a confusing error deep
 inside macro-expanded output.
 
-## v1.5 transitional syntax and the v2 migration path
+## Static descriptors and build validation
 
-The v1.5.1 prototype builds its value-free statement with the existing
-`sql { }` / `XLQueryStatement` / `makeRequest(with:)` v1 path — the same
-statement construction every other SwiftQL query already uses. It
-deliberately does **not** build on the newer `XLStaticQueryDescriptor` /
-`XLQueryCapture` catalog machinery described in <doc:StaticQueries>; that
-stable-v2 catalog integration is out of scope until the catalog-facing issues
-it depends on land. Existing `@SQLQuery`/`@SQLQueries` declarations are
-expected to keep compiling once that integration ships — the migration is
-expected to be a change to what the macro generates internally, not to how
-you write a specification function.
+Since v1.9 (issue [#659](https://github.com/lukevanin/swiftql/issues/659)),
+every declaration also describes itself, so it can become an
+`XLStaticQueryDescriptor` (see <doc:StaticQueries>) and an entry in a
+build-validation manifest without a hand-written list.
+
+The macro has no type information, so it emits data rather than a
+descriptor. For each specification it emits an `XLDeclaredQuery` value: the
+specification's name, the cardinality its return type selects, each
+parameter's name and Swift type, the row type, and the value-free statement
+the executor renders. Every generated member is an instance member, and none
+copies a specification body into a new context, so a declaration that
+compiles for its executor compiles for its descriptor too:
+
+- `@SQLQueries` generates a `declaredQueries` property on its `Context`,
+  which evaluates each body exactly where the `Context` executor evaluates
+  it, and a `declaredQueries` property on the extended type that reads it
+  through a `Context`.
+- `@SQLQuery` generates a `<name>DeclaredQuery()` method beside each
+  declaration. It calls the existing `<name>Statement()` peer, and keeps the
+  declaration's access level and `mutating` modifier.
+
+`XLDeclaredQuery.makeDescriptor()` assembles the descriptor at run time:
+
+- It renders the statement with the encoder of the database the value was
+  read from, so the descriptor's SQL is the SQL that database runs, whatever
+  identifier formatting it was built with. A `GRDBDatabase` supplies its
+  encoder. For another database type, build the value with the initializer
+  that takes an encoder.
+- It takes the parameter layout from the rendered statement, and checks it
+  against the declared parameter names, value types, and nullability.
+- A row selected through a static row layout takes its result slots, codecs
+  included, from the layout's metadata. Any other row is replayed against a
+  reader that records each column's alias and Swift type.
+- It names the definition `<DatabaseType>/<specification>@1`. The type name
+  keeps its enclosing types (`Outer.Database`) and drops its module. Nothing
+  in the identity depends on the build, so an unchanged declaration has the
+  same descriptor identity in every build.
+
+### Discover every declaration in a target
+
+Apply the `SwiftQLDeclaredQueryRegistryPlugin` build-tool plugin to the target
+that declares the queries. On every build it scans the target's own Swift
+sources with SwiftSyntax and compiles a generated `<Target>DeclaredQueries`
+enum into that target. Its `queries(for:)` method takes database instances
+and returns the declared queries of every `@SQLQueries` extension and every
+`@SQLQuery` function it found. It throws
+`XLDeclaredQueryError.missingDatabaseInstance` when no instance of a type
+that declares queries is passed, so a database type cannot be left out
+silently.
+
+The registry is generated into the declaring target, not into a generator,
+because the generated members keep their declaration's access level. A
+declaration the registry cannot reach from another file -- one that is
+`private` or `fileprivate`, one on a generic or constrained type or in an
+extension of one, or one outside a type -- is reported as a build warning
+rather than left out silently. So is a type nested in a type the target does
+not declare (`extension Array { struct Inner {} }`), a generic typealias, and
+an `@SQLQuery` or `@SQLQueries` attribute inside an `#if` in the attribute
+list. To leave one declaration out without the warning, write
+`// swiftql-registry: ignore` directly above the declaration, before its
+first attribute. The scanner reads only the comments in front of the
+declaration's first token, so the comment is not seen between two
+attributes.
+
+The scan reads every Swift file of the target, so a database type declared in
+one file and extended with declarations in another is handled. Everything the
+registry names compiles under the source's own `#if` conditions: an import
+keeps its condition and its attributes, a database type's whole block keeps
+the condition the type is declared under, and each declaration keeps its own.
+
+### Generate the manifest
+
+The `SwiftQLSQLiteBuildValidationDeclaredQueries` library projects declared
+queries into a format version 2 manifest.
+`SQLiteBuildValidationDeclaredQueryManifest.makeManifest(queries:snapshotIdentifier:snapshotURL:)`
+takes the queries and a checked-in schema snapshot, and returns the manifest,
+with one entry per query and no fixture provenance, and the queries it had to
+skip. A query whose rows cannot be described statically is skipped by name
+with the reason, not guessed at.
+
+A package runs a small generator that opens a database the way the
+application does, passes it to the generated registry, calls `makeManifest`,
+and writes the canonical JSON beside the snapshot. The generator names no
+query, so a query added to the target is in the next regenerated manifest.
+The manifest is not validated when it is generated: the
+`swiftql-build-validate` validator and the
+`SwiftQLSQLiteBuildValidationPlugin` build plugin stay the validation step.
+<doc:TodoDemo> generates its manifest this way.
+
+None of this changes the executor. Existing `@SQLQuery` and `@SQLQueries`
+declarations keep compiling, render the same SQL, and run the same way. The
+catalog-scoped lowering that v2 plans (issue
+[#494](https://github.com/lukevanin/swiftql/issues/494)) is expected to change
+what the macro generates internally, not how you write a specification
+function.
 
 ## Current limitations
 
@@ -271,3 +581,28 @@ you write a specification function.
   `@SQLQueries`-attached extension of the same database type would
   redeclare `Context` and `execute(_:)`. Declare every specification for one
   database type in a single `@SQLQueries` extension's `Query` container.
+- **An extension of a generic type from another module is not detected.**
+  The scanner sees only the target's own sources, so it cannot tell that a
+  type declared elsewhere is generic. A declaration directly in such an
+  extension makes the generated registry fail to compile. Mark it with
+  `// swiftql-registry: ignore`.
+- **The registry's name belongs to the plugin.** The plugin generates a type
+  and a file named `<Target>DeclaredQueries` in the target it is applied to.
+  A target that already declares a type or holds a file with that name gets a
+  redeclaration error or a duplicate build output. Rename your own type or
+  file.
+- **Discovery needs the plugin in a SwiftPM target.** The registry is
+  generated by `SwiftQLDeclaredQueryRegistryPlugin`, which runs in a SwiftPM
+  target. Xcode asks you to trust the plugin the first time it builds a
+  project that uses it. Only declarations the registry can reach are found;
+  every other one is reported as a build warning.
+- **Lowering reads placeholders.** Recording the result columns of a row
+  that is not a static row layout calls each result type's `sqlDefault()`,
+  as rendering a legacy `Select` projection already does. A parameter of a
+  custom type that is not an `XLEnum` also binds its `sqlDefault()` once, to
+  learn its SQLite storage class. A query whose columns cannot be recorded, or
+  whose placeholder binds `NULL`, is skipped from the manifest by name.
+- **Only a `GRDBDatabase` supplies its encoder.** A declared query read from
+  another database type throws `XLDeclaredQueryError.encoderUnavailable` when
+  it is lowered. Describe such a query with the `XLDeclaredQuery` initializer
+  that takes an encoder.

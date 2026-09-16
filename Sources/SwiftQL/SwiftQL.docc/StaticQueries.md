@@ -45,11 +45,18 @@ v1.5.2: the `swiftql-build-validate` executable and the
 `SwiftQLSQLiteBuildValidationPlugin` build-tool plugin prepare a manifest of
 declared queries against a checked-in schema snapshot and fail the build when
 one no longer prepares. v1.5.6 makes the plugin work under Xcode's build system
-as well as SwiftPM's. The limits above still hold for what a successful
-validation proves. The
+as well as SwiftPM's, and v1.9.0 lets an Xcode application target adopt it
+directly: add the plugin under "Run Build Tool Plug-ins", and make the manifest
+and snapshot member files of the target, in one folder. The limits above still
+hold for what a successful validation proves. The
 [compatibility matrix](https://github.com/lukevanin/swiftql/blob/main/COMPATIBILITY.md)
 records the verified build systems, and the demo application in
 <doc:TodoDemo> adopts the plugin.
+
+Since v1.9, a query declared with `@SQLQuery` or `@SQLQueries` lowers to a
+static descriptor, and a package can generate its manifest from those
+descriptors instead of listing its queries by hand. <doc:DeclaredQueries>
+describes that path.
 
 ## Construct a descriptor
 

@@ -22,8 +22,8 @@ roadmap work as shipped API.
 - Depend directly on `SwiftQLCore` only when implementing a dialect or database
   adapter. It deliberately contains no usable GRDB connection.
 - Require Swift tools 5.9 and Swift 5 language mode, iOS 16 or later, or macOS
-  13 or later. Linux is covered by the pinned Swift 5.9.2 cell through
-  OpenCombine 0.14.0. Swift 6.0 through 6.3 compilers are tested, always in
+  13 or later. Linux is covered by the pinned Swift 5.9.2 and Swift 6.3.2
+  cells through OpenCombine 0.14.0. Swift 6.0 through 6.3 compilers are tested, always in
   Swift 5 language mode; Swift 6 language mode, non-SQLite dialects, and
   non-GRDB drivers are unsupported.
 - Two surfaces need more than that floor: `XLObservableQuery` and
@@ -97,28 +97,19 @@ SQL:
 
 <!-- compile-test: IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/SkillQuickStart.swift#lifecycle -->
 ```swift
-enum SkillQueryError: Error {
-    case missingParameter(String)
+// A request owns rendered SQL and an immutable parameter layout. Values for
+// one call live in a separate packet. `@SQLBindings` generates a typed
+// reference per property and the packet builder, so a misspelled binding
+// name or a missing value does not compile.
+@SQLBindings
+struct SkillRenameBindings {
+    var id: String
+    var name: String
 }
 
-// A request owns rendered SQL and an immutable parameter layout. Values for
-// one call live in a separate packet built against that layout.
-func skillTextPacket(
-    _ parameters: [(name: String, value: String)],
-    for layout: XLParameterLayout
-) throws -> XLInvocationBindings<XLSQLiteValue> {
-    try XLInvocationBindings<XLSQLiteValue>(
-        layout: layout,
-        bindings: try parameters.map { parameter in
-            guard let slot = layout.slot(for: .named(parameter.name)) else {
-                throw SkillQueryError.missingParameter(parameter.name)
-            }
-            return try XLInvocationBinding(
-                slot: slot,
-                value: .text(parameter.value)
-            )
-        }
-    ).validatingComplete()
+@SQLBindings
+struct SkillPersonIDBindings {
+    var id: String
 }
 
 func runSkillLifecycle(in database: GRDBDatabase) throws -> [SkillPerson] {
@@ -143,40 +134,30 @@ func runSkillLifecycle(in database: GRDBDatabase) throws -> [SkillPerson] {
 
     // Writes are not a declared-query shape in v1.5, so they keep their values
     // out of the rendered SQL with named bindings instead.
-    let idParameter = XLNamedBindingReference<String>(name: "id")
-    let nameParameter = XLNamedBindingReference<String>(name: "name")
     let renameRequest = database.makeRequest(
         with: sql { schema in
             let person = schema.into(SkillPerson.self)
             Update(person)
             Setting(person) { row in
-                row.name = nameParameter
+                row.name = SkillRenameBindings.name
             }
-            Where(person.id == idParameter)
+            Where(person.id == SkillRenameBindings.id)
         }
     )
     try renameRequest.execute(
-        bindings: try skillTextPacket(
-            [
-                (name: "id", value: "grace"),
-                (name: "name", value: "Grace B. Hopper"),
-            ],
-            for: renameRequest.parameterLayout
-        )
+        bindings: try SkillRenameBindings(id: "grace", name: "Grace B. Hopper")
+            .bindings(for: renameRequest)
     )
 
     let deleteRequest = database.makeRequest(
         with: sql { schema in
             let person = schema.into(SkillPerson.self)
             Delete(person)
-            Where(person.id == idParameter)
+            Where(person.id == SkillPersonIDBindings.id)
         }
     )
     try deleteRequest.execute(
-        bindings: try skillTextPacket(
-            [(name: "id", value: "grace")],
-            for: deleteRequest.parameterLayout
-        )
+        bindings: try SkillPersonIDBindings(id: "grace").bindings(for: deleteRequest)
     )
 
     return try database.skillPeopleByName(name: "Ada Lovelace")
@@ -205,11 +186,10 @@ cover joins, grouping, subqueries, common table expressions, and operators.
 - Executor names derive from the specification's base name only, so two
   specifications sharing a base name collide with a duplicate-declaration error.
 - The frozen-literal guard rejects, at the declaration site, every parameter
-  reference it cannot turn into a named placeholder: string interpolation,
-  nested-closure capture, a direct call argument, a local-binding initializer,
-  a hand-constructed binding, a shadowing declaration, member access on a
-  parameter, a collection parameter, and an unreferenced parameter. Write
-  `column == parameter`; never route around a diagnostic by interpolating.
+  use it cannot bind: string interpolation, member access, a name shared with
+  a key-path component or callee, a hand-constructed binding, shadowing, a
+  collection parameter, and an unreferenced parameter. `column.like(pattern)`
+  and `Limit(count)` bind like `column == parameter`; never interpolate.
 
 ## Bind parameters and decode results
 
@@ -258,23 +238,25 @@ than a second observation engine.
 
 <!-- compile-test: IntegrationTests/Swift5Client/Sources/SwiftQLSwift5Client/SkillQuickStart.swift#live -->
 ```swift
+@SQLBindings
+struct SkillPersonNameBindings {
+    var name: String
+}
+
 func observeSkillPeople(
     named name: String,
     in database: GRDBDatabase
 ) async throws {
-    let nameParameter = XLNamedBindingReference<String>(name: "name")
     let request = database.makeRequest(
         with: sql { schema in
             let person = schema.table(SkillPerson.self)
             Select(person)
             From(person)
-            Where(person.name == nameParameter)
+            Where(person.name == SkillPersonNameBindings.name)
         }
     )
-    let bindings = try skillTextPacket(
-        [(name: "name", value: name)],
-        for: request.parameterLayout
-    )
+    let bindings = try SkillPersonNameBindings(name: name)
+        .bindings(for: request)
     // The packet is captured once; every refresh and retry reuses it.
     // Cancelling the consuming task ends iteration and tears the observation
     // down, and never throws `CancellationError`.
@@ -386,12 +368,12 @@ changing product, platform, dependency, or concurrency claims.
 - Treat the versioned [inventory](Tests/SwiftQLSQLiteConformanceFixtures/SQLiteConformanceInventory.json) as
   the source of truth and its [report](Conformance/SQLite/REPORT.md) as a generated
   view; use the [compatibility guide](COMPATIBILITY.md#sqlite-conformance-inventory)
-  to interpret it. It records 117 feature records: 113 supported, 0 partial,
+  to interpret it. It records 120 feature records: 116 supported, 0 partial,
   2 capability-gated, 1 intentionally unsupported, and 1 unimplemented.
 - Keep those five statuses distinct. Bind every claim to the feature's recorded
   SQLite version, source ID, compile options, capabilities, evidence, and
   rationale before claiming support.
-- Of the 207 evidence records, 126 exercise real SQLite against one captured
+- Of the 224 evidence records, 137 exercise real SQLite against one captured
   environment, SQLite 3.51.0. Evidence is reusable, so evidence and feature
   counts do not map one to one; never turn this into an exhaustive-SQL claim.
 - The generated corpus holds 226 positives plus one broken-renderer control:

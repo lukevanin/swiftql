@@ -24,20 +24,26 @@ them).
 
 ## Schema
 
-`SQLiteBuildValidationManifest` (`format_version: 1`) carries:
+`SQLiteBuildValidationManifest` (`format_version: 2`; version 1 is still
+read) carries:
 
-- `format_version` — the frozen manifest schema version (see below).
+- `format_version` — the manifest schema version (see below).
 - `conformance_inventory_version` — the #190 `inventory_version` the manifest
-  was authored against.
+  was authored against. Required in version 1. Optional in version 2, where
+  its absence means the manifest was not authored against SwiftQL's fixtures.
 - `combinatorial_manifest_version` — the #191 `generator_version` the manifest
-  was authored against.
+  was authored against. Required in version 1; optional in version 2, with the
+  same meaning.
 - `schema_snapshot` — the pinned checked-in SQLite database identity (SHA-256,
   byte count, schema row count, schema fingerprint). Byte identity is
   authoritative; the fingerprint is exact runtime provenance evidence (it
   includes root pages and raw schema SQL) and is not a semantic migration or
-  catalog fingerprint.
+  catalog fingerprint. Required in every version: the validator checks the
+  database it opens against it.
 - `queries` — one `SQLiteBuildValidationQueryEntry` per static query,
-  canonically sorted by `id`.
+  canonically sorted by `id`. Version 1 requires at least one; version 2
+  accepts an empty list, so a target that declares no queries still has a
+  valid manifest.
 
 Each query entry records exact UTF-8 SQL, dialect identifier/minimum
 version/capabilities, cardinality, canonically ordered parameter and result
@@ -46,6 +52,58 @@ nullability, storage identifier, optional codec identity, and — for results �
 a declared `AS` alias where one exists), required engine capabilities, and
 cross-references into #190 (`conformance_feature_ids`), #191
 (`conformance_case_ids`), and #254 (`northwind_anchor_case_ids`).
+
+### Version 2 shape
+
+This is what a generator (#659) emits. `?` marks a key that may be omitted;
+every other key is required. No other key is accepted at any level.
+
+```text
+{
+  "format_version": 2,
+  "conformance_inventory_version"?: "<nonempty>",
+  "combinatorial_manifest_version"?: "<nonempty>",
+  "schema_snapshot": { "kind": "checked-in-snapshot", "identifier",
+                       "database_sha256", "database_byte_count",
+                       "schema_row_count", "schema_fingerprint" },
+  "queries": [ {
+    "id", "definition_identity", "descriptor_identity", "sql",
+    "dialect_identifier", "minimum_dialect_version"?,
+    "dialect_capabilities_raw_value", "cardinality",
+    "conformance_feature_ids", "conformance_case_ids",
+    "northwind_anchor_case_ids", "required_capabilities": [ { "id" } ],
+    "parameters": [ { "logical_index", "physical_index", "identity",
+                      "key_kind", "key_name"?, "key_index"?,
+                      "value_type_identifier", "value_type_name"?,
+                      "nullability", "storage_identifier", "codec"? } ],
+    "results": [ { "index", "identity", "declared_alias"?,
+                   "value_type_identifier", "value_type_name"?,
+                   "nullability", "storage_identifier", "codec"? } ]
+  } ]
+}
+```
+
+A `codec` object has `key_id`, `key_version`, `value_type_identifier`,
+`dialect_identifier`, and `storage_identifier`. The three reference lists are
+still required, and are empty when a query has no fixture references. A query
+with a `conformance_feature_ids` entry requires
+`conformance_inventory_version`, and a query with a `conformance_case_ids`
+entry requires `combinatorial_manifest_version`, so a fixture reference can
+always be traced to the inventory it names. `northwind_anchor_case_ids` has
+no version field, so it has no such rule.
+
+### Per-slot metadata
+
+- `value_type_name` is optional in version 2. It is the Swift spelling of the
+  value type, and the validator never reads it: `value_type_identifier` is the
+  stable identity. A producer that knows the spelling, such as the
+  `init(id:descriptor:)` projection, may still write it for a human reading the
+  manifest. When it is present it must not be empty. Version 1 requires it.
+- `nullability` stays required in every version. The validator does not use it
+  at prepare time, but structural validation checks it against
+  `XLParameterNullability`, and every descriptor slot carries it, so a
+  generator can always write it truthfully. Removing it would remove that
+  check.
 
 `XLStaticQueryDescriptor` fields remain authoritative where they overlap. The
 manifest only adds fields the frozen `XLQueryIdentity` v1 identity
@@ -68,11 +126,14 @@ is structural, not something callers must remember to exclude.
 ## Validation is two separate, composable steps
 
 1. **`validating()`** — structural, registry-independent. Fails closed on: an
-   unsupported `format_version`; an empty inventory/manifest version; an
+   unsupported `format_version`; an empty inventory/manifest version (or, in
+   version 1, an absent one); an empty query list in version 1; an
    invalid schema snapshot (empty identifier, non-positive byte/row counts,
    malformed SHA-256/fingerprint hex); a duplicate query id; noncontiguous or
    physically-colliding parameter slots; a malformed indexed-parameter key;
-   and incomplete codec metadata. `SQLiteBuildValidationManifest.decode(_:)`
+   an absent or empty `value_type_name` in version 1, or an empty one in
+   version 2; a #190/#191 reference without its inventory version; and
+   incomplete codec metadata. `SQLiteBuildValidationManifest.decode(_:)`
    calls this automatically.
 2. **`validating(against:)`** — exhaustive reference resolution. Every
    `conformance_feature_id`, `conformance_case_id`, and
@@ -107,14 +168,34 @@ or duplicates the ID lists themselves.
 
 ## Versioning and upgrade policy
 
-`format_version: 1` is frozen, mirroring the `XLQueryIdentity` v1 policy this
-sidecar was designed to complement: field inclusion, field ordering, canonical
-JSON normalization, and the reference-kind vocabulary (`conformance_feature`,
-`conformance_case`, `northwind_anchor`) cannot change under version 1. A
-backward-incompatible schema change requires a new `format_version`.
-`SQLiteBuildValidationManifest.decode(_:)` rejects any format version other
-than `.current` — an unrecognized version fails closed rather than attempting
-best-effort compatibility.
+Each released `format_version` is frozen, mirroring the `XLQueryIdentity` v1
+policy this sidecar was designed to complement: field inclusion, a field's
+required-ness, canonical JSON normalization, and the reference-kind vocabulary
+(`conformance_feature`, `conformance_case`, `northwind_anchor`) cannot change
+under a released version. Any schema change, additive or not, requires a new
+integer `format_version`. A reader of the current version reads every earlier
+version: the version 2 reader decodes and validates a version 1 manifest with
+every version 1 check, and re-encodes it to the same bytes. An optional field
+that is absent is omitted from the JSON, not written as `null`.
+
+**Decoding is version-first.** `SQLiteBuildValidationManifest.decode(_:)`
+decodes `format_version` alone before anything else, and the type's
+`init(from:)` also checks it before any other key. A version the reader does
+not know fails with `unsupportedFormatVersion`, whatever the body contains; it
+never surfaces as a `keyNotFound` or type-mismatch decoding error. The plan
+suppression file (`swiftql-plan-analysis.json`) is decoded the same way.
+
+**Unknown keys fail closed.** Every manifest type, and both plan-suppression
+types, rejects a key it does not define with `unknownKey(path:)`, where `path`
+locates the key (for example `queries[0].parameters[1].key_nmae`). Synthesized
+`Decodable` ignores such a key, so a misspelled optional key used to decode as
+"absent" and silently change what the manifest said.
+
+**There are no additive v1.x fields.** A version 1 reader does not accept a
+version 1 document with extra fields. SwiftQL 1.9 and later reject the extra
+key. SwiftQL 1.8 ignored it, but that was never a compatibility promise. SwiftQL
+1.8 also cannot read a version 2 manifest: it rejects the version, or fails to
+decode a manifest that omits the provenance fields.
 
 `conformance_inventory_version` and `combinatorial_manifest_version` are not
 manifest-schema versions; they record which #190/#191 snapshot a manifest was
@@ -123,7 +204,9 @@ inventory/combinatorial version than what a validator's registry was built
 from is still structurally valid — `validating(against:)` only requires that
 the specific referenced IDs still resolve, not that the versions match
 exactly. Producers that want stricter drift detection can compare these
-fields themselves.
+fields themselves. A manifest that is not authored against SwiftQL's fixtures,
+such as one generated from an application's own declarations, omits both
+fields in version 2 rather than copying SwiftQL's values.
 
 ## What this does not do
 
@@ -135,6 +218,9 @@ step. It does not:
   I/O (owned by #293);
 - provide a build-tool plugin or declare SwiftPM build-command inputs/outputs
   (owned by #294);
-- implement or lower the `@SQLQuery` macro (owned by #26); or
+- implement or lower the `@SQLQuery` macro (owned by #26). Since #659 the
+  lowering to a descriptor is in `SwiftQL`, discovery is
+  `SwiftQLDeclaredQueryRegistryPlugin`, and the projection into a manifest is
+  `SwiftQLSQLiteBuildValidationDeclaredQueries`; or
 - change `XLQueryIdentity` v1, make `XLStaticQueryDescriptor` wholesale
   `Codable`, or mint a competing #190/#191/#254 inventory.

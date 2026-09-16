@@ -52,6 +52,37 @@ canonical scales are 1, 10, 100, and 500. A report records which subset it
 actually covered, and the validator refuses a report whose declared scales and
 recorded measurements disagree.
 
+`--matrix` selects a named set of scales:
+
+| Preset | Tables | Queries |
+| --- | --- | --- |
+| `canonical` (default) | 1, 10, 100, 500 | 1, 10, 100, 500 |
+| `extended` | 1, 10, 100, 500 | 1, 10, 100 |
+| `reduced` | 1, 10 | 1, 10 |
+
+`--tables` and `--queries` override one axis of the preset. `extended` is the
+matrix for the current baseline: it takes tables past ten and keeps one
+recording pass inside a practical wall-clock budget.
+
+Generated tables and queries are split into files of at most 50 declarations
+(`Tables.swift`, `Tables2.swift`, and so on). A real app does not keep hundreds
+of declarations in one file, and one huge file would measure the compiler's
+per-file behavior instead of the declarations. The first file keeps its
+historical name, so every scale up to 50 generates the same bytes as the
+2026-08-02 recording, and the one-query edit still changes only
+`Queries.swift`. One consumer directory is reused for every point, so before
+it writes a point, the harness deletes each generated `Tables<N>.swift` or
+`Queries<N>.swift` file that the point does not produce. It deletes only names
+that match that pattern, never a template file. The first 2026-09-15 recording
+attempt found this bug: the 1-table x 10-query SwiftQL cell compiled 451 stale
+tables left by the 500-table cell. The harness now also checks, before it
+builds a point, that `Sources/Consumer` holds exactly the template and
+generated files. It records that list as `consumerSourceFiles`, and validation
+rejects a report whose generated file names disagree with the declared scale or
+whose recorded source files contain any other file. `--generate-only` writes every selected point's sources under
+`<workspace>/Generated` without running SwiftPM, so you can inspect a large
+scale before you time it.
+
 ## Build modes
 
 Each cell is measured in three modes, in this order, and each measurement is its
@@ -72,6 +103,16 @@ Every raw log is checked for evidence that the consumer target did or did not
 recompile. A no-op build that recompiled, or a clean build that did not, fails
 the run and fails validation, which is what stops a mode from silently
 measuring nothing.
+
+Every timed build runs `swift build -v`. The native SwiftPM build system prints
+`Compiling Consumer ...` and `Emitting module Consumer` for a recompilation.
+Swift Build, the default build system from Swift 6.4 / Xcode 27, prints only
+progress lines such as `[4 / 7] Consumer`, so its evidence is the verbose
+compiler driver invocation with `-module-name Consumer`. A no-op build prints
+none of these under either build system. Each measurement records the build
+system that wrote its log, and the workload records the set of build systems
+and the exact build arguments. Swift Build writes the per-file objects under
+`.build/out/Intermediates.noindex`, and the harness reads them there.
 
 ## Metrics
 
@@ -107,11 +148,15 @@ One command generates every consumer, compile-checks it, and records the matrix:
 python3 Benchmarks/CompileTime/run.py \
   --workspace /private/tmp/swiftql-compile-time \
   --swiftql-checkout "$PWD" \
-  --tables 1,10,100 \
-  --queries 1,10,100 \
+  --matrix extended \
   --repetitions 3 \
-  --output Benchmarks/CompileTime/compile-time-results.json
+  --output /private/tmp/swiftql-compile-time-output/compile-time-results.json
 ```
+
+Write the report outside the checkout while the run is in progress, because
+the harness refuses a dirty checkout. `Benchmarks/record-baselines.sh` does
+this and copies the validated report into a new dated directory under
+`Benchmarks/CompileTime/Recordings`.
 
 The workspace must be new or empty, and the output file and its sibling `Runs`
 directory must not already exist. `--prepare-only` generates and compile-checks
@@ -143,6 +188,42 @@ applicability that contradicts the recorded modes, and dependency drift between
 two compared reports. `--require-full-matrix` additionally rejects a report that
 does not cover all four canonical scales.
 
+### Rejected samples
+
+`/usr/bin/time` measures the whole `swift build` process, including any time
+it spends waiting. SwiftPM also prints its own build duration on the last line
+of a successful build, for example
+`Build of product 'ConsumerLibrary' complete! (9.83s)`. Validation requires
+that line in every raw log. The parser removes ANSI colour codes, splits the
+log on line feeds and carriage returns (so a line after a `\r` progress update
+is found), and accepts `.` or `,` as the decimal mark and `s` or `sec` as the
+unit. When a log has more than one `complete!` line, the SwiftPM duration is
+the sum of them: every such build ran inside the one timed process, so its
+wall time must cover all of them. Validation rejects a sample when
+
+```
+wallSeconds > 2 x swiftpmSeconds + 2 s
+```
+
+The factor and the allowance are fixed constants, not options. SwiftPM's
+duration does not count process start, manifest loading, or package
+resolution. On the recorded host that overhead is at most about 0.8 s, and a
+healthy build that takes more than a few seconds is never more than 1.2x
+SwiftPM's duration. The 2-second allowance absorbs the fixed overhead of a
+sub-second no-op build, and the factor of 2 keeps a long build honest. A wall
+time outside the limit means that the process waited on something other than
+its own build, such as a lock that another SwiftPM process held on a loaded
+host.
+
+`summarize.py` lists every rejected sample, marks each affected cell with
+`[R]`, and exits with status 1. `--allow-rejected-samples` still reports them
+but exits with status 0. The matrix medians always include every recorded
+sample, rejected ones too, so the "Rejected samples" section also prints each
+affected cell's median with and without its rejected samples. `run.py` applies the same rule while it records: it
+keeps the rejected raw output as `<stem>.rejected-NN.build.log`, puts the
+consumer back into the build mode's starting state, and builds again. After
+`--rejected-sample-retries` extra attempts (default 2), the run fails.
+
 Run the harness tests with:
 
 ```sh
@@ -156,6 +237,23 @@ python3 -m unittest discover -s Benchmarks/CompileTime -p 'test_*.py'
 consumer's declared dependencies change, and commit the result.
 
 ## Recorded baseline
+
+[BENCHMARKS.md](../../BENCHMARKS.md#current-baseline) names the current
+compile-time baseline. The report below is historical.
+
+**Three samples in this report are rejected.** Their wall time is
+inconsistent with SwiftPM's own build duration in the same raw log, so
+`summarize.py` exits with status 1 for this report, and
+`--allow-rejected-samples` is needed to render it:
+
+| Cell | Repetition | Wall | User | SwiftPM |
+| --- | --- | ---: | ---: | ---: |
+| `swiftql`, 10 tables x 1 query, `clean_dependency_warm` | 1 | 912.21 s | 17.66 s | 9.83 s |
+| `swiftql`, 10 tables x 1 query, `clean_dependency_warm` | 3 | 911.65 s | 17.99 s | 9.56 s |
+| `control_raw_sqlite`, 1 table x 10 queries, `one_query_edit` | 1 | 903.38 s | 0.96 s | 0.73 s |
+
+The rendered output below predates the rejection check, so it has no
+"Rejected samples" section and no `[R]` markers.
 
 **This run is noisy and should be replaced before anyone draws a conclusion
 from it.** It was captured on a host running several other unrelated,

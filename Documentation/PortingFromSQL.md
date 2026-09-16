@@ -58,7 +58,7 @@ and a rename leads the compiler to every query affected.
 | `GROUP BY x` | `GroupBy(person.occupationId)` |
 | `HAVING x` | `Having(row.numberOfPeople >= 2)` |
 | `ORDER BY x ASC, y DESC` | `OrderBy(person.name.ascending(), person.age.descending())` |
-| `LIMIT n` | `Limit(5)` |
+| `LIMIT n` | `Limit(5)`, or `Limit(count)` with a declared-query parameter |
 | `OFFSET n` | `Offset(10)` |
 | `UNION` | `Union()` |
 | `UNION ALL` | `UnionAll()` |
@@ -72,21 +72,23 @@ and a rename leads the compiler to every query affected.
 | `MIN(x)` / `MAX(x)` / `SUM(x)` | `person.age.minOrNull()` / `.maxOrNull()` / `.sumOrNull()` |
 | `COALESCE(x, 0)` | `person.age.sumOrNull().coalesce(0)` |
 | `x IS NULL` / `x IS NOT NULL` | `family.died.isNull()` / `person.occupationId.notNull()` |
-| `x LIKE y` | `person.name.like("F%")`, or `like(_:escape:)` for an explicit `ESCAPE` |
+| `x LIKE y` | `person.name.like("F%")`, or `like(_:escape:)` for an explicit `ESCAPE`; `like(pattern)` takes a declared-query parameter |
 | `x GLOB y` | `person.name.glob("F*")` |
-| `x REGEXP y` | `person.name.regexp("^F")`, or `regexp(_:)` with an `XLRegexPattern` built from `RegexBuilder` |
+| `x REGEXP y` | `person.name.regexp("^F")`, or `regexp(_:)` with an `XLRegexPattern` built from `RegexBuilder`; `regexp(expression)` takes a declared-query parameter |
 | `AND` / `OR` / `NOT` | `&&` / `\|\|` / `!` |
 | `CREATE TABLE` | `sqlCreate(Person.self)` |
 | `INSERT INTO t VALUES (...)` | `sqlInsert(person)` |
+| One `INSERT INTO t VALUES (...)` prepared once for many rows | `database.insert(contentsOf: people)` |
 | `UPDATE t SET c = v` | `Update(person)` plus `Setting(person) { row in row.age = 42 }` |
 | `DELETE FROM t` | `Delete(person)` |
-| `:name` bind parameter | `XLNamedBindingReference<String>(name: "name")` |
+| `:name` bind parameter | `XLNamedBindingReference<String>(name: "name")`, or one stored property of an `@SQLBindings` struct |
 | `x -> '$.a'` | `note.metadata.jsonElement(at: .root.key("a"))` |
 | `x ->> '$.a'` | `note.metadata.jsonValue(at: .root.key("a"), as: String.self)` |
 | `JSON_EXTRACT(x, '$.a')` | `note.metadata.jsonExtract(at: .root.key("a"), as: String.self)` |
 | `JSON_ARRAY(a, b)` / `JSON_OBJECT('k', v)` | `jsonArray(a, b)` / `jsonObject(("k", v))` |
 | `JSON(x)` / `JSON_PRETTY(x)` / `JSON_QUOTE(x)` | `x.minifiedJSON()` / `x.prettyJSON()` / `x.jsonQuoted()` |
 | `JSON_TYPE(x)` / `JSON_VALID(x)` / `JSON_ARRAY_LENGTH(x)` | `x.jsonType()` / `x.validJSONOrNull()` / `x.jsonArrayLength()` |
+| `JSON_VALID(x, 9)` | `x.validJSONOrJSONBOrNull()` (SQLite 3.45.0) |
 | `JSON_INSERT(x, p, v)` / `JSON_REPLACE` / `JSON_SET` | `x.jsonInserting((p, v))` / `x.jsonReplacing((p, v))` / `x.jsonSetting((p, v))` |
 | `JSON_REMOVE(x, p)` / `JSON_PATCH(x, y)` | `x.jsonRemoving(at: p)` / `x.jsonPatched(with: y)` |
 | `JSON_GROUP_ARRAY(x)` / `JSON_GROUP_OBJECT(k, v)` | `x.jsonGroupArray()` / `jsonGroupObject(name: k, value: v)` |
@@ -283,6 +285,15 @@ statement cacheable. If you are porting code that concatenates values into a SQL
 string, this is the change that matters most: the values stop being part of the
 statement.
 
+`@SQLBindings` writes that packet for you. Attach it to a struct with one
+stored property for each named binding of the statement. The macro generates a
+typed reference for each property. It also generates `bindings(in:)` for a
+parameter layout and `bindings(for:)` for a prepared request. Both encode the
+property values into the packet. The statement then uses those references
+instead of a reference you declare by hand. A misspelled name or a missing
+value is a compile error. A statement that uses a binding the struct does not
+declare still throws when the packet is built.
+
 Types without a native SQLite representation, notably `Date` and `UUID`, are
 handled by codecs rather than by conversion at every call site. SwiftQL ships
 presets for the common encodings (`Date` as text or as a numeric value, `UUID`
@@ -306,8 +317,8 @@ checking:
 4. **Outer-joined tables are declared nullable at the source**, via
    `schema.nullableTable`, rather than only being nullable in the result.
 
-Beyond those, the current gaps are recorded rather than hidden. As of the v1.8.1
-conformance inventory, of 117 tracked features, 113 are supported with evidence
+Beyond those, the current gaps are recorded rather than hidden. As of the v1.9.0
+conformance inventory, of 120 tracked features, 116 are supported with evidence
 from a real SQLite engine, and the exceptions are:
 
 - A typed DDL model is not implemented. `sqlCreate` creates a basic table and

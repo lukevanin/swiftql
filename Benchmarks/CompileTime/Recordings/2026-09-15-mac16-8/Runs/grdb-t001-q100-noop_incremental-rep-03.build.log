@@ -1,0 +1,51 @@
+info: Building targets in dependency order
+info: Target dependency graph (6 targets)
+info: Target 'ConsumerLibrary-product' in project 'GRDBConsumer'
+info: ➜ Explicit dependency on target 'Consumer' in project 'GRDBConsumer'
+info: ➜ Explicit dependency on target 'GRDB-product' in project 'GRDB'
+info: Target 'Consumer' in project 'GRDBConsumer'
+info: ➜ Explicit dependency on target 'GRDB-product' in project 'GRDB'
+info: Target 'GRDB-product' in project 'GRDB'
+info: ➜ Explicit dependency on target 'GRDB' in project 'GRDB'
+info: ➜ Explicit dependency on target 'GRDB_GRDB' in project 'GRDB'
+info: Target 'GRDB' in project 'GRDB'
+info: ➜ Explicit dependency on target 'GRDB_GRDB' in project 'GRDB'
+info: ➜ Explicit dependency on target 'CSQLite' in project 'GRDB'
+info: Target 'CSQLite' in project 'GRDB' (no dependencies)
+info: Target 'GRDB_GRDB' in project 'GRDB' (no dependencies)
+Building for debugging...
+Planning build
+Compute target dependency graph
+Gather provisioning inputs
+Planning complete
+Create build description
+Build stat cache for /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk
+    cd /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -o /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/grdb-consumer/.build/out/SDKStatCaches.noindex/macosx27.0-26A425-a0facfad118c1a7a18f0aad9463f65497231f6df4def33e022ae2eb8f782df1a.sdkstatcache
+
+Target PACKAGE-RESOURCE:GRDB up to date.
+Target PACKAGE-TARGET:GRDB up to date.
+Target PACKAGE-TARGET:Consumer up to date.
+Target PACKAGE-PRODUCT:grdb-consumer_ConsumerLibrary.ConsumerLibrary up to date.
+Prune stale explicit modules at /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/grdb-consumer/.build/out/Intermediates.noindex/ExplicitPrecompiledModules
+Prune stale explicit modules at /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/grdb-consumer/.build/out/Intermediates.noindex/SwiftExplicitPrecompiledModules
+Prune stale explicit modules at /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/grdb-consumer/.build/out/SDKExplicitPrecompiledModules
+Build complete! (0,19 sec)
+        0.61 real         0.53 user         0.22 sys
+           118226944  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               30168  page reclaims
+                 613  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                  62  voluntary context switches
+                2087  involuntary context switches
+          8632114864  instructions retired
+          2425968356  cycles elapsed
+            54264744  peak memory footprint

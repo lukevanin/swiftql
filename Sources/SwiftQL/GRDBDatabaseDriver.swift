@@ -504,7 +504,9 @@ struct GRDBInvocationExecutor: Sendable {
         return validatedPacket
     }
 
-    private func boundStatement(
+    /// Internal rather than private so that `GRDBRequestPhaseConnection` can
+    /// time this exact binding step on its own (issue #670).
+    func boundStatement(
         packet: XLValidatedSQLitePacket,
         in connection: inout GRDBDatabaseDriverConnection
     ) throws -> GRDBPhysicalStatement {
@@ -629,6 +631,11 @@ struct GRDBDatabaseDriverConnection:
         _ validatedStatement: XLValidatedLogicalPreparedStatement
     ) throws -> GRDBPhysicalStatement {
         let statement = validatedStatement.logicalStatement
+        #if DEBUG
+        let preparationCountBefore = GRDBStatementPreparationTestHooks.shared.isObserving
+            ? liveStatementCount()
+            : nil
+        #endif
         // GRDB's cache hands back the same `Statement` instance for the same
         // SQL on this connection. When a SwiftQL cursor is still stepping
         // that instance -- a request nested inside a `withResultSet` callback
@@ -639,6 +646,14 @@ struct GRDBDatabaseDriverConnection:
         if GRDBOpenCursorStatements.shared.contains(physicalStatement) {
             physicalStatement = try database.makeStatement(sql: statement.sql)
         }
+        #if DEBUG
+        if let preparationCountBefore, liveStatementCount() > preparationCountBefore {
+            GRDBStatementPreparationTestHooks.shared.notifyPrepared(
+                sql: statement.sql,
+                databasePath: mainDatabasePath()
+            )
+        }
+        #endif
         return GRDBPhysicalStatement(
             logicalStatement: statement,
             connectionIdentifier: connectionIdentifier,
@@ -746,6 +761,31 @@ struct GRDBDatabaseDriverConnection:
                 }
             }
         }
+    }
+
+    /// Steps every result row of `statement` without reading or normalizing a
+    /// column, and returns the row count. This is `forEachRow(_:_:)` without
+    /// its value loop, so the performance harness can time SQLite stepping
+    /// apart from column materialization (issue #670).
+    mutating func stepAllRows(_ statement: GRDBPhysicalStatement) throws -> Int {
+        try validateOwnership(of: statement)
+        let cursor = try Row.fetchCursor(
+            statement.statement,
+            arguments: statementArguments(statement)
+        )
+        var rowCount = 0
+        try GRDBOpenCursorStatements.shared.withOpenCursor(on: statement.statement) {
+            while try cursor.next() != nil {
+                rowCount += 1
+            }
+        }
+        return rowCount
+    }
+
+    /// The GRDB connection this value wraps. `GRDBRequestPhaseConnection` uses
+    /// it for unmeasured work, such as a savepoint around one sample.
+    var grdbDatabase: Database {
+        database
     }
 
     ///
@@ -1051,6 +1091,84 @@ struct GRDBDatabaseDriverConnection:
         return false
     }
 
+    #if DEBUG
+    /// How many SQLite statements are prepared and not yet finalized on this
+    /// physical connection. A statement preparation adds one, so tests read
+    /// the difference to count preparations (issue #668).
+    private func liveStatementCount() -> Int {
+        guard let connection = database.sqliteConnection else {
+            return 0
+        }
+        var count = 0
+        var statement = sqlite3_next_stmt(connection, nil)
+        while let current = statement {
+            count += 1
+            statement = sqlite3_next_stmt(connection, current)
+        }
+        return count
+    }
+
+    /// The path of this connection's main database file, or `nil` for an
+    /// in-memory or temporary database. The preparation test hook filters by
+    /// it (issue #668).
+    private func mainDatabasePath() -> String? {
+        guard
+            let connection = database.sqliteConnection,
+            let filename = sqlite3_db_filename(connection, "main"),
+            filename.pointee != 0
+        else {
+            return nil
+        }
+        return String(cString: filename)
+    }
+    #endif
+
+    ///
+    /// Executes one row of a batch insert: `packet`'s values, bound by position
+    /// to `statement` (issue #668).
+    ///
+    /// The batch prepares `statement` once, on this connection, inside the
+    /// connection access that runs every row, and drops it when that access
+    /// returns. Binding by position is correct because every slot of a batch
+    /// statement is a named parameter in logical index order, which is exactly
+    /// the positional table `statementArguments(_:)` builds for such a layout.
+    /// This path skips that per-row dictionary. GRDB still checks the argument
+    /// count against the statement's parameters before it binds.
+    ///
+    mutating func executeBatchRow(
+        _ statement: GRDBPhysicalStatement,
+        bindings packet: XLInvocationBindings<XLSQLiteValue>
+    ) throws {
+        try validateOwnership(of: statement)
+        var arguments: [(any DatabaseValueConvertible)?] = []
+        arguments.reserveCapacity(packet.bindings.count)
+        for binding in packet.bindings {
+            arguments.append(binding.value.databaseValue)
+        }
+        try statement.statement.execute(arguments: StatementArguments(arguments))
+    }
+
+    ///
+    /// Runs `operation` on this connection inside a SQLite savepoint (issue
+    /// #668).
+    ///
+    /// The savepoint is released when `operation` returns. When `operation`
+    /// throws, every change it made is rolled back to the savepoint, the
+    /// savepoint is released, and the original error is rethrown, so the
+    /// savepoint is closed on every path out of this call. Must run inside an
+    /// open transaction, which a pinned transaction scope always is.
+    ///
+    mutating func withSavepoint(
+        _ operation: (inout GRDBDatabaseDriverConnection) throws -> Void
+    ) throws {
+        var connection = self
+        try database.inSavepoint {
+            try operation(&connection)
+            return .commit
+        }
+        self = connection
+    }
+
     private func validateOwnership(of statement: GRDBPhysicalStatement) throws {
         guard statement.connectionIdentifier == connectionIdentifier else {
             throw XLDatabaseContractError.prepareFailure(
@@ -1222,6 +1340,88 @@ final class GRDBOpenCursorStatements: @unchecked Sendable {
         return try body()
     }
 }
+
+
+#if DEBUG
+///
+/// Reports each SQLite statement that `GRDBDatabaseDriverConnection` prepares,
+/// by its SQL text (issue #668).
+///
+/// Tests use it to prove that an operation prepared a statement once rather
+/// than once per row. A GRDB statement-cache hit prepares nothing and is not
+/// reported. It exists only in DEBUG builds, and the driver counts statements
+/// only while an observer is attached, so release builds pay nothing.
+///
+/// The hook is process-wide, so each observer names the database file it
+/// watches, and a preparation on any other file is not reported to it. Two
+/// tests that run at the same time in one process -- `swift test --parallel`
+/// runs test classes in separate processes -- therefore see only their own
+/// database's preparations.
+///
+final class GRDBStatementPreparationTestHooks: @unchecked Sendable {
+
+    private struct Observer {
+        let databasePath: String
+        let report: (String) -> Void
+    }
+
+    static let shared = GRDBStatementPreparationTestHooks()
+
+    private let lock = NSLock()
+
+    private var observers: [UUID: Observer] = [:]
+
+    private init() {}
+
+    var isObserving: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return !observers.isEmpty
+    }
+
+    /// Calls `observer` with the SQL of every statement prepared on the
+    /// database file at `databasePath` while `body` runs, and always detaches
+    /// it afterward.
+    func observe<Result>(
+        databasePath: String,
+        _ observer: @escaping (String) -> Void,
+        during body: () throws -> Result
+    ) rethrows -> Result {
+        let identifier = UUID()
+        lock.lock()
+        observers[identifier] = Observer(
+            databasePath: Self.canonicalPath(databasePath),
+            report: observer
+        )
+        lock.unlock()
+        defer {
+            lock.lock()
+            observers[identifier] = nil
+            lock.unlock()
+        }
+        return try body()
+    }
+
+    func notifyPrepared(sql: String, databasePath: String?) {
+        guard let databasePath else {
+            return
+        }
+        let path = Self.canonicalPath(databasePath)
+        lock.lock()
+        let matching = observers.values.filter { $0.databasePath == path }
+        lock.unlock()
+        for observer in matching {
+            observer.report(sql)
+        }
+    }
+
+    /// Resolves symbolic links, so `/var/...` and `/private/var/...` name the
+    /// same file.
+    private static func canonicalPath(_ path: String) -> String {
+        URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+    }
+}
+#endif
 
 
 extension DatabaseValue {

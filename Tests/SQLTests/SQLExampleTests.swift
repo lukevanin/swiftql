@@ -581,6 +581,14 @@ extension GRDBDatabase {
 }
 
 
+// Issue #663: the `@SQLBindings` example in `DeclaredQueries.md`.
+@SQLBindings
+struct PersonSearchBindings {
+    var name: String
+    var minimumAge: Int
+}
+
+
 /// The `static let` form `Expressions.md` recommends for an `XLRegexPattern`.
 /// The registry does not keep a pattern alive, so the documented example holds
 /// one here rather than in a local, and this test compiles what the page shows.
@@ -1532,6 +1540,19 @@ extension XLDocumentationTests {
             try preparedInvocation.fetchAllValues(bindings: invocationBindings).count,
             3,
             "The outer body's insert must roll back with the rejected transaction."
+        )
+
+        let newPeople = [
+            Person(id: "batch-1", occupationId: nil, name: "Kim", age: 41),
+            Person(id: "batch-2", occupationId: nil, name: "Lee", age: 37),
+        ]
+        try database.withTransaction { scope in
+            try scope.insert(contentsOf: newPeople)
+        }
+        XCTAssertEqual(
+            try preparedInvocation.fetchAllValues(bindings: invocationBindings).count,
+            5,
+            "Both rows of the batch must commit with the transaction."
         )
     }
 
@@ -3107,7 +3128,6 @@ extension XLDocumentationTests {
             Setting(note) { row in
                 row.metadata = note.metadata
                     .jsonSetting((XLJSONPath.root.key("priority"), 1))
-                    .coalesce(note.metadata)
             }
             Where(note.id == "note-1")
         }
@@ -3346,14 +3366,46 @@ extension XLDocumentationTests {
         XCTAssertEqual(try database.fetchPersonByExactName(name: "John Doe"), johnDoe)
         XCTAssertNil(try database.fetchPersonByExactName(name: "Nobody"))
 
+        // Issue #663: the `@SQLBindings` example.
+        let searchStatement = sql { schema in
+            let person = schema.table(Person.self)
+            Select(person)
+            From(person)
+            Where(
+                person.name == PersonSearchBindings.name
+                && person.age >= PersonSearchBindings.minimumAge
+            )
+        }
+        let searchRequest = database.makeRequest(with: searchStatement)
+        let adults = try searchRequest.fetchAll(
+            bindings: PersonSearchBindings(name: "John Doe", minimumAge: 21)
+                .bindings(for: searchRequest)
+        )
+        XCTAssertEqual(adults, [johnDoe])
+        let _: (XLBindingsMacroExecutionTests) -> () throws -> Void =
+            XLBindingsMacroExecutionTests.testStatementThatDoesNotUseADeclaredBindingThrows
+
         let _: (XLQueryPeerMacroTests) -> () throws -> Void =
             XLQueryPeerMacroTests.testDirectResultOptionalExecutorFetchesSingleRow
         let _: (XLQueryPeerMacroTests) -> () throws -> Void =
             XLQueryPeerMacroTests.testBareRowExecutorThrowsWhenMultipleRowsMatch
         let _: (XLQueriesContainerTests) -> () throws -> Void =
             XLQueriesContainerTests.testExecuteClosureRunsMultipleQueriesInOneScope
+        // Issue #661: the matching-method and `Limit` example.
+        let _: (XLQueriesContainerTests) -> () throws -> Void =
+            XLQueriesContainerTests.testContainerExecutorBindsLikeRegexpAndLimitParameters
         let _: (XLQueryRenderOnceCacheTests) -> () throws -> Void =
             XLQueryRenderOnceCacheTests.testCachedExecutorServesDifferentArgumentsWithStablePlaceholderSQL
+        // Issue #660: the prepared form, observed as a stream and a publisher.
+        let _: (XLQueriesContainerTests) -> () throws -> Void =
+            XLQueriesContainerTests.testPreparedQueryUsesTheExecutorsCachedRequestAndBindings
+        let _: (XLQueriesContainerTests) -> () async throws -> Void =
+            XLQueriesContainerTests.testPreparedQueryStreamEmitsUpdatedRowsAfterAWrite
+        let _: (XLQueriesContainerTests) -> () throws -> Void =
+            XLQueriesContainerTests.testPreparedQueryPublisherEmitsUpdatedRowsAfterAWrite
+        // Issue #662: a declared query called on a transaction scope.
+        let _: (XLQueriesContainerTests) -> () throws -> Void =
+            XLQueriesContainerTests.testDatabaseExecutorCalledOnATransactionScopeSeesTheUncommittedWrite
     }
 
     func testDocumentationNumericDateCodecs() throws {

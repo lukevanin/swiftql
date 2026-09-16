@@ -10,9 +10,79 @@ canonical record; this one is a reading aid.
 
 Almost every 1.x release has been purely additive. The exceptions so far are
 1.4.3, where `unixEpoch(_:)` changed its return type from `Int` to
-`TimeInterval`, and 1.8.1, whose correctness fixes turn some silently wrong
-results into errors and change some rendered SQL. Each entry below ends with
-whether it affects code you already wrote.
+`TimeInterval`, 1.8.1, whose correctness fixes turn some silently wrong
+results into errors and change some rendered SQL, and 1.9.0, which generates
+new members on a declared-query type and corrects three JSON behaviours. Each
+entry below ends with whether it affects code you already wrote.
+
+## 1.9.0 — Declared queries do everything a query does
+
+*Unreleased.*
+
+- A declared query can be observed. Every declaration gets a prepared form that
+  `stream()`, `publish()`, and the `@Observable` wrappers accept, so a view and
+  a fetch share one statement. Call `database.preparedQueries.personByName(name:)`
+  for a `@SQLQueries` specification, or
+  `database.personByNamePreparedQuery(name:)` for a `@SQLQuery` declaration.
+- A declared query can run inside `withTransaction`. Call it on the scope the
+  body receives, and it runs on that transaction's connection and reads the
+  writes the body already made. Before, it opened a transaction of its own and
+  threw.
+- A declared query can match text and limit its rows. A parameter passed to a
+  DSL method or clause, such as `column.like(pattern)`, `column.regexp(pattern)`,
+  or `Limit(count)`, now becomes a named binding. Before, the macro refused it,
+  because the value would be frozen into the SQL.
+- You no longer type the build-validation manifest. A new build-tool plugin
+  reads every declaration in a target and generates a registry, and
+  `makeManifest` turns that registry into a manifest. A hand-written manifest is
+  now the fallback. The
+  [blog post on build-time validation](Website/blog/content/posts/build-time-sqlite-validation.md)
+  walks through the setup. Two limits apply. The registry plugin runs only in a
+  SwiftPM target, not in an Xcode target. Only `SELECT`-shaped declarations
+  exist, so a write still goes into the manifest by hand.
+- The build-validation plugin also runs in an Xcode application target, not only
+  in a SwiftPM target. This applies to the validator, not to the registry
+  plugin.
+- `@SQLBindings` generates the named-binding packet for a statement that is not
+  a declared query, such as a write. Write one stored property for each binding.
+  A misspelled binding name, a misspelled label, or a missing value is now a
+  compile error instead of a runtime failure.
+- `insert(contentsOf:)` inserts many rows through one statement. It renders and
+  prepares the insert once for the whole batch. A 100-row transaction went from
+  a 993.42 us median to 363.98 us on the cross-library write workload.
+- A `@SQLTable` or `@SQLResult` property with an initial value now gives the
+  generated initializer a default, so a call can leave that property out.
+- Three JSON corrections. A `Bool` is written as JSON `true` or `false` instead
+  of `1` or `0`. A `Data` value passed to a JSON function throws instead of
+  reaching SQLite. A mutation on a `NOT NULL` document returns a non-optional
+  result, so the call site needs no `coalesce`.
+- SwiftQL 1.x supports GRDB 6 only. An application on GRDB 7 cannot resolve it.
+- On Apple platforms SwiftQL now compiles and links no OpenCombine module.
+  OpenCombine is a Linux-only dependency, and its version pin is relaxed.
+
+**Does this affect code you already wrote?** Possibly. Check for these:
+
+- The macros generate new members. A `preparedQueries` or `declaredQueries`
+  member on a `@SQLQueries` type, or a `<name>PreparedQuery` or
+  `<name>DeclaredQuery` member beside a `@SQLQuery` declaration, stops
+  compiling. Rename your member or your specification.
+- A `Data` value passed to `jsonObject`, `jsonArray`, or another JSON function
+  now throws `blobInJSONValue`. Pass it through `minifiedJSONB()`, or leave it
+  out of the document.
+- A JSON mutation on a `NOT NULL` document has a non-optional result. Code that
+  unwraps that result twice must unwrap it once.
+- `jsonRemoving` and `jsonbRemoving` on the root path `$` now throw
+  `jsonRootRemoval`. Before, the call returned SQL `NULL`.
+- A `switch` with no `default` over `XLSQLValueEncodingError` must handle
+  `blobInJSONValue` and `jsonRootRemoval`.
+- Code that reads a `Bool` in a stored JSON document as a number must read it as
+  a boolean.
+- The build-validation manifest writes format version 2. Several report and
+  manifest properties are now optional, and an unknown key in the manifest or in
+  `swiftql-plan-analysis.json` now fails the read. A version 1 manifest still
+  decodes.
+
+The [changelog](CHANGELOG.md)'s Migration section gives the detail for each.
 
 ## 1.8.1 — Fewer crashes, fewer silent wrong answers
 

@@ -1,0 +1,68 @@
+info: Building targets in dependency order
+info: Target dependency graph (10 targets)
+info: Target 'ConsumerLibrary-product' in project 'LighterConsumer'
+info: ➜ Explicit dependency on target 'Consumer' in project 'LighterConsumer'
+info: ➜ Explicit dependency on target 'Enlighter-product' in project 'Lighter'
+info: ➜ Explicit dependency on target 'Lighter-product' in project 'Lighter'
+info: Target 'Consumer' in project 'LighterConsumer'
+info: ➜ Explicit dependency on target 'Enlighter-product' in project 'Lighter'
+info: ➜ Explicit dependency on target 'Lighter-product' in project 'Lighter'
+info: Target 'Lighter-product' in project 'Lighter'
+info: ➜ Explicit dependency on target 'Lighter' in project 'Lighter'
+info: Target 'Lighter' in project 'Lighter' (no dependencies)
+info: Target 'Enlighter-product' in project 'Lighter'
+info: ➜ Explicit dependency on target 'Enlighter' in project 'Lighter'
+info: Target 'Enlighter' in project 'Lighter'
+info: ➜ Explicit dependency on target 'LighterCodeGenAST' in project 'Lighter'
+info: ➜ Explicit dependency on target 'SQLite3Schema' in project 'Lighter'
+info: ➜ Explicit dependency on target 'LighterGeneration' in project 'Lighter'
+info: ➜ Explicit dependency on target 'sqlite2swift-product' in project 'Lighter'
+info: Target 'sqlite2swift-product' in project 'Lighter'
+info: ➜ Explicit dependency on target 'LighterCodeGenAST' in project 'Lighter'
+info: ➜ Explicit dependency on target 'SQLite3Schema' in project 'Lighter'
+info: ➜ Explicit dependency on target 'LighterGeneration' in project 'Lighter'
+info: Target 'LighterGeneration' in project 'Lighter'
+info: ➜ Explicit dependency on target 'LighterCodeGenAST' in project 'Lighter'
+info: ➜ Explicit dependency on target 'SQLite3Schema' in project 'Lighter'
+info: Target 'SQLite3Schema' in project 'Lighter' (no dependencies)
+info: Target 'LighterCodeGenAST' in project 'Lighter' (no dependencies)
+Building for debugging...
+Planning build
+Compute target dependency graph
+Gather provisioning inputs
+Planning complete
+Create build description
+Build stat cache for /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk
+    cd /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -o /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/lighter-consumer/.build/out/SDKStatCaches.noindex/macosx27.0-26A425-a0facfad118c1a7a18f0aad9463f65497231f6df4def33e022ae2eb8f782df1a.sdkstatcache
+
+[1 / 9] LighterGeneration
+Target PACKAGE-TARGET:LighterCodeGenAST up to date.
+Target PACKAGE-TARGET:SQLite3Schema up to date.
+Target PACKAGE-TARGET:LighterGeneration up to date.
+Target PACKAGE-PRODUCT:lighter_sqlite2swift.sqlite2swift up to date.
+Target PACKAGE-TARGET:Lighter up to date.
+Target PACKAGE-TARGET:Consumer up to date.
+Target PACKAGE-PRODUCT:lighter-consumer_ConsumerLibrary.ConsumerLibrary up to date.
+Prune stale explicit modules at /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/lighter-consumer/.build/out/Intermediates.noindex/SwiftExplicitPrecompiledModules
+Prune stale explicit modules at /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/lighter-consumer/.build/out/SDKExplicitPrecompiledModules
+Prune stale explicit modules at /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/lighter-consumer/.build/out/Intermediates.noindex/ExplicitPrecompiledModules
+Build complete! (0,22 sec)
+        0.70 real         0.59 user         0.24 sys
+           125370368  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               31897  page reclaims
+                 617  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                  63  voluntary context switches
+                2255  involuntary context switches
+          9277154918  instructions retired
+          2573411777  cycles elapsed
+            61342680  peak memory footprint

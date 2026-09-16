@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import contextlib
 import copy
 import hashlib
+import io
 import importlib.util
 import json
 import statistics
@@ -33,12 +35,14 @@ def build_log(
     system: float,
     peak: int,
     recompiled: bool,
+    swiftpm: float | None = None,
 ) -> str:
     lines = ["Building for debugging..."]
     if recompiled:
         lines.append("[1/3] Compiling Consumer Tables.swift")
         lines.append("[2/3] Emitting module Consumer")
-    lines.append("Build of product 'ConsumerLibrary' complete!")
+    duration = round(wall * 0.8, 2) if swiftpm is None else swiftpm
+    lines.append(f"Build of product 'ConsumerLibrary' complete! ({duration:.2f}s)")
     lines.append(f"        {wall:.2f} real         {user:.2f} user         {system:.2f} sys")
     lines.append(f"          {peak}  maximum resident set size")
     return "\n".join(lines) + "\n"
@@ -371,7 +375,9 @@ class ValidatorTests(unittest.TestCase):
     def test_rejects_an_artifact_point_without_measurements(self) -> None:
         def mutate(document: dict) -> None:
             extra = copy.deepcopy(document["artifacts"][0])
-            extra["tableCount"] = 100
+            # Two tables still fit in one Tables.swift, so the generated-file
+            # scale check passes and only the point mismatch remains.
+            extra["tableCount"] = 2
             document["artifacts"].append(extra)
 
         self.assertRejected(mutate, "artifact points and measured points disagree")
@@ -399,6 +405,398 @@ class ValidatorTests(unittest.TestCase):
             lambda document: document["workload"].update({"attribution": "macro_only"}),
             "whole-consumer build cost",
         )
+
+
+# The two lines issue #670 cites from
+# Runs/swiftql-t010-q001-clean_dependency_warm-rep-01.build.log: SwiftPM built
+# the product in 9.83 s, but the process took 912.21 s of wall time for only
+# 17.66 s of user CPU, so it waited for about fifteen minutes.
+CITED_COMPLETE_LINE = "Build of product 'ConsumerLibrary' complete! (9.83s)"
+CITED_TIME_LINE = "      912.21 real        17.66 user         0.49 sys"
+
+
+def recompute_results(document: dict, key: str) -> None:
+    group = [
+        item
+        for item in document["measurements"]
+        if summarize.measurement_key(item) == key
+    ]
+    walls = [float(item["wallSeconds"]) for item in group]
+    median_wall = statistics.median(walls)
+    document["results"][key].update(
+        {
+            "medianWallSeconds": median_wall,
+            "minWallSeconds": min(walls),
+            "maxWallSeconds": max(walls),
+            "wallSpreadPercent": (max(walls) - min(walls)) / median_wall * 100.0,
+            "medianUserSeconds": statistics.median(
+                [float(item["userSeconds"]) for item in group]
+            ),
+            "medianSystemSeconds": statistics.median(
+                [float(item["systemSeconds"]) for item in group]
+            ),
+        }
+    )
+
+
+class SwiftPMDurationParserTests(unittest.TestCase):
+    def test_parses_the_product_line_the_issue_cites(self) -> None:
+        text = f"[5/6] Compiling Consumer Queries.swift\n{CITED_COMPLETE_LINE}\n{CITED_TIME_LINE}\n"
+        self.assertEqual(summarize.parse_swiftpm_duration(text), 9.83)
+        self.assertEqual(summarize.TIME_LINE.findall(text), [("912.21", "17.66", "0.49")])
+
+    def test_parses_a_line_without_a_product_clause(self) -> None:
+        self.assertEqual(
+            summarize.parse_swiftpm_duration("Build complete! (0.31s)\n"),
+            0.31,
+        )
+
+    def test_rejects_a_missing_line(self) -> None:
+        for text in (
+            "Build of product 'ConsumerLibrary' complete!\n",
+            "Compiling Consumer Queries.swift (9.83s)\n",
+            "",
+        ):
+            with self.assertRaises(summarize.ValidationError):
+                summarize.parse_swiftpm_duration(text)
+
+    def test_accepts_a_comma_decimal_mark(self) -> None:
+        self.assertEqual(
+            summarize.parse_swiftpm_duration(
+                "Build of product 'ConsumerLibrary' complete! (9,83s)\n"
+            ),
+            9.83,
+        )
+        self.assertEqual(
+            summarize.parse_swiftpm_duration("Build complete! (43,01 sec)\n"),
+            43.01,
+        )
+
+    def test_strips_ansi_colour_codes(self) -> None:
+        text = (
+            "\x1b[1;32mBuild of product 'ConsumerLibrary' complete!\x1b[0m "
+            "\x1b[2m(9.83s)\x1b[0m\n"
+        )
+        self.assertEqual(summarize.parse_swiftpm_duration(text), 9.83)
+
+    def test_reads_a_line_after_a_carriage_return_progress_update(self) -> None:
+        text = (
+            "[5/6] Compiling Consumer Queries.swift\r"
+            "Build of product 'ConsumerLibrary' complete! (9.83s)\r\n"
+            f"{CITED_TIME_LINE}\n"
+        )
+        self.assertEqual(summarize.parse_swiftpm_duration(text), 9.83)
+
+    def test_sums_the_durations_of_more_than_one_line(self) -> None:
+        text = (
+            "Build of product 'ConsumerLibrary' complete! (9.83s)\n"
+            "Build of product 'OtherLibrary' complete! (1,17s)\n"
+        )
+        self.assertEqual(summarize.swiftpm_durations(text), [9.83, 1.17])
+        self.assertAlmostEqual(summarize.parse_swiftpm_duration(text), 11.0)
+
+
+class RejectionRuleTests(unittest.TestCase):
+    def test_the_rule_is_fixed_and_documented(self) -> None:
+        self.assertEqual(summarize.WALL_TO_SWIFTPM_FACTOR, 2.0)
+        self.assertEqual(summarize.WALL_TO_SWIFTPM_ALLOWANCE_SECONDS, 2.0)
+        self.assertAlmostEqual(summarize.wall_limit_seconds(9.83), 21.66)
+        self.assertIn("2 x SwiftPM", summarize.rejection_rule_description())
+
+    def test_the_invalid_ten_table_clean_cell_is_rejected(self) -> None:
+        self.assertFalse(summarize.wall_is_consistent(912.21, 9.83))
+        # Its healthy sibling repetition in the same cell stays.
+        self.assertTrue(summarize.wall_is_consistent(13.35, 12.84))
+
+    def test_healthy_recorded_samples_are_kept(self) -> None:
+        # The largest checked-in ratio outside the three waited samples: a
+        # sub-second no-op build with fixed SwiftPM start-up overhead.
+        self.assertTrue(summarize.wall_is_consistent(0.97, 0.19))
+        self.assertTrue(summarize.wall_is_consistent(10.04, 9.41))
+
+    def test_the_limit_is_inclusive(self) -> None:
+        self.assertTrue(summarize.wall_is_consistent(22.0, 10.0))
+        self.assertFalse(summarize.wall_is_consistent(22.01, 10.0))
+
+
+class RejectedSampleReportTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._directory = tempfile.TemporaryDirectory()
+        self.directory = Path(self._directory.name)
+        self.report = synthesize(self.directory)
+
+    def tearDown(self) -> None:
+        self._directory.cleanup()
+
+    def install_cited_sample(self) -> dict:
+        """Replace one clean 10-table sample with the cell issue #670 cites."""
+
+        document = json.loads(self.report.read_text(encoding="utf-8"))
+        measurement = next(
+            item
+            for item in document["measurements"]
+            if item["consumer"] == "macro_consumer"
+            and item["tableCount"] == 10
+            and item["buildMode"] == "clean_dependency_warm"
+            and item["repetition"] == 1
+        )
+        text = build_log(
+            wall=912.21,
+            user=17.66,
+            system=0.49,
+            peak=int(measurement["peakRSSBytes"]),
+            recompiled=True,
+            swiftpm=9.83,
+        )
+        self.assertIn(CITED_COMPLETE_LINE, text)
+        (self.directory / measurement["rawLog"]).write_text(text, encoding="utf-8")
+        measurement.update(
+            {
+                "wallSeconds": 912.21,
+                "userSeconds": 17.66,
+                "systemSeconds": 0.49,
+                "rawLogSHA256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            }
+        )
+        recompute_results(document, summarize.measurement_key(measurement))
+        self.report.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+        return measurement
+
+    def run_main(self, *arguments: str) -> tuple[int, str, str]:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            status = summarize.main([str(self.report), *arguments])
+        return status, stdout.getvalue(), stderr.getvalue()
+
+    def test_a_consistent_report_has_no_rejections(self) -> None:
+        document = summarize.load_report(self.report)
+        summarize.validate(document, self.report, require_full_matrix=False)
+        self.assertEqual(summarize.rejected_samples(document, self.report), [])
+        status, output, _ = self.run_main()
+        self.assertEqual(status, 0)
+        self.assertIn("None. Every wall time is consistent", output)
+
+    def test_the_cited_sample_is_reported_and_fails_the_run(self) -> None:
+        measurement = self.install_cited_sample()
+        document = summarize.load_report(self.report)
+        summarize.validate(document, self.report, require_full_matrix=False)
+        rejections = summarize.rejected_samples(document, self.report)
+        self.assertEqual(len(rejections), 1)
+        self.assertEqual(rejections[0]["rawLog"], measurement["rawLog"])
+        self.assertEqual(rejections[0]["wallSeconds"], 912.21)
+        self.assertEqual(rejections[0]["userSeconds"], 17.66)
+        self.assertEqual(rejections[0]["swiftpmSeconds"], 9.83)
+
+        status, output, errors = self.run_main()
+        self.assertEqual(status, 1)
+        self.assertIn("912.21 s", output)
+        self.assertIn("[R]", output)
+        self.assertIn("1 rejected sample", errors)
+
+    def test_the_median_without_rejected_samples_is_printed_too(self) -> None:
+        measurement = self.install_cited_sample()
+        document = summarize.load_report(self.report)
+        summarize.validate(document, self.report, require_full_matrix=False)
+        rejections = summarize.rejected_samples(document, self.report)
+        key = summarize.measurement_key(measurement)
+        medians = summarize.medians_without_rejected(
+            document["measurements"], rejections
+        )
+        self.assertEqual(list(medians), [key])
+        # The synthetic cell's other two walls are 3.00 s and 3.25 s.
+        self.assertEqual(medians[key]["sampleCount"], 3)
+        self.assertEqual(medians[key]["acceptedSampleCount"], 2)
+        self.assertAlmostEqual(medians[key]["medianWallSeconds"], 3.25)
+        self.assertAlmostEqual(medians[key]["medianWallSecondsWithoutRejected"], 3.125)
+
+        status, output, _ = self.run_main("--allow-rejected-samples")
+        self.assertEqual(status, 0)
+        self.assertIn("Medians include every recorded sample", output)
+        self.assertIn(
+            "with rejected samples 3.25 s; without rejected samples 3.12 s from 2 of 3 samples",
+            output,
+        )
+
+    def test_a_cell_with_every_sample_rejected_has_no_accepted_median(self) -> None:
+        measurements = [
+            {
+                "consumer": "c",
+                "tableCount": 1,
+                "queryCount": 1,
+                "buildMode": "noop_incremental",
+                "rawLog": f"Runs/{index}.log",
+                "wallSeconds": 900.0,
+            }
+            for index in range(2)
+        ]
+        medians = summarize.medians_without_rejected(measurements, measurements)
+        self.assertIsNone(
+            medians["c|1|1|noop_incremental"]["medianWallSecondsWithoutRejected"]
+        )
+        self.assertIn(
+            "none (0 of 2 samples accepted)",
+            summarize.render_rejections(
+                [
+                    dict(item, repetition=1, userSeconds=1.0, swiftpmSeconds=0.5, wallLimitSeconds=3.0)
+                    for item in measurements
+                ],
+                measurements,
+            ),
+        )
+
+    def test_rejected_samples_can_be_allowed_but_are_still_reported(self) -> None:
+        self.install_cited_sample()
+        status, output, errors = self.run_main("--allow-rejected-samples")
+        self.assertEqual(status, 0)
+        self.assertIn("Rejected samples", output)
+        self.assertIn("SwiftPM 9.83 s", output)
+        self.assertIn("warning:", errors)
+
+    def test_a_log_without_the_swiftpm_line_fails_validation(self) -> None:
+        document = json.loads(self.report.read_text(encoding="utf-8"))
+        measurement = document["measurements"][0]
+        log = self.directory / measurement["rawLog"]
+        text = "".join(
+            line
+            for line in log.read_text(encoding="utf-8").splitlines(keepends=True)
+            if "complete!" not in line
+        )
+        log.write_text(text, encoding="utf-8")
+        measurement["rawLogSHA256"] = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        self.report.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+        with self.assertRaises(summarize.ValidationError) as context:
+            summarize.validate(
+                summarize.load_report(self.report),
+                self.report,
+                require_full_matrix=False,
+            )
+        self.assertIn("complete!", str(context.exception))
+
+
+class SwiftBuildLogTests(unittest.TestCase):
+    def test_verbose_swiftbuild_logs_validate(self) -> None:
+        with tempfile.TemporaryDirectory() as name:
+            directory = Path(name)
+            report = synthesize(directory)
+            document = json.loads(report.read_text(encoding="utf-8"))
+            for measurement in document["measurements"]:
+                lines = ["Building for debugging...", "[Planning deferred tasks]"]
+                if measurement["recompiledConsumerTarget"]:
+                    lines.append("Planning Swift module Consumer (arm64)")
+                    lines.append(
+                        "    builtin-SwiftDriver -- /usr/bin/swiftc "
+                        "-parse-as-library -module-name Consumer -Onone"
+                    )
+                    lines.append("[4 / 7] Consumer")
+                duration = f"{float(measurement['wallSeconds']) * 0.8:.2f}".replace(".", ",")
+                lines.append(f"Build complete! ({duration} sec)")
+                lines.append(
+                    f"        {measurement['wallSeconds']:.2f} real         "
+                    f"{measurement['userSeconds']:.2f} user         "
+                    f"{measurement['systemSeconds']:.2f} sys"
+                )
+                lines.append(
+                    f"          {measurement['peakRSSBytes']}  maximum resident set size"
+                )
+                text = "\n".join(lines) + "\n"
+                (directory / measurement["rawLog"]).write_text(text, encoding="utf-8")
+                measurement["rawLogSHA256"] = hashlib.sha256(
+                    text.encode("utf-8")
+                ).hexdigest()
+            report.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+            loaded = summarize.load_report(report)
+            summarize.validate(loaded, report, require_full_matrix=False)
+            self.assertEqual(summarize.rejected_samples(loaded, report), [])
+
+    def test_a_swiftbuild_no_op_log_is_not_a_recompile(self) -> None:
+        self.assertIsNone(
+            summarize.RECOMPILE_MARKER.search(
+                "Building for debugging...\n[Planning deferred tasks]\n"
+                "Build complete! (0,26 sec)\n"
+            )
+        )
+        self.assertIsNone(
+            summarize.RECOMPILE_MARKER.search("swiftc -module-name ConsumerLibrary\n")
+        )
+        self.assertIsNotNone(
+            summarize.RECOMPILE_MARKER.search("swiftc -module-name Consumer -Onone\n")
+        )
+
+
+class GeneratedSourceScaleTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._directory = tempfile.TemporaryDirectory()
+        self.report = synthesize(Path(self._directory.name))
+
+    def tearDown(self) -> None:
+        self._directory.cleanup()
+
+    def validate_with(self, mutate) -> None:
+        document = json.loads(self.report.read_text(encoding="utf-8"))
+        mutate(document)
+        summarize.validate_artifacts(document)
+
+    def test_expected_generated_files_follow_the_scale(self) -> None:
+        tables = summarize.expected_generated_files(
+            500, 1, schema_only=False, declarations_per_file=50
+        )
+        self.assertEqual(len([name for name in tables if "/Tables" in name]), 10)
+        self.assertIn("Sources/Consumer/Tables10.swift", tables)
+        self.assertEqual(
+            summarize.expected_generated_files(1, 120, schema_only=False, declarations_per_file=50),
+            [
+                "Sources/Consumer/Queries.swift",
+                "Sources/Consumer/Queries2.swift",
+                "Sources/Consumer/Queries3.swift",
+                "Sources/Consumer/Tables.swift",
+            ],
+        )
+        self.assertEqual(
+            summarize.expected_generated_files(500, 1, schema_only=True, declarations_per_file=50),
+            ["Sources/Consumer/schema.sql"],
+        )
+
+    def test_a_synthesized_report_matches_its_scale(self) -> None:
+        self.validate_with(lambda document: None)
+
+    def test_a_generated_file_that_disagrees_with_the_scale_fails(self) -> None:
+        def mutate(document: dict) -> None:
+            artifact = next(item for item in document["artifacts"] if item["tableCount"] == 1)
+            artifact["generatedSourceSHA256"]["Sources/Consumer/Tables2.swift"] = "c" * 64
+
+        with self.assertRaises(summarize.ValidationError) as context:
+            self.validate_with(mutate)
+        self.assertIn("disagree with the declared scale", str(context.exception))
+
+    def test_consumer_source_files_must_be_exactly_the_generated_files(self) -> None:
+        def exact(document: dict) -> None:
+            for artifact in document["artifacts"]:
+                artifact["consumerSourceFiles"] = sorted(artifact["generatedSourceSHA256"])
+
+        self.validate_with(exact)
+
+        def stale(document: dict) -> None:
+            exact(document)
+            document["artifacts"][0]["consumerSourceFiles"].append(
+                "Sources/Consumer/Tables2.swift"
+            )
+
+        with self.assertRaises(summarize.ValidationError) as context:
+            self.validate_with(stale)
+        self.assertIn("Tables2.swift", str(context.exception))
+
+    def test_template_files_count_as_expected_sources(self) -> None:
+        self.assertEqual(
+            summarize.template_source_files("ControlRawSQLite"),
+            {"Sources/Consumer/Support.swift"},
+        )
+
+    def test_the_checked_in_report_still_validates_its_generated_files(self) -> None:
+        document = summarize.load_report(
+            Path(__file__).with_name("compile-time-results.json")
+        )
+        summarize.validate_artifacts(document)
 
 
 class ComparisonTests(unittest.TestCase):

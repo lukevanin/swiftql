@@ -12,9 +12,47 @@
 //
 
 import Foundation
+#if canImport(Combine)
+import Combine
+#else
+import OpenCombine
+#endif
 import XCTest
 import GRDB
 import SwiftQL
+
+
+/// Counts how many times a declared query's statement is built (issue #660).
+///
+/// `sql { }` runs its builder closure immediately, and the render-once cache
+/// calls the statement builder only when it renders, so a probe inside the
+/// specification body counts renders without any internal hook.
+final class DeclaredQueryRenderProbe: @unchecked Sendable {
+
+    static let containerObservedRows = DeclaredQueryRenderProbe()
+
+    static let peerObservedRows = DeclaredQueryRenderProbe()
+
+    static let containerScopedRows = DeclaredQueryRenderProbe()
+
+    private let lock = NSLock()
+
+    private var value = 0
+
+    var count: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
+
+    @discardableResult
+    func record() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        value += 1
+        return value
+    }
+}
 
 
 @SQLQueries
@@ -45,6 +83,62 @@ extension GRDBDatabase {
 
         func containerTheOnlyRowMatchingID(id: String) -> TestTable {
             sqlResult { schema in
+                let table = schema.table(TestTable.self)
+                Select(table)
+                From(table)
+                Where(table.id == id)
+            }
+        }
+
+        // Issue #661: the container inlines the rewritten statement where the
+        // parameter values are in scope, so this pins that `like`, `regexp`,
+        // and `Limit` arguments bind rather than capture.
+        func containerRowsMatching(pattern: String, expression: String, count: Int) -> [TestTable] {
+            sqlResult { schema in
+                let table = schema.table(TestTable.self)
+                Select(table)
+                From(table)
+                Where(table.id.like(pattern) && table.id.regexp(expression))
+                OrderBy(table.value.ascending())
+                Limit(count)
+            }
+        }
+
+        // Issue #661: a parameter reached through a local binding and through
+        // a nested closure (`Limit`'s builder closure) is still rewritten, so
+        // each call binds its own values rather than capturing the first.
+        func containerRowsThroughAliasAndClosure(pattern: String, count: Int) -> [TestTable] {
+            sqlResult { schema in
+                let table = schema.table(TestTable.self)
+                let alias = pattern
+                Select(table)
+                From(table)
+                Where(table.id.like(alias))
+                OrderBy(table.value.ascending())
+                Limit { count }
+            }
+        }
+
+        // Issue #660: observed through `preparedQueries`. The probe counts statement
+        // builds, so a test can prove that the executor and the prepared form
+        // share one render.
+        func containerObservedRows(pattern: String) -> [TestTable] {
+            sqlResult { schema in
+                let _ = DeclaredQueryRenderProbe.containerObservedRows.record()
+                let table = schema.table(TestTable.self)
+                Select(table)
+                From(table)
+                Where(table.id.like(pattern))
+                OrderBy(table.value.ascending())
+            }
+        }
+
+        // Issue #662: called on many transaction scopes. The probe counts
+        // renders, and the cache adds an entry only when it renders, so one
+        // render proves one entry however many scopes call it.
+        func containerScopedRows(id: String) -> [TestTable] {
+            sqlResult { schema in
+                let _ = DeclaredQueryRenderProbe.containerScopedRows.record()
                 let table = schema.table(TestTable.self)
                 Select(table)
                 From(table)
@@ -212,6 +306,370 @@ final class XLQueriesContainerTests: XCTestCase {
         XCTAssertTrue(renderedSQL.contains(":id"), "the reused SQL must bind a placeholder")
         XCTAssertFalse(renderedSQL.contains("'alpha'"), "no call's argument may be inlined as a literal")
         XCTAssertFalse(renderedSQL.contains("'beta'"), "no call's argument may be inlined as a literal")
+    }
+
+    func testContainerExecutorBindsLikeRegexpAndLimitParameters() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "alpine", value: 2))
+        try insert(TestTable(id: "alps", value: 3))
+        try insert(TestTable(id: "beta", value: 4))
+
+        XCTAssertEqual(
+            try database.containerRowsMatching(pattern: "al%", expression: "p", count: 10).map(\.id),
+            ["alpha", "alpine", "alps"]
+        )
+        XCTAssertEqual(
+            try database.containerRowsMatching(pattern: "al%", expression: "e$", count: 10).map(\.id),
+            ["alpine"]
+        )
+        XCTAssertEqual(
+            try database.containerRowsMatching(pattern: "%", expression: "a", count: 2).map(\.id),
+            ["alpha", "alpine"]
+        )
+    }
+
+    func testContainerExecutorBindsParametersThroughLocalBindingAndNestedClosure() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "alpine", value: 2))
+        try insert(TestTable(id: "beta", value: 3))
+
+        XCTAssertEqual(
+            try database.containerRowsThroughAliasAndClosure(pattern: "al%", count: 10).map(\.id),
+            ["alpha", "alpine"]
+        )
+        // A different value through the local binding changes the rows.
+        XCTAssertEqual(
+            try database.containerRowsThroughAliasAndClosure(pattern: "b%", count: 10).map(\.id),
+            ["beta"]
+        )
+        // A different value through the nested closure changes the row count.
+        XCTAssertEqual(
+            try database.containerRowsThroughAliasAndClosure(pattern: "al%", count: 1).map(\.id),
+            ["alpha"]
+        )
+    }
+
+
+    // MARK: - Observation (issue #660)
+
+    ///
+    /// The prepared form and the executor emit the same preparation code, so
+    /// they must share one render and one packet. The probe proves one render
+    /// across both forms, the logged fetch lines prove the same SQL text and
+    /// the same bound values, and the packet equals the one built by hand.
+    ///
+    func testPreparedQueryUsesTheExecutorsCachedRequestAndBindings() throws {
+        let logger = RecordingLogger()
+        let formatter = XLiteFormatter(identifierFormattingOptions: .mysqlCompatible)
+        let loggingDatabase = try GRDBDatabase(databasePool: databasePool, formatter: formatter, logger: logger)
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "alpine", value: 2))
+        try insert(TestTable(id: "beta", value: 3))
+
+        let rendersBefore = DeclaredQueryRenderProbe.containerObservedRows.count
+        let called = try loggingDatabase.containerObservedRows(pattern: "al%")
+        let prepared = try loggingDatabase.preparedQueries.containerObservedRows(pattern: "al%")
+        let preparedAgain = try loggingDatabase.preparedQueries.containerObservedRows(pattern: "al%")
+        XCTAssertEqual(
+            DeclaredQueryRenderProbe.containerObservedRows.count - rendersBefore,
+            1,
+            "the executor and the prepared form must share one render"
+        )
+
+        XCTAssertEqual(called.map(\.id), ["alpha", "alpine"])
+        XCTAssertEqual(try prepared.request.fetchAll(bindings: prepared.bindings), called)
+
+        let layout = prepared.request.parameterLayout
+        let slot = try XCTUnwrap(layout.slot(for: .named("pattern")))
+        let expectedBindings = try XLInvocationBindings<XLSQLiteValue>(
+            layout: layout,
+            bindings: [try XLInvocationBinding(slot: slot, value: .text("al%"))]
+        ).validatingComplete()
+        XCTAssertEqual(prepared.bindings, expectedBindings)
+        XCTAssertEqual(preparedAgain.bindings, expectedBindings)
+
+        let fetchLogs = logger.allMessages.filter { $0.contains("fetchAll:") }
+        XCTAssertEqual(fetchLogs.count, 2, "expected one log line for the executor and one for the prepared fetch")
+        XCTAssertEqual(
+            Set(fetchLogs).count,
+            1,
+            "the executor and the prepared form must fetch the same SQL text with the same bindings"
+        )
+        let fetchLog = try XCTUnwrap(fetchLogs.first)
+        XCTAssertTrue(fetchLog.contains(":pattern"), "the shared SQL must bind a placeholder")
+        XCTAssertFalse(fetchLog.contains("LIKE 'al%'"), "no argument may be inlined as a literal")
+    }
+
+    func testPreparedQueryStreamEmitsUpdatedRowsAfterAWrite() async throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+        try insert(TestTable(id: "beta", value: 2))
+
+        let query = try database.preparedQueries.containerObservedRows(pattern: "al%")
+        let initialRows = [TestTable(id: "alpha", value: 1)]
+        let updatedRows = [TestTable(id: "alpha", value: 1), TestTable(id: "alpine", value: 3)]
+
+        var snapshots = 0
+        for try await rows in query.stream() {
+            snapshots += 1
+            if snapshots == 1 {
+                XCTAssertEqual(rows, initialRows)
+                // Neither write matches the pattern except `alpine`, so the
+                // observation must deliver it and never `beta` or `gamma`.
+                try insert(TestTable(id: "gamma", value: 4))
+                try insert(TestTable(id: "alpine", value: 3))
+                continue
+            }
+            XCTAssertTrue(
+                rows == initialRows || rows == updatedRows,
+                "the packet must keep selecting the pattern 'al%', got \(rows)"
+            )
+            if rows == updatedRows {
+                break
+            }
+        }
+        XCTAssertGreaterThan(snapshots, 1, "the observation must deliver the write")
+    }
+
+    func testPreparedQueryPublisherEmitsUpdatedRowsAfterAWrite() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+
+        let query = try database.preparedQueries.containerObservedRows(pattern: "al%")
+        let initialExpectation = expectation(description: "initial snapshot")
+        let updateExpectation = expectation(description: "snapshot after the write")
+        var sawInitial = false
+        var sawUpdate = false
+        var cancellables = Set<AnyCancellable>()
+
+        query.publish()
+            .sink(
+                receiveCompletion: { completion in
+                    if case .failure(let error) = completion {
+                        XCTFail("Unexpected publisher failure: \(error)")
+                    }
+                },
+                receiveValue: { rows in
+                    if !sawInitial {
+                        sawInitial = true
+                        XCTAssertEqual(rows, [TestTable(id: "alpha", value: 1)])
+                        initialExpectation.fulfill()
+                    }
+                    else if rows.map(\.id) == ["alpha", "alpine"] && !sawUpdate {
+                        sawUpdate = true
+                        updateExpectation.fulfill()
+                    }
+                }
+            )
+            .store(in: &cancellables)
+
+        wait(for: [initialExpectation], timeout: 2)
+        try insert(TestTable(id: "alpine", value: 2))
+        wait(for: [updateExpectation], timeout: 2)
+        cancellables.removeAll()
+    }
+
+    ///
+    /// A transaction scope is a `GRDBDatabase` too, so `preparedQueries`
+    /// compiles on it and its request fetches on the transaction's
+    /// connection. Observation needs the pool, so the publisher fails at once
+    /// with a typed error instead of observing the scope's connection.
+    ///
+    func testPreparedQueryFromATransactionScopePublishesATypedError() throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+
+        var failure: Error?
+        var receivedValue = false
+        try database.withTransaction { scope in
+            let query = try scope.preparedQueries.containerObservedRows(pattern: "al%")
+            XCTAssertEqual(try query.request.fetchAll(bindings: query.bindings).map(\.id), ["alpha"])
+            let cancellable = query.publish().sink(
+                receiveCompletion: { completion in
+                    if case .failure(let error) = completion {
+                        failure = error
+                    }
+                },
+                receiveValue: { _ in
+                    receivedValue = true
+                }
+            )
+            cancellable.cancel()
+        }
+
+        XCTAssertFalse(receivedValue, "a scope-prepared query must never deliver a snapshot")
+        XCTAssertEqual(failure as? XLTransactionScopeError, .liveQueriesUnsupportedInTransaction)
+    }
+
+    func testPreparedQueryFromATransactionScopeStreamThrowsATypedError() async throws {
+        try createTestTable()
+        try insert(TestTable(id: "alpha", value: 1))
+
+        let query = try database.withTransaction { scope in
+            try scope.preparedQueries.containerObservedRows(pattern: "al%")
+        }
+
+        do {
+            for try await rows in query.stream() {
+                XCTFail("a scope-prepared query must never deliver a snapshot, got \(rows)")
+                break
+            }
+            XCTFail("the stream must throw")
+        }
+        catch {
+            XCTAssertEqual(error as? XLTransactionScopeError, .liveQueriesUnsupportedInTransaction)
+        }
+    }
+
+
+    // MARK: - Inside a transaction (issue #662)
+
+    ///
+    /// A database-level executor called on the scope joins the open
+    /// transaction. It sees a write the transaction has not committed, which a
+    /// pool connection could not see, so it runs on the transaction's
+    /// connection. Every cardinality takes the same path.
+    ///
+    func testDatabaseExecutorCalledOnATransactionScopeSeesTheUncommittedWrite() throws {
+        try createTestTable()
+
+        let rows = try database.withTransaction { scope in
+            try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+            XCTAssertEqual(try scope.containerRowMatchingID(id: "alpha"), TestTable(id: "alpha", value: 1))
+            XCTAssertEqual(try scope.containerTheOnlyRowMatchingID(id: "alpha"), TestTable(id: "alpha", value: 1))
+            return try scope.containerRowsMatchingID(id: "alpha")
+        }
+
+        XCTAssertEqual(rows, [TestTable(id: "alpha", value: 1)])
+        XCTAssertEqual(try database.containerRowsMatchingID(id: "alpha"), rows)
+    }
+
+    ///
+    /// The declared query runs inside the transaction, not in one of its own,
+    /// so a failure later in the body rolls back the write it read.
+    ///
+    func testDeclaredQueryInsideARolledBackTransactionLeavesNothingCommitted() throws {
+        struct Abort: Error {}
+        try createTestTable()
+
+        XCTAssertThrowsError(
+            try database.withTransaction { scope in
+                try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+                XCTAssertEqual(try scope.containerRowsMatchingID(id: "alpha").count, 1)
+                throw Abort()
+            }
+        ) { error in
+            XCTAssertTrue(error is Abort, "expected the body's own error, got \(error)")
+        }
+
+        XCTAssertEqual(try database.containerRowsMatchingID(id: "alpha"), [])
+    }
+
+    ///
+    /// The #642 rule, through the generated executor: many scopes share the
+    /// database's entry. The cache adds an entry only when it renders, so one
+    /// render across every scope and the database means one entry. The
+    /// generated cache is `private`; `XLQueryRenderOnceCacheTests.
+    /// testDeclaredQueryScopeHelperOnManyScopesKeepsOneCacheEntry` reads
+    /// `entryCount` directly through the same helper.
+    ///
+    func testDatabaseExecutorOnManyScopesRendersOnceAndAddsNoEntryPerScope() throws {
+        try createTestTable()
+        let rendersBefore = DeclaredQueryRenderProbe.containerScopedRows.count
+
+        for index in 0 ..< 100 {
+            let id = "row-\(index)"
+            let rows = try database.withTransaction { scope in
+                try scope.makeRequest(with: sqlInsert(TestTable(id: id, value: index))).execute()
+                return try scope.containerScopedRows(id: id)
+            }
+            XCTAssertEqual(rows, [TestTable(id: id, value: index)])
+        }
+        XCTAssertEqual(try database.containerScopedRows(id: "row-7"), [TestTable(id: "row-7", value: 7)])
+
+        XCTAssertEqual(
+            DeclaredQueryRenderProbe.containerScopedRows.count - rendersBefore,
+            1,
+            "the database and every scope must share one render and one cache entry"
+        )
+    }
+
+    func testDatabaseExecutorOnAnEscapedScopeThrowsScopeEscaped() throws {
+        try createTestTable()
+        var escaped: GRDBDatabase?
+        try database.withTransaction { scope in
+            escaped = scope
+        }
+        let scope = try XCTUnwrap(escaped)
+
+        XCTAssertThrowsError(try scope.containerRowsMatchingID(id: "alpha")) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .scopeEscaped)
+        }
+        XCTAssertThrowsError(try scope.containerTheOnlyRowMatchingID(id: "alpha")) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .scopeEscaped)
+        }
+    }
+
+    ///
+    /// Only the scope joins. The root database captured inside a body, and
+    /// `execute(_:)` called on the scope, each still open a transaction of
+    /// their own and are rejected before they touch the pool.
+    ///
+    func testRootDatabaseAndExecuteInsideATransactionAreStillRejected() throws {
+        try createTestTable()
+
+        XCTAssertThrowsError(
+            try database.withTransaction { _ in
+                _ = try self.database.containerRowsMatchingID(id: "alpha")
+            }
+        ) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .nestedTransactionUnsupported)
+        }
+        XCTAssertThrowsError(
+            try database.withTransaction { scope in
+                _ = try scope.execute { context in
+                    try context.containerRowsMatchingID(id: "alpha")
+                }
+            }
+        ) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .nestedTransactionUnsupported)
+        }
+    }
+
+    ///
+    /// A query prepared on a scope is bound to the transaction's connection.
+    /// It fetches there, but it cannot be observed: an observation outlives the
+    /// transaction, so the pinned-driver guard fails it at once. After the
+    /// scope ends, a fetch throws `.scopeEscaped`.
+    ///
+    func testQueryPreparedOnATransactionScopeFetchesThereButCannotBeObserved() async throws {
+        try createTestTable()
+
+        let database = try XCTUnwrap(self.database)
+        var escaped: XLPreparedQuery<TestTable>?
+        try database.withTransaction { scope in
+            try scope.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+            let query = try scope.preparedQueries.containerObservedRows(pattern: "al%")
+            XCTAssertEqual(try query.request.fetchAll(bindings: query.bindings).map(\.id), ["alpha"])
+            escaped = query
+        }
+        let query = try XCTUnwrap(escaped)
+
+        do {
+            for try await _ in query.stream() {
+                XCTFail("an observation of a scope's query must not deliver rows")
+            }
+            XCTFail("an observation of a scope's query must fail")
+        }
+        catch {
+            XCTAssertEqual(error as? XLTransactionScopeError, .liveQueriesUnsupportedInTransaction)
+        }
+        XCTAssertThrowsError(try query.request.fetchAll(bindings: query.bindings)) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .scopeEscaped)
+        }
     }
 
 

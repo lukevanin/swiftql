@@ -73,14 +73,13 @@ deleting a sub-task are each one `UPDATE`:
 <!-- source: Examples/TodoApp/TodoKit/Sources/TodoKit/TodoStore.swift -->
 ```swift
                 row.checklist = table.checklist
-                    .jsonSetting((TodoChecklist.isDone(at: index), flag))
-                    .coalesce(table.checklist)
+                    .jsonSetting((TodoChecklist.isDone(at: index), isDone))
 ```
 
 The app never loads a to-do, edits the array in Swift, and writes it back, so
 two people ticking different sub-tasks cannot overwrite each other. The
-`coalesce` is there because `json_set` returns `NULL` for a `NULL` document,
-which makes its result optional even though the column is not.
+column is `NOT NULL`, so the result of `json_set` is not optional either, and
+it assigns straight back to the column.
 
 Reading follows the same rule. The list rows need a count and a first title,
 not the arrays, so the query asks SQLite for exactly those:
@@ -158,11 +157,30 @@ the same way: each `OrderBy` term is a conditional on the sort parameter, and a
 term whose condition is false collapses to a constant that orders every row
 equally, so it contributes nothing and the next term decides.
 
-This is the one read in the demo that is not a declared query. A declared
-query's frozen-literal guard rejects a parameter passed as an argument to a
-call, and matching is a method — so text search cannot appear in a declaration.
-The demo uses named bindings for that statement instead, and says so where it
-does.
+The read is a declared query like the others. Its search pattern is a
+parameter passed to `regexp(_:)`, which a declaration accepts since v1.9
+([#661](https://github.com/lukevanin/swiftql/issues/661)):
+
+<!-- source: Examples/TodoApp/TodoKit/Sources/TodoKit/TodoReads.swift -->
+```swift
+                Where(
+                    todo.listID == listID
+                    && (todo.isCompleted == includesCompleted
+                        || todo.isCompleted != includesActive)
+                    && (overdueOnly == false
+                        || (todo.dueAt < referenceDate
+                            && todo.isCompleted == false))
+                    && (todo.title.regexp(searchPattern)
+                        || todo.notes.regexp(searchPattern))
+                )
+```
+
+The list view also observes this read. Since v1.9 a declared query has an
+observable form ([#660](https://github.com/lukevanin/swiftql/issues/660)), so
+the list model passes `database.preparedQueries.filteredTodos(...)` to
+`XLObservableQuery`, and the statement exists only in `TodoReads.swift`. The
+sidebar and the detail pane observe `todoLists()`, `listCounts()`, and
+`todo(id:)` the same way.
 
 ## Two regular expressions, for two different reasons
 
@@ -243,6 +261,28 @@ Writes are not declarations. Declared queries are `SELECT`-only in v1.5, so the
 demo's writes use the functional statement syntax from <doc:FunctionalSyntax>.
 Still typed, still no SQL strings.
 
+An edit binds what the user typed rather than putting it in the SQL text, so
+each call needs a packet of values. The edit declares its bindings once, as a
+struct, and `@SQLBindings` generates the typed references the statement reads
+and the packet builder the call uses
+([#663](https://github.com/lukevanin/swiftql/issues/663)):
+
+<!-- source: Examples/TodoApp/TodoKit/Sources/TodoKit/TodoStore.swift -->
+```swift
+    @SQLBindings
+    private struct UpdateTodoBindings {
+        var id: TodoUUID
+        var title: String
+        var notes: String
+        var dueAt: TodoDate?
+        var priority: TodoPriority
+    }
+```
+
+The statement sets `row.title = UpdateTodoBindings.title`, and the call builds
+its packet with `UpdateTodoBindings(id:title:notes:dueAt:priority:)`. A
+misspelled name or a forgotten value does not compile.
+
 ## A transaction that has to be all or nothing
 
 Moving a to-do to another list renumbers the list it left and appends it to the
@@ -270,8 +310,8 @@ public final class TodoSidebarModel {
     public let counts: XLObservableQuery<TodoListCounts>
 
     public init(database: TodoDatabase) {
-        lists = XLObservableQuery(database.listsRequest)
-        counts = XLObservableQuery(database.listCountsRequest)
+        lists = XLObservableQuery(database.listsQuery)
+        counts = XLObservableQuery(database.listCountsQuery)
     }
 ```
 
@@ -285,10 +325,14 @@ Changing the filter, sort, or search text does not filter rows already in
 memory. It builds a new binding packet and replaces the observation, because a
 live query captures its packet once.
 
-One thing to know before reaching for a declaration here: ``XLObservableQuery``
-observes an ``XLRequest``, and `@SQLQueries` does not produce one. The three
-reads the demo observes therefore exist twice — once as a declaration, once as
-a statement.
+The queries these models observe are the declarations in `TodoReads.swift`.
+`listsQuery` and `listCountsQuery` are `database.preparedQueries.todoLists()` and
+`database.preparedQueries.listCounts()`, prepared once when the database opens. The
+list and detail models prepare `filteredTodos(...)` and `todo(id:)` with their
+own arguments. Each prepared query is an ``XLPreparedQuery``: the declaration's
+cached request and the binding packet its executor would use, so no observed
+read is written a second time (see <doc:DeclaredQueries>, "Observe a declared
+query").
 
 ## Queries checked before the app runs
 
@@ -296,6 +340,15 @@ The demo carries a checked-in schema snapshot and a manifest of every query it
 runs. SwiftQL's build-tool plugin prepares each query against that snapshot on
 every build, so a query that no longer matches the schema fails the build
 rather than the app.
+
+The manifest generator lists no queries. TodoKit applies
+`SwiftQLDeclaredQueryRegistryPlugin`, which scans its sources on every build
+and generates `TodoKitDeclaredQueries`. The generator reads every declared
+query from that registry, the filtered read included, and adds none of its
+own. SwiftQL lowers each query to a static descriptor and projects it into
+the manifest, so a query added anywhere in TodoKit is validated after the
+next regeneration with no change to the generator. Xcode asks you to trust
+the plugin the first time it builds the app.
 
 Regenerate both after changing the schema or a query:
 

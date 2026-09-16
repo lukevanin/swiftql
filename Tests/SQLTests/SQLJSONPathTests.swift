@@ -101,11 +101,22 @@ final class XLJSONPathRenderingTests: XCTestCase {
         )
     }
 
-    func testControlCharactersInAPlainKeyStayAsTheyAre() {
-        // A control character does not end an unquoted label, so it needs no
-        // escape and no newer SQLite.
-        XCTAssertEqual(XLJSONPath.root.key("a\nb").path, "$.a\nb")
-        XCTAssertEqual(XLJSONPath.root.key("a\tb").path, "$.a\tb")
+    func testControlCharactersInAKeyForceTheQuotedForm() {
+        // Issue #671: a control character is written as a JSON escape, and
+        // only a quoted label can hold an escape, so the rendered path never
+        // carries a raw control character.
+        XCTAssertEqual(XLJSONPath.root.key("a\nb").path, "$.\"a\\nb\"")
+        XCTAssertEqual(XLJSONPath.root.key("a\tb").path, "$.\"a\\tb\"")
+        XCTAssertEqual(XLJSONPath.root.key("a\u{7F}b").path, "$.\"a\u{7F}b\"")
+    }
+
+    func testALeadingDoubleQuoteForcesTheQuotedForm() {
+        // Issue #671: unquoted, `$."ab` starts a quoted label that never
+        // closes, which SQLite rejects as a bad JSON path on every version.
+        XCTAssertEqual(XLJSONPath.root.key("\"ab").path, "$.\"\\\"ab\"")
+        XCTAssertEqual(XLJSONPath.root.key("\"").path, "$.\"\\\"\"")
+        // A quote after the first character still does not force it.
+        XCTAssertEqual(XLJSONPath.root.key("a\"").path, "$.a\"")
     }
 
     func testControlCharactersInAQuotedKeyUseJSONEscapes() {
@@ -293,10 +304,25 @@ final class XLJSONPathExecutionTests: XCTestCase {
 
     func testControlCharacterKeysSelectTheirValues() throws {
         let json = #"{"a\nb":[1,2]}"#
-        try requireRuntimeResolves(document: json, path: "$.a\nb")
+        try requireRuntimeResolves(document: json, path: #"$."a\nb""#)
         XCTAssertEqual(
             try evaluate(
                 document().jsonArrayLength(path: XLJSONPath.root.key("a\nb")),
+                document: json
+            ),
+            2
+        )
+    }
+
+    func testAKeyBeginningWithADoubleQuoteSelectsItsValue() throws {
+        // Issue #671: this key rendered unquoted, and SQLite rejected the
+        // path with `bad JSON path` on every version. Quoted and escaped, it
+        // resolves wherever the engine unescapes JSON labels.
+        let json = #"{"\"ab":[1,2]}"#
+        try requireRuntimeResolves(document: json, path: #"$."\"ab""#)
+        XCTAssertEqual(
+            try evaluate(
+                document().jsonArrayLength(path: XLJSONPath.root.key(#""ab"#)),
                 document: json
             ),
             2

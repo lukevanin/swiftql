@@ -83,6 +83,21 @@ public final class SwiftQLBenchmarkRunner {
                 consumeDecoded: Self.consumePerson
             )
 
+            let simpleInlineLiterals = try makeReadCase(
+                identifier: "simple_lookup_inline_literals",
+                purpose: "The simple lookup with its person ID rendered inline as a SQL literal instead of a named binding.",
+                configuration: configuration,
+                database: database,
+                arguments: StatementArguments(),
+                parameters: [],
+                expectedRowCount: 1,
+                expectedDecodedRows: [Self.expectedSimplePerson],
+                makeStatement: {
+                    BenchmarkQueries.simpleLookupInlineLiterals(personID: Self.simplePersonID)
+                },
+                consumeDecoded: Self.consumePerson
+            )
+
             let joined = try makeReadCase(
                 identifier: "representative_multi_join_read",
                 purpose: "Bounded two-join read that decodes columns from person, department, and company.",
@@ -109,10 +124,67 @@ public final class SwiftQLBenchmarkRunner {
                 consumeDecoded: Self.consumeJoinedRow
             )
 
-            let write = try makeWriteCase(
+            let joinedInlineLiterals = try makeReadCase(
+                identifier: "representative_multi_join_read_inline_literals",
+                purpose: "The multi-join read with its company ID and minimum score rendered inline as SQL literals.",
                 configuration: configuration,
                 database: database,
-                arguments: writeArguments
+                arguments: StatementArguments(),
+                parameters: [],
+                expectedRowCount: 32,
+                expectedDecodedRows: Self.expectedJoinedRows,
+                makeStatement: {
+                    BenchmarkQueries.multiJoinReadInlineLiterals(
+                        companyID: Self.joinedCompanyID,
+                        minimumScore: Self.joinedMinimumScore
+                    )
+                },
+                consumeDecoded: Self.consumeJoinedRow
+            )
+
+            let write = try makeWriteCase(
+                identifier: "bounded_write",
+                purpose: "Range update of exactly 64 rows with deterministic rollback after every operation.",
+                configuration: configuration,
+                database: database,
+                arguments: writeArguments,
+                parameters: [
+                    Self.parameter(
+                        name: "writeStartID",
+                        swiftType: "Int",
+                        sqliteStorageClass: "INTEGER",
+                        value: String(Self.writeStartID)
+                    ),
+                    Self.parameter(
+                        name: "writeEndID",
+                        swiftType: "Int",
+                        sqliteStorageClass: "INTEGER",
+                        value: String(Self.writeEndID)
+                    ),
+                    Self.parameter(
+                        name: "scoreDelta",
+                        swiftType: "Double",
+                        sqliteStorageClass: "REAL",
+                        value: String(Self.writeScoreDelta)
+                    ),
+                ],
+                makeStatement: BenchmarkQueries.boundedWrite
+            )
+
+            let writeInlineLiterals = try makeWriteCase(
+                identifier: "bounded_write_inline_literals",
+                purpose: "The bounded write with its ID range and score delta rendered inline as SQL literals.",
+                configuration: configuration,
+                database: database,
+                arguments: StatementArguments(),
+                parameters: [],
+                makeStatement: {
+                    BenchmarkQueries.boundedWriteInlineLiterals(
+                        startID: Self.writeStartID,
+                        endID: Self.writeEndID,
+                        scoreDelta: Self.writeScoreDelta
+                    )
+                }
             )
 
             let decode = try makeReadCase(
@@ -135,9 +207,35 @@ public final class SwiftQLBenchmarkRunner {
                 consumeDecoded: Self.consumeDecodeFixture
             )
 
+            let decodeInlineLiterals = try makeReadCase(
+                identifier: "deterministic_row_decode_inline_literals",
+                purpose: "The wide-row decode with its maximum ID rendered inline as a SQL literal.",
+                configuration: configuration,
+                database: database,
+                arguments: StatementArguments(),
+                parameters: [],
+                expectedRowCount: 2,
+                expectedDecodedRows: Self.expectedDecodeRows,
+                makeStatement: {
+                    BenchmarkQueries.deterministicDecodeInlineLiterals(
+                        maximumID: Self.decodeMaximumID
+                    )
+                },
+                consumeDecoded: Self.consumeDecodeFixture
+            )
+
             return (
                 databaseMetadata: databaseMetadata,
-                cases: [simple, joined, write, decode]
+                cases: [
+                    simple,
+                    simpleInlineLiterals,
+                    joined,
+                    joinedInlineLiterals,
+                    write,
+                    writeInlineLiterals,
+                    decode,
+                    decodeInlineLiterals,
+                ]
             )
         }
 
@@ -145,8 +243,29 @@ public final class SwiftQLBenchmarkRunner {
             configuration: configuration,
             databasePool: databasePool
         )
+        // SwiftQL's own production phases run through a GRDBDatabase over the
+        // same pool after the fixture's writer access has returned, because
+        // every request takes its own connection access.
+        let swiftQLDatabase = try GRDBDatabase(
+            databasePool: databasePool,
+            formatter: XLiteFormatter(),
+            logger: nil
+        )
+        let swiftQLPhases = try measureSwiftQLPhases(
+            configuration: configuration,
+            databasePool: databasePool,
+            database: swiftQLDatabase
+        )
+        let sqlCases = try fixture.cases.map { benchmarkCase -> BenchmarkCaseReport in
+            guard let extraPhases = swiftQLPhases[benchmarkCase.identifier] else {
+                throw BenchmarkError.invalidReport(
+                    "no SwiftQL production phases for \(benchmarkCase.identifier)"
+                )
+            }
+            return adding(extraPhases, to: benchmarkCase)
+        }
         let report = BenchmarkReport(
-            formatVersion: 1,
+            formatVersion: BenchmarkReport.currentFormatVersion,
             generatedAt: Self.timestamp(),
             monotonicClock: "DispatchTime.uptimeNanoseconds",
             sampleUnit: "nanoseconds_per_operation",
@@ -161,7 +280,7 @@ public final class SwiftQLBenchmarkRunner {
                 decodeFixtureRowCount: 2
             ),
             schemaSQL: Self.schemaSQL,
-            cases: fixture.cases + [contextualCodec]
+            cases: sqlCases + [contextualCodec]
         )
 
         try report.validate()
@@ -265,17 +384,21 @@ public final class SwiftQLBenchmarkRunner {
     }
 
     private func makeWriteCase(
+        identifier: String,
+        purpose: String,
         configuration: BenchmarkConfiguration,
         database: Database,
-        arguments: StatementArguments
+        arguments: StatementArguments,
+        parameters: [BenchmarkParameter],
+        makeStatement: () -> any XLUpdateStatement<BenchmarkPerson>
     ) throws -> BenchmarkCaseReport {
-        let encoding = encoder.makeSQL(BenchmarkQueries.boundedWrite())
+        let encoding = encoder.makeSQL(makeStatement())
         var phases = try measureCommonPhases(
             configuration: configuration,
             database: database,
             sql: encoding.sql,
             arguments: arguments,
-            makeEncoding: { self.encoder.makeSQL(BenchmarkQueries.boundedWrite()) }
+            makeEncoding: { self.encoder.makeSQL(makeStatement()) }
         )
 
         let statement = try database.makeStatement(sql: encoding.sql)
@@ -324,29 +447,10 @@ public final class SwiftQLBenchmarkRunner {
         )
 
         return BenchmarkCaseReport(
-            identifier: "bounded_write",
-            purpose: "Range update of exactly 64 rows with deterministic rollback after every operation.",
+            identifier: identifier,
+            purpose: purpose,
             sql: encoding.sql,
-            parameters: [
-                Self.parameter(
-                    name: "writeStartID",
-                    swiftType: "Int",
-                    sqliteStorageClass: "INTEGER",
-                    value: String(Self.writeStartID)
-                ),
-                Self.parameter(
-                    name: "writeEndID",
-                    swiftType: "Int",
-                    sqliteStorageClass: "INTEGER",
-                    value: String(Self.writeEndID)
-                ),
-                Self.parameter(
-                    name: "scoreDelta",
-                    swiftType: "Double",
-                    sqliteStorageClass: "REAL",
-                    value: String(Self.writeScoreDelta)
-                ),
-            ],
+            parameters: parameters,
             queryPlan: try queryPlan(
                 database: database,
                 sql: encoding.sql,
@@ -513,7 +617,7 @@ public final class SwiftQLBenchmarkRunner {
             }
         )
 
-        let phases: [BenchmarkPhase: BenchmarkPhaseReport] = [
+        var phases: [BenchmarkPhase: BenchmarkPhaseReport] = [
             .swiftQLConstructionAndRendering: .notApplicable(
                 .swiftQLConstructionAndRendering,
                 reason: "The case measures a prebuilt immutable codec snapshot, not SQL DSL construction or rendering."
@@ -536,6 +640,12 @@ public final class SwiftQLBenchmarkRunner {
             ),
             .rowDecoding: .measured(.rowDecoding, measurement: decoding),
         ]
+        for phase in Self.swiftQLProductionPhases {
+            phases[phase] = .notApplicable(
+                phase,
+                reason: "The contextual-codec case isolates value-codec conversion; the SQL cases measure SwiftQL's production binding, execution, materialization, decoding, fetchAll(), and execute() phases."
+            )
+        }
 
         return BenchmarkCaseReport(
             identifier: "contextual_value_codec",
@@ -554,6 +664,416 @@ public final class SwiftQLBenchmarkRunner {
             expectedAffectedRowCount: nil,
             phases: orderedPhases(phases)
         )
+    }
+
+    // MARK: SwiftQL production phases (format version 2)
+
+    private static let swiftQLProductionPhases: [BenchmarkPhase] = [
+        .swiftQLBinding,
+        .swiftQLExecution,
+        .swiftQLRowMaterialization,
+        .swiftQLRowDecoding,
+        .swiftQLFetchAll,
+        .swiftQLExecute,
+    ]
+
+    private static let scoreChecksumSQL = "SELECT SUM(score) FROM benchmark_person"
+
+    /// Restores the bounded write's 64 scores to their fixture values. SQLite
+    /// divides the same integer by 10.0 as `setupFixture`, so every restored
+    /// REAL is bit-identical and the score checksum matches exactly.
+    private static var restoreWriteRangeSQL: String {
+        "UPDATE benchmark_person SET score = ((id * 37) % 1000) / 10.0 WHERE id >= \(writeStartID) AND id < \(writeEndID)"
+    }
+
+    private func adding(
+        _ extraPhases: [BenchmarkPhase: BenchmarkPhaseReport],
+        to benchmarkCase: BenchmarkCaseReport
+    ) -> BenchmarkCaseReport {
+        var phases: [BenchmarkPhase: BenchmarkPhaseReport] = [:]
+        for phaseReport in benchmarkCase.phases {
+            phases[phaseReport.phase] = phaseReport
+        }
+        for (phase, phaseReport) in extraPhases {
+            phases[phase] = phaseReport
+        }
+        return BenchmarkCaseReport(
+            identifier: benchmarkCase.identifier,
+            purpose: benchmarkCase.purpose,
+            sql: benchmarkCase.sql,
+            parameters: benchmarkCase.parameters,
+            queryPlan: benchmarkCase.queryPlan,
+            expectedResultRowCount: benchmarkCase.expectedResultRowCount,
+            expectedAffectedRowCount: benchmarkCase.expectedAffectedRowCount,
+            phases: orderedPhases(phases)
+        )
+    }
+
+    private func measureSwiftQLPhases(
+        configuration: BenchmarkConfiguration,
+        databasePool: DatabasePool,
+        database: GRDBDatabase
+    ) throws -> [String: [BenchmarkPhase: BenchmarkPhaseReport]] {
+        var phases: [String: [BenchmarkPhase: BenchmarkPhaseReport]] = [:]
+
+        phases["simple_parameterized_lookup"] = try measureSwiftQLReadPhases(
+            configuration: configuration,
+            database: database,
+            makeStatement: BenchmarkQueries.simpleLookup,
+            bind: { request in
+                request.set(parameter: BenchmarkQueries.personID, value: Self.simplePersonID)
+            },
+            expectedRows: [Self.expectedSimplePerson],
+            consumeDecoded: Self.consumePerson
+        )
+        phases["simple_lookup_inline_literals"] = try measureSwiftQLReadPhases(
+            configuration: configuration,
+            database: database,
+            makeStatement: {
+                BenchmarkQueries.simpleLookupInlineLiterals(personID: Self.simplePersonID)
+            },
+            bind: { _ in },
+            expectedRows: [Self.expectedSimplePerson],
+            consumeDecoded: Self.consumePerson
+        )
+
+        phases["representative_multi_join_read"] = try measureSwiftQLReadPhases(
+            configuration: configuration,
+            database: database,
+            makeStatement: BenchmarkQueries.multiJoinRead,
+            bind: { request in
+                request.set(parameter: BenchmarkQueries.companyID, value: Self.joinedCompanyID)
+                request.set(parameter: BenchmarkQueries.minimumScore, value: Self.joinedMinimumScore)
+            },
+            expectedRows: Self.expectedJoinedRows,
+            consumeDecoded: Self.consumeJoinedRow
+        )
+        phases["representative_multi_join_read_inline_literals"] = try measureSwiftQLReadPhases(
+            configuration: configuration,
+            database: database,
+            makeStatement: {
+                BenchmarkQueries.multiJoinReadInlineLiterals(
+                    companyID: Self.joinedCompanyID,
+                    minimumScore: Self.joinedMinimumScore
+                )
+            },
+            bind: { _ in },
+            expectedRows: Self.expectedJoinedRows,
+            consumeDecoded: Self.consumeJoinedRow
+        )
+
+        phases["bounded_write"] = try measureSwiftQLWritePhases(
+            configuration: configuration,
+            databasePool: databasePool,
+            database: database,
+            makeStatement: BenchmarkQueries.boundedWrite,
+            bind: { request in
+                request.set(parameter: BenchmarkQueries.writeStartID, value: Self.writeStartID)
+                request.set(parameter: BenchmarkQueries.writeEndID, value: Self.writeEndID)
+                request.set(parameter: BenchmarkQueries.scoreDelta, value: Self.writeScoreDelta)
+            }
+        )
+        phases["bounded_write_inline_literals"] = try measureSwiftQLWritePhases(
+            configuration: configuration,
+            databasePool: databasePool,
+            database: database,
+            makeStatement: {
+                BenchmarkQueries.boundedWriteInlineLiterals(
+                    startID: Self.writeStartID,
+                    endID: Self.writeEndID,
+                    scoreDelta: Self.writeScoreDelta
+                )
+            },
+            bind: { _ in }
+        )
+
+        phases["deterministic_row_decode"] = try measureSwiftQLReadPhases(
+            configuration: configuration,
+            database: database,
+            makeStatement: BenchmarkQueries.deterministicDecode,
+            bind: { request in
+                request.set(parameter: BenchmarkQueries.decodeID, value: Self.decodeMaximumID)
+            },
+            expectedRows: Self.expectedDecodeRows,
+            consumeDecoded: Self.consumeDecodeFixture
+        )
+        phases["deterministic_row_decode_inline_literals"] = try measureSwiftQLReadPhases(
+            configuration: configuration,
+            database: database,
+            makeStatement: {
+                BenchmarkQueries.deterministicDecodeInlineLiterals(
+                    maximumID: Self.decodeMaximumID
+                )
+            },
+            bind: { _ in },
+            expectedRows: Self.expectedDecodeRows,
+            consumeDecoded: Self.consumeDecodeFixture
+        )
+
+        return phases
+    }
+
+    private func measureSwiftQLReadPhases<Output: Equatable>(
+        configuration: BenchmarkConfiguration,
+        database: GRDBDatabase,
+        makeStatement: () -> any XLQueryStatement<Output>,
+        bind: (inout any XLRequest<Output>) -> Void,
+        expectedRows: [Output],
+        consumeDecoded: (Output) throws -> UInt64
+    ) throws -> [BenchmarkPhase: BenchmarkPhaseReport] {
+        var request = database.makeRequest(with: makeStatement())
+        bind(&request)
+        let probe = try GRDBRequestPhaseProbe(request: request)
+
+        let connectionPhases = try probe.withConnection { connection -> (
+            binding: BenchmarkMeasurement,
+            execution: BenchmarkMeasurement,
+            materialization: BenchmarkMeasurement,
+            rows: [[XLSQLiteValue]]
+        ) in
+            let statement = try connection.bind()
+            let expectedBindingCount = statement.bindingCount
+            let rows = try connection.materializedRows(statement)
+            guard rows.count == expectedRows.count else {
+                throw BenchmarkError.missingFixture(
+                    "SwiftQL production path materialized \(rows.count) rows instead of \(expectedRows.count)"
+                )
+            }
+            let expectedValueCount = rows.reduce(0) { $0 + $1.count }
+
+            let binding = try BenchmarkSampler(configuration: configuration).measure(
+                notes: [
+                    "Builds the request's invocation packet from its named bindings (empty for inline literals), validates it against the parameter layout, takes the connection's cached statement, binds the validated values, and validates GRDB's arguments: the GRDBInvocationExecutor calls that fetchAll() makes.",
+                    "Runs inside one already-open read access; request construction, rendering, and connection access are excluded.",
+                ],
+                operation: {
+                    try connection.bind()
+                },
+                consume: { bound in
+                    guard bound.bindingCount == expectedBindingCount else {
+                        throw BenchmarkError.invalidReport("SwiftQL binding count changed while sampling")
+                    }
+                    return UInt64(bound.bindingCount)
+                }
+            )
+
+            let execution = try BenchmarkSampler(configuration: configuration).measure(
+                notes: [
+                    "Opens GRDB's row cursor on the bound production statement (reset and SQLite argument binding) and steps every result row without reading a column.",
+                    "Excludes SwiftQL binding, column materialization, and decoding.",
+                ],
+                operation: {
+                    try connection.step(statement)
+                },
+                consume: { rowCount in
+                    guard rowCount == expectedRows.count else {
+                        throw BenchmarkError.missingFixture("SwiftQL stepping visited \(rowCount) rows")
+                    }
+                    return UInt64(rowCount)
+                }
+            )
+
+            let materialization = try BenchmarkSampler(configuration: configuration).measure(
+                notes: [
+                    "Steps every result row and normalizes every column to XLSQLiteValue through the production forEachRow cursor loop, without decoding.",
+                    "Includes opening and stepping the cursor, so it is not additive with swiftql_execution.",
+                ],
+                operation: {
+                    try connection.materialize(statement)
+                },
+                consume: { valueCount in
+                    guard valueCount == expectedValueCount else {
+                        throw BenchmarkError.missingFixture("SwiftQL materialized \(valueCount) values")
+                    }
+                    return UInt64(valueCount)
+                }
+            )
+
+            return (binding, execution, materialization, rows)
+        }
+
+        guard try probe.decode(connectionPhases.rows) == expectedRows else {
+            throw BenchmarkError.decoding(
+                "SwiftQL production decoding did not produce the exact expected values"
+            )
+        }
+
+        let decoding = try BenchmarkSampler(configuration: configuration).measure(
+            notes: [
+                "Decodes the complete result, materialized once before sampling, through GRDBRowDecoder.decode(values:), the per-row call inside fetchAll().",
+                "Includes decoded-output array allocation; SQL execution and column materialization are excluded.",
+            ],
+            operation: {
+                try probe.decode(connectionPhases.rows)
+            },
+            consume: { decodedRows in
+                guard decodedRows == expectedRows else {
+                    throw BenchmarkError.decoding("SwiftQL production decoding changed while sampling")
+                }
+                var checksum: UInt64 = 0
+                for row in decodedRows {
+                    checksum &+= try consumeDecoded(row)
+                }
+                return checksum
+            }
+        )
+
+        let fetchAll = try BenchmarkSampler(configuration: configuration).measure(
+            notes: [
+                "Public XLRequest.fetchAll() on a prepared request with its bindings set: packet validation, one pooled read access, binding, stepping, materialization, and decoding.",
+                "Request construction and rendering are excluded; semantic verification and checksumming follow the end timestamp.",
+            ],
+            operation: {
+                try request.fetchAll()
+            },
+            consume: { fetchedRows in
+                guard fetchedRows == expectedRows else {
+                    throw BenchmarkError.decoding("fetchAll() produced unexpected rows while sampling")
+                }
+                var checksum: UInt64 = 0
+                for row in fetchedRows {
+                    checksum &+= try consumeDecoded(row)
+                }
+                return checksum
+            }
+        )
+
+        return [
+            .swiftQLBinding: .measured(.swiftQLBinding, measurement: connectionPhases.binding),
+            .swiftQLExecution: .measured(.swiftQLExecution, measurement: connectionPhases.execution),
+            .swiftQLRowMaterialization: .measured(
+                .swiftQLRowMaterialization,
+                measurement: connectionPhases.materialization
+            ),
+            .swiftQLRowDecoding: .measured(.swiftQLRowDecoding, measurement: decoding),
+            .swiftQLFetchAll: .measured(.swiftQLFetchAll, measurement: fetchAll),
+            .swiftQLExecute: .notApplicable(
+                .swiftQLExecute,
+                reason: "A SELECT runs through fetchAll(); XLWriteRequest.execute() applies only to a statement that returns no rows."
+            ),
+        ]
+    }
+
+    private func measureSwiftQLWritePhases(
+        configuration: BenchmarkConfiguration,
+        databasePool: DatabasePool,
+        database: GRDBDatabase,
+        makeStatement: () -> any XLUpdateStatement<BenchmarkPerson>,
+        bind: (inout any XLWriteRequest) -> Void
+    ) throws -> [BenchmarkPhase: BenchmarkPhaseReport] {
+        var request = database.makeRequest(with: makeStatement())
+        bind(&request)
+        let probe = try GRDBRequestPhaseProbe<Void>(writeRequest: request)
+        let scoreBefore = try databasePool.read { database in
+            try self.requiredDouble(database, sql: Self.scoreChecksumSQL)
+        }
+        let savepoint = "swiftql_benchmark_production_write"
+
+        let connectionPhases = try probe.withConnection { connection -> (
+            binding: BenchmarkMeasurement,
+            execution: BenchmarkMeasurement
+        ) in
+            let statement = try connection.bind()
+            let expectedBindingCount = statement.bindingCount
+
+            let binding = try BenchmarkSampler(configuration: configuration).measure(
+                notes: [
+                    "Builds the request's invocation packet from its named bindings (empty for inline literals), validates it against the parameter layout, takes the writer's cached statement, binds the validated values, and validates GRDB's arguments: the GRDBInvocationExecutor calls that execute() makes.",
+                    "Runs inside one already-open writer access; request construction, rendering, connection access, and the transaction are excluded.",
+                ],
+                operation: {
+                    try connection.bind()
+                },
+                consume: { bound in
+                    guard bound.bindingCount == expectedBindingCount else {
+                        throw BenchmarkError.invalidReport("SwiftQL binding count changed while sampling")
+                    }
+                    return UInt64(bound.bindingCount)
+                }
+            )
+
+            let execution = try BenchmarkSampler(configuration: configuration).measure(
+                notes: [
+                    "Executes the bound production statement once: GRDB reset, SQLite argument binding, and the 64-row UPDATE.",
+                    "SAVEPOINT entry, changes-count verification, rollback, release, and the post-rollback checksum are outside the timestamp.",
+                ],
+                beforeSample: {
+                    try connection.withUnmeasuredDatabase { database in
+                        try database.execute(sql: "SAVEPOINT \(savepoint)")
+                    }
+                },
+                afterSample: {
+                    try connection.withUnmeasuredDatabase { database in
+                        try database.execute(sql: "ROLLBACK TO \(savepoint)")
+                        try database.execute(sql: "RELEASE \(savepoint)")
+                        let scoreAfter = try self.requiredDouble(database, sql: Self.scoreChecksumSQL)
+                        guard scoreAfter == scoreBefore else {
+                            throw BenchmarkError.missingFixture(
+                                "SwiftQL production write rollback changed the fixture checksum"
+                            )
+                        }
+                    }
+                },
+                operation: {
+                    try connection.execute(statement)
+                },
+                consume: { _ in
+                    try connection.withUnmeasuredDatabase { database in
+                        guard database.changesCount == Self.expectedWriteCount else {
+                            throw BenchmarkError.missingFixture(
+                                "SwiftQL production write affected \(database.changesCount) rows instead of \(Self.expectedWriteCount)"
+                            )
+                        }
+                        return UInt64(database.changesCount)
+                    }
+                }
+            )
+
+            return (binding, execution)
+        }
+
+        let execute = try BenchmarkSampler(configuration: configuration).measure(
+            notes: [
+                "Public XLWriteRequest.execute() on a prepared request with its bindings set: packet validation, one pooled write transaction with its commit, binding, and the 64-row UPDATE.",
+                "Checking the committed score total, restoring the 64 scores, and checking the fixture checksum happen after the end timestamp in separate accesses.",
+            ],
+            afterSample: {
+                try databasePool.write { database in
+                    try database.execute(sql: Self.restoreWriteRangeSQL)
+                    let scoreAfter = try self.requiredDouble(database, sql: Self.scoreChecksumSQL)
+                    guard scoreAfter == scoreBefore else {
+                        throw BenchmarkError.missingFixture(
+                            "restoring the bounded write changed the fixture checksum"
+                        )
+                    }
+                }
+            },
+            operation: {
+                try request.execute()
+            },
+            consume: { _ in
+                let scoreAfterWrite = try databasePool.read { database in
+                    try self.requiredDouble(database, sql: Self.scoreChecksumSQL)
+                }
+                let expectedDelta = Double(Self.expectedWriteCount) * Self.writeScoreDelta
+                guard abs(scoreAfterWrite - scoreBefore - expectedDelta) < 1e-6 else {
+                    throw BenchmarkError.missingFixture(
+                        "execute() did not add the bounded write's score delta"
+                    )
+                }
+                return UInt64(Self.expectedWriteCount)
+            }
+        )
+
+        let noRowsReason = "The bounded UPDATE does not have a RETURNING clause and therefore produces no row to materialize, decode, or fetch."
+        return [
+            .swiftQLBinding: .measured(.swiftQLBinding, measurement: connectionPhases.binding),
+            .swiftQLExecution: .measured(.swiftQLExecution, measurement: connectionPhases.execution),
+            .swiftQLRowMaterialization: .notApplicable(.swiftQLRowMaterialization, reason: noRowsReason),
+            .swiftQLRowDecoding: .notApplicable(.swiftQLRowDecoding, reason: noRowsReason),
+            .swiftQLFetchAll: .notApplicable(.swiftQLFetchAll, reason: noRowsReason),
+            .swiftQLExecute: .measured(.swiftQLExecute, measurement: execute),
+        ]
     }
 
     private func measureCommonPhases(

@@ -1,12 +1,44 @@
 import Foundation
 
-public enum BenchmarkPhase: String, Codable, CaseIterable {
+public enum BenchmarkPhase: String, Codable, CaseIterable, Sendable {
     case swiftQLConstructionAndRendering = "swiftql_construction_and_rendering"
     case coldStatementPreparation = "cold_statement_preparation"
     case cachedStatementLookup = "cached_statement_lookup"
     case statementResetAndBinding = "statement_reset_and_binding"
     case execution
     case rowDecoding = "row_decoding"
+    // Format version 2 (issue #670): SwiftQL's own production path, one phase
+    // at a time, and the public end-to-end calls.
+    case swiftQLBinding = "swiftql_binding"
+    case swiftQLExecution = "swiftql_execution"
+    case swiftQLRowMaterialization = "swiftql_row_materialization"
+    case swiftQLRowDecoding = "swiftql_row_decoding"
+    case swiftQLFetchAll = "swiftql_fetch_all"
+    case swiftQLExecute = "swiftql_execute"
+
+    /// The six phases of a format version 1 report, such as the 2026-07-17
+    /// baselines. Their names and boundaries are unchanged in version 2.
+    public static let formatVersion1Phases: [BenchmarkPhase] = [
+        .swiftQLConstructionAndRendering,
+        .coldStatementPreparation,
+        .cachedStatementLookup,
+        .statementResetAndBinding,
+        .execution,
+        .rowDecoding,
+    ]
+
+    /// Every phase a case must define in a report of `formatVersion`, or `nil`
+    /// for an unknown version.
+    public static func phases(forFormatVersion formatVersion: Int) -> [BenchmarkPhase]? {
+        switch formatVersion {
+        case 1:
+            return formatVersion1Phases
+        case 2:
+            return allCases
+        default:
+            return nil
+        }
+    }
 }
 
 public struct BenchmarkConfiguration: Codable, Equatable, Sendable {
@@ -194,6 +226,10 @@ public struct BenchmarkReport: Codable, Equatable {
     public let schemaSQL: [String]
     public let cases: [BenchmarkCaseReport]
 
+    /// Version 1 has six phases per case. Version 2 adds the SwiftQL
+    /// production and end-to-end phases and keeps the six version 1 phases.
+    public static let currentFormatVersion = 2
+
     public var measurementCount: Int {
         cases.reduce(0) { partial, benchmarkCase in
             partial + benchmarkCase.phases.filter { $0.applicability == .measured }.count
@@ -202,7 +238,7 @@ public struct BenchmarkReport: Codable, Equatable {
 
     public func validate() throws {
         try configuration.validate()
-        guard formatVersion == 1 else {
+        guard let expectedPhases = BenchmarkPhase.phases(forFormatVersion: formatVersion) else {
             throw BenchmarkError.invalidReport("unsupported report format version \(formatVersion)")
         }
         guard !generatedAt.isEmpty else {
@@ -250,8 +286,8 @@ public struct BenchmarkReport: Codable, Equatable {
                 throw BenchmarkError.invalidReport("case \(benchmarkCase.identifier) is incomplete")
             }
             let phases = benchmarkCase.phases.map(\.phase)
-            guard benchmarkCase.phases.count == BenchmarkPhase.allCases.count,
-                  Set(phases) == Set(BenchmarkPhase.allCases) else {
+            guard benchmarkCase.phases.count == expectedPhases.count,
+                  Set(phases) == Set(expectedPhases) else {
                 throw BenchmarkError.invalidReport("case \(benchmarkCase.identifier) must define every phase exactly once")
             }
             observedPhases.formUnion(phases)
@@ -282,7 +318,7 @@ public struct BenchmarkReport: Codable, Equatable {
             }
         }
 
-        guard observedPhases == Set(BenchmarkPhase.allCases) else {
+        guard observedPhases == Set(expectedPhases) else {
             throw BenchmarkError.invalidReport("the report does not cover every benchmark phase")
         }
     }

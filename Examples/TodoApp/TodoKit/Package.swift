@@ -46,6 +46,15 @@ let package = Package(
                 // one changes the plan; running the statements it produces
                 // needs GRDB until typed DDL lands.
                 .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            // Generates TodoKitDeclaredQueries from the @SQLQueries and
+            // @SQLQuery declarations in this target, so the manifest
+            // generator below lists no queries of its own.
+            plugins: [
+                .plugin(
+                    name: "SwiftQLDeclaredQueryRegistryPlugin",
+                    package: "SwiftQL"
+                ),
             ]
         ),
 
@@ -64,14 +73,20 @@ let package = Package(
 
         // Regenerates the two files the validation plugin consumes:
         // the checked-in schema snapshot and the query manifest describing
-        // it. Run ../Tools/regenerate-validation-manifest.sh after changing
-        // the schema or any declared query.
+        // it. The manifest is projected from the queries TodoKit declares, so
+        // it holds no query list of its own. Run
+        // ../Tools/regenerate-validation-manifest.sh after changing the
+        // schema or any declared query.
         .executableTarget(
             name: "todo-validation-manifest",
             dependencies: [
                 "TodoKit",
                 .product(name: "SwiftQL", package: "SwiftQL"),
                 .product(name: "GRDB", package: "GRDB.swift"),
+                .product(
+                    name: "SwiftQLSQLiteBuildValidationDeclaredQueries",
+                    package: "SwiftQL"
+                ),
                 .product(
                     name: "SwiftQLSQLiteBuildValidationManifest",
                     package: "SwiftQL"
@@ -83,9 +98,28 @@ let package = Package(
             ]
         ),
 
+        // The awaitable Observation helper the live-query tests use lives in
+        // this test target (ObservedStateWaiting.swift), not in a regular
+        // target: a regular target gets no XCTest search paths, so importing
+        // XCTest there breaks a plain `swift build`, and a test target is
+        // never part of anything that ships.
         .testTarget(
             name: "TodoKitTests",
-            dependencies: ["TodoKit"]
+            dependencies: [
+                "TodoKit",
+                // Used by TodoValidationManifestTests.swift, which compares
+                // the generated manifest entries with the hand-written list
+                // the generator carried before issue #659.
+                .product(name: "SwiftQL", package: "SwiftQL"),
+                .product(
+                    name: "SwiftQLSQLiteBuildValidationDeclaredQueries",
+                    package: "SwiftQL"
+                ),
+                .product(
+                    name: "SwiftQLSQLiteBuildValidationManifest",
+                    package: "SwiftQL"
+                ),
+            ]
         ),
     ]
 )

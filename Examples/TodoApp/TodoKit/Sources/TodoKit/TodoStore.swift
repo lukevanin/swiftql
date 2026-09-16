@@ -8,7 +8,6 @@ public enum TodoStoreError: Error, Equatable, LocalizedError {
 
     case todoNotFound(TodoUUID)
     case listNotFound(TodoUUID)
-    case unknownParameter(statement: String, name: String)
 
     public var errorDescription: String? {
         switch self {
@@ -16,8 +15,6 @@ public enum TodoStoreError: Error, Equatable, LocalizedError {
             return "No to-do with identifier \(id.wrappedValue)."
         case .listNotFound(let id):
             return "No list with identifier \(id.wrappedValue)."
-        case .unknownParameter(let statement, let name):
-            return "The \(statement) statement has no parameter named \(name)."
         }
     }
 }
@@ -49,15 +46,18 @@ extension TodoDatabase {
     /// The to-dos matching one query, already filtered, searched, and sorted
     /// by SQLite.
     ///
-    /// One request serves every combination — see ``TodoFilteredRead`` for
-    /// how, and for why this one read is not a declared query.
+    /// One declared read serves every combination. `Query.filteredTodos` in
+    /// `TodoReads.swift` shows how.
     public func todos(matching query: TodoQuery) throws -> [Todo] {
-        let request = filteredTodosRequest
-        return try request.fetchAll(
-            bindings: TodoFilteredRead.bindings(
-                for: query,
-                layout: request.parameterLayout
-            )
+        let flags = query.filter.flags
+        return try database.filteredTodos(
+            listID: query.listID,
+            includesCompleted: flags.includesCompleted,
+            includesActive: flags.includesActive,
+            overdueOnly: flags.overdueOnly,
+            referenceDate: query.referenceDate,
+            searchPattern: query.searchPattern,
+            sortOrder: query.sort.rawValue
         )
     }
 
@@ -143,7 +143,7 @@ extension TodoDatabase {
         now: TodoDate = TodoDate(Date())
     ) throws -> Todo {
         try database.withTransaction { scope in
-            guard try Self.listExists(listID, in: scope) else {
+            guard try scope.todoList(id: listID) != nil else {
                 throw TodoStoreError.listNotFound(listID)
             }
             let todo = Todo(
@@ -155,8 +155,7 @@ extension TodoDatabase {
                 priority: priority,
                 isCompleted: false,
                 position: try Self.nextPosition(inList: listID, in: scope),
-                createdAt: now,
-                checklist: TodoChecklist.empty
+                createdAt: now
             )
             let schema = XLSchema()
             let table = schema.table(Todo.self)
@@ -193,53 +192,38 @@ extension TodoDatabase {
     ) throws -> Todo {
         let schema = XLSchema()
         let table = schema.into(Todo.self)
-        let idParameter = XLNamedBindingReference<TodoUUID>(name: "id")
-        let titleParameter = XLNamedBindingReference<String>(name: "title")
-        let notesParameter = XLNamedBindingReference<String>(name: "notes")
-        let dueAtParameter = XLNamedBindingReference<TodoDate?>(name: "dueAt")
-        let priorityParameter = XLNamedBindingReference<TodoPriority>(name: "priority")
-
         let statement = update(table)
             .set { row in
-                row.title = titleParameter
-                row.notes = notesParameter
-                row.dueAt = dueAtParameter
-                row.priority = priorityParameter
+                row.title = UpdateTodoBindings.title
+                row.notes = UpdateTodoBindings.notes
+                row.dueAt = UpdateTodoBindings.dueAt
+                row.priority = UpdateTodoBindings.priority
             }
-            .where(table.id == idParameter)
+            .where(table.id == UpdateTodoBindings.id)
             .returning(schema.table(Todo.self))
         let request = database.makeRequest(with: statement)
-        let layout = request.parameterLayout
-        let bindings = try XLInvocationBindings<XLSQLiteValue>(
-            layout: layout,
-            bindings: [
-                try Self.binding(layout, "id", id.sqlValue),
-                try Self.binding(layout, "title", .text(title)),
-                try Self.binding(layout, "notes", .text(notes)),
-                try Self.binding(layout, "dueAt", dueAt?.sqlValue ?? .null),
-                try Self.binding(
-                    layout,
-                    "priority",
-                    .integer(Int64(priority.rawValue))
-                ),
-            ]
-        ).validatingComplete()
+        let bindings = try UpdateTodoBindings(
+            id: id,
+            title: title,
+            notes: notes,
+            dueAt: dueAt,
+            priority: priority
+        ).bindings(for: request)
 
         return try written(request.fetchAll(bindings: bindings), or: id)
     }
 
-    private static func binding(
-        _ layout: XLParameterLayout,
-        _ name: String,
-        _ value: XLSQLiteValue
-    ) throws -> XLInvocationBinding<XLSQLiteValue> {
-        guard let slot = layout.slot(for: .named(name)) else {
-            throw TodoStoreError.unknownParameter(
-                statement: "update to-do",
-                name: name
-            )
-        }
-        return try XLInvocationBinding(slot: slot, value: value)
+    /// The named bindings of the ``updateTodo(id:title:notes:dueAt:priority:)``
+    /// statement. `@SQLBindings` gives each property a typed reference for the
+    /// statement and builds the packet under the same names, so a misspelled
+    /// name or a forgotten value does not compile.
+    @SQLBindings
+    private struct UpdateTodoBindings {
+        var id: TodoUUID
+        var title: String
+        var notes: String
+        var dueAt: TodoDate?
+        var priority: TodoPriority
     }
 
     @discardableResult
@@ -260,7 +244,7 @@ extension TodoDatabase {
     @discardableResult
     public func toggleCompleted(todoID id: TodoUUID) throws -> Todo {
         try database.withTransaction { scope in
-            guard let current = try Self.find(id, in: scope) else {
+            guard let current = try scope.todo(id: id) else {
                 throw TodoStoreError.todoNotFound(id)
             }
             let schema = XLSchema()
@@ -289,10 +273,8 @@ extension TodoDatabase {
     /// The title arrives in a binding packet, so a sub-task called
     /// `", "isDone": true}` is one title and not a rewritten document.
     ///
-    /// `json_insert` returns `NULL` for a `NULL` document, so its result is
-    /// optional while the column is not. `coalesce` supplies the row's
-    /// current checklist for that case, which cannot arise here — the column
-    /// is `NOT NULL` — but has to be spelled out for the types to meet.
+    /// The column is `NOT NULL`, so SwiftQL types the result of `json_insert`
+    /// as non-optional too, and it assigns straight back to the column.
     @discardableResult
     public func appendChecklistItem(
         title: String,
@@ -300,8 +282,6 @@ extension TodoDatabase {
     ) throws -> Todo {
         let schema = XLSchema()
         let table = schema.into(Todo.self)
-        let idParameter = XLNamedBindingReference<TodoUUID>(name: "id")
-        let titleParameter = XLNamedBindingReference<String>(name: "title")
         let statement = update(table)
             .set { row in
                 row.checklist = table.checklist
@@ -309,26 +289,27 @@ extension TodoDatabase {
                         (
                             TodoChecklist.end,
                             jsonObject(
-                                ("title", titleParameter),
-                                ("isDone", "false".minifiedJSON())
+                                ("title", AppendChecklistItemBindings.title),
+                                ("isDone", false)
                             )
                         )
                     )
-                    .coalesce(table.checklist)
             }
-            .where(table.id == idParameter)
+            .where(table.id == AppendChecklistItemBindings.id)
             .returning(schema.table(Todo.self))
 
         let request = database.makeRequest(with: statement)
-        let layout = request.parameterLayout
-        let bindings = try XLInvocationBindings<XLSQLiteValue>(
-            layout: layout,
-            bindings: [
-                try Self.binding(layout, "id", id.sqlValue),
-                try Self.binding(layout, "title", .text(title)),
-            ]
-        ).validatingComplete()
+        let bindings = try AppendChecklistItemBindings(id: id, title: title)
+            .bindings(for: request)
         return try written(request.fetchAll(bindings: bindings), or: id)
+    }
+
+    /// The named bindings of the ``appendChecklistItem(title:todoID:)``
+    /// statement.
+    @SQLBindings
+    private struct AppendChecklistItemBindings {
+        var id: TodoUUID
+        var title: String
     }
 
     /// Ticks or unticks one sub-task, returning the to-do as it now stands.
@@ -344,15 +325,12 @@ extension TodoDatabase {
     ) throws -> Todo {
         let schema = XLSchema()
         let table = schema.into(Todo.self)
-        // A JSON boolean, not SQLite's 0 and 1. `json_object('isDone', 0)`
-        // stores the number zero, which is not what a JSON reader expects to
-        // find behind a flag.
-        let flag = (isDone ? "true" : "false").minifiedJSON()
+        // SwiftQL writes a Swift `Bool` as a JSON boolean, `json('true')` or
+        // `json('false')`, so the flag reads back through `Codable`.
         let statement = update(table)
             .set { row in
                 row.checklist = table.checklist
-                    .jsonSetting((TodoChecklist.isDone(at: index), flag))
-                    .coalesce(table.checklist)
+                    .jsonSetting((TodoChecklist.isDone(at: index), isDone))
             }
             .where(table.id == id)
             .returning(schema.table(Todo.self))
@@ -374,7 +352,6 @@ extension TodoDatabase {
             .set { row in
                 row.checklist = table.checklist
                     .jsonRemoving(at: TodoChecklist.item(at: index))
-                    .coalesce(table.checklist)
             }
             .where(table.id == id)
             .returning(schema.table(Todo.self))
@@ -438,10 +415,12 @@ extension TodoDatabase {
         beforeCommit: ((GRDBDatabase) throws -> Void)? = nil
     ) throws -> Todo {
         try database.withTransaction { scope in
-            guard let todo = try Self.find(todoID, in: scope) else {
+            // Declared reads, called on the scope, run on the transaction's
+            // connection and see what it has written so far.
+            guard let todo = try scope.todo(id: todoID) else {
                 throw TodoStoreError.todoNotFound(todoID)
             }
-            guard try Self.listExists(destinationID, in: scope) else {
+            guard try scope.todoList(id: destinationID) != nil else {
                 throw TodoStoreError.listNotFound(destinationID)
             }
 
@@ -488,37 +467,6 @@ extension TodoDatabase {
             throw TodoStoreError.todoNotFound(id)
         }
         return row
-    }
-
-    /// A to-do, read inside a transaction.
-    ///
-    /// A plain request rather than the declared `todo(id:)` read: a generated
-    /// executor opens a transaction of its own, and SwiftQL rejects nesting
-    /// one inside another.
-    fileprivate static func find(
-        _ id: TodoUUID,
-        in scope: GRDBDatabase
-    ) throws -> Todo? {
-        let statement = sql { schema in
-            let todo = schema.table(Todo.self)
-            Select(todo)
-            From(todo)
-            Where(todo.id == id)
-        }
-        return try scope.makeRequest(with: statement).fetchOne()
-    }
-
-    fileprivate static func listExists(
-        _ id: TodoUUID,
-        in scope: GRDBDatabase
-    ) throws -> Bool {
-        let statement = sql { schema in
-            let list = schema.table(TodoList.self)
-            Select(list.id)
-            From(list)
-            Where(list.id == id)
-        }
-        return try scope.makeRequest(with: statement).fetchOne() != nil
     }
 
     /// One past the last position in a list, or zero when it is empty.

@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import datetime as dt
+import functools
 import hashlib
 import json
 import math
@@ -203,12 +204,40 @@ def select_column_list() -> str:
     return ", ".join(column for _, column, _ in COLUMNS)
 
 
+# A real app does not keep hundreds of declarations in one file, and a single
+# huge file would also measure the compiler's per-file behavior rather than the
+# declarations. Tables and queries are therefore split into files of at most
+# this many declarations. The first file keeps the historical name
+# (`Tables.swift`, `Queries.swift`), so every scale up to this size generates
+# byte-identical sources to the 2026-08-02 recording, and the one-query edit
+# still touches only `Queries.swift`.
+DECLARATIONS_PER_FILE = 50
+
+
+def split_declarations(
+    stem: str,
+    header: Sequence[str],
+    declarations: Sequence[str],
+    footer: Sequence[str] = (),
+    suffix: str = "",
+) -> dict[str, str]:
+    files: dict[str, str] = {}
+    for chunk, start in enumerate(range(0, len(declarations), DECLARATIONS_PER_FILE)):
+        name = stem if chunk == 0 else f"{stem}{chunk + 1}"
+        part = declarations[start:start + DECLARATIONS_PER_FILE]
+        files[f"Sources/Consumer/{name}.swift"] = (
+            "\n".join([*header, *part, *footer]) + suffix
+        )
+    return files
+
+
 def generate_control_raw_sqlite(
     table_count: int,
     query_count: int,
     edit_token: str,
 ) -> dict[str, str]:
-    tables = ["import Foundation", ""]
+    tables_header = ["import Foundation", ""]
+    tables: list[str] = []
     for index in range(1, table_count + 1):
         properties = "\n".join(
             f"    public var {swift}: {SWIFT_TYPES[swift]}" for swift, _, _ in COLUMNS
@@ -233,7 +262,8 @@ def generate_control_raw_sqlite(
             f"}}\n"
         )
 
-    queries = ["import Foundation", "import SQLite3", ""]
+    queries_header = ["import Foundation", "import SQLite3", ""]
+    queries: list[str] = []
     for index in range(1, query_count + 1):
         target = query_table_index(index, table_count)
         token = query_edit_token(index, edit_token)
@@ -302,8 +332,8 @@ def generate_control_raw_sqlite(
         )
 
     return {
-        "Sources/Consumer/Tables.swift": "\n".join(tables),
-        "Sources/Consumer/Queries.swift": "\n".join(queries),
+        **split_declarations("Tables", tables_header, tables),
+        **split_declarations("Queries", queries_header, queries),
     }
 
 
@@ -312,7 +342,8 @@ def generate_swiftql(
     query_count: int,
     edit_token: str,
 ) -> dict[str, str]:
-    tables = ["import Foundation", "import SwiftQL", ""]
+    tables_header = ["import Foundation", "import SwiftQL", ""]
+    tables: list[str] = []
     for index in range(1, table_count + 1):
         properties = "\n".join(
             f"    public var {swift}: {SWIFT_TYPES[swift]}" for swift, _, _ in COLUMNS
@@ -324,7 +355,14 @@ def generate_swiftql(
             f"}}\n"
         )
 
-    queries = ["import Foundation", "import SwiftQL", "", "extension GRDBDatabase {", ""]
+    queries_header = [
+        "import Foundation",
+        "import SwiftQL",
+        "",
+        "extension GRDBDatabase {",
+        "",
+    ]
+    queries: list[str] = []
     for index in range(1, query_count + 1):
         target = query_table_index(index, table_count)
         token = query_edit_token(index, edit_token)
@@ -341,11 +379,15 @@ def generate_swiftql(
             f"        }}\n"
             f"    }}\n"
         )
-    queries.append("}")
-
     return {
-        "Sources/Consumer/Tables.swift": "\n".join(tables),
-        "Sources/Consumer/Queries.swift": "\n".join(queries) + "\n",
+        **split_declarations("Tables", tables_header, tables),
+        **split_declarations(
+            "Queries",
+            queries_header,
+            queries,
+            footer=("}",),
+            suffix="\n",
+        ),
     }
 
 
@@ -354,7 +396,8 @@ def generate_grdb(
     query_count: int,
     edit_token: str,
 ) -> dict[str, str]:
-    tables = ["import Foundation", "import GRDB", ""]
+    tables_header = ["import Foundation", "import GRDB", ""]
+    tables: list[str] = []
     for index in range(1, table_count + 1):
         properties = "\n".join(
             f"    public var {swift}: {SWIFT_TYPES[swift]}" for swift, _, _ in COLUMNS
@@ -374,7 +417,8 @@ def generate_grdb(
             f"}}\n"
         )
 
-    queries = ["import Foundation", "import GRDB", ""]
+    queries_header = ["import Foundation", "import GRDB", ""]
+    queries: list[str] = []
     for index in range(1, query_count + 1):
         target = query_table_index(index, table_count)
         token = query_edit_token(index, edit_token)
@@ -392,8 +436,8 @@ def generate_grdb(
         )
 
     return {
-        "Sources/Consumer/Tables.swift": "\n".join(tables),
-        "Sources/Consumer/Queries.swift": "\n".join(queries),
+        **split_declarations("Tables", tables_header, tables),
+        **split_declarations("Queries", queries_header, queries),
     }
 
 
@@ -402,7 +446,8 @@ def generate_sqlite_swift(
     query_count: int,
     edit_token: str,
 ) -> dict[str, str]:
-    tables = ["import Foundation", "import SQLite", ""]
+    tables_header = ["import Foundation", "import SQLite", ""]
+    tables: list[str] = []
     for index in range(1, table_count + 1):
         properties = "\n".join(
             f"    public var {swift}: {SWIFT_TYPES[swift]}" for swift, _, _ in COLUMNS
@@ -431,7 +476,8 @@ def generate_sqlite_swift(
             f"}}\n"
         )
 
-    queries = ["import Foundation", "import SQLite", ""]
+    queries_header = ["import Foundation", "import SQLite", ""]
+    queries: list[str] = []
     for index in range(1, query_count + 1):
         target = query_table_index(index, table_count)
         token = query_edit_token(index, edit_token)
@@ -457,8 +503,8 @@ def generate_sqlite_swift(
         )
 
     return {
-        "Sources/Consumer/Tables.swift": "\n".join(tables),
-        "Sources/Consumer/Queries.swift": "\n".join(queries),
+        **split_declarations("Tables", tables_header, tables),
+        **split_declarations("Queries", queries_header, queries),
     }
 
 
@@ -672,6 +718,78 @@ def prepare_consumer(
     return destination
 
 
+# The only file names the generators write into `Sources/Consumer`:
+# `Tables.swift`, `Tables2.swift`, ..., `Queries.swift`, `Queries2.swift`, ...
+# Nothing else in that directory is ever removed.
+GENERATED_SWIFT_FILE = re.compile(r"^(?:Tables|Queries)(?:[2-9]|[1-9][0-9]+)?\.swift$")
+
+
+def remove_stale_generated_sources(
+    consumer_root: Path,
+    sources: dict[str, str],
+) -> list[str]:
+    """Delete generated `Tables*.swift`/`Queries*.swift` files this scale does not produce.
+
+    One consumer directory is reused for every point, and a large point splits
+    its declarations over more files than a small point. Without this, the
+    files a 500-table point wrote stay in place and a later 1-table point
+    compiles them too (issue #670). Only names that match the generator's own
+    pattern are candidates; template files such as `Support.swift` stay.
+    """
+
+    directory = consumer_root / "Sources" / "Consumer"
+    if not directory.is_dir():
+        return []
+    removed: list[str] = []
+    for path in sorted(directory.iterdir()):
+        relative = f"Sources/Consumer/{path.name}"
+        if (
+            path.is_file()
+            and GENERATED_SWIFT_FILE.match(path.name)
+            and relative not in sources
+        ):
+            path.unlink()
+            removed.append(relative)
+    return removed
+
+
+def consumer_source_files(consumer_root: Path) -> list[str]:
+    """Every file directly in the consumer's `Sources/Consumer`, as relative paths."""
+
+    directory = consumer_root / "Sources" / "Consumer"
+    if not directory.is_dir():
+        return []
+    return sorted(
+        f"Sources/Consumer/{path.name}"
+        for path in directory.iterdir()
+        if path.is_file() and not path.name.startswith(".")
+    )
+
+
+def template_source_files(spec: ConsumerSpec) -> list[str]:
+    """The checked-in, hand-written files of a consumer template's `Sources/Consumer`."""
+
+    return consumer_source_files(CONSUMER_TEMPLATE_DIRECTORY / spec.template_name)
+
+
+def verify_consumer_sources(
+    consumer_root: Path,
+    spec: ConsumerSpec,
+    generated: dict[str, str],
+) -> list[str]:
+    """Require that `Sources/Consumer` holds exactly the template and generated files."""
+
+    expected = sorted(set(template_source_files(spec)) | set(generated))
+    actual = consumer_source_files(consumer_root)
+    if actual != expected:
+        raise HarnessError(
+            f"{spec.identifier} Sources/Consumer does not hold exactly its template "
+            f"and generated files: extra {sorted(set(actual) - set(expected))!r}, "
+            f"missing {sorted(set(expected) - set(actual))!r}"
+        )
+    return actual
+
+
 def write_generated_sources(
     consumer_root: Path,
     spec: ConsumerSpec,
@@ -690,6 +808,7 @@ def write_generated_sources(
     """
 
     sources = generate_sources(spec, table_count, query_count, edit_token)
+    remove_stale_generated_sources(consumer_root, sources)
     digests: dict[str, str] = {}
     written: list[str] = []
     for relative, text in sorted(sources.items()):
@@ -721,18 +840,48 @@ def generated_source_bytes(
 # --------------------------------------------------------------------------
 
 
+# `-v` makes a recompilation visible in the log under both SwiftPM build
+# systems. The native build system prints `Compiling Consumer ...` and
+# `Emitting module Consumer` even without it. Swift Build (`swiftbuild`, the
+# default from Swift 6.4 / Xcode 27) prints only `[4 / 7] Consumer` progress
+# lines, and only its verbose driver invocation (`... swiftc ... -module-name
+# Consumer ...`) proves that the Consumer module compiled. A no-op build prints
+# no such invocation under either build system.
 BUILD_ARGUMENTS = (
     "swift",
     "build",
+    "-v",
     "--configuration",
     BUILD_CONFIGURATION,
     "--product",
     PRODUCT_NAME,
 )
 
+# Must stay identical to summarize.py; test_run.py checks that they agree.
 RECOMPILE_MARKER = re.compile(
-    rf"(Compiling {TARGET_NAME}\b|Emitting module {TARGET_NAME}\b)"
+    rf"(Compiling {TARGET_NAME}\b|Emitting module {TARGET_NAME}\b"
+    rf"|-module-name {TARGET_NAME}\b)"
 )
+
+
+def detect_build_system(text: str) -> str:
+    """Which SwiftPM build system wrote a build log: native, swiftbuild, or unknown."""
+
+    plain = ANSI_ESCAPE.sub("", text)
+    if re.search(r"^\s*Build of product '[^']+' complete!", plain, re.MULTILINE) or re.search(
+        r"^\s*\[\d+/\d+\] ", plain, re.MULTILINE
+    ):
+        return "native"
+    # Swift Build prints these lines even for a verbose no-op build, which has
+    # no compiler invocation and no `[n / m]` progress line.
+    if re.search(
+        r"builtin-SwiftDriver|^\s*\[Planning deferred tasks\]|^\s*\[\s*\d+ / \d+\]"
+        r"|^Planning build\s*$|^Create build description\s*$|^Target PACKAGE-(?:TARGET|PRODUCT):",
+        plain,
+        re.MULTILINE,
+    ):
+        return "swiftbuild"
+    return "unknown"
 
 TIME_LINE = re.compile(
     r"^\s*([0-9]+\.[0-9]+)\s+real\s+([0-9]+\.[0-9]+)\s+user\s+"
@@ -743,6 +892,19 @@ PEAK_RSS_LINE = re.compile(
     r"^\s*(\d+)\s+maximum resident set size\s*$",
     re.MULTILINE,
 )
+# SwiftPM's own build duration. The rule and its constants must stay identical
+# to summarize.py, which documents why these values were chosen; test_run.py
+# checks that the two modules agree.
+SWIFTPM_COMPLETE_LINE = re.compile(
+    r"^\s*Build (?:of product '[^']+' )?complete! "
+    r"\(([0-9]+(?:[.,][0-9]+)?) ?(?:s|sec|seconds)\)\s*$"
+)
+ANSI_ESCAPE = re.compile(
+    r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-Z\\-_])"
+)
+WALL_TO_SWIFTPM_FACTOR = 2.0
+WALL_TO_SWIFTPM_ALLOWANCE_SECONDS = 2.0
+DEFAULT_REJECTED_SAMPLE_RETRIES = 2
 
 
 def macos_time_available() -> bool:
@@ -806,6 +968,43 @@ def optional_file_bytes(path: Path) -> int | None:
     return None
 
 
+def consumer_object_bytes(consumer_root: Path, binary_directory: Path) -> int | None:
+    """The Consumer target's per-file object bytes under either build system.
+
+    The native build system writes them to `<bin>/Consumer.build`. Swift Build
+    writes them to `.build/out/Intermediates.noindex/<Project>.build/<Config>/
+    Consumer-t.build/Objects-normal/<arch>`; its single prelinked
+    `Products/<Config>/Consumer.o` is not counted, so both layouts measure the
+    same per-file objects.
+    """
+
+    native = directory_bytes(binary_directory / f"{TARGET_NAME}.build", ".o")
+    if native is not None:
+        return native
+    intermediates = consumer_root / ".build" / "out" / "Intermediates.noindex"
+    totals = [
+        directory_bytes(path, ".o")
+        for path in sorted(
+            intermediates.glob(
+                f"*.build/{BUILD_CONFIGURATION.capitalize()}/{TARGET_NAME}-t.build"
+            )
+        )
+    ]
+    found = [total for total in totals if total is not None]
+    return sum(found) if found else None
+
+
+def consumer_swiftmodule_bytes(binary_directory: Path) -> int | None:
+    """`<bin>/Modules/Consumer.swiftmodule` (native) or `<bin>/Consumer.swiftmodule` (Swift Build)."""
+
+    native = optional_file_bytes(
+        binary_directory / "Modules" / f"{TARGET_NAME}.swiftmodule"
+    )
+    if native is not None:
+        return native
+    return optional_file_bytes(binary_directory / f"{TARGET_NAME}.swiftmodule")
+
+
 def collect_artifacts(consumer_root: Path, spec: ConsumerSpec) -> dict[str, object]:
     """Measure build outputs outside every timed interval."""
 
@@ -817,12 +1016,8 @@ def collect_artifacts(consumer_root: Path, spec: ConsumerSpec) -> dict[str, obje
             f"Enlighter produced no generated Swift for {spec.identifier}"
         )
     return {
-        "swiftmoduleBytes": optional_file_bytes(
-            binary_directory / "Modules" / f"{TARGET_NAME}.swiftmodule"
-        ),
-        "objectBytes": directory_bytes(
-            binary_directory / f"{TARGET_NAME}.build", ".o"
-        ),
+        "swiftmoduleBytes": consumer_swiftmodule_bytes(binary_directory),
+        "objectBytes": consumer_object_bytes(consumer_root, binary_directory),
         "staticLibraryBytes": optional_file_bytes(
             binary_directory / f"lib{PRODUCT_NAME}.a"
         ),
@@ -867,6 +1062,43 @@ def parse_peak_rss(text: str) -> int:
     return value
 
 
+def parse_swiftpm_duration(text: str) -> float:
+    """SwiftPM's build duration, with exactly the rules of summarize.py.
+
+    ANSI codes are removed, the text is split on line feeds and carriage
+    returns, a `,` decimal mark is read as `.`, and more than one `complete!`
+    line yields the sum of their durations.
+    """
+
+    plain = ANSI_ESCAPE.sub("", text)
+    durations: list[float] = []
+    for segment in re.split(r"\r\n|\r|\n", plain):
+        match = SWIFTPM_COMPLETE_LINE.match(segment)
+        if match:
+            durations.append(float(match.group(1).replace(",", ".")))
+    if not durations:
+        raise HarnessError(
+            "could not find a SwiftPM \"Build of product '...' complete! "
+            "(N.NNs)\" line in the build output"
+        )
+    for duration in durations:
+        if duration <= 0.0:
+            raise HarnessError(
+                f"SwiftPM build duration must be positive: {duration}"
+            )
+    return sum(durations)
+
+
+def wall_limit_seconds(swiftpm_seconds: float) -> float:
+    return (
+        WALL_TO_SWIFTPM_FACTOR * swiftpm_seconds + WALL_TO_SWIFTPM_ALLOWANCE_SECONDS
+    )
+
+
+def wall_is_consistent(wall_seconds: float, swiftpm_seconds: float) -> bool:
+    return wall_seconds <= wall_limit_seconds(swiftpm_seconds)
+
+
 @dataclasses.dataclass(frozen=True)
 class MeasurementRequest:
     spec: ConsumerSpec
@@ -879,6 +1111,13 @@ class MeasurementRequest:
     runs_directory: Path
     output_directory: Path
     total_measurements: int
+    # Puts the consumer into this build mode's starting state. It runs before
+    # every attempt, because a retried clean or one-query-edit build must
+    # invalidate the consumer module again. The argument is the 1-based attempt.
+    prepare: Callable[[int], None] = lambda attempt: None
+    # One attempt plus the retries allowed for a sample whose wall time is
+    # inconsistent with SwiftPM's own build duration.
+    max_attempts: int = 1
 
 
 def measure_build(request: MeasurementRequest) -> dict[str, object]:
@@ -889,58 +1128,81 @@ def measure_build(request: MeasurementRequest) -> dict[str, object]:
     )
     log_path = request.runs_directory / f"{stem}.build.log"
 
-    use_macos_time = macos_time_available()
-    command: list[str] = [str(argument) for argument in BUILD_ARGUMENTS]
-    if use_macos_time:
-        command = ["/usr/bin/time", "-l", *command]
-
-    print(
-        f"[{request.schedule_index:03d}/{request.total_measurements:03d}] "
-        f"{request.spec.identifier} tables={request.table_count} "
-        f"queries={request.query_count} {request.build_mode} "
-        f"repetition {request.repetition}",
-        flush=True,
-    )
-    started_at = utc_timestamp()
-    completed = subprocess.run(
-        command,
-        cwd=request.consumer_root,
-        env=build_environment(),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        check=False,
-    )
-    finished_at = utc_timestamp()
-    log_path.write_bytes(completed.stdout)
-    text = completed.stdout.decode("utf-8", errors="replace")
-    if completed.returncode != 0:
-        raise HarnessError(
-            f"{stem} build exited with {completed.returncode}; "
-            f"raw output: {log_path}\n{text.strip()}"
-        )
-
-    recompiled = RECOMPILE_MARKER.search(text) is not None
-    if request.build_mode == "noop_incremental" and recompiled:
-        raise HarnessError(
-            f"{stem} recompiled the consumer target during a no-op build"
-        )
-    if request.build_mode != "noop_incremental" and not recompiled:
-        raise HarnessError(
-            f"{stem} did not recompile the consumer target; the build mode did "
-            f"not invalidate the module"
-        )
-
-    if use_macos_time:
-        wall, user, system = parse_time_output(text)
-        peak_rss: int | None = parse_peak_rss(text)
-        rss_reason: str | None = None
-        timing_method = "usr_bin_time_l_macos"
-    else:
+    if not macos_time_available():
         raise HarnessError(
             "/usr/bin/time -l is unavailable on this platform; the harness "
             "records wall, user, system, and peak RSS together and refuses to "
             "emit a partial measurement"
         )
+    command = ["/usr/bin/time", "-l", *(str(argument) for argument in BUILD_ARGUMENTS)]
+    if request.max_attempts < 1:
+        raise HarnessError("a measurement needs at least one attempt")
+
+    for attempt in range(1, request.max_attempts + 1):
+        request.prepare(attempt)
+        print(
+            f"[{request.schedule_index:03d}/{request.total_measurements:03d}] "
+            f"{request.spec.identifier} tables={request.table_count} "
+            f"queries={request.query_count} {request.build_mode} "
+            f"repetition {request.repetition}"
+            + (f" attempt {attempt}" if attempt > 1 else ""),
+            flush=True,
+        )
+        started_at = utc_timestamp()
+        completed = subprocess.run(
+            command,
+            cwd=request.consumer_root,
+            env=build_environment(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+        )
+        finished_at = utc_timestamp()
+        log_path.write_bytes(completed.stdout)
+        text = completed.stdout.decode("utf-8", errors="replace")
+        if completed.returncode != 0:
+            raise HarnessError(
+                f"{stem} build exited with {completed.returncode}; "
+                f"raw output: {log_path}\n{text.strip()}"
+            )
+
+        recompiled = RECOMPILE_MARKER.search(text) is not None
+        if request.build_mode == "noop_incremental" and recompiled:
+            raise HarnessError(
+                f"{stem} recompiled the consumer target during a no-op build"
+            )
+        if request.build_mode != "noop_incremental" and not recompiled:
+            raise HarnessError(
+                f"{stem} did not recompile the consumer target; the build mode "
+                f"did not invalidate the module"
+            )
+
+        wall, user, system = parse_time_output(text)
+        peak_rss: int | None = parse_peak_rss(text)
+        swiftpm_seconds = parse_swiftpm_duration(text)
+        if wall_is_consistent(wall, swiftpm_seconds):
+            break
+
+        # Keep the rejected raw output beside the accepted logs, under a name
+        # that no report references, and measure the same state again.
+        rejected_log = request.runs_directory / (
+            f"{stem}.rejected-{attempt:02d}.build.log"
+        )
+        log_path.replace(rejected_log)
+        message = (
+            f"{stem} attempt {attempt}: wall {wall:.2f} s is greater than "
+            f"{wall_limit_seconds(swiftpm_seconds):.2f} s, the limit for "
+            f"SwiftPM's own {swiftpm_seconds:.2f} s build; raw output kept as "
+            f"{rejected_log.name}"
+        )
+        if attempt == request.max_attempts:
+            raise HarnessError(
+                f"{message}. No attempts remain; record again on an idle host."
+            )
+        print(f"  rejected: {message}", flush=True)
+
+    rss_reason: str | None = None
+    timing_method = "usr_bin_time_l_macos"
 
     return {
         "consumer": request.spec.identifier,
@@ -957,15 +1219,92 @@ def measure_build(request: MeasurementRequest) -> dict[str, object]:
         "peakRSSBytes": peak_rss,
         "peakRSSUnavailableReason": rss_reason,
         "timingMethod": timing_method,
+        "buildSystem": detect_build_system(text),
         "recompiledConsumerTarget": recompiled,
         "rawLog": str(log_path.relative_to(request.output_directory)),
         "rawLogSHA256": sha256_file(log_path),
     }
 
 
+def prepare_build_mode(
+    consumer_root: Path,
+    spec: ConsumerSpec,
+    table_count: int,
+    query_count: int,
+    build_mode: str,
+    repetition: int,
+    attempt: int,
+) -> None:
+    """Put the consumer into `build_mode`'s starting state before one attempt."""
+
+    if build_mode == "clean_dependency_warm":
+        # Rewriting every generated file invalidates the whole consumer module
+        # while the dependency and macro-plugin builds stay warm.
+        _, written = write_generated_sources(
+            consumer_root,
+            spec,
+            table_count,
+            query_count,
+            BASE_EDIT_TOKEN,
+            rewrite_unchanged=True,
+        )
+        expected_files = len(
+            generate_sources(spec, table_count, query_count, BASE_EDIT_TOKEN)
+        )
+        if len(written) != expected_files:
+            raise HarnessError(
+                f"clean mode rewrote {len(written)} of {expected_files} "
+                f"generated files"
+            )
+    elif build_mode == "one_query_edit":
+        # A retry needs a literal that differs from the rejected attempt's, or
+        # nothing would change and the consumer would not recompile.
+        token = (
+            f"edit{repetition}"
+            if attempt == 1
+            else f"edit{repetition}retry{attempt}"
+        )
+        _, written = write_generated_sources(
+            consumer_root,
+            spec,
+            table_count,
+            query_count,
+            token,
+        )
+        if written != ["Sources/Consumer/Queries.swift"]:
+            raise HarnessError(
+                f"a one-query edit touched {written!r} instead of only the "
+                f"query file"
+            )
+
+
 # --------------------------------------------------------------------------
 # Matrix definition
 # --------------------------------------------------------------------------
+
+# Named table and query scale sets. `--tables` and `--queries` override the
+# preset's axis when given.
+MATRIX_PRESETS: dict[str, tuple[tuple[int, ...], tuple[int, ...]]] = {
+    "canonical": (CANONICAL_SCALES, CANONICAL_SCALES),
+    # The reduced matrix of the 2026-08-02 recording.
+    "reduced": ((1, 10), (1, 10)),
+    # Tables past ten (issue #670). The query axis stops at 100 so that one
+    # recording pass stays inside a practical wall-clock budget.
+    "extended": ((1, 10, 100, 500), (1, 10, 100)),
+}
+
+
+def resolve_matrix(
+    preset: str | None,
+    tables: Sequence[int] | None,
+    queries: Sequence[int] | None,
+) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    preset_tables, preset_queries = MATRIX_PRESETS[preset or "canonical"]
+    return (
+        tuple(tables) if tables is not None else preset_tables,
+        tuple(queries) if queries is not None else preset_queries,
+    )
+
 
 
 def matrix_points(
@@ -1130,16 +1469,43 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help="report path (default: <workspace>/compile-time-results.json)",
     )
     parser.add_argument(
+        "--matrix",
+        choices=sorted(MATRIX_PRESETS),
+        help=(
+            "named table and query scales: canonical (1,10,100,500 x "
+            "1,10,100,500), extended (1,10,100,500 x 1,10,100), or reduced "
+            "(1,10 x 1,10); --tables and --queries override one axis "
+            "(default: canonical)"
+        ),
+    )
+    parser.add_argument(
         "--tables",
         type=parse_scale_list,
-        default=CANONICAL_SCALES,
-        help="table scales to record (default: 1,10,100,500)",
+        default=None,
+        help="table scales to record (default: the --matrix preset)",
     )
     parser.add_argument(
         "--queries",
         type=parse_scale_list,
-        default=CANONICAL_SCALES,
-        help="query scales to record (default: 1,10,100,500)",
+        default=None,
+        help="query scales to record (default: the --matrix preset)",
+    )
+    parser.add_argument(
+        "--rejected-sample-retries",
+        type=int,
+        default=DEFAULT_REJECTED_SAMPLE_RETRIES,
+        help=(
+            "extra attempts for a build whose wall time is inconsistent with "
+            "SwiftPM's own duration before the run fails (default: 2)"
+        ),
+    )
+    parser.add_argument(
+        "--generate-only",
+        action="store_true",
+        help=(
+            "write every selected point's consumer sources under "
+            "<workspace>/Generated without running SwiftPM"
+        ),
     )
     parser.add_argument(
         "--consumers",
@@ -1178,6 +1544,46 @@ def create_argument_parser() -> argparse.ArgumentParser:
         ),
     )
     return parser
+
+
+def generate_only(
+    workspace: Path,
+    identifiers: Sequence[str],
+    table_scales: Sequence[int],
+    query_scales: Sequence[int],
+) -> int:
+    """Write every selected point's sources without SwiftPM, for inspection."""
+
+    for identifier in identifiers:
+        spec = CONSUMERS_BY_IDENTIFIER[identifier]
+        for table_count, query_count in consumer_points(
+            spec,
+            table_scales,
+            query_scales,
+        ):
+            destination = (
+                workspace
+                / "Generated"
+                / spec.identifier
+                / f"t{table_count:03d}-q{query_count:03d}"
+            )
+            sources = generate_sources(
+                spec,
+                table_count,
+                query_count,
+                BASE_EDIT_TOKEN,
+            )
+            for relative, text in sorted(sources.items()):
+                path = destination / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text, encoding="utf-8")
+            print(
+                f"{spec.identifier} tables={table_count} queries={query_count}: "
+                f"{len(sources)} file(s), "
+                f"{sum(len(text.encode('utf-8')) for text in sources.values())} bytes",
+                flush=True,
+            )
+    return 0
 
 
 def bootstrap_resolved(
@@ -1220,6 +1626,20 @@ def main(arguments: Sequence[str] | None = None) -> int:
     try:
         if options.repetitions < 1:
             raise HarnessError("--repetitions must be at least 1")
+        if options.rejected_sample_retries < 0:
+            raise HarnessError("--rejected-sample-retries must not be negative")
+        if options.generate_only and (
+            options.prepare_only or options.bootstrap_resolved
+        ):
+            raise HarnessError(
+                "--generate-only cannot be combined with --prepare-only or "
+                "--bootstrap-resolved"
+            )
+        table_scales, query_scales = resolve_matrix(
+            options.matrix,
+            options.tables,
+            options.queries,
+        )
         if (
             not math.isfinite(options.cooldown_seconds)
             or options.cooldown_seconds < 0
@@ -1237,6 +1657,13 @@ def main(arguments: Sequence[str] | None = None) -> int:
         runs_directory = output_directory / "Runs"
 
         ensure_empty_workspace(workspace)
+        if options.generate_only:
+            return generate_only(
+                workspace,
+                options.consumers,
+                table_scales,
+                query_scales,
+            )
         swiftql_revision, swiftql_dirty = inspect_swiftql_checkout(
             swiftql_checkout,
             options.allow_dirty,
@@ -1266,8 +1693,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
         for spec in selected:
             for table_count, query_count in consumer_points(
                 spec,
-                options.tables,
-                options.queries,
+                table_scales,
+                query_scales,
             ):
                 plan.append((spec, table_count, query_count))
 
@@ -1316,6 +1743,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 BASE_EDIT_TOKEN,
                 rewrite_unchanged=True,
             )
+            verify_consumer_sources(consumer_root, spec, source_digests)
             print(
                 f"+ warm and validate {spec.identifier} tables={table_count} "
                 f"queries={query_count}",
@@ -1339,6 +1767,11 @@ def main(arguments: Sequence[str] | None = None) -> int:
                         query_count,
                     ),
                     "generatedSourceSHA256": dict(sorted(source_digests.items())),
+                    "consumerSourceFiles": verify_consumer_sources(
+                        consumer_root,
+                        spec,
+                        source_digests,
+                    ),
                     **collect_artifacts(consumer_root, spec),
                 }
             )
@@ -1347,44 +1780,6 @@ def main(arguments: Sequence[str] | None = None) -> int:
 
             for repetition in range(1, options.repetitions + 1):
                 for build_mode in spec.build_modes:
-                    if build_mode == "clean_dependency_warm":
-                        # Rewriting every generated file invalidates the whole
-                        # consumer module while the dependency and macro-plugin
-                        # builds stay warm.
-                        _, written = write_generated_sources(
-                            consumer_root,
-                            spec,
-                            table_count,
-                            query_count,
-                            BASE_EDIT_TOKEN,
-                            rewrite_unchanged=True,
-                        )
-                        expected_files = len(
-                            generate_sources(
-                                spec,
-                                table_count,
-                                query_count,
-                                BASE_EDIT_TOKEN,
-                            )
-                        )
-                        if len(written) != expected_files:
-                            raise HarnessError(
-                                f"clean mode rewrote {len(written)} of "
-                                f"{expected_files} generated files"
-                            )
-                    elif build_mode == "one_query_edit":
-                        _, written = write_generated_sources(
-                            consumer_root,
-                            spec,
-                            table_count,
-                            query_count,
-                            f"edit{repetition}",
-                        )
-                        if written != ["Sources/Consumer/Queries.swift"]:
-                            raise HarnessError(
-                                f"a one-query edit touched {written!r} instead "
-                                f"of only the query file"
-                            )
                     schedule_index += 1
                     measurements.append(
                         measure_build(
@@ -1399,6 +1794,16 @@ def main(arguments: Sequence[str] | None = None) -> int:
                                 runs_directory=runs_directory,
                                 output_directory=output_directory,
                                 total_measurements=total_measurements,
+                                prepare=functools.partial(
+                                    prepare_build_mode,
+                                    consumer_root,
+                                    spec,
+                                    table_count,
+                                    query_count,
+                                    build_mode,
+                                    repetition,
+                                ),
+                                max_attempts=1 + options.rejected_sample_retries,
                             )
                         )
                     )
@@ -1431,8 +1836,16 @@ def main(arguments: Sequence[str] | None = None) -> int:
             "workload": {
                 "identifier": "consumer_compile_time_scalability",
                 "canonicalScales": list(CANONICAL_SCALES),
-                "recordedTableScales": list(options.tables),
-                "recordedQueryScales": list(options.queries),
+                "recordedTableScales": list(table_scales),
+                "recordedQueryScales": list(query_scales),
+                "matrixPreset": options.matrix,
+                "buildSystems": sorted(
+                    {str(item["buildSystem"]) for item in measurements}
+                ),
+                "buildArguments": list(BUILD_ARGUMENTS),
+                "declarationsPerFile": DECLARATIONS_PER_FILE,
+                "wallToSwiftPMFactor": WALL_TO_SWIFTPM_FACTOR,
+                "wallToSwiftPMAllowanceSeconds": WALL_TO_SWIFTPM_ALLOWANCE_SECONDS,
                 "baselineTableCount": BASELINE_TABLE_COUNT,
                 "baselineQueryCount": BASELINE_QUERY_COUNT,
                 "buildModes": list(BUILD_MODES),

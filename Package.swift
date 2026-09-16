@@ -32,6 +32,18 @@ let package = Package(
             name: "SwiftQLSQLiteBuildValidationValidator",
             targets: ["SwiftQLSQLiteBuildValidationValidator"]
         ),
+        .library(
+            name: "SwiftQLSQLiteBuildValidationDeclaredQueries",
+            targets: ["SwiftQLSQLiteBuildValidationDeclaredQueries"]
+        ),
+        .executable(
+            name: "swiftql-declared-query-registry",
+            targets: ["swiftql-declared-query-registry"]
+        ),
+        .plugin(
+            name: "SwiftQLDeclaredQueryRegistryPlugin",
+            targets: ["SwiftQLDeclaredQueryRegistryPlugin"]
+        ),
         .executable(
             name: "swiftql-benchmark",
             targets: ["SwiftQLBenchmarkCLI"]
@@ -62,7 +74,11 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-syntax.git", from: "509.0.0"),
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "6.29.3"),
         .package(url: "https://github.com/apple/swift-docc-plugin.git", from: "1.0.0"),
-        .package(url: "https://github.com/OpenCombine/OpenCombine.git", exact: "0.14.0"),
+        // OpenCombine is linked on Linux only (see the `condition:` on each
+        // product below). Apple platforms use Combine. `Package.resolved` keeps
+        // the tested 0.14.0 pin; the range lets consumers resolve a compatible
+        // release when another package in their graph needs one.
+        .package(url: "https://github.com/OpenCombine/OpenCombine.git", from: "0.14.0"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -139,9 +155,9 @@ let package = Package(
                 "SwiftQLCore",
                 "SQLMacros",
                 .product(name: "GRDB", package: "GRDB.swift"),
-                .product(name: "OpenCombine", package: "OpenCombine"),
-                .product(name: "OpenCombineDispatch", package: "OpenCombine"),
-                .product(name: "OpenCombineFoundation", package: "OpenCombine"),
+                .product(name: "OpenCombine", package: "OpenCombine", condition: .when(platforms: [.linux])),
+                .product(name: "OpenCombineDispatch", package: "OpenCombine", condition: .when(platforms: [.linux])),
+                .product(name: "OpenCombineFoundation", package: "OpenCombine", condition: .when(platforms: [.linux])),
             ]
         ),
 
@@ -224,6 +240,70 @@ let package = Package(
             path: "Sources/SwiftQLSQLiteBuildValidationValidatorCLI"
         ),
 
+        // Projects the declared queries of a target into a format version 2
+        // build-validation manifest (#659). `@SQLQueries` lists its
+        // specifications in a generated `declaredQueries` member, and this
+        // target turns that list into manifest entries pinned to a snapshot.
+        // Generation only: validation stays in the validator above.
+        .target(
+            name: "SwiftQLSQLiteBuildValidationDeclaredQueries",
+            dependencies: [
+                "SwiftQL",
+                "SwiftQLSQLiteBuildValidationManifest",
+                "SwiftQLSQLiteBuildValidationValidator",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ]
+        ),
+
+        // Applies the registry plugin to itself, so the declarations in the
+        // test sources are discovered exactly as an application's are.
+        .testTarget(
+            name: "SwiftQLSQLiteBuildValidationDeclaredQueriesTests",
+            dependencies: [
+                "SwiftQL",
+                "SwiftQLCore",
+                "SwiftQLSQLiteBuildValidationDeclaredQueries",
+                "SwiftQLSQLiteBuildValidationManifest",
+                "SwiftQLSQLiteBuildValidationValidator",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            plugins: ["SwiftQLDeclaredQueryRegistryPlugin"]
+        ),
+
+        // Finds every @SQLQuery and @SQLQueries declaration in Swift source
+        // with SwiftSyntax and renders a target's declared-query registry
+        // (#659). A regular target so the scan is unit-testable.
+        .target(
+            name: "SwiftQLDeclaredQueryDiscovery",
+            dependencies: [
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftParser", package: "swift-syntax"),
+            ]
+        ),
+
+        // The registry generator the plugin below runs. Target and product
+        // share a name for the same reason `swiftql-build-validate` does
+        // (#492).
+        .executableTarget(
+            name: "swiftql-declared-query-registry",
+            dependencies: ["SwiftQLDeclaredQueryDiscovery"],
+            path: "Sources/SwiftQLDeclaredQueryRegistryCLI"
+        ),
+
+        // Generates `<Target>DeclaredQueries` into the target it is applied
+        // to, from that target's own sources, so a manifest generator needs
+        // no hand-written list of declared queries (#659).
+        .plugin(
+            name: "SwiftQLDeclaredQueryRegistryPlugin",
+            capability: .buildTool(),
+            dependencies: ["swiftql-declared-query-registry"]
+        ),
+
+        .testTarget(
+            name: "SwiftQLDeclaredQueryDiscoveryTests",
+            dependencies: ["SwiftQLDeclaredQueryDiscovery"]
+        ),
+
         // The swiftql-index-advisor codemod (#399). Reads the verified
         // recommendations the validator wrote and either reports them or
         // renders them as a generated, checked-in SQL artifact. Consumes the
@@ -288,9 +368,9 @@ let package = Package(
                 "SwiftQLNorthwindFixtures",
                 "SwiftQLSQLiteConformanceFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),
-                .product(name: "OpenCombine", package: "OpenCombine"),
-                .product(name: "OpenCombineDispatch", package: "OpenCombine"),
-                .product(name: "OpenCombineFoundation", package: "OpenCombine"),
+                .product(name: "OpenCombine", package: "OpenCombine", condition: .when(platforms: [.linux])),
+                .product(name: "OpenCombineDispatch", package: "OpenCombine", condition: .when(platforms: [.linux])),
+                .product(name: "OpenCombineFoundation", package: "OpenCombine", condition: .when(platforms: [.linux])),
             ]
         ),
 
@@ -303,7 +383,7 @@ let package = Package(
                 "SwiftQL",
                 "SwiftQLSQLiteConformanceFixtures",
                 .product(name: "GRDB", package: "GRDB.swift"),
-                .product(name: "OpenCombine", package: "OpenCombine"),
+                .product(name: "OpenCombine", package: "OpenCombine", condition: .when(platforms: [.linux])),
             ]
         ),
 

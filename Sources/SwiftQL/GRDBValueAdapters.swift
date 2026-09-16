@@ -79,7 +79,7 @@ package struct GRDBRowDecoder<Output> {
         try decode(values: row.databaseValues.map(\.sqliteDialectValue))
     }
 
-    func decode(values: [XLSQLiteValue]) throws -> Output {
+    package func decode(values: [XLSQLiteValue]) throws -> Output {
         try XLColumnValuesRowReader<Output>.withReader(
             XLSQLiteValueReader(values: values)
         ) { columnReader in

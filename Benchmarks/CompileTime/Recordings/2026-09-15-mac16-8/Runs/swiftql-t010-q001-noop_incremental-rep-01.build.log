@@ -1,0 +1,179 @@
+Building for debugging...
+Planning build
+[Computing dependencies]
+info: Building targets in dependency order
+info: Target dependency graph (25 targets)
+info: Target 'ConsumerLibrary-product' in project 'SwiftQLConsumer'
+info: ➜ Explicit dependency on target 'Consumer' in project 'SwiftQLConsumer'
+info: ➜ Explicit dependency on target 'SwiftQL-product' in project 'SwiftQL'
+info: Target 'Consumer' in project 'SwiftQLConsumer'
+info: ➜ Explicit dependency on target 'SwiftQL-product' in project 'SwiftQL'
+info: Target 'SwiftQL-product' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'SwiftQL' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'SwiftQLCore' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'SQLMacros' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'GRDB-product' in project 'GRDB'
+info: Target 'SwiftQL' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'SwiftQLCore' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'SQLMacros' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'GRDB-product' in project 'GRDB'
+info: Target 'GRDB-product' in project 'GRDB'
+info: ➜ Explicit dependency on target 'GRDB' in project 'GRDB'
+info: ➜ Explicit dependency on target 'GRDB_GRDB' in project 'GRDB'
+info: Target 'GRDB' in project 'GRDB'
+info: ➜ Explicit dependency on target 'GRDB_GRDB' in project 'GRDB'
+info: ➜ Explicit dependency on target 'CSQLite' in project 'GRDB'
+info: Target 'CSQLite' in project 'GRDB' (no dependencies)
+info: Target 'GRDB_GRDB' in project 'GRDB' (no dependencies)
+info: Target 'SQLMacros' in project 'SwiftQL'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacros-product' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftCompilerPlugin-product' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser-product' in project 'swift-syntax'
+info: Target 'SwiftParser-product' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: Target 'SwiftCompilerPlugin-product' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftCompilerPlugin' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftOperators' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxBuilder' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacros' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacroExpansion' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftCompilerPluginMessageHandling' in project 'swift-syntax'
+info: Target 'SwiftCompilerPlugin' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftOperators' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxBuilder' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacros' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacroExpansion' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftCompilerPluginMessageHandling' in project 'swift-syntax'
+info: Target 'SwiftCompilerPluginMessageHandling' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftOperators' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxBuilder' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacros' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacroExpansion' in project 'swift-syntax'
+info: Target 'SwiftSyntaxMacroExpansion' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxBuilder' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacros' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftOperators' in project 'swift-syntax'
+info: Target 'SwiftOperators' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: Target 'SwiftSyntaxMacros-product' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxMacros' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxBuilder' in project 'swift-syntax'
+info: Target 'SwiftSyntaxMacros' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntaxBuilder' in project 'swift-syntax'
+info: Target 'SwiftSyntaxBuilder' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: Target 'SwiftParserDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftParser' in project 'swift-syntax'
+info: Target 'SwiftBasicFormat' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: Target 'SwiftParser' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: Target 'SwiftDiagnostics' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax' in project 'swift-syntax'
+info: Target 'SwiftSyntax' in project 'swift-syntax'
+info: ➜ Explicit dependency on target 'SwiftSyntax509' in project 'swift-syntax'
+info: Target 'SwiftSyntax509' in project 'swift-syntax' (no dependencies)
+info: Target 'SwiftQLCore' in project 'SwiftQL' (no dependencies)
+Compute target dependency graph
+Gather provisioning inputs
+Planning complete
+Create build description
+Build stat cache for /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk
+    cd /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -o /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/SDKStatCaches.noindex/macosx27.0-26A425-a0facfad118c1a7a18f0aad9463f65497231f6df4def33e022ae2eb8f782df1a.sdkstatcache
+
+Target PACKAGE-TARGET:SwiftSyntax509 up to date.
+Target PACKAGE-TARGET:SwiftSyntax up to date.
+Target PACKAGE-TARGET:SwiftDiagnostics up to date.
+Target PACKAGE-TARGET:SwiftParser up to date.
+Target PACKAGE-TARGET:SwiftBasicFormat up to date.
+Target PACKAGE-TARGET:SwiftParserDiagnostics up to date.
+Target PACKAGE-TARGET:SwiftSyntaxBuilder up to date.
+Target PACKAGE-TARGET:SwiftSyntaxMacros up to date.
+Target PACKAGE-TARGET:SwiftOperators up to date.
+Target PACKAGE-TARGET:SwiftSyntaxMacroExpansion up to date.
+[1 / 9] SwiftCompilerPluginMessageHandling
+Target PACKAGE-TARGET:SwiftCompilerPluginMessageHandling up to date.
+Target PACKAGE-TARGET:SwiftCompilerPlugin up to date.
+Target PACKAGE-TARGET:SQLMacros up to date.
+Target PACKAGE-TARGET:SwiftQLCore up to date.
+Target PACKAGE-RESOURCE:GRDB up to date.
+Target PACKAGE-TARGET:GRDB up to date.
+Target PACKAGE-TARGET:SwiftQL up to date.
+Target PACKAGE-TARGET:Consumer up to date.
+Target PACKAGE-PRODUCT:swiftql-consumer_ConsumerLibrary.ConsumerLibrary up to date.
+Prune stale explicit modules at /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/ExplicitPrecompiledModules
+Prune stale explicit modules at /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/Intermediates.noindex/SwiftExplicitPrecompiledModules
+Prune stale explicit modules at /private/tmp/claude-501/-Users-lukevanin-Developer-nerf-servo/533d6e5a-f2d6-4690-85eb-e93986690750/scratchpad/record-stage-3/workspaces/compile-time/Consumers/swiftql-consumer/.build/out/SDKExplicitPrecompiledModules
+Build complete! (0,38 sec)
+        0.89 real         0.79 user         0.24 sys
+           162758656  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               33341  page reclaims
+                 613  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                  74  voluntary context switches
+                4050  involuntary context switches
+         14188248854  instructions retired
+          3667755549  cycles elapsed
+            99910568  peak memory footprint
