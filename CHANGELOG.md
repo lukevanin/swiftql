@@ -393,6 +393,16 @@
   #766), and the validation plugin also runs in an Xcode app target (issue
   #666). `check-blog-output.sh` and the deployed-post check in
   `documentation.yml` list the post again.
+- Recorded the v1.9.0 JSON surface in the #190 canonical SQLite conformance
+  inventory: the JSON value rules that write a Swift `Bool` as a JSON boolean
+  and reject a blob (issue #671), and the non-optional JSON and JSONB mutation
+  results (issue #664). The JSON path record states the new quoting rule, and
+  the JSON function record states the JSONB-aware validity check and what
+  `jsonArrayLength` returns. The inventory version is now 1.9.0. It records
+  119 public-surface feature records: 115
+  supported, 0 partial, 2 capability-gated, 1 intentionally unsupported, and
+  1 unimplemented. Of the 220 evidence records, 133 exercise real SQLite and
+  cite one captured SQLite 3.51.0 environment.
 
 ## [1.8.1] - 2026-09-15
 

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "inventory_version": "1.8.1",
+  "inventory_version": "1.9.0",
   "coordination_issue": 190,
   "scope": {
     "claim": "Evidence-backed conformance for SwiftQL's existing public SQLite syntax and adopted behavior surface; not complete SQLite grammar coverage.",
@@ -329,6 +329,50 @@
       ]
     },
     {
+      "id": "evidence.execution.json-array-length.sqlite",
+      "source_path": "Tests/SQLTests/SQLJSONFunctionTests.swift",
+      "test_case": "XLJSONFunctionExecutionTests.testArrayLengthIsZeroForANonArrayAndNullOnlyForAMissingPath",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.execution.json-blob-value.sqlite",
+      "source_path": "Tests/SQLTests/SQLJSONFunctionTests.swift",
+      "test_case": "XLJSONFunctionExecutionTests.testBoundJSONBBytesAreRejectedUnlessPassedThroughAJSONBFunction",
+      "runner_path": null,
+      "layers": [
+        "bindings",
+        "execution",
+        "prepare",
+        "structured-error"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.execution.json-boolean-values.sqlite",
+      "source_path": "Tests/SQLTests/SQLJSONFunctionTests.swift",
+      "test_case": "XLJSONFunctionExecutionTests.testABoolWrittenIntoADocumentReadsBackAsAJSONBoolean",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
       "id": "evidence.execution.json-mutation.sqlite",
       "source_path": "Tests/SQLTests/SQLJSONMutationTests.swift",
       "test_case": "XLJSONMutationExecutionTests.testSinglePathExtractionReturnsTheElementAsASQLValue",
@@ -343,9 +387,37 @@
       ]
     },
     {
+      "id": "evidence.execution.json-non-null-mutation.sqlite",
+      "source_path": "Tests/SQLTests/SQLJSONMutationTests.swift",
+      "test_case": "XLJSONMutationExecutionTests.testSetAddsAndOverwrites",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
       "id": "evidence.execution.json-operators.sqlite",
       "source_path": "Tests/SQLTests/SQLJSONOperatorTests.swift",
       "test_case": "XLJSONOperatorExecutionTests.testAStringKeepsItsQuotesThroughArrowAndLosesThemThroughDoubleArrow",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.execution.json-path-quoted-keys.sqlite",
+      "source_path": "Tests/SQLTests/SQLJSONPathTests.swift",
+      "test_case": "XLJSONPathExecutionTests.testAKeyBeginningWithADoubleQuoteSelectsItsValue",
       "runner_path": null,
       "layers": [
         "execution",
@@ -374,6 +446,35 @@
       "id": "evidence.execution.json-surface.sqlite",
       "source_path": "Tests/SQLTests/SQLJSONFunctionTests.swift",
       "test_case": "XLJSONFunctionExecutionTests.testTypeReportsTheJSONTypeAtTheRootAndAtAPath",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.execution.json-validity-jsonb.sqlite",
+      "source_path": "Tests/SQLTests/SQLJSONFunctionTests.swift",
+      "test_case": "XLJSONFunctionExecutionTests.testTheJSONBAwareCheckAcceptsJSONBThatThePlainCheckRejects",
+      "runner_path": null,
+      "layers": [
+        "execution",
+        "prepare",
+        "runtime-metadata"
+      ],
+      "real_sqlite": true,
+      "environment_ids": [
+        "sqlite-3.51.0-macos-arm64"
+      ]
+    },
+    {
+      "id": "evidence.execution.jsonb-non-null-mutation.sqlite",
+      "source_path": "Tests/SQLTests/SQLJSONBFunctionTests.swift",
+      "test_case": "XLJSONBFunctionExecutionTests.testANonOptionalMutationOnAJSONBDocumentWritesBack",
       "runner_path": null,
       "layers": [
         "execution",
@@ -1560,6 +1661,19 @@
       ]
     },
     {
+      "id": "evidence.syntax.expression.json-non-null-root-removal",
+      "source_path": "Tests/SQLTests/SQLJSONMutationTests.swift",
+      "test_case": "XLJSONMutationRenderingTests.testANonOptionalRemovalRejectsTheRootPath",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "structured-error",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
       "id": "evidence.syntax.expression.render-aggregate-functions",
       "source_path": "Tests/SQLTests/SQLAggregateTests.swift",
       "test_case": "XLAggregateTests.testOptionalAggregateTypesAndRendering",
@@ -1693,9 +1807,34 @@
       "environment_ids": []
     },
     {
+      "id": "evidence.syntax.expression.render-json-blob-value",
+      "source_path": "Tests/SQLTests/SQLJSONFunctionTests.swift",
+      "test_case": "XLJSONFunctionRenderingTests.testADataValueIsRejectedUnlessItIsAJSONBResult",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "structured-error",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
       "id": "evidence.syntax.expression.render-json-mutation",
       "source_path": "Tests/SQLTests/SQLJSONMutationTests.swift",
       "test_case": "XLJSONMutationRenderingTests.testMutationFunctionsRenderTheirPathValuePairsInOrder",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.expression.render-json-non-null-mutation",
+      "source_path": "Tests/SQLTests/SQLJSONMutationTests.swift",
+      "test_case": "XLJSONMutationRenderingTests.testAMutationAssignsToANonNullAndToANullableColumn",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -1729,9 +1868,45 @@
       "environment_ids": []
     },
     {
+      "id": "evidence.syntax.expression.render-json-path-quoting",
+      "source_path": "Tests/SQLTests/SQLJSONPathTests.swift",
+      "test_case": "XLJSONPathRenderingTests.testALeadingDoubleQuoteForcesTheQuotedForm",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
       "id": "evidence.syntax.expression.render-json-surface",
       "source_path": "Tests/SQLTests/SQLJSONFunctionTests.swift",
       "test_case": "XLJSONFunctionRenderingTests.testScalarFunctionsRenderTheirSQLiteNames",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.expression.render-json-validity-jsonb",
+      "source_path": "Tests/SQLTests/SQLJSONFunctionTests.swift",
+      "test_case": "XLJSONFunctionRenderingTests.testTheJSONBAwareValidityCheckRendersTextAndStrictJSONBFlags",
+      "runner_path": null,
+      "layers": [
+        "rendering",
+        "swift-typecheck"
+      ],
+      "real_sqlite": false,
+      "environment_ids": []
+    },
+    {
+      "id": "evidence.syntax.expression.render-json-value-arguments",
+      "source_path": "Tests/SQLTests/SQLJSONFunctionTests.swift",
+      "test_case": "XLJSONFunctionRenderingTests.testABoolLiteralRendersAsAJSONBoolean",
       "runner_path": null,
       "layers": [
         "rendering",
@@ -8686,11 +8861,117 @@
         "evidence.syntax.expression.render-date-json-functions",
         "evidence.syntax.expression.render-json-aggregates",
         "evidence.syntax.expression.render-json-mutation",
-        "evidence.syntax.expression.render-json-surface"
+        "evidence.syntax.expression.render-json-surface",
+        "evidence.syntax.expression.render-json-validity-jsonb",
+        "evidence.execution.json-validity-jsonb.sqlite",
+        "evidence.execution.json-array-length.sqlite"
       ],
       "deviations": [
         "Two members need a newer SQLite than the oldest runtime in the supported matrix: json_valid(X, F), including validJSONOrJSONBOrNull(), needs 3.45.0 and json_pretty needs 3.46.0, while the macOS cells run 3.43.2. Both are covered by execution tests that ask the connection what it defines and skip otherwise, and neither has a combinatorial case, because a missing capability is a failure in that harness rather than a skip.",
-        "SQLite returns NULL rather than false for json_valid(NULL), so validJSON() is deprecated in favour of validJSONOrNull(), whose result is optional. The deprecated spelling still compiles and renders identical SQL."
+        "SQLite returns NULL rather than false for json_valid(NULL), so validJSON() is deprecated in favour of validJSONOrNull(), whose result is optional. The deprecated spelling still compiles and renders identical SQL.",
+        "json_valid(X) without a flag reports false for every JSONB document, so validJSONOrJSONBOrNull() renders the text and JSONB flags together. jsonArrayLength() returns 0 for a value that is not an array and NULL only for a path that selects nothing."
+      ],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": []
+    },
+    {
+      "id": "syntax.expression.json-non-null-mutation",
+      "kind": "syntax",
+      "family": "expression",
+      "title": "Non-optional JSON and JSONB mutation results for a document that is not NULL",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "XLExpression.jsonInserting",
+          "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
+          "source_tokens": [
+            "jsonInserting"
+          ]
+        },
+        {
+          "symbol": "XLExpression.jsonReplacing",
+          "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
+          "source_tokens": [
+            "jsonReplacing"
+          ]
+        },
+        {
+          "symbol": "XLExpression.jsonSetting",
+          "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
+          "source_tokens": [
+            "jsonSetting"
+          ]
+        },
+        {
+          "symbol": "XLExpression.jsonRemoving",
+          "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
+          "source_tokens": [
+            "jsonRemoving"
+          ]
+        },
+        {
+          "symbol": "XLExpression.jsonbInserting",
+          "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
+          "source_tokens": [
+            "jsonbInserting"
+          ]
+        },
+        {
+          "symbol": "XLExpression.jsonbReplacing",
+          "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
+          "source_tokens": [
+            "jsonbReplacing"
+          ]
+        },
+        {
+          "symbol": "XLExpression.jsonbSetting",
+          "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
+          "source_tokens": [
+            "jsonbSetting"
+          ]
+        },
+        {
+          "symbol": "XLExpression.jsonbRemoving",
+          "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
+          "source_tokens": [
+            "jsonbRemoving"
+          ]
+        },
+        {
+          "symbol": "XLSQLValueEncodingError.jsonRootRemoval",
+          "source_path": "Sources/SwiftQL/SQLValueEncodingError.swift",
+          "source_tokens": [
+            "jsonRootRemoval"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/json1.html",
+        "https://www.sqlite.org/json1.html#jsonb"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.9.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-json-functions"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement evaluates the mutation against a document expression that is not optional."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.expression.render-json-non-null-mutation",
+        "evidence.syntax.expression.json-non-null-root-removal",
+        "evidence.execution.json-non-null-mutation.sqlite",
+        "evidence.execution.jsonb-non-null-mutation.sqlite"
+      ],
+      "deviations": [
+        "SQLite returns NULL from json_insert, json_replace, json_set, and json_remove only for a NULL document, so a document typed String or Data gives a result of the same type, and the result assigns to a NOT NULL column without coalesce. json_patch keeps only the optional form, because a NULL patch also gives NULL. The optional forms stay for an optional document and render the same SQL.",
+        "The non-optional jsonRemoving(at:_:) and jsonbRemoving(at:_:) report the root path $ as XLSQLValueEncodingError.jsonRootRemoval(function:) before SQLite prepares the statement, because SQLite returns NULL when it removes the root and the result type cannot hold NULL.",
+        "The JSONB forms need SQLite 3.45.0, which is newer than the oldest runtime in the supported matrix, so their execution case asks the connection whether it defines jsonb before it runs."
       ],
       "follow_up_issues": [],
       "deferral": null,
@@ -8774,10 +9055,100 @@
       ],
       "evidence_ids": [
         "evidence.syntax.expression.render-json-path",
-        "evidence.execution.json-path.sqlite"
+        "evidence.execution.json-path.sqlite",
+        "evidence.syntax.expression.render-json-path-quoting",
+        "evidence.execution.json-path-quoted-keys.sqlite"
       ],
       "deviations": [
+        "A key is rendered in the quoted form when it is empty, when it holds a . or a [, when it begins with a \", or when it holds a control character. SQLite rejects the unquoted spelling of a leading-quote key as a bad JSON path on every version, and a control character has no unquoted spelling, so both are quoted and escaped.",
         "A key holding a double quote, a backslash, or a control character resolves only on a SQLite that unescapes JSON path labels. SQLite 3.51.0 does and 3.43.2 does not, and no single spelling suits both, so SwiftQL renders for the documented newer behaviour and the affected execution cases ask the connection before running."
+      ],
+      "follow_up_issues": [],
+      "deferral": null,
+      "provenance": []
+    },
+    {
+      "id": "syntax.expression.json-value-arguments",
+      "kind": "syntax",
+      "family": "expression",
+      "title": "JSON value arguments write a Boolean as a JSON boolean and reject a blob",
+      "status": "supported",
+      "adoption_status": "already-covered",
+      "public_api": [
+        {
+          "symbol": "jsonArray",
+          "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
+          "source_tokens": [
+            "jsonArray"
+          ]
+        },
+        {
+          "symbol": "jsonObject",
+          "source_path": "Sources/SwiftQL/Functions/JSONFunctions.swift",
+          "source_tokens": [
+            "jsonObject"
+          ]
+        },
+        {
+          "symbol": "XLExpression.jsonSetting",
+          "source_path": "Sources/SwiftQL/Functions/JSONMutation.swift",
+          "source_tokens": [
+            "jsonSetting"
+          ]
+        },
+        {
+          "symbol": "XLExpression.jsonbSetting",
+          "source_path": "Sources/SwiftQL/Functions/JSONBFunctions.swift",
+          "source_tokens": [
+            "jsonbSetting"
+          ]
+        },
+        {
+          "symbol": "XLExpression.jsonGroupArray",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "jsonGroupArray"
+          ]
+        },
+        {
+          "symbol": "jsonGroupObject",
+          "source_path": "Sources/SwiftQL/Functions/AggregateFunctions.swift",
+          "source_tokens": [
+            "jsonGroupObject"
+          ]
+        },
+        {
+          "symbol": "XLSQLValueEncodingError.blobInJSONValue",
+          "source_path": "Sources/SwiftQL/SQLValueEncodingError.swift",
+          "source_tokens": [
+            "blobInJSONValue"
+          ]
+        }
+      ],
+      "sqlite_documentation_urls": [
+        "https://www.sqlite.org/json1.html",
+        "https://www.sqlite.org/json1.html#jsonb"
+      ],
+      "not_sqlite_syntax_reason": null,
+      "minimum_sqlite_version": "3.9.0",
+      "reviewed_sqlite_release": "3.51.0",
+      "reviewed_sqlite_source_id": "2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl",
+      "required_capabilities": [
+        "sqlite-core-parser",
+        "sqlite-json-functions"
+      ],
+      "schema_requirements": [
+        "A real SQLite statement evaluates the rendered value against a bound or literal JSON document."
+      ],
+      "evidence_ids": [
+        "evidence.syntax.expression.render-json-value-arguments",
+        "evidence.syntax.expression.render-json-blob-value",
+        "evidence.execution.json-boolean-values.sqlite",
+        "evidence.execution.json-blob-value.sqlite"
+      ],
+      "deviations": [
+        "SQLite has no boolean storage class, so a Bool literal renders as json('true') or json('false'), and any other Bool expression renders as json(CASE X <> 0 WHEN 1 THEN 'true' WHEN 0 THEN 'false' END), which reads X once and keeps SQL NULL as JSON null. Before this record a Bool reached SQLite as the integer 1 or 0, and a Codable reader of a Bool field failed.",
+        "A Data value is reported as XLSQLValueEncodingError.blobInJSONValue(valueType:function:) before SQLite prepares the statement, unless it is the result of a jsonb function. SQLite rejects a blob JSON value with 'JSON cannot hold BLOB values', or reads the bytes as a document when they are valid JSONB. The check reads the static type, so a Data? value is rejected even when it is SQL NULL at run time."
       ],
       "follow_up_issues": [],
       "deferral": null,
