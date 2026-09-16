@@ -1,7 +1,7 @@
 ---
 title: "What's new in v1.9"
 date: 2026-09-16
-description: "SwiftQL v1.9 makes a declared query the whole read path. A declaration can now be observed by a live query, called inside a transaction, and written with LIKE or REGEXP over a parameter. A new macro gives named bindings a typed packet, and a batch insert runs one prepared statement for a whole transaction."
+description: "SwiftQL v1.9 makes a declared query the whole read path. A declaration can now be observed, called inside a transaction, and written with LIKE or REGEXP over a parameter. A new macro gives named bindings a typed packet, and a batch insert prepares one statement for a whole transaction."
 ---
 
 SwiftQL has had declared queries since v1.5. You write a Swift method, you give
@@ -83,9 +83,12 @@ declaration's render-once cache, and the binding packet for those arguments.
 The whole file above is gone, and the demo's view models read this way:
 
 ```swift
+// Inside TodoDatabase.init, where `database` is the GRDBDatabase.
 listsQuery = try database.preparedQueries.todoLists()
 listCountsQuery = try database.preparedQueries.listCounts()
 
+// Inside a view model, where `database` is the TodoDatabase that wraps it,
+// so `database.database` reaches the same GRDBDatabase.
 todo = XLObservableQueryRow(
     try database.database.preparedQueries.todo(id: todoID)
 )
@@ -226,14 +229,27 @@ build-tool plugin reads every declaration in a target and generates a
 `<Target>DeclaredQueries` registry, and
 `SQLiteBuildValidationDeclaredQueryManifest.makeManifest(...)` turns that
 registry into a manifest. A hand-written manifest is now the fallback, not the
-main path. The build-validation plugin also gained an `XcodeBuildToolPlugin`
-conformance, so an Xcode application target can run it, not only a SwiftPM
-target.
+main path.
+
+Three limits bound that path today.
+
+- **The registry plugin runs in a SwiftPM target only.**
+  `SwiftQLDeclaredQueryRegistryPlugin` conforms to `BuildToolPlugin`, so the
+  target that declares your queries has to be a package target. An Xcode app can
+  depend on that package, but it cannot run the registry plugin on its own
+  target yet ([#766](https://github.com/lukevanin/swiftql/issues/766)).
+- **Only the validator runs in an Xcode app target.**
+  `SwiftQLSQLiteBuildValidationPlugin` gained an `XcodeBuildToolPlugin`
+  conformance in v1.9, so an app target can validate a manifest it already has
+  ([#666](https://github.com/lukevanin/swiftql/issues/666)). That is the
+  validator, not the generator.
+- **Declared queries are read-only.** Only `SELECT`-shaped declarations exist,
+  so only those reach the generated manifest. A write still goes in by hand.
 
 That story has its own post, written against the shipped behaviour with every
 command and every diagnostic captured from a real run:
 [**SwiftQL now validates your declared queries against your real database at
-build time**](https://lukevanin.github.io/swiftql/blog/posts/build-time-sqlite-validation/).
+build time**]({{< relref "build-time-sqlite-validation.md" >}}).
 
 ## Named bindings get a typed packet
 
@@ -247,8 +263,9 @@ let idParameter = XLNamedBindingReference<TodoUUID>(name: "id")
 let titleParameter = XLNamedBindingReference<String>(name: "title")
 // …
 
+let layout = request.parameterLayout
 let bindings = try XLInvocationBindings<XLSQLiteValue>(
-    layout: request.parameterLayout,
+    layout: layout,
     bindings: [
         try Self.binding(layout, "id", id.sqlValue),
         try Self.binding(layout, "title", .text(title)),
@@ -348,11 +365,19 @@ transaction, and fails with the same error `sqlInsert(_:)` gives. The SQL that
 
 ### What it measured
 
-The cross-library `transactional_write` contract inserts a 100-row batch in one
-transaction, against the committed Northwind fixture. It was recorded on one
-Mac16,8 (Apple M4 Pro, 14 cores, 24 GiB), macOS 26.6.2, Xcode 27.0, Swift 6.4.
-Two "before" runs and two "after" runs alternated between two clean revisions,
-each with five independent processes, 10 warmups, and 100 timed samples:
+The cross-library `transactional_write` contract inserts the same deterministic
+100-row batch into a dedicated scratch table, inside one explicit transaction,
+and commits. The scratch table is created outside timing, in a per-process copy
+of the committed Northwind fixture, and the batch is deleted between iterations,
+also outside timing. So the committed state is identical before every measured
+transaction, and timing covers begin, 100 parameterised inserts, and commit.
+
+The four 2026-09-15 rows below were recorded on one Mac16,8 (Apple M4 Pro, 14
+cores, 24 GiB), macOS 26.6.2, Xcode 27.0, Swift 6.4. Two "before" runs and two
+"after" runs alternated between two clean revisions, each with five independent
+processes, 10 warmups, and 100 timed samples. The 2026-08-02 row is an older
+recording on the same machine model, under macOS 26.5.1, Xcode 26.5, and Swift
+6.3.2, with three independent processes rather than five:
 
 | Recording | SwiftQL write path | SwiftQL median | SwiftQL spread | GRDB median | GRDB spread |
 | --- | --- | ---: | ---: | ---: | ---: |
@@ -367,8 +392,10 @@ spreads of 4.0% to 5.3%. The two "before" runs also agree with the older
 2026-08-02 figure within 1%.
 
 Two things the table does **not** support. It establishes no ordering between
-SwiftQL and GRDB: SwiftQL's median is 7.6% and 7.5% below GRDB's, and in round 1
-that gap is smaller than GRDB's own 15.9% spread. And the per-row figure
+SwiftQL and GRDB: SwiftQL's median is 7.6% and 7.5% below GRDB's, in round 1 that
+gap is smaller than GRDB's own 15.9% spread, and in round 2 it only just clears
+GRDB's 5.0% spread. A quiet host and more processes are needed before anyone
+claims an order. And the per-row figure
 measures rendering rather than preparation, because the workload inserts the
 same batch every iteration, so GRDB's statement cache already holds all 100
 literal statements after warmup. A workload with different values every
@@ -403,18 +430,23 @@ SQL `NULL`.
 
 **A mutation on a `NOT NULL` document is non-optional.**
 
+This is the demo's own checklist write, before and after:
+
 ```swift
 // Before: the result is String?, so the assignment needs coalesce.
-row.checklist = todo.checklist.jsonSetting(path, to: value) ?? "{}"
+row.checklist = table.checklist
+    .jsonSetting((TodoChecklist.isDone(at: index), isDone))
+    .coalesce(table.checklist)
 
 // After: the result is String, and assigns straight back.
-row.checklist = todo.checklist.jsonSetting(path, to: value)
+row.checklist = table.checklist
+    .jsonSetting((TodoChecklist.isDone(at: index), isDone))
 ```
 
 `jsonRemoving` and `jsonbRemoving` on a non-optional document report the root
 path `$` with the new case `jsonRootRemoval(function:)`, because SQLite returns
-`NULL` when it removes the root. `jsonPatched(with:)` stays optional, because a
-`NULL` patch also gives `NULL`.
+`NULL` when it removes the root. `jsonPatched(with:)` and `jsonbPatched(with:)`
+both stay optional, because a `NULL` patch also gives `NULL`.
 
 ## Smaller things
 
@@ -443,7 +475,9 @@ path `$` with the new case `jsonRootRemoval(function:)`, because SQLite returns
 .package(url: "https://github.com/lukevanin/swiftql.git", from: "1.9.0")
 ```
 
-This release is not purely additive. Check for these five things:
+This release is not purely additive. Check for these six things. The first five
+stop the build or throw. The sixth is the one that fails silently, so check it
+first if you store JSON.
 
 1. **A name collision with a generated member.** The macros now generate
    `preparedQueries` and `declaredQueries` on a `@SQLQueries` type, and a
@@ -465,6 +499,11 @@ This release is not purely additive. Check for these five things:
    accepts version 1 and re-encodes it to the same bytes. Several report
    properties are now `String?`, and both `SQLiteBuildValidationManifestError`
    and `SQLiteBuildValidationPlanSuppressionError` gain `unknownKey(path:)`.
+6. **A `Bool` you already wrote into a JSON document.** New writes store
+   `true` or `false` where they stored `1` or `0`. Nothing stops compiling, and
+   nothing throws. A reader that reads the member as a number gets the wrong
+   answer on a new row, and a `Codable` reader gets the wrong answer on an old
+   one. Migrate the stored documents, or read both forms until you have.
 
 The [changelog](https://github.com/lukevanin/swiftql/blob/main/CHANGELOG.md) has
 the exhaustive detail, and its Migration section covers each break above.

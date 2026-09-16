@@ -17,8 +17,6 @@ entry below ends with whether it affects code you already wrote.
 
 ## 1.9.0 — Declared queries do everything a query does
 
-*Released 16 September 2026.*
-
 - A declared query can be observed. Every declaration gets a prepared form that
   `stream()`, `publish()`, and the `@Observable` wrappers accept, so a view and
   a fetch share one statement. Call `database.preparedQueries.personByName(name:)`
@@ -35,10 +33,14 @@ entry below ends with whether it affects code you already wrote.
 - You no longer type the build-validation manifest. A new build-tool plugin
   reads every declaration in a target and generates a registry, and
   `makeManifest` turns that registry into a manifest. A hand-written manifest is
-  now the fallback. The [blog post on build-time validation](https://lukevanin.github.io/swiftql/blog/posts/build-time-sqlite-validation/)
-  walks through the setup.
+  now the fallback. The
+  [blog post on build-time validation](Website/blog/content/posts/build-time-sqlite-validation.md)
+  walks through the setup. Two limits apply. The registry plugin runs only in a
+  SwiftPM target, not in an Xcode target. Only `SELECT`-shaped declarations
+  exist, so a write still goes into the manifest by hand.
 - The build-validation plugin also runs in an Xcode application target, not only
-  in a SwiftPM target.
+  in a SwiftPM target. This applies to the validator, not to the registry
+  plugin.
 - `@SQLBindings` generates the named-binding packet for a statement that is not
   a declared query, such as a write. Write one stored property for each binding.
   A misspelled binding name, a misspelled label, or a missing value is now a
