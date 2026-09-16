@@ -629,6 +629,12 @@ jobs:
           cd "$SWIFTQL_SOURCE"
           scripts/ci/check-bitwise-not-type-safety.sh
 
+      - name: Check numeric prefix operator type safety
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/check-numeric-prefix-operator-type-safety.sh
+
       - name: Check BETWEEN type safety
         run: |
           set -euo pipefail

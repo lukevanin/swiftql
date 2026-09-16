@@ -1,22 +1,24 @@
 //
-//  SQLIntegerPrefixOperatorTests.swift
+//  SQLNumericPrefixOperatorTests.swift
 //
-//  A prefix `-`, `+`, or `~` on a plain `Int` keeps the standard library
-//  operator inside a file that imports SwiftQL.
+//  A prefix `-`, `+`, or `~` on a plain `Int`, and a prefix `-` or `+` on a
+//  plain `Double`, keep the standard library operator inside a file that
+//  imports SwiftQL.
 //
-//  `Int` conforms to `XLExpression`, so SwiftQL's generic prefix operators over
-//  `any XLExpression<T>` also match an `Int` operand. Swift 6.3 preferred those
-//  operators, and ordinary code such as `let x = -someInt` stopped compiling for
-//  every client of the library (issue #771). Each test below binds the result
-//  without a type annotation and then uses it as an `Int`, so this file fails to
-//  compile if the expression operator wins again.
+//  `Int` and `Double` conform to `XLExpression`, so SwiftQL's generic prefix
+//  operators over `any XLExpression<T>` also match such an operand. Swift 6.3
+//  preferred those operators, and ordinary code such as `let x = -someInt` or
+//  `let y = +someDouble` stopped compiling for every client of the library
+//  (issue #771). Each test below binds the result without a type annotation and
+//  then uses it as an `Int` or a `Double`, so this file fails to compile if the
+//  expression operator wins again.
 //
 
 import XCTest
 import SwiftQL
 
 
-final class XLIntegerPrefixOperatorTests: XLSyntaxTestCase {
+final class XLNumericPrefixOperatorTests: XLSyntaxTestCase {
 
     // MARK: - Plain integer operand
 
@@ -75,6 +77,33 @@ final class XLIntegerPrefixOperatorTests: XLSyntaxTestCase {
     }
 
 
+    // MARK: - Plain real operand
+
+
+    func testNegate_RealConstant_IsDouble() {
+        let operand = 7.5
+        let result = -operand
+        assertDouble(result, equals: -7.5)
+    }
+
+
+    func testNegate_RealParameter_IsDouble() {
+        assertDouble(negated(2.5), equals: -2.5)
+    }
+
+
+    func testUnaryPlus_RealConstant_IsDouble() {
+        let operand = 7.5
+        let result = +operand
+        assertDouble(result, equals: 7.5)
+    }
+
+
+    func testUnaryPlus_RealParameter_IsDouble() {
+        assertDouble(unaryPlus(-2.5), equals: -2.5)
+    }
+
+
     // MARK: - SwiftQL expression operand
 
 
@@ -92,6 +121,16 @@ final class XLIntegerPrefixOperatorTests: XLSyntaxTestCase {
         assertRenders(-x, as: "-(:x)")
         assertRenders(+x, as: "+(:x)")
         assertRenders(~x, as: "~(:x)")
+    }
+
+
+    func testPrefixOperators_RealExpression_StillRenderSQL() {
+        let x = XLNamedBindingReference<Double>(name: "x")
+        let y = XLNamedBindingReference<Optional<Double>>(name: "y")
+        assertRenders(-x, as: "-(:x)")
+        assertRenders(+x, as: "+(:x)")
+        assertRenders(-y, as: "-(:y)")
+        assertRenders(+y, as: "+(:y)")
     }
 
 
@@ -126,11 +165,34 @@ final class XLIntegerPrefixOperatorTests: XLSyntaxTestCase {
     }
 
 
+    private func negated(_ operand: Double) -> Double {
+        let result = -operand
+        return result
+    }
+
+
+    private func unaryPlus(_ operand: Double) -> Double {
+        let result = +operand
+        return result
+    }
+
+
     /// The `Int` parameter is the compile-time assertion. The value comparison
     /// shows that the overload also computes what the standard library computes.
     private func assertInt(
         _ value: Int,
         equals expected: Int,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertEqual(value, expected, file: file, line: line)
+    }
+
+
+    /// The `Double` parameter is the compile-time assertion, as above.
+    private func assertDouble(
+        _ value: Double,
+        equals expected: Double,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
