@@ -194,6 +194,10 @@ private struct NativeTestDialect: XLSQLDialect {
         capabilities: [.indexedBindings]
     )
 
+    func makeFormatter() -> TestDialectFormatter {
+        makeTestFormatter()
+    }
+
     func formatIdentifier(_ identifier: String) -> String {
         "\"\(identifier)\""
     }
