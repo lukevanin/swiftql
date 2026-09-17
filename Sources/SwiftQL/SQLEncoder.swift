@@ -523,16 +523,35 @@ extension XLBuilder {
     }
 
     ///
-    /// Adds a conditional function call.
+    /// Adds a conditional choice between two sub-expressions.
+    ///
+    /// The vocabulary chooses the shape, not only a keyword: SQLite calls
+    /// `IIF(condition, whenTrue, whenFalse)`, while a dialect without that
+    /// function renders `CASE WHEN condition THEN whenTrue ELSE whenFalse
+    /// END`. The two are different grammar, so the sub-expressions are passed
+    /// separately rather than as one parameter list.
     ///
     public mutating func conditional(
         _ function: XLConditionalFunction,
-        parameters: ListBuilder
+        condition: @escaping Builder,
+        whenTrue: @escaping Builder,
+        whenFalse: @escaping Builder
     ) {
-        simpleFunction(
-            name: vocabulary.spelling(for: function),
-            parameters: parameters
-        )
+        switch vocabulary.form(for: function) {
+        case .function(let name):
+            simpleFunction(name: name) { parameters in
+                parameters.listItem(expression: condition)
+                parameters.listItem(expression: whenTrue)
+                parameters.listItem(expression: whenFalse)
+            }
+
+        case .caseWhen:
+            block(beginsWith: "CASE WHEN", endsWith: "END", separator: .tuple) { context in
+                condition(&context)
+                context.unaryPrefix("THEN", expression: whenTrue)
+                context.unaryPrefix("ELSE", expression: whenFalse)
+            }
+        }
     }
 
     ///

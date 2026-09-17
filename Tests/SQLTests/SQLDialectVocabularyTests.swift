@@ -32,10 +32,10 @@ private struct ProbeVocabulary: XLSQLVocabulary {
         }
     }
 
-    func spelling(for function: XLConditionalFunction) -> String {
+    func form(for function: XLConditionalFunction) -> XLConditionalForm {
         switch function {
         case .immediateIf:
-            return "CASEWHEN"
+            return .caseWhen
         }
     }
 

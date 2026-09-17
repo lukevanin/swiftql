@@ -36,10 +36,10 @@ public struct XLiteVocabulary: XLSQLVocabulary, Hashable, Sendable {
         }
     }
 
-    public func spelling(for function: XLConditionalFunction) -> String {
+    public func form(for function: XLConditionalFunction) -> XLConditionalForm {
         switch function {
         case .immediateIf:
-            return "IIF"
+            return .function("IIF")
         }
     }
 

@@ -40,10 +40,27 @@ public enum XLNullTest: Hashable, Sendable {
 ///
 /// A conditional expression.
 ///
-/// SQLite provides `IIF`. Dialects without it fall back to `CASE WHEN`.
+/// SQLite provides `IIF`. Dialects without it spell the same choice as
+/// `CASE WHEN`, which is a different shape rather than a different name.
 ///
 public enum XLConditionalFunction: Hashable, Sendable {
     case immediateIf
+}
+
+
+///
+/// The grammatical shape a dialect uses for a conditional.
+///
+/// The two forms are not interchangeable spellings of one token, so a
+/// vocabulary chooses the shape and the builder renders it.
+///
+public enum XLConditionalForm: Hashable, Sendable {
+
+    /// `IIF(condition, whenTrue, whenFalse)`.
+    case function(String)
+
+    /// `CASE WHEN condition THEN whenTrue ELSE whenFalse END`.
+    case caseWhen
 }
 
 
@@ -184,7 +201,7 @@ public protocol XLSQLVocabulary: Sendable {
 
     func spelling(for test: XLNullTest) -> String
 
-    func spelling(for function: XLConditionalFunction) -> String
+    func form(for function: XLConditionalFunction) -> XLConditionalForm
 
     func spelling(for prefix: XLCommonTablePrefix) -> String
 

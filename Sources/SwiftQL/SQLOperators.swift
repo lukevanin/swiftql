@@ -486,16 +486,11 @@ public struct XLIfExpression<T>: XLExpression {
     }
     
     public func makeSQL(context: inout XLBuilder) {
-        context.conditional(.immediateIf) { context in
-            context.listItem { context in
-                condition.makeSQL(context: &context)
-            }
-            context.listItem { context in
-                trueResult.makeSQL(context: &context)
-            }
-            context.listItem { context in
-                falseResult.makeSQL(context: &context)
-            }
-        }
+        context.conditional(
+            .immediateIf,
+            condition: condition.makeSQL,
+            whenTrue: trueResult.makeSQL,
+            whenFalse: falseResult.makeSQL
+        )
     }
 }
