@@ -16,9 +16,9 @@ import Foundation
 /// spells the keywords which differ between dialects. A second dialect is
 /// therefore rendered by this same encoder rather than by a parallel one.
 ///
-/// Physical placeholder numbering is still assigned with SQLite's rule. Issue
-/// #674 separates the logical binding key from the rendered placeholder and
-/// moves that assignment onto the dialect.
+/// The dialect also decides how a logical binding key is spelled and numbered,
+/// so a dialect with no named placeholders renders a query written with named
+/// parameters as positional ones.
 ///
 public struct XLDialectEncoder<Dialect>: XLEncoder where Dialect: XLSQLDialect {
 
@@ -42,7 +42,9 @@ public struct XLDialectEncoder<Dialect>: XLEncoder where Dialect: XLSQLDialect {
     }
 
     public func makeSQL(_ expression: XLEncodable) -> XLEncoding {
-        let requirementRecorder = XLiteDialectRequirementRecorder()
+        let requirementRecorder = XLiteDialectRequirementRecorder(
+            placeholderAssigner: dialect.makePlaceholderAssigner()
+        )
         let recordingFormatter = XLiteRequirementRecordingFormatter(
             base: formatter,
             recorder: requirementRecorder
@@ -119,13 +121,21 @@ private final class XLiteDialectRequirementRecorder {
 
     private(set) var valueEncodingError: XLSQLValueEncodingError?
 
-    private var physicalIndexByKey: [XLBindingKey: Int] = [:]
+    /// Assigns the rendered placeholder and physical position for each key.
+    /// The dialect owns this rule, so a positional-only dialect numbers a
+    /// named key rather than failing to render it.
+    private var placeholderAssigner: any XLPlaceholderAssigner
 
     private var slotByPhysicalIndex: [Int: XLParameterSlot] = [:]
 
-    private var largestPhysicalIndex = 0
+    /// Every textual appearance, in render order.
+    private var occurrences: [XLParameterOccurrence] = []
 
     private var bindingOriginByKey: [XLBindingKey: XLBindingOrigin] = [:]
+
+    init(placeholderAssigner: any XLPlaceholderAssigner) {
+        self.placeholderAssigner = placeholderAssigner
+    }
 
     /// Rejects two automatically named binding references from different
     /// namespaces that resolve to the same key. Without this check the
@@ -196,7 +206,8 @@ private final class XLiteDialectRequirementRecorder {
         recordPhysicalParameter(slot)
         do {
             parameterLayout = try XLParameterLayout(
-                slots: parameterLayout.slots + [slot]
+                slots: parameterLayout.slots + [slot],
+                occurrences: occurrences
             )
         }
         catch let error as XLInvocationBindingError {
@@ -232,20 +243,8 @@ private final class XLiteDialectRequirementRecorder {
     /// therefore alias the same physical slot even though SwiftQL has two
     /// distinct logical keys. Reject that shape during rendering.
     private func recordPhysicalParameter(_ slot: XLParameterSlot) {
-        let physicalIndex: Int
-        if let recorded = physicalIndexByKey[slot.key] {
-            physicalIndex = recorded
-        }
-        else {
-            switch slot.key {
-            case .named:
-                physicalIndex = largestPhysicalIndex + 1
-            case .indexed(let zeroBasedIndex):
-                physicalIndex = zeroBasedIndex + 1
-            }
-            physicalIndexByKey[slot.key] = physicalIndex
-            largestPhysicalIndex = max(largestPhysicalIndex, physicalIndex)
-        }
+        let assignment = placeholderAssigner.assignment(for: slot.key)
+        let physicalIndex = assignment.physicalIndex
 
         if let existing = slotByPhysicalIndex[physicalIndex],
            existing.key != slot.key {
@@ -259,6 +258,47 @@ private final class XLiteDialectRequirementRecorder {
             return
         }
         slotByPhysicalIndex[physicalIndex] = slot
+    }
+
+    /// Assigns the placeholder for `key` and records this textual appearance.
+    ///
+    /// The layout coalesces repeated appearances of a named parameter into a
+    /// single slot, because it is bound once. This keeps the appearances too,
+    /// in render order, for a dialect that must act on each of them.
+    ///
+    /// Called once per rendered reference, after the slot for `key` has been
+    /// recorded.
+    func renderPlaceholder(for key: XLBindingKey) -> XLBindingPlaceholder {
+        let assignment = placeholderAssigner.assignment(for: key)
+        if let slot = parameterLayout.slot(for: key) {
+            occurrences.append(
+                XLParameterOccurrence(
+                    index: slot.index,
+                    key: key,
+                    placeholder: assignment.placeholder,
+                    physicalIndex: assignment.physicalIndex
+                )
+            )
+            rebuildLayoutOccurrences()
+        }
+        return assignment.placeholder
+    }
+
+    private func rebuildLayoutOccurrences() {
+        do {
+            parameterLayout = try XLParameterLayout(
+                slots: parameterLayout.slots,
+                occurrences: occurrences
+            )
+        }
+        catch let error as XLInvocationBindingError {
+            if parameterLayoutError == nil {
+                parameterLayoutError = error
+            }
+        }
+        catch {
+            preconditionFailure("XLParameterLayout produced an unexpected error: \(error)")
+        }
     }
 
     private func nextLogicalIndex() -> XLLogicalParameterIndex {
@@ -331,20 +371,30 @@ private struct XLiteRequirementRecordingFormatter: XLiteParameterRecordingFormat
     }
 
     func namedBinding(_ named: String) -> String {
-        recorder.capabilities.insert(.namedBindings)
         recorder.recordLegacyParameter(key: .named(named))
-        return base.namedBinding(named)
+        return renderPlaceholder(for: .named(named))
     }
 
     func indexedBinding(_ index: Int) -> String {
-        recorder.capabilities.insert(.indexedBindings)
         recorder.recordLegacyParameter(key: .indexed(index))
-        return base.indexedBinding(index)
+        return renderPlaceholder(for: .indexed(index))
     }
 
     func formatParameter(_ slot: XLParameterSlot) -> String {
         recorder.recordParameter(slot)
-        switch slot.key {
+        return renderPlaceholder(for: slot.key)
+    }
+
+    ///
+    /// Renders one parameter reference through the dialect's placeholder rule.
+    ///
+    /// The capability recorded is the one the rendered placeholder needs, not
+    /// the one the logical key would suggest. A dialect that spells every key
+    /// positionally therefore requires only `.indexedBindings`, whatever the
+    /// Swift code named.
+    ///
+    private func renderPlaceholder(for key: XLBindingKey) -> String {
+        switch recorder.renderPlaceholder(for: key) {
         case .named(let name):
             recorder.capabilities.insert(.namedBindings)
             return base.namedBinding(name)
@@ -356,14 +406,7 @@ private struct XLiteRequirementRecordingFormatter: XLiteParameterRecordingFormat
 
     func formatParameter(_ declaration: XLParameterDeclaration) -> String {
         recorder.recordParameter(declaration)
-        switch declaration.key {
-        case .named(let name):
-            recorder.capabilities.insert(.namedBindings)
-            return base.namedBinding(name)
-        case .indexed(let index):
-            recorder.capabilities.insert(.indexedBindings)
-            return base.indexedBinding(index)
-        }
+        return renderPlaceholder(for: declaration.key)
     }
 
     func recordValueEncodingError(_ error: XLSQLValueEncodingError) {

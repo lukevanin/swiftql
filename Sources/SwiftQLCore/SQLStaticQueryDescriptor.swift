@@ -180,11 +180,28 @@ public struct XLStaticQueryDescriptor: Hashable, Sendable {
                 )
             }
 
+            // The logical key is still validated for its own well-formedness,
+            // but the capability is gated on how the dialect actually spelled
+            // the parameter. A dialect that renders every key positionally
+            // needs only `.indexedBindings`, whatever the Swift code named.
             switch slot.key {
             case .named(let name):
                 guard !name.isEmpty else {
                     throw XLStaticQueryError.emptyNamedBindingKey(slot: slot)
                 }
+            case .indexed(let index):
+                guard index >= 0 else {
+                    throw XLStaticQueryError.invalidIndexedBindingKey(slot: slot)
+                }
+            }
+
+            // A statement rendered before occurrences were recorded carries
+            // none, and its placeholder was spelled from the key.
+            let placeholder = statement.parameterLayout.placeholder(for: slot.key)
+                ?? slot.key.asPlaceholder
+
+            switch placeholder {
+            case .named:
                 guard statement.dialectRequirement.capabilities.contains(
                     .namedBindings
                 ) else {
@@ -193,10 +210,7 @@ public struct XLStaticQueryDescriptor: Hashable, Sendable {
                         capability: .namedBindings
                     )
                 }
-            case .indexed(let physicalIndex):
-                guard physicalIndex >= 0 else {
-                    throw XLStaticQueryError.invalidIndexedBindingKey(slot: slot)
-                }
+            case .indexed:
                 guard statement.dialectRequirement.capabilities.contains(
                     .indexedBindings
                 ) else {

@@ -197,6 +197,9 @@ public protocol XLSQLDialect: Sendable {
     /// The vocabulary that spells this dialect's divergent SQL keywords.
     associatedtype Vocabulary: XLSQLVocabulary
 
+    /// The rule this dialect uses to spell and number placeholders.
+    associatedtype PlaceholderAssigner: XLPlaceholderAssigner
+
     var descriptor: XLDialectDescriptor { get }
 
     /// Vends the formatter used to render SQL for this dialect.
@@ -211,6 +214,14 @@ public protocol XLSQLDialect: Sendable {
     /// insert conflict clause, a regular-expression match -- and the
     /// vocabulary decides the text.
     func makeVocabulary() -> Vocabulary
+
+    /// Vends the placeholder assigner for one statement.
+    ///
+    /// The logical binding key is the identity Swift code chose. This decides
+    /// how that key is spelled in the SQL text and which physical position
+    /// binds it, so a dialect with no named placeholders can still render a
+    /// query that was written with named parameters.
+    func makePlaceholderAssigner() -> PlaceholderAssigner
 
     func formatIdentifier(_ identifier: String) -> String
 

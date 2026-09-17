@@ -134,6 +134,12 @@ private struct ProbeDialect: XLSQLDialect {
         ProbeVocabulary()
     }
 
+    func makePlaceholderAssigner() -> XLitePlaceholderAssigner {
+        // This probe exists to exercise keyword spelling. It keeps SQLite's
+        // placeholder rule so the two concerns stay separable.
+        XLitePlaceholderAssigner()
+    }
+
     func formatIdentifier(_ identifier: String) -> String {
         XLSQLiteDialect().formatIdentifier(identifier)
     }

@@ -929,6 +929,10 @@ private struct CodecTestDialect: XLValueCodingDialect {
         self.descriptor = XLDialectDescriptor(identity: identity)
     }
 
+    func makePlaceholderAssigner() -> XLitePlaceholderAssigner {
+        makeTestPlaceholderAssigner()
+    }
+
     func makeVocabulary() -> XLiteVocabulary {
         makeTestVocabulary()
     }
@@ -975,6 +979,10 @@ private struct AlternateCodecTestDialect: XLValueCodingDialect {
     typealias Value = CodecTestValue
 
     let descriptor = XLDialectDescriptor(identity: CodecTestDialect.identity)
+
+    func makePlaceholderAssigner() -> XLitePlaceholderAssigner {
+        makeTestPlaceholderAssigner()
+    }
 
     func makeVocabulary() -> XLiteVocabulary {
         makeTestVocabulary()

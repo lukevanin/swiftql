@@ -82,6 +82,10 @@ public struct XLSQLiteDialect: XLValueCodingDialect, Hashable, Sendable {
         XLiteVocabulary()
     }
 
+    public func makePlaceholderAssigner() -> XLitePlaceholderAssigner {
+        XLitePlaceholderAssigner()
+    }
+
     public func formatIdentifier(_ identifier: String) -> String {
         switch identifierFormattingOptions {
         case .noEscape:
