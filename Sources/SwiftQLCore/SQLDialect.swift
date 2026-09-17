@@ -194,6 +194,9 @@ public protocol XLSQLDialect: Sendable {
     /// placeholders.
     associatedtype Formatter: XLFormatter
 
+    /// The vocabulary that spells this dialect's divergent SQL keywords.
+    associatedtype Vocabulary: XLSQLVocabulary
+
     var descriptor: XLDialectDescriptor { get }
 
     /// Vends the formatter used to render SQL for this dialect.
@@ -201,6 +204,13 @@ public protocol XLSQLDialect: Sendable {
     /// The dialect is the rendering seam: an encoder asks the dialect for its
     /// formatter rather than constructing one for a database it assumes.
     func makeFormatter() -> Formatter
+
+    /// Vends the vocabulary that spells this dialect's divergent keywords.
+    ///
+    /// A node names the operation it means -- a null-safe comparison, an
+    /// insert conflict clause, a regular-expression match -- and the
+    /// vocabulary decides the text.
+    func makeVocabulary() -> Vocabulary
 
     func formatIdentifier(_ identifier: String) -> String
 

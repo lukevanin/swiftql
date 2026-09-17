@@ -194,6 +194,10 @@ private struct NativeTestDialect: XLSQLDialect {
         capabilities: [.indexedBindings]
     )
 
+    func makeVocabulary() -> XLiteVocabulary {
+        makeTestVocabulary()
+    }
+
     func makeFormatter() -> TestDialectFormatter {
         makeTestFormatter()
     }

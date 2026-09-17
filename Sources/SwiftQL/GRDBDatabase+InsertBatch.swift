@@ -410,6 +410,12 @@ struct XLInsertValueCaptureBuilder: XLBuilder {
 
     let recorder: XLInsertValueCaptureRecorder
 
+    /// Forwards the wrapped builder's vocabulary, so capturing a row renders
+    /// exactly what rendering it directly would.
+    var vocabulary: any XLSQLVocabulary {
+        base.vocabulary
+    }
+
     init(base: XLBuilder, recorder: XLInsertValueCaptureRecorder) {
         self.base = base
         self.recorder = recorder
@@ -680,6 +686,11 @@ struct XLInsertValueCaptureListBuilder: XLListBuilder {
 /// keeps its storage from row to row.
 ///
 final class XLInsertValueRecorder: XLBuilder, XLListBuilder {
+
+    /// This recorder matches a token shape rather than rendering SQL, so the
+    /// vocabulary is never consulted. It reports SQLite's, the dialect whose
+    /// shape it matches.
+    let vocabulary: any XLSQLVocabulary = XLiteVocabulary()
 
     private let expectedShape: [XLInsertValueCaptureToken]
 

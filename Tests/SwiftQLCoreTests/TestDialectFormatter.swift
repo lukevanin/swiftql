@@ -73,6 +73,16 @@ struct TestDialectFormatter: XLFormatter {
 extension XLSQLDialect {
 
     ///
+    /// Borrows SQLite's keyword spelling.
+    ///
+    /// These dialects exercise identity, capability, and codec rules rather
+    /// than rendering, so the vocabulary they report is never asserted on.
+    ///
+    func makeTestVocabulary() -> XLiteVocabulary {
+        XLiteVocabulary()
+    }
+
+    ///
     /// Builds a ``TestDialectFormatter`` from this dialect's own identifier and
     /// placeholder rules.
     ///

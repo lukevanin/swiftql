@@ -79,37 +79,21 @@ public struct Setting<Row>: XLEncodable {
 
 
 ///
-/// A conflict-resolution algorithm applied by an `INSERT OR ...` statement.
-///
-/// SQLite parses the algorithm as part of the `INSERT` keyword, immediately
-/// before `INTO`. `replace` is the same algorithm reached by the standalone
-/// `REPLACE` statement.
-///
-public enum XLInsertOrAction: String, CaseIterable, Sendable {
-    case rollback = "ROLLBACK"
-    case abort = "ABORT"
-    case fail = "FAIL"
-    case ignore = "IGNORE"
-    case replace = "REPLACE"
-}
-
-
-///
 /// Insert statement.
 ///
 public struct Insert<Row>: XLEncodable, XLRowWritable {
 
     private let table: any XLEncodable
 
-    private let keyword: String
+    private let target: XLInsertTarget
 
-    internal init(table: any XLEncodable, keyword: String) {
+    internal init(table: any XLEncodable, target: XLInsertTarget) {
         self.table = table
-        self.keyword = keyword
+        self.target = target
     }
 
     public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row {
-        self.init(table: meta._dependency, keyword: "INSERT INTO")
+        self.init(table: meta._dependency, target: .insert)
     }
 
     ///
@@ -119,11 +103,11 @@ public struct Insert<Row>: XLEncodable, XLRowWritable {
     /// uniqueness constraint violated while the statement runs.
     ///
     public init<T>(_ meta: T, or action: XLInsertOrAction) where T: XLMetaNamedResult, T.Row == Row {
-        self.init(table: meta._dependency, keyword: "INSERT OR \(action.rawValue) INTO")
+        self.init(table: meta._dependency, target: .insertOr(action))
     }
 
     public func makeSQL(context: inout XLBuilder) {
-        context.unaryPrefix(keyword, expression: table.makeSQL)
+        context.insertTarget(target, table: table.makeSQL)
     }
 }
 
@@ -140,7 +124,7 @@ public struct Replace<Row>: XLEncodable, XLRowWritable {
     internal let insert: Insert<Row>
 
     public init<T>(_ meta: T) where T: XLMetaNamedResult, T.Row == Row {
-        self.insert = Insert(table: meta._dependency, keyword: "REPLACE INTO")
+        self.insert = Insert(table: meta._dependency, target: .replace)
     }
 
     public func makeSQL(context: inout XLBuilder) {

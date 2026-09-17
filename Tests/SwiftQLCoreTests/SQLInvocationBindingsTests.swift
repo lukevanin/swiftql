@@ -493,6 +493,10 @@ private struct InvocationTestDialect: XLValueCodingDialect {
         capabilities: [.namedBindings, .indexedBindings]
     )
 
+    func makeVocabulary() -> XLiteVocabulary {
+        makeTestVocabulary()
+    }
+
     func makeFormatter() -> TestDialectFormatter {
         makeTestFormatter()
     }

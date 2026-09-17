@@ -115,6 +115,65 @@ public struct XLPostfixOperatorExpression<T>: XLExpression {
 
 
 ///
+/// A comparison whose keyword the dialect spells.
+///
+/// Renders what ``XLBinaryOperatorExpression`` renders for the same operands,
+/// except that the operator text comes from ``XLBuilder/vocabulary`` instead
+/// of from this node. SQLite spells a null-safe equality `IS`, which is a
+/// syntax error in PostgreSQL.
+///
+public struct XLComparisonExpression<T>: XLExpression {
+
+    let comparison: XLComparisonOperator
+
+    let lhs: any XLExpression
+
+    let rhs: any XLExpression
+
+    public init(
+        _ comparison: XLComparisonOperator,
+        lhs: any XLExpression,
+        rhs: any XLExpression
+    ) {
+        self.comparison = comparison
+        self.lhs = lhs
+        self.rhs = rhs
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        context.parenthesis { context in
+            context.comparison(comparison, left: lhs.makeSQL, right: rhs.makeSQL)
+        }
+    }
+}
+
+
+///
+/// A postfix test for `NULL` whose keyword the dialect spells.
+///
+/// SQLite accepts `ISNULL` and `NOTNULL`; standard SQL spells the same tests
+/// `IS NULL` and `IS NOT NULL`.
+///
+public struct XLNullTestExpression<T>: XLExpression {
+
+    let test: XLNullTest
+
+    let operand: any XLExpression
+
+    public init(_ test: XLNullTest, operand: any XLExpression) {
+        self.test = test
+        self.operand = operand
+    }
+
+    public func makeSQL(context: inout XLBuilder) {
+        context.parenthesis { context in
+            context.nullTest(test, expression: operand.makeSQL)
+        }
+    }
+}
+
+
+///
 /// Binary operator expression.
 ///
 /// Example:
@@ -427,7 +486,7 @@ public struct XLIfExpression<T>: XLExpression {
     }
     
     public func makeSQL(context: inout XLBuilder) {
-        context.simpleFunction(name: "IIF") { context in
+        context.conditional(.immediateIf) { context in
             context.listItem { context in
                 condition.makeSQL(context: &context)
             }
