@@ -575,9 +575,13 @@ extension XLBuilder {
     /// the node decides neither. A dialect whose engine matches natively
     /// requires no function and records none.
     ///
-    /// - Parameter retainedValues: Values the registration must keep alive for
-    ///   as long as the statement can be executed, such as a compiled pattern
-    ///   the registry holds weakly.
+    /// - Parameters:
+    ///   - match: The match operation to render.
+    ///   - left: The subject sub-expression.
+    ///   - right: The pattern sub-expression.
+    ///   - retainedValues: Values the registration must keep alive for as long
+    ///     as the statement can be executed, such as a compiled pattern the
+    ///     registry holds weakly.
     ///
     public mutating func regexMatch(
         _ match: XLRegexMatchOperator,
