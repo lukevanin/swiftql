@@ -9,34 +9,36 @@ import Foundation
 
 
 ///
-/// Encodes SwiftQL statements into SQL that can be executed by SQLite.
+/// Encodes SwiftQL statements into SQL for one dialect.
 ///
-public struct XLiteEncoder: XLEncoder {
+/// The dialect supplies both halves of the rendering seam: the formatter that
+/// spells literals, identifiers, and placeholders, and the vocabulary that
+/// spells the keywords which differ between dialects. A second dialect is
+/// therefore rendered by this same encoder rather than by a parallel one.
+///
+/// Physical placeholder numbering is still assigned with SQLite's rule. Issue
+/// #674 separates the logical binding key from the rendered placeholder and
+/// moves that assignment onto the dialect.
+///
+public struct XLDialectEncoder<Dialect>: XLEncoder where Dialect: XLSQLDialect {
 
-    public var formatter: XLiteFormatter
-
-    private var dialectDescriptor: XLDialectDescriptor
-
-    public init(formatter: XLiteFormatter) {
-        self.formatter = formatter
-        self.dialectDescriptor = XLSQLiteDialect().descriptor
-    }
-
-    /// Creates an encoder from an explicit SQLite dialect configuration.
     ///
-    /// The formatter comes from the dialect rather than from this initialiser,
-    /// so the dialect owns the spelling of every literal it renders.
-    public init(dialect: XLSQLiteDialect) {
-        self.formatter = dialect.makeFormatter()
-        self.dialectDescriptor = dialect.descriptor
+    /// The dialect this encoder renders for.
+    ///
+    public let dialect: Dialect
+
+    ///
+    /// The formatter vended by ``dialect``.
+    ///
+    public var formatter: Dialect.Formatter {
+        dialect.makeFormatter()
     }
 
-    public var dialect: XLSQLiteDialect {
-        XLSQLiteDialect(
-            identifierFormattingOptions: formatter.identifierFormattingOptions,
-            version: dialectDescriptor.version,
-            capabilities: dialectDescriptor.capabilities
-        )
+    ///
+    /// Creates an encoder for an explicit dialect configuration.
+    ///
+    public init(dialect: Dialect) {
+        self.dialect = dialect
     }
 
     public func makeSQL(_ expression: XLEncodable) -> XLEncoding {
@@ -77,6 +79,32 @@ public struct XLiteEncoder: XLEncoder {
             throw error
         }
         return encoding
+    }
+}
+
+
+///
+/// Encodes SwiftQL statements into SQL that can be executed by SQLite.
+///
+/// The SQLite conformance of ``XLDialectEncoder``.
+///
+public typealias XLiteEncoder = XLDialectEncoder<XLSQLiteDialect>
+
+
+extension XLDialectEncoder where Dialect == XLSQLiteDialect {
+
+    ///
+    /// Creates a SQLite encoder from a formatter.
+    ///
+    /// The formatter carries the identifier quoting, which is the only part of
+    /// the dialect it can express; everything else takes its default.
+    ///
+    public init(formatter: XLiteFormatter) {
+        self.init(
+            dialect: XLSQLiteDialect(
+                identifierFormattingOptions: formatter.identifierFormattingOptions
+            )
+        )
     }
 }
 
