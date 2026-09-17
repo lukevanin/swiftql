@@ -197,14 +197,13 @@ struct XLRegexpExpression<T>: XLExpression {
     }
 
     func makeSQL(context: inout XLBuilder) {
-        if let pattern {
-            context.customFunction(.bundledRegexp.retaining([pattern]))
-        }
-        else {
-            context.customFunction(.bundledRegexp)
-        }
         context.parenthesis { context in
-            context.binaryOperator("REGEXP", left: lhs.makeSQL, right: rhs.makeSQL)
+            context.regexMatch(
+                .matches,
+                left: lhs.makeSQL,
+                right: rhs.makeSQL,
+                retaining: pattern.map { [$0] } ?? []
+            )
         }
     }
 }

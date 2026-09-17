@@ -39,18 +39,28 @@ public struct XLCollation: RawRepresentable, Hashable, Sendable {
     public init(rawValue: String) {
         self.rawValue = rawValue
         self.isBuiltIn = false
+        self.builtInName = nil
     }
 
-    private init(builtIn rawValue: String) {
-        self.rawValue = rawValue
+    /// The vocabulary case for a built-in sequence, or `nil` for a name the
+    /// application registered. A registered name is an identifier, so it goes
+    /// through the formatter rather than through the vocabulary.
+    let builtInName: XLCollationName?
+
+    private init(builtIn name: XLCollationName) {
+        // The SQLite spelling, retained so that two values naming the same
+        // sequence still compare equal. Rendering reads `builtInName` and
+        // asks the target dialect's vocabulary instead.
+        self.rawValue = XLiteVocabulary().spelling(for: name)
         self.isBuiltIn = true
+        self.builtInName = name
     }
 
-    public static let binary = XLCollation(builtIn: "BINARY")
+    public static let binary = XLCollation(builtIn: .binary)
 
-    public static let nocase = XLCollation(builtIn: "NOCASE")
+    public static let nocase = XLCollation(builtIn: .noCase)
 
-    public static let rtrim = XLCollation(builtIn: "RTRIM")
+    public static let rtrim = XLCollation(builtIn: .rTrim)
 
     // Two values are equal when they name the same collating sequence.
     //
@@ -89,11 +99,8 @@ private struct XLCollationExpression<T>: XLExpression {
 
     func makeSQL(context: inout XLBuilder) {
         context.parenthesis { context in
-            if collation.isBuiltIn {
-                context.unarySuffix(
-                    "COLLATE " + collation.rawValue,
-                    expression: operand.makeSQL
-                )
+            if let builtInName = collation.builtInName {
+                context.collate(builtInName, expression: operand.makeSQL)
             }
             else {
                 // Two tokens rather than one interpolated string: the name goes

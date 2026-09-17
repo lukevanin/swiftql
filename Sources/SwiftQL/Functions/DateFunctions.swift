@@ -16,9 +16,17 @@ import Foundation
 /// the full modifier set and preserves the left-to-right order SQLite applies.
 /// This unordered type is retained for source compatibility.
 ///
-public enum XLDateFunctionModifiers: String {
+public enum XLDateFunctionModifiers {
 
-    case subseconds = "subsec"
+    case subseconds
+
+    /// The vocabulary term this legacy case names.
+    var term: XLDateModifierTerm {
+        switch self {
+        case .subseconds:
+            return .subsecond
+        }
+    }
 }
 
 
@@ -32,9 +40,13 @@ public enum XLDateFunctionModifiers: String {
 public func unixepoch(date: String, modifiers: Set<XLDateFunctionModifiers>) -> some XLExpression<TimeInterval> {
     var parameters: [any XLExpression] = []
     parameters.append(date)
-    let sortedModifiers = modifiers.map { $0.rawValue }.sorted()
+    // Sorted by the SQLite spelling, which is the order this constructor has
+    // always produced for an unordered set.
+    let sortedModifiers = modifiers
+        .map { XLDateModifier($0.term) }
+        .sorted { $0.rawValue < $1.rawValue }
     for modifier in sortedModifiers {
-        parameters.append(modifier)
+        parameters.append(XLDateModifierExpression(modifier: modifier))
     }
     return XLFunction(name: "unixepoch", parameters: parameters)
 }
@@ -260,10 +272,29 @@ extension XLExpression {
 /// Builds the argument list for a date-and-time function: the time value
 /// followed by each modifier's rendered text, in order.
 ///
+///
+/// Renders one date or time modifier through the dialect's vocabulary.
+///
+/// A modifier used to be appended as its pre-rendered SQLite text. It is now
+/// appended as this node, so the dialect that renders the statement decides
+/// the spelling.
+///
+private struct XLDateModifierExpression: XLExpression {
+
+    typealias T = String
+
+    let modifier: XLDateModifier
+
+    func makeSQL(context: inout XLBuilder) {
+        context.dateModifier(modifier.term)
+    }
+}
+
+
 private func dateParameters(value: any XLExpression, modifiers: [XLDateModifier]) -> [any XLExpression] {
     var parameters: [any XLExpression] = [value]
     for modifier in modifiers {
-        parameters.append(modifier.rawValue)
+        parameters.append(XLDateModifierExpression(modifier: modifier))
     }
     return parameters
 }
@@ -276,7 +307,7 @@ private func dateParameters(value: any XLExpression, modifiers: [XLDateModifier]
 private func strftimeParameters(format: String, value: any XLExpression, modifiers: [XLDateModifier]) -> [any XLExpression] {
     var parameters: [any XLExpression] = [format, value]
     for modifier in modifiers {
-        parameters.append(modifier.rawValue)
+        parameters.append(XLDateModifierExpression(modifier: modifier))
     }
     return parameters
 }

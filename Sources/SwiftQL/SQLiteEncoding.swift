@@ -9,33 +9,36 @@ import Foundation
 
 
 ///
-/// Encodes SwiftQL statements into SQL that can be executed by SQLite.
+/// Encodes SwiftQL statements into SQL for one dialect.
 ///
-public struct XLiteEncoder: XLEncoder {
+/// The dialect supplies both halves of the rendering seam: the formatter that
+/// spells literals, identifiers, and placeholders, and the vocabulary that
+/// spells the keywords which differ between dialects. A second dialect is
+/// therefore rendered by this same encoder rather than by a parallel one.
+///
+/// Physical placeholder numbering is still assigned with SQLite's rule. Issue
+/// #674 separates the logical binding key from the rendered placeholder and
+/// moves that assignment onto the dialect.
+///
+public struct XLDialectEncoder<Dialect>: XLEncoder where Dialect: XLSQLDialect {
 
-    public var formatter: XLiteFormatter
+    ///
+    /// The dialect this encoder renders for.
+    ///
+    public let dialect: Dialect
 
-    private var dialectDescriptor: XLDialectDescriptor
-
-    public init(formatter: XLiteFormatter) {
-        self.formatter = formatter
-        self.dialectDescriptor = XLSQLiteDialect().descriptor
+    ///
+    /// The formatter vended by ``dialect``.
+    ///
+    public var formatter: Dialect.Formatter {
+        dialect.makeFormatter()
     }
 
-    /// Creates an encoder from an explicit SQLite dialect configuration.
-    public init(dialect: XLSQLiteDialect) {
-        self.formatter = XLiteFormatter(
-            identifierFormattingOptions: dialect.identifierFormattingOptions
-        )
-        self.dialectDescriptor = dialect.descriptor
-    }
-
-    public var dialect: XLSQLiteDialect {
-        XLSQLiteDialect(
-            identifierFormattingOptions: formatter.identifierFormattingOptions,
-            version: dialectDescriptor.version,
-            capabilities: dialectDescriptor.capabilities
-        )
+    ///
+    /// Creates an encoder for an explicit dialect configuration.
+    ///
+    public init(dialect: Dialect) {
+        self.dialect = dialect
     }
 
     public func makeSQL(_ expression: XLEncodable) -> XLEncoding {
@@ -47,6 +50,7 @@ public struct XLiteEncoder: XLEncoder {
         let customFunctionRegistry = XLiteCustomFunctionRegistry()
         var builder: XLBuilder = XLiteBuilder(
             formatter: recordingFormatter,
+            vocabulary: dialect.makeVocabulary(),
             customFunctionRegistry: customFunctionRegistry
         )
         expression.makeSQL(context: &builder)
@@ -75,6 +79,32 @@ public struct XLiteEncoder: XLEncoder {
             throw error
         }
         return encoding
+    }
+}
+
+
+///
+/// Encodes SwiftQL statements into SQL that can be executed by SQLite.
+///
+/// The SQLite conformance of ``XLDialectEncoder``.
+///
+public typealias XLiteEncoder = XLDialectEncoder<XLSQLiteDialect>
+
+
+extension XLDialectEncoder where Dialect == XLSQLiteDialect {
+
+    ///
+    /// Creates a SQLite encoder from a formatter.
+    ///
+    /// The formatter carries the identifier quoting, which is the only part of
+    /// the dialect it can express; everything else takes its default.
+    ///
+    public init(formatter: XLiteFormatter) {
+        self.init(
+            dialect: XLSQLiteDialect(
+                identifierFormattingOptions: formatter.identifierFormattingOptions
+            )
+        )
     }
 }
 
@@ -348,90 +378,6 @@ private struct XLiteRequirementRecordingFormatter: XLiteParameterRecordingFormat
 
 ///
 /// Formats SwiftQL literals into SQL sub-expressions for use with SQLite.
-///
-public struct XLiteFormatter: XLFormatter {
-
-    ///
-    /// Defines the escape sequence used to encode identifiers.
-    ///
-    /// SQLite provides compatibility for different conventions for escaping names of identifiers. SwiftQL
-    /// uses SQLite's canonical double-quoted identifier syntax by default.
-    ///
-    public typealias IdentifierFormattingOptions = XLSQLiteIdentifierFormattingOptions
-
-    public var identifierFormattingOptions: IdentifierFormattingOptions
-
-    public init(identifierFormattingOptions: IdentifierFormattingOptions = .sqlite) {
-        self.identifierFormattingOptions = identifierFormattingOptions
-    }
-
-    public func null() -> String {
-        "NULL"
-    }
-
-    public func integer(_ value: Int) -> String {
-        String(value)
-    }
-
-    public func real(_ value: Double) -> String {
-        guard value.isFinite else {
-            return ""
-        }
-        return String(value)
-    }
-
-    public func text(_ text: String) -> String {
-        // Embedded single quotes must be doubled per the SQL standard, otherwise
-        // the value breaks out of the literal (broken SQL at best, injection at worst).
-        guard text.contains("'") else {
-            return "'\(text)'"
-        }
-        return "'\(text.replacingOccurrences(of: "'", with: "''"))'"
-    }
-
-    public func text(_ text: StaticString) -> String {
-        self.text(text.description)
-    }
-
-    public func blob(_ data: Data) -> String {
-        "x'\(data.hex())'"
-    }
-
-    public func name(_ value: String) -> String {
-        XLSQLiteDialect(
-            identifierFormattingOptions: identifierFormattingOptions
-        ).formatIdentifier(value)
-    }
-
-    public func scopedName(_ values: [String]) -> String {
-        // Qualified names are almost always one ("column") or two
-        // ("table"."column") components. Handle those without the intermediate
-        // `map` array that `joined` would otherwise allocate on every reference.
-        switch values.count {
-        case 0:
-            return ""
-        case 1:
-            return name(values[0])
-        case 2:
-            // Build in place so only the result string is allocated; `a + "." + b`
-            // would materialise an extra intermediate from the first `+`.
-            var scoped = name(values[0])
-            scoped += "."
-            scoped += name(values[1])
-            return scoped
-        default:
-            return values.map(name).joined(separator: ".")
-        }
-    }
-
-    public func namedBinding(_ named: String) -> String {
-        ":\(named)"
-    }
-
-    public func indexedBinding(_ index: Int) -> String {
-        "?\(index + 1)"
-    }
-}
 
 
 ///
@@ -477,18 +423,34 @@ public struct XLiteBuilder: XLBuilder {
 
     private var formatter: XLFormatter
 
+    ///
+    /// Spells the keywords whose text differs between dialects.
+    ///
+    /// This builder renders for SQLite, so it carries SQLite's vocabulary.
+    ///
+    public let vocabulary: any XLSQLVocabulary
+
     private var _tokens: [String] = []
 
     private var _entities: Set<String> = []
 
     private let customFunctionRegistry: XLiteCustomFunctionRegistry
 
-    public init(formatter: XLFormatter) {
-        self.init(formatter: formatter, customFunctionRegistry: XLiteCustomFunctionRegistry())
+    public init(formatter: XLFormatter, vocabulary: any XLSQLVocabulary = XLiteVocabulary()) {
+        self.init(
+            formatter: formatter,
+            vocabulary: vocabulary,
+            customFunctionRegistry: XLiteCustomFunctionRegistry()
+        )
     }
 
-    init(formatter: XLFormatter, customFunctionRegistry: XLiteCustomFunctionRegistry) {
+    init(
+        formatter: XLFormatter,
+        vocabulary: any XLSQLVocabulary = XLiteVocabulary(),
+        customFunctionRegistry: XLiteCustomFunctionRegistry
+    ) {
         self.formatter = formatter
+        self.vocabulary = vocabulary
         self.customFunctionRegistry = customFunctionRegistry
     }
 
@@ -631,36 +593,36 @@ public struct XLiteBuilder: XLBuilder {
     }
 
     public mutating func block(beginsWith prefix: String, endsWith suffix: String, separator: XLSeparator, contents: (inout XLBuilder) -> Void) {
-        var blockBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
+        var blockBuilder: XLBuilder = XLiteBuilder(formatter: formatter, vocabulary: vocabulary, customFunctionRegistry: customFunctionRegistry)
         contents(&blockBuilder)
         append(prefix + separator.rawValue + blockBuilder.build() + separator.rawValue + suffix)
         _entities.formUnion(blockBuilder.entities())
     }
 
     public mutating func unaryPrefix(_ operator: String, expression: (inout XLBuilder) -> Void) {
-        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
+        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, vocabulary: vocabulary, customFunctionRegistry: customFunctionRegistry)
         expression(&expressionBuilder)
         append(`operator` + " " + expressionBuilder.build())
         _entities.formUnion(expressionBuilder.entities())
     }
 
     public mutating func unarySuffix(_ operator: String, expression: (inout XLBuilder) -> Void) {
-        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
+        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, vocabulary: vocabulary, customFunctionRegistry: customFunctionRegistry)
         expression(&expressionBuilder)
         append(expressionBuilder.build() + " " + `operator`)
         _entities.formUnion(expressionBuilder.entities())
     }
 
     public mutating func unaryOperator(_ operator: String, expression: (inout XLBuilder) -> Void) {
-        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
+        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, vocabulary: vocabulary, customFunctionRegistry: customFunctionRegistry)
         expression(&expressionBuilder)
         append(`operator` + expressionBuilder.build())
         _entities.formUnion(expressionBuilder.entities())
     }
 
     public mutating func binaryOperator(_ operator: String, left: (inout XLBuilder) -> Void, right: (inout XLBuilder) -> Void) {
-        var lhsExpressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
-        var rhsExpressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
+        var lhsExpressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, vocabulary: vocabulary, customFunctionRegistry: customFunctionRegistry)
+        var rhsExpressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, vocabulary: vocabulary, customFunctionRegistry: customFunctionRegistry)
         left(&lhsExpressionBuilder)
         right(&rhsExpressionBuilder)
         append(lhsExpressionBuilder.build() + " " + `operator` + " " + rhsExpressionBuilder.build())
@@ -669,7 +631,7 @@ public struct XLiteBuilder: XLBuilder {
     }
 
     public mutating func cast(type: String, expression: (inout XLBuilder) -> Void) {
-        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
+        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, vocabulary: vocabulary, customFunctionRegistry: customFunctionRegistry)
         expression(&expressionBuilder)
         append("CAST(" + expressionBuilder.build() + " AS " + type + ")")
         _entities.formUnion(expressionBuilder.entities())
@@ -703,7 +665,7 @@ public struct XLiteBuilder: XLBuilder {
     }
 
     public mutating func alias(_ name: XLName, expression: (inout XLBuilder) -> Void) {
-        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
+        var expressionBuilder: XLBuilder = XLiteBuilder(formatter: formatter, vocabulary: vocabulary, customFunctionRegistry: customFunctionRegistry)
         expression(&expressionBuilder)
         append(expressionBuilder.build() + " AS " + formatter.name(name.rawValue))
         _entities.formUnion(expressionBuilder.entities())
@@ -715,7 +677,7 @@ public struct XLiteBuilder: XLBuilder {
             customFunctionRegistry: customFunctionRegistry
         )
         builder(&commonTablesBuilder)
-        append("WITH " + commonTablesBuilder.build())
+        append(vocabulary.spelling(for: .with) + " " + commonTablesBuilder.build())
         _entities.formUnion(commonTablesBuilder.entities())
     }
 
@@ -752,6 +714,9 @@ public struct XLiteListBuilder: XLListBuilder {
 
     private var formatter: XLFormatter
 
+    /// Carried so that nested builders render with the same dialect's keywords.
+    let vocabulary: any XLSQLVocabulary
+
     private var separator: String
 
     private var _tokens: [String] = []
@@ -760,14 +725,30 @@ public struct XLiteListBuilder: XLListBuilder {
 
     private let customFunctionRegistry: XLiteCustomFunctionRegistry
 
-    init(formatter: XLFormatter, separator: String, customFunctionRegistry: XLiteCustomFunctionRegistry) {
+    init(
+        formatter: XLFormatter,
+        separator: String,
+        vocabulary: any XLSQLVocabulary = XLiteVocabulary(),
+        customFunctionRegistry: XLiteCustomFunctionRegistry
+    ) {
+        self.vocabulary = vocabulary
         self.separator = separator
         self.formatter = formatter
         self.customFunctionRegistry = customFunctionRegistry
     }
 
-    init(formatter: XLFormatter, separator: XLSeparator, customFunctionRegistry: XLiteCustomFunctionRegistry) {
-        self.init(formatter: formatter, separator: separator.rawValue, customFunctionRegistry: customFunctionRegistry)
+    init(
+        formatter: XLFormatter,
+        separator: XLSeparator,
+        vocabulary: any XLSQLVocabulary = XLiteVocabulary(),
+        customFunctionRegistry: XLiteCustomFunctionRegistry
+    ) {
+        self.init(
+            formatter: formatter,
+            separator: separator.rawValue,
+            vocabulary: vocabulary,
+            customFunctionRegistry: customFunctionRegistry
+        )
     }
 
     public func build() -> String {
@@ -782,7 +763,7 @@ public struct XLiteListBuilder: XLListBuilder {
     }
 
     public mutating func listItem(expression: (inout XLBuilder) -> Void) {
-        var builder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
+        var builder: XLBuilder = XLiteBuilder(formatter: formatter, vocabulary: vocabulary, customFunctionRegistry: customFunctionRegistry)
         expression(&builder)
         _tokens.append(builder.build())
         _entities.formUnion(builder.entities())
@@ -797,14 +778,22 @@ public struct XLiteCommonTablesBuilder: XLCommonTablesBuilder {
 
     private var formatter: XLFormatter
 
+    /// Carried so that nested builders render with the same dialect's keywords.
+    let vocabulary: any XLSQLVocabulary
+
     private var _tokens: [String] = []
 
     private var _entities: Set<String> = []
 
     private let customFunctionRegistry: XLiteCustomFunctionRegistry
 
-    init(formatter: XLFormatter, customFunctionRegistry: XLiteCustomFunctionRegistry) {
+    init(
+        formatter: XLFormatter,
+        vocabulary: any XLSQLVocabulary = XLiteVocabulary(),
+        customFunctionRegistry: XLiteCustomFunctionRegistry
+    ) {
         self.formatter = formatter
+        self.vocabulary = vocabulary
         self.customFunctionRegistry = customFunctionRegistry
     }
 
@@ -829,7 +818,7 @@ public struct XLiteCommonTablesBuilder: XLCommonTablesBuilder {
         columns: [XLName],
         expression: (inout XLBuilder) -> Void
     ) {
-        var builder: XLBuilder = XLiteBuilder(formatter: formatter, customFunctionRegistry: customFunctionRegistry)
+        var builder: XLBuilder = XLiteBuilder(formatter: formatter, vocabulary: vocabulary, customFunctionRegistry: customFunctionRegistry)
         expression(&builder)
         let hint = materialization.keyword.map { " " + $0 } ?? ""
         let columnList = columns.isEmpty

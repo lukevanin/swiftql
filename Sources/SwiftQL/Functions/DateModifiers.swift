@@ -33,9 +33,22 @@ import Foundation
 public struct XLDateModifier: Hashable, Sendable {
 
     ///
-    /// The exact modifier text rendered into the SQL statement.
+    /// What the modifier means.
     ///
-    public let rawValue: String
+    /// The dialect decides the text: a statement renders this term through
+    /// the vocabulary of the dialect it targets.
+    ///
+    public let term: XLDateModifierTerm
+
+    ///
+    /// The SQLite text for this modifier.
+    ///
+    /// Retained for callers that inspect a modifier. Rendering does not read
+    /// it, so a dialect that spells a modifier differently is not bypassed.
+    ///
+    public var rawValue: String {
+        XLiteVocabulary().spelling(for: term)
+    }
 
     ///
     /// Names a modifier by its exact SQLite text.
@@ -46,51 +59,58 @@ public struct XLDateModifier: Hashable, Sendable {
     /// when the statement is prepared or stepped.
     ///
     public init(_ rawValue: String) {
-        self.rawValue = rawValue
+        self.term = .custom(rawValue)
+    }
+
+    ///
+    /// Names a modifier by what it means, so the dialect can spell it.
+    ///
+    init(_ term: XLDateModifierTerm) {
+        self.term = term
     }
 
     // MARK: - Relative offsets
 
     /// Adds `count` days to the time value. A negative value subtracts.
     public static func days(_ count: Int) -> XLDateModifier {
-        offset(count, unit: "days")
+        XLDateModifier(.offset(count: count, unit: .days))
     }
 
     /// Adds `count` hours to the time value. A negative value subtracts.
     public static func hours(_ count: Int) -> XLDateModifier {
-        offset(count, unit: "hours")
+        XLDateModifier(.offset(count: count, unit: .hours))
     }
 
     /// Adds `count` minutes to the time value. A negative value subtracts.
     public static func minutes(_ count: Int) -> XLDateModifier {
-        offset(count, unit: "minutes")
+        XLDateModifier(.offset(count: count, unit: .minutes))
     }
 
     /// Adds `count` seconds to the time value. A negative value subtracts.
     public static func seconds(_ count: Int) -> XLDateModifier {
-        offset(count, unit: "seconds")
+        XLDateModifier(.offset(count: count, unit: .seconds))
     }
 
     /// Adds `count` months to the time value. A negative value subtracts.
     public static func months(_ count: Int) -> XLDateModifier {
-        offset(count, unit: "months")
+        XLDateModifier(.offset(count: count, unit: .months))
     }
 
     /// Adds `count` years to the time value. A negative value subtracts.
     public static func years(_ count: Int) -> XLDateModifier {
-        offset(count, unit: "years")
+        XLDateModifier(.offset(count: count, unit: .years))
     }
 
     // MARK: - Anchoring
 
     /// Shifts the time value back to the start of the day (00:00:00).
-    public static let startOfDay = XLDateModifier("start of day")
+    public static let startOfDay = XLDateModifier(.startOf(.days))
 
     /// Shifts the time value back to midnight on the first day of the month.
-    public static let startOfMonth = XLDateModifier("start of month")
+    public static let startOfMonth = XLDateModifier(.startOf(.months))
 
     /// Shifts the time value back to midnight on the first day of the year.
-    public static let startOfYear = XLDateModifier("start of year")
+    public static let startOfYear = XLDateModifier(.startOf(.years))
 
     ///
     /// Advances the time value to the next date whose day of week matches
@@ -98,7 +118,7 @@ public struct XLDateModifier: Hashable, Sendable {
     /// falls on `day`, it is left unchanged.
     ///
     public static func weekday(_ day: Int) -> XLDateModifier {
-        XLDateModifier("weekday \(day)")
+        XLDateModifier(.weekday(day))
     }
 
     // MARK: - Rounding
@@ -107,21 +127,21 @@ public struct XLDateModifier: Hashable, Sendable {
     /// Rounds a month or year offset up when the resulting day would overflow
     /// the target month. Added in SQLite 3.42.0.
     ///
-    public static let ceiling = XLDateModifier("ceiling")
+    public static let ceiling = XLDateModifier(.ceiling)
 
     ///
     /// Rounds a month or year offset down when the resulting day would overflow
     /// the target month. Added in SQLite 3.42.0.
     ///
-    public static let floor = XLDateModifier("floor")
+    public static let floor = XLDateModifier(.floor)
 
     // MARK: - Time zone
 
     /// Interprets the preceding time value as UTC and converts it to local time.
-    public static let localTime = XLDateModifier("localtime")
+    public static let localTime = XLDateModifier(.localTime)
 
     /// Interprets the preceding time value as local time and converts it to UTC.
-    public static let utc = XLDateModifier("utc")
+    public static let utc = XLDateModifier(.utc)
 
     // MARK: - Subsecond precision
 
@@ -129,17 +149,6 @@ public struct XLDateModifier: Hashable, Sendable {
     /// Renders fractional seconds in the output of `time`, `datetime`, and
     /// `strftime`. Added in SQLite 3.42.0.
     ///
-    public static let subsecond = XLDateModifier("subsec")
+    public static let subsecond = XLDateModifier(.subsecond)
 
-    // MARK: - Rendering
-
-    ///
-    /// Formats a signed relative offset. SQLite accepts an optional leading
-    /// sign; an explicit one is emitted so a positive offset reads the same way
-    /// a negative one does.
-    ///
-    private static func offset(_ count: Int, unit: String) -> XLDateModifier {
-        let sign = count < 0 ? "" : "+"
-        return XLDateModifier("\(sign)\(count) \(unit)")
-    }
 }

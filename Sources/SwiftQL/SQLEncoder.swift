@@ -152,59 +152,6 @@ public protocol XLEncoder {
 
 
 ///
-/// Encodes Swift values into a string representation in an SQL statement.
-///
-public protocol XLFormatter {
-    
-    ///
-    /// Formats a `nil` literal into an SQL sub-expression.
-    ///
-    func null() -> String
-    
-    ///
-    /// Formats an `Int` literal into an SQL sub-expression.
-    ///
-    func integer(_ value: Int) -> String
-    
-    ///
-    /// Formats a `Double` literal into an SQL sub-expression.
-    ///
-    func real(_ value: Double) -> String
-    
-    ///
-    /// Formats a `String` literal into an SQL sub-expression.
-    ///
-    func text(_ value: String) -> String
-    
-    ///
-    /// Formats a `Data` literal into an SQL sub-expression.
-    ///
-    func blob(_ value: Data) -> String
-    
-    ///
-    /// Formats a name, such as of a table or column, into an SQL sub-expression.
-    ///
-    func name(_ value: String) -> String
-    
-    ///
-    /// Formats a qualified name, such as a table and column, into an SQL sub-expression. Each
-    /// component of the name is provided as an entry in an array.
-    ///
-    func scopedName(_ values: [String]) -> String
-    
-    ///
-    /// Formats a named variable into an SQL sub-expression.
-    ///
-    func namedBinding(_ named: String) -> String
-    
-    ///
-    /// Formats an index variable into an SQL sub-expression.
-    ///
-    func indexedBinding(_ index: Int) -> String
-}
-
-
-///
 /// Encodes SwiftQL expressions into SQL.
 ///
 /// The `XLBuilder` is typically used by an associated `XLEncoder` to consutruct SQL statements for
@@ -233,10 +180,19 @@ public protocol XLBuilder {
     typealias ColumnsBuilder = (inout XLColumnDefinitionsBuilder) -> Void
     
     ///
+    /// Spells the keywords whose text differs between dialects.
+    ///
+    /// A builder renders for exactly one dialect, and carries that dialect's
+    /// vocabulary. Nodes name the operation they mean and never the keyword,
+    /// so the spelling belongs here rather than in the node.
+    ///
+    var vocabulary: any XLSQLVocabulary { get }
+
+    ///
     /// Creates an SQL expression from the current state.
     ///
     func build() -> String
-    
+
     ///
     /// Creates a set of names of tables referenced in the SQL expression.
     ///
@@ -526,6 +482,126 @@ extension XLBuilder {
     ///
     public mutating func parenthesis(contents: Builder) {
         block(beginsWith: "(", endsWith: ")", separator: .elided, contents: contents)
+    }
+}
+
+
+// MARK: - Vocabulary
+
+///
+/// Renders the operations whose keyword differs between dialects.
+///
+/// Each method asks ``XLBuilder/vocabulary`` for the spelling and then defers
+/// to the established string primitive, so one implementation serves every
+/// dialect and no node holds a keyword.
+///
+extension XLBuilder {
+
+    ///
+    /// Adds a comparison between two sub-expressions.
+    ///
+    public mutating func comparison(
+        _ comparison: XLComparisonOperator,
+        left: Builder,
+        right: Builder
+    ) {
+        binaryOperator(
+            vocabulary.spelling(for: comparison),
+            left: left,
+            right: right
+        )
+    }
+
+    ///
+    /// Adds a postfix test for `NULL`.
+    ///
+    public mutating func nullTest(
+        _ test: XLNullTest,
+        expression: Builder
+    ) {
+        unarySuffix(vocabulary.spelling(for: test), expression: expression)
+    }
+
+    ///
+    /// Adds a conditional function call.
+    ///
+    public mutating func conditional(
+        _ function: XLConditionalFunction,
+        parameters: ListBuilder
+    ) {
+        simpleFunction(
+            name: vocabulary.spelling(for: function),
+            parameters: parameters
+        )
+    }
+
+    ///
+    /// Adds a collating sequence applied to a text sub-expression.
+    ///
+    public mutating func collate(
+        _ collation: XLCollationName,
+        expression: Builder
+    ) {
+        unarySuffix(
+            "COLLATE " + vocabulary.spelling(for: collation),
+            expression: expression
+        )
+    }
+
+    ///
+    /// Adds a regular-expression match between two sub-expressions.
+    ///
+    /// The vocabulary states both the operator text and which functions the
+    /// match needs registered on the connection that runs the statement, so
+    /// the node decides neither. A dialect whose engine matches natively
+    /// requires no function and records none.
+    ///
+    /// - Parameters:
+    ///   - match: The match operation to render.
+    ///   - left: The subject sub-expression.
+    ///   - right: The pattern sub-expression.
+    ///   - retainedValues: Values the registration must keep alive for as long
+    ///     as the statement can be executed, such as a compiled pattern the
+    ///     registry holds weakly.
+    ///
+    public mutating func regexMatch(
+        _ match: XLRegexMatchOperator,
+        left: Builder,
+        right: Builder,
+        retaining retainedValues: [any Sendable] = []
+    ) {
+        for definition in vocabulary.requiredFunctions(for: match).sorted() {
+            guard let registration = XLCustomFunctionRegistration.bundled[definition] else {
+                continue
+            }
+            customFunction(
+                retainedValues.isEmpty
+                    ? registration
+                    : registration.retaining(retainedValues)
+            )
+        }
+        binaryOperator(
+            vocabulary.spelling(for: match),
+            left: left,
+            right: right
+        )
+    }
+
+    ///
+    /// Adds the opening clause of an insert statement.
+    ///
+    public mutating func insertTarget(
+        _ target: XLInsertTarget,
+        table: Builder
+    ) {
+        unaryPrefix(vocabulary.spelling(for: target), expression: table)
+    }
+
+    ///
+    /// Renders one date or time modifier as a text literal.
+    ///
+    public mutating func dateModifier(_ modifier: XLDateModifierTerm) {
+        text(vocabulary.spelling(for: modifier))
     }
 }
 
