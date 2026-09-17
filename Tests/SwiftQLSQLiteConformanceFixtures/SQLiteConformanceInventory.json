@@ -7793,7 +7793,7 @@
         },
         {
           "symbol": "XLInsertOrAction",
-          "source_path": "Sources/SwiftQL/SQLWriteStatements.swift",
+          "source_path": "Sources/SwiftQLCore/SQLVocabulary.swift",
           "source_tokens": [
             "XLInsertOrAction"
           ]
