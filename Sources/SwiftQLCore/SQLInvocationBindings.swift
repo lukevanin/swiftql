@@ -321,13 +321,71 @@ public enum XLInvocationBindingError: Error, Equatable, Sendable, LocalizedError
 
 
 /// Canonical immutable metadata for every logical parameter in one statement.
+///
+/// One textual appearance of a parameter in a rendered statement.
+///
+/// The layout coalesces a repeated named parameter into one logical slot,
+/// because it is bound once. A dialect that must rewrite or re-bind every
+/// textual appearance needs the appearances too, in the order they were
+/// rendered, which is what this records.
+///
+public struct XLParameterOccurrence: Hashable, Sendable {
+
+    ///
+    /// The logical slot this appearance binds to. Repeated appearances of one
+    /// named parameter share it.
+    ///
+    public let index: XLLogicalParameterIndex
+
+    ///
+    /// The logical identity Swift code chose.
+    ///
+    public let key: XLBindingKey
+
+    ///
+    /// How the dialect spelled this appearance.
+    ///
+    public let placeholder: XLBindingPlaceholder
+
+    ///
+    /// The one-based position the engine binds this appearance by.
+    ///
+    public let physicalIndex: Int
+
+    public init(
+        index: XLLogicalParameterIndex,
+        key: XLBindingKey,
+        placeholder: XLBindingPlaceholder,
+        physicalIndex: Int
+    ) {
+        self.index = index
+        self.key = key
+        self.placeholder = placeholder
+        self.physicalIndex = physicalIndex
+    }
+}
+
+
 public struct XLParameterLayout: Hashable, Sendable {
 
-    public static let empty = Self(canonicalSlots: [])
+    public static let empty = Self(canonicalSlots: [], occurrences: [])
 
     public let slots: [XLParameterSlot]
 
-    public init(slots declarations: [XLParameterSlot] = []) throws {
+    ///
+    /// Every textual appearance of a parameter, in render order.
+    ///
+    /// Empty for a layout built without occurrence recording, which is how
+    /// every layout was built before the placeholder model was separated from
+    /// the logical key. Readers must treat an empty value as "not recorded"
+    /// rather than as "no parameters".
+    ///
+    public let occurrences: [XLParameterOccurrence]
+
+    public init(
+        slots declarations: [XLParameterSlot] = [],
+        occurrences: [XLParameterOccurrence] = []
+    ) throws {
         var slotsByIndex: [XLLogicalParameterIndex: XLParameterSlot] = [:]
         var slotsByKey: [XLBindingKey: XLParameterSlot] = [:]
 
@@ -383,10 +441,15 @@ public struct XLParameterLayout: Hashable, Sendable {
             }
         }
         slots = canonicalSlots
+        self.occurrences = occurrences
     }
 
-    private init(canonicalSlots: [XLParameterSlot]) {
+    private init(
+        canonicalSlots: [XLParameterSlot],
+        occurrences: [XLParameterOccurrence]
+    ) {
         self.slots = canonicalSlots
+        self.occurrences = occurrences
     }
 
     public var isEmpty: Bool {
@@ -403,6 +466,23 @@ public struct XLParameterLayout: Hashable, Sendable {
 
     public func slot(for key: XLBindingKey) -> XLParameterSlot? {
         slots.first { $0.key == key }
+    }
+
+    ///
+    /// How the dialect spelled `key`, or `nil` when no occurrence was
+    /// recorded.
+    ///
+    public func placeholder(for key: XLBindingKey) -> XLBindingPlaceholder? {
+        occurrences.first { $0.key == key }?.placeholder
+    }
+
+    ///
+    /// Every appearance of one logical slot, in render order.
+    ///
+    public func occurrences(
+        of index: XLLogicalParameterIndex
+    ) -> [XLParameterOccurrence] {
+        occurrences.filter { $0.index == index }
     }
 }
 

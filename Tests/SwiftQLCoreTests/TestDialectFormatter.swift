@@ -73,6 +73,14 @@ struct TestDialectFormatter: XLFormatter {
 extension XLSQLDialect {
 
     ///
+    /// Borrows SQLite's placeholder rule, which is what these dialects'
+    /// `formatPlaceholder` implementations already spell.
+    ///
+    func makeTestPlaceholderAssigner() -> XLitePlaceholderAssigner {
+        XLitePlaceholderAssigner()
+    }
+
+    ///
     /// Borrows SQLite's keyword spelling.
     ///
     /// These dialects exercise identity, capability, and codec rules rather
