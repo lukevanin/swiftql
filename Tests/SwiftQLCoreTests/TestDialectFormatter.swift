@@ -13,16 +13,16 @@ import Foundation
 ///
 struct TestDialectFormatter: XLFormatter {
 
-    private let identifier: @Sendable (String) -> String
+    private let identifier: (String) -> String
 
-    private let qualifiedIdentifier: @Sendable ([String]) -> String
+    private let qualifiedIdentifier: ([String]) -> String
 
-    private let placeholder: @Sendable (XLBindingPlaceholder) -> String
+    private let placeholder: (XLBindingPlaceholder) -> String
 
     init(
-        identifier: @escaping @Sendable (String) -> String,
-        qualifiedIdentifier: @escaping @Sendable ([String]) -> String,
-        placeholder: @escaping @Sendable (XLBindingPlaceholder) -> String
+        identifier: @escaping (String) -> String,
+        qualifiedIdentifier: @escaping ([String]) -> String,
+        placeholder: @escaping (XLBindingPlaceholder) -> String
     ) {
         self.identifier = identifier
         self.qualifiedIdentifier = qualifiedIdentifier
