@@ -120,7 +120,22 @@ public struct XLRequestBuilder<Row> {
 /// an adapter-backed Combine publisher that observes the query's database region.
 ///
 public protocol XLRequest<Row> {
-    associatedtype Row
+
+    ///
+    /// The decoded row type.
+    ///
+    /// `Sendable` because a row crosses an isolation boundary on every
+    /// observation path: `publish()` hands a snapshot to a subscriber, and
+    /// `stream()` hands one to an iterating task.
+    ///
+    /// The constraint sits here, on the associated type, rather than on the
+    /// observation members, because Swift can express it nowhere else. A
+    /// constraint on an individual protocol requirement is rejected outright,
+    /// and a refinement that adds it cannot be conformed to conditionally,
+    /// because `Sendable` is a marker protocol with no runtime representation.
+    /// Both were tried; see issue #685.
+    ///
+    associatedtype Row: Sendable
 
     /// Immutable static parameter metadata captured when the request was prepared.
     var parameterLayout: XLParameterLayout { get }

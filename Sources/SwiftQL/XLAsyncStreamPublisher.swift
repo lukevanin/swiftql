@@ -108,7 +108,7 @@ final class XLAsyncStreamSubscriptionTestHooks: @unchecked Sendable {
 /// the first time that subscriber grants positive demand: never at `Publisher` construction, and never
 /// merely because something subscribed. This mirrors #308's "observation begins with iteration" rule:
 /// building this publisher, and even subscribing to it with zero demand, performs no database work.
-struct XLAsyncStreamPublisher<Value>: Publisher {
+struct XLAsyncStreamPublisher<Value: Sendable>: Publisher {
 
     typealias Output = Value
 
@@ -137,7 +137,7 @@ struct XLAsyncStreamPublisher<Value>: Publisher {
 /// backpressure bookkeeping for no benefit. ``XLAsyncStreamSubscription`` therefore stays thread-
 /// agnostic: it delivers on whatever thread its consumer `Task` runs on, and `.receive(on:)` is the
 /// only thing that reschedules delivery onto the main queue.
-func xlLiveQueryPublisher<Value>(
+func xlLiveQueryPublisher<Value: Sendable>(
     makeStream: @escaping () -> AsyncThrowingStream<Value, Error>
 ) -> AnyPublisher<Value, Error> {
     XLAsyncStreamPublisher(makeStream: makeStream)
@@ -180,7 +180,7 @@ func xlLiveQueryPublisher<Value>(
 ///   Combine's own contract is that nothing may reach a subscriber after it calls `cancel()` --
 ///   regardless of what the underlying stream still yields afterward.
 private final class XLAsyncStreamSubscription<Downstream>: Subscription, @unchecked Sendable
-where Downstream: Subscriber, Downstream.Failure == Error {
+where Downstream: Subscriber, Downstream.Failure == Error, Downstream.Input: Sendable {
 
     // Recursive, not plain `NSLock`: `deliver(_:)` and `finish(error:)` hold this
     // lock across the downstream `receive(_:)`/`receive(completion:)` call itself
