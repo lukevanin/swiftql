@@ -218,7 +218,7 @@ public enum XLJSONValueCodec {
     ///     persisted meaning.
     ///   - configuration: The immutable `JSONEncoder`/`JSONDecoder` strategy
     ///     snapshot used for every encode and decode made through this codec.
-    public static func text<Value: Codable>(
+    public static func text<Value: Codable & Sendable>(
         key: XLValueCodecKey,
         valueTypeIdentifier: XLValueTypeIdentifier,
         configuration: XLJSONCodecConfiguration = XLJSONCodecConfiguration()
@@ -266,7 +266,7 @@ public enum XLJSONValueCodec {
     ///     persisted meaning.
     ///   - configuration: The immutable `JSONEncoder`/`JSONDecoder` strategy
     ///     snapshot used for every encode and decode made through this codec.
-    public static func blob<Value: Codable>(
+    public static func blob<Value: Codable & Sendable>(
         key: XLValueCodecKey,
         valueTypeIdentifier: XLValueTypeIdentifier,
         configuration: XLJSONCodecConfiguration = XLJSONCodecConfiguration()

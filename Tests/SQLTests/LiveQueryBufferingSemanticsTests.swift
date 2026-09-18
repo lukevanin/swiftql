@@ -786,7 +786,16 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         let secondExpectation = expectation(description: "second next() resolves only after a later write")
         let secondValue = LockedValueBox<Int?>(nil)
         Task {
-            secondValue.set(try await bridge.next())
+            // Handled rather than thrown out of the task: an unhandled throw
+            // here is discarded, and the test then fails as a timeout on
+            // `secondExpectation` instead of reporting what actually went
+            // wrong.
+            do {
+                secondValue.set(try await bridge.next())
+            }
+            catch {
+                XCTFail("bridge.next() threw: \(error)")
+            }
             secondExpectation.fulfill()
         }
         drainMainQueue()
