@@ -36,7 +36,7 @@ package enum GRDBRequestPhaseProbeError: Error, CustomStringConvertible {
 /// It is package API for the benchmark target and adds no behavior to a
 /// request. Every value it lends is valid only inside the connection access
 /// that ``withConnection(_:)`` opens.
-package struct GRDBRequestPhaseProbe<Output> {
+package struct GRDBRequestPhaseProbe<Output: Sendable> {
 
     private let executor: GRDBInvocationExecutor
 

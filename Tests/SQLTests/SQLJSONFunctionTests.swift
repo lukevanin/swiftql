@@ -231,7 +231,7 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
     private func evaluate<Value>(
         _ expression: any XLExpression<Value>,
         document json: String
-    ) throws -> Value? where Value: XLLiteral {
+    ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }
         var request = database.makeRequest(with: statement)
         request.set(document(), json)
@@ -242,7 +242,7 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
     /// statement does not declare is rejected, so these need their own path.
     private func evaluate<Value>(
         _ expression: any XLExpression<Value>
-    ) throws -> Value? where Value: XLLiteral {
+    ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }
         return try database.makeRequest(with: statement).fetchOne()
     }
@@ -596,7 +596,7 @@ final class XLJSONFunctionExecutionTests: XCTestCase {
     /// unwrapped so the assertion reads the column rather than the row.
     private func evaluateOnNull<Value>(
         _ makeExpression: (XLNamedBindingReference<String?>) -> any XLExpression<Value?>
-    ) throws -> Value? where Value: XLLiteral, Value?: XLLiteral {
+    ) throws -> Value? where Value: XLLiteral & Sendable, Value?: XLLiteral {
         let reference = XLNamedBindingReference<String?>(name: "nullDocument")
         let statement = sql { _ in Select(makeExpression(reference)) }
         var request = database.makeRequest(with: statement)

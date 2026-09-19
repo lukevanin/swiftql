@@ -148,7 +148,7 @@ final class XLJSONOperatorExecutionTests: XCTestCase {
     private func evaluate<Value>(
         _ expression: any XLExpression<Value>,
         document json: String
-    ) throws -> Value? where Value: XLLiteral {
+    ) throws -> Value? where Value: XLLiteral & Sendable {
         let statement = sql { _ in Select(expression) }
         var request = database.makeRequest(with: statement)
         request.set(document(), json)
