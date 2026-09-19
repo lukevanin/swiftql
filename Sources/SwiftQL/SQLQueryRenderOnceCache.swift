@@ -98,7 +98,7 @@ public struct XLPreparedQueryCacheKey: Hashable, Sendable {
 /// driver, not to the scope, so an entry never retains a scope's invalidated
 /// connection (issue #642).
 ///
-public final class XLRenderOnceCache<Row>: @unchecked Sendable {
+public final class XLRenderOnceCache<Row: Sendable>: @unchecked Sendable {
 
     private let lock = NSLock()
 
@@ -187,10 +187,10 @@ public final class XLRenderOnceCache<Row>: @unchecked Sendable {
 protocol XLRenderOnceRequestBinding {
 
     /// `request`, bound to this database. Must render nothing.
-    func bindRenderOnceRequest<Row>(_ request: any XLRequest<Row>) -> any XLRequest<Row>
+    func bindRenderOnceRequest<Row: Sendable>(_ request: any XLRequest<Row>) -> any XLRequest<Row>
 
     /// `request` as the cache should store it: bound to the database that owns
     /// the cache key, even when this is a transaction scope that rendered it.
     /// Called once per entry, under the cache's lock. Must render nothing.
-    func storableRenderOnceRequest<Row>(_ request: any XLRequest<Row>) -> any XLRequest<Row>
+    func storableRenderOnceRequest<Row: Sendable>(_ request: any XLRequest<Row>) -> any XLRequest<Row>
 }

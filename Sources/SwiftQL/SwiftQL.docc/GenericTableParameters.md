@@ -28,7 +28,16 @@ struct GenericTable<Value: XLLiteral & XLExpression> {
     var type: String
     var value: Value
 }
+
+extension GenericTable: Sendable where Value: Sendable {
+
+}
 ```
+
+The `Sendable` conformance is written by hand because the model is generic.
+`@SQLTable` writes the conformance for a concrete model, but it cannot write
+the `where` clause a generic one needs. A row must be `Sendable`, because
+``XLRequest`` hands each row to an observer across an isolation boundary.
 
 We can now create, insert into, and query the table using a `String` generic
 parameter.

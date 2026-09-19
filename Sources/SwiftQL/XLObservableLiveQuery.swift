@@ -52,7 +52,7 @@ import Foundation
 ///
 @available(iOS 17, macOS 14, *)
 @Observable
-public final class XLObservableQuery<Row>: @unchecked Sendable {
+public final class XLObservableQuery<Row: Sendable>: @unchecked Sendable {
 
     /// The most recently observed complete row set. Empty until the first snapshot (or a terminal
     /// error) has been applied.
@@ -106,73 +106,44 @@ public final class XLObservableQuery<Row>: @unchecked Sendable {
 
     // A `Task { @MainActor in ... for try await rows in stream ... }` shape (tried in an earlier
     // iteration of this fix) does not actually avoid crossing an isolation boundary: the stream's own
-    // `next()` is a nonisolated async function regardless of the Task's isolation, so pulling `[Row]`
-    // (non-Sendable, since `Row` is unconstrained) out of it and into the `@MainActor` Task body is
-    // itself flagged. Keeping the Task nonisolated (matching #451's original shape) is the narrower fix
-    // that actually addresses the real crossing.
+    // `next()` is a nonisolated async function regardless of the Task's isolation, so pulling the
+    // snapshot out of it and into the `@MainActor` Task body is itself flagged. Keeping the Task
+    // nonisolated (matching #451's original shape) is the narrower fix that actually addresses the
+    // real crossing.
     //
-    // Sending `rows` into `apply(rows:)` (`@MainActor`) needs some way to cross that boundary despite
-    // `Row` being unconstrained. Two Swift 6.0+-only spellings were tried and both broke the pinned
-    // Swift 5.9 cell's *parser* in ways `#if compiler(>=6.0)` does not protect against: a
-    // `nonisolated(unsafe)` shadow nested inside this `for` loop ("consecutive statements... must be
-    // separated by ';'"), and `sending` directly on `apply(rows:)`'s `[Row]` parameter ("array types are
-    // now written with the brackets around the element type" -- 5.9's parser reads `sending` as an
-    // unknown type name before the following `[Row]`, not as a modifier, and produces a confusing,
-    // unrelated diagnostic). Both cases show declarations and deeply-nested statements get *parsed*
-    // under Swift 5.9 even inside an inactive `#if compiler(>=6.0)` branch, not just lexically skipped.
-    // A plain `@unchecked Sendable` box -- ordinary Swift since well before 5.9, no new syntax at all --
-    // sidesteps the whole class of problem instead of fighting the parser further.
+    // `Row` is `Sendable` (issue #685), so `[Row]` crosses to `apply(rows:)` with no wrapper. The
+    // `@unchecked Sendable` boxes this code used before that decision existed are gone: they only
+    // ever stood in for the constraint the protocol now states.
     private func start(stream: AsyncThrowingStream<[Row], Error>) {
-        // Boxing `stream` too: `Task.init`'s own operation closure needed the same treatment as
-        // `apply(rows:)` above -- capturing the raw, non-Sendable-typed `AsyncThrowingStream<[Row],
-        // Error>` directly (even though the stream itself is unconditionally Sendable regardless of
-        // its Element) still flagged the whole closure as "task-isolated ... strongly transferred" at
-        // the point `Task { ... }` is constructed, since `stream` arrives as a plain, non-sending
-        // parameter of this method. Capturing the box instead, and unwrapping only once already
-        // running inside the Task, avoids the crossing needing any annotation at all.
-        let box = StreamBox(stream: stream)
-        task = Task { [weak self, box] in
+        task = Task { [weak self, stream] in
             do {
-                for try await rows in box.stream {
+                for try await rows in stream {
                     // Guards against applying a value that raced ahead of a concurrent `stop()` call
                     // or deallocation: `stream()`'s own cancellation contract already discards anything
                     // buffered but undelivered once cancelled (see `XLSingleSlotAsyncBuffer.cancel()`),
                     // but this instance's own `Task.isCancelled` is the most direct, local signal that
                     // no further state update should ever reach `rows`/`isLoading`/`error`.
                     if Task.isCancelled { return }
-                    await self?.apply(RowsBox(rows: rows))
+                    await self?.apply(rows: rows)
                 }
             }
             catch {
                 if !Task.isCancelled {
-                    await self?.apply(ErrorBox(error: error))
+                    await self?.apply(error: error)
                 }
             }
         }
     }
 
-    // See the note on start(stream:) above.
-    private struct StreamBox: @unchecked Sendable {
-        let stream: AsyncThrowingStream<[Row], Error>
-    }
-
-    private struct RowsBox: @unchecked Sendable {
-        let rows: [Row]
-    }
-
-    private struct ErrorBox: @unchecked Sendable {
-        let error: Error
-    }
-
     @MainActor
-    private func apply(_ box: RowsBox) {
-        self.rows = box.rows
+    private func apply(rows: [Row]) {
+        self.rows = rows
         self.isLoading = false
     }
 
     @MainActor
-    private func apply(_ box: ErrorBox) {
-        self.error = box.error
+    private func apply(error: Error) {
+        self.error = error
         self.isLoading = false
     }
 }
@@ -188,7 +159,7 @@ public final class XLObservableQuery<Row>: @unchecked Sendable {
 ///
 @available(iOS 17, macOS 14, *)
 @Observable
-public final class XLObservableQueryRow<Row>: @unchecked Sendable {
+public final class XLObservableQueryRow<Row: Sendable>: @unchecked Sendable {
 
     /// The most recently observed first row, or `nil` if the query currently matches no row. A
     /// present `nil` is a real delivered snapshot, distinct from "nothing observed yet" -- use
@@ -239,44 +210,30 @@ public final class XLObservableQueryRow<Row>: @unchecked Sendable {
 
     // See the matching note on XLObservableQuery.start(stream:) above.
     private func start(stream: AsyncThrowingStream<Row?, Error>) {
-        let box = StreamBox(stream: stream)
-        task = Task { [weak self, box] in
+        task = Task { [weak self, stream] in
             do {
-                for try await row in box.stream {
+                for try await row in stream {
                     if Task.isCancelled { return }
-                    await self?.apply(RowBox(row: row))
+                    await self?.apply(row: row)
                 }
             }
             catch {
                 if !Task.isCancelled {
-                    await self?.apply(ErrorBox(error: error))
+                    await self?.apply(error: error)
                 }
             }
         }
     }
 
-    // See the note on XLObservableQuery.start(stream:) above.
-    private struct StreamBox: @unchecked Sendable {
-        let stream: AsyncThrowingStream<Row?, Error>
-    }
-
-    private struct RowBox: @unchecked Sendable {
-        let row: Row?
-    }
-
-    private struct ErrorBox: @unchecked Sendable {
-        let error: Error
-    }
-
     @MainActor
-    private func apply(_ box: RowBox) {
-        self.row = box.row
+    private func apply(row: Row?) {
+        self.row = row
         self.isLoading = false
     }
 
     @MainActor
-    private func apply(_ box: ErrorBox) {
-        self.error = box.error
+    private func apply(error: Error) {
+        self.error = error
         self.isLoading = false
     }
 }

@@ -36,6 +36,17 @@ extension SQLRow2: Hashable where C0: Hashable, C1: Hashable {
 
 }
 
+///
+/// The row crosses an isolation boundary on every observation path, so
+/// ``XLRequest`` requires a `Sendable` row. A generic model cannot get this
+/// conformance from `@SQLResult`: an extension macro cannot write a `where`
+/// clause over its own type's generic signature. The macro documents this
+/// exact spelling as the remedy. See `SQLMacro.swift` and issue #685.
+///
+extension SQLRow2: Sendable where C0: Sendable, C1: Sendable {
+
+}
+
 
 ///
 /// A three-column ad hoc row projection. See ``SQLRow2``.
@@ -53,6 +64,11 @@ extension SQLRow3: Equatable where C0: Equatable, C1: Equatable, C2: Equatable {
 }
 
 extension SQLRow3: Hashable where C0: Hashable, C1: Hashable, C2: Hashable {
+
+}
+
+/// The `Sendable` conformance ``SQLRow2`` explains.
+extension SQLRow3: Sendable where C0: Sendable, C1: Sendable, C2: Sendable {
 
 }
 
@@ -74,6 +90,11 @@ extension SQLRow4: Equatable where C0: Equatable, C1: Equatable, C2: Equatable, 
 }
 
 extension SQLRow4: Hashable where C0: Hashable, C1: Hashable, C2: Hashable, C3: Hashable {
+
+}
+
+/// The `Sendable` conformance ``SQLRow2`` explains.
+extension SQLRow4: Sendable where C0: Sendable, C1: Sendable, C2: Sendable, C3: Sendable {
 
 }
 
@@ -99,6 +120,11 @@ extension SQLRow5: Hashable where C0: Hashable, C1: Hashable, C2: Hashable, C3: 
 
 }
 
+/// The `Sendable` conformance ``SQLRow2`` explains.
+extension SQLRow5: Sendable where C0: Sendable, C1: Sendable, C2: Sendable, C3: Sendable, C4: Sendable {
+
+}
+
 
 ///
 /// A six-column ad hoc row projection. See ``SQLRow2``.
@@ -119,6 +145,11 @@ extension SQLRow6: Equatable where C0: Equatable, C1: Equatable, C2: Equatable, 
 }
 
 extension SQLRow6: Hashable where C0: Hashable, C1: Hashable, C2: Hashable, C3: Hashable, C4: Hashable, C5: Hashable {
+
+}
+
+/// The `Sendable` conformance ``SQLRow2`` explains.
+extension SQLRow6: Sendable where C0: Sendable, C1: Sendable, C2: Sendable, C3: Sendable, C4: Sendable, C5: Sendable {
 
 }
 #endif

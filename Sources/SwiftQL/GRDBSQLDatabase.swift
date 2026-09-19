@@ -344,7 +344,7 @@ extension GRDBDatabase: XLRenderOnceRequestBinding {
     /// the pool, the dialect, and the cache identifier the scope copied from
     /// its database -- so it is the database's driver, with the identifier the
     /// root re-entry guard checks.
-    func storableRenderOnceRequest<Row>(_ request: any XLRequest<Row>) -> any XLRequest<Row> {
+    func storableRenderOnceRequest<Row: Sendable>(_ request: any XLRequest<Row>) -> any XLRequest<Row> {
         guard driver.isPinned else {
             return request
         }

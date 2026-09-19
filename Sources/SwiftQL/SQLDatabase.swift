@@ -87,7 +87,7 @@ extension NotificationCenter {
 ///
 /// Constructs a prepared select query statement with parameters.
 ///
-public struct XLRequestBuilder<Row> {
+public struct XLRequestBuilder<Row: Sendable> {
     
     public typealias Parameterize = (inout any XLRequest<Row>) -> Void
     
@@ -700,13 +700,13 @@ public protocol XLDatabase {
     ///
     /// Constructs a prepared query request from a query statement.
     ///
-    func makeRequest<Row>(with statement: any XLQueryStatement<Row>) -> any XLRequest<Row>
+    func makeRequest<Row: Sendable>(with statement: any XLQueryStatement<Row>) -> any XLRequest<Row>
 
     ///
     /// Constructs a prepared, row-readable request from a data-changing statement
     /// that carries a `RETURNING` clause.
     ///
-    func makeRequest<Row>(with statement: any XLReturningStatement<Row>) -> any XLRequest<Row>
+    func makeRequest<Row: Sendable>(with statement: any XLReturningStatement<Row>) -> any XLRequest<Row>
 
     ///
     /// Constructs a prepared update request from an update statement.
@@ -744,7 +744,7 @@ extension XLDatabase {
     ///
     /// Convenience method used to make a request for the database using a request builder.
     ///
-    func makeRequest<Row>(with builder: XLRequestBuilder<Row>) -> any XLRequest<Row> {
+    func makeRequest<Row: Sendable>(with builder: XLRequestBuilder<Row>) -> any XLRequest<Row> {
         builder.build(with: self)
     }
 
@@ -758,7 +758,7 @@ extension XLDatabase {
     /// overrides this method; until then, constructing a `RETURNING` request
     /// traps with a clear message rather than silently dropping the clause.
     ///
-    public func makeRequest<Row>(with statement: any XLReturningStatement<Row>) -> any XLRequest<Row> {
+    public func makeRequest<Row: Sendable>(with statement: any XLReturningStatement<Row>) -> any XLRequest<Row> {
         preconditionFailure(
             "\(type(of: self)) does not support RETURNING statements. Override "
             + "XLDatabase.makeRequest(with: any XLReturningStatement) to add support."
