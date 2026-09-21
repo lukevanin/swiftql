@@ -43,7 +43,7 @@ struct SwiftQLDeclaredQueryRegistryPlugin: BuildToolPlugin {
         }
         let tool = try context.tool(named: Self.toolName)
         // `URL`, not `Path`: SwiftPM deprecated the `Path` plugin API at tools
-        // version 6.0, which this package now declares (issue #133).
+        // version 6.0, and this package declares 6.1 (issue #133).
         let inputs = sourceTarget.sourceFiles(withSuffix: "swift").map(\.url)
         let output = context.pluginWorkDirectoryURL
             .appending(path: target.name)
