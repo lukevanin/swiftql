@@ -168,8 +168,32 @@ while IFS= read -r page; do
         failures=$((failures + 1))
         continue
     fi
-    if grep -q 'warning:' "$build_log"; then
-        grep -E 'warning:' "$build_log" | head -20 >&2 || true
+    # "Compiles with warnings" means this page's own compilation, so the
+    # match needs two conditions that the bare string `warning:` does not
+    # express.
+    #
+    # A compiler diagnostic carries a source location, `path:line:column:
+    # warning:`. SwiftPM's chatter about itself does not: the Linux cell
+    # emits `warning: 'grdb.swift': skipping cache due to an error: <path>
+    # doesn't exist in file system` while resolving the harness, which
+    # describes the package manager's repository cache and says nothing about
+    # any source.
+    #
+    # A diagnostic SwiftPM attributes to a package, `warning: '<package>':
+    # ...`, belongs to that dependency's manifest, not to this page. GRDB
+    # 6.29.3's manifest deprecates `.v4` on a current SDK, which failed every
+    # page on a developer's machine while CI's pinned Xcode stayed silent.
+    # The repository's own warning gate classifies dependency diagnostics the
+    # same way and does not block on them.
+    #
+    # A warning raised in SwiftQL's own sources through this build is still
+    # caught: it carries a location and no package attribution.
+    page_warnings="$(
+        grep -E ':[0-9]+:[0-9]+: warning:' "$build_log" |
+            grep -v "^warning: '" || true
+    )"
+    if [ -n "$page_warnings" ]; then
+        printf '%s\n' "$page_warnings" | head -20 >&2
         retain_build_log "$build_log"
         printf 'error: page compiles with warnings: %s\n' "$page" >&2
         failures=$((failures + 1))
