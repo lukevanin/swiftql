@@ -41,6 +41,12 @@ struct GenericTable<Value: XLLiteral & XLExpression> {
     var value: Value
 }
 
+// A generic model cannot get a `Sendable` conformance from `@SQLTable`, so it
+// states the conditional one itself. See `SQLMacro.swift` and issue #685.
+extension GenericTable: Sendable where Value: Sendable {
+
+}
+
 
 @SQLTable(name: "DateTest")
 struct DateTest: Identifiable, Equatable {

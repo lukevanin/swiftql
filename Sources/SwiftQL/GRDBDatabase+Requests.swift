@@ -19,7 +19,7 @@ import OpenCombine
 
 extension GRDBDatabase {
 
-    public func makeRequest<Row>(with statement: any XLQueryStatement<Row>) -> any XLRequest<Row> {
+    public func makeRequest<Row: Sendable>(with statement: any XLQueryStatement<Row>) -> any XLRequest<Row> {
         let encoding = encoder.makeSQL(statement)
         return GRDBRequest(
             driver: driver,
@@ -138,7 +138,7 @@ extension GRDBDatabase {
         }
     }
 
-    public func makeRequest<Row>(with statement: any XLReturningStatement<Row>) -> any XLRequest<Row> {
+    public func makeRequest<Row: Sendable>(with statement: any XLReturningStatement<Row>) -> any XLRequest<Row> {
         let encoding = encoder.makeSQL(statement)
         return GRDBRequest(
             driver: driver,

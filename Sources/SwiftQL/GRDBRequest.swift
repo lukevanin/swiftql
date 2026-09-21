@@ -19,7 +19,7 @@ import OpenCombine
 #endif
 
 
-struct GRDBRequest<Row>: XLRequest {
+struct GRDBRequest<Row: Sendable>: XLRequest {
 
     let executor: GRDBInvocationExecutor
 

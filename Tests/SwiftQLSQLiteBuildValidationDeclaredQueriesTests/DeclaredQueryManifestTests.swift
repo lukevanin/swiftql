@@ -296,7 +296,7 @@ struct DeclaredMutatingDatabase: XLDatabase {
 
     let base: GRDBDatabase
 
-    func makeRequest<Row>(with statement: any XLQueryStatement<Row>) -> any XLRequest<Row> {
+    func makeRequest<Row: Sendable>(with statement: any XLQueryStatement<Row>) -> any XLRequest<Row> {
         base.makeRequest(with: statement)
     }
 

@@ -813,7 +813,7 @@ public final class SwiftQLBenchmarkRunner {
         return phases
     }
 
-    private func measureSwiftQLReadPhases<Output: Equatable>(
+    private func measureSwiftQLReadPhases<Output: Equatable & Sendable>(
         configuration: BenchmarkConfiguration,
         database: GRDBDatabase,
         makeStatement: () -> any XLQueryStatement<Output>,
