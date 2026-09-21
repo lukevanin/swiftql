@@ -121,7 +121,10 @@ struct XLAsyncStreamPublisher<Value: Sendable>: Publisher {
     }
 
     func receive<S>(subscriber: S) where S: Subscriber, S.Input == Value, S.Failure == Error {
-        let subscription = XLAsyncStreamSubscription(downstream: subscriber, makeStream: makeStream)
+        let subscription = XLAsyncStreamSubscription<Value>(
+            downstream: subscriber,
+            makeStream: makeStream
+        )
         subscriber.receive(subscription: subscription)
     }
 }
@@ -179,8 +182,27 @@ func xlLiveQueryPublisher<Value: Sendable>(
 ///   this subscription, ``deliver(_:)`` independently checks `isCancelled` first and drops it, because
 ///   Combine's own contract is that nothing may reach a subscriber after it calls `cancel()` --
 ///   regardless of what the underlying stream still yields afterward.
-private final class XLAsyncStreamSubscription<Downstream>: Subscription, @unchecked Sendable
-where Downstream: Subscriber, Downstream.Failure == Error, Downstream.Input: Sendable {
+///
+/// The subscriber is erased behind ``DownstreamSink`` rather than held as a
+/// generic parameter. A generic parameter would put the subscriber's metatype
+/// into this class's own generic signature, and `startConsumerTaskIfNeeded()`
+/// captures `self` in a `Task`, so the metatype would cross an isolation
+/// boundary with it. A subscriber type is not `Sendable`, so that capture is
+/// an error in the Swift 6 language mode (issue #546). `Value` is `Sendable`,
+/// so `Value.Type` crosses cleanly, and the erased sink is never captured by
+/// the consumer task at all.
+///
+private final class XLAsyncStreamSubscription<Value: Sendable>: Subscription, @unchecked Sendable {
+
+    /// One subscriber's two callbacks, held together so releasing the
+    /// subscriber stays a single assignment, exactly as releasing the stored
+    /// subscriber was before the erasure.
+    private struct DownstreamSink {
+
+        let receive: (Value) -> Subscribers.Demand
+
+        let complete: (Subscribers.Completion<Error>) -> Void
+    }
 
     // Recursive, not plain `NSLock`: `deliver(_:)` and `finish(error:)` hold this
     // lock across the downstream `receive(_:)`/`receive(completion:)` call itself
@@ -192,9 +214,9 @@ where Downstream: Subscriber, Downstream.Failure == Error, Downstream.Input: Sen
     // cancellation against delivery.
     private let lock = NSRecursiveLock()
 
-    private var downstream: Downstream?
+    private var downstream: DownstreamSink?
 
-    private let makeStream: () -> AsyncThrowingStream<Downstream.Input, Error>
+    private let makeStream: () -> AsyncThrowingStream<Value, Error>
 
     private var task: Task<Void, Never>?
 
@@ -206,11 +228,14 @@ where Downstream: Subscriber, Downstream.Failure == Error, Downstream.Input: Sen
 
     private var didFinish = false
 
-    init(
+    init<Downstream>(
         downstream: Downstream,
-        makeStream: @escaping () -> AsyncThrowingStream<Downstream.Input, Error>
-    ) {
-        self.downstream = downstream
+        makeStream: @escaping () -> AsyncThrowingStream<Value, Error>
+    ) where Downstream: Subscriber, Downstream.Input == Value, Downstream.Failure == Error {
+        self.downstream = DownstreamSink(
+            receive: { downstream.receive($0) },
+            complete: { downstream.receive(completion: $0) }
+        )
         self.makeStream = makeStream
     }
 
@@ -401,7 +426,7 @@ where Downstream: Subscriber, Downstream.Failure == Error, Downstream.Input: Sen
     /// downstream. Serializing the whole call against `cancel()` (via the recursive lock) means either
     /// this delivery completes in full before `cancel()`'s state change takes effect, or `cancel()` has
     /// already taken effect before this delivery starts -- never a torn state in between.
-    private func deliver(_ value: Downstream.Input) {
+    private func deliver(_ value: Value) {
         lock.lock()
         defer { lock.unlock() }
         guard !isCancelled, let downstream else {
@@ -437,10 +462,10 @@ where Downstream: Subscriber, Downstream.Failure == Error, Downstream.Input: Sen
         didFinish = true
         self.downstream = nil
         if let error {
-            downstream.receive(completion: .failure(error))
+            downstream.complete(.failure(error))
         }
         else {
-            downstream.receive(completion: .finished)
+            downstream.complete(.finished)
         }
         #if DEBUG
         XLAsyncStreamSubscriptionTestHooks.shared.emit(.finished(forwarded: true))

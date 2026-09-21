@@ -267,6 +267,35 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
             strict_step,
         )
 
+    def test_newest_series_also_runs_the_strict_concurrency_gate(self) -> None:
+        # Issue #546: the compatibility job runs the gate on the pinned Swift
+        # 6.0 support point only, where `#SendableMetatypes` does not exist
+        # yet, so four first-party captures went unreported until a local run
+        # on a newer compiler found them. The newest series runs the gate too.
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        swift_series = workflow.split("\n  swift-series:\n", maxsplit=1)[1].split(
+            "\n  compatibility:\n", maxsplit=1
+        )[0]
+        matrix = swift_series.split("\n    env:\n", maxsplit=1)[0]
+
+        # Exactly one cell carries the gate, and it is the newest series in
+        # the matrix -- the last entry, which is the order the matrix lists.
+        self.assertEqual(matrix.count("strict_concurrency: true"), 1)
+        entries = matrix.split("\n          - swift_series: ")[1:]
+        self.assertIn("strict_concurrency: true", entries[-1])
+
+        def series(entry: str) -> tuple[int, ...]:
+            version = re.match(r'"([\d.]+)"', entry).group(1)
+            return tuple(int(part) for part in version.split("."))
+
+        self.assertEqual(series(entries[-1]), max(series(entry) for entry in entries))
+
+        strict_step = swift_series.split(
+            "      - name: Check complete strict concurrency\n", maxsplit=1
+        )[1].split("\n      - name: ", maxsplit=1)[0]
+        self.assertIn("if: ${{ matrix.strict_concurrency }}", strict_step)
+        self.assertIn("scripts/ci/check-strict-concurrency.sh", strict_step)
+
     def test_linux_surface_uses_opencombine_without_conditional_exclusion(self) -> None:
         # Issue #309 replaced the platform-split bridge (a `GRDBOpenCombineValuePublisher`
         # reachable only under `#if !canImport(Combine)`, hence its own coverage carve-out
