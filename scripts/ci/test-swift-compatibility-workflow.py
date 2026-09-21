@@ -24,7 +24,7 @@ ENVIRONMENT_CHECK = ROOT / "scripts/ci/check-compatibility-environment.sh"
 
 class SwiftCompatibilityWorkflowTests(unittest.TestCase):
     def test_linux_cells_use_the_exact_swift63_toolchain_on_ubuntu22(self) -> None:
-        # Issue #133 adopted Swift 6 language mode, which needs a tools-6.0
+        # Issue #133 adopted Swift 6 language mode, which needs a tools-6.1
         # manifest. A Swift 5.9 compiler cannot parse one, so the Linux pair
         # that used to pin 5.9.2 now pins the Swift 6.3.2 archive the
         # repository already verified for its newer-series Linux cell.
@@ -34,7 +34,7 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
 
         self.assertNotIn("runner: macos-14", matrix)
         # No cell may claim a Swift 5.x toolchain: the package's tools version
-        # is 6.0, so such a cell could not resolve the manifest at all.
+        # is 6.1, so such a cell could not resolve the manifest at all.
         self.assertNotIn('swift_series: "5.', matrix)
         self.assertNotIn("swift-5.9.2-RELEASE", compatibility)
         self.assertEqual(matrix.count('swift_series: "6.3"'), 2)
@@ -201,7 +201,7 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
             if "platform: linux" in entry and 'swift_series: "6.' in entry
         ]
 
-        # Two since #133: the Swift 5.9 pair could not parse a tools-6.0
+        # Two since #133: the Swift 5.9 pair could not parse a tools-6.1
         # manifest, so Linux keeps both resolution modes on this series.
         self.assertEqual(len(linux_swift6), 2)
         self.assertEqual(
@@ -233,10 +233,10 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
             for entry in linux_swift6:
                 self.assertIn(expected, entry)
         # The macOS-only gates stay off the Linux Swift 6 cell: they are keyed
-        # to Swift 6.0, and this cell's series is 6.3.
-        self.assertNotIn('swift_series: "6.0"', cell)
+        # to the Swift 6.1 floor, and this cell's series is 6.3.
+        self.assertNotIn('swift_series: "6.1"', cell)
 
-    def test_source_coverage_runs_once_inside_the_swift60_committed_cell(
+    def test_source_coverage_runs_once_inside_the_floor_committed_cell(
         self,
     ) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
@@ -250,7 +250,7 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         ]
         self.assertEqual(len(coverage_cells), 1)
         self.assertTrue(
-            coverage_cells[0].startswith("Swift 6.0 / committed resolution\n")
+            coverage_cells[0].startswith("Swift 6.1 / committed resolution\n")
         )
         self.assertEqual(matrix.count("source_coverage: false"), len(entries) - 1)
 
@@ -298,14 +298,14 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
             "      - name: Check complete strict concurrency\n", maxsplit=1
         )[1].split("\n      - name: ", maxsplit=1)[0]
         self.assertIn(
-            "if: ${{ matrix.swift_series == '6.0' && "
+            "if: ${{ matrix.swift_series == '6.1' && "
             "matrix.resolution == 'clean' }}",
             strict_step,
         )
 
     def test_newest_series_also_runs_the_strict_concurrency_gate(self) -> None:
         # Issue #546: the compatibility job runs the gate on the pinned Swift
-        # 6.0 support point only, where `#SendableMetatypes` does not exist
+        # 6.1 support point only, where `#SendableMetatypes` does not exist
         # yet, so four first-party captures went unreported until a local run
         # on a newer compiler found them. The newest series runs the gate too.
         workflow = WORKFLOW.read_text(encoding="utf-8")
@@ -427,7 +427,7 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         swift_series = swift_series.split("\n  compatibility:\n", maxsplit=1)[0]
 
         # Source coverage is no longer a job of its own (#672); it runs inside
-        # the compatibility job's Swift 6.0 committed cell, which pull
+        # the compatibility job's Swift 6.1 committed cell, which pull
         # requests keep.
         self.assertNotIn("\n  coverage:\n", workflow)
         pull_request_skip = "if: ${{ github.event_name != 'pull_request' }}"
@@ -706,7 +706,7 @@ class CompatibilityEnvironmentTests(unittest.TestCase):
             f"""
             #!/bin/sh
             if [ "$*" = "package tools-version" ]; then
-              printf '5.9.0\n'
+              printf '6.1.0\n'
             else
               printf 'Swift version {swift_version} (swift-{swift_version}-RELEASE)\n'
               printf 'Target: arm64-apple-macosx15.0\n'
@@ -779,7 +779,7 @@ class CompatibilityEnvironmentTests(unittest.TestCase):
             """
             #!/bin/sh
             if [ "$*" = "package tools-version" ]; then
-              printf '5.9.0\n'
+              printf '6.1.0\n'
             else
               printf 'Swift version 5.9.2 (swift-5.9.2-RELEASE)\n'
               printf 'Target: x86_64-unknown-linux-gnu\n'

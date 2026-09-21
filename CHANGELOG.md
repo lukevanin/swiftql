@@ -4,9 +4,11 @@
 
 ### Migration
 
-- **Swift 6.0 is the minimum compiler** (issue #133). The package declares
-  `swift-tools-version: 6.0` and builds in Swift 6 language mode. A Swift 5.9
+- **Swift 6.1 is the minimum compiler** (issue #133). The package declares
+  `swift-tools-version: 6.1` and builds in Swift 6 language mode. An older
   compiler cannot parse the manifest, so it cannot resolve SwiftQL 2.x at all.
+  The floor is 6.1 rather than 6.0 because SwiftPM deprecated the `Path`
+  plugin API at tools 6.0 and ships its replacement only from 6.1.
   **Stay on SwiftQL 1.x for an older toolchain.** The 1.x line keeps
   `swift-tools-version: 5.9`, Swift 5 language mode, and its Swift 5.9.2 Linux
   support point.
@@ -17,8 +19,9 @@
     `@SQLResult` model needs the conditional conformance stated by hand, such
     as `extension MyRow: Sendable where Value: Sendable {}`; the macro cannot
     write a `where` clause for a generic model.
-  - CI drops its two Swift 5.9 Linux cells. Linux is now verified on Swift
-    6.3.2 in both resolution modes. See
+  - CI drops its two Swift 5.9 Linux cells and its pinned Swift 6.0 support
+    point. The floor is Swift 6.1 on macOS, and Linux is verified on Swift
+    6.3.2, each in both resolution modes. See
     [COMPATIBILITY.md](COMPATIBILITY.md#pinned-compiler-support-points).
 
 ## [1.9.0] - 2026-09-16

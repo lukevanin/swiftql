@@ -103,8 +103,8 @@ if [[ -n "${EXPECTED_SWIFT_VERSION:-}" ]]; then
     [[ "$swift_output" == *"Swift version $EXPECTED_SWIFT_VERSION"* ]] ||
         fail "Swift compiler is not exactly version $EXPECTED_SWIFT_VERSION"
 fi
-[[ "$tools_version" == "6.0.0" ]] ||
-    fail "package tools version is '$tools_version'; expected '6.0.0'"
+[[ "$tools_version" == "6.1.0" ]] ||
+    fail "package tools version is '$tools_version'; expected '6.1.0'"
 if [[ -n "${EXPECTED_TARGET_TRIPLE:-}" ]]; then
     [[ "$target_info" == *"\"triple\" : \"$EXPECTED_TARGET_TRIPLE\""* ]] ||
         [[ "$target_info" == *"\"triple\": \"$EXPECTED_TARGET_TRIPLE\""* ]] ||

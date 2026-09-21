@@ -1,9 +1,12 @@
 # Compiler compatibility
 
-SwiftQL 2.x declares `swift-tools-version: 6.0` and builds in **Swift 6
-language mode** (issue #133). Swift 6.0 is therefore the minimum compiler: a
-Swift 5.9 compiler cannot parse the manifest, so it cannot resolve the package
-at all. An application on an older toolchain stays on SwiftQL 1.x, which keeps
+SwiftQL 2.x declares `swift-tools-version: 6.1` and builds in **Swift 6
+language mode** (issue #133). Swift 6.1 is therefore the minimum compiler: an
+older compiler cannot parse the manifest, so it cannot resolve the package at
+all. The floor is 6.1 rather than 6.0 because SwiftPM deprecated the `Path`
+plugin API at tools 6.0 while its replacement, `Target.directoryURL`, is
+available only from tools 6.1, so the build-tool plugins cannot be
+warning-free in between. An application on an older toolchain stays on SwiftQL 1.x, which keeps
 `swift-tools-version: 5.9` and Swift 5 language mode.
 
 Language mode is not the same promise as toolchain support. The package itself
@@ -11,9 +14,9 @@ compiles in Swift 6 mode; a client may stay in Swift 5 language mode under a
 Swift 6 compiler, and `IntegrationTests/Swift5Client` proves that on every run
 (see "Downstream Swift 5 language-mode client").
 
-CI keeps one pinned compiler support point, Swift 6.0, and also runs the
-complete package test suite with every Swift series currently listed by Swift
-Package Index: Swift 6.0 through Swift 6.3. Linux runs on the verified Swift
+CI keeps one pinned compiler support point, Swift 6.1, and also runs the
+complete package test suite with every later Swift series currently listed by
+Swift Package Index: Swift 6.2 and Swift 6.3. Linux runs on the verified Swift
 6.3.2 toolchain in both resolution modes.
 
 ## v1.3 public products and runtime boundaries
@@ -191,12 +194,13 @@ python3 scripts/ci/sqlite-conformance-inventory.py check
 
 | Support point | GitHub runner | Platform toolchain | Swift | Runtime surface |
 | --- | --- | --- | --- | --- |
-| Swift 6.0 | `macos-15` | Xcode 16.2 (`16C5032a`) | 6.0 series | macOS 15.2 SDK + Combine |
+| Swift 6.1 | `macos-15` | Xcode 16.4 (`16F6`) | 6.1 series | macOS 15.5 SDK + Combine |
 
-Swift 6.0 is the floor because it is the earliest compiler that accepts a
-tools-6.0 manifest and Swift 6 language mode. v1.x pinned a second support
-point at Swift 5.9.2 on Linux; that cell is gone, because a 5.9 compiler
-cannot read this package's manifest.
+Swift 6.1 is the floor: it is the earliest compiler whose plugin API lets the
+build-tool plugins compile without a deprecation warning, and it accepts Swift
+6 language mode. v1.x pinned support points at Swift 5.9.2 on Linux and Swift
+6.0 on macOS; both are gone, because neither compiler can read this package's
+manifest.
 
 ### Verified Linux toolchains
 
@@ -271,55 +275,47 @@ that toolchain's index-store runtime. The exact-version runtime probe,
 capability report, and full tests remain authoritative for the pinned SQLite
 surface.
 
-### Swift 6.0 API surface gaps
+### API surface gaps closed by the Swift 6.1 floor
 
-These gaps are properties of the declared floor. v1.x recorded them for its
-Swift 5.9.2 support point as well; that evidence is kept below, because it is
-why the gates are spelled the way they are.
+Three gaps existed while v1.x supported Swift 5.9.2 and Swift 6.0. The Swift
+6.1 floor closes all three, because every supported compiler is now 6.1 or
+later. The history is kept because it is why the source gates are spelled the
+way they are, and because an application still on SwiftQL 1.x meets these
+limits today.
 
-The `#row(...)` freestanding macro's two-to-six column shapes (`SQLRow2`
-through `SQLRow6`) require `#if compiler(>=6.1)` and are unavailable on the
-pinned Swift 6.0 cell. Decoding a result type
-with 2 or more generic parameters through `fetchAll()` or `publish()` crashes
+**`#row(...)`'s two-to-six column shapes.** `SQLRow2` through `SQLRow6` sit
+behind `#if compiler(>=6.1)`, which is now always true. Decoding a result type
+with 2 or more generic parameters through `fetchAll()` or `publish()` crashed
 `swift-frontend` during IR generation (`NativeConventionSchema::mapIntoNative`
-and other, seemingly unrelated internal symbols — this is a compiler
-memory-safety bug, not a clean type error, so its crash site is not stable)
-on the pinned Swift 6.0 cell (Xcode 16.2), and on the Swift 5.9.2 toolchain
-v1.x supported — reproduced for 5.9.2 with a minimal case in Docker (`swift:5.9.2-jammy`
-plus the pinned SQLite 3.53.3 amalgamation and the
-`GRDBCUSTOMSQLITE`/`SQLITE_ENABLE_SNAPSHOT` compiler override above), and
-observed directly on the pinned Swift 6.0 cell in this release's CI run,
-independent of restructuring the decode boundary to avoid returning the
-multi-generic-parameter type directly from `pool.read`, `withTransaction`,
-`ValueObservation`, or a Combine operator closure — every one of those
-crossings independently triggers the same crash for such a type. The bug is
-fixed by Swift 6.1 (Xcode 16.4): the compatibility matrix's `Swift 6.1 / Apple
-clean resolution` cell compiles and runs `#row`'s multi-column shapes without
-incident. `#row`'s one-column shape (`SQLScalarResult`, a single generic
-parameter) is unaffected and remains available on every pinned cell,
-including 6.0. This is the package's first source-level API
-divergence across compiler cells; see `Sources/SwiftQL/SQLRowMacro.swift` and
-`Sources/SwiftQL/SQLRowResult.swift` for the gated declarations.
+and other, seemingly unrelated internal symbols — a compiler memory-safety
+bug, not a clean type error, so its crash site was not stable) on Swift 5.9.2
+and on Swift 6.0 (Xcode 16.2). It was reproduced for 5.9.2 with a minimal case
+in Docker (`swift:5.9.2-jammy` plus the pinned SQLite 3.53.3 amalgamation and
+the `GRDBCUSTOMSQLITE`/`SQLITE_ENABLE_SNAPSHOT` compiler override above), and
+observed directly on the pinned Swift 6.0 cell, independent of restructuring
+the decode boundary to avoid returning the multi-generic-parameter type
+directly from `pool.read`, `withTransaction`, `ValueObservation`, or a Combine
+operator closure — every one of those crossings independently triggered the
+same crash. Swift 6.1 (Xcode 16.4) fixes it. See
+`Sources/SwiftQL/SQLRowMacro.swift` and `Sources/SwiftQL/SQLRowResult.swift`.
 
-Using `sql { ... }` as a subquery (issue #69) requires `#if compiler(>=6.1)`
-for the same reason, and is unavailable on the pinned Swift 6.0 cell. The six
-`@_disfavoredOverload` overloads that give `sql` its subquery shapes crash
-`swift-frontend` on that cell and on v1.x's Swift 5.9.2 toolchain, compiled together
-with the rest of the package -- reproduced in Docker and bisected to those
-declarations, since removing them alone removes the crash. `sql` is called at
-nearly every call site in the package, so disfavouring six more overloads
-under that name is enough overload-resolution load to trip a compiler bug of
-that generation. The work shipped once as pull request #416 and was reverted
-in #408 for this. Swift 6.1 (Xcode 16.4) fixes it. On 6.0 the
-overloads are not compiled, so nothing crashes and every subquery is spelled
-`subqueryExpression { ... }`, which is what every SwiftQL version so far has
-required and what the gated overloads forward to unchanged. See
+**`sql { ... }` as a subquery** (issue #69) sits behind the same
+`#if compiler(>=6.1)`, now always true. The six `@_disfavoredOverload`
+overloads that give `sql` its subquery shapes crashed `swift-frontend` on
+Swift 5.9.2 and 6.0, compiled together with the rest of the package —
+reproduced in Docker and bisected to those declarations, since removing them
+alone removed the crash. `sql` is called at nearly every call site in the
+package, so disfavouring six more overloads under that name was enough
+overload-resolution load to trip a compiler bug of that generation. The work
+shipped once as pull request #416 and was reverted in #408 for this. Swift 6.1
+fixes it, so every subquery may now be spelled either way;
+`subqueryExpression { ... }` remains and is what the gated overloads forward
+to unchanged. See
 `Sources/SwiftQL/Expression Builder/SQLQueryExpressionBuilder.swift`.
 
-The `Sendable` conformance `@SQLTable` and `@SQLResult` declare for a `public`
-or `package` model (issue #531) requires Swift 6.0 or later. **Every supported
-compiler now meets that**, because Swift 6.0 is the floor, so the conformance
-is generated on every cell. The requirement existed because Swift 5.9 treated a
+**The generated `Sendable` conformance.** `@SQLTable` and `@SQLResult` declare
+it for a `public` or `package` model (issue #531) behind
+`#if compiler(>=6.0)`, also always true now. Swift 5.9 treated a
 macro-expanded extension as a separate source file for the rule that a
 `Sendable` conformance must be declared alongside its type, so every model
 there drew `conformance to 'Sendable' must occur in the same source file as
@@ -327,21 +323,27 @@ struct 'X'; use '@unchecked Sendable' for retroactive conformance`, which the
 first-party warnings-as-errors gate turned into a build failure. The spelling
 the compiler suggested is the one the conformance exists to avoid, so v1.x's
 5.9 support point generated nothing and a model that should be `Sendable`
-stated it on the declaration. Swift 6.0 accepts the generated conformance
-without a diagnostic, verified on the pinned 6.0 cell. The gate is
-`#if compiler(>=6.0)` in `makeSendableExtension` in
-`Sources/SQLMacros/SQLMacro.swift`; because SwiftPM builds a macro plugin with
-the same toolchain that compiles the client, it resolves per compilation rather
-than per plugin build. The macro-expansion tests in
+stated it on the declaration. Because SwiftPM builds a macro plugin with the
+same toolchain that compiles the client, the gate resolves per compilation
+rather than per plugin build. The gate is in `makeSendableExtension` in
+`Sources/SQLMacros/SQLMacro.swift`; the macro-expansion tests in
 `Tests/SQLMacrosTests/SQLTests.swift` and the conformance tests in
 `Tests/SQLTests/SQLModelSendableConformanceTests.swift` carry the same gate.
 
-### Swift 6.0 crashes on a statement built inline in a fetched request
+A generic model still needs its conditional conformance written by hand, on
+every compiler: an extension macro cannot resolve a `where` clause over its
+own type's generic signature. See issue #685.
 
-On the pinned Swift 6.0 cell (Xcode 16.2, Apple Swift 6.0.3), and on the Swift
-5.9.2 toolchain v1.x supported, `swift-frontend` segfaults while compiling a single
-expression that builds a statement inline and then fetches from the request
-that statement produces:
+### A statement built inline in a fetched request crashed Swift 6.0
+
+This affected Swift 6.0 (Xcode 16.2, Apple Swift 6.0.3) and the Swift 5.9.2
+toolchain v1.x supported. Both are below the Swift 6.1 floor, so no supported
+compiler is known to crash on it; whether 6.1 itself fixed the crash was never
+measured, because the two-step form below costs nothing and is what the
+repository writes anyway. An application still on SwiftQL 1.x meets it.
+
+`swift-frontend` segfaults while compiling a single expression that builds a
+statement inline and then fetches from the request that statement produces:
 
 ```swift
 // Crashes swift-frontend on Xcode 16.2 with signal 11.
@@ -398,9 +400,9 @@ running the same set of cases on both toolchains while diagnosing #530. The
 library needs no `#if` for this, because the workaround is source that
 compiles on every supported cell. The to-do demo and the Getting Started
 playground are both written in the two-step form. CI builds the demo on the
-pinned Swift 6.0 cell and the playground on the pinned Linux cell, and the 6.0
-compiler crashes on the one-line shape, so a reintroduced one-liner
-fails there rather than in a user's project.
+pinned floor cell and the playground on the pinned Linux cell, so a
+reintroduced one-liner is compiled on the oldest supported compiler rather
+than only in a user's project.
 
 ### Swift 6.3 selects the expression prefix operator for a number
 
@@ -424,14 +426,13 @@ runs on every cell, the Swift 6.3 Linux cell included.
 
 | Swift series | GitHub runner | Xcode | Swift | macOS SDK |
 | --- | --- | --- | --- | --- |
-| Swift 6.0 | `macos-15` | 16.2 (`16C5032a`) | 6.0 series | 15.2 |
 | Swift 6.1 | `macos-15` | 16.4 (`16F6`) | 6.1 series | 15.5 |
 | Swift 6.2 | `macos-15` | 26.3 (`17C529`) | 6.2.3 | 26.2 |
 | Swift 6.3 | `macos-26` | 26.5 (`17F42`) | 6.3.2 | 26.5 |
 | Swift 6.3 (Linux) | `ubuntu-22.04` | none; official Swift.org archive | 6.3.2 | none |
 
-The Swift 6.0 row is exercised by both pinned resolution cells above. Swift 6.1,
-6.2, and 6.3 each have an additional release-blocking clean-resolution cell.
+The Swift 6.1 row is exercised by both pinned resolution cells above. Swift
+6.2 and 6.3 each have an additional release-blocking clean-resolution cell.
 Swift 6.3 also carries the two release-blocking Linux cells described under
 "Verified Linux toolchains" above, which run the same compatibility steps the
 Swift 5.9 Linux cells ran in v1.x.
@@ -445,7 +446,7 @@ changes. Linux builds import matching OpenCombine types and exercise the same
 typed publisher contracts through real GRDB observations.
 
 The compatibility test target contains a compile-time `#if !swift(>=6.0)`
-failure. Because `swift()` tests the active language mode, every Swift 6.0–6.3
+failure. Because `swift()` tests the active language mode, every Swift 6.1–6.3
 job proves that SwiftQL builds in Swift 6 language mode. v1.x carried the same
 tripwire pointing the other way, which is what kept it in Swift 5 mode.
 
@@ -533,7 +534,7 @@ shares the same five macOS slots. A macOS job that finds them full waits in the
 queue, and its wait counts toward the run's wall time as much as its work does.
 
 Before issue #672 a push to `main` scheduled eight macOS jobs across the Swift
-compatibility and Documentation workflows: the Swift 6.0 committed and clean
+compatibility and Documentation workflows: the Swift 6.1 committed and clean
 cells, the Swift 6.1, 6.2, and 6.3 cells, the to-do demo, a separate source
 coverage job that ran the full suite twice, and the documentation build. Their
 job timestamps show strict hand-offs as slots freed. Run
@@ -542,23 +543,23 @@ took 32 minutes against a longest job of 24, and runs
 [34956094216](https://github.com/lukevanin/swiftql/actions/runs/34956094216)
 and
 [34964533434](https://github.com/lukevanin/swiftql/actions/runs/34964533434)
-took 44 and 53 minutes, because the longest cell, Swift 6.0 committed
+took 44 and 53 minutes, because the longest cell, then Swift 6.0 committed
 resolution, waited 12 and 21 minutes for a slot.
 
 The matrix is therefore laid out against that limit:
 
 - A push to `main` schedules seven macOS jobs, not eight. Source coverage runs
-  inside the Swift 6.0 committed cell, once, instead of as its own job.
+  inside the Swift 6.1 committed cell, once, instead of as its own job.
 - Work that needs no Xcode runs on Linux, which the macOS limit does not
   constrain. The new Swift 6.3 cell and the Getting Started playground check
   run there.
 - The longest macOS cell carries as little as it can. It no longer repeats the
-  strict-concurrency build, which the Swift 6.0 clean cell runs with the same
+  strict-concurrency build, which the Swift 6.1 clean cell runs with the same
   compiler, or the playground check.
 
 Measured job durations after the change come from pull request run
 [34984313416](https://github.com/lukevanin/swiftql/actions/runs/34984313416)
-at commit `12c52ff9`. The longest macOS cell, Swift 6.0 committed resolution,
+at commit `12c52ff9`. The longest macOS cell, Swift 6.1 committed resolution,
 ran 26.3 minutes; it ran 24.3, 29.9, and 32.5 minutes in the three runs above.
 A pull request run has no Swift 6.1, 6.2, or 6.3 Apple cells and no
 documentation build, and that run waited behind other pull requests for macOS
@@ -586,7 +587,7 @@ plan with more macOS concurrency, record the new limit here.
 
 ## Downstream Swift 5 language-mode client
 
-The pinned Swift 6.0 support point also builds and runs
+The pinned Swift 6.1 support point also builds and runs
 [`IntegrationTests/Swift5Client`](IntegrationTests/Swift5Client) as an external
 package. The fixture depends on the repository root through SwiftPM, imports
 only the public `SwiftQL` product, expands representative `@SQLTable` and
@@ -598,7 +599,7 @@ guards fail if it is built by a pre-Swift-6 compiler or if a Swift 6 compiler
 silently enables Swift 6 language mode. Run its committed-resolution path with:
 
 ```sh
-export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
+export DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer
 SWIFTQL_DOWNSTREAM_SCRATCH_PATH="$(mktemp -d)" \
   scripts/ci/check-downstream-swift5-client.sh committed
 ```
@@ -622,7 +623,7 @@ SWIFTQL_DOWNSTREAM_SCRATCH_PATH="$(mktemp -d)" \
 
 The checker performs a clean fixture build, requires exactly one runtime success
 marker, and keeps build products outside the source tree. The compatibility
-matrix runs both fixture resolution paths only in its pinned Swift 6.0 cells,
+matrix runs both fixture resolution paths only in its pinned Swift 6.1 cells,
 which are the package's declared floor.
 
 ## To-do demo application
@@ -633,28 +634,29 @@ change breaks it immediately rather than silently, which only holds if CI
 builds it.
 
 The `To-do demo app` job runs on `macos-15` at the same pinned support point
-the Swift 6.0 macOS cells use, and it is macOS-only: the demo builds for iOS
+the Swift 6.1 macOS cells use, and it is macOS-only: the demo builds for iOS
 and macOS destinations, neither of which exists on the Linux cells, so it is a
 separate job rather than a matrix entry.
 
 | Pinned | Value |
 | --- | --- |
 | Runner image | `macos-15` |
-| Xcode | 16.2 (build 16C5032a) |
-| Swift series | 6.0 |
-| macOS SDK | 15.2 |
-| `DEVELOPER_DIR` | `/Applications/Xcode_16.2.app/Contents/Developer` |
+| Xcode | 16.4 (build 16F6) |
+| Swift series | 6.1 |
+| macOS SDK | 15.5 |
+| `DEVELOPER_DIR` | `/Applications/Xcode_16.4.app/Contents/Developer` |
 | `SWIFTQL_DEMO_IOS_DEVELOPER_DIR` | `/Applications/Xcode_16.4.app/Contents/Developer` |
 | iOS simulator destination | `generic/platform=iOS Simulator` |
 | Demo deployment floor | iOS 17.0, macOS 14.0 |
 
-The iOS app build is the one step that does not run on the pinned Xcode.
-Xcode 16.2's iOS SDK is 18.2, the `macos-15` image installs no iOS 18.2
-simulator runtime, and Xcode will not substitute a newer one, so under Xcode
-16.2 the demo's scheme offers no iOS destination at all: not a simulator, not
-a generic device. Xcode 16.4 is the next pinned cell up, its iOS SDK is 18.5,
-and an 18.5 runtime is installed, so the iOS build uses that and nothing else
-moves.
+The iOS app build keeps its own `DEVELOPER_DIR`, which now names the same
+Xcode the job itself uses. It was separate while the floor was Xcode 16.2:
+that iOS SDK is 18.2, the `macos-15` image installs no iOS 18.2 simulator
+runtime, and Xcode will not substitute a newer one, so the demo's scheme
+offered no iOS destination at all — not a simulator, not a generic device.
+Xcode 16.4's iOS SDK is 18.5 and an 18.5 runtime is installed, so the iOS
+build works on the floor Xcode. The override stays explicit so the iOS
+destination keeps a named owner if the two ever diverge again.
 
 What the pinned cell is covering is steps 1 to 4, which build and test
 TodoKit, whose whole data layer is SwiftQL, against the oldest compiler the
@@ -666,16 +668,16 @@ release-blocking job.
 The demo's floor is above the library's iOS 16 / macOS 13 floor because it uses
 `@Observable`. That does not change the library's floor.
 
-The job stays on the Swift 6.0 cell even though the demo's own floor is higher
+The job stays on the floor cell even though the demo's own floor is higher
 than the library's, because the point of building the demo in CI is to find out
 what a reader on the oldest supported compiler will hit. It earned that in
 #530: the demo was the first thing in the repository to compile
-`makeRequest(with:)` and a fetch in one expression on Xcode 16.2, and it
-segfaulted the compiler. Moving the job to a newer Xcode would have made the
+`makeRequest(with:)` and a fetch in one expression on Xcode 16.2, which was
+the floor then, and it segfaulted the compiler. Moving the job to a newer Xcode would have made the
 red square go away and left the crash in front of the next person to write that
 line. The demo is written around the crash instead, and
-"Swift 6.0 crashes on a statement built inline in a fetched request" above
-says what the shape is.
+"A statement built inline in a fetched request crashed Swift 6.0" above says
+what the shape is.
 
 The iOS runtime is whichever the pinned Xcode ships, resolved through a generic
 simulator destination rather than a named device, so the job does not break
@@ -687,7 +689,7 @@ from the image version.
 Reproduce the job with:
 
 ```sh
-export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
+export DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer
 scripts/ci/check-todo-demo.sh
 ```
 
@@ -702,7 +704,7 @@ for an iOS simulator.
 That comparison skips the snapshot's raw bytes. SQLite writes its own
 `SQLITE_VERSION_NUMBER` into the header of every database file it touches, so
 the checked-in `.sqlite` and its `database_sha256` depend on which SQLite the
-generator linked, and the pinned Xcode 16.2 cell does not link the same one a
+generator linked, and the pinned floor cell does not link the same one a
 current Xcode does. The manifest is compared with `database_sha256` excluded
 and the snapshot by the schema SQLite reads back out of it, which is what the
 gate is about: an edited query changes its manifest entry, and an edited
@@ -773,21 +775,21 @@ is a build artifact and is not tracked in Git.
 
 ## Complete strict concurrency
 
-The pinned Swift 6.0 support point also checks every first-party product and test
-target with complete strict-concurrency diagnostics while remaining in Swift 5
-language mode. CI runs the check on the Swift 6.0 clean-resolution cell. The
-committed-resolution cell uses the same Xcode 16.2 compiler over the same
-first-party sources, and the check reports first-party diagnostics only, so it
-is not repeated there (see "Runner concurrency"). Select Xcode 16.2, then run:
+The pinned Swift 6.1 support point also checks every first-party product and
+test target with complete strict-concurrency diagnostics. CI runs the check on
+the Swift 6.1 clean-resolution cell. The committed-resolution cell uses the
+same Xcode 16.4 compiler over the same first-party sources, and the check
+reports first-party diagnostics only, so it is not repeated there (see "Runner
+concurrency"). Select Xcode 16.4, then run:
 
 ```sh
-export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
+export DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer
 scripts/ci/check-strict-concurrency.sh
 ```
 
-**The gate covers two series: Swift 6.0 and Swift 6.3.** A compiler reports
+**The gate covers two series: Swift 6.1 and Swift 6.3.** A compiler reports
 only the diagnostics it has, so one cell cannot speak for every supported
-series. Swift 6.2 introduced `#SendableMetatypes`, which the pinned Swift 6.0
+series. Swift 6.2 introduced `#SendableMetatypes`, which the pinned Swift 6.1
 compiler does not know, and four first-party captures went unreported until a
 local run on a newer compiler found them (issue #546). The newest series
 therefore runs the same script, in the `swift-series` job's Swift 6.3 cell.
@@ -795,7 +797,7 @@ Move the matrix's `strict_concurrency` flag when a newer series is added.
 
 The `swift-series` job runs on pushes to `main` and on release runs. It does
 not run on a pull request, which is that job's standing policy, so a pull
-request gets its strict-concurrency signal from the Swift 6.0 cell alone.
+request gets its strict-concurrency signal from the Swift 6.1 cell alone.
 Select Xcode 26.5 to run the newer series locally:
 
 ```sh
@@ -841,7 +843,7 @@ warnings in separate, searchable sections for every applicable cell:
   there is no message-based exception list.
 - Complete strict-concurrency warnings are release blockers at the pinned Swift
   6.0 support point; `check-strict-concurrency.sh` enforces that boundary on
-  the Swift 6.0 clean-resolution cell after the standard build and tests.
+  the Swift 6.1 clean-resolution cell after the standard build and tests.
 - Verbose builds on both pinned compiler support points currently emit
   dependency-prefixed manifest compiler command lines for `swift-docc-plugin`,
   `grdb.swift`, `swift-syntax`, `OpenCombine`, and `swift-docc-symbolkit`. They

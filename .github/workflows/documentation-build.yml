@@ -20,7 +20,7 @@ jobs:
     outputs:
       artifact_id: ${{ steps.pages-artifact.outputs.artifact_id }}
     env:
-      DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
       DOCS_OUTPUT: ${{ github.workspace }}/../swiftql-docs
 
     steps:
@@ -35,11 +35,11 @@ jobs:
 
       - name: Validate and report compiler environment
         env:
-          EXPECTED_XCODE_VERSION: "16.2"
-          EXPECTED_XCODE_BUILD: 16C5032a
-          EXPECTED_SWIFT_SERIES: "6.0"
-          EXPECTED_SDK_VERSION: "15.2"
-          EXPECTED_DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+          EXPECTED_XCODE_VERSION: "16.4"
+          EXPECTED_XCODE_BUILD: 16F6
+          EXPECTED_SWIFT_SERIES: "6.1"
+          EXPECTED_SDK_VERSION: "15.5"
+          EXPECTED_DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
         run: scripts/ci/check-compatibility-environment.sh
 
       - name: Install Hugo
