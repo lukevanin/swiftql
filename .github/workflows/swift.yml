@@ -283,18 +283,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Swift 5.9 / committed resolution
+          - name: Swift 6.3 / Linux committed resolution
             runner: ubuntu-22.04
             platform: linux
             developer_dir: ""
             xcode_version: ""
             xcode_build: ""
-            swift_series: "5.9"
-            swift_version: "5.9.2"
+            swift_series: "6.3"
+            swift_version: "6.3.2"
             swift_command_mode: path
-            swift_toolchain_url: https://download.swift.org/swift-5.9.2-release/ubuntu2204/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz
-            swift_toolchain_signature_sha256: 325657c10c0a917cb0126aaf2ce0fe1c72bb9bf14657a89f82330839003959ed
-            swift_signing_fingerprint: A62AE125BBBFBB96A6E042EC925CC1CCED3D1561
+            swift_toolchain_url: https://download.swift.org/swift-6.3.2-release/ubuntu2204/swift-6.3.2-RELEASE/swift-6.3.2-RELEASE-ubuntu22.04.tar.gz
+            swift_toolchain_signature_sha256: 06fcd8d2f92d9d4b557d3f832efc26a5539f7238d8ed47e0ba4e409477286581
+            swift_signing_fingerprint: 52BB7E3DE28A71BE22EC05FFEF80A866B47A981F
             sdk_version: ""
             image_os: ubuntu22
             architecture: x86_64
@@ -303,27 +303,6 @@ jobs:
             target_triple: x86_64-unknown-linux-gnu
             sqlite_version: "3.53.3"
             resolution: committed
-            source_coverage: false
-          - name: Swift 5.9 / clean resolution
-            runner: ubuntu-22.04
-            platform: linux
-            developer_dir: ""
-            xcode_version: ""
-            xcode_build: ""
-            swift_series: "5.9"
-            swift_version: "5.9.2"
-            swift_command_mode: path
-            swift_toolchain_url: https://download.swift.org/swift-5.9.2-release/ubuntu2204/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz
-            swift_toolchain_signature_sha256: 325657c10c0a917cb0126aaf2ce0fe1c72bb9bf14657a89f82330839003959ed
-            swift_signing_fingerprint: A62AE125BBBFBB96A6E042EC925CC1CCED3D1561
-            sdk_version: ""
-            image_os: ubuntu22
-            architecture: x86_64
-            os_id: ubuntu
-            os_version_id: "22.04"
-            target_triple: x86_64-unknown-linux-gnu
-            sqlite_version: "3.53.3"
-            resolution: clean
             source_coverage: false
           - name: Swift 6.3 / Linux clean resolution
             runner: ubuntu-22.04
@@ -855,7 +834,7 @@ jobs:
       # Swift 6.0 does, so a reintroduced one-liner still fails here.
       - name: Check the Getting Started playground
         id: playground-pages
-        if: ${{ matrix.platform == 'linux' && matrix.swift_series == '5.9' && matrix.resolution == 'committed' }}
+        if: ${{ matrix.platform == 'linux' && matrix.resolution == 'committed' }}
         run: |
           set -uo pipefail
           cd "$SWIFTQL_SOURCE"
@@ -875,7 +854,7 @@ jobs:
       # printed, which matters most on the runs where the check failed and the
       # step log is the only other copy.
       - name: Prepare retained playground evidence
-        if: ${{ always() && !cancelled() && matrix.platform == 'linux' && matrix.swift_series == '5.9' && matrix.resolution == 'committed' }}
+        if: ${{ always() && !cancelled() && matrix.platform == 'linux' && matrix.resolution == 'committed' }}
         env:
           PLAYGROUND_OUTCOME: ${{ steps.playground-pages.outcome }}
         run: |
@@ -886,7 +865,7 @@ jobs:
             > "$output_directory/workflow-step-outcome.txt"
 
       - name: Upload retained playground evidence
-        if: ${{ always() && !cancelled() && matrix.platform == 'linux' && matrix.swift_series == '5.9' && matrix.resolution == 'committed' }}
+        if: ${{ always() && !cancelled() && matrix.platform == 'linux' && matrix.resolution == 'committed' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: swiftql-playground-${{ github.sha }}-${{ github.run_attempt }}

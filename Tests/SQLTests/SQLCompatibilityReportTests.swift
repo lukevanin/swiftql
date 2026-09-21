@@ -2,8 +2,12 @@ import GRDB
 import XCTest
 
 
-#if swift(>=6.0)
-#error("SwiftQL 1.x compatibility lanes must compile in Swift 5 language mode")
+// SwiftQL 1.x pinned this the other way round: every compatibility lane had to
+// compile in Swift 5 language mode. v2.0 adopts Swift 6 language mode (issue
+// #133), so the tripwire now guards the opposite direction and fails the build
+// if a lane silently falls back.
+#if !swift(>=6.0)
+#error("SwiftQL 2.x compatibility lanes must compile in Swift 6 language mode")
 #endif
 
 

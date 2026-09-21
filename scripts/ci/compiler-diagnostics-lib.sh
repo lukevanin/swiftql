@@ -22,7 +22,7 @@ swiftql_is_root_manifest_build_warning() {
 
     [[ "$warning" == "warning: '$package_identity': "* ]] && \
         [[ "$warning" == *" -primary-file $source_root/Package.swift "* ]] && \
-        [[ "$warning" == *" -package-description-version 5.9.0 "* ]] && \
+        [[ "$warning" == *" -package-description-version 6.0.0 "* ]] && \
         [[ "$warning" == *" -module-name main "* ]]
 }
 
@@ -547,7 +547,7 @@ swiftql_run_diagnostic_classifier_self_tests() {
 
     fixture="warning: '$package_identity': /tool/swift-frontend"
     fixture+=" -primary-file $source_root/Package.swift"
-    fixture+=" -package-description-version 5.9.0 -module-name main -o /tmp/Package.o"
+    fixture+=" -package-description-version 6.0.0 -module-name main -o /tmp/Package.o"
     if ! swiftql_self_test_accepted_warning \
         "$self_test_log" "$source_root" "$scratch_root" "$output_prefix" \
         "$fixture" "OTHER_BUILD_WARNINGS" \
@@ -556,9 +556,12 @@ swiftql_run_diagnostic_classifier_self_tests() {
         return 1
     fi
 
+    # Near-match: everything matches but the tools version, which is the root
+    # manifest's own 6.0.0 in the accepted fixture above. A warning from a
+    # manifest of any other vintage is not this package's manifest.
     fixture="warning: '$package_identity': /tool/swift-frontend"
     fixture+=" -primary-file $source_root/Package.swift"
-    fixture+=" -package-description-version 6.0.0 -module-name main -o /tmp/Package.o"
+    fixture+=" -package-description-version 5.9.0 -module-name main -o /tmp/Package.o"
     if ! swiftql_self_test_rejected_warning \
         "$self_test_log" "$source_root" "$scratch_root" "$output_prefix" \
         "$fixture" "UNCLASSIFIED_WARNINGS" \

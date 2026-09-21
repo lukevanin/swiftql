@@ -21,11 +21,11 @@ roadmap work as shipped API.
   SQLite driver.
 - Depend directly on `SwiftQLCore` only when implementing a dialect or database
   adapter. It deliberately contains no usable GRDB connection.
-- Require Swift tools 5.9 and Swift 5 language mode, iOS 16 or later, or macOS
-  13 or later. Linux is covered by the pinned Swift 5.9.2 and Swift 6.3.2
-  cells through OpenCombine 0.14.0. Swift 6.0 through 6.3 compilers are tested, always in
-  Swift 5 language mode; Swift 6 language mode, non-SQLite dialects, and
-  non-GRDB drivers are unsupported.
+- Require Swift tools 6.0 and Swift 6 language mode, iOS 16 or later, or macOS
+  13 or later. Linux is covered by the pinned Swift 6.3.2 cells through
+  OpenCombine 0.14.0. Swift 6.0 through 6.3 compilers are tested. A client may
+  build in Swift 5 language mode against it; non-SQLite dialects and non-GRDB
+  drivers are unsupported.
 - Two surfaces need more than that floor: `XLObservableQuery` and
   `XLObservableQueryRow` require iOS 17 or macOS 14 for the `Observation`
   framework, and `#row`'s two-to-six column shapes (`SQLRow2` through
@@ -412,7 +412,7 @@ Every Swift snippet above is embedded verbatim from the maintained downstream
 consumer fixture and checked by `SQLSkillDocumentationTests`; edit the fixture
 first, never the fence. Run the warnings and strict-concurrency gates with a
 supported Xcode, and use the required GitHub compatibility matrix for exact
-Swift 5.9 and Swift 6.0-6.3 evidence rather than substituting a local compiler.
+Swift 6.0-6.3 evidence rather than substituting a local compiler.
 
 The live-query async suites -- `XLAsyncStreamPublisherTests`,
 `XLObservableLiveQueryTests`, `GRDBLiveQueryAsyncStreamTests`, and

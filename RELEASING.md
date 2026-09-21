@@ -11,7 +11,7 @@ release, are immutable. A new release never rewrites them.
 
 The [Verified release workflow](.github/workflows/release.yml) treats a tag as
 an untrusted request. It publishes only after it has proved that the exact tag
-commit is still reachable from `main`, run the eight-cell Swift compatibility
+commit is still reachable from `main`, run the seven-cell Swift compatibility
 matrix, and built the exact commit's validated DocC artifact.
 
 ## Before a release
@@ -62,11 +62,10 @@ matrix, and built the exact commit's validated DocC artifact.
    and the per-release evidence recorded in the release issue are still
    required in that case; only the checked-in audit document is deferred.
 2. Confirm the latest `main` runs of **Swift compatibility** and
-   **Documentation** pass. The compatibility run must contain all eight
-   release-blocking compiler cells: committed and clean resolution for each of
-   the pinned Swift 5.9 and Swift 6.0 support points, clean resolution for
-   Swift 6.1, 6.2, and 6.3 on macOS, and clean resolution for Swift 6.3 on
-   Linux. The Swift 6.0 committed cell also carries the source coverage
+   **Documentation** pass. The compatibility run must contain all seven
+   release-blocking compiler cells: committed and clean resolution for the
+   pinned Swift 6.0 support point, committed and clean resolution for Swift
+   6.3 on Linux, and clean resolution for Swift 6.1, 6.2, and 6.3 on macOS. The Swift 6.0 committed cell also carries the source coverage
    capture. Verify the deployed documentation provenance names that `main`
    commit.
 3. Run `scripts/ci/test-release-workflow.sh` locally. This exercises the tag,
@@ -432,7 +431,7 @@ The release workflow:
 
 1. validates and peels the event SHA and tag ref;
 2. proves the commit is reachable from current `origin/main`;
-3. invokes the reusable compatibility workflow and requires all eight compiler
+3. invokes the reusable compatibility workflow and requires all seven compiler
    cells;
 4. invokes the reusable documentation workflow without deploying Pages;
 5. packages the Pages tar as `swiftql-docc-$release_tag.tar.gz` and creates
@@ -461,7 +460,7 @@ Do not close the release issue when its workflow PR merges. After the tag run
 succeeds, independently verify:
 
 - the run event, ref, and head SHA match the release tag and recorded commit;
-- all eight compatibility cells and the documentation build passed;
+- all seven compatibility cells and the documentation build passed;
 - the tag still peels to that commit and remains reachable from `main`;
 - the release is published, is not a prerelease, and its generated notes contain
   the exact commit marker;

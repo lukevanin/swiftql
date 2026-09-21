@@ -55,7 +55,7 @@ final class SQLSkillDocumentationTests: XCTestCase {
             "checked-out public v1 contract",
             "Keep those five statuses distinct",
             "recorded SQLite version, source ID, compile options, capabilities",
-            "Swift 5.9 and Swift 6.0-6.3 evidence",
+            "Swift 6.0-6.3 evidence",
             // v1.5 surfaces the skill must present as the preferred path.
             "`@SQLQueries` (the recommended packaging)",
             "Only one `@SQLQueries` extension is supported per database type",

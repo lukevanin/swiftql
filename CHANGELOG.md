@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.0.0] - Unreleased
+
+### Migration
+
+- **Swift 6.0 is the minimum compiler** (issue #133). The package declares
+  `swift-tools-version: 6.0` and builds in Swift 6 language mode. A Swift 5.9
+  compiler cannot parse the manifest, so it cannot resolve SwiftQL 2.x at all.
+  **Stay on SwiftQL 1.x for an older toolchain.** The 1.x line keeps
+  `swift-tools-version: 5.9`, Swift 5 language mode, and its Swift 5.9.2 Linux
+  support point.
+  - Your own code does **not** have to move to Swift 6 language mode. A client
+    in Swift 5 mode compiles against the Swift 6 module, and
+    `IntegrationTests/Swift5Client` proves it on every CI run.
+  - Rows must now be `Sendable` (issue #685). A generic `@SQLTable` or
+    `@SQLResult` model needs the conditional conformance stated by hand, such
+    as `extension MyRow: Sendable where Value: Sendable {}`; the macro cannot
+    write a `where` clause for a generic model.
+  - CI drops its two Swift 5.9 Linux cells. Linux is now verified on Swift
+    6.3.2 in both resolution modes. See
+    [COMPATIBILITY.md](COMPATIBILITY.md#pinned-compiler-support-points).
+
 ## [1.9.0] - 2026-09-16
 
 ### Migration
