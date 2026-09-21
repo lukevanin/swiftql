@@ -193,7 +193,11 @@ while IFS= read -r page; do
             grep -v "^warning: '" || true
     )"
     if [ -n "$page_warnings" ]; then
-        printf '%s\n' "$page_warnings" | head -20 >&2
+        # `|| true` for the reason the excerpt above gives: `head` closing the
+        # pipe after 20 lines sends `printf` SIGPIPE, which `pipefail` turns
+        # into a failed pipeline and `set -e` turns into an aborted script --
+        # reporting nothing and skipping every later page.
+        printf '%s\n' "$page_warnings" | head -20 >&2 || true
         retain_build_log "$build_log"
         printf 'error: page compiles with warnings: %s\n' "$page" >&2
         failures=$((failures + 1))
