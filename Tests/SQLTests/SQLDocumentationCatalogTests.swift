@@ -898,7 +898,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
                 "$matches[0].state == \"closed\"",
                 "$matches[0].open_issues == 0",
                 "It is not proof that any later milestone is ready",
-                "must contain all eight",
+                "must contain all six",
                 "release-blocking compiler cells",
                 "Protect v-prefixed release tags",
                 "A merge commit is mandatory.",

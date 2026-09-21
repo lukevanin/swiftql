@@ -23,35 +23,58 @@ ENVIRONMENT_CHECK = ROOT / "scripts/ci/check-compatibility-environment.sh"
 
 
 class SwiftCompatibilityWorkflowTests(unittest.TestCase):
-    def test_swift59_cells_use_exact_toolchain_on_ubuntu22(self) -> None:
+    def test_linux_cells_use_the_exact_swift63_toolchain_on_ubuntu22(self) -> None:
+        # Issue #133 adopted Swift 6 language mode, which needs a tools-6.1
+        # manifest. A Swift 5.9 compiler cannot parse one, so the Linux pair
+        # that used to pin 5.9.2 now pins the Swift 6.3.2 archive the
+        # repository already verified for its newer-series Linux cell.
         workflow = WORKFLOW.read_text(encoding="utf-8")
         compatibility = workflow.split("\n  compatibility:\n", maxsplit=1)[1]
         matrix = compatibility.split("\n    env:\n", maxsplit=1)[0]
 
         self.assertNotIn("runner: macos-14", matrix)
-        self.assertEqual(matrix.count('swift_series: "5.9"'), 2)
-        self.assertEqual(matrix.count('swift_version: "5.9.2"'), 2)
-        # Every Linux cell -- the two Swift 5.9 cells and the Swift 6.3 cell
-        # added by #672 -- installs its toolchain on PATH.
-        self.assertEqual(matrix.count("swift_command_mode: path"), 3)
-        self.assertEqual(matrix.count("runner: ubuntu-22.04"), 3)
+        # No cell may claim a Swift 5.x toolchain: the package's tools version
+        # is 6.1, so such a cell could not resolve the manifest at all.
+        self.assertNotIn('swift_series: "5.', matrix)
+        self.assertNotIn("swift-5.9.2-RELEASE", compatibility)
+        self.assertEqual(matrix.count('swift_series: "6.3"'), 2)
+        self.assertEqual(matrix.count('swift_version: "6.3.2"'), 2)
+        # Both Linux cells install their toolchain on PATH.
+        self.assertEqual(matrix.count("swift_command_mode: path"), 2)
+        self.assertEqual(matrix.count("runner: ubuntu-22.04"), 2)
         self.assertEqual(matrix.count("\n            runner: macos-15\n"), 2)
-        self.assertEqual(matrix.count("platform: linux"), 3)
+        self.assertEqual(matrix.count("platform: linux"), 2)
         self.assertEqual(matrix.count("platform: macos"), 2)
-        self.assertEqual(matrix.count("image_os: ubuntu22"), 3)
+        self.assertEqual(matrix.count("image_os: ubuntu22"), 2)
         self.assertEqual(matrix.count("image_os: macos15"), 2)
-        self.assertEqual(matrix.count("architecture: x86_64"), 3)
+        self.assertEqual(matrix.count("architecture: x86_64"), 2)
         self.assertEqual(matrix.count("architecture: arm64"), 2)
-        self.assertEqual(matrix.count('sqlite_version: "3.53.3"'), 3)
+        self.assertEqual(matrix.count('sqlite_version: "3.53.3"'), 2)
+
+        # Each platform is covered in both resolution modes.
+        for platform, resolutions in (("linux", 2), ("macos", 2)):
+            cells = [
+                entry
+                for entry in matrix.split("\n          - name: ")[1:]
+                if f"platform: {platform}" in entry
+            ]
+            self.assertEqual(len(cells), resolutions)
+            self.assertEqual(
+                sorted(
+                    "committed" if "resolution: committed" in cell else "clean"
+                    for cell in cells
+                ),
+                ["clean", "committed"],
+            )
 
         self.assertNotIn("swift-actions/setup-swift", compatibility)
         self.assertIn(
             "if: ${{ matrix.platform == 'linux' }}", compatibility
         )
         self.assertIn(
-            "https://download.swift.org/swift-5.9.2-release/ubuntu2204/"
-            "swift-5.9.2-RELEASE/"
-            "swift-5.9.2-RELEASE-ubuntu22.04.tar.gz",
+            "https://download.swift.org/swift-6.3.2-release/ubuntu2204/"
+            "swift-6.3.2-RELEASE/"
+            "swift-6.3.2-RELEASE-ubuntu22.04.tar.gz",
             compatibility,
         )
         self.assertIn(
@@ -67,17 +90,19 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertEqual(
             matrix.count(
                 "swift_toolchain_signature_sha256: "
-                "325657c10c0a917cb0126aaf2ce0fe1c72bb9bf14657a89f82330839003959ed"
+                "06fcd8d2f92d9d4b557d3f832efc26a5539f7238d8ed47e0ba4e409477286581"
             ),
             2,
         )
+        # The Swift 6.x release signing key, not the 5.x key the 5.9 cells used.
         self.assertEqual(
             matrix.count(
                 "swift_signing_fingerprint: "
-                "A62AE125BBBFBB96A6E042EC925CC1CCED3D1561"
+                "52BB7E3DE28A71BE22EC05FFEF80A866B47A981F"
             ),
             2,
         )
+        self.assertNotIn("A62AE125BBBFBB96A6E042EC925CC1CCED3D1561", matrix)
         self.assertIn(
             "SWIFT_SIGNING_FINGERPRINT: ${{ matrix.swift_signing_fingerprint }}",
             compatibility,
@@ -176,9 +201,19 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
             if "platform: linux" in entry and 'swift_series: "6.' in entry
         ]
 
-        self.assertEqual(len(linux_swift6), 1)
+        # Two since #133: the Swift 5.9 pair could not parse a tools-6.1
+        # manifest, so Linux keeps both resolution modes on this series.
+        self.assertEqual(len(linux_swift6), 2)
+        self.assertEqual(
+            sorted(cell.split("\n", maxsplit=1)[0] for cell in linux_swift6),
+            [
+                "Swift 6.3 / Linux clean resolution",
+                "Swift 6.3 / Linux committed resolution",
+            ],
+        )
+        for cell in linux_swift6:
+            self.assertIn("resolution: ", cell)
         cell = linux_swift6[0]
-        self.assertTrue(cell.startswith("Swift 6.3 / Linux clean resolution\n"))
         for expected in (
             'swift_series: "6.3"',
             'swift_version: "6.3.2"',
@@ -193,15 +228,15 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
             'os_version_id: "22.04"',
             "target_triple: x86_64-unknown-linux-gnu",
             'sqlite_version: "3.53.3"',
-            "resolution: clean",
             "source_coverage: false",
         ):
-            self.assertIn(expected, cell)
+            for entry in linux_swift6:
+                self.assertIn(expected, entry)
         # The macOS-only gates stay off the Linux Swift 6 cell: they are keyed
-        # to Swift 6.0, and this cell's series is 6.3.
-        self.assertNotIn('swift_series: "6.0"', cell)
+        # to the Swift 6.1 floor, and this cell's series is 6.3.
+        self.assertNotIn('swift_series: "6.1"', cell)
 
-    def test_source_coverage_runs_once_inside_the_swift60_committed_cell(
+    def test_source_coverage_runs_once_inside_the_floor_committed_cell(
         self,
     ) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
@@ -215,7 +250,7 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         ]
         self.assertEqual(len(coverage_cells), 1)
         self.assertTrue(
-            coverage_cells[0].startswith("Swift 6.0 / committed resolution\n")
+            coverage_cells[0].startswith("Swift 6.1 / committed resolution\n")
         )
         self.assertEqual(matrix.count("source_coverage: false"), len(entries) - 1)
 
@@ -252,9 +287,10 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         playground_step = compatibility.split(
             "      - name: Check the Getting Started playground\n", maxsplit=1
         )[1].split("\n      - name: ", maxsplit=1)[0]
+        # #133 removed the Swift 5.9 cells, so "the Linux committed cell" is
+        # now unique without naming a series.
         self.assertIn(
             "if: ${{ matrix.platform == 'linux' && "
-            "matrix.swift_series == '5.9' && "
             "matrix.resolution == 'committed' }}",
             playground_step,
         )
@@ -262,14 +298,14 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
             "      - name: Check complete strict concurrency\n", maxsplit=1
         )[1].split("\n      - name: ", maxsplit=1)[0]
         self.assertIn(
-            "if: ${{ matrix.swift_series == '6.0' && "
+            "if: ${{ matrix.swift_series == '6.1' && "
             "matrix.resolution == 'clean' }}",
             strict_step,
         )
 
     def test_newest_series_also_runs_the_strict_concurrency_gate(self) -> None:
         # Issue #546: the compatibility job runs the gate on the pinned Swift
-        # 6.0 support point only, where `#SendableMetatypes` does not exist
+        # 6.1 support point only, where `#SendableMetatypes` does not exist
         # yet, so four first-party captures went unreported until a local run
         # on a newer compiler found them. The newest series runs the gate too.
         workflow = WORKFLOW.read_text(encoding="utf-8")
@@ -391,7 +427,7 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         swift_series = swift_series.split("\n  compatibility:\n", maxsplit=1)[0]
 
         # Source coverage is no longer a job of its own (#672); it runs inside
-        # the compatibility job's Swift 6.0 committed cell, which pull
+        # the compatibility job's Swift 6.1 committed cell, which pull
         # requests keep.
         self.assertNotIn("\n  coverage:\n", workflow)
         pull_request_skip = "if: ${{ github.event_name != 'pull_request' }}"
@@ -670,7 +706,7 @@ class CompatibilityEnvironmentTests(unittest.TestCase):
             f"""
             #!/bin/sh
             if [ "$*" = "package tools-version" ]; then
-              printf '5.9.0\n'
+              printf '6.1.0\n'
             else
               printf 'Swift version {swift_version} (swift-{swift_version}-RELEASE)\n'
               printf 'Target: arm64-apple-macosx15.0\n'
@@ -743,7 +779,7 @@ class CompatibilityEnvironmentTests(unittest.TestCase):
             """
             #!/bin/sh
             if [ "$*" = "package tools-version" ]; then
-              printf '5.9.0\n'
+              printf '6.1.0\n'
             else
               printf 'Swift version 5.9.2 (swift-5.9.2-RELEASE)\n'
               printf 'Target: x86_64-unknown-linux-gnu\n'

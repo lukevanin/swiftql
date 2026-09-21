@@ -108,11 +108,11 @@ struct SwiftQLSQLiteBuildValidationPlugin: BuildToolPlugin {
         return [
             try Self.validationCommand(
                 targetName: target.name,
-                inputDirectory: sourceTarget.directory,
+                inputDirectory: sourceTarget.directoryURL,
                 inputLocation: .targetDirectory,
-                fileExists: { fileManager.fileExists(atPath: $0.string) },
-                pluginWorkDirectory: context.pluginWorkDirectory,
-                validatorTool: { try context.tool(named: Self.validatorToolName).path }
+                fileExists: { fileManager.fileExists(atPath: $0.path(percentEncoded: false)) },
+                pluginWorkDirectory: context.pluginWorkDirectoryURL,
+                validatorTool: { try context.tool(named: Self.validatorToolName).url }
             ),
         ]
     }
@@ -121,16 +121,19 @@ struct SwiftQLSQLiteBuildValidationPlugin: BuildToolPlugin {
     /// entry points differ only in where `inputDirectory` comes from and how
     /// a file's presence is decided; the file names, arguments, and declared
     /// inputs and outputs are decided here, once.
+    /// `URL`, not `Path`: SwiftPM deprecated the `Path` plugin API, and
+    /// `Target.directoryURL` is the replacement this package's tools version
+    /// 6.1 provides (issue #133). Both entry points below pass URLs.
     static func validationCommand(
         targetName: String,
-        inputDirectory: Path,
+        inputDirectory: URL,
         inputLocation: SwiftQLSQLiteBuildValidationPluginError.InputLocation,
-        fileExists: (Path) -> Bool,
-        pluginWorkDirectory: Path,
-        validatorTool: () throws -> Path
+        fileExists: (URL) -> Bool,
+        pluginWorkDirectory: URL,
+        validatorTool: () throws -> URL
     ) throws -> Command {
-        let manifestPath = inputDirectory.appending(manifestFileName)
-        let snapshotPath = inputDirectory.appending(snapshotFileName)
+        let manifestPath = inputDirectory.appending(path: manifestFileName)
+        let snapshotPath = inputDirectory.appending(path: snapshotFileName)
         let hasManifest = fileExists(manifestPath)
         let hasSnapshot = fileExists(snapshotPath)
         guard hasManifest, hasSnapshot else {
@@ -147,23 +150,23 @@ struct SwiftQLSQLiteBuildValidationPlugin: BuildToolPlugin {
         // the plugin would share one report path, causing write races and
         // letting the build system consider a target's command "up to date"
         // based on another target's output.
-        let targetWorkDirectory = pluginWorkDirectory.appending(targetName)
-        let reportPath = targetWorkDirectory.appending(reportFileName)
+        let targetWorkDirectory = pluginWorkDirectory.appending(path: targetName)
+        let reportPath = targetWorkDirectory.appending(path: reportFileName)
 
         var arguments = [
-            "--database", snapshotPath.string,
-            "--manifest", manifestPath.string,
-            "--output", reportPath.string,
+            "--database", snapshotPath.path(percentEncoded: false),
+            "--manifest", manifestPath.path(percentEncoded: false),
+            "--output", reportPath.path(percentEncoded: false),
         ]
         var inputFiles = [manifestPath, snapshotPath]
         var outputFiles = [reportPath]
 
-        let planAnalysisPath = inputDirectory.appending(planAnalysisFileName)
+        let planAnalysisPath = inputDirectory.appending(path: planAnalysisFileName)
         if fileExists(planAnalysisPath) {
-            let planReportPath = targetWorkDirectory.appending(planReportFileName)
+            let planReportPath = targetWorkDirectory.appending(path: planReportFileName)
             arguments += [
-                "--plan-output", planReportPath.string,
-                "--plan-suppressions", planAnalysisPath.string,
+                "--plan-output", planReportPath.path(percentEncoded: false),
+                "--plan-suppressions", planAnalysisPath.path(percentEncoded: false),
                 "--verify-index-candidates",
             ]
             // Declared as an input and an output, not hidden behind a prebuild
@@ -198,25 +201,25 @@ extension SwiftQLSQLiteBuildValidationPlugin: XcodeBuildToolPlugin {
         context: XcodePluginContext,
         target: XcodeTarget
     ) throws -> [Command] {
-        let inputPaths = target.inputFiles.map(\.path)
+        let inputPaths = target.inputFiles.map(\.url)
         let inputPathSet = Set(inputPaths)
 
         // A second copy of any opt-in file would make the choice of folder a
         // guess, so the build fails and names every copy instead.
-        var inputDirectory: Path?
+        var inputDirectory: URL?
         for fileName in [Self.manifestFileName, Self.snapshotFileName, Self.planAnalysisFileName] {
-            let matches = inputPaths.filter { $0.lastComponent == fileName }
+            let matches = inputPaths.filter { $0.lastPathComponent == fileName }
             if matches.count > 1 {
                 throw SwiftQLSQLiteBuildValidationPluginError.duplicateInputFiles(
                     target: target.displayName,
                     fileName: fileName,
-                    paths: matches.map(\.string)
+                    paths: matches.map { $0.path(percentEncoded: false) }
                 )
             }
             // The manifest decides the folder. The snapshot only does when the
             // manifest is absent, so the error can still name what is missing.
             if inputDirectory == nil, fileName != Self.planAnalysisFileName, let match = matches.first {
-                inputDirectory = match.removingLastComponent()
+                inputDirectory = match.deletingLastPathComponent()
             }
         }
 
@@ -235,8 +238,8 @@ extension SwiftQLSQLiteBuildValidationPlugin: XcodeBuildToolPlugin {
                 inputDirectory: inputDirectory,
                 inputLocation: .xcodeTargetInputFiles,
                 fileExists: { inputPathSet.contains($0) },
-                pluginWorkDirectory: context.pluginWorkDirectory,
-                validatorTool: { try context.tool(named: Self.validatorToolName).path }
+                pluginWorkDirectory: context.pluginWorkDirectoryURL,
+                validatorTool: { try context.tool(named: Self.validatorToolName).url }
             ),
         ]
     }

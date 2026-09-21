@@ -42,16 +42,18 @@ struct SwiftQLDeclaredQueryRegistryPlugin: BuildToolPlugin {
             throw SwiftQLDeclaredQueryRegistryPluginError.unsupportedTargetKind(target.name)
         }
         let tool = try context.tool(named: Self.toolName)
-        let inputs = sourceTarget.sourceFiles(withSuffix: "swift").map(\.path)
-        let output = context.pluginWorkDirectory
-            .appending(target.name)
-            .appending("\(target.name)DeclaredQueries.swift")
+        // `URL`, not `Path`: SwiftPM deprecated the `Path` plugin API at tools
+        // version 6.0, and this package declares 6.1 (issue #133).
+        let inputs = sourceTarget.sourceFiles(withSuffix: "swift").map(\.url)
+        let output = context.pluginWorkDirectoryURL
+            .appending(path: target.name)
+            .appending(path: "\(target.name)DeclaredQueries.swift")
         return [
             .buildCommand(
                 displayName: "SwiftQL declared query registry (\(target.name))",
-                executable: tool.path,
-                arguments: ["--target-name", target.name, "--output", output.string]
-                    + inputs.map(\.string),
+                executable: tool.url,
+                arguments: ["--target-name", target.name, "--output", output.path(percentEncoded: false)]
+                    + inputs.map { $0.path(percentEncoded: false) },
                 inputFiles: inputs,
                 outputFiles: [output]
             ),

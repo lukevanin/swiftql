@@ -4,11 +4,13 @@
 
 SwiftQL is a Swift package. You need:
 
-- **Xcode 15** or later (macOS), or the **Swift 5.9** toolchain or later
-  (Linux). The CI matrix covers Swift 5.9, 6.0, 6.1, 6.2, and 6.3. On Linux,
-  CI verifies two exact toolchains on Ubuntu 22.04 x86_64: Swift 5.9.2 and
-  Swift 6.3.2. Other Linux toolchains are expected to work but are not
-  verified; see [COMPATIBILITY.md](COMPATIBILITY.md#pinned-compiler-support-points).
+- **Xcode 16.4** or later (macOS), or the **Swift 6.1** toolchain or later
+  (Linux). SwiftQL 2.x declares `swift-tools-version: 6.1`, so an older
+  compiler cannot resolve the package. The CI matrix covers Swift 6.1, 6.2,
+  and 6.3. On Linux, CI verifies one exact toolchain on Ubuntu 22.04
+  x86_64, Swift 6.3.2, in both resolution modes. Other Linux toolchains are
+  expected to work but are not verified; see
+  [COMPATIBILITY.md](COMPATIBILITY.md#pinned-compiler-support-points).
 - **macOS 13** or later (for macOS builds). iOS 16 or later is the minimum
   supported iOS version.
 
@@ -89,9 +91,10 @@ noting before you send a patch:
 - **Documentation examples are executable.** Code snippets in the DocC guides
   and this README are backed by test scenarios. New public API should include a
   corresponding test rather than a documentation-only example.
-- **Swift language mode.** The package uses Swift 5 language mode across all
-  five supported compiler series. Do not opt individual files or modules into
-  Swift 6 language mode.
+- **Swift language mode.** The package uses Swift 6 language mode across all
+  three supported compiler series (issue #133). Do not opt individual files or
+  modules back into Swift 5 language mode. A client may stay in Swift 5 mode;
+  `IntegrationTests/Swift5Client` is the fixture that proves it.
 - **No unused imports.** Keep the dependency surface of each target narrow.
 
 ## Branch naming

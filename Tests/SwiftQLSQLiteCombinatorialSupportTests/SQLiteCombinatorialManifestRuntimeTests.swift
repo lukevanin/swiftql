@@ -4,8 +4,10 @@ import SwiftQLSQLiteCombinatorialSupport
 import XCTest
 
 
-#if swift(>=6.0)
-#error("SwiftQL 1.x compatibility lanes must compile in Swift 5 language mode")
+// See the matching tripwire in `SQLCompatibilityReportTests`. v2.0 adopts
+// Swift 6 language mode (issue #133), so this guards the opposite direction.
+#if !swift(>=6.0)
+#error("SwiftQL 2.x compatibility lanes must compile in Swift 6 language mode")
 #endif
 
 
