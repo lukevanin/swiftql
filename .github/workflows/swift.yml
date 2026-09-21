@@ -114,6 +114,10 @@ jobs:
             xcode_version: "26.5"
             xcode_build: 17F42
             sdk_version: "26.5"
+            # The newest supported series carries the complete
+            # strict-concurrency gate (#546). Move this flag to the new cell
+            # when a newer series is added.
+            strict_concurrency: true
 
     env:
       DEVELOPER_DIR: ${{ matrix.developer_dir }}
@@ -163,6 +167,18 @@ jobs:
           cd "$SWIFTQL_SOURCE"
           scripts/ci/check-first-party-warnings.sh \
             "$RUNNER_TEMP/swift-build.log"
+
+      # The compatibility job runs this same gate on the pinned Swift 6.0
+      # support point, where the `#SendableMetatypes` diagnostic does not
+      # exist yet. Issue #546 was found by a local run on a newer compiler for
+      # exactly that reason, so the newest series runs the gate too.
+      - name: Check complete strict concurrency
+        if: ${{ matrix.strict_concurrency }}
+        run: |
+          set -euo pipefail
+          cd "$SWIFTQL_SOURCE"
+          scripts/ci/check-strict-concurrency.sh \
+            "$RUNNER_TEMP/swift-strict-concurrency.log"
 
       - name: Report SQLite runtime through GRDB
         run: |

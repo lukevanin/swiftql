@@ -764,6 +764,24 @@ export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
 scripts/ci/check-strict-concurrency.sh
 ```
 
+**The gate covers two series: Swift 6.0 and Swift 6.3.** A compiler reports
+only the diagnostics it has, so one cell cannot speak for every supported
+series. Swift 6.2 introduced `#SendableMetatypes`, which the pinned Swift 6.0
+compiler does not know, and four first-party captures went unreported until a
+local run on a newer compiler found them (issue #546). The newest series
+therefore runs the same script, in the `swift-series` job's Swift 6.3 cell.
+Move the matrix's `strict_concurrency` flag when a newer series is added.
+
+The `swift-series` job runs on pushes to `main` and on release runs. It does
+not run on a pull request, which is that job's standing policy, so a pull
+request gets its strict-concurrency signal from the Swift 6.0 cell alone.
+Select Xcode 26.5 to run the newer series locally:
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode_26.5.app/Contents/Developer
+scripts/ci/check-strict-concurrency.sh
+```
+
 The script performs a clean build with the equivalent command:
 
 ```sh
