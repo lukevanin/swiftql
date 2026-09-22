@@ -394,3 +394,25 @@ func xlDrainMainQueue() async {
         }
     }
 }
+
+
+/// The states a live query reached, with each delivery that repeats the
+/// previous one removed.
+///
+/// A live query reports the latest known state, not a commit log
+/// (<doc:LiveQueries>). GRDB may notify the same state twice, on any platform:
+/// it fetches from a pool reader when an observation starts, and fetches again
+/// from its first writer access, because it cannot tell whether a change in
+/// between touched the observed value. Its own source documents this for the
+/// snapshot path and for the path without it
+/// (`ValueConcurrentObserver.swift`).
+///
+/// A test therefore asserts the states a query reaches, never the number of
+/// deliveries, and never that no delivery repeats a state.
+func xlDistinctStates<Element: Equatable>(_ values: [Element]) -> [Element] {
+    values.reduce(into: []) { states, value in
+        if states.last != value {
+            states.append(value)
+        }
+    }
+}

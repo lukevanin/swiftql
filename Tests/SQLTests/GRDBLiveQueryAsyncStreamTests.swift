@@ -278,6 +278,34 @@ private final class AsyncStreamIteratorBox<Value>: @unchecked Sendable {
 }
 
 
+extension AsyncStreamIteratorBox where Value: Equatable {
+
+    /// The next delivered state that differs from `previous`.
+    ///
+    /// A live query reports the latest known state, not a commit log
+    /// (<doc:LiveQueries>). GRDB may notify the same state twice. It fetches
+    /// the initial value from a pool reader, and fetches again when it reaches
+    /// the writer, because it cannot tell whether a change in between touched
+    /// the observed value. GRDB's own source says this for the snapshot path
+    /// and for the path without it
+    /// (`ValueConcurrentObserver.swift`), so the repeat can happen on any
+    /// platform. Linux only makes it certain, because GRDB 7 compiles the
+    /// snapshot path out there.
+    ///
+    /// A test therefore asserts the states a query reaches. It must not assert
+    /// how many deliveries that took, and it must not assert that no delivery
+    /// repeats a state.
+    func nextDistinct(from previous: Value?) async throws -> Value? {
+        while let value = try await next() {
+            if value != previous {
+                return value
+            }
+        }
+        return nil
+    }
+}
+
+
 final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
 
     // `XLLogger` is `Sendable` (issue #792). The lock supplies the safety
@@ -412,7 +440,7 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         XCTAssertEqual(initial, [AsyncStreamRecord(id: "written-before-iteration", value: 1)])
 
         try insertDirect(AsyncStreamRecord(id: "relevant", value: 2))
-        let refreshed = try await iterator.next()
+        let refreshed = try await iterator.nextDistinct(from: initial)
         XCTAssertEqual(
             refreshed,
             [
@@ -435,7 +463,7 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
 
         // "a" sorts after a lexicographically-earlier id, so the observed first row changes.
         try insertDirect(AsyncStreamRecord(id: "A-earlier", value: 2))
-        let refreshed = try await iterator.next()
+        let refreshed = try await iterator.nextDistinct(from: initial)
         XCTAssertEqual(refreshed, AsyncStreamRecord(id: "A-earlier", value: 2))
     }
 
@@ -678,7 +706,10 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         await seen.wait(untilCountIsAtLeast: 1)
         task.cancel()
         await loopEnded.wait(for: true)
-        XCTAssertEqual(seen.read(), [[]])
+        // The states reached, not the number of deliveries: a delivery may
+        // repeat the state already seen. See
+        // `AsyncStreamIteratorBox.nextDistinct(from:)`.
+        XCTAssertEqual(xlDistinctStates(seen.read()), [[]])
 
         let fetchCountAtCancel = logger.count(containing: "stream:")
         try insertDirect(AsyncStreamRecord(id: "after-cancel", value: 1))
@@ -817,9 +848,9 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         try insertDirect(AsyncStreamRecord(id: "shared", value: 1))
 
         let expected = [AsyncStreamRecord(id: "shared", value: 1)]
-        let refreshedA = try await iteratorA.next()
+        let refreshedA = try await iteratorA.nextDistinct(from: initialA)
         XCTAssertEqual(refreshedA, expected)
-        let refreshedB = try await iteratorB.next()
+        let refreshedB = try await iteratorB.nextDistinct(from: initialB)
         XCTAssertEqual(refreshedB, expected)
     }
 
@@ -861,7 +892,7 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         XCTAssertEqual(initialB, [])
 
         try insertDirect(AsyncStreamRecord(id: "only-in-a", value: 1))
-        let refreshedA = try await iteratorA.next()
+        let refreshedA = try await iteratorA.nextDistinct(from: initialA)
         XCTAssertEqual(refreshedA, [AsyncStreamRecord(id: "only-in-a", value: 1)])
 
         // The second, identically-named table in the other pool must remain empty.
@@ -880,6 +911,12 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
     /// would hold that write open, so the gate would never open and the logger would record its
     /// timeout. A refetch on a reader leaves the write free to return, and the gate opens at once.
     /// The timeout only bounds the failing path; the passing path waits on no duration.
+    ///
+    /// The observation is driven through one state change before the gate is armed. Starting an
+    /// observation is not the subject here, and GRDB's start does reach the writer: it fetches
+    /// from a pool reader, then fetches again from its first writer access, because it cannot tell
+    /// whether a change in between touched the observed value. Observing a committed state proves
+    /// the transaction observer is installed, so that start, and its writer-side fetch, are over.
     func testRefetchAfterCommitDoesNotRunOnTheWriter() async throws {
         try createRecordTable()
         let gatedLogger = GatedFetchLogger()
@@ -894,12 +931,22 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         let initial = try await iterator.next()
         XCTAssertEqual(initial, [])
 
+        try insertDirect(AsyncStreamRecord(id: "started", value: 1))
+        let started = try await iterator.nextDistinct(from: initial)
+        XCTAssertEqual(started, [AsyncStreamRecord(id: "started", value: 1)])
+
         gatedLogger.arm()
-        try insertDirect(AsyncStreamRecord(id: "gated", value: 1))
+        try insertDirect(AsyncStreamRecord(id: "gated", value: 2))
         gatedLogger.open()
 
-        let refreshed = try await iterator.next()
-        XCTAssertEqual(refreshed, [AsyncStreamRecord(id: "gated", value: 1)])
+        let refreshed = try await iterator.nextDistinct(from: started)
+        XCTAssertEqual(
+            refreshed,
+            [
+                AsyncStreamRecord(id: "gated", value: 2),
+                AsyncStreamRecord(id: "started", value: 1),
+            ]
+        )
         XCTAssertFalse(
             gatedLogger.didTimeOut,
             "The refetch held the write open, so it ran inline on the writer instead of a reader."
@@ -921,20 +968,28 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
 
         let task = Task {
             do {
+                // A delivery may repeat the state already seen, so the loop
+                // waits for the state to change rather than counting
+                // deliveries. See `AsyncStreamIteratorBox.nextDistinct(from:)`.
+                var initial: [AsyncStreamRecord]?
                 for try await rows in stream {
                     XCTAssertFalse(Thread.isMainThread)
-                    seen.append(rows)
-                    if seen.read().count == 1 {
+                    guard let initialRows = initial else {
+                        initial = rows
+                        seen.append(rows)
                         try await pool.write { database in
                             try database.execute(
                                 sql: "INSERT INTO AsyncStreamRecord (id, value) VALUES (?, ?)",
                                 arguments: ["off-main", 1]
                             )
                         }
+                        continue
                     }
-                    else {
-                        break
+                    if rows == initialRows {
+                        continue
                     }
+                    seen.append(rows)
+                    break
                 }
             }
             catch {
@@ -998,13 +1053,14 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         XCTAssertEqual(recovered, [AsyncStreamRetryRecord(id: "initial", value: 1)])
         XCTAssertGreaterThanOrEqual(fixture.functionState.invocationCount, 2)
 
+
         try await fixture.database.databasePool.write { database in
             try database.execute(
                 sql: "INSERT INTO AsyncStreamRetryRecord (id, value) VALUES (?, ?)",
                 arguments: ["updated", 2]
             )
         }
-        let updated = try await iterator.next()
+        let updated = try await iterator.nextDistinct(from: recovered)
         XCTAssertEqual(
             updated,
             [

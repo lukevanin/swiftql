@@ -245,7 +245,38 @@ mode. Four points differ from the sections above.
    `prepareDatabase` closure, and the registration requires a `Sendable`
    function result so the remaining `F.T.Type` capture is legal.
 
+5. **`-DGRDBCUSTOMSQLITE` had to go.** §5 asked what the Linux cells would do.
+   They failed to compile GRDB itself: `cannot find 'sqlite3_column_type' in
+   scope`. GRDB 6 read the define as "import the custom SQLite module". GRDB 7
+   reads it as "the GRDBCustom Xcode framework supplies the SQLite module", and
+   its `#elseif GRDBCUSTOMSQLITE` branch imports nothing, so no SQLite module
+   reached GRDB under SwiftPM. The compiler override now passes no SQLite
+   define. The pinned library still reaches GRDB through the include and
+   library paths, because the `GRDBSQLite` module map includes `<sqlite3.h>`
+   and links `sqlite3`.
+
+6. **A live query may deliver the same value twice, on every platform.** This
+   is the finding with the widest reach, and it is not a Linux one. GRDB
+   fetches an observation's initial value from a pool reader, then fetches
+   again when it takes its first write access, because writes may have landed
+   in between. `ValueConcurrentObserver.swift` says that GRDB cannot tell
+   whether such a write touched the observed value, and that it may therefore
+   notify the same value twice. It says this for the snapshot path and for the
+   path without it. Snapshot support only lets GRDB detect that nothing at all
+   changed.
+
+   Eleven live-query tests asserted the number of deliveries, or that no
+   delivery repeated a value. GRDB never promised either, and
+   <doc:LiveQueries> promises the latest known state rather than a commit log.
+   They passed on macOS because the repeat did not happen to fire, not because
+   macOS prevents it. They now assert the sequence of distinct states, with no
+   platform condition, and <doc:LiveQueries> states the repeat.
+
+   The change was checked by making the repeat deterministic: with every
+   observation delivery duplicated, the whole suite passes on macOS.
+
 The Linux question in §5 is answered in `COMPATIBILITY.md`: GRDB 7 defines
 `SQLITE_DISABLE_SNAPSHOT` for its own target on Linux, a target-level define
 cannot be removed from outside the package, and the Swift-side snapshot path is
-therefore compiled out on the Linux cells whatever the override passes.
+therefore compiled out on the Linux cells whatever the override passes. That
+makes the second startup fetch certain there, rather than introducing it.

@@ -89,6 +89,31 @@ never queues behind, a snapshot the consumer has not yet asked for, and resuming
 whatever has already been produced rather than forcing a fresh fetch. See "Buffering and
 Resumed-Demand Semantics (#291)" below for the full contract `stream()`/`streamOne()` implement.
 
+### A live query may deliver the same value twice
+
+A live query reports the latest known state. It is not a commit log, and it does not promise one
+delivery per commit, nor exactly one delivery per state. **The same value can be delivered twice.**
+
+This comes from GRDB, and it holds on every platform. GRDB fetches the initial value from a pool
+reader, so a consumer is notified without waiting for a long write transaction to finish. It then
+takes its first write access and starts observing. Any number of writes can land in between, and
+GRDB must not miss one, so it fetches a second time. GRDB's own source records that it cannot tell
+whether such a write touched the observed value, and that it therefore may notify the same value
+twice. That holds whether or not SQLite was built with `SQLITE_ENABLE_SNAPSHOT`: the flag lets GRDB
+detect that *nothing at all* changed, but not that a change was irrelevant. GRDB calls the repeat a
+documented glitch.
+
+A consumer that needs distinct values must compare them itself, for example by holding the last
+delivered value and ignoring a delivery equal to it. SwiftQL does not do this for you, and it does
+not require ``XLRequest/Row`` to be `Equatable`. GRDB's own `removeDuplicates()` operator is not
+reachable either: SwiftQL owns the `ValueObservation`, and a consumer receives an
+`AsyncThrowingStream` or a Combine publisher instead.
+
+Which build makes the repeat likely, rather than whether it can happen at all, does vary. GRDB 7
+compiles its WAL-snapshot support out on Linux, so a Linux consumer sees the second fetch on every
+observation. A test must therefore assert the states a query reaches, never the number of
+deliveries.
+
 For a GRDB-backed request (``GRDBDatabase``), `stream()`/`streamOne()` never schedule work on the
 main queue. The GRDB adapter gives each stream a private serial queue: GRDB delivers every snapshot
 into the stream on that queue, and a retry backoff waits on the same queue. Async consumers then

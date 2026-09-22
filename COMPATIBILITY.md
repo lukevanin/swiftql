@@ -285,14 +285,24 @@ manifest defines `SQLITE_DISABLE_SNAPSHOT` for the GRDB target on Linux,
 because not every Linux distribution supports WAL snapshots, and its source
 guards every snapshot declaration with
 `#if SQLITE_ENABLE_SNAPSHOT && !SQLITE_DISABLE_SNAPSHOT`. A target-level define
-cannot be removed from outside the package. A `DatabasePool` observation
-therefore performs an unconditional second startup fetch on the Linux cells.
-The behaviour is correct, only less efficient, and the Apple cells keep the
-snapshot path.
+cannot be removed from outside the package, and GRDB 7.11.1 declares no package
+trait for it. A `DatabasePool` observation therefore performs an unconditional
+second startup fetch on the Linux cells.
+
+That second fetch is not a Linux behaviour. GRDB performs it on every platform
+whenever it cannot prove that nothing changed while the observation was
+starting, and it says in its own source that it may then notify the same value
+twice. WAL snapshot support narrows the window; it does not close it. So a live
+query may deliver the same value twice everywhere, and Linux only makes it
+certain. See <doc:LiveQueries>, "A live query may deliver the same value
+twice".
 
 The C-side `-DSQLITE_ENABLE_SNAPSHOT` and the `sqlite3_snapshot_get` symbol
 assertion stay, because they describe the pinned library rather than GRDB's
-build.
+build. What the Linux cells prove is that SwiftQL resolves, builds, and passes
+its suite against GRDB 7 while linking the pinned SQLite 3.53.3, and that the
+pinned library exports the snapshot API. They no longer prove that GRDB uses
+the snapshot path, because GRDB 7 compiles it out there.
 
 The override delegates SwiftPM's module-wrapping
 phase directly to the matching

@@ -37,9 +37,13 @@
   - `GRDBDatabaseBuilder.addFunction(_:)` and `XLBuilder.customFunctionCall(_:parameters:)`
     now require the custom function's result type to be `Sendable`. GRDB 7
     registers a function through a `@Sendable` closure.
-  - A `DatabasePool` observation performs one extra startup fetch on Linux.
-    GRDB 7 disables its WAL-snapshot path there. See
-    [COMPATIBILITY.md](COMPATIBILITY.md).
+  - A live query may deliver the same value twice, on every platform. GRDB
+    fetches an observation's initial value from a pool reader and fetches
+    again when it takes its first write access, because it cannot tell whether
+    a write in between touched the observed value. Compare values yourself if
+    you need distinct ones. GRDB 7 also disables its WAL-snapshot path on
+    Linux, which makes the repeat certain there. See <doc:LiveQueries>, "A
+    live query may deliver the same value twice".
 
 ## [1.9.0] - 2026-09-16
 
