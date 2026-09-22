@@ -162,10 +162,10 @@ jobs:
           scripts/ci/check-first-party-warnings.sh \
             "$RUNNER_TEMP/swift-build.log"
 
-      # The compatibility job runs this same gate on the pinned Swift 6.0
-      # support point, where the `#SendableMetatypes` diagnostic does not
-      # exist yet. Issue #546 was found by a local run on a newer compiler for
-      # exactly that reason, so the newest series runs the gate too.
+      # The compatibility job runs this same gate on the pinned Swift 6.1
+      # floor, where the `#SendableMetatypes` diagnostic does not exist yet.
+      # Issue #546 was found by a local run on a newer compiler for exactly
+      # that reason, so the newest series runs the gate too.
       - name: Check complete strict concurrency
         if: ${{ matrix.strict_concurrency }}
         run: |
@@ -377,11 +377,11 @@ jobs:
       - name: Verify exact source commit
         run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
-      # Every Linux cell, Swift 5.9.2 and Swift 6.3.2 alike, installs its
-      # toolchain through this one verified path: an immutable Swift.org
-      # archive URL, a pinned detached-signature digest, and a GPG signature
-      # check against the pinned release-signing-key fingerprint for that
-      # Swift major version. The matrix supplies only the pins.
+      # Every Linux cell installs its toolchain through this one verified
+      # path: an immutable Swift.org archive URL, a pinned
+      # detached-signature digest, and a GPG signature check against the
+      # pinned release-signing-key fingerprint for that Swift major version.
+      # The matrix supplies only the pins.
       - name: Install exact Swift ${{ matrix.swift_version }} toolchain and SQLite 3.53.3
         if: ${{ matrix.platform == 'linux' }}
         env:
@@ -537,10 +537,21 @@ jobs:
           printf 'SWIFTQL_SQLITE_LIBRARY_DIR=%s\n' \
             "$sqlite_prefix/lib" >> "$GITHUB_ENV"
 
-          # Keep GRDB on its documented custom-SQLite path while exposing the
-          # snapshot capability compiled into the pinned library. DatabasePool
-          # observations use that capability to avoid an unconditional second
-          # startup fetch when the database has not changed.
+          # Point GRDB's SQLite system-library target at the pinned headers
+          # and library. GRDB's GRDBSQLite module map includes <sqlite3.h> and
+          # links sqlite3, so the include and library paths alone select the
+          # pinned build.
+          #
+          # The override passes no SQLite defines, and it must not. GRDB 7
+          # reads GRDBCUSTOMSQLITE as "the GRDBCustom Xcode framework supplies
+          # the SQLite module" and then imports no SQLite module at all, which
+          # fails to compile under SwiftPM. GRDB 6 read the same define as
+          # "import the custom SQLite module". SQLITE_ENABLE_SNAPSHOT is moot
+          # for the same release: GRDB 7 defines SQLITE_DISABLE_SNAPSHOT for
+          # its own target on Linux, and its source reads
+          # `SQLITE_ENABLE_SNAPSHOT && !SQLITE_DISABLE_SNAPSHOT`. See
+          # COMPATIBILITY.md, "Linux".
+          #
           # Keep the override beside swiftc so SwiftPM derives the matching
           # toolchain lib directory when it loads libIndexStore for discovery.
           compiler_wrapper="$toolchain_bin/swiftql-swiftc"
@@ -549,7 +560,7 @@ jobs:
             'if [[ "${1:-}" == "-modulewrap" ]]; then' \
             '  exec "$SWIFTQL_REAL_SWIFT_FRONTEND" "$@"' \
             'fi' \
-            'exec "$SWIFTQL_REAL_SWIFTC" -DGRDBCUSTOMSQLITE -DSQLITE_ENABLE_SNAPSHOT -Xcc -I -Xcc "$SWIFTQL_SQLITE_INCLUDE_DIR" -L "$SWIFTQL_SQLITE_LIBRARY_DIR" "$@"' \
+            'exec "$SWIFTQL_REAL_SWIFTC" -Xcc -I -Xcc "$SWIFTQL_SQLITE_INCLUDE_DIR" -L "$SWIFTQL_SQLITE_LIBRARY_DIR" "$@"' \
             > "$compiler_wrapper"
           chmod 755 "$compiler_wrapper"
           printf 'SWIFTQL_REAL_SWIFTC=%s\n' "$toolchain_bin/swiftc" \
@@ -820,14 +831,12 @@ jobs:
 
       # The Getting Started playground is not compiled by `swift build` or
       # exercised by `swift test`, so an API change can break it silently.
-      # The gate below selects exactly one cell, Swift 5.9 / Linux /
-      # committed resolution. The pages are platform-agnostic Swift that
-      # needs no Xcode, and the check costs a build and a run of each one, so
+      # The gate below selects exactly one cell, Linux / committed
+      # resolution. The pages are platform-agnostic Swift that needs no
+      # Xcode, and the check costs a build and a run of each one, so
       # repeating it across the matrix would buy nothing. It runs on Linux
       # because Linux runners do not share the account's small macOS job
-      # limit (COMPATIBILITY.md, "Runner concurrency"), and on Swift 5.9.2
-      # because that compiler crashes on the same #530 one-line fetch shape
-      # Swift 6.0 does, so a reintroduced one-liner still fails here.
+      # limit (COMPATIBILITY.md, "Runner concurrency").
       - name: Check the Getting Started playground
         id: playground-pages
         if: ${{ matrix.platform == 'linux' && matrix.resolution == 'committed' }}

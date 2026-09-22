@@ -1,12 +1,19 @@
 # Evaluation: GRDB 7 support for SwiftQL 1.x
 
-**Decision: SwiftQL 1.x supports GRDB 6 only.** The manifest keeps
-`from: "6.29.3"` (`6.29.3..<7.0.0`). `COMPATIBILITY.md` and the README Install
-section state the bound, so an adopter sees it before resolution fails.
-Widening to a range that spans both majors is **not** taken, because one
-manifest cannot name GRDB's SQLite C product for both majors, and because a
-warning-clean and strict-concurrency-clean build on GRDB 7 needs the
-`Row: Sendable` change that belongs to v2.0
+> **Superseded for the v2 line.** SwiftQL **2.x adopts GRDB 7**
+> ([#792](https://github.com/lukevanin/swiftql/issues/792)). The manifest
+> declares `from: "7.0.0"` (`7.0.0..<8.0.0`) and the committed resolution pins
+> 7.11.1. `COMPATIBILITY.md` and the README Install section state the new
+> bound. The decision below still holds for the **1.x** line, which stays on
+> GRDB 6, and the break list in §2 is what #792 applied. Where #792 departed
+> from this document, §6 says so.
+
+**Decision (v1 line): SwiftQL 1.x supports GRDB 6 only.** The 1.x manifest
+keeps `from: "6.29.3"` (`6.29.3..<7.0.0`). Widening *that* line to a range
+spanning both majors is **not** taken, because one manifest cannot name GRDB's
+SQLite C product for both majors, and because a warning-clean and
+strict-concurrency-clean build on GRDB 7 needs the `Row: Sendable` change that
+belongs to v2.0
 ([#685](https://github.com/lukevanin/swiftql/issues/685)).
 
 Issue: [#667](https://github.com/lukevanin/swiftql/issues/667). Evaluation
@@ -199,3 +206,77 @@ language mode ([#133](https://github.com/lukevanin/swiftql/issues/133)).
   published tools versions; no cell proved it, because the range did not widen.
 - Swift 6 language mode for the package. SwiftQL 1.x builds only in Swift 5
   mode; §2.4 approximates Swift 6 mode with complete strict concurrency.
+
+## 6. What #792 found that this document did not
+
+The v2.0 adoption ran the whole break list against the same GRDB 7.11.1, on a
+package that declares `swift-tools-version: 6.1` and builds in Swift 6 language
+mode. Four points differ from the sections above.
+
+1. **Only one file needed `import GRDBSQLite`.** §2.2 listed four.
+   `SQLRegexpFunction.swift`, `SQLiteBuildValidator.swift`, and
+   `SQLiteBuildValidatorIntegrationTests.swift` name `sqlite3_*` functions in
+   prose only, so `GRDBDatabaseDriver.swift` is the single file that calls one.
+   The `SwiftQL` target declares the `GRDBSQLite` product for it, rather than
+   relying on the transitive module map §2.2 observed.
+
+2. **The `fetch` closure cannot decode a typed row.** §4 expected `@Sendable`
+   annotations plus `Row: Sendable` to be enough. In Swift 6 language mode,
+   `AsyncThrowingStream`'s `unfolding` closure is `@Sendable` as well, so a
+   typed row must be produced inside a `Sendable` region wherever the decode is
+   placed. The observation now fetches raw `[XLSQLiteValue]` rows and carries
+   only the `Sendable` executor and logger, and one narrow, documented seam
+   (`Sources/SwiftQL/GRDBLiveQueryRowDecoding.swift`) crosses the row reader
+   into that region. Making the reader itself `Sendable` was measured and
+   rejected: it requires `XLEncodable`, `XLColumnDependency`, the statement
+   component structs, and the mutable `XLNamespace` alias allocator to be
+   `Sendable` too, which is a separate public API change.
+
+3. **`XLLogger` had to state its concurrency safety.** §4 treated the logger as
+   a capture to remove. The live-query tests use the fetch log as the record
+   that a fetch ran, and one of them blocks inside it on the database queue, so
+   the log call must stay there. The protocol now refines `Sendable`, which is
+   what SwiftQL has always needed from it: every fetch path already logs from a
+   pooled reader connection.
+
+4. **The metatype captures were removed, not constrained away.**
+   `GRDBDatabaseBuilder.addFunction(_:)` now builds its registration through
+   `XLCustomFunctionRegistration.make(_:)` outside the `@Sendable`
+   `prepareDatabase` closure, and the registration requires a `Sendable`
+   function result so the remaining `F.T.Type` capture is legal.
+
+5. **`-DGRDBCUSTOMSQLITE` had to go.** §5 asked what the Linux cells would do.
+   They failed to compile GRDB itself: `cannot find 'sqlite3_column_type' in
+   scope`. GRDB 6 read the define as "import the custom SQLite module". GRDB 7
+   reads it as "the GRDBCustom Xcode framework supplies the SQLite module", and
+   its `#elseif GRDBCUSTOMSQLITE` branch imports nothing, so no SQLite module
+   reached GRDB under SwiftPM. The compiler override now passes no SQLite
+   define. The pinned library still reaches GRDB through the include and
+   library paths, because the `GRDBSQLite` module map includes `<sqlite3.h>`
+   and links `sqlite3`.
+
+6. **A live query may deliver the same value twice, on every platform.** This
+   is the finding with the widest reach, and it is not a Linux one. GRDB
+   fetches an observation's initial value from a pool reader, then fetches
+   again when it takes its first write access, because writes may have landed
+   in between. `ValueConcurrentObserver.swift` says that GRDB cannot tell
+   whether such a write touched the observed value, and that it may therefore
+   notify the same value twice. It says this for the snapshot path and for the
+   path without it. Snapshot support only lets GRDB detect that nothing at all
+   changed.
+
+   Eleven live-query tests asserted the number of deliveries, or that no
+   delivery repeated a value. GRDB never promised either, and
+   <doc:LiveQueries> promises the latest known state rather than a commit log.
+   They passed on macOS because the repeat did not happen to fire, not because
+   macOS prevents it. They now assert the sequence of distinct states, with no
+   platform condition, and <doc:LiveQueries> states the repeat.
+
+   The change was checked by making the repeat deterministic: with every
+   observation delivery duplicated, the whole suite passes on macOS.
+
+The Linux question in §5 is answered in `COMPATIBILITY.md`: GRDB 7 defines
+`SQLITE_DISABLE_SNAPSHOT` for its own target on Linux, a target-level define
+cannot be removed from outside the package, and the Swift-side snapshot path is
+therefore compiled out on the Linux cells whatever the override passes. That
+makes the second startup fetch certain there, rather than introducing it.

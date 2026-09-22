@@ -26,7 +26,7 @@ build_arguments=(
 # immediately after the compatibility matrix's warning-clean build.
 swift build "${build_arguments[@]}" --target SwiftQL
 bin_path="$(swift build "${build_arguments[@]}" --show-bin-path)"
-csqlite_module_map="$scratch_path/checkouts/GRDB.swift/Sources/CSQLite/module.modulemap"
+grdbsqlite_module_map="$scratch_path/checkouts/GRDB.swift/Sources/GRDBSQLite/module.modulemap"
 
 module_search_paths=()
 swiftql_module=""
@@ -46,9 +46,9 @@ if [[ -z "$swiftql_module" ]]; then
         "$bin_path" >&2
     exit 1
 fi
-if [[ ! -f "$csqlite_module_map" ]]; then
-    printf 'error: expected CSQLite module map at %s\n' \
-        "$csqlite_module_map" >&2
+if [[ ! -f "$grdbsqlite_module_map" ]]; then
+    printf 'error: expected GRDBSQLite module map at %s\n' \
+        "$grdbsqlite_module_map" >&2
     exit 1
 fi
 
@@ -56,7 +56,7 @@ compiler=(
     swiftc
     -typecheck
     -swift-version 5
-    -Xcc "-fmodule-map-file=$csqlite_module_map"
+    -Xcc "-fmodule-map-file=$grdbsqlite_module_map"
 )
 for module_search_path in "${module_search_paths[@]}"; do
     compiler+=(

@@ -804,6 +804,7 @@ final class InvocationBindingsGRDBTests: XCTestCase {
             description: "packet-backed refreshed observation"
         )
         var outputs: [[InvocationRecord]] = []
+        var didRefresh = false
         var failure: Error?
         let cancellable = request.publish(bindings: packet).sink(
             receiveCompletion: { completion in
@@ -822,14 +823,22 @@ final class InvocationBindingsGRDBTests: XCTestCase {
                 if outputs.count == 1 {
                     receivedInitial.fulfill()
                 }
-                else if outputs.count == 2 {
+                // The refresh is the first value that differs from the
+                // initial one, not the second delivery. A live query reports
+                // the latest known state, not a commit log, and GRDB may
+                // notify the same state twice on any platform: it fetches
+                // from a pool reader when an observation starts, and fetches
+                // again from its first writer access, because it cannot tell
+                // whether a change in between touched the observed value.
+                else if !didRefresh, value != outputs[0] {
+                    didRefresh = true
                     receivedRefresh.fulfill()
                 }
             }
         )
 
         wait(for: [receivedInitial], timeout: 2)
-        XCTAssertEqual(outputs, [[InvocationRecord(id: 2)]])
+        XCTAssertEqual(distinctStates(outputs), [[InvocationRecord(id: 2)]])
 
         try fixture.database.databasePool.write { database in
             try database.execute(
@@ -841,10 +850,20 @@ final class InvocationBindingsGRDBTests: XCTestCase {
         wait(for: [receivedRefresh], timeout: 2)
         cancellable.cancel()
         XCTAssertNil(failure)
-        XCTAssertEqual(outputs, [
+        XCTAssertEqual(distinctStates(outputs), [
             [InvocationRecord(id: 2)],
             [],
         ])
+    }
+
+    /// The states the observation reached, with each delivery that repeats the
+    /// previous one removed. See the note in the test above.
+    private func distinctStates<Element: Equatable>(_ values: [Element]) -> [Element] {
+        values.reduce(into: []) { states, value in
+            if states.last != value {
+                states.append(value)
+            }
+        }
     }
 
     private func packet(

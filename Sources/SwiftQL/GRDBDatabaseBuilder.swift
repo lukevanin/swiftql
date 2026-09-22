@@ -91,19 +91,20 @@ public struct GRDBDatabaseBuilder {
     
     /// Registers a custom scalar function on every database connection created by the builder.
     ///
+    /// The registration is built here, outside the `prepareDatabase` closure.
+    /// GRDB 7 declares that closure `@Sendable`, and a generic metatype such
+    /// as `F.Type` is not `Sendable`.
+    /// ``XLCustomFunctionRegistration/make(_:)`` already reduces the type to
+    /// plain `Sendable` values, and it is the same registration the implicit,
+    /// on-demand path uses.
+    ///
     /// - Parameter function: The custom function type to register.
-    public mutating func addFunction<F>(_ function: F.Type) where F: XLCustomFunction, F.T: DatabaseValueConvertible {
+    public mutating func addFunction<F>(
+        _ function: F.Type
+    ) where F: XLCustomFunction, F.T: DatabaseValueConvertible & Sendable {
+        let registration = XLCustomFunctionRegistration.make(function)
         configuration.prepareDatabase { database in
-            database.add(
-                function: DatabaseFunction(
-                    function.definition.name,
-                    argumentCount: Int(function.definition.numberOfArguments),
-                    function: { values in
-                        let reader = GRDBValuesAdapter(values: values)
-                        return try F.execute(reader: reader)
-                    }
-                )
-            )
+            database.add(function: registration.makeDatabaseFunction())
         }
     }
 

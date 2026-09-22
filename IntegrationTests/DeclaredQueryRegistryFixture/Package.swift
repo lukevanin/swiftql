@@ -15,7 +15,7 @@ let package = Package(
     platforms: [.macOS(.v13)],
     dependencies: [
         .package(name: "SwiftQL", path: swiftQLPath),
-        .package(url: "https://github.com/groue/GRDB.swift.git", from: "6.29.3"),
+        .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
     ],
     targets: [
         // The declarations. The plugin generates FixtureQueriesDeclaredQueries

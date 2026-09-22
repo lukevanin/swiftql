@@ -26,7 +26,7 @@ is the record of what was evaluated, not a pointer to live code.
 
 `SwiftQLSQLiteBuildValidationValidator` (`Sources/SwiftQLSQLiteBuildValidationValidator`)
 is a library target depending on `SwiftQLCore`, `SwiftQLSQLiteBuildValidationManifest`,
-GRDB, and CSQLite. The `swiftql-build-validate` executable target
+GRDB, and GRDBSQLite. The `swiftql-build-validate` executable target
 (`Sources/SwiftQLSQLiteBuildValidationValidatorCLI`) wraps it as the
 `swiftql-build-validate` executable product. Target and product carry the same
 name on purpose: the [#294 plugin](SQLiteBuildValidationPlugin.md) resolves

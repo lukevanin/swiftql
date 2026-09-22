@@ -23,7 +23,9 @@ private struct ObservableLiveQueryRecord: Equatable, Identifiable {
 @available(iOS 17, macOS 14, *)
 final class XLObservableLiveQueryTests: XCTestCase {
 
-    private final class RecordingLogger: XLLogger {
+    // `XLLogger` is `Sendable` (issue #792). The lock supplies the safety
+    // the conformance states.
+    private final class RecordingLogger: XLLogger, @unchecked Sendable {
         private let lock = NSLock()
         private var messages: [String] = []
 

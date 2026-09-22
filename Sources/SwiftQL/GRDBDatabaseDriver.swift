@@ -4,6 +4,7 @@
 
 import Foundation
 import GRDB
+import GRDBSQLite
 
 
 /// GRDB transport for SQLite dialect values.

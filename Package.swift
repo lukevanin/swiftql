@@ -72,7 +72,7 @@ let package = Package(
     dependencies: [
         // Depend on the latest Swift 5.9 prerelease of SwiftSyntax
         .package(url: "https://github.com/apple/swift-syntax.git", from: "509.0.0"),
-        .package(url: "https://github.com/groue/GRDB.swift.git", from: "6.29.3"),
+        .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
         .package(url: "https://github.com/apple/swift-docc-plugin.git", from: "1.0.0"),
         // OpenCombine is linked on Linux only (see the `condition:` on each
         // product below). Apple platforms use Combine. `Package.resolved` keeps
@@ -155,6 +155,7 @@ let package = Package(
                 "SwiftQLCore",
                 "SQLMacros",
                 .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "GRDBSQLite", package: "GRDB.swift"),
                 .product(name: "OpenCombine", package: "OpenCombine", condition: .when(platforms: [.linux])),
                 .product(name: "OpenCombineDispatch", package: "OpenCombine", condition: .when(platforms: [.linux])),
                 .product(name: "OpenCombineFoundation", package: "OpenCombine", condition: .when(platforms: [.linux])),
@@ -220,7 +221,7 @@ let package = Package(
                 "SwiftQLCore",
                 "SwiftQLSQLiteBuildValidationManifest",
                 .product(name: "GRDB", package: "GRDB.swift"),
-                .product(name: "CSQLite", package: "GRDB.swift"),
+                .product(name: "GRDBSQLite", package: "GRDB.swift"),
             ]
         ),
 
@@ -449,6 +450,10 @@ let package = Package(
                 "SwiftQLSQLiteConformanceFixtures",
                 "SwiftQLSQLiteCombinatorialSupport",
                 .product(name: "GRDB", package: "GRDB.swift"),
+                // `SQLitePrepareV3ProbeTests` imports `GRDBSQLite`. The
+                // product is declared here rather than reached through the
+                // validator target's own dependency.
+                .product(name: "GRDBSQLite", package: "GRDB.swift"),
             ]
         ),
     ]

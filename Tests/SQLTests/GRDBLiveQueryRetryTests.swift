@@ -306,6 +306,12 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
         let updateExpectation = expectation(description: "continued observation after recovery")
         let completionErrors = LockedValue<[Error]>([])
         let values = LockedValue<[[LiveQueryRetryRecord]]>([])
+        // Each state fulfils its expectation once. A delivery may repeat the
+        // state already seen -- GRDB notifies the same value twice when it
+        // cannot tell whether a change touched the observed value, on any
+        // platform -- and fulfilling twice is an XCTest API violation.
+        let didRecover = LockedValue<Bool>(false)
+        let didUpdate = LockedValue<Bool>(false)
 
         let cancellable = fixture.database
             .makeRequest(with: integrationStatement())
@@ -319,13 +325,25 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
                 receiveValue: { rows in
                     values.withValue { $0.append(rows) }
                     if rows == [LiveQueryRetryRecord(id: "initial", value: 1)] {
-                        recoveredExpectation.fulfill()
+                        let isFirst = didRecover.withValue { didRecover -> Bool in
+                            defer { didRecover = true }
+                            return !didRecover
+                        }
+                        if isFirst {
+                            recoveredExpectation.fulfill()
+                        }
                     }
                     else if rows == [
                         LiveQueryRetryRecord(id: "initial", value: 1),
                         LiveQueryRetryRecord(id: "updated", value: 2),
                     ] {
-                        updateExpectation.fulfill()
+                        let isFirst = didUpdate.withValue { didUpdate -> Bool in
+                            defer { didUpdate = true }
+                            return !didUpdate
+                        }
+                        if isFirst {
+                            updateExpectation.fulfill()
+                        }
                     }
                 }
             )

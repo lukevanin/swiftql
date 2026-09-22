@@ -33,7 +33,7 @@ let package = Package(
         // runs the index statements the v1.8 advisor verified. SwiftQL is the
         // demo's database API everywhere else; index DDL is the one thing it
         // does not yet express (#139).
-        .package(url: "https://github.com/groue/GRDB.swift.git", from: "6.29.3"),
+        .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
     ],
     targets: [
         .target(

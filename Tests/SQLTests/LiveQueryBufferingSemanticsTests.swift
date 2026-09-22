@@ -381,15 +381,17 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
 
     private let mailbox = SingleSlotMailbox<Value>()
 
-    private let startObservation: (
-        @escaping (Error) -> Void,
-        @escaping (Value) -> Void
+    // GRDB 7 declares the observation callbacks `@Sendable`, so this probe
+    // matches the production `GRDBLiveQueryAsyncBridge.Start` shape.
+    private let startObservation: @Sendable (
+        @escaping @Sendable (Error) -> Void,
+        @escaping @Sendable (Value) -> Void
     ) -> AnyDatabaseCancellable
 
     init(
-        start: @escaping (
-            @escaping (Error) -> Void,
-            @escaping (Value) -> Void
+        start: @escaping @Sendable (
+            @escaping @Sendable (Error) -> Void,
+            @escaping @Sendable (Value) -> Void
         ) -> AnyDatabaseCancellable
     ) {
         self.startObservation = start
@@ -422,13 +424,9 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
     /// itself instead of storing it -- mirroring the identical check-after-
     /// store pattern the production `GRDBLiveQueryAsyncBridge` (#308) and
     /// `XLRequestPublisherAsyncBridge` (#309) use for the same race.
-    // See the `nonisolated(unsafe)` shadow note on `SingleSlotMailbox.yield(_:)` above -- identical
-    // reasoning, applied to a GRDB `AnyDatabaseCancellable` captured by this file's `@Sendable`
-    // locked-state closure.
+    // `AnyDatabaseCancellable` is `Sendable` in GRDB 7, so no shadow is needed
+    // to capture it in this file's `@Sendable` locked-state closure.
     private func storeCancellable(_ newCancellable: AnyDatabaseCancellable) {
-        #if compiler(>=6.0)
-        nonisolated(unsafe) let newCancellable = newCancellable
-        #endif
         let alreadyCancelled: Bool = state.withLock { state in
             guard !state.didCancel else { return true }
             state.cancellable = newCancellable
@@ -675,6 +673,11 @@ private final class LockedArray<Element>: @unchecked Sendable {
     func wait(untilCountIsAtLeast count: Int) async {
         await state.wait(untilCountIsAtLeast: count)
     }
+
+    /// Suspends until the appended elements satisfy `isSatisfied`.
+    func wait(satisfying isSatisfied: @escaping ([Element]) -> Bool) async {
+        await state.wait(until: isSatisfied)
+    }
 }
 
 
@@ -776,8 +779,19 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
 
         _ = try awaitNext(bridge)
         XCTAssertEqual(bridge.startCount, 1)
-        let fetchCountAfterInitial = fetchCounter.read()
-        XCTAssertGreaterThanOrEqual(fetchCountAfterInitial, 1)
+
+        // Drive the observation through one state change before the fetch
+        // count is read. Starting an observation costs two fetches: one from a
+        // pool reader, and one from GRDB's first writer access. The second
+        // lands after the first delivery, and what resuming does is the
+        // subject here. Observing a committed state proves the transaction
+        // observer is installed, so both start-time fetches are already
+        // counted.
+        try insert("started", 1)
+        XCTAssertEqual(try awaitNextDistinct(bridge, from: 0), 1)
+        drainMainQueue()
+        let fetchCountAfterStart = fetchCounter.read()
+        XCTAssertGreaterThanOrEqual(fetchCountAfterStart, 1)
 
         // Resume iteration with no relevant write in between. Starting a
         // fresh observation increments `startCount` synchronously inside
@@ -791,7 +805,15 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
             // `secondExpectation` instead of reporting what actually went
             // wrong.
             do {
-                secondValue.set(try await bridge.next())
+                // Pulls until the state changes. A delivery may repeat the
+                // state already seen, and this expectation is about reaching
+                // the later state, not about how many deliveries that took.
+                while let value = try await bridge.next() {
+                    if value != 1 {
+                        secondValue.set(value)
+                        break
+                    }
+                }
             }
             catch {
                 XCTFail("bridge.next() threw: \(error)")
@@ -800,11 +822,11 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         }
         drainMainQueue()
         XCTAssertEqual(bridge.startCount, 1, "Resuming iteration must not start a second observation.")
-        XCTAssertEqual(fetchCounter.read(), fetchCountAfterInitial, "Resuming iteration must not itself force a fetch.")
+        XCTAssertEqual(fetchCounter.read(), fetchCountAfterStart, "Resuming iteration must not itself force a fetch.")
 
-        try insert("later", 1)
+        try insert("later", 2)
         wait(for: [secondExpectation], timeout: 2)
-        XCTAssertEqual(secondValue.get(), 1)
+        XCTAssertEqual(secondValue.get(), 2)
 
         bridge.cancel()
     }
@@ -968,7 +990,9 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         await seen.wait(untilCountIsAtLeast: 1)
         task.cancel()
         await fulfillment(of: [loopExpectation], timeout: 2)
-        XCTAssertEqual(seen.read(), [0])
+        // The states reached, not the number of deliveries: a delivery may
+        // repeat the state already seen. See `awaitNextDistinct(_:from:)`.
+        XCTAssertEqual(xlDistinctStates(seen.read()), [0])
 
         let fetchCountAtCancel = fetchCounter.read()
         try insert("after-task-cancel", 99)
@@ -987,13 +1011,19 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
 
     func testTerminalErrorIsForwardedExactlyOnceThroughTheBridge() throws {
         struct ProbeError: Error, Equatable {}
+        let pool = databasePool!
         let bridge = LazyBufferedGRDBBridge<Int> { onError, onChange in
             ValueObservation
                 .tracking { db -> Int in
                     _ = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM Row")
                     throw ProbeError()
                 }
-                .start(in: self.databasePool, onError: onError, onChange: onChange)
+                .start(
+                    in: pool,
+                    scheduling: .async(onQueue: .main),
+                    onError: onError,
+                    onChange: onChange
+                )
         }
 
         do {
@@ -1022,8 +1052,8 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
 
         try insert("shared-write", 1)
 
-        XCTAssertEqual(try awaitNext(bridgeA), 1)
-        XCTAssertEqual(try awaitNext(bridgeB), 1)
+        XCTAssertEqual(try awaitNextDistinct(bridgeA, from: 0), 1)
+        XCTAssertEqual(try awaitNextDistinct(bridgeB, from: 0), 1)
 
         bridgeA.cancel()
         bridgeB.cancel()
@@ -1084,7 +1114,14 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         puller.cancel()
     }
 
-    func testUnlimitedDemandDeliversAsValuesBecomeAvailableWithoutSpinningOrDoubleDelivery() async throws {
+    /// Asserts the states unlimited demand reaches, and that the puller stops
+    /// pulling once it has them.
+    ///
+    /// It does not assert the number of deliveries. GRDB may notify the same
+    /// state twice, on any platform, and <doc:LiveQueries> promises the latest
+    /// known state rather than one delivery per commit. See
+    /// `awaitNextDistinct(_:from:)`.
+    func testUnlimitedDemandDeliversAsValuesBecomeAvailableWithoutSpinning() async throws {
         let bridge = makeBridge()
         let delivered = LockedArray<Int>()
         let finished = LockedValueBox<Error??>(nil)
@@ -1097,19 +1134,26 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
         // A very large demand simulates Combine's `.unlimited`.
         puller.requestDemand(1_000_000)
         await delivered.wait(untilCountIsAtLeast: 1)
-        XCTAssertEqual(delivered.read(), [0])
+        XCTAssertEqual(xlDistinctStates(delivered.read()), [0])
 
         // The bridge observes `COUNT(*)`, so one insert into this fresh
         // table moves the row count from 0 to 1 (the inserted row's own
         // `value` column, 42, is unrelated to the observed count).
         try insert("x", 42)
-        await delivered.wait(untilCountIsAtLeast: 2)
-        XCTAssertEqual(delivered.read(), [0, 1])
+        await delivered.wait(satisfying: { xlDistinctStates($0) == [0, 1] })
 
-        // No further writes: the puller must not spin, error, or duplicate
-        // delivery while waiting for the next relevant commit.
+        // No further writes: the puller must neither spin nor fail while it
+        // waits for the next relevant commit. A spin would keep the delivery
+        // count growing after the state settles.
         await xlDrainMainQueue()
-        XCTAssertEqual(delivered.read(), [0, 1])
+        let settledCount = delivered.read().count
+        await xlDrainMainQueue()
+        XCTAssertEqual(
+            delivered.read().count,
+            settledCount,
+            "The puller must stop pulling once the observed state has settled."
+        )
+        XCTAssertEqual(xlDistinctStates(delivered.read()), [0, 1])
         XCTAssertNil(finished.get() ?? nil)
 
         puller.cancel()
@@ -1117,7 +1161,9 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func makeBridge(fetchProbe: @escaping () -> Void = {}) -> LazyBufferedGRDBBridge<Int> {
+    private func makeBridge(
+        fetchProbe: @escaping @Sendable () -> Void = {}
+    ) -> LazyBufferedGRDBBridge<Int> {
         let pool = databasePool!
         return LazyBufferedGRDBBridge<Int> { onError, onChange in
             ValueObservation
@@ -1125,7 +1171,12 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
                     fetchProbe()
                     return try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM Row") ?? 0
                 }
-                .start(in: pool, onError: onError, onChange: onChange)
+                .start(
+                    in: pool,
+                    scheduling: .async(onQueue: .main),
+                    onError: onError,
+                    onChange: onChange
+                )
         }
     }
 
@@ -1136,6 +1187,30 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
                 arguments: [id, value]
             )
         }
+    }
+
+    /// Awaits the next delivered state that differs from `previous`.
+    ///
+    /// A live query reports the latest known state, not a commit log
+    /// (<doc:LiveQueries>). GRDB may notify the same state twice: it fetches
+    /// from a pool reader when the observation starts, and fetches again from
+    /// its first writer access, because it cannot tell whether a change in
+    /// between touched the observed value. GRDB's source documents this for
+    /// the snapshot path and for the path without it, so the repeat can happen
+    /// on any platform.
+    ///
+    /// A test therefore asserts the states a query reaches, never the number
+    /// of deliveries.
+    private func awaitNextDistinct<Value: Equatable>(
+        _ bridge: LazyBufferedGRDBBridge<Value>,
+        from previous: Value?
+    ) throws -> Value? {
+        while let value = try awaitNext(bridge) {
+            if value != previous {
+                return value
+            }
+        }
+        return nil
     }
 
     /// Awaits one `next()` call from a synchronous (non-`async`) XCTestCase

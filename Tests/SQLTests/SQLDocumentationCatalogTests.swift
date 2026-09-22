@@ -877,7 +877,7 @@ final class SQLDocumentationCatalogTests: XCTestCase {
             "COMPATIBILITY.md": [
                 "## v1.3 public products and runtime boundaries",
                 "iOS 16 or later and macOS 13 or later",
-                "SwiftSyntax 509.0.0, GRDB 6.29.3",
+                "SwiftSyntax 509.0.0, GRDB 7.0.0",
                 "The high-level `XLRequest` facade",
                 "only a SQLite dialect and a GRDB database driver",
                 "eight release-blocking compiler cells",
