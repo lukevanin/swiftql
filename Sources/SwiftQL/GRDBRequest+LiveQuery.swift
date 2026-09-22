@@ -129,6 +129,14 @@ extension GRDBRequest {
                 }
                 catch {
                     logger?.error("stream: Cannot decode entity: \(error)")
+                    // A decode failure ends the stream, which is the contract
+                    // <doc:LiveQueries> states. Decoding runs here rather than
+                    // inside the observation, so this closure ends the stream
+                    // itself. `AsyncThrowingStream`'s `unfolding` wrapper calls
+                    // this closure again after a throw; cancelling the bridge
+                    // makes that next call resolve to `nil`, exactly as the
+                    // observation's own terminal error path did.
+                    bridge.cancel()
                     throw error
                 }
             })
@@ -181,6 +189,8 @@ extension GRDBRequest {
                 }
                 catch {
                     logger?.error("streamOne: Cannot decode entity: \(error)")
+                    // Same terminal rule as `stream(bindings:)` above.
+                    bridge.cancel()
                     throw error
                 }
             })

@@ -49,6 +49,16 @@ extension GRDBRequest {
     ///
     /// The cast is deliberately narrow. It covers the row reader and nothing
     /// else, so the remaining live-query captures stay honestly `Sendable`.
+    ///
+    /// ## What changes for a conformer
+    ///
+    /// A live query used to decode on the observation's own queue. It now
+    /// decodes on whichever thread resumes the stream's iterator, so a
+    /// conformer that also runs through `fetchAll()` at the same time sees
+    /// `readRow(reader:)` called from two threads. The protocol already
+    /// requires a conformer to store nothing from a call, and a pool already
+    /// calls it from several reader connections, so this adds no requirement
+    /// that was not there. It does change which thread runs the decode.
     func sendableRowDecode() -> @Sendable ([XLSQLiteValue]) throws -> Row {
         let rowDecoder = GRDBRowDecoder(reader: reader)
         return unsafeBitCast(

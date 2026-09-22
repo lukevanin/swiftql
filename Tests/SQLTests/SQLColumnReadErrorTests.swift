@@ -455,6 +455,87 @@ final class XLColumnReadErrorTests: XCTestCase {
         }
     }
 
+    /// A decode failure must end the stream, not only throw once (issue
+    /// #792). Decoding moved out of the GRDB observation, and
+    /// `AsyncThrowingStream`'s `unfolding` wrapper calls its closure again
+    /// after a throw, so the stream ends itself.
+    func testStreamDecodeErrorEndsTheStream() async throws {
+        try createTestTableWithInvalidMiddleRow()
+        let request = database.makeRequest(with: orderedTestTableStatement())
+
+        await assertStreamEndsAfterDecodeFailure(request.stream())
+    }
+
+    /// The single-row stream follows the same terminal rule (issue #792).
+    func testStreamOneDecodeErrorEndsTheStream() async throws {
+        try createTestTableWithInvalidFirstRow()
+        let request = database.makeRequest(with: orderedTestTableStatement())
+
+        await assertStreamEndsAfterDecodeFailure(request.streamOne())
+    }
+
+    /// Records that the deadline below expired, so a stream that never ends is
+    /// reported as a failure rather than hanging the job.
+    ///
+    /// The flag is necessary because cancelling the probe task also ends the
+    /// stream. Without it, a timed-out run and a correct run look the same.
+    private actor StreamDeadlineFlag {
+        private(set) var didExpire = false
+
+        func markExpired() {
+            didExpire = true
+        }
+    }
+
+    /// Asserts that the first pull reports the expected decode error and that
+    /// the next pull ends the stream.
+    private func assertStreamEndsAfterDecodeFailure<Element: Sendable>(
+        _ stream: AsyncThrowingStream<Element, Error>,
+        seconds: Double = 5,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        let expectedError = nullIntegerReadError()
+        let flag = StreamDeadlineFlag()
+        let probe = Task { () -> Bool in
+            var iterator = stream.makeAsyncIterator()
+            do {
+                let first = try await iterator.next()
+                XCTFail(
+                    "Expected a row-decoding failure, received \(String(describing: first)).",
+                    file: file,
+                    line: line
+                )
+                return false
+            }
+            catch {
+                XCTAssertEqual(error as? XLColumnReadError, expectedError, file: file, line: line)
+            }
+            return try await iterator.next() == nil
+        }
+        let deadline = Task {
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            guard !Task.isCancelled else {
+                return
+            }
+            await flag.markExpired()
+            probe.cancel()
+        }
+        let didEnd = (try? await probe.value) ?? false
+        deadline.cancel()
+
+        let didExpire = await flag.didExpire
+        XCTAssertFalse(
+            didExpire,
+            "The stream did not end within \(seconds) seconds of the decode failure.",
+            file: file,
+            line: line
+        )
+        if !didExpire {
+            XCTAssertTrue(didEnd, "A decode failure must end the stream.", file: file, line: line)
+        }
+    }
+
     private func createTestTableWithInvalidMiddleRow() throws {
         try databasePool.write { database in
             try database.execute(sql: "CREATE TABLE Test (id TEXT NOT NULL, value INTEGER)")
@@ -465,6 +546,15 @@ final class XLColumnReadErrorTests: XCTestCase {
                         ('2-invalid', NULL),
                         ('3-valid', 3)
                     """
+            )
+        }
+    }
+
+    private func createTestTableWithInvalidFirstRow() throws {
+        try databasePool.write { database in
+            try database.execute(sql: "CREATE TABLE Test (id TEXT NOT NULL, value INTEGER)")
+            try database.execute(
+                sql: "INSERT INTO Test (id, value) VALUES ('1-invalid', NULL)"
             )
         }
     }
