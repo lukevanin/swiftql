@@ -54,8 +54,8 @@ have separate responsibilities:
   performance diagnostic executables, not application runtime dependencies or
   database adapters.
 
-The manifest's dependency bounds are SwiftSyntax 509.0.0, GRDB 6.29.3 or a later
-6.x release, Swift-DocC plugin 1.0.0 or later, and OpenCombine 0.14.0 or later. SwiftSyntax also
+The manifest's dependency bounds are SwiftSyntax 509.0.0, GRDB 7.0.0 or a later
+7.x release, Swift-DocC plugin 1.0.0 or later, and OpenCombine 0.14.0 or later. SwiftSyntax also
 retains its existing compatible-from-509.0.0 manifest range. OpenCombine is a
 Linux-only dependency: every OpenCombine product carries
 `condition: .when(platforms: [.linux])`, so an Apple-platform build compiles and
@@ -67,17 +67,26 @@ pass. The exact resolved versions and loaded SQLite source ID are CI evidence,
 not a promise that every future dependency version in those ranges is already
 supported.
 
-SwiftQL 1.x supports GRDB 6 only. The manifest declares `from: "6.29.3"`, which
-SwiftPM reads as `6.29.3..<7.0.0`. SwiftPM allows one GRDB version in a package
-graph, so an application that already depends on GRDB 7 gets a
-dependency-resolution conflict when it adds SwiftQL 1.x. GRDB 7 renames the
-`CSQLite` product that SwiftQL's validator links, stops re-exporting the SQLite
-C module from `import GRDB`, and requires `Sendable` observation and function
-closures. One manifest cannot name that product for both majors, and a clean
-concurrency build on GRDB 7 needs the v2.0 `Row: Sendable` decision
-([#685](https://github.com/lukevanin/swiftql/issues/685)). The complete break
-list and the decision are in
+SwiftQL 2.x supports GRDB 7 only. The manifest declares `from: "7.0.0"`, which
+SwiftPM reads as `7.0.0..<8.0.0`, and the committed resolution pins 7.11.1.
+SwiftPM allows one GRDB version in a package graph, so an application that is
+still on GRDB 6 must stay on SwiftQL 1.x
+([#792](https://github.com/lukevanin/swiftql/issues/792)).
+
+One manifest cannot serve both majors. GRDB 7 renames the `CSQLite` product to
+`GRDBSQLite`, and SwiftPM has no product dependency that varies with the
+resolved version. GRDB 7 also stops re-exporting the SQLite C module from
+`import GRDB`, so every target that calls a `sqlite3_*` function declares the
+`GRDBSQLite` product and imports the module. GRDB 7 requires `Sendable`
+observation and function closures as well, which SwiftQL satisfies rather than
+suppresses: see `Sources/SwiftQL/GRDBLiveQueryRowDecoding.swift` for the one
+remaining seam and why it is there. The measured break list is in
 [Research/GRDB7Evaluation.md](Research/GRDB7Evaluation.md).
+
+GRDB 7.0 needs Swift tools 6.0, and GRDB 7.10 and later need Swift tools 6.1.
+SwiftQL 2.x declares tools 6.1, so every CI cell resolves a 7.10 or later
+release. A Swift 5.9 or Swift 6.0 cell cannot resolve GRDB 7 at all, which is
+one reason the floor is 6.1.
 
 The reusable-query ownership model introduced in v1.2 remains unchanged in
 v1.3. An `XLStaticQueryDescriptor` and `XLInvocationBindings` are immutable,
@@ -259,16 +268,24 @@ of the distribution's `libsqlite3-dev` package that GRDB's SwiftPM
 system-library target otherwise expects, they follow GRDB's documented
 custom-SQLite recipe through SwiftPM's compiler override: the override passes
 `-DGRDBCUSTOMSQLITE` to `swiftc` and points compilation and linking at the
-pinned headers and library. GRDB 6.29.3 compiles its `WALSnapshot` support
-whenever the Swift-side `SQLITE_ENABLE_SNAPSHOT` condition is defined, and
-otherwise only through a fallback that additionally requires both
-`GRDBCUSTOMSQLITE` and `GRDBCIPHER` to be undefined and a compiler-version and
-platform condition to hold. `-DGRDBCUSTOMSQLITE` closes that fallback, so on
-its own it would compile the support out. The override therefore passes
-`-DSQLITE_ENABLE_SNAPSHOT` to `swiftc` alongside it, which satisfies the first
-condition directly and keeps the snapshot path in the build; `DatabasePool`
-observations use it to avoid an unconditional second startup fetch when the
-database has not changed. The override delegates SwiftPM's module-wrapping
+pinned headers and library. The override also passes `-DSQLITE_ENABLE_SNAPSHOT`
+to `swiftc`, which is what GRDB 6 needed to keep its `WALSnapshot` support in
+the build once `-DGRDBCUSTOMSQLITE` closed its fallback condition.
+
+GRDB 7 changes this. Its own manifest defines `SQLITE_DISABLE_SNAPSHOT` for the
+GRDB target on Linux, because not every Linux distribution supports WAL
+snapshots, and its source guards every snapshot declaration with
+`#if SQLITE_ENABLE_SNAPSHOT && !SQLITE_DISABLE_SNAPSHOT`. A target-level define
+cannot be removed from outside the package, so the Swift-side snapshot path is
+compiled out on Linux whatever the override passes. A `DatabasePool`
+observation therefore performs an unconditional second startup fetch on the
+Linux cells. The behaviour is correct, only less efficient, and the Apple cells
+keep the snapshot path. The override still passes `-DSQLITE_ENABLE_SNAPSHOT`,
+so the snapshot path returns by itself if GRDB stops disabling it. The C-side
+`-DSQLITE_ENABLE_SNAPSHOT` and the `sqlite3_snapshot_get` symbol assertion stay
+as well, because they describe the pinned library rather than GRDB's build.
+
+The override delegates SwiftPM's module-wrapping
 phase directly to the matching
 `swift-frontend` and remains next to the selected compiler so SwiftPM loads
 that toolchain's index-store runtime. The exact-version runtime probe,

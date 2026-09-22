@@ -128,8 +128,8 @@ file:
 by v1.3; the static-query surface remains available from version 1.2.0. Pin a
 source revision only when intentionally testing later changes from `main`.
 
-SwiftQL 1.x requires GRDB 6 (`6.29.3..<7.0.0`). If your package graph already
-uses GRDB 7, SwiftPM cannot resolve SwiftQL 1.x. The
+SwiftQL 2.x requires GRDB 7 (`7.0.0..<8.0.0`). If your package graph is still
+on GRDB 6, SwiftPM cannot resolve SwiftQL 2.x; use SwiftQL 1.x instead. The
 [compatibility guide](COMPATIBILITY.md) gives the reasons and links the GRDB 7
 evaluation.
 
@@ -241,8 +241,9 @@ explicit list of the places the correspondence is not exact.
 - **You are writing a server with a non-SQLite backend.** Fluent covers
   PostgreSQL, MySQL, and MongoDB today. SwiftQL is SQLite-only; other dialects are
   [roadmap](ROADMAP.md) work, not shipped work.
-- **Your package graph is already on GRDB 7.** SwiftQL 1.x supports GRDB 6
-  only (`6.29.3..<7.0.0`), so SwiftPM cannot resolve the two together. The
+- **Your package graph is still on GRDB 6.** SwiftQL 2.x supports GRDB 7 only
+  (`7.0.0..<8.0.0`), so SwiftPM cannot resolve the two together. Use SwiftQL
+  1.x, or move the graph to GRDB 7. The
   [compatibility guide](COMPATIBILITY.md) gives the reasons and links the
   GRDB 7 evaluation.
 - **Your queries are already written and working.** The cost of SwiftQL is

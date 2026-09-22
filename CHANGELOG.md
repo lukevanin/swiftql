@@ -23,6 +23,23 @@
     point. The floor is Swift 6.1 on macOS, and Linux is verified on Swift
     6.3.2, each in both resolution modes. See
     [COMPATIBILITY.md](COMPATIBILITY.md#pinned-compiler-support-points).
+- **GRDB 7 is the only supported major** (issue #792). The manifest declares
+  `from: "7.0.0"` (`7.0.0..<8.0.0`), and the committed resolution pins 7.11.1.
+  One manifest cannot serve both majors, so an application still on GRDB 6
+  must stay on SwiftQL 1.x. GRDB 7.0 needs Swift tools 6.0 and GRDB 7.10 needs
+  6.1, which the Swift 6.1 floor above already supplies.
+  - The `CSQLite` product is now `GRDBSQLite`, and `import GRDB` no longer
+    re-exports the SQLite C module. A target that calls a `sqlite3_*` function
+    declares the `GRDBSQLite` product and imports the module.
+  - `XLLogger` now refines `Sendable`. SwiftQL logs from whichever thread runs
+    a statement, so a logger must be safe for concurrent use. Protect any
+    mutable state in your logger with a lock.
+  - `GRDBDatabaseBuilder.addFunction(_:)` and `XLBuilder.customFunctionCall(_:parameters:)`
+    now require the custom function's result type to be `Sendable`. GRDB 7
+    registers a function through a `@Sendable` closure.
+  - A `DatabasePool` observation performs one extra startup fetch on Linux.
+    GRDB 7 disables its WAL-snapshot path there. See
+    [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## [1.9.0] - 2026-09-16
 
