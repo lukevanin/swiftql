@@ -450,6 +450,10 @@ let package = Package(
                 "SwiftQLSQLiteConformanceFixtures",
                 "SwiftQLSQLiteCombinatorialSupport",
                 .product(name: "GRDB", package: "GRDB.swift"),
+                // `SQLitePrepareV3ProbeTests` imports `GRDBSQLite`. The
+                // product is declared here rather than reached through the
+                // validator target's own dependency.
+                .product(name: "GRDBSQLite", package: "GRDB.swift"),
             ]
         ),
     ]
