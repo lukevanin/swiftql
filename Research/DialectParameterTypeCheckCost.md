@@ -60,9 +60,9 @@ Median of 15 runs, from `-debug-time-function-bodies`.
 
 The four surfaces are interleaved inside each repetition, so drift across the
 run falls on all of them alike. A second run of the same harness put the
-existential gap at +12.3 percent, +15.8 percent and +23.9 percent. Read each figure as a band and not as a
-point. A 30-clause body takes about 19 milliseconds, so a small absolute
-change moves its percentage a long way.
+existential gap at +12.3 percent, +15.8 percent and +23.9 percent. Read each
+figure as a band and not as a point. A 30-clause body takes about 19
+milliseconds, so a small absolute change moves its percentage a long way.
 
 **The cost is not prohibitive.** The gap keeps the shape the spike predicted,
 and the larger overload set did not change that shape. A 450-clause query is
