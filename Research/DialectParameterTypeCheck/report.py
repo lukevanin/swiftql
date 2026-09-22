@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Print the median type-check time of each surface as one table."""
+"""Print the median type-check time of each surface as one table.
+
+The first surface named in the raw file is the baseline. Every other surface
+is also reported as a percentage of it.
+"""
 
 import collections
 import statistics
@@ -8,26 +12,31 @@ import sys
 
 def main():
     rows = collections.defaultdict(list)
+    kinds = []
     with open(sys.argv[1]) as handle:
         for line in handle:
             kind, clauses, milliseconds = line.split()
+            if kind not in kinds:
+                kinds.append(kind)
             rows[(int(clauses), kind)].append(
                 float(milliseconds.replace("ms", ""))
             )
 
-    print(
-        f"{'clauses':>8} {'current':>10} {'existential':>12} "
-        f"{'concrete':>10} {'existential':>12} {'concrete':>9}"
-    )
+    baseline = kinds[0]
+    header = f"{'clauses':>8}" + "".join(f"{kind:>14}" for kind in kinds)
+    header += "".join(f"{kind:>14}" for kind in kinds[1:])
+    print(header)
     for clauses in sorted({clauses for clauses, _ in rows}):
-        current = statistics.median(rows[(clauses, "current")])
-        existential = statistics.median(rows[(clauses, "existential")])
-        concrete = statistics.median(rows[(clauses, "concrete")])
-        print(
-            f"{clauses:>8} {current:>8.1f}ms {existential:>10.1f}ms "
-            f"{concrete:>8.1f}ms {100 * (existential / current - 1):>+11.1f}% "
-            f"{100 * (concrete / current - 1):>+8.1f}%"
-        )
+        medians = {
+            kind: statistics.median(rows[(clauses, kind)]) for kind in kinds
+        }
+        line = f"{clauses:>8}"
+        for kind in kinds:
+            line += f"{medians[kind]:>11.1f}ms"
+        for kind in kinds[1:]:
+            share = 100 * (medians[kind] / medians[baseline] - 1)
+            line += f"{share:>13.1f}%"
+        print(line)
 
 
 if __name__ == "__main__":

@@ -20,10 +20,10 @@ mkdir -p "$work/generated" "$work/build"
 python3 "$script_directory/generate.py" "$source_root" "$work"
 python3 "$script_directory/fixtures.py" "$work"
 
-kinds=(current existential concrete)
-modules=(GateCurrent GateExistential GateConcrete)
+kinds=(current existential concrete wrapper)
+modules=(GateCurrent GateExistential GateConcrete GateWrapper)
 
-for index in 0 1 2; do
+for index in "${!kinds[@]}"; do
     swiftc -swift-version 6 \
         -emit-module \
         -emit-module-path "$work/build/${modules[$index]}.swiftmodule" \

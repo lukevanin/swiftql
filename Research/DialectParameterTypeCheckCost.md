@@ -12,6 +12,19 @@ asked for the measurement again against the real one.
 Reproduce with `Research/DialectParameterTypeCheck/measure.sh`. The method is in
 [the harness README](DialectParameterTypeCheck/README.md).
 
+## The four surfaces
+
+| Surface | Operand | Scope |
+| --- | --- | --- |
+| current | `any XLExpression<T>` | columns carry no dialect |
+| existential | `any XLExpr<T, Dialect>` | columns carry the dialect |
+| concrete | `XLExpr<T, Dialect>` struct | columns carry the dialect |
+| wrapper | `any XLExpr<T, Dialect>` | a wrapper re-types today's macro output |
+
+The wrapper surface answers one question only: can the scope carry the dialect
+while `@SQLTable` keeps emitting what it emits today? See
+[the finding that changes the plan](#one-finding-that-changes-the-plan).
+
 ## The overload set
 
 `generate.py` reads the shipped declarations, so the harness carries the real
@@ -20,8 +33,7 @@ count and the real signature shapes.
 | Surface | Overloads |
 | --- | ---: |
 | current | 115 |
-| existential — `any XLExpr<T, Dialect>` | 259 |
-| concrete — `XLExpr<T, Dialect>` struct | 259 |
+| each dialect surface | 259 |
 
 The dialect surfaces are 2.25 times larger. The growth is not the dialect
 parameter itself. A concrete type such as `String` cannot conform to a protocol
@@ -30,36 +42,36 @@ own. Each binary operator therefore needs one more overload on each side.
 
 ## Type-check time of one query body
 
-Median of seven runs, from `-debug-time-function-bodies`.
+Median of 15 runs, from `-debug-time-function-bodies`.
 
-| Clauses | current | existential | concrete | existential | concrete |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 30 | 17.4 ms | 19.9 ms | 17.3 ms | +13.9 % | −0.8 % |
-| 120 | 48.2 ms | 55.3 ms | 52.2 ms | +14.5 % | +8.2 % |
-| 450 | 286.6 ms | 370.7 ms | 353.6 ms | +29.3 % | +23.4 % |
+| Clauses | current | existential | concrete | wrapper |
+| ---: | ---: | ---: | ---: | ---: |
+| 30 | 17.9 ms | 20.5 ms (+14.4 %) | 17.7 ms (−1.4 %) | 21.4 ms (+19.2 %) |
+| 120 | 46.6 ms | 56.0 ms (+19.9 %) | 50.3 ms (+7.8 %) | 61.4 ms (+31.5 %) |
+| 450 | 280.7 ms | 371.3 ms (+32.2 %) | 330.6 ms (+17.8 %) | 405.1 ms (+44.3 %) |
 
-Three earlier runs of the same harness gave +13.7 to +19.0 percent at 30
-clauses and +20.2 to +29.3 percent at 450 clauses. Read the figure as a band
-and not as a point.
+Five separate runs of the harness put the existential gap between 10 and 31
+percent at 30 clauses, and between 22 and 32 percent at 450 clauses. Read the
+figure as a band and not as a point.
 
-**The cost is not prohibitive.** The gap has the shape the spike predicted, and
-it did not grow with the larger overload set. A 450-clause query is far larger
-than any query in this repository, and it pays 60 to 85 milliseconds more. A 30
-clause query pays 2.5 milliseconds more.
+**The cost is not prohibitive.** The gap keeps the shape the spike predicted,
+and the larger overload set did not change that shape. A 450-clause query is
+far larger than any query in this repository, and it pays 50 to 90
+milliseconds more. A 30-clause query pays about 2.6 milliseconds more.
 
 ## What the parameter buys
 
 A SQLite-only operation, `collate`, is offered on the SQLite dialect only.
 
-| Receiver | current | existential | concrete |
-| --- | --- | --- | --- |
-| SQLite column | accepted | accepted | accepted |
-| composed SQLite expression | accepted | accepted | accepted |
-| PostgreSQL column | **accepted** | refused | refused |
-| composed PostgreSQL expression | **accepted** | refused | refused |
-| SQLite column compared to a PostgreSQL column | **accepted** | refused | refused |
+| Receiver | current | existential | concrete | wrapper |
+| --- | --- | --- | --- | --- |
+| SQLite column | accepted | accepted | accepted | accepted |
+| composed SQLite expression | accepted | accepted | accepted | accepted |
+| PostgreSQL column | **accepted** | refused | refused | refused |
+| composed PostgreSQL expression | **accepted** | refused | refused | refused |
+| SQLite column against a PostgreSQL column | **accepted** | refused | refused | refused |
 
-The current surface accepts every one of them. That is the defect. Both
+The current surface accepts every one of them. That is the defect. All three
 dialect surfaces refuse the PostgreSQL cases at the call site, and they refuse
 the composed expression as well as the bare column.
 
@@ -68,35 +80,43 @@ the composed expression as well as the bare column.
 | Mistake | Surface | First error |
 | --- | --- | --- |
 | wrong value type | current | `6:17: referencing operator function '==' on 'BinaryInteger' requires that 'XLColumnReference<String>' conform to 'BinaryInteger'` |
-| | existential | `6:17: referencing operator function '==' on 'BinaryInteger' requires that 'XLColumnReference<String, XLGateSQLite>' conform to 'BinaryInteger'` |
+| | existential | same, with `XLColumnReference<String, XLGateSQLite>` |
+| | wrapper | same, with `XLColumnReference<String, XLGateSQLite>` |
 | | concrete | `6:11: cannot convert value of type 'XLExpr<String, XLGateSQLite>' to expected argument type 'XLExpr<Optional<Int>, XLGateSQLite>'` |
 | misspelled column | current | `6:11: value of type 'XLGateScope' has no member 'nmae'` |
-| | existential | `6:11: value of type 'XLGateScope<XLGateSQLite>' has no member 'nmae'` |
-| | concrete | `6:11: value of type 'XLGateScope<XLGateSQLite>' has no member 'nmae'` |
+| | existential | same, with `XLGateScope<XLGateSQLite>` |
+| | concrete | same, with `XLGateScope<XLGateSQLite>` |
+| | wrapper | `6:11: value of type 'XLGateScope<XLGateSQLite>' has no dynamic member 'nmae' using key path from root type 'XLGateMeta'` |
 | two columns of different types | current | `6:17: binary operator '==' cannot be applied to operands of type 'XLColumnReference<String>' and 'XLColumnReference<Int>'` |
-| | existential | `6:17: binary operator '==' cannot be applied to operands of type 'XLColumnReference<String, XLGateSQLite>' and 'XLColumnReference<Int, XLGateSQLite>'` |
-| | concrete | `6:17: binary operator '==' cannot be applied to operands of type 'XLExpr<String, XLGateSQLite>' and 'XLExpr<Int, XLGateSQLite>'` |
+| | existential | same, with the dialect in each type |
+| | concrete | same, with `XLExpr` in place of `XLColumnReference` |
+| | wrapper | same as existential |
 
 The existential surface keeps the error kind, the wording and the column of
 every one of the three. The only change is the dialect argument inside the
 printed type name, which the parameter makes unavoidable. The accepted design
 note shows the same change in its own evidence.
 
-The concrete surface changes the first mistake. The error kind changes, the
-wording changes, and the column moves from 17 to 11. The struct operand makes
-the compiler report a conversion instead of a failed requirement.
+Each of the other two surfaces regresses one message.
+
+- The concrete surface changes the wrong-value-type error. The kind changes,
+  the wording changes, and the column moves from 17 to 11. A struct operand
+  makes the compiler report a conversion instead of a failed requirement.
+- The wrapper surface changes the misspelled-column error, which is the exact
+  mistake the issue names.
 
 ## Recommendation
 
-Adopt the **existential** surface, `any XLExpr<T, Dialect>`, which is the shape
+Adopt the **existential** surface, `any XLExpr<T, Dialect>`. It is the shape
 the accepted design note describes.
 
 - It refuses the operations the issue asks it to refuse, on a composed
   expression as well as on a column.
-- It holds the diagnostics bar. The concrete surface does not.
-- It costs 14 percent at a realistic query size and 29 percent at 450 clauses.
-  The concrete surface is faster at a small query and no faster at a large one,
-  so its speed does not pay for its diagnostics.
+- It holds the diagnostics bar. Neither other surface does.
+- It costs about 14 percent at a realistic query size and about 32 percent at
+  450 clauses. The concrete surface is cheaper but pays for that with a worse
+  message on the most common mistake of all, so its speed does not pay for its
+  diagnostics.
 
 ## One finding that changes the plan
 
@@ -106,13 +126,20 @@ The harness gives the scope its columns by hand. SwiftQL gets them from the
 `associatedtype`.
 
 Swift has no generic associated types. `MetaNamedResult` therefore cannot
-become `MetaNamedResult<Dialect>` while `XLTable` still names it. The query
-scope can only carry the dialect in one of two ways:
+become `MetaNamedResult<Dialect>` while `XLTable` names it through an
+`associatedtype`. The query scope can carry the dialect in one of two ways
+only:
 
-1. A wrapper type around the generated metadata, which reads the columns
-   through a key-path dynamic member lookup and re-types them.
-2. The macro emits the dialect into the metadata, which is issue #687.
+1. A wrapper around the generated metadata, which re-types each column through
+   a key-path dynamic member lookup. This is the `wrapper` surface above. It
+   refuses the right operations, but it is the slowest of the three and it
+   breaks the misspelled-column message. **It fails this issue's diagnostics
+   constraint.**
+2. The macro emits the dialect into the metadata, and `XLTable` stops naming
+   the metadata type through a plain `associatedtype`. That is issue #687.
 
-Issue #687 is recorded as depending on #789. This finding says the dependency
-runs both ways for the scope, and that the two issues have to agree on which of
-the two ways the scope takes before either one lands.
+Option 1 is measured and rejected. Option 2 is therefore the only way left, so
+**the scope part of #789 cannot land before #687**. Issue #687 records itself
+as depending on #789. For the operators and the expression nodes that
+direction is right. For the scope the direction is the other way, and the two
+issues have to be sequenced together.

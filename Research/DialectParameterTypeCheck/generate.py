@@ -10,6 +10,9 @@ out of the real SwiftQL sources so the overload count matches the shipped API:
              concrete type such as `String` cannot conform for every dialect.
   concrete - `XLExpr<T, D>` struct operands and results, plus the same
              raw-value overloads.
+  wrapper  - the existential surface, with a scope that wraps dialect-free
+             macro-shaped metadata and re-types its columns through a key-path
+             dynamic member lookup.
 
 Each surface gets query files of N clauses that are byte-for-byte the same
 shape, so the only difference the compiler sees is the surface.
@@ -240,8 +243,14 @@ public enum XLGateQueryBuilder {
     }
 }
 
-public struct XLGateScope {
-    public init() {}
+"""
+
+SURFACE_ONLY_SQLITE_EXISTENTIAL = """
+extension XLExpr where Dialect == XLGateSQLite {
+    public func collate(_ collation: String) -> some XLExpr<T, Dialect> {
+        XLNode<T, Dialect>()
+    }
+}
 """
 
 SURFACE_ONLY_SQLITE = {
@@ -250,13 +259,7 @@ extension XLExpression {
     public func collate(_ collation: String) -> some XLExpression<T> { XLNode() }
 }
 """,
-    "existential": """
-extension XLExpr where Dialect == XLGateSQLite {
-    public func collate(_ collation: String) -> some XLExpr<T, Dialect> {
-        XLNode<T, Dialect>()
-    }
-}
-""",
+    "existential": SURFACE_ONLY_SQLITE_EXISTENTIAL,
     "concrete": """
 extension XLExpr where Dialect == XLGateSQLite {
     public func collate(_ collation: String) -> XLExpr<T, Dialect> {
@@ -265,6 +268,7 @@ extension XLExpr where Dialect == XLGateSQLite {
 }
 """,
 }
+SURFACE_ONLY_SQLITE["wrapper"] = SURFACE_ONLY_SQLITE_EXISTENTIAL
 
 PRELUDE_DIALECT = """
 public protocol XLGateDialect {}
@@ -310,8 +314,6 @@ public enum XLGateQueryBuilder {
     }
 }
 
-public struct XLGateScope<Dialect: XLGateDialect> {
-    public init() {}
 """
 
 PRELUDE_CONCRETE = PRELUDE_COMMON + PRELUDE_DIALECT + """
@@ -353,8 +355,6 @@ public enum XLGateQueryBuilder {
     }
 }
 
-public struct XLGateScope<Dialect: XLGateDialect> {
-    public init() {}
 """
 
 # The columns every query file reads. Kept small enough to stay readable and
@@ -374,7 +374,37 @@ COLUMNS = [
 
 
 def scope_members(kind):
-    lines = []
+    if kind == "wrapper":
+        # The scope wraps the metadata a macro emits today, which carries no
+        # dialect, and re-types each column through a key-path lookup.
+        lines = ["public struct XLMacroColumn<T> {", "    public init() {}", "}", ""]
+        lines.append("public struct XLGateMeta {")
+        lines.append("    public init() {}")
+        for name, type_name in COLUMNS:
+            lines.append(f"    public let {name} = XLMacroColumn<{type_name}>()")
+        lines.append("}")
+        lines.append("")
+        lines.append("@dynamicMemberLookup")
+        lines.append("public struct XLGateScope<Dialect: XLGateDialect> {")
+        lines.append("    private let meta = XLGateMeta()")
+        lines.append("")
+        lines.append("    public init() {}")
+        lines.append("")
+        lines.append("    public subscript<V>(")
+        lines.append("        dynamicMember keyPath: KeyPath<XLGateMeta, XLMacroColumn<V>>")
+        lines.append("    ) -> XLColumnReference<V, Dialect> {")
+        lines.append("        XLColumnReference<V, Dialect>()")
+        lines.append("    }")
+        lines.append("}")
+        return "\n".join(lines)
+
+    if kind == "current":
+        lines = ["public struct XLGateScope {", "    public init() {}"]
+    else:
+        lines = [
+            "public struct XLGateScope<Dialect: XLGateDialect> {",
+            "    public init() {}",
+        ]
     for name, type_name in COLUMNS:
         if kind == "current":
             lines.append(
@@ -392,7 +422,12 @@ def scope_members(kind):
     return "\n".join(lines)
 
 
+def surface_kind(kind):
+    return "existential" if kind == "wrapper" else kind
+
+
 def rewrite_signature(declaration, kind):
+    kind = surface_kind(kind)
     """Return the declaration rendered for one surface, plus its raw variants."""
     generics = declaration["generics"] or ""
     params = declaration["params"]
@@ -474,6 +509,7 @@ def rewrite_signature(declaration, kind):
 
 def rewrite_member(member, kind):
     """Return the member rendered for one surface, plus its raw variants."""
+    kind = surface_kind(kind)
     generics = member["generics"] or ""
     params = member["params"]
     result = member["result"]
@@ -530,12 +566,9 @@ def rewrite_member(member, kind):
 
 
 def write_members(kind, members, seen):
-    if kind == "current":
-        header = "extension XLExpression {"
-    elif kind == "existential":
-        header = "extension XLExpr {"
-    else:
-        header = "extension XLExpr {"
+    header = (
+        "extension XLExpression {" if kind == "current" else "extension XLExpr {"
+    )
     lines = [header]
     count = 0
     for member in members:
@@ -554,10 +587,10 @@ def write_members(kind, members, seen):
 def write_surface(kind, declarations, members, path):
     if kind == "current":
         prelude = PRELUDE_CURRENT
-    elif kind == "existential":
-        prelude = PRELUDE_EXISTENTIAL
-    else:
+    elif kind == "concrete":
         prelude = PRELUDE_CONCRETE
+    else:
+        prelude = PRELUDE_EXISTENTIAL
 
     seen = set()
     lines = [prelude, scope_members(kind), ""]
@@ -578,6 +611,14 @@ def write_surface(kind, declarations, members, path):
     with open(path, "w") as handle:
         handle.write("\n".join(lines))
     return count
+
+
+MODULE = {
+    "current": "GateCurrent",
+    "existential": "GateExistential",
+    "concrete": "GateConcrete",
+    "wrapper": "GateWrapper",
+}
 
 
 # One clause shape per entry. Each is written once and reused by every surface,
@@ -607,11 +648,7 @@ CLAUSE_SHAPES = [
 
 
 def write_query(kind, clauses, path):
-    module = {
-        "current": "GateCurrent",
-        "existential": "GateExistential",
-        "concrete": "GateConcrete",
-    }[kind]
+    module = MODULE[kind]
     scope = "XLGateScope()" if kind == "current" else "XLGateScope<XLGateSQLite>()"
     lines = [
         "// Generated by Research/DialectParameterTypeCheck/generate.py. Do not edit.",
@@ -638,7 +675,7 @@ def main():
     output = os.path.join(ROOT, "generated")
     os.makedirs(output, exist_ok=True)
     counts = {}
-    for kind in ("current", "existential", "concrete"):
+    for kind in MODULE:
         counts[kind] = write_surface(
             kind,
             declarations,

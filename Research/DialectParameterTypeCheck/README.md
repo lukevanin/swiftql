@@ -15,15 +15,21 @@ repository.
 
 ## What the harness builds
 
-The harness builds three modules. Each module holds one query surface. A
-module holds one surface only, so a query file sees one overload set and never
-two.
+The harness builds four modules. Each module holds one query surface. A module
+holds one surface only, so a query file sees one overload set and never two.
 
-| Module | Operand | Result |
+| Module | Operand | Scope |
 | --- | --- | --- |
-| `GateCurrent` | `any XLExpression<T>` | `some XLExpression<U>` |
-| `GateExistential` | `any XLExpr<T, Dialect>` | `some XLExpr<U, Dialect>` |
-| `GateConcrete` | `XLExpr<T, Dialect>` struct | `XLExpr<U, Dialect>` struct |
+| `GateCurrent` | `any XLExpression<T>` | columns carry no dialect |
+| `GateExistential` | `any XLExpr<T, Dialect>` | columns carry the dialect |
+| `GateConcrete` | `XLExpr<T, Dialect>` struct | columns carry the dialect |
+| `GateWrapper` | `any XLExpr<T, Dialect>` | a wrapper re-types macro output |
+
+`GateWrapper` answers one question. The `@SQLTable` macro emits metadata that
+carries no dialect, and Swift has no generic associated types, so the metadata
+type cannot take the dialect as a parameter. A wrapper that re-types each
+column through a key-path dynamic member lookup is the only way to carry the
+dialect without changing the macro. This module measures that way.
 
 `generate.py` reads the operator and function declarations out of
 `Sources/SwiftQL/Operators` and `Sources/SwiftQL/Functions`. The overload count

@@ -11,6 +11,7 @@ MODULE = {
     "current": "GateCurrent",
     "existential": "GateExistential",
     "concrete": "GateConcrete",
+    "wrapper": "GateWrapper",
 }
 
 
