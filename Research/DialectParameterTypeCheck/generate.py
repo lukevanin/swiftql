@@ -34,6 +34,11 @@ DECL = re.compile(
 )
 
 
+# Counts every member, including one written across several lines, which
+# MEMBER cannot restate. The tally exists to make the shortfall visible, so it
+# must not be limited to what the harness can use.
+MEMBER_START = re.compile(r"^\s+public\s+func\s+\w+")
+
 MEMBER = re.compile(
     r"^\s+public\s+func\s+(?P<name>\w+)\s*"
     r"(?P<generics><[^(]*?>)?\s*"
@@ -110,10 +115,11 @@ def read_members():
                         continue
                     if not inside:
                         continue
+                    if MEMBER_START.match(line):
+                        MEMBER_TALLY["seen"] += 1
                     match = MEMBER.match(line)
                     if not match:
                         continue
-                    MEMBER_TALLY["seen"] += 1
                     fields = match.groupdict()
                     if "..." in fields["params"]:
                         continue
@@ -150,11 +156,14 @@ def operand_types(params):
     operands = []
     depth = 0
     current = ""
+    previous = ""
     for character in params:
         if character == "<":
             depth += 1
-        elif character == ">":
+        elif character == ">" and previous != "-":
+            # The `>` of a function arrow closes nothing.
             depth -= 1
+        previous = character
         if character == "," and depth == 0:
             operands.append(current)
             current = ""
@@ -302,8 +311,10 @@ extension Bool: XLComparableValue {}
 extension Int: XLComparableValue {}
 extension Double: XLComparableValue {}
 extension String: XLComparableValue {}
-extension Optional: XLEquatableValue where Wrapped: XLEquatableValue {}
-extension Optional: XLComparableValue where Wrapped: XLComparableValue {}
+// `Optional` conforms to `XLExpression` in the shipped API, and to neither
+// `XLEquatable` nor `XLComparable`. Giving the value markers to `Optional`
+// here would offer the dialect surfaces overloads the current surface does not
+// have, and the extra work would be charged to the dialect parameter.
 """
 
 PRELUDE_EXISTENTIAL = PRELUDE_COMMON + PRELUDE_DIALECT + """

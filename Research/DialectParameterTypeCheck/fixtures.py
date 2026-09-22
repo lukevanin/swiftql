@@ -47,14 +47,19 @@ REFUSAL = [
     ),
 ]
 
-# The current surface has no dialect, so a mixed-dialect comparison cannot be
-# written against it at all. Writing one anyway makes the compiler reject the
-# scope type, which would read as a refusal it does not perform.
-SKIPPED = {("current", "mixed-dialect-comparison")}
+# The current surface has no dialect. A PostgreSQL query and a mixed-dialect
+# comparison therefore cannot be written against it at all. Writing one anyway
+# would either repeat the SQLite fixture or make the compiler reject the scope
+# type, and both would read as a result the surface did not produce.
+SKIPPED = {
+    ("current", "mixed-dialect-comparison"),
+    ("current", "collate-postgresql-column"),
+    ("current", "collate-postgresql-composed"),
+}
 
 # The three ordinary mistakes the accepted design measured.
 DIAGNOSTIC = [
-    ("mistake-type-mismatch", "scope.text0 == 42"),
+    ("mistake-type-mismatch", "scope.text0 == flag"),
     ("mistake-misspelled-column", "scope.nmae"),
     ("mistake-mismatched-columns", "scope.text0 == scope.count0"),
 ]
@@ -80,7 +85,7 @@ def main():
                 handle.write(
                     f"import {module}\n\n"
                     "@XLGateQueryBuilder\n"
-                    "public func gateQuery() -> [any XLEncodable] {\n"
+                    "public func gateQuery(flag: Bool) -> [any XLEncodable] {\n"
                     f"    let scope = {scope(kind, 'XLGateSQLite')}\n"
                     f"    {body}\n"
                     "}\n"

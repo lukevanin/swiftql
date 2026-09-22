@@ -52,7 +52,9 @@ writes those overloads. They are the cost the measurement reports.
 - **Type-check time.** Each surface gets a query body of 30, 120 and 450
   clauses. The bodies are the same shape in each surface. The script reads the
   time of the function body from `-debug-time-function-bodies`, runs each
-  measurement 15 times, and reports the median.
+  measurement 15 times, and reports the median. The surfaces are interleaved
+  inside each repetition, so drift across the run falls on all of them alike.
+  A query that does not type-check stops the run with its diagnostics.
 - **Refusal.** Each surface gets a SQLite-only operation, applied to a SQLite
   column, to a composed SQLite expression, to a PostgreSQL column, and to a
   composed PostgreSQL expression. The script reports which ones the compiler
@@ -60,7 +62,8 @@ writes those overloads. They are the cost the measurement reports.
   both dialects. Any other failure is reported as a fault in the harness.
 - **Error text.** Each surface gets three ordinary mistakes: a wrong value
   type, a misspelled column, and two columns of different types. The script
-  prints the first error of each one.
+  prints the first error of each one, or says the surface accepted the
+  mistake.
 
 ## The recorded result
 

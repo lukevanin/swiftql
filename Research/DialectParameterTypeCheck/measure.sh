@@ -33,15 +33,29 @@ done
 
 printf '\n== type-check time of one query body ==\n'
 : >"$work/raw.txt"
-for clauses in 30 120 450; do
-    for kind in "${kinds[@]}"; do
-        for _ in $(seq 1 15); do
-            milliseconds="$(
+# The repetition is the outer loop, so the surfaces are interleaved. Drift
+# across the run, such as thermal throttling, then falls on all four alike
+# instead of on whichever one ran last.
+for _ in $(seq 1 15); do
+    for clauses in 30 120 450; do
+        for kind in "${kinds[@]}"; do
+            query="$work/generated/$kind-query-$clauses.swift"
+            if ! diagnostics="$(
                 swiftc -swift-version 6 -typecheck -I "$work/build" \
-                    -Xfrontend -debug-time-function-bodies \
-                    "$work/generated/$kind-query-$clauses.swift" 2>&1 |
+                    -Xfrontend -debug-time-function-bodies "$query" 2>&1
+            )"; then
+                printf 'error: %s did not type-check\n' "$query" >&2
+                printf '%s\n' "$diagnostics" >&2
+                exit 1
+            fi
+            milliseconds="$(
+                printf '%s\n' "$diagnostics" |
                     awk '/gateQuery/ { print $1; exit }'
             )"
+            if [[ -z "$milliseconds" ]]; then
+                printf 'error: no timing for %s\n' "$query" >&2
+                exit 1
+            fi
             printf '%s %s %s\n' "$kind" "$clauses" "$milliseconds" \
                 >>"$work/raw.txt"
         done
@@ -87,15 +101,22 @@ for fixture in mistake-type-mismatch mistake-misspelled-column \
     mistake-mismatched-columns; do
     printf '%s\n' "$fixture"
     for kind in "${kinds[@]}"; do
-        printf '  %-12s %s\n' "$kind" "$(
+        if diagnostics="$(
             swiftc -swift-version 6 -typecheck -I "$work/build" \
-                "$work/generated/$kind-$fixture.swift" 2>&1 |
+                "$work/generated/$kind-$fixture.swift" 2>&1
+        )"; then
+            printf '  %-12s %s\n' "$kind" "ACCEPTED -- the surface does not catch it"
+            continue
+        fi
+        message="$(
+            printf '%s\n' "$diagnostics" |
                 awk -v name="$kind-$fixture.swift:" '
                     index($0, name) && /: error: / {
                         print substr($0, index($0, name) + length(name))
                         exit
                     }'
         )"
+        printf '  %-12s %s\n' "$kind" "${message:-UNPARSED -- see the work directory}"
     done
 done
 

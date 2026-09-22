@@ -29,10 +29,11 @@ while `@SQLTable` keeps emitting what it emits today? See
 
 `generate.py` reads the shipped declarations, so the harness carries the real
 signature shapes. It restates all 80 free operators that take an expression.
-It restates 52 of the 123 members of an unconstrained `extension XLExpression`
+It restates 52 of the 156 members of an unconstrained `extension XLExpression`
 block, and it prints that count on every run. A member it cannot restate names
-a type the harness does not define, or takes an operand that is not an
-expression. Members in a constrained extension are not read at all.
+a type the harness does not define, takes an operand that is not an
+expression, or is written across several lines. Members in a constrained
+extension are not read at all.
 
 **The harness therefore understates the member half of the surface.** The real
 gap can be larger than the gap below. It cannot be smaller for that reason.
@@ -53,19 +54,20 @@ Median of 15 runs, from `-debug-time-function-bodies`.
 
 | Clauses | current | existential | concrete | wrapper |
 | ---: | ---: | ---: | ---: | ---: |
-| 30 | 18.7 ms | 21.5 ms (+15.0 %) | 18.6 ms (−0.5 %) | 22.6 ms (+20.4 %) |
-| 120 | 48.1 ms | 57.8 ms (+20.3 %) | 52.0 ms (+8.1 %) | 62.7 ms (+30.5 %) |
-| 450 | 285.0 ms | 357.0 ms (+25.3 %) | 342.6 ms (+20.2 %) | 429.8 ms (+50.8 %) |
+| 30 | 19.1 ms | 21.5 ms (+12.4 %) | 18.3 ms (−4.3 %) | 22.6 ms (+18.0 %) |
+| 120 | 49.2 ms | 56.8 ms (+15.4 %) | 50.7 ms (+3.0 %) | 64.0 ms (+30.2 %) |
+| 450 | 292.5 ms | 353.3 ms (+20.8 %) | 338.6 ms (+15.8 %) | 413.6 ms (+41.4 %) |
 
-Seven separate runs of the harness put the existential gap between 10 and 31
-percent at 30 clauses, and between 22 and 32 percent at 450 clauses. Read each
-figure as a band and not as a point. A 30-clause body takes about 19
-milliseconds, so a small absolute change moves its percentage a long way.
+The four surfaces are interleaved inside each repetition, so drift across the
+run falls on all of them alike. A second run of the same harness put the
+existential gap at +12.3 percent, +15.8 percent and +23.9 percent. Read each figure as a band and not as a
+point. A 30-clause body takes about 19 milliseconds, so a small absolute
+change moves its percentage a long way.
 
 **The cost is not prohibitive.** The gap keeps the shape the spike predicted,
 and the larger overload set did not change that shape. A 450-clause query is
-far larger than any query in this repository, and it pays 50 to 90
-milliseconds more. A 30-clause query pays about 2.8 milliseconds more.
+far larger than any query in this repository, and it pays about 60
+milliseconds more. A 30-clause query pays about 2.4 milliseconds more.
 
 ## What the parameter buys
 
@@ -75,13 +77,14 @@ A SQLite-only operation, `collate`, is offered on the SQLite dialect only.
 | --- | --- | --- | --- | --- |
 | SQLite column | accepted | accepted | accepted | accepted |
 | composed SQLite expression | accepted | accepted | accepted | accepted |
-| PostgreSQL column | **accepted** | refused | refused | refused |
-| composed PostgreSQL expression | **accepted** | refused | refused | refused |
+| PostgreSQL column | not expressible | refused | refused | refused |
+| composed PostgreSQL expression | not expressible | refused | refused | refused |
 | SQLite column against a PostgreSQL column | not expressible | refused | refused | refused |
 
-The current surface accepts every case it can express. That is the defect. It
-cannot express the last row at all, because it has no dialect to mix, so the
-harness does not write that fixture for it.
+The current surface has no dialect, so it cannot express the last three rows
+at all, and the harness does not write those fixtures for it. **That is the
+defect.** A SQLite-only operation is offered on every expression
+unconditionally, so no query can refuse it.
 
 All three dialect surfaces refuse the PostgreSQL cases at the call site, and
 they refuse the composed expression as well as the bare column. `measure.sh`
@@ -91,12 +94,16 @@ as evidence.
 
 ## What the parameter does to the error text
 
+The wrong-value-type mistake compares a `String` column with a `Bool`
+variable. A numeric mismatch would resolve to a standard-library operator, and
+its message would say nothing about the surface under measurement.
+
 | Mistake | Surface | First error |
 | --- | --- | --- |
-| wrong value type | current | `6:17: referencing operator function '==' on 'BinaryInteger' requires that 'XLColumnReference<String>' conform to 'BinaryInteger'` |
+| wrong value type | current | `6:11: cannot convert value of type 'XLColumnReference<String>' to expected argument type 'Bool'` |
 | | existential | same, with `XLColumnReference<String, XLGateSQLite>` |
 | | wrapper | same, with `XLColumnReference<String, XLGateSQLite>` |
-| | concrete | `6:11: cannot convert value of type 'XLExpr<String, XLGateSQLite>' to expected argument type 'XLExpr<Optional<Int>, XLGateSQLite>'` |
+| | concrete | `6:11: cannot convert value of type 'XLExpr<String, XLGateSQLite>' to expected argument type 'XLExpr<Optional<Bool>, XLGateSQLite>'` |
 | misspelled column | current | `6:11: value of type 'XLGateScope' has no member 'nmae'` |
 | | existential | same, with `XLGateScope<XLGateSQLite>` |
 | | concrete | same, with `XLGateScope<XLGateSQLite>` |
@@ -113,9 +120,10 @@ note shows the same change in its own evidence.
 
 Each of the other two surfaces regresses one message.
 
-- The concrete surface changes the wrong-value-type error. The kind changes,
-  the wording changes, and the column moves from 17 to 11. A struct operand
-  makes the compiler report a conversion instead of a failed requirement.
+- The concrete surface changes the wrong-value-type error. It names
+  `XLExpr<Optional<Bool>, XLGateSQLite>` as the expected type, which is a
+  wrapper the author never wrote and an optional the author never asked for.
+  The current surface names the plain value type `Bool`.
 - The wrapper surface changes the misspelled-column error, which is the exact
   mistake the issue names.
 
@@ -127,11 +135,10 @@ the accepted design note describes.
 - It refuses the operations the issue asks it to refuse, on a composed
   expression as well as on a column.
 - It holds the diagnostics bar. Neither other surface does.
-- It costs about 15 percent at a realistic query size and about 25 percent at
-  450 clauses. The concrete surface is cheaper, and at 30 clauses the
-  difference between the two is inside the noise. It pays for its speed with a
-  worse message on a wrong value type, which is a common mistake, so the trade
-  is not worth taking.
+- It costs about 12 percent at a realistic query size and about 21 percent at
+  450 clauses. The concrete surface is cheaper by 5 to 16 percent, but it pays
+  for that with a worse message on a wrong value type, which is a common
+  mistake. That trade is not worth taking.
 
 ## One finding that changes the plan
 
