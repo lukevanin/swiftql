@@ -129,7 +129,11 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn("openssl dgst -sha3-256", compatibility)
         self.assertIn("-DSQLITE_ENABLE_FTS5", compatibility)
         self.assertIn("-DSQLITE_ENABLE_MATH_FUNCTIONS", compatibility)
-        self.assertEqual(compatibility.count("-DSQLITE_ENABLE_SNAPSHOT"), 2)
+        # Once: the C build of the pinned amalgamation. The Swift compiler
+        # override passes no SQLite define, because GRDB 7 reads
+        # GRDBCUSTOMSQLITE as an Xcode-framework signal and then imports no
+        # SQLite module.
+        self.assertEqual(compatibility.count("-DSQLITE_ENABLE_SNAPSHOT"), 1)
         self.assertIn("libsqlite3.so", compatibility)
         self.assertIn("nm -D --defined-only", compatibility)
         self.assertIn("sqlite3_snapshot_get", compatibility)
@@ -139,12 +143,12 @@ class SwiftCompatibilityWorkflowTests(unittest.TestCase):
         self.assertIn("SWIFTQL_SQLITE_INCLUDE_DIR=", compatibility)
         self.assertIn("SWIFTQL_SQLITE_LIBRARY_DIR=", compatibility)
         self.assertIn(
-            '-DSQLITE_ENABLE_SNAPSHOT '
+            'exec "$SWIFTQL_REAL_SWIFTC" '
             '-Xcc -I -Xcc "$SWIFTQL_SQLITE_INCLUDE_DIR" '
             '-L "$SWIFTQL_SQLITE_LIBRARY_DIR"',
             compatibility,
         )
-        self.assertIn("-DGRDBCUSTOMSQLITE", compatibility)
+        self.assertNotIn("-DGRDBCUSTOMSQLITE", compatibility)
         self.assertIn("SWIFT_EXEC=", compatibility)
         self.assertIn(
             'compiler_wrapper="$toolchain_bin/swiftql-swiftc"', compatibility

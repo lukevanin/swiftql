@@ -35,12 +35,14 @@ extension GRDBRequest {
     /// The function below reads a `[XLSQLiteValue]` array that SQLite has
     /// already copied out of the statement, and it returns a `Sendable` `Row`.
     /// It touches no connection, no cursor, and no statement handle.
-    /// ``XLRowReadable`` documents `readRow(reader:)` as a read of the
-    /// borrowed reader that stores nothing, so a conformer holds no state
-    /// across calls. SwiftQL already relies on this: `fetchAll()` calls the
-    /// same function on whichever pooled reader connection the driver hands
-    /// out, and two concurrent fetches on copies of one request already run it
-    /// at the same time.
+    /// ``XLRowReadable`` already states that `readRow(reader:)` only borrows
+    /// the reader it is given, and SwiftQL already calls it concurrently:
+    /// `fetchAll()` runs it on whichever pooled reader connection the driver
+    /// hands out, and two fetches on copies of one request run it at the same
+    /// time. A conformer that is unsafe here was already unsafe there. The
+    /// protocol does not require `Sendable`, so this remains a convention the
+    /// compiler cannot check, which is why the cast is written out and
+    /// explained rather than hidden.
     ///
     /// `unsafeBitCast` changes the compile-time `@Sendable` annotation only.
     /// The function value's runtime representation does not change. This

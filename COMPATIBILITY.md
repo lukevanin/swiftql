@@ -268,22 +268,31 @@ of the distribution's `libsqlite3-dev` package that GRDB's SwiftPM
 system-library target otherwise expects, they follow GRDB's documented
 custom-SQLite recipe through SwiftPM's compiler override: the override passes
 `-DGRDBCUSTOMSQLITE` to `swiftc` and points compilation and linking at the
-pinned headers and library. The override also passes `-DSQLITE_ENABLE_SNAPSHOT`
-to `swiftc`, which is what GRDB 6 needed to keep its `WALSnapshot` support in
-the build once `-DGRDBCUSTOMSQLITE` closed its fallback condition.
+pinned headers and library. GRDB's `GRDBSQLite` module map includes
+`<sqlite3.h>` and links `sqlite3`, so the include and library paths alone
+select the pinned build.
 
-GRDB 7 changes this. Its own manifest defines `SQLITE_DISABLE_SNAPSHOT` for the
-GRDB target on Linux, because not every Linux distribution supports WAL
-snapshots, and its source guards every snapshot declaration with
+**The override passes no SQLite define under GRDB 7, and it must not.** GRDB 6
+read `GRDBCUSTOMSQLITE` as "import the custom SQLite module", and the override
+paired it with `-DSQLITE_ENABLE_SNAPSHOT` to keep `WALSnapshot` support in the
+build. GRDB 7 reads the same define as "the GRDBCustom Xcode framework supplies
+the SQLite module" and then imports no SQLite module at all, so every
+`sqlite3_*` call in GRDB fails to compile under SwiftPM. The Linux cells proved
+this. Both defines are therefore gone from the compiler override.
+
+`SQLITE_ENABLE_SNAPSHOT` is moot on Linux for a second reason. GRDB 7's own
+manifest defines `SQLITE_DISABLE_SNAPSHOT` for the GRDB target on Linux,
+because not every Linux distribution supports WAL snapshots, and its source
+guards every snapshot declaration with
 `#if SQLITE_ENABLE_SNAPSHOT && !SQLITE_DISABLE_SNAPSHOT`. A target-level define
-cannot be removed from outside the package, so the Swift-side snapshot path is
-compiled out on Linux whatever the override passes. A `DatabasePool`
-observation therefore performs an unconditional second startup fetch on the
-Linux cells. The behaviour is correct, only less efficient, and the Apple cells
-keep the snapshot path. The override still passes `-DSQLITE_ENABLE_SNAPSHOT`,
-so the snapshot path returns by itself if GRDB stops disabling it. The C-side
-`-DSQLITE_ENABLE_SNAPSHOT` and the `sqlite3_snapshot_get` symbol assertion stay
-as well, because they describe the pinned library rather than GRDB's build.
+cannot be removed from outside the package. A `DatabasePool` observation
+therefore performs an unconditional second startup fetch on the Linux cells.
+The behaviour is correct, only less efficient, and the Apple cells keep the
+snapshot path.
+
+The C-side `-DSQLITE_ENABLE_SNAPSHOT` and the `sqlite3_snapshot_get` symbol
+assertion stay, because they describe the pinned library rather than GRDB's
+build.
 
 The override delegates SwiftPM's module-wrapping
 phase directly to the matching

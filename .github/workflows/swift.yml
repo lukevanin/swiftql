@@ -537,13 +537,21 @@ jobs:
           printf 'SWIFTQL_SQLITE_LIBRARY_DIR=%s\n' \
             "$sqlite_prefix/lib" >> "$GITHUB_ENV"
 
-          # Keep GRDB on its documented custom-SQLite path while exposing the
-          # snapshot capability compiled into the pinned library. GRDB 7
-          # defines SQLITE_DISABLE_SNAPSHOT for its own target on Linux, and
-          # its source reads `SQLITE_ENABLE_SNAPSHOT && !SQLITE_DISABLE_SNAPSHOT`,
-          # so the Swift-side snapshot path stays compiled out here whatever
-          # this override passes. See COMPATIBILITY.md, "Linux". The define
-          # stays so the path returns by itself if GRDB stops disabling it.
+          # Point GRDB's SQLite system-library target at the pinned headers
+          # and library. GRDB's GRDBSQLite module map includes <sqlite3.h> and
+          # links sqlite3, so the include and library paths alone select the
+          # pinned build.
+          #
+          # The override passes no SQLite defines, and it must not. GRDB 7
+          # reads GRDBCUSTOMSQLITE as "the GRDBCustom Xcode framework supplies
+          # the SQLite module" and then imports no SQLite module at all, which
+          # fails to compile under SwiftPM. GRDB 6 read the same define as
+          # "import the custom SQLite module". SQLITE_ENABLE_SNAPSHOT is moot
+          # for the same release: GRDB 7 defines SQLITE_DISABLE_SNAPSHOT for
+          # its own target on Linux, and its source reads
+          # `SQLITE_ENABLE_SNAPSHOT && !SQLITE_DISABLE_SNAPSHOT`. See
+          # COMPATIBILITY.md, "Linux".
+          #
           # Keep the override beside swiftc so SwiftPM derives the matching
           # toolchain lib directory when it loads libIndexStore for discovery.
           compiler_wrapper="$toolchain_bin/swiftql-swiftc"
@@ -552,7 +560,7 @@ jobs:
             'if [[ "${1:-}" == "-modulewrap" ]]; then' \
             '  exec "$SWIFTQL_REAL_SWIFT_FRONTEND" "$@"' \
             'fi' \
-            'exec "$SWIFTQL_REAL_SWIFTC" -DGRDBCUSTOMSQLITE -DSQLITE_ENABLE_SNAPSHOT -Xcc -I -Xcc "$SWIFTQL_SQLITE_INCLUDE_DIR" -L "$SWIFTQL_SQLITE_LIBRARY_DIR" "$@"' \
+            'exec "$SWIFTQL_REAL_SWIFTC" -Xcc -I -Xcc "$SWIFTQL_SQLITE_INCLUDE_DIR" -L "$SWIFTQL_SQLITE_LIBRARY_DIR" "$@"' \
             > "$compiler_wrapper"
           chmod 755 "$compiler_wrapper"
           printf 'SWIFTQL_REAL_SWIFTC=%s\n' "$toolchain_bin/swiftc" \
