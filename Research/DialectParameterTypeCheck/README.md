@@ -32,9 +32,15 @@ column through a key-path dynamic member lookup is the only way to carry the
 dialect without changing the macro. This module measures that way.
 
 `generate.py` reads the operator and function declarations out of
-`Sources/SwiftQL/Operators` and `Sources/SwiftQL/Functions`. The overload count
-and the signature shapes therefore agree with the shipped API. The bodies are
-removed, because the harness measures the call site and not the body.
+`Sources/SwiftQL/Operators` and `Sources/SwiftQL/Functions`, so the signature
+shapes agree with the shipped API. The bodies are removed, because the harness
+measures the call site and not the body.
+
+The harness restates every free operator that takes an expression. It restates
+only part of the member surface, and it prints how much on every run. A member
+it cannot restate names a type the harness does not define, or takes an operand
+that is not an expression. Members in a constrained extension are not read. The
+harness therefore understates the member half of the surface.
 
 A concrete type such as `String` cannot conform to a protocol for every
 dialect. A dialect surface therefore needs one more overload on each side of
@@ -46,11 +52,12 @@ writes those overloads. They are the cost the measurement reports.
 - **Type-check time.** Each surface gets a query body of 30, 120 and 450
   clauses. The bodies are the same shape in each surface. The script reads the
   time of the function body from `-debug-time-function-bodies`, runs each
-  measurement seven times, and reports the median.
+  measurement 15 times, and reports the median.
 - **Refusal.** Each surface gets a SQLite-only operation, applied to a SQLite
   column, to a composed SQLite expression, to a PostgreSQL column, and to a
   composed PostgreSQL expression. The script reports which ones the compiler
-  accepts.
+  accepts. It reads a compile failure as a refusal only when the compiler names
+  both dialects. Any other failure is reported as a fault in the harness.
 - **Error text.** Each surface gets three ordinary mistakes: a wrong value
   type, a misspelled column, and two columns of different types. The script
   prints the first error of each one.

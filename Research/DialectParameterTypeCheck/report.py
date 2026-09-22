@@ -23,8 +23,10 @@ def main():
             )
 
     baseline = kinds[0]
-    header = f"{'clauses':>8}" + "".join(f"{kind:>14}" for kind in kinds)
-    header += "".join(f"{kind:>14}" for kind in kinds[1:])
+    width = 14
+    header = f"{'clauses':>8}"
+    header += "".join(f"{kind:>{width}}" for kind in kinds)
+    header += "".join(f"{kind + ' %':>{width}}" for kind in kinds[1:])
     print(header)
     for clauses in sorted({clauses for clauses, _ in rows}):
         medians = {
@@ -32,10 +34,10 @@ def main():
         }
         line = f"{clauses:>8}"
         for kind in kinds:
-            line += f"{medians[kind]:>11.1f}ms"
+            line += f"{f'{medians[kind]:.1f}ms':>{width}}"
         for kind in kinds[1:]:
             share = 100 * (medians[kind] / medians[baseline] - 1)
-            line += f"{share:>13.1f}%"
+            line += f"{f'{share:+.1f}%':>{width}}"
         print(line)
 
 

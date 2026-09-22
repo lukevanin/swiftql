@@ -35,7 +35,7 @@ printf '\n== type-check time of one query body ==\n'
 : >"$work/raw.txt"
 for clauses in 30 120 450; do
     for kind in "${kinds[@]}"; do
-        for _ in 1 2 3 4 5 6 7; do
+        for _ in $(seq 1 15); do
             milliseconds="$(
                 swiftc -swift-version 6 -typecheck -I "$work/build" \
                     -Xfrontend -debug-time-function-bodies \
@@ -54,15 +54,30 @@ for kind in "${kinds[@]}"; do
     for fixture in collate-sqlite-column collate-sqlite-composed \
         collate-postgresql-column collate-postgresql-composed \
         mixed-dialect-comparison; do
+        fixture_path="$work/generated/$kind-refusal-$fixture.swift"
+        if [[ ! -f "$fixture_path" ]]; then
+            printf '%s/%s: NOT EXPRESSIBLE\n' "$kind" "$fixture"
+            continue
+        fi
         if diagnostic="$(
             swiftc -swift-version 6 -typecheck -I "$work/build" \
-                "$work/generated/$kind-refusal-$fixture.swift" 2>&1
+                "$fixture_path" 2>&1
         )"; then
             printf '%s/%s: ACCEPTED\n' "$kind" "$fixture"
+            continue
+        fi
+        message="$(
+            printf '%s\n' "$diagnostic" |
+                awk -F'error: ' '/: error: /{ print $2; exit }'
+        )"
+        # A compile failure is only a refusal when the compiler names the two
+        # dialects. Any other failure is a fault in the harness, and saying
+        # REFUSED would read as evidence the parameter did not earn.
+        if [[ "$message" == *XLGateSQLite* ]] &&
+            [[ "$message" == *XLGatePostgreSQL* ]]; then
+            printf '%s/%s: REFUSED -- %s\n' "$kind" "$fixture" "$message"
         else
-            printf '%s/%s: REFUSED -- %s\n' "$kind" "$fixture" \
-                "$(printf '%s\n' "$diagnostic" |
-                    awk -F'error: ' '/: error: /{ print $2; exit }')"
+            printf '%s/%s: HARNESS FAULT -- %s\n' "$kind" "$fixture" "$message"
         fi
     done
 done

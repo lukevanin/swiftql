@@ -46,9 +46,16 @@ FUNCTION_DIR = os.path.join(REPO, "Sources", "SwiftQL", "Functions")
 # outside this set is skipped rather than stubbed, so no signature is invented.
 KNOWN = {
     "any", "some", "where", "func", "public", "self", "Self", "inout",
-    "XLExpression", "XLEquatable", "XLComparable", "Optional",
+    "XLExpression", "XLEquatable", "XLComparable", "XLLiteral", "XLBoolean",
+    "Optional", "Data",
     "String", "Int", "Double", "Bool", "T", "V", "U", "Wrapped", "Element",
+    "false", "true", "distinct",
 }
+
+# How many members each directory holds, and how many of them the harness
+# could restate. The difference is reported, because a silent shortfall would
+# make the measured surface look like the whole API.
+MEMBER_TALLY = {"seen": 0, "kept": 0}
 
 
 def known_vocabulary(text):
@@ -106,10 +113,9 @@ def read_members():
                     match = MEMBER.match(line)
                     if not match:
                         continue
+                    MEMBER_TALLY["seen"] += 1
                     fields = match.groupdict()
                     if "..." in fields["params"]:
-                        continue
-                    if "=" in fields["params"]:
                         continue
                     signature = "{} {} {} {}".format(
                         fields["generics"] or "",
@@ -121,6 +127,12 @@ def read_members():
                         continue
                     if "XLExpression" not in fields["params"] + fields["result"]:
                         continue
+                    if operand_types(fields["params"]) is None:
+                        # Every operand has to be an expression the harness can
+                        # restate. A default argument or a plain Swift value is
+                        # not one.
+                        continue
+                    MEMBER_TALLY["kept"] += 1
                     members.append(fields)
     return members
 
@@ -131,16 +143,6 @@ def normalise(text):
 
 ANY_EXPR = re.compile(r"any\s+XLExpression\s*<\s*(?P<arg>.+?)\s*>(?=[,)\s]|$)")
 SOME_EXPR = re.compile(r"some\s+XLExpression\s*<\s*(?P<arg>.+?)\s*>\s*$")
-
-
-def strip_optional(text):
-    text = normalise(text)
-    match = re.fullmatch(r"Optional<(.+)>", text)
-    if match:
-        return match.group(1), True
-    if text.endswith("?"):
-        return text[:-1], True
-    return text, False
 
 
 def operand_types(params):
@@ -178,6 +180,8 @@ PRELUDE_COMMON = """\
 // removed. Only the surface under measurement is compiled into each module, so
 // a query file sees one overload set and not two.
 
+import Foundation
+
 public struct XLBuilder {
     public init() {}
 }
@@ -185,6 +189,19 @@ public struct XLBuilder {
 public protocol XLEncodable {
     func makeSQL(context: inout XLBuilder)
 }
+
+// Markers the shipped members constrain on. They carry no requirement here,
+// because the harness measures signatures and never renders SQL.
+public protocol XLLiteral {}
+
+public protocol XLBoolean {}
+
+extension Bool: XLLiteral, XLBoolean {}
+extension Int: XLLiteral {}
+extension Double: XLLiteral {}
+extension String: XLLiteral {}
+extension Data: XLLiteral {}
+extension Optional: XLLiteral where Wrapped: XLLiteral {}
 """
 
 PRELUDE_CURRENT = PRELUDE_COMMON + """
@@ -427,8 +444,8 @@ def surface_kind(kind):
 
 
 def rewrite_signature(declaration, kind):
-    kind = surface_kind(kind)
     """Return the declaration rendered for one surface, plus its raw variants."""
+    kind = surface_kind(kind)
     generics = declaration["generics"] or ""
     params = declaration["params"]
     result = declaration["result"]
@@ -689,7 +706,11 @@ def main():
                 os.path.join(output, f"{kind}-query-{clauses}.swift"),
             )
     print(f"operator declarations read: {len(declarations)}")
-    print(f"member declarations read: {len(members)}")
+    print(
+        f"member declarations read: {MEMBER_TALLY['kept']} of "
+        f"{MEMBER_TALLY['seen']} (the rest name a type the harness does not "
+        f"define)"
+    )
     for kind, count in counts.items():
         print(f"{kind} surface overloads: {count}")
 

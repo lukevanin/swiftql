@@ -28,14 +28,21 @@ while `@SQLTable` keeps emitting what it emits today? See
 ## The overload set
 
 `generate.py` reads the shipped declarations, so the harness carries the real
-count and the real signature shapes.
+signature shapes. It restates all 80 free operators that take an expression.
+It restates 52 of the 123 members of an unconstrained `extension XLExpression`
+block, and it prints that count on every run. A member it cannot restate names
+a type the harness does not define, or takes an operand that is not an
+expression. Members in a constrained extension are not read at all.
+
+**The harness therefore understates the member half of the surface.** The real
+gap can be larger than the gap below. It cannot be smaller for that reason.
 
 | Surface | Overloads |
 | --- | ---: |
-| current | 115 |
-| each dialect surface | 259 |
+| current | 132 |
+| each dialect surface | 276 |
 
-The dialect surfaces are 2.25 times larger. The growth is not the dialect
+The dialect surfaces are 2.09 times larger. The growth is not the dialect
 parameter itself. A concrete type such as `String` cannot conform to a protocol
 for every dialect, so a raw Swift value no longer lifts into an operand on its
 own. Each binary operator therefore needs one more overload on each side.
@@ -46,18 +53,19 @@ Median of 15 runs, from `-debug-time-function-bodies`.
 
 | Clauses | current | existential | concrete | wrapper |
 | ---: | ---: | ---: | ---: | ---: |
-| 30 | 17.9 ms | 20.5 ms (+14.4 %) | 17.7 ms (−1.4 %) | 21.4 ms (+19.2 %) |
-| 120 | 46.6 ms | 56.0 ms (+19.9 %) | 50.3 ms (+7.8 %) | 61.4 ms (+31.5 %) |
-| 450 | 280.7 ms | 371.3 ms (+32.2 %) | 330.6 ms (+17.8 %) | 405.1 ms (+44.3 %) |
+| 30 | 18.7 ms | 21.5 ms (+15.0 %) | 18.6 ms (−0.5 %) | 22.6 ms (+20.4 %) |
+| 120 | 48.1 ms | 57.8 ms (+20.3 %) | 52.0 ms (+8.1 %) | 62.7 ms (+30.5 %) |
+| 450 | 285.0 ms | 357.0 ms (+25.3 %) | 342.6 ms (+20.2 %) | 429.8 ms (+50.8 %) |
 
-Five separate runs of the harness put the existential gap between 10 and 31
-percent at 30 clauses, and between 22 and 32 percent at 450 clauses. Read the
-figure as a band and not as a point.
+Seven separate runs of the harness put the existential gap between 10 and 31
+percent at 30 clauses, and between 22 and 32 percent at 450 clauses. Read each
+figure as a band and not as a point. A 30-clause body takes about 19
+milliseconds, so a small absolute change moves its percentage a long way.
 
 **The cost is not prohibitive.** The gap keeps the shape the spike predicted,
 and the larger overload set did not change that shape. A 450-clause query is
 far larger than any query in this repository, and it pays 50 to 90
-milliseconds more. A 30-clause query pays about 2.6 milliseconds more.
+milliseconds more. A 30-clause query pays about 2.8 milliseconds more.
 
 ## What the parameter buys
 
@@ -69,11 +77,17 @@ A SQLite-only operation, `collate`, is offered on the SQLite dialect only.
 | composed SQLite expression | accepted | accepted | accepted | accepted |
 | PostgreSQL column | **accepted** | refused | refused | refused |
 | composed PostgreSQL expression | **accepted** | refused | refused | refused |
-| SQLite column against a PostgreSQL column | **accepted** | refused | refused | refused |
+| SQLite column against a PostgreSQL column | not expressible | refused | refused | refused |
 
-The current surface accepts every one of them. That is the defect. All three
-dialect surfaces refuse the PostgreSQL cases at the call site, and they refuse
-the composed expression as well as the bare column.
+The current surface accepts every case it can express. That is the defect. It
+cannot express the last row at all, because it has no dialect to mix, so the
+harness does not write that fixture for it.
+
+All three dialect surfaces refuse the PostgreSQL cases at the call site, and
+they refuse the composed expression as well as the bare column. `measure.sh`
+reads a refusal only when the compiler names both dialects. Any other compile
+failure is reported as a fault in the harness, so a broken fixture cannot read
+as evidence.
 
 ## What the parameter does to the error text
 
@@ -113,10 +127,11 @@ the accepted design note describes.
 - It refuses the operations the issue asks it to refuse, on a composed
   expression as well as on a column.
 - It holds the diagnostics bar. Neither other surface does.
-- It costs about 14 percent at a realistic query size and about 32 percent at
-  450 clauses. The concrete surface is cheaper but pays for that with a worse
-  message on the most common mistake of all, so its speed does not pay for its
-  diagnostics.
+- It costs about 15 percent at a realistic query size and about 25 percent at
+  450 clauses. The concrete surface is cheaper, and at 30 clauses the
+  difference between the two is inside the noise. It pays for its speed with a
+  worse message on a wrong value type, which is a common mistake, so the trade
+  is not worth taking.
 
 ## One finding that changes the plan
 

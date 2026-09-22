@@ -6,6 +6,7 @@ import os
 import sys
 
 OUT = os.path.join(sys.argv[1], "generated")
+os.makedirs(OUT, exist_ok=True)
 
 MODULE = {
     "current": "GateCurrent",
@@ -46,6 +47,11 @@ REFUSAL = [
     ),
 ]
 
+# The current surface has no dialect, so a mixed-dialect comparison cannot be
+# written against it at all. Writing one anyway makes the compiler reject the
+# scope type, which would read as a refusal it does not perform.
+SKIPPED = {("current", "mixed-dialect-comparison")}
+
 # The three ordinary mistakes the accepted design measured.
 DIAGNOSTIC = [
     ("mistake-type-mismatch", "scope.text0 == 42"),
@@ -57,6 +63,8 @@ DIAGNOSTIC = [
 def main():
     for kind, module in MODULE.items():
         for name, dialect, body in REFUSAL:
+            if (kind, name) in SKIPPED:
+                continue
             path = os.path.join(OUT, f"{kind}-refusal-{name}.swift")
             with open(path, "w") as handle:
                 handle.write(
