@@ -12,7 +12,7 @@
 //  behaviour that produced it.
 //
 
-import CSQLite
+import GRDBSQLite
 import GRDB
 import XCTest
 

@@ -1,4 +1,4 @@
-import CSQLite
+import GRDBSQLite
 import Foundation
 import GRDB
 
