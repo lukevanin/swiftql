@@ -19,7 +19,12 @@ public enum XLLogLevel {
 ///
 /// Logs SwiftQL events.
 ///
-public protocol XLLogger {
+/// A logger is `Sendable` because SwiftQL writes to it from whichever thread
+/// runs the statement. A pooled reader connection, a live-query observation,
+/// and the calling thread can all log at the same time. An implementation must
+/// therefore be safe for concurrent use.
+///
+public protocol XLLogger: Sendable {
     
     func log(level: XLLogLevel, message: String)
 }

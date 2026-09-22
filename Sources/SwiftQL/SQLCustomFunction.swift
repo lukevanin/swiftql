@@ -121,10 +121,12 @@ public struct XLCustomFunctionRegistration: Sendable {
 
     /// Creates a registration for one custom function type.
     public static func make<F>(_ type: F.Type) -> XLCustomFunctionRegistration
-    where F: XLCustomFunction, F.T: DatabaseValueConvertible {
+    where F: XLCustomFunction, F.T: DatabaseValueConvertible & Sendable {
         // Captured as plain values rather than the generic metatype `F.Type` itself, so GRDB's
         // `@Sendable` function closure below never needs to carry an unconstrained generic
-        // parameter across the isolation boundary.
+        // parameter across the isolation boundary. `F.T: Sendable` covers the one metatype that
+        // remains: the closure converts an `F.T` result to GRDB's existential return type, and a
+        // `Sendable` type has a `Sendable` metatype.
         let functionDefinition = F.definition
         // `F.execute` is a static function with no captured state -- calling it concurrently
         // from multiple pooled connections is exactly this feature's purpose -- so it is safe to
@@ -171,7 +173,7 @@ extension XLBuilder {
     public mutating func customFunctionCall<F>(
         _ type: F.Type,
         parameters: ListBuilder
-    ) where F: XLCustomFunction, F.T: DatabaseValueConvertible {
+    ) where F: XLCustomFunction, F.T: DatabaseValueConvertible & Sendable {
         customFunction(.make(type))
         simpleFunction(name: type.definition.name, parameters: parameters)
     }

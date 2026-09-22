@@ -52,13 +52,25 @@ struct ColumnReadIntegerFunction: XLCustomFunction {
 }
 
 
-private final class ColumnReadTestLogger: XLLogger {
-    private(set) var errorMessages: [String] = []
+// `XLLogger` is `Sendable` (issue #792). The lock supplies the safety the
+// conformance states.
+private final class ColumnReadTestLogger: XLLogger, @unchecked Sendable {
+    private let lock = NSLock()
+    private var messages: [String] = []
+
+    var errorMessages: [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return messages
+    }
 
     func log(level: XLLogLevel, message: String) {
-        if case .error = level {
-            errorMessages.append(message)
+        guard case .error = level else {
+            return
         }
+        lock.lock()
+        messages.append(message)
+        lock.unlock()
     }
 }
 

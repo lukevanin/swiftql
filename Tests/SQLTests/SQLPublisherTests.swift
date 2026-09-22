@@ -252,7 +252,9 @@ private final class BlockingObservationFunctionState: @unchecked Sendable {
 
 final class XLPublisherTests: XCTestCase {
 
-    private final class RecordingLogger: XLLogger {
+    // `XLLogger` is `Sendable` (issue #792). The lock supplies the safety
+    // the conformance states.
+    private final class RecordingLogger: XLLogger, @unchecked Sendable {
         private let lock = NSLock()
         private var messages: [String] = []
 

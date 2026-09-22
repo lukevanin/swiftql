@@ -11,6 +11,7 @@
 import Dispatch
 import Foundation
 import GRDB
+import SwiftQLCore
 #if canImport(Combine)
 import Combine
 #else
@@ -104,15 +105,33 @@ extension GRDBRequest {
         }
         do {
             let packet = try executor.sqlitePacket(bindings)
-            guard let bridge = liveQueryStreamBridge(fetch: { database -> [Row] in
+            // Only `Sendable` values cross into the observation: the executor
+            // and the logger. The row reader stays on this side of the
+            // boundary, and the rows it decodes are built after the
+            // observation delivers them. See `liveQueryStreamBridge(fetch:)`.
+            let executor = executor
+            let logger = logger
+            guard let bridge = liveQueryStreamBridge(fetch: { database -> [[XLSQLiteValue]] in
                 logger?.debug(
                     "stream: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
                 var connection = executor.driver.makeConnection(database)
-                return try decodeRows(packet: packet, in: &connection)
+                return try executor.fetchAll(packet: packet, in: &connection)
             }) else {
                 return xlFailingAsyncThrowingStream(XLTransactionScopeError.liveQueriesUnsupportedInTransaction)
             }
-            return bridge.stream()
+            let decodeRow = sendableRowDecode()
+            return AsyncThrowingStream(unfolding: { () async throws -> [Row]? in
+                guard let values = try await bridge.next() else {
+                    return nil
+                }
+                do {
+                    return try values.map(decodeRow)
+                }
+                catch {
+                    logger?.error("stream: Cannot decode entity: \(error)")
+                    throw error
+                }
+            })
         }
         catch {
             return xlFailingAsyncThrowingStream(error)
@@ -136,18 +155,35 @@ extension GRDBRequest {
         }
         do {
             let packet = try executor.sqlitePacket(bindings)
-            guard let bridge = liveQueryStreamBridge(fetch: { database -> Row? in
+            // Same boundary as `stream(bindings:)` above: the observation
+            // carries raw dialect values, and the row reader decodes them
+            // after delivery.
+            let executor = executor
+            let logger = logger
+            guard let bridge = liveQueryStreamBridge(fetch: { database -> [XLSQLiteValue]? in
                 logger?.debug(
                     "streamOne: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
                 var connection = executor.driver.makeConnection(database)
-                guard let values = try executor.fetchOne(packet: packet, in: &connection) else {
-                    return nil
-                }
-                return try GRDBRowDecoder(reader: reader).decode(values: values)
+                return try executor.fetchOne(packet: packet, in: &connection)
             }) else {
                 return xlFailingAsyncThrowingStream(XLTransactionScopeError.liveQueriesUnsupportedInTransaction)
             }
-            return bridge.stream()
+            let decodeRow = sendableRowDecode()
+            return AsyncThrowingStream(unfolding: { () async throws -> Row?? in
+                guard let values = try await bridge.next() else {
+                    return nil
+                }
+                guard let values else {
+                    return Row??.some(nil)
+                }
+                do {
+                    return Row??.some(try decodeRow(values))
+                }
+                catch {
+                    logger?.error("streamOne: Cannot decode entity: \(error)")
+                    throw error
+                }
+            })
         }
         catch {
             return xlFailingAsyncThrowingStream(error)
@@ -168,8 +204,14 @@ extension GRDBRequest {
     /// Each bridge also gets its own serial queue. GRDB delivers snapshots on it, and it is the
     /// default retry scheduler, so nothing in `stream()` needs the main thread. The Combine adapter
     /// adds its main-queue hop itself (`xlLiveQueryPublisher(makeStream:)`).
-    func liveQueryStreamBridge<Value>(
-        fetch: @escaping (Database) throws -> Value
+    ///
+    /// `fetch` is `@Sendable` because GRDB 7 runs it on a pool reader, and
+    /// `Value` is `Sendable` because GRDB 7 constrains a reducer's value. The
+    /// callers therefore fetch raw dialect values and decode the typed row
+    /// afterwards: `GRDBInvocationExecutor` is `Sendable`, while the row
+    /// reader graph behind `XLRowReadable` is not.
+    func liveQueryStreamBridge<Value: Sendable>(
+        fetch: @escaping @Sendable (Database) throws -> Value
     ) -> GRDBLiveQueryAsyncBridge<Value>? {
         guard let databasePool = executor.driver.databasePool else {
             return nil

@@ -151,7 +151,9 @@ extension GRDBDatabase {
 
 /// Captures logged SQL text so a test can inspect what was actually rendered
 /// and executed, without any internal render-count hook.
-private final class RecordingLogger: XLLogger {
+// `XLLogger` is `Sendable` (issue #792). The lock supplies the safety the
+// conformance states.
+private final class RecordingLogger: XLLogger, @unchecked Sendable {
     private let lock = NSLock()
     private var messages: [String] = []
 

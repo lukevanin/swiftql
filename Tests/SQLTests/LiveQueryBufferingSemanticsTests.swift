@@ -381,15 +381,17 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
 
     private let mailbox = SingleSlotMailbox<Value>()
 
-    private let startObservation: (
-        @escaping (Error) -> Void,
-        @escaping (Value) -> Void
+    // GRDB 7 declares the observation callbacks `@Sendable`, so this probe
+    // matches the production `GRDBLiveQueryAsyncBridge.Start` shape.
+    private let startObservation: @Sendable (
+        @escaping @Sendable (Error) -> Void,
+        @escaping @Sendable (Value) -> Void
     ) -> AnyDatabaseCancellable
 
     init(
-        start: @escaping (
-            @escaping (Error) -> Void,
-            @escaping (Value) -> Void
+        start: @escaping @Sendable (
+            @escaping @Sendable (Error) -> Void,
+            @escaping @Sendable (Value) -> Void
         ) -> AnyDatabaseCancellable
     ) {
         self.startObservation = start
@@ -422,13 +424,9 @@ private final class LazyBufferedGRDBBridge<Value>: @unchecked Sendable {
     /// itself instead of storing it -- mirroring the identical check-after-
     /// store pattern the production `GRDBLiveQueryAsyncBridge` (#308) and
     /// `XLRequestPublisherAsyncBridge` (#309) use for the same race.
-    // See the `nonisolated(unsafe)` shadow note on `SingleSlotMailbox.yield(_:)` above -- identical
-    // reasoning, applied to a GRDB `AnyDatabaseCancellable` captured by this file's `@Sendable`
-    // locked-state closure.
+    // `AnyDatabaseCancellable` is `Sendable` in GRDB 7, so no shadow is needed
+    // to capture it in this file's `@Sendable` locked-state closure.
     private func storeCancellable(_ newCancellable: AnyDatabaseCancellable) {
-        #if compiler(>=6.0)
-        nonisolated(unsafe) let newCancellable = newCancellable
-        #endif
         let alreadyCancelled: Bool = state.withLock { state in
             guard !state.didCancel else { return true }
             state.cancellable = newCancellable
@@ -987,13 +985,19 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
 
     func testTerminalErrorIsForwardedExactlyOnceThroughTheBridge() throws {
         struct ProbeError: Error, Equatable {}
+        let pool = databasePool!
         let bridge = LazyBufferedGRDBBridge<Int> { onError, onChange in
             ValueObservation
                 .tracking { db -> Int in
                     _ = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM Row")
                     throw ProbeError()
                 }
-                .start(in: self.databasePool, onError: onError, onChange: onChange)
+                .start(
+                    in: pool,
+                    scheduling: .async(onQueue: .main),
+                    onError: onError,
+                    onChange: onChange
+                )
         }
 
         do {
@@ -1117,7 +1121,9 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func makeBridge(fetchProbe: @escaping () -> Void = {}) -> LazyBufferedGRDBBridge<Int> {
+    private func makeBridge(
+        fetchProbe: @escaping @Sendable () -> Void = {}
+    ) -> LazyBufferedGRDBBridge<Int> {
         let pool = databasePool!
         return LazyBufferedGRDBBridge<Int> { onError, onChange in
             ValueObservation
@@ -1125,7 +1131,12 @@ final class LiveQueryBufferingSemanticsTests: XCTestCase {
                     fetchProbe()
                     return try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM Row") ?? 0
                 }
-                .start(in: pool, onError: onError, onChange: onChange)
+                .start(
+                    in: pool,
+                    scheduling: .async(onQueue: .main),
+                    onError: onError,
+                    onChange: onChange
+                )
         }
     }
 

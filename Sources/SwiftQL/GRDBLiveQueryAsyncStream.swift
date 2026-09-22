@@ -34,11 +34,15 @@ import GRDB
 /// await` loop over the returned `AsyncThrowingStream` — starts the
 /// underlying GRDB observation. This is verified explicitly by
 /// `GRDBLiveQueryAsyncStreamTests.testUnusedStreamPerformsNoObservationOrFetch`.
-final class GRDBLiveQueryAsyncBridge<Value>: @unchecked Sendable {
+final class GRDBLiveQueryAsyncBridge<Value: Sendable>: @unchecked Sendable {
 
-    typealias Start = (
-        @escaping (Error) -> Void,
-        @escaping (Value) -> Void
+    /// GRDB 7 declares the observation callbacks `@Sendable`, and it calls
+    /// them from a pool reader. The typealias matches that shape, so the
+    /// closures this bridge hands to `ValueObservation.start` carry the
+    /// annotation the API asks for instead of relying on `@preconcurrency`.
+    typealias Start = @Sendable (
+        @escaping @Sendable (Error) -> Void,
+        @escaping @Sendable (Value) -> Void
     ) -> AnyDatabaseCancellable
 
     private let lock = NSLock()
@@ -147,13 +151,8 @@ final class GRDBLiveQueryAsyncBridge<Value>: @unchecked Sendable {
     private func handleValue(_ value: Value, generation: Int) {
         guard retryState.shouldDeliver(generation: generation) else { return }
         retryState.didDeliver(generation: generation)
-        // `XLSingleSlotAsyncBuffer.yield(_:)`'s parameter is `sending` (Swift 6.0+); this `value` is a
-        // plain, non-sending closure parameter (from the `Start` typealias's callback, matching GRDB's
-        // own callback shape), so it needs the same `nonisolated(unsafe)` shadow used at every other
-        // call site of a `sending`-parameter API from a plain, non-sending source in this codebase.
-        #if compiler(>=6.0)
-        nonisolated(unsafe) let value = value
-        #endif
+        // `Value` is `Sendable`, so `XLSingleSlotAsyncBuffer.yield(_:)` accepts it as a `sending`
+        // argument directly. No shadow is needed.
         buffer.yield(value)
     }
 
