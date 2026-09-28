@@ -129,9 +129,10 @@ rules. A Claude session runs that loop itself, and adds two things:
 
 - **When `--comment` cannot post.** Posting inline review comments can fail
   with `403 Resource not accessible by integration`. The review still returns
-  its findings, so nothing needs rerunning: record the round as one PR
-  comment, with whichever comment tool accepts the write, and keep doing so
-  for the rest of that PR. If no comment can be posted, give the round to
-  the user instead.
-- **Tell the user.** When the loop ends, give the user the same open items as
-  the closing comment.
+  its findings, so do not rerun it: record the round as CONTRIBUTING.md
+  step 2 describes, with whichever comment tool accepts the write, and do so
+  for the rest of that PR.
+- **Tell the user.** When the loop ends, give the user the open items from
+  the closing comment. If no PR comment could be posted at all, give the
+  user every round and the closing summary instead, and say that none of it
+  is on the PR.
