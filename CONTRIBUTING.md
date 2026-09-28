@@ -125,10 +125,12 @@ Avoid restating what the diff already shows.
 
 1. Open a PR from your branch against `main` (or the milestone base branch
    `version/x.y.z` when the milestone owns a dedicated branch).
-2. Request a Copilot review.
-3. Address every actionable Copilot comment — either fix the code or add a
-   brief explanation of why not in a reply. Push the updated commits and
-   re-request review until Copilot has no further useful feedback.
+2. Request a Claude review. Copilot review is not available for this
+   repository. Run Claude Code's `/code-review` skill on the PR with
+   `--comment`, so the findings are posted as review comments.
+3. Address every actionable finding — either fix the code or add a brief
+   explanation of why not in a reply. Push the updated commits and run the
+   review again on the new head until a round has no actionable findings.
 4. A human maintainer merges the PR. PRs are never self-merged.
 
 Patch releases that land on a preparation branch (`release/vX.Y.Z-changelog`)

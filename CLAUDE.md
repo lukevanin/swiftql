@@ -103,10 +103,20 @@ When a milestone contains multiple issues, deliver **one PR per issue**, each
 **targeting the milestone base branch** (`version/x.y.z`), not `main`.
 
 **Scaffolding stops here.** Implementing the issues and opening their PRs happens
-in separate delivery sessions. Those sessions follow the repo's existing Copilot
-review loop: open the PR, request a Copilot review, address every actionable
-comment (fix or explain why not), push, and re-request until Copilot has no
-further useful feedback.
+in separate delivery sessions. Those sessions follow the repo's Claude review
+loop (see [CONTRIBUTING.md](CONTRIBUTING.md#pull-request-process)).
+
+**Copilot review is not available for this repo. Do not request it.** Review
+every PR with Claude instead:
+
+1. Open the PR against its base branch.
+2. Run the `/code-review` skill on the PR at `high` effort with `--comment`, so
+   the findings are posted to the PR as review comments.
+3. Address every actionable finding: fix it, or reply on the thread explaining
+   why not.
+4. Push, then run the review again on the new head.
+5. Repeat until a review round has no actionable findings. Say so in a PR
+   comment, and leave the merge to the maintainer.
 
 ### Step 6 — Completion and release (defer)
 
