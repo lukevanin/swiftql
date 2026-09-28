@@ -124,19 +124,14 @@ in separate delivery sessions, which review each PR as described in
 
 **Copilot review is not available for this repo. Do not request it.** Every PR
 is reviewed with Claude, following the loop in
-[CONTRIBUTING.md](CONTRIBUTING.md#pull-request-process), which is the only copy
-of its rules. This section adds only what a Claude session needs to run it:
+[CONTRIBUTING.md](CONTRIBUTING.md#pull-request-process), which holds all of its
+rules. A Claude session runs that loop itself, and adds two things:
 
-- **Which GitHub writes work.** On #800 and #801 (September 2026),
-  `/code-review --comment` could not post: opening a review returned
-  `403 Resource not accessible by integration`. A PR conversation comment
-  through `add_issue_comment` worked, and so did creating and editing a PR.
-  Expect to record each round as one PR comment; the inline steps of the
-  loop (threads to reply on or resolve) then do not apply. If a comment
-  cannot be posted either, give the round to the user instead.
-- **Verify before acting.** A review at `high` effort errs on the side of
-  reporting, so some findings do not reproduce, and later rounds can repeat
-  or reverse earlier ones. Say so in the round's comment rather than
-  changing code to satisfy them.
-- **Tell the user as well.** When the loop stops, post its closing comment on
-  the PR as CONTRIBUTING.md asks, and give the user the same open items.
+- **When `--comment` cannot post.** Posting inline review comments can fail
+  with `403 Resource not accessible by integration`. The review still returns
+  its findings, so nothing needs rerunning: record the round as one PR
+  comment, with whichever comment tool accepts the write, and keep doing so
+  for the rest of that PR. If no comment can be posted, give the round to
+  the user instead.
+- **Tell the user.** When the loop ends, give the user the same open items as
+  the closing comment.

@@ -127,20 +127,22 @@ Avoid restating what the diff already shows.
    `--comment`, so the findings are posted as review comments. If they
    cannot be posted, record the round as one PR comment with a table of every
    finding and its outcome. If you do not use Claude Code, say so in the PR:
-   the maintainer then runs every round and posts the closing comment, and
-   you push the fixes.
-3. Address every actionable finding — either fix the code, or explain why
-   not. When the round was posted inline, reply on the finding's thread and
-   resolve the threads a push fixes. When it was recorded as one comment,
-   the explanation goes in that comment's table.
-4. Push, and review the new head. A finding that repeats one already
-   answered is not answered again: reply on its existing thread, or, in a
-   table, mark it as a repeat and link the earlier round's comment.
-5. Stop when a round has no actionable findings, or after five rounds,
-   whichever comes first. When the fifth round's fixes are pushed, review
-   the new head once more without fixing anything, so no code is left
-   unreviewed. Then post a closing PR comment that lists what is still open,
-   including that last review's findings, and leave it to the maintainer.
+   the maintainer then runs each review and posts the closing comment, and
+   you answer and fix the findings.
+3. Verify each finding before acting on it. A review at `high` effort errs on
+   the side of reporting, so some findings do not reproduce, and a later
+   round can repeat or reverse an earlier one. Fix the real ones. For the
+   rest, explain why not, rather than changing code to satisfy them. When the
+   round was posted inline, answer on the finding's thread and resolve the
+   threads a push fixes; when it was one comment, answer in its table.
+4. Push, and review the new head. A finding that repeats one already answered
+   is answered by a link to the earlier answer, on its own thread or in the
+   table, not argued again.
+5. The loop ends when a round has no actionable findings, or after the fixes
+   from a fifth round are pushed. In the second case, review the head once
+   more without fixing anything, so no code is left unreviewed. Either way,
+   post a closing PR comment that lists what is still open, or says that
+   nothing is, and leave it to the maintainer.
 6. A human maintainer merges the PR. PRs are never self-merged.
 
 Patch releases that land on a preparation branch (`release/vX.Y.Z-changelog`)
