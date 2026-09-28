@@ -622,18 +622,16 @@ extension GRDBDatabaseDriver {
     fileprivate func withBlockingValidatedTransaction<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
+        let operationError = XLTransactionOperationError()
         do {
             return try withBlockingTransaction { connection in
-                try XLTransactionOperationFailure.tagging {
+                try operationError.recording {
                     try operation(&connection)
                 }
             }
         }
         catch {
-            throw XLTransactionOperationFailure.validatedTransactionError(
-                error,
-                driver: driverIdentifier
-            )
+            throw operationError.validatedError(for: error, driver: driverIdentifier)
         }
     }
 }

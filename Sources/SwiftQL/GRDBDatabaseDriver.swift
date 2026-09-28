@@ -158,14 +158,20 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         switch access {
         case .pool(let pool):
             try preconditionNotRootReentrant(.write)
-            return try pool.write { database in
-                // `.writer`, not `.transaction`: the v1 request layer may
-                // read through the root database while this write is open,
-                // for example from a `RETURNING` result-set body, and GRDB
-                // allows that read on a reader.
-                try holding(.writer) {
+            // The hold wraps the whole transaction, so it closes only after
+            // GRDB commits or rolls back. A root read from inside it would
+            // otherwise run on a reader and miss the uncommitted writes.
+            return try pool.writeWithoutTransaction { database in
+                try holding(.transaction) {
                     var connection = makeConnection(database)
-                    return try operation(&connection)
+                    var result: Result?
+                    try database.inTransaction {
+                        result = try operation(&connection)
+                        return .commit
+                    }
+                    // `inTransaction` returns only after `operation` returned
+                    // and the transaction committed, so `result` is set.
+                    return result!
                 }
             }
         case .pinned(let box):
@@ -1606,66 +1612,58 @@ private extension XLBindingKey {
 
 
 ///
-/// Detects "root-executor re-entry" (issue #284): a second
-/// `withTransaction(_:)` call, reached from inside an already-active body,
-/// on the *original, unpinned* database value rather than the pinned scope
-/// `body` was given.
+/// Detects "root-executor re-entry" (issue #284): a call through the
+/// *original, unpinned* database, reached from inside a scope that already
+/// holds one of that database's connections.
 ///
 /// `GRDBDatabaseDriver.isPinned` alone cannot catch this, because the
 /// captured root database's own driver was never marked pinned — only the
 /// scope handed to `body` was. And the crash this guards against cannot be
-/// caught after the fact: GRDB's writer access is not reentrant, and a
-/// reentrant `DatabasePool.write`/`writeWithoutTransaction` call traps with
-/// an unconditional `fatalError` ("Database methods are not reentrant.")
-/// before a single line of SwiftQL runs. This tracker must reject the call
-/// *before* it reaches `databasePool.write` at all.
+/// caught after the fact: GRDB's connection accesses are not reentrant, and
+/// a reentrant call traps with an unconditional "Database methods are not
+/// reentrant." before a single line of SwiftQL runs. This tracker must reject
+/// the call *before* it reaches the pool at all.
 ///
-/// Scoped per task rather than per pool, through a `@TaskLocal` (issue #676).
-/// A call nested inside `body` runs in the task that entered the scope, so it
-/// sees the marker, even after a suspension point that resumed the task on a
-/// different thread. Two independent, concurrent `withTransaction(_:)` calls
-/// from different tasks are unrelated activations and both must succeed,
-/// serialized safely by GRDB's own writer queue. Outside any task, Swift
-/// keeps task-local values per thread, which is the scope the synchronous
-/// v1 path has always had.
+/// A scope records what it holds (see ``Hold``), in one of two places:
+///
+/// - A **reader** or **writer** hold is kept per thread, in thread-local
+///   storage. GRDB's rule is per thread: it stops a second read, or a second
+///   write, from the thread that already holds that kind of connection. A
+///   task created inside the scope runs on another thread with its own
+///   connection, so it must not see these holds.
+/// - A **transaction** hold is kept in a `@TaskLocal` (issue #676). A call
+///   nested inside the transaction runs in the task that opened it, even
+///   after a suspension point that resumed the task on another thread, and a
+///   task created inside the transaction inherits the hold. Every root access
+///   from either is rejected until the transaction ends, because it would
+///   lease a second connection and miss the transaction's uncommitted writes.
+///   Outside any task, Swift keeps task-local values per thread.
 ///
 /// Callers must enter `withActive(_:holding:_:)` in the same synchronous
-/// extent that runs `body` -- for the GRDB adapter, that means *inside* the
-/// `databasePool.read`/`write` closure, not around it. GRDB may run that
-/// closure on its own queue's thread, and a value bound on the caller's
-/// thread outside a task would not be visible there.
+/// extent that runs `body` -- for the GRDB adapter, *inside* the pool's
+/// `read`/`write` closure, not around it. GRDB may run that closure on its
+/// own queue's thread.
 ///
-/// Each activation is a reference that is closed when `body` returns, and it
-/// records what the scope holds (see ``Hold``). A task created inside `body`
-/// inherits the task-local list. A `.transaction` activation rejects that
-/// task's root-database access while `body` runs, because the access would
-/// lease a second connection and miss the transaction's uncommitted writes.
-/// A `.reader` or `.writer` activation applies only on the thread that
-/// opened it, where GRDB's own rule applies, so it never rejects a task
-/// running elsewhere. Once `body` has returned, an inherited activation
-/// reads as closed and rejects nothing.
+/// A transaction hold is a reference that is closed when `body` returns. A
+/// task that inherited it stops being rejected at that point, so a caller
+/// must close it only once the transaction has committed or rolled back.
 final class GRDBTransactionScopeTracker: Sendable {
 
     static let shared = GRDBTransactionScopeTracker()
 
     @TaskLocal
-    private static var activations: [Activation] = []
+    private static var transactions: [TransactionActivation] = []
 
     /// What an active scope holds.
     enum Hold: Sendable {
-        /// One pooled reader. GRDB stops a second read from the thread that
-        /// holds it, so a root read from that thread is rejected. A read from
-        /// another thread, or a write, is not.
+        /// One pooled reader. A root read from the same thread is rejected.
         case reader
-        /// The writer, outside a transaction or inside one the v1 request
-        /// layer opened. GRDB stops a second write from the thread that holds
-        /// it, so a root write from that thread is rejected. A read is not:
-        /// GRDB serves it from a reader.
+        /// The writer outside a transaction. A root write from the same
+        /// thread is rejected; a read is not, because GRDB serves it from a
+        /// reader and there are no uncommitted writes for it to miss.
         case writer
-        /// A transaction a caller scoped. Every root access from the task
-        /// that opened it, and from any task created inside it, is rejected
-        /// until it ends: a write would deadlock or trap, and a read would
-        /// miss the transaction's uncommitted writes (issue #284).
+        /// A transaction on the writer. Every root access from the task that
+        /// opened it, and from any task created inside it, is rejected.
         case transaction
     }
 
@@ -1681,69 +1679,49 @@ final class GRDBTransactionScopeTracker: Sendable {
     /// refused, because an open scope on that database holds a connection
     /// that the access would conflict with.
     func rejects(_ access: Access, on databaseIdentifier: XLDatabaseIdentifier) -> Bool {
-        Self.activations.contains { activation in
-            activation.databaseIdentifier == databaseIdentifier
-                && activation.rejects(access)
+        if ThreadHolds.current.rejects(access, on: databaseIdentifier) {
+            return true
+        }
+        return Self.transactions.contains { transaction in
+            transaction.databaseIdentifier == databaseIdentifier && transaction.isOpen
         }
     }
 
-    /// Marks `databaseIdentifier` active in the calling task for the duration
-    /// of `body`, and always clears it again afterward -- including when
-    /// `body` throws.
+    /// Marks `databaseIdentifier` as held for the duration of `body`, and
+    /// always clears it again afterward -- including when `body` throws.
     func withActive<Result>(
         _ databaseIdentifier: XLDatabaseIdentifier,
-        holding hold: Hold = .transaction,
+        holding hold: Hold,
         _ body: () throws -> Result
     ) throws -> Result {
-        let activation = Activation(databaseIdentifier, hold: hold)
-        defer { activation.close() }
-        return try Self.$activations.withValue(Self.activations + [activation]) {
-            try body()
+        switch hold {
+        case .reader, .writer:
+            let holds = ThreadHolds.current
+            holds.push(databaseIdentifier, hold)
+            defer { holds.pop() }
+            return try body()
+        case .transaction:
+            let transaction = TransactionActivation(databaseIdentifier)
+            defer { transaction.close() }
+            return try Self.$transactions.withValue(Self.transactions + [transaction]) {
+                try body()
+            }
         }
     }
 
-    /// One `withActive` call. Closed exactly once, when that call returns.
-    ///
-    /// A reader or writer hold also records its thread. A task created inside
-    /// the scope inherits the activation but runs on another thread, and the
-    /// scope's thread is busy running the scope until it closes, so only the
-    /// scope's own synchronous extent can match.
-    private final class Activation: @unchecked Sendable {
+    /// One transaction hold. Closed exactly once, when its scope returns.
+    private final class TransactionActivation: @unchecked Sendable {
 
         let databaseIdentifier: XLDatabaseIdentifier
-
-        let hold: Hold
-
-        private let thread: pthread_t
 
         private let lock = NSLock()
         private var closed = false
 
-        init(_ databaseIdentifier: XLDatabaseIdentifier, hold: Hold) {
+        init(_ databaseIdentifier: XLDatabaseIdentifier) {
             self.databaseIdentifier = databaseIdentifier
-            self.hold = hold
-            self.thread = pthread_self()
         }
 
-        func rejects(_ access: Access) -> Bool {
-            guard isOpen else {
-                return false
-            }
-            switch hold {
-            case .transaction:
-                return true
-            case .reader:
-                return access == .read && isOnItsThread
-            case .writer:
-                return access == .write && isOnItsThread
-            }
-        }
-
-        private var isOnItsThread: Bool {
-            pthread_equal(thread, pthread_self()) != 0
-        }
-
-        private var isOpen: Bool {
+        var isOpen: Bool {
             lock.lock()
             defer { lock.unlock() }
             return !closed
@@ -1755,7 +1733,73 @@ final class GRDBTransactionScopeTracker: Sendable {
             closed = true
         }
     }
+
+    ///
+    /// The reader and writer holds of one thread, innermost last.
+    ///
+    /// Only its own thread reads or writes it, so it needs no lock. It lives
+    /// in pthread thread-local storage, which a task never inherits, and is
+    /// released when its thread exits.
+    ///
+    private final class ThreadHolds {
+
+        private var holds: [(databaseIdentifier: XLDatabaseIdentifier, hold: Hold)] = []
+
+        func push(_ databaseIdentifier: XLDatabaseIdentifier, _ hold: Hold) {
+            holds.append((databaseIdentifier, hold))
+        }
+
+        func pop() {
+            holds.removeLast()
+        }
+
+        func rejects(_ access: Access, on databaseIdentifier: XLDatabaseIdentifier) -> Bool {
+            holds.contains { entry in
+                guard entry.databaseIdentifier == databaseIdentifier else {
+                    return false
+                }
+                switch entry.hold {
+                case .reader:
+                    return access == .read
+                case .writer:
+                    return access == .write
+                case .transaction:
+                    return true
+                }
+            }
+        }
+
+        static var current: ThreadHolds {
+            if let pointer = pthread_getspecific(key) {
+                return Unmanaged<ThreadHolds>.fromOpaque(pointer).takeUnretainedValue()
+            }
+            let holds = ThreadHolds()
+            pthread_setspecific(key, Unmanaged.passRetained(holds).toOpaque())
+            return holds
+        }
+
+        private static let key: pthread_key_t = {
+            var key = pthread_key_t()
+            let status = pthread_key_create(&key, releaseThreadHolds)
+            precondition(status == 0, "pthread_key_create failed: \(status)")
+            return key
+        }()
+    }
 }
+
+
+/// Releases one thread's `ThreadHolds` when the thread exits.
+#if canImport(Darwin)
+private func releaseThreadHolds(_ pointer: UnsafeMutableRawPointer) {
+    Unmanaged<AnyObject>.fromOpaque(pointer).release()
+}
+#else
+private func releaseThreadHolds(_ pointer: UnsafeMutableRawPointer?) {
+    if let pointer {
+        Unmanaged<AnyObject>.fromOpaque(pointer).release()
+    }
+}
+#endif
 
 
 ///

@@ -148,7 +148,9 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
                 child.withValue { $0 = task }
                 // Keep the scope open until the child has finished, so the
                 // child's access happens while the parent still holds.
-                _ = started.wait(timeout: .now() + 10)
+                guard started.wait(timeout: .now() + 10) == .success else {
+                    throw ChildTimedOut()
+                }
             }
             if scope == "read" {
                 try await driver.withReadConnection(body)
@@ -163,8 +165,9 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
 
     /// The blocking scopes of the v1 request layer hold the same way. A
     /// nested root access that GRDB would stop on the same thread now throws
-    /// instead, and the nestings GRDB allows still run.
-    func testBlockingScopesRejectOnlyTheSameThreadAccessGRDBForbids() throws {
+    /// instead, and so does a root read inside a transaction. The other
+    /// nestings GRDB allows still run.
+    func testBlockingScopesRejectTheNestingsGRDBForbidsOrATransactionWouldMiss() throws {
         let database = try fixtures.makeDatabase()
         let driver = database.driver
 
@@ -187,10 +190,20 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
             try driver.withBlockingWriteConnection { _ in true }
         }
         XCTAssertTrue(wroteInsideRead)
-        let readInsideWrite = try driver.withBlockingTransaction { _ in
+        let readInsideWrite = try driver.withBlockingWriteConnection { _ in
             try driver.withBlockingReadConnection { _ in true }
         }
         XCTAssertTrue(readInsideWrite)
+
+        // Inside a transaction a root read would miss the uncommitted writes,
+        // so it is rejected even though GRDB would serve it.
+        XCTAssertThrowsError(
+            try driver.withBlockingTransaction { _ in
+                try driver.withBlockingReadConnection { _ in }
+            }
+        ) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .nestedTransactionUnsupported)
+        }
     }
 
     /// A task created by a transaction body inherits the task-local marker.

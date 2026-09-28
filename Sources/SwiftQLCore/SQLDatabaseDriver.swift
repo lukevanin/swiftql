@@ -425,18 +425,16 @@ extension XLDatabaseDriver {
         _ kind: XLTransactionKind = .immediate,
         _ operation: @Sendable (inout Connection) throws -> Result
     ) async throws -> Result {
+        let operationError = XLTransactionOperationError()
         do {
             return try await withTransaction(kind) { connection in
-                try XLTransactionOperationFailure.tagging {
+                try operationError.recording {
                     try operation(&connection)
                 }
             }
         }
         catch {
-            throw XLTransactionOperationFailure.validatedTransactionError(
-                error,
-                driver: driverIdentifier
-            )
+            throw operationError.validatedError(for: error, driver: driverIdentifier)
         }
     }
 }
@@ -452,38 +450,48 @@ extension XLDatabaseDriver {
 public protocol XLDriverScopeRefusal: Error {}
 
 
-/// Carries an error thrown by a transaction's own operation past the driver,
-/// so ``XLDatabaseDriver/withValidatedTransaction(_:_:)`` can tell it apart
-/// from a failure of the transaction itself.
+/// Records the error a validated transaction's own operation threw, so
+/// ``XLDatabaseDriver/withValidatedTransaction(_:_:)`` can tell it apart from
+/// a failure of the transaction itself.
 ///
-/// The operation's error is wrapped rather than recorded in a captured
-/// variable, because the operation is `@Sendable` and may run on another
-/// executor. A driver that replaces the error it is given loses the tag, and
-/// the replacement is then reported as a transaction failure, which is what
-/// it is.
-package struct XLTransactionOperationFailure: Error {
+/// The error is recorded beside the transaction rather than wrapped, so the
+/// driver's `withTransaction(_:_:)` sees exactly the error the operation
+/// threw and can match it in its own `catch` clauses. The record is locked
+/// because the operation is `@Sendable` and may run on the driver's executor.
+package final class XLTransactionOperationError: @unchecked Sendable {
 
-    package let underlying: any Error
+    private let lock = NSLock()
+    private var recorded: (any Error)?
 
-    /// Runs `operation`, tagging any error it throws.
-    package static func tagging<Result>(
+    package init() {}
+
+    /// Runs `operation`, recording any error it throws before rethrowing it.
+    package func recording<Result>(
         _ operation: () throws -> Result
     ) throws -> Result {
         do {
             return try operation()
         }
         catch {
-            throw XLTransactionOperationFailure(underlying: error)
+            lock.lock()
+            recorded = error
+            lock.unlock()
+            throw error
         }
     }
 
-    /// The error a validated transaction reports for `error`.
-    package static func validatedTransactionError(
-        _ error: any Error,
+    /// The error a validated transaction reports when its transaction threw
+    /// `error`: the operation's own error when it threw one, otherwise
+    /// `error` itself when it is structured, otherwise a transaction failure.
+    package func validatedError(
+        for error: any Error,
         driver: XLDriverIdentifier
     ) -> any Error {
-        if let operationFailure = error as? XLTransactionOperationFailure {
-            return operationFailure.underlying
+        lock.lock()
+        let operationError = recorded
+        lock.unlock()
+        if let operationError {
+            return operationError
         }
         if error is XLDatabaseContractError
             || error is CancellationError

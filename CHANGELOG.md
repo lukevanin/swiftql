@@ -78,6 +78,12 @@
     example, a second root fetch from inside a result-set body on the root
     database crashed the process on 1.9. Nestings GRDB supports, such as a
     root write from inside that body, still run.
+  - A root read from inside a write transaction that SwiftQL opened now
+    throws `XLTransactionScopeError.nestedTransactionUnsupported` too. For
+    example, a lazy sequence passed to `insert(contentsOf:)` is iterated
+    inside the batch's transaction, and a fetch through the root database
+    from that sequence throws. On 1.9 it ran on another connection and
+    silently missed the rows the batch had already inserted.
   - A task created inside a `withTransaction(_:)` body now counts as re-entry
     while the body runs. Its access through the original database throws
     `XLTransactionScopeError.nestedTransactionUnsupported`. On 1.9 such a task

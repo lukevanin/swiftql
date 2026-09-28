@@ -632,6 +632,31 @@ final class SQLTransactionScopeTests: XCTestCase {
         XCTAssertEqual(try freshRows().map(\.id).sorted(), ["alpha", "beta"])
     }
 
+    /// `insert(contentsOf:)` iterates its sequence inside its own write
+    /// transaction. A root read from a lazy sequence would run on a reader
+    /// and miss the rows the batch has already inserted, so it throws
+    /// (issue #676). On 1.9 it silently returned the committed state.
+    func testRootReadFromABatchInsertSequenceThrows() throws {
+        try createTestTable()
+        let database = self.database!
+        let rootReads = LockedValue<[XLTransactionScopeError?]>([])
+        let rows = (1...2).lazy.map { index -> TestTable in
+            do {
+                _ = try database.makeRequest(with: self.selectAllTestRowsQuery()).fetchAll()
+                rootReads.withValue { $0.append(nil) }
+            }
+            catch {
+                rootReads.withValue { $0.append(error as? XLTransactionScopeError) }
+            }
+            return TestTable(id: "row\(index)", value: index)
+        }
+
+        try database.insert(contentsOf: rows)
+
+        XCTAssertEqual(rootReads.read(), [.nestedTransactionUnsupported, .nestedTransactionUnsupported])
+        XCTAssertEqual(try freshRows().map(\.id).sorted(), ["row1", "row2"])
+    }
+
     // MARK: - Cancellation
 
     func testWithTransactionThrowsCancellationErrorWhenTheTaskIsAlreadyCancelledBeforeStarting() async throws {

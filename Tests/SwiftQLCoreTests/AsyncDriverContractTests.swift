@@ -49,6 +49,25 @@ final class AsyncDriverContractTests: XCTestCase {
         )
     }
 
+    /// A driver's `withTransaction` must see the operation's own error, not a
+    /// wrapper it cannot name, so its own `catch` clauses keep working when it
+    /// is called through `withValidatedTransaction`.
+    func testDriverSeesTheOperationErrorThroughAValidatedTransaction() async {
+        let driver = MarkerDriver(defect: nil)
+        struct Busy: Error {}
+
+        do {
+            try await driver.withValidatedTransaction { _ in
+                throw Busy()
+            }
+            XCTFail("The operation's error must propagate.")
+        }
+        catch {
+            XCTAssertTrue(error is Busy, "The caller got \(error).")
+        }
+        XCTAssertEqual(driver.observedTransactionErrors(), ["Busy"])
+    }
+
     private func assertSuite(
         reports clause: DriverContractClause,
         for defect: MarkerDriver.Defect,
@@ -162,6 +181,12 @@ private struct MarkerDriver: XLDatabaseDriver {
     )
     let defect: Defect?
     private let store = MarkerStore()
+    private let observed = LockedValue<[String]>([])
+
+    /// The type of every error `withTransaction` saw its operation throw.
+    func observedTransactionErrors() -> [String] {
+        observed.read()
+    }
 
     init(defect: Defect?) {
         self.defect = defect
@@ -204,8 +229,12 @@ private struct MarkerDriver: XLDatabaseDriver {
                 operation
             )
         }
-        catch where defect == .replacesTheOperationError {
-            throw ReplacedError()
+        catch {
+            observed.withValue { $0.append(String(describing: type(of: error))) }
+            if defect == .replacesTheOperationError {
+                throw ReplacedError()
+            }
+            throw error
         }
     }
 
