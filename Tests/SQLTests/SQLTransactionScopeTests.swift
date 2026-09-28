@@ -706,6 +706,25 @@ final class SQLTransactionScopeTests: XCTestCase {
         XCTAssertEqual(observer.outcomes.read(), [.success(["alpha"])])
     }
 
+    /// During the commit GRDB still holds the writer on this thread, so a
+    /// commit observer's root write would ask for it again and GRDB would
+    /// stop the process. It throws instead; the observer's read above runs.
+    func testACommitObserverRootWriteThrowsInsteadOfTrapping() throws {
+        try createTestTable()
+        let database = self.database!
+        let observer = RootWritingObserver(
+            database: database,
+            insert: sqlInsert(TestTable(id: "from-observer", value: 0))
+        )
+        databasePool.add(transactionObserver: observer)
+
+        try database.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+        databasePool.remove(transactionObserver: observer)
+
+        XCTAssertEqual(observer.errors.read(), [.nestedTransactionUnsupported])
+        XCTAssertEqual(try freshRows().map(\.id), ["alpha"])
+    }
+
     /// A scope value used from a task created in the body would touch the
     /// pinned connection off GRDB's writer queue, which GRDB stops with a
     /// precondition. It throws `scopeEscaped` instead.
@@ -886,6 +905,43 @@ private struct UncheckedTransfer<Value>: @unchecked Sendable {
     init(_ value: Value) {
         self.value = value
     }
+}
+
+
+/// Writes through the root database the first time a transaction commits,
+/// and records the error the write threw.
+private final class RootWritingObserver: TransactionObserver, @unchecked Sendable {
+
+    let errors = LockedValue<[XLTransactionScopeError?]>([])
+
+    private let database: GRDBDatabase
+    private let insert: any XLInsertStatement
+
+    init(database: GRDBDatabase, insert: any XLInsertStatement) {
+        self.database = database
+        self.insert = insert
+    }
+
+    func observes(eventsOfKind eventKind: DatabaseEventKind) -> Bool {
+        true
+    }
+
+    func databaseDidChange(with event: DatabaseEvent) {}
+
+    func databaseDidCommit(_ db: Database) {
+        guard errors.read().isEmpty else {
+            return
+        }
+        do {
+            try database.makeRequest(with: insert).execute()
+            errors.withValue { $0.append(nil) }
+        }
+        catch {
+            errors.withValue { $0.append(error as? XLTransactionScopeError) }
+        }
+    }
+
+    func databaseDidRollback(_ db: Database) {}
 }
 
 

@@ -139,7 +139,10 @@ public enum XLTransactionScopeError: Error, Equatable, Sendable, LocalizedError 
 }
 
 
-/// Every case is thrown before a connection is lent, so a validated
-/// transaction rethrows it unchanged rather than reporting a transaction
-/// failure.
+/// `scopeEscaped` and `nestedTransactionUnsupported` are thrown before a
+/// connection is lent, so a validated transaction rethrows them unchanged
+/// rather than reporting a transaction failure. The third case,
+/// `liveQueriesUnsupportedInTransaction`, is thrown before a live query
+/// starts, never by a driver's transaction, so conforming the whole type
+/// changes nothing for it.
 extension XLTransactionScopeError: XLDriverScopeRefusal {}

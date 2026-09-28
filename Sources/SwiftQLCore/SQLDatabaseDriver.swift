@@ -321,7 +321,7 @@ extension XLDatabaseDriverConnection {
 ///   another writer got there first.
 /// - ``immediate`` claims the right to write at `BEGIN`, so a conflict with
 ///   another writer surfaces at `BEGIN` rather than partway through the
-///   transaction. This is the default.
+///   transaction. The GRDB driver uses it by default.
 /// - ``exclusive`` also keeps readers out where the journal mode allows it.
 ///   Under WAL it behaves like ``immediate``.
 ///
@@ -384,6 +384,13 @@ public protocol XLDatabaseDriver: Sendable {
 
     var dialect: Dialect { get }
 
+    /// The kind ``withTransaction(_:)`` uses when the caller names none.
+    ///
+    /// Each driver chooses its own, because the kinds a database honours are
+    /// the database's: SQLite's ``XLTransactionKind/immediate`` means nothing
+    /// to a server database. It must be a kind the driver honours.
+    var defaultTransactionKind: XLTransactionKind { get }
+
     /// Runs `operation` on a connection that reads a consistent snapshot.
     func withReadConnection<Result: Sendable>(
         _ operation: @Sendable (inout Connection) throws -> Result
@@ -408,11 +415,12 @@ public protocol XLDatabaseDriver: Sendable {
 
 extension XLDatabaseDriver {
 
-    /// Runs `operation` inside one ``XLTransactionKind/immediate`` transaction.
+    /// Runs `operation` inside one transaction of the driver's
+    /// ``defaultTransactionKind``.
     public func withTransaction<Result: Sendable>(
         _ operation: @Sendable (inout Connection) throws -> Result
     ) async throws -> Result {
-        try await withTransaction(.immediate, operation)
+        try await withTransaction(defaultTransactionKind, operation)
     }
 
     /// Wraps transport transaction failures while preserving structured errors.
@@ -421,13 +429,15 @@ extension XLDatabaseDriver {
     /// `CancellationError`, and a driver's own typed refusal to lend a
     /// connection are rethrown unchanged. Any other failure is reported as
     /// ``XLDatabaseContractError/transactionFailure(driver:message:)``.
+    ///
+    /// A `nil` kind uses the driver's ``defaultTransactionKind``.
     public func withValidatedTransaction<Result: Sendable>(
-        _ kind: XLTransactionKind = .immediate,
+        _ kind: XLTransactionKind? = nil,
         _ operation: @Sendable (inout Connection) throws -> Result
     ) async throws -> Result {
         let operationError = XLTransactionOperationError()
         do {
-            return try await withTransaction(kind) { connection in
+            return try await withTransaction(kind ?? defaultTransactionKind) { connection in
                 try operationError.recording {
                     try operation(&connection)
                 }
@@ -487,8 +497,14 @@ package final class XLTransactionOperationError: @unchecked Sendable {
     }
 
     /// The error a validated transaction reports when its transaction threw
-    /// `error`: the operation's own error when it threw one, otherwise
-    /// `error` itself when it is structured, otherwise a transaction failure.
+    /// `error`: the operation's own error when the transaction failed with
+    /// it, otherwise `error` itself when it is structured, otherwise a
+    /// transaction failure.
+    ///
+    /// The recorded error is reported only when `error` has the same type.
+    /// A driver that caught the operation's error, retried, and then failed
+    /// in its own right -- before running the operation again, so nothing
+    /// cleared the record -- reports its own failure, not the stale one.
     package func validatedError(
         for error: any Error,
         driver: XLDriverIdentifier
@@ -496,7 +512,7 @@ package final class XLTransactionOperationError: @unchecked Sendable {
         lock.lock()
         let operationError = recorded
         lock.unlock()
-        if let operationError {
+        if let operationError, type(of: operationError) == type(of: error) {
             return operationError
         }
         if error is XLDatabaseContractError

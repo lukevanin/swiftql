@@ -40,6 +40,10 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
 
     let dialect: XLSQLiteDialect
 
+    /// GRDB's own default for a write: a second writer conflicts at `BEGIN`
+    /// rather than partway through a transaction.
+    let defaultTransactionKind = XLTransactionKind.immediate
+
     private enum Access {
         case pool(DatabasePool)
         case pinned(GRDBPinnedConnectionBox)
@@ -226,27 +230,31 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
 
     ///
     /// Runs `body` inside one transaction on `database`, the writer
-    /// connection, with this database's pool held while `body` runs.
+    /// connection. `withTransaction(_:)` on a database, and both transaction
+    /// scopes here, open their transaction through this one path.
     ///
-    /// The hold covers `body` and not the commit. GRDB runs transaction
-    /// observers and `afterNextTransaction` callbacks inside the commit, on
-    /// this thread, and a root read from one of them sees committed data, as
-    /// it did on 1.9. `withTransaction(_:)` on a database, and both
-    /// transaction scopes here, open their transaction through this one path.
+    /// While `body` runs, the pool is held as a transaction, and every root
+    /// access from this thread is rejected. During the commit it is held
+    /// only as the writer: GRDB runs transaction observers and
+    /// `afterNextTransaction` callbacks there, on this thread, and a root read
+    /// from one of them sees committed data, as on 1.9, while a root write
+    /// would ask GRDB for the writer it still holds.
     ///
     func runTransaction<Result>(
         on database: Database,
         kind: Database.TransactionKind? = nil,
         _ body: () throws -> Result
     ) throws -> Result {
-        var result: Result?
-        try database.inTransaction(kind) {
-            result = try holding(.writer, body)
-            return .commit
+        try holding(.writer) {
+            var result: Result?
+            try database.inTransaction(kind) {
+                result = try holding(.transaction, body)
+                return .commit
+            }
+            // `inTransaction` returns only after `body` returned and the
+            // transaction committed, so `result` is set.
+            return result!
         }
-        // `inTransaction` returns only after `body` returned and the
-        // transaction committed, so `result` is set.
-        return result!
     }
 
     ///
@@ -312,20 +320,15 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     }
 
     ///
-    /// Rejects "root-executor re-entry" (issue #284): a pool-mode connection
-    /// access issued through this driver's
-    /// `databaseIdentifier` while a
-    /// ``XLTransactionalDatabase/withTransaction(_:)`` scope for that same
-    /// identifier is still running in the calling task, or on the calling
-    /// thread outside any task. This is what protects a plain `SELECT` issued
+    /// Rejects "root-executor re-entry" (issue #284): a root access to this
+    /// driver's pool while a scope in the same flow of control holds one of
+    /// the pool's connections. This is what protects a plain `SELECT` issued
     /// through the captured root database from inside an active transaction
     /// body, not just a second `withTransaction(_:)` call: GRDB's reader pool
-    /// is not reentrant-locked with its writer, so a stray read like that would
-    /// not crash or deadlock — it would just silently lease a different
-    /// connection and return the database's last *committed* state, missing the
-    /// transaction's own uncommitted writes, exactly the "lease another
-    /// connection... and break the transaction boundary" hazard the hard
-    /// constraints call out.
+    /// is not reentrant-locked with its writer, so a stray read like that
+    /// would not crash or deadlock — it would just silently lease a different
+    /// connection and return the database's last *committed* state, missing
+    /// the transaction's own uncommitted writes.
     ///
     /// A scope that holds only a reader or the writer rejects just the access
     /// GRDB would stop on the same thread. See ``GRDBTransactionScopeTracker``.
@@ -1675,17 +1678,22 @@ final class GRDBTransactionScopeTracker: Sendable {
     @TaskLocal
     private static var asyncTransactions: [AsyncTransaction] = []
 
-    /// What a synchronous scope holds.
+    /// What a synchronous scope holds. Each hold rejects exactly the root
+    /// accesses from the same thread that GRDB would stop, plus a read that
+    /// would miss uncommitted writes.
     enum Hold: Sendable {
-        /// One pooled reader. A root read from the same thread is rejected;
-        /// GRDB would stop it. A root write is not; GRDB runs it on its
-        /// separate writer.
+        /// One pooled reader. A root read is rejected: GRDB would stop a
+        /// second read from this thread. A root write runs on GRDB's separate
+        /// writer.
         case reader
-        /// The writer, with or without a transaction. Every root access from
-        /// the same thread is rejected: a write would ask GRDB for the writer
-        /// it holds, and a read could miss uncommitted writes, or wait for a
-        /// reader while a reader waits for this writer.
+        /// The writer, outside a transaction or during its commit. A root
+        /// write is rejected: GRDB would stop a second write from this
+        /// thread. A root read runs on a reader and sees committed data.
         case writer
+        /// The writer, inside a transaction's body. Every root access is
+        /// rejected: a write as for ``writer``, and a read because it would
+        /// miss the transaction's uncommitted writes.
+        case transaction
     }
 
     /// The access a new root-database call asks for.
@@ -1696,9 +1704,8 @@ final class GRDBTransactionScopeTracker: Sendable {
 
     private init() {}
 
-    /// Whether an access through `databaseIdentifier`'s root database must be
-    /// refused, because a scope in the same flow of control holds one of its
-    /// connections.
+    /// Whether a root access to `pool` must be refused, because a scope in
+    /// the same flow of control holds one of its connections.
     func rejects(_ access: Access, on pool: DatabasePool) -> Bool {
         let key = ObjectIdentifier(pool)
         if let holds = ThreadHolds.existing, holds.rejects(access, on: key) {
@@ -1720,9 +1727,8 @@ final class GRDBTransactionScopeTracker: Sendable {
         }
     }
 
-    /// Marks `databaseIdentifier` as held on the calling thread for the
-    /// duration of `body`, and always clears it again afterward -- including
-    /// when `body` throws.
+    /// Marks `pool` as held on the calling thread for the duration of `body`,
+    /// and always clears it again afterward -- including when `body` throws.
     func withActive<Result>(
         _ pool: DatabasePool,
         holding hold: Hold,
@@ -1734,8 +1740,8 @@ final class GRDBTransactionScopeTracker: Sendable {
         return try body()
     }
 
-    /// Marks `databaseIdentifier` as held by a transaction in the calling
-    /// task for the duration of `body`, across every suspension point in it.
+    /// Marks `pool` as held by a transaction in the calling task for the
+    /// duration of `body`, across every suspension point in it.
     ///
     /// This is the entry point for an asynchronous transaction body (#681).
     func withAsyncTransaction<Result>(
@@ -1814,6 +1820,8 @@ final class GRDBTransactionScopeTracker: Sendable {
                 case .reader:
                     return access == .read
                 case .writer:
+                    return access == .write
+                case .transaction:
                     return true
                 }
             }

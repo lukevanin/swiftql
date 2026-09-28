@@ -58,7 +58,8 @@
     cursor still cannot outlive its connection access.
   - `withTransaction(_:_:)` takes an `XLTransactionKind`: `.deferred`,
     `.immediate`, or `.exclusive`. `withTransaction(_:)` without a kind uses
-    `.immediate`, which is what GRDB already used for a write. A driver that
+    the driver's new `defaultTransactionKind` requirement. The GRDB driver's
+    is `.immediate`, which is what GRDB already used for a write. A driver that
     cannot honour a kind throws the new case
     `XLDatabaseContractError.unsupportedTransactionKind(driver:kind:)`. A
     `switch` over `XLDatabaseContractError` with no `default` clause must

@@ -934,6 +934,7 @@ private struct FakePoolDriver: XLDatabaseDriver {
     let driverIdentifier = FakeConnection.driverID
     let databaseIdentifier: XLDatabaseIdentifier
     let dialect: XLSQLiteDialect
+    let defaultTransactionKind = XLTransactionKind.immediate
     let failTransaction: Bool
     let recorder: DriverRecorder
     private let pool: FakeConnectionPool

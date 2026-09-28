@@ -179,6 +179,7 @@ private struct MarkerDriver: XLDatabaseDriver {
         version: XLDialectVersion(3, 46),
         capabilities: XLSQLiteDialect.standardCapabilities
     )
+    let defaultTransactionKind = XLTransactionKind.immediate
     let defect: Defect?
     private let store = MarkerStore()
     private let observed = LockedValue<[String]>([])

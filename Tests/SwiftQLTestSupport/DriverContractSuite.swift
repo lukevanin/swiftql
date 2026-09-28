@@ -64,7 +64,8 @@ public enum DriverContractClause: String, CaseIterable, Sendable, CustomStringCo
     /// A write made through the write scope is visible to a later read.
     case writeScopeWritesOutsideATransaction
 
-    /// A transaction commits when its operation returns.
+    /// A transaction commits when its operation returns, for every kind the
+    /// driver honours, and the default kind is one of them.
     case transactionCommitsWhenTheOperationReturns
 
     /// A transaction rolls back when its operation throws, and rethrows that
@@ -191,6 +192,10 @@ private struct ClauseCheck<Fixture: DriverContractFixture>: Sendable {
 
     func transactionCommitsWhenTheOperationReturns() async throws {
         let fixture = fixture
+        try expect(
+            fixture.supportedTransactionKinds.contains(driver.defaultTransactionKind),
+            "the default kind \(driver.defaultTransactionKind) is not one the driver honours"
+        )
         var expected = 0
         for kind in fixture.supportedTransactionKinds {
             let returned = try await driver.withTransaction(kind) { connection in
