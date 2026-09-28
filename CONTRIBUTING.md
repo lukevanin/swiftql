@@ -125,11 +125,20 @@ Avoid restating what the diff already shows.
 2. Get a Claude review. Copilot review is not available for this repository.
    Run Claude Code's `/code-review` skill on the PR at `high` effort with
    `--comment` (`/code-review <PR number> high --comment`), so the findings
-   are posted as review comments. If they cannot be posted, record the round
-   as one PR comment with a table of every finding and its outcome. If you do not use Claude Code, say so in the PR:
-   the maintainer then runs each review and posts the closing comment, and
-   you answer and fix the findings, then comment on the PR to ask for the
-   next review.
+   are posted as review comments.
+   - If the comments cannot be posted (for example `403 Resource not
+     accessible by integration`), the review still returns its findings, so
+     do not rerun it. Record the round as one PR comment with a table of
+     every finding and its outcome, and record every later round of that PR
+     the same way.
+   - If some comments were posted before it failed, the table lists those
+     findings as well, with a link to each posted comment, so the round is
+     complete in one place.
+   - If the run returned no findings because it failed, rerun it once
+     without `--comment` and record that run as the table.
+   - If you do not use Claude Code, say so in the PR: the maintainer then
+     runs each review and posts the closing comment, and you answer and fix
+     the findings, then comment on the PR to ask for the next review.
 3. Verify each finding before acting on it. A review at `high` effort errs on
    the side of reporting, so some findings do not reproduce, and a later
    round can repeat or reverse an earlier one. Fix the real ones. For the
@@ -148,11 +157,15 @@ Avoid restating what the diff already shows.
 6. The loop ends when a review finds nothing open that you mean to fix, or
    after five rounds, whichever comes first. After the fifth round's fixes,
    review the head once more without fixing anything, so no code is left
-   unreviewed. Then post a closing PR comment that lists every finding
-   still open, with a real defect from that last review first, or says that
-   nothing is. A PR with a real defect still open is not ready to merge; the
-   maintainer decides how its fix is reviewed.
-7. A human maintainer merges the PR. PRs are never self-merged.
+   unreviewed.
+7. However the loop ends, post a closing PR comment. It lists every finding
+   still open, or says that nothing is. A correctness defect still open (the
+   code does the wrong thing, or can crash or lose data) goes first, and the
+   PR is not ready to merge until it is fixed; the maintainer decides how
+   that fix is reviewed. Any other open finding, such as a declined cleanup
+   or a question of style, is listed for the maintainer and does not by
+   itself block the merge.
+8. A human maintainer merges the PR. PRs are never self-merged.
 
 Patch releases that land on a preparation branch (`release/vX.Y.Z-changelog`)
 must use a **merge commit** when merging into `main`. Squash and rebase merges
