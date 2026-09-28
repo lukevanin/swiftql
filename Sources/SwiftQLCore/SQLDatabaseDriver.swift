@@ -466,9 +466,15 @@ package final class XLTransactionOperationError: @unchecked Sendable {
     package init() {}
 
     /// Runs `operation`, recording any error it throws before rethrowing it.
+    ///
+    /// A driver may run the operation more than once, retrying after a busy
+    /// error, so each run clears what an earlier run recorded.
     package func recording<Result>(
         _ operation: () throws -> Result
     ) throws -> Result {
+        lock.lock()
+        recorded = nil
+        lock.unlock()
         do {
             return try operation()
         }

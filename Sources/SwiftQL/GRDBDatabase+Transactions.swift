@@ -39,8 +39,9 @@ extension GRDBDatabase: XLTransactionScopeReporting {
 extension GRDBDatabase: XLTransactionalDatabase {
 
     /// Runs `body` against one pinned `DatabasePool` connection inside one
-    /// real GRDB transaction (issue #284): `databasePool.write(_:)` opens the
-    /// transaction, hands `body` a `GRDBDatabase` pinned to that connection,
+    /// real GRDB transaction (issue #284): the driver's
+    /// `runTransaction(on:kind:_:)` opens the transaction on the pool's
+    /// writer, hands `body` a `GRDBDatabase` pinned to that connection,
     /// commits when `body` returns normally, and rolls back — preserving the
     /// original error — when `body` throws. See ``XLTransactionalDatabase``
     /// for the full ordering, atomicity, and lifetime contract.
@@ -66,9 +67,7 @@ extension GRDBDatabase: XLTransactionalDatabase {
         guard !driver.isPinned else {
             throw XLTransactionScopeError.nestedTransactionUnsupported
         }
-        guard !GRDBTransactionScopeTracker.shared.rejects(.write, on: driver.databaseIdentifier) else {
-            throw XLTransactionScopeError.nestedTransactionUnsupported
-        }
+        try driver.preconditionNotRootReentrant(.write)
         if Task.isCancelled {
             throw CancellationError()
         }

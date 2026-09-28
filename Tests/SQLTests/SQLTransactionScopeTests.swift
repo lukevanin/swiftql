@@ -585,7 +585,7 @@ final class SQLTransactionScopeTests: XCTestCase {
     /// *original, unpinned* `database` value instead of the `scope` it was
     /// given — for example, by using the database-level convenience executor
     /// sugar the `@SQLQueries` macro generates over `execute`/
-    /// `withTransaction`. Without the task-scoped tracker in
+    /// `withTransaction`. Without the reentrancy tracker in
     /// `GRDBDatabase.withTransaction`, this reaches GRDB's own reentrant-write
     /// guard, which is an uncatchable `fatalError` — so this test is the
     /// actual proof that root-executor re-entry is rejected, not merely that
@@ -655,6 +655,102 @@ final class SQLTransactionScopeTests: XCTestCase {
 
         XCTAssertEqual(rootReads.read(), [.nestedTransactionUnsupported, .nestedTransactionUnsupported])
         XCTAssertEqual(try freshRows().map(\.id).sorted(), ["row1", "row2"])
+    }
+
+    /// Holds are keyed by the pool, so a second `GRDBDatabase` over the same
+    /// pool is held to the same rules as the first.
+    func testASecondDatabaseOverTheSamePoolIsHeldToTheSameRules() throws {
+        try createTestTable()
+        let database = self.database!
+        try database.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+        let sibling = try GRDBDatabase(
+            databasePool: databasePool,
+            formatter: XLiteFormatter(identifierFormattingOptions: .mysqlCompatible),
+            logger: nil
+        )
+
+        XCTAssertThrowsError(
+            try database.makeRequest(with: selectAllTestRowsQuery()).withResultSet { results in
+                _ = try results.next()
+                _ = try sibling.makeRequest(with: selectAllTestRowsQuery()).fetchAll()
+            }
+        ) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .nestedTransactionUnsupported)
+        }
+        XCTAssertThrowsError(
+            try database.withTransaction { scope in
+                try scope.makeRequest(with: sqlInsert(TestTable(id: "beta", value: 2))).execute()
+                _ = try sibling.makeRequest(with: selectAllTestRowsQuery()).fetchAll()
+            }
+        ) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .nestedTransactionUnsupported)
+        }
+        XCTAssertEqual(try freshRows().map(\.id), ["alpha"])
+    }
+
+    /// GRDB runs a transaction observer inside the commit, on the writer's
+    /// thread. The hold covers only the transaction's body, so an observer
+    /// that refetches through the root database after the commit still runs
+    /// and sees the committed row, as on 1.9.
+    func testACommitObserverCanReadThroughTheRootDatabase() throws {
+        try createTestTable()
+        let observer = RootRefetchingObserver(
+            database: database!,
+            query: selectAllTestRowsQuery()
+        )
+        databasePool.add(transactionObserver: observer)
+        defer { databasePool.remove(transactionObserver: observer) }
+
+        try database.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+
+        XCTAssertEqual(observer.outcomes.read(), [.success(["alpha"])])
+    }
+
+    /// A scope value used from a task created in the body would touch the
+    /// pinned connection off GRDB's writer queue, which GRDB stops with a
+    /// precondition. It throws `scopeEscaped` instead.
+    ///
+    /// The body runs on a dispatch thread, so blocking it while the task
+    /// runs cannot starve the cooperative pool.
+    func testAScopeUsedFromATaskCreatedInTheBodyThrowsScopeEscaped() async throws {
+        try createTestTable()
+        let database = self.database!
+        nonisolated(unsafe) let query = selectAllTestRowsQuery()
+
+        let childError = try await onDispatchThread {
+            try database.withTransaction { scope -> XLTransactionScopeError? in
+                let finished = DispatchSemaphore(value: 0)
+                let recorded = LockedValue<XLTransactionScopeError?>(nil)
+                // Deliberate misuse: the request crosses to another thread,
+                // which is what the guard must catch.
+                let request = UncheckedTransfer(scope.makeRequest(with: query))
+                Task {
+                    do {
+                        _ = try request.value.fetchAll()
+                    }
+                    catch {
+                        recorded.withValue { $0 = error as? XLTransactionScopeError }
+                    }
+                    finished.signal()
+                }
+                _ = finished.wait(timeout: .now() + 10)
+                return recorded.read()
+            }
+        }
+
+        XCTAssertEqual(childError, .scopeEscaped)
+    }
+
+    /// Runs `body` on a dispatch thread, outside any task, and resumes with
+    /// its result.
+    private func onDispatchThread<Result: Sendable>(
+        _ body: @escaping @Sendable () throws -> Result
+    ) async throws -> Result {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global().async {
+                continuation.resume(with: Swift.Result { try body() })
+            }
+        }
     }
 
     // MARK: - Cancellation
@@ -782,3 +878,52 @@ final class SQLTransactionScopeTests: XCTestCase {
 }
 
 
+/// Moves a non-`Sendable` value to another thread on purpose, for a test that
+/// checks the misuse is caught.
+private struct UncheckedTransfer<Value>: @unchecked Sendable {
+    let value: Value
+
+    init(_ value: Value) {
+        self.value = value
+    }
+}
+
+
+/// Refetches through the root database each time a transaction commits, and
+/// records what it read.
+private final class RootRefetchingObserver: TransactionObserver, @unchecked Sendable {
+
+    enum Outcome: Equatable {
+        case success([String])
+        case failure(String)
+    }
+
+    let outcomes = LockedValue<[Outcome]>([])
+
+    private let database: GRDBDatabase
+    private let query: any XLQueryStatement<TestTable>
+
+    init(database: GRDBDatabase, query: any XLQueryStatement<TestTable>) {
+        self.database = database
+        self.query = query
+    }
+
+    func observes(eventsOfKind eventKind: DatabaseEventKind) -> Bool {
+        true
+    }
+
+    func databaseDidChange(with event: DatabaseEvent) {}
+
+    func databaseDidCommit(_ db: Database) {
+        let outcome: Outcome
+        do {
+            outcome = .success(try database.makeRequest(with: query).fetchAll().map(\.id))
+        }
+        catch {
+            outcome = .failure(String(describing: error))
+        }
+        outcomes.withValue { $0.append(outcome) }
+    }
+
+    func databaseDidRollback(_ db: Database) {}
+}

@@ -78,6 +78,12 @@
     example, a second root fetch from inside a result-set body on the root
     database crashed the process on 1.9. Nestings GRDB supports, such as a
     root write from inside that body, still run.
+  - A request made from a `withTransaction(_:)` scope and used from another
+    thread, such as a task created in the body, throws
+    `XLTransactionScopeError.scopeEscaped`. On 1.9 GRDB stopped the process
+    with "Database was not used on the correct thread".
+  - These checks apply to every `GRDBDatabase` over the same
+    `DatabasePool`, not only to the one that opened the scope.
   - A root read from inside a write transaction that SwiftQL opened now
     throws `XLTransactionScopeError.nestedTransactionUnsupported` too. For
     example, a lazy sequence passed to `insert(contentsOf:)` is iterated

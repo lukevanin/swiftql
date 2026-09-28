@@ -223,7 +223,7 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
         let otherDriver = try await fixtures.makeDriver()
         let tracker = GRDBTransactionScopeTracker.shared
 
-        try await tracker.withAsyncTransaction(driver.databaseIdentifier) {
+        try await tracker.withAsyncTransaction(on: try XCTUnwrap(driver.databasePool)) {
             await Task.yield()
             try await Task.sleep(nanoseconds: 1_000_000)
 

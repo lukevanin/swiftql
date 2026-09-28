@@ -226,28 +226,27 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
 
     ///
     /// Runs `body` inside one transaction on `database`, the writer
-    /// connection, with this database held for the whole transaction.
+    /// connection, with this database's pool held while `body` runs.
     ///
-    /// The hold wraps the commit as well as `body`, so a root access from
-    /// `body` is rejected until the transaction has committed or rolled back.
-    /// `withTransaction(_:)` on a database, and both transaction scopes here,
-    /// open their transaction through this one path.
+    /// The hold covers `body` and not the commit. GRDB runs transaction
+    /// observers and `afterNextTransaction` callbacks inside the commit, on
+    /// this thread, and a root read from one of them sees committed data, as
+    /// it did on 1.9. `withTransaction(_:)` on a database, and both
+    /// transaction scopes here, open their transaction through this one path.
     ///
     func runTransaction<Result>(
         on database: Database,
         kind: Database.TransactionKind? = nil,
         _ body: () throws -> Result
     ) throws -> Result {
-        try holding(.writer) {
-            var result: Result?
-            try database.inTransaction(kind) {
-                result = try body()
-                return .commit
-            }
-            // `inTransaction` returns only after `body` returned and the
-            // transaction committed, so `result` is set.
-            return result!
+        var result: Result?
+        try database.inTransaction(kind) {
+            result = try holding(.writer, body)
+            return .commit
         }
+        // `inTransaction` returns only after `body` returned and the
+        // transaction committed, so `result` is set.
+        return result!
     }
 
     ///
@@ -264,7 +263,10 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         _ hold: GRDBTransactionScopeTracker.Hold,
         _ body: () throws -> Result
     ) throws -> Result {
-        try GRDBTransactionScopeTracker.shared.withActive(databaseIdentifier, holding: hold, body)
+        guard let pool = databasePool else {
+            return try body()
+        }
+        return try GRDBTransactionScopeTracker.shared.withActive(pool, holding: hold, body)
     }
 
     ///
@@ -328,10 +330,13 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     /// A scope that holds only a reader or the writer rejects just the access
     /// GRDB would stop on the same thread. See ``GRDBTransactionScopeTracker``.
     ///
-    private func preconditionNotRootReentrant(
+    func preconditionNotRootReentrant(
         _ access: GRDBTransactionScopeTracker.Access
     ) throws {
-        guard !GRDBTransactionScopeTracker.shared.rejects(access, on: databaseIdentifier) else {
+        guard let pool = databasePool else {
+            return
+        }
+        guard !GRDBTransactionScopeTracker.shared.rejects(access, on: pool) else {
             throw XLTransactionScopeError.nestedTransactionUnsupported
         }
     }
@@ -371,12 +376,15 @@ final class GRDBPinnedConnectionBox: @unchecked Sendable {
     private let lock = NSLock()
     private var database: Database?
 
+    /// The thread that runs the body. GRDB confines `database` to it.
+    private let thread = pthread_self()
+
     init(_ database: Database) {
         self.database = database
     }
 
-    /// Invalidates the box. Called once, when the owning
-    /// `databasePool.write` access is about to return (commit or rollback).
+    /// Invalidates the box. Called once, when the owning body returns,
+    /// before the transaction commits or rolls back.
     ///
     /// Synchronized against `connection(makeConnection:)` so a scope value
     /// that escapes to another thread reads a consistent, already-invalidated
@@ -395,7 +403,10 @@ final class GRDBPinnedConnectionBox: @unchecked Sendable {
         lock.lock()
         let database = self.database
         lock.unlock()
-        guard let database else {
+        // A scope value used from another thread -- a task created in the
+        // body, for example -- would touch `database` off GRDB's writer
+        // queue, which GRDB stops with a precondition. It throws instead.
+        guard let database, pthread_equal(thread, pthread_self()) != 0 else {
             throw XLTransactionScopeError.scopeEscaped
         }
         return makeConnection(database)
@@ -1633,6 +1644,10 @@ private extension XLBindingKey {
 /// reentrant." before a single line of SwiftQL runs. This tracker must reject
 /// the call *before* it reaches the pool at all.
 ///
+/// Holds are keyed by the `DatabasePool`, not by a `GRDBDatabase`'s
+/// identifier, because two databases can share one pool and GRDB's rule is
+/// about the pool's connections.
+///
 /// A hold is scoped to the flow of control that took it, never to tasks it
 /// creates. A task created inside a scope is concurrent work: its write
 /// waits for the writer and runs after the scope, and its read sees
@@ -1684,8 +1699,9 @@ final class GRDBTransactionScopeTracker: Sendable {
     /// Whether an access through `databaseIdentifier`'s root database must be
     /// refused, because a scope in the same flow of control holds one of its
     /// connections.
-    func rejects(_ access: Access, on databaseIdentifier: XLDatabaseIdentifier) -> Bool {
-        if ThreadHolds.current.rejects(access, on: databaseIdentifier) {
+    func rejects(_ access: Access, on pool: DatabasePool) -> Bool {
+        let key = ObjectIdentifier(pool)
+        if let holds = ThreadHolds.existing, holds.rejects(access, on: key) {
             return true
         }
         let transactions = Self.asyncTransactions
@@ -1697,7 +1713,7 @@ final class GRDBTransactionScopeTracker: Sendable {
                 return false
             }
             return transactions.contains { transaction in
-                transaction.databaseIdentifier == databaseIdentifier
+                transaction.pool == key
                     && transaction.owner == task.hashValue
                     && transaction.isOpen
             }
@@ -1708,12 +1724,12 @@ final class GRDBTransactionScopeTracker: Sendable {
     /// duration of `body`, and always clears it again afterward -- including
     /// when `body` throws.
     func withActive<Result>(
-        _ databaseIdentifier: XLDatabaseIdentifier,
+        _ pool: DatabasePool,
         holding hold: Hold,
         _ body: () throws -> Result
     ) throws -> Result {
         let holds = ThreadHolds.current
-        holds.push(databaseIdentifier, hold)
+        holds.push(ObjectIdentifier(pool), hold)
         defer { holds.pop() }
         return try body()
     }
@@ -1723,13 +1739,13 @@ final class GRDBTransactionScopeTracker: Sendable {
     ///
     /// This is the entry point for an asynchronous transaction body (#681).
     func withAsyncTransaction<Result>(
-        _ databaseIdentifier: XLDatabaseIdentifier,
+        on pool: DatabasePool,
         isolation: isolated (any Actor)? = #isolation,
         _ body: () async throws -> Result
     ) async throws -> Result {
         // An async function always runs in a task, so `owner` is set.
         let owner = withUnsafeCurrentTask { $0?.hashValue }
-        let transaction = AsyncTransaction(databaseIdentifier, owner: owner)
+        let transaction = AsyncTransaction(ObjectIdentifier(pool), owner: owner)
         defer { transaction.close() }
         return try await Self.$asyncTransactions.withValue(Self.asyncTransactions + [transaction]) {
             try await body()
@@ -1745,15 +1761,15 @@ final class GRDBTransactionScopeTracker: Sendable {
     /// that later reuses the owner's identity cannot match either.
     private final class AsyncTransaction: @unchecked Sendable {
 
-        let databaseIdentifier: XLDatabaseIdentifier
+        let pool: ObjectIdentifier
 
         let owner: Int?
 
         private let lock = NSLock()
         private var closed = false
 
-        init(_ databaseIdentifier: XLDatabaseIdentifier, owner: Int?) {
-            self.databaseIdentifier = databaseIdentifier
+        init(_ pool: ObjectIdentifier, owner: Int?) {
+            self.pool = pool
             self.owner = owner
         }
 
@@ -1779,19 +1795,19 @@ final class GRDBTransactionScopeTracker: Sendable {
     ///
     private final class ThreadHolds {
 
-        private var holds: [(databaseIdentifier: XLDatabaseIdentifier, hold: Hold)] = []
+        private var holds: [(pool: ObjectIdentifier, hold: Hold)] = []
 
-        func push(_ databaseIdentifier: XLDatabaseIdentifier, _ hold: Hold) {
-            holds.append((databaseIdentifier, hold))
+        func push(_ pool: ObjectIdentifier, _ hold: Hold) {
+            holds.append((pool, hold))
         }
 
         func pop() {
             holds.removeLast()
         }
 
-        func rejects(_ access: Access, on databaseIdentifier: XLDatabaseIdentifier) -> Bool {
+        func rejects(_ access: Access, on pool: ObjectIdentifier) -> Bool {
             holds.contains { entry in
-                guard entry.databaseIdentifier == databaseIdentifier else {
+                guard entry.pool == pool else {
                     return false
                 }
                 switch entry.hold {
@@ -1803,9 +1819,18 @@ final class GRDBTransactionScopeTracker: Sendable {
             }
         }
 
+        /// This thread's holds, or `nil` when it has never taken one. A
+        /// check never allocates.
+        static var existing: ThreadHolds? {
+            pthread_getspecific(key).map { pointer in
+                Unmanaged<ThreadHolds>.fromOpaque(pointer).takeUnretainedValue()
+            }
+        }
+
+        /// This thread's holds, created on the first hold it takes.
         static var current: ThreadHolds {
-            if let pointer = pthread_getspecific(key) {
-                return Unmanaged<ThreadHolds>.fromOpaque(pointer).takeUnretainedValue()
+            if let holds = existing {
+                return holds
             }
             let holds = ThreadHolds()
             pthread_setspecific(key, Unmanaged.passRetained(holds).toOpaque())
