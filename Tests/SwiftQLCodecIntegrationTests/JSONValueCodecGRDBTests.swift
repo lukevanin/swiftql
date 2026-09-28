@@ -30,7 +30,7 @@ final class JSONValueCodecGRDBTests: XCTestCase {
         let codingConfiguration = try XLValueCodingConfiguration(registry: registry)
         let dialect = XLSQLiteDialect()
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: dialect
         )
@@ -79,7 +79,7 @@ final class JSONValueCodecGRDBTests: XCTestCase {
             selection: XLValueCodecSelection(explicitCodecKey: jsonCodecFixtureBlobKey)
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
             var statement = try connection.prepare(insert)
             statement = try connection.bind(textValue, to: .named("profile_text"), in: statement)
@@ -87,7 +87,7 @@ final class JSONValueCodecGRDBTests: XCTestCase {
             try connection.execute(statement)
         }
 
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(connection.fetchOne(connection.prepare(select)))
         }
 
@@ -123,7 +123,7 @@ final class JSONValueCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [jsonCodecFixtureTextKey]
         )
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let create = logicalStatement(
             for: driver,
             sql: "CREATE TABLE optional_profiles (profile TEXT)"
@@ -146,14 +146,14 @@ final class JSONValueCodecGRDBTests: XCTestCase {
             context: context
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
             var statement = try connection.prepare(insert)
             statement = try connection.bind(nullValue, to: .named("profile"), in: statement)
             try connection.execute(statement)
         }
 
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(connection.fetchOne(connection.prepare(select)))
         }
         XCTAssertEqual(row, [.null, .text("null")])
@@ -177,7 +177,7 @@ final class JSONValueCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [jsonCodecFixtureTextKey]
         )
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let create = logicalStatement(
             for: driver,
             sql: "CREATE TABLE corrupt_profiles (profile TEXT NOT NULL)"
@@ -194,11 +194,11 @@ final class JSONValueCodecGRDBTests: XCTestCase {
             sql: "SELECT profile FROM corrupt_profiles"
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
             try connection.execute(connection.prepare(insert))
         }
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(connection.fetchOne(connection.prepare(select)))
         }
 

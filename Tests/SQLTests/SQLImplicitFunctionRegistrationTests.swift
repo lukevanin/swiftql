@@ -9,6 +9,7 @@
 
 import Foundation
 import GRDB
+import SwiftQLTestSupport
 import XCTest
 @testable import SwiftQL
 
@@ -598,25 +599,3 @@ private final class ConcurrencyRendezvous: @unchecked Sendable {
 }
 
 
-/// Manually synchronized mutable state safe to capture in a `@Sendable` closure -- the
-/// strict-concurrency checker cannot see that a lock makes cross-closure access safe.
-private final class LockedValue<Value>: @unchecked Sendable {
-
-    private let lock = NSLock()
-
-    private var value: Value
-
-    init(_ value: Value) {
-        self.value = value
-    }
-
-    func withValue<Result>(_ body: (inout Value) -> Result) -> Result {
-        lock.lock()
-        defer { lock.unlock() }
-        return body(&value)
-    }
-
-    func read() -> Value {
-        withValue { $0 }
-    }
-}

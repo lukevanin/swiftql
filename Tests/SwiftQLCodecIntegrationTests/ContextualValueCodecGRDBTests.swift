@@ -33,7 +33,7 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
             formatter: XLiteFormatter(),
             logger: nil
         )
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: database.databasePool,
             dialect: database.dialect
         )
@@ -91,7 +91,7 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
                 """
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(
                 connection.prepare(createStatement)
             )
@@ -110,7 +110,7 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
             try connection.execute(insert)
         }
 
-        let normalized = try driver.withReadConnection { connection in
+        let normalized = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(
                 connection.fetchOne(
                     connection.prepare(selectStatement)
@@ -411,7 +411,7 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
             context: optionalParameterContext
         )
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: dialect
         )
@@ -450,7 +450,7 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
             sql: "SELECT 1, typeof(1)"
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
             var statement = try connection.prepare(insert)
             statement = try connection.bind(
@@ -471,10 +471,10 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
             try connection.execute(statement)
         }
 
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(connection.fetchOne(connection.prepare(select)))
         }
-        let streamedRows = try driver.withReadConnection { connection in
+        let streamedRows = try driver.withBlockingReadConnection { connection in
             let statement = try connection.prepare(select)
             var rows: [[XLSQLiteValue]] = []
             try connection.forEachRow(statement) { values in
@@ -546,7 +546,7 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
         XCTAssertEqual(decodedInteger, .waiting)
         XCTAssertNil(decodedOptional)
 
-        let mismatchRow = try driver.withReadConnection { connection in
+        let mismatchRow = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(
                 connection.fetchOne(connection.prepare(selectMismatch))
             )

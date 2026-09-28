@@ -37,10 +37,10 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(
                 connection.prepare(
                     logicalStatement(
@@ -79,7 +79,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
             context: insertContext
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             var statement = try connection.prepare(
                 logicalStatement(
                     databaseIdentifier: databaseIdentifier,
@@ -97,7 +97,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
             try connection.execute(statement)
         }
 
-        let selected = try driver.withReadConnection { connection in
+        let selected = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(
                 connection.fetchOne(
                     connection.prepare(
@@ -155,7 +155,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
             configuration: configuration,
             context: updateContext
         )
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             var statement = try connection.prepare(
                 logicalStatement(
                     databaseIdentifier: databaseIdentifier,
@@ -169,7 +169,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
             )
             try connection.execute(statement)
         }
-        let reselected = try driver.withReadConnection { connection in
+        let reselected = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(
                 connection.fetchOne(
                     connection.prepare(
@@ -199,7 +199,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
         let dates = [
             Date(timeIntervalSince1970: -1_000_000), // before the epoch
@@ -216,7 +216,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
             let columnType = preset == XLSQLiteNumericDateCodec.UnixMilliseconds.key
                 ? "INTEGER"
                 : "REAL"
-            try driver.withWriteConnection { connection in
+            try driver.withBlockingWriteConnection { connection in
                 try connection.execute(
                     connection.prepare(
                         logicalStatement(databaseIdentifier: databaseIdentifier, sql: "DROP TABLE IF EXISTS ordering_probe")
@@ -242,7 +242,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
                     configuration: configuration,
                     context: context
                 )
-                try driver.withWriteConnection { connection in
+                try driver.withBlockingWriteConnection { connection in
                     var statement = try connection.prepare(
                         logicalStatement(
                             databaseIdentifier: databaseIdentifier,
@@ -254,7 +254,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
                 }
             }
 
-            let orderedRows = try driver.withReadConnection { connection in
+            let orderedRows = try driver.withBlockingReadConnection { connection in
                 try connection.fetchAll(
                     connection.prepare(
                         logicalStatement(
@@ -291,10 +291,10 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(
                 connection.prepare(
                     logicalStatement(
@@ -320,7 +320,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
             selection: XLValueCodecSelection(explicitCodecKey: XLSQLiteNumericDateCodec.UnixSeconds.key)
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             var insertPresent = try connection.prepare(
                 logicalStatement(
                     databaseIdentifier: databaseIdentifier,
@@ -340,7 +340,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
             try connection.execute(insertNull)
         }
 
-        let rows = try driver.withReadConnection { connection in
+        let rows = try driver.withBlockingReadConnection { connection in
             try connection.fetchAll(
                 connection.prepare(
                     logicalStatement(
@@ -379,10 +379,10 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(
                 connection.prepare(
                     logicalStatement(
@@ -415,7 +415,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
             context: context
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             var statement = try connection.prepare(
                 logicalStatement(
                     databaseIdentifier: databaseIdentifier,
@@ -438,7 +438,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
             try connection.execute(statement)
         }
 
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(
                 connection.fetchOne(
                     connection.prepare(
@@ -482,12 +482,12 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
         // SQLite interprets a bare REAL argument to date()/datetime() as a
         // Julian day number, which is exactly this preset's storage
         // convention, so no modifier is required.
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(
                 connection.fetchOne(
                     connection.prepare(
@@ -507,9 +507,9 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(
                 connection.fetchOne(
                     connection.prepare(
@@ -532,11 +532,11 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
         // The stored value is milliseconds, so SQL must divide by 1000.0
         // before applying the 'unixepoch' modifier (which expects seconds).
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(
                 connection.fetchOne(
                     connection.prepare(
@@ -558,10 +558,10 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(
                 connection.prepare(
                     logicalStatement(
@@ -582,7 +582,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
             )
         }
 
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(
                 connection.fetchOne(
                     connection.prepare(
@@ -616,11 +616,11 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
         // A computed SQL expression can overflow to IEEE 754 infinity even
         // though no bound parameter ever carried a non-finite value.
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(
                 connection.fetchOne(
                     connection.prepare(
@@ -664,12 +664,12 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
         // This REAL value is finite, but converting it from a julian-day
         // number back to unix seconds (`(value - epoch) * 86400`) overflows
         // to IEEE 754 infinity.
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(
                 connection.fetchOne(
                     connection.prepare(
@@ -711,10 +711,10 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(
                 connection.prepare(
                     logicalStatement(
@@ -754,7 +754,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
                 context: parameterContext
             )
 
-            let row = try driver.withWriteConnection { connection -> [XLSQLiteValue] in
+            let row = try driver.withBlockingWriteConnection { connection -> [XLSQLiteValue] in
                 var insert = try connection.prepare(
                     logicalStatement(
                         databaseIdentifier: databaseIdentifier,

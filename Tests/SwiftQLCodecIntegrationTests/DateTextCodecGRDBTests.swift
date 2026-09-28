@@ -20,7 +20,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [XLDateTextCodec.standardKey]
         )
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let inserted = Date(timeIntervalSince1970: 1_700_000_000.123)
         let updated = Date(timeIntervalSince1970: 1_700_000_500.5)
         let parameterContext = XLValueCodingContext(
@@ -65,7 +65,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             context: parameterContext
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
 
             var insertStatement = try connection.prepare(insert)
@@ -83,7 +83,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             try connection.execute(insertStatement)
         }
 
-        let firstRow = try driver.withReadConnection { connection -> [XLSQLiteValue] in
+        let firstRow = try driver.withBlockingReadConnection { connection -> [XLSQLiteValue] in
             var selectStatement = try connection.prepare(select)
             selectStatement = try connection.bind(.integer(1), to: .named("id"), in: selectStatement)
             return try XCTUnwrap(connection.fetchOne(selectStatement))
@@ -116,7 +116,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
         XCTAssertNil(decodedClosedAt)
 
         let updatedValue = try configuration.encode(updated, using: dialect, context: parameterContext)
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             var updateStatement = try connection.prepare(update)
             updateStatement = try connection.bind(.integer(1), to: .named("id"), in: updateStatement)
             updateStatement = try connection.bind(
@@ -127,7 +127,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             try connection.execute(updateStatement)
         }
 
-        let updatedRow = try driver.withReadConnection { connection -> [XLSQLiteValue] in
+        let updatedRow = try driver.withBlockingReadConnection { connection -> [XLSQLiteValue] in
             var selectStatement = try connection.prepare(select)
             selectStatement = try connection.bind(.integer(1), to: .named("id"), in: selectStatement)
             return try XCTUnwrap(connection.fetchOne(selectStatement))
@@ -186,7 +186,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [XLDateTextCodec.standardKey]
         )
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let context = XLValueCodingContext(site: .parameter, path: XLValueCodingPath("moments"))
         let dates = [
             Date(timeIntervalSince1970: 1_700_000_000.5),
@@ -209,7 +209,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             sql: "SELECT moment FROM moments ORDER BY moment ASC"
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
             for date in dates {
                 var statement = try connection.prepare(insert)
@@ -219,7 +219,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             }
         }
 
-        let orderedRows = try driver.withReadConnection { connection -> [[XLSQLiteValue]] in
+        let orderedRows = try driver.withBlockingReadConnection { connection -> [[XLSQLiteValue]] in
             var rows: [[XLSQLiteValue]] = []
             try connection.forEachRow(connection.prepare(selectOrdered)) { values in
                 rows.append(values)
@@ -254,7 +254,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [XLDateTextCodec.standardKey]
         )
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let context = XLValueCodingContext(site: .parameter, path: XLValueCodingPath("readings"))
         let date = Date(timeIntervalSince1970: 1_700_000_000.123)
 
@@ -282,7 +282,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
                 """
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
             var statement = try connection.prepare(insert)
             let value = try configuration.encode(date, using: dialect, context: context)
@@ -290,7 +290,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             try connection.execute(statement)
         }
 
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(connection.fetchOne(connection.prepare(select)))
         }
         XCTAssertEqual(row[0], .text("2023-11-14"))
@@ -317,7 +317,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
         // a rejected `duplicateDefault`); each property selects explicitly.
         let configuration = try XLValueCodingConfiguration(registry: registry)
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let startedContext = XLValueCodingContext(
             site: .parameter,
             path: XLValueCodingPath(["sessions", "started_at"])
@@ -360,7 +360,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             sql: "SELECT started_at, completed_at FROM sessions"
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
             var statement = try connection.prepare(insert)
             statement = try connection.bind(startedValue, to: .named("started_at"), in: statement)
@@ -368,7 +368,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             try connection.execute(statement)
         }
 
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(connection.fetchOne(connection.prepare(select)))
         }
         XCTAssertEqual(row[0], .text("2023-11-14T22:13:20.123Z"))
@@ -411,7 +411,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [XLDateTextCodec.standardKey]
         )
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let resultContext = XLValueCodingContext(
             site: .result,
             path: XLValueCodingPath(["corrupt", "when"])
@@ -434,11 +434,11 @@ final class DateTextCodecGRDBTests: XCTestCase {
             sql: "SELECT moment FROM corrupt"
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
             try connection.execute(connection.prepare(insertGarbage))
         }
-        let storedRow = try driver.withReadConnection { connection in
+        let storedRow = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(connection.fetchOne(connection.prepare(select)))
         }
 
@@ -460,7 +460,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
 
         // A storage-class mismatch (INTEGER where the codec declared TEXT) is
         // rejected before the codec's own decode closure ever runs.
-        let integerRow = try driver.withReadConnection { connection in
+        let integerRow = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(connection.fetchOne(connection.prepare(selectWrongStorage)))
         }
         XCTAssertThrowsError(

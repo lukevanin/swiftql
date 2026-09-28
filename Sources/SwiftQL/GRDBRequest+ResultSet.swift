@@ -54,9 +54,9 @@ extension GRDBRequest {
             "withResultSet: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
 
         if requiresWriteConnection {
-            var driver = executor.driver
+            let driver = executor.driver
             var items: [Row] = []
-            try driver.withTransaction { connection in
+            try driver.withBlockingTransaction { connection in
                 items = try decodeRows(packet: packet, in: &connection)
             }
             // The shared eager fallback from `XLRequest` (see
@@ -98,7 +98,7 @@ extension GRDBRequest {
     // them synchronous preserves a real regression contract: `SQLTransactionScopeTests
     // .testPublishInsideATransactionFailsPredictablyInsteadOfObservingAnInvalidatedConnection` calls
     // `.publish()` and synchronously waits on the *same* thread `withTransaction(_:)`'s body is running
-    // on. `databasePool.write(_:)` blocks the calling thread for that body's duration, so if this fast-
+    // on. The pool's write access blocks the calling thread for that body's duration, so if this fast-
     // fail error were instead delivered lazily through a `Task` plus `.receive(on: DispatchQueue.main)`
     // (as `stream()`/`streamOne()` do), it could never be delivered while that same thread is the one
     // blocked waiting for it -- a deadlock. `Fail` needs no dispatch queue and delivers synchronously,

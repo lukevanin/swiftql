@@ -19,7 +19,16 @@ import GRDBSQLite
 /// connection access never touches the pool, so it cannot re-enter it and
 /// cannot deadlock waiting on a writer access the enclosing scope already
 /// holds.
-struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
+///
+/// The driver conforms to the asynchronous ``XLDatabaseDriver`` contract, and
+/// also keeps a blocking scope for the v1 request layer, which moves to the
+/// asynchronous one with #681 and #682. Both share the connection type and
+/// every connection primitive, so the two differ only in how the caller
+/// waits. The blocking scope has its own names, `withBlocking...`, so that it
+/// never shadows an asynchronous member: a concrete method outranks a
+/// protocol extension method of the same name, and `try await` would then
+/// quietly block a thread.
+struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
 
     typealias Dialect = XLSQLiteDialect
 
@@ -30,6 +39,16 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
     let databaseIdentifier: XLDatabaseIdentifier
 
     let dialect: XLSQLiteDialect
+
+    /// GRDB's own default: ``XLTransactionKind/immediate`` for a writable
+    /// database, so a second writer conflicts at `BEGIN` rather than partway
+    /// through a transaction, and ``XLTransactionKind/deferred`` for a
+    /// read-only one, where GRDB notes SQLite can refuse a non-deferred
+    /// transaction.
+    let defaultTransactionKind: XLTransactionKind
+
+    /// `defaultTransactionKind` as GRDB spells it, worked out once.
+    private let grdbDefaultTransactionKind: Database.TransactionKind
 
     private enum Access {
         case pool(DatabasePool)
@@ -64,19 +83,28 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
         dialect: XLSQLiteDialect,
         databaseIdentifier: XLDatabaseIdentifier = XLDatabaseIdentifier(rawValue: UUID())
     ) {
-        self.access = .pool(databasePool)
-        self.dialect = dialect
-        self.databaseIdentifier = databaseIdentifier
+        let readOnly = databasePool.configuration.readonly
+        self.init(
+            access: .pool(databasePool),
+            dialect: dialect,
+            databaseIdentifier: databaseIdentifier,
+            defaultTransactionKind: readOnly ? .deferred : .immediate,
+            grdbDefaultTransactionKind: readOnly ? .deferred : .immediate
+        )
     }
 
     private init(
         access: Access,
         dialect: XLSQLiteDialect,
-        databaseIdentifier: XLDatabaseIdentifier
+        databaseIdentifier: XLDatabaseIdentifier,
+        defaultTransactionKind: XLTransactionKind,
+        grdbDefaultTransactionKind: Database.TransactionKind
     ) {
         self.access = access
         self.dialect = dialect
         self.databaseIdentifier = databaseIdentifier
+        self.defaultTransactionKind = defaultTransactionKind
+        self.grdbDefaultTransactionKind = grdbDefaultTransactionKind
     }
 
     ///
@@ -103,19 +131,23 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
         GRDBDatabaseDriver(
             access: .pinned(box),
             dialect: dialect,
-            databaseIdentifier: XLDatabaseIdentifier(rawValue: UUID())
+            databaseIdentifier: XLDatabaseIdentifier(rawValue: UUID()),
+            defaultTransactionKind: defaultTransactionKind,
+            grdbDefaultTransactionKind: grdbDefaultTransactionKind
         )
     }
 
-    mutating func withReadConnection<Result>(
+    func withBlockingReadConnection<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
         switch access {
         case .pool(let pool):
-            try preconditionNotRootReentrant()
+            try preconditionNotRootReentrant(.read)
             return try pool.read { database in
-                var connection = makeConnection(database)
-                return try operation(&connection)
+                try holding(.reader) {
+                    var connection = makeConnection(database)
+                    return try operation(&connection)
+                }
             }
         case .pinned(let box):
             var connection = try box.connection(makeConnection: makeConnection)
@@ -123,15 +155,17 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
         }
     }
 
-    mutating func withWriteConnection<Result>(
+    func withBlockingWriteConnection<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
         switch access {
         case .pool(let pool):
-            try preconditionNotRootReentrant()
+            try preconditionNotRootReentrant(.write)
             return try pool.writeWithoutTransaction { database in
-                var connection = makeConnection(database)
-                return try operation(&connection)
+                try holding(.writer(database)) {
+                    var connection = makeConnection(database)
+                    return try operation(&connection)
+                }
             }
         case .pinned(let box):
             var connection = try box.connection(makeConnection: makeConnection)
@@ -139,47 +173,195 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
         }
     }
 
-    mutating func withTransaction<Result>(
+    func withBlockingTransaction<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
         switch access {
         case .pool(let pool):
-            try preconditionNotRootReentrant()
-            return try pool.write { database in
-                var connection = makeConnection(database)
-                return try operation(&connection)
+            try preconditionNotRootReentrant(.write)
+            return try pool.writeWithoutTransaction { database in
+                try runTransaction(on: database, kind: grdbDefaultTransactionKind) {
+                    var connection = makeConnection(database)
+                    return try operation(&connection)
+                }
             }
         case .pinned(let box):
             // Already running inside the one real transaction that the
             // owning `XLTransactionalDatabase.withTransaction(_:)` scope
-            // opened with `databasePool.write`. A write statement executed
-            // through the ordinary v1 request path calls this method once
-            // per statement, so reuse the pinned connection directly instead
-            // of asking GRDB for a second write access — GRDB's own writer
-            // queue is not reentrant, and a second `databasePool.write` here
-            // would deadlock instead of composing as a nested transaction.
+            // opened through `runTransaction(on:kind:_:)`. A write statement
+            // executed through the ordinary v1 request path calls this
+            // method once per statement, so reuse the pinned connection
+            // directly instead of asking GRDB for a second write access —
+            // GRDB's own writer queue is not reentrant, and a second write
+            // access here would deadlock instead of composing as a nested
+            // transaction.
             var connection = try box.connection(makeConnection: makeConnection)
             return try operation(&connection)
         }
     }
 
+    // MARK: Asynchronous scope
+
+    // GRDB's asynchronous accessors enqueue `operation` on the connection's
+    // own serial executor and suspend the caller until it has run. They add
+    // no thread hop beyond the one that confines a connection to its queue,
+    // and none of them blocks the calling thread.
+
+    func withReadConnection<Result: Sendable>(
+        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
+    ) async throws -> Result {
+        let pool = try asynchronousPool(for: .read)
+        return try await pool.read { database in
+            try holding(.reader) {
+                var connection = makeConnection(database)
+                return try operation(&connection)
+            }
+        }
+    }
+
+    func withWriteConnection<Result: Sendable>(
+        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
+    ) async throws -> Result {
+        let pool = try asynchronousPool(for: .write)
+        return try await pool.writeWithoutTransaction { database in
+            try holding(.writer(database)) {
+                var connection = makeConnection(database)
+                return try operation(&connection)
+            }
+        }
+    }
+
+    func withTransaction<Result: Sendable>(
+        _ kind: XLTransactionKind,
+        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
+    ) async throws -> Result {
+        let pool = try asynchronousPool(for: .write)
+        let transactionKind = try grdbTransactionKind(kind)
+        return try await pool.writeWithoutTransaction { database in
+            try runTransaction(on: database, kind: transactionKind) {
+                var connection = makeConnection(database)
+                return try operation(&connection)
+            }
+        }
+    }
+
     ///
-    /// Rejects "root-executor re-entry" (issue #284): any pool-mode
-    /// connection access — read *or* write — issued through this driver's
-    /// `databaseIdentifier` while a ``XLTransactionalDatabase/withTransaction(_:)``
-    /// scope for that same identifier is already active on the calling
-    /// thread. This is what protects a plain `SELECT` issued through the
-    /// captured root database from inside an active transaction body, not
-    /// just a second `withTransaction(_:)` call: GRDB's reader pool is not
-    /// reentrant-locked with its writer, so a stray read like that would not
-    /// crash or deadlock — it would just silently lease a different
+    /// Runs `body` inside one transaction of `kind` on `database`, the writer
+    /// connection. `withTransaction(_:)` on a database, and both transaction
+    /// scopes here, open their transaction through this one path.
+    ///
+    /// The writer hold covers the whole transaction, commit included. While
+    /// `body` runs, the connection is inside the transaction, and every root
+    /// access from this thread is rejected. During the commit, GRDB runs its
+    /// transaction observers on this thread; there only a root write is
+    /// rejected. SQLite re-enables autocommit before it calls the commit hook
+    /// that GRDB's `databaseWillCommit` runs from, so no connection state
+    /// tells that callback apart from `databaseDidCommit`. A root read from
+    /// either runs on a reader, as it did on 1.9, and sees what any other
+    /// connection sees at that moment: the state before the commit in
+    /// `databaseWillCommit`, and after it in `databaseDidCommit`.
+    ///
+    func runTransaction<Result>(
+        on database: Database,
+        kind: Database.TransactionKind? = nil,
+        _ body: () throws -> Result
+    ) throws -> Result {
+        let kind = kind ?? grdbDefaultTransactionKind
+        return try holding(.writer(database)) {
+            var result: Result?
+            try database.inTransaction(kind) {
+                result = try body()
+                return .commit
+            }
+            // `inTransaction` returns only after `body` returned and the
+            // transaction committed, so `result` is set.
+            return result!
+        }
+    }
+
+    ///
+    /// Runs `body` with this database marked as held in the reentrancy
+    /// tracker, for a pool-mode scope that holds a reader or the writer.
+    ///
+    /// `body` runs synchronously on the connection's queue, so a call it
+    /// makes through the root database reaches `preconditionNotRootReentrant`
+    /// on the same thread and throws, instead of asking GRDB for a connection
+    /// kind it already holds and tripping GRDB's uncatchable "Database
+    /// methods are not reentrant" precondition.
+    ///
+    private func holding<Result>(
+        _ hold: GRDBTransactionScopeTracker.Hold,
+        _ body: () throws -> Result
+    ) throws -> Result {
+        guard let pool = databasePool else {
+            return try body()
+        }
+        return try GRDBTransactionScopeTracker.shared.withActive(pool, holding: hold, body)
+    }
+
+    ///
+    /// The pool an asynchronous scope leases from, after the checks every
+    /// asynchronous scope makes before it lends a connection.
+    ///
+    /// A pinned driver has no asynchronous scope. Its connection belongs to
+    /// one synchronous ``XLTransactionalDatabase/withTransaction(_:)`` body,
+    /// which cannot suspend, so reaching the connection from asynchronous code
+    /// means the scope value has left that body. That is reported as
+    /// ``XLTransactionScopeError/scopeEscaped`` rather than touching a GRDB
+    /// `Database` off its writer queue.
+    ///
+    private func asynchronousPool(
+        for access: GRDBTransactionScopeTracker.Access
+    ) throws -> DatabasePool {
+        try Task.checkCancellation()
+        switch self.access {
+        case .pool(let pool):
+            try preconditionNotRootReentrant(access)
+            return pool
+        case .pinned:
+            throw XLTransactionScopeError.scopeEscaped
+        }
+    }
+
+    private func grdbTransactionKind(
+        _ kind: XLTransactionKind
+    ) throws -> Database.TransactionKind {
+        switch kind {
+        case .deferred:
+            return .deferred
+        case .immediate:
+            return .immediate
+        case .exclusive:
+            return .exclusive
+        default:
+            throw XLDatabaseContractError.unsupportedTransactionKind(
+                driver: driverIdentifier,
+                kind: kind
+            )
+        }
+    }
+
+    ///
+    /// Rejects "root-executor re-entry" (issue #284): a root access to this
+    /// driver's pool while a scope in the same flow of control holds one of
+    /// the pool's connections. This is what protects a plain `SELECT` issued
+    /// through the captured root database from inside an active transaction
+    /// body, not just a second `withTransaction(_:)` call: GRDB's reader pool
+    /// is not reentrant-locked with its writer, so a stray read like that
+    /// would not crash or deadlock — it would just silently lease a different
     /// connection and return the database's last *committed* state, missing
-    /// the transaction's own uncommitted writes, exactly the "lease another
-    /// connection... and break the transaction boundary" hazard the hard
-    /// constraints call out. See ``GRDBTransactionScopeTracker``.
+    /// the transaction's own uncommitted writes.
     ///
-    private func preconditionNotRootReentrant() throws {
-        guard !GRDBTransactionScopeTracker.shared.isActive(databaseIdentifier) else {
+    /// A scope that holds only a reader or the writer rejects just the access
+    /// GRDB would stop on the same thread. See ``GRDBTransactionScopeTracker``.
+    ///
+    func preconditionNotRootReentrant(
+        _ access: GRDBTransactionScopeTracker.Access
+    ) throws {
+        guard let pool = databasePool else {
+            return
+        }
+        guard !GRDBTransactionScopeTracker.shared.rejects(access, on: pool) else {
             throw XLTransactionScopeError.nestedTransactionUnsupported
         }
     }
@@ -219,12 +401,15 @@ final class GRDBPinnedConnectionBox: @unchecked Sendable {
     private let lock = NSLock()
     private var database: Database?
 
+    /// The thread that runs the body. GRDB confines `database` to it.
+    private let thread = pthread_self()
+
     init(_ database: Database) {
         self.database = database
     }
 
-    /// Invalidates the box. Called once, when the owning
-    /// `databasePool.write` access is about to return (commit or rollback).
+    /// Invalidates the box. Called once, when the owning body returns,
+    /// before the transaction commits or rolls back.
     ///
     /// Synchronized against `connection(makeConnection:)` so a scope value
     /// that escapes to another thread reads a consistent, already-invalidated
@@ -243,7 +428,10 @@ final class GRDBPinnedConnectionBox: @unchecked Sendable {
         lock.lock()
         let database = self.database
         lock.unlock()
-        guard let database else {
+        // A scope value used from another thread -- a task created in the
+        // body, for example -- would touch `database` off GRDB's writer
+        // queue, which GRDB stops with a precondition. It throws instead.
+        guard let database, pthread_equal(thread, pthread_self()) != 0 else {
             throw XLTransactionScopeError.scopeEscaped
         }
         return makeConnection(database)
@@ -298,8 +486,7 @@ struct GRDBInvocationExecutor: Sendable {
         bindings: any XLInvocationBindingPacket
     ) throws -> [[XLSQLiteValue]] {
         let packet = try sqlitePacket(bindings)
-        var driver = driver
-        return try driver.withReadConnection { connection in
+        return try driver.withBlockingReadConnection { connection in
             try fetchAll(packet: packet, in: &connection)
         }
     }
@@ -319,8 +506,7 @@ struct GRDBInvocationExecutor: Sendable {
         _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
     ) throws {
         let packet = try sqlitePacket(bindings)
-        var driver = driver
-        try driver.withReadConnection { connection in
+        try driver.withBlockingReadConnection { connection in
             try forEachRow(
                 packet: packet,
                 in: &connection,
@@ -356,7 +542,6 @@ struct GRDBInvocationExecutor: Sendable {
         requiresWriteConnection: Bool,
         _ operation: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
     ) throws -> Result {
-        var driver = driver
         let accessor: (inout GRDBDatabaseDriverConnection) throws -> Result = { connection in
             let statement = try self.boundStatement(packet: packet, in: &connection)
             // The statement stays marked in use for all of `operation`, which
@@ -372,10 +557,10 @@ struct GRDBInvocationExecutor: Sendable {
             }
         }
         if requiresWriteConnection {
-            return try driver.withTransaction(accessor)
+            return try driver.withBlockingTransaction(accessor)
         }
         else {
-            return try driver.withReadConnection(accessor)
+            return try driver.withBlockingReadConnection(accessor)
         }
     }
 
@@ -383,8 +568,7 @@ struct GRDBInvocationExecutor: Sendable {
         bindings: any XLInvocationBindingPacket
     ) throws -> [XLSQLiteValue]? {
         let packet = try sqlitePacket(bindings)
-        var driver = driver
-        return try driver.withReadConnection { connection in
+        return try driver.withBlockingReadConnection { connection in
             try fetchOne(packet: packet, in: &connection)
         }
     }
@@ -393,8 +577,7 @@ struct GRDBInvocationExecutor: Sendable {
     func fetchOne(
         packet: XLValidatedSQLitePacket
     ) throws -> [XLSQLiteValue]? {
-        var driver = driver
-        return try driver.withReadConnection { connection in
+        return try driver.withBlockingReadConnection { connection in
             try fetchOne(packet: packet, in: &connection)
         }
     }
@@ -410,8 +593,7 @@ struct GRDBInvocationExecutor: Sendable {
         bindings: any XLInvocationBindingPacket
     ) throws {
         let packet = try sqlitePacket(bindings)
-        var driver = driver
-        try driver.withTransaction { connection in
+        try driver.withBlockingTransaction { connection in
             try execute(packet: packet, in: &connection)
         }
     }
@@ -420,8 +602,7 @@ struct GRDBInvocationExecutor: Sendable {
     func execute(
         packet: XLValidatedSQLitePacket
     ) throws {
-        var driver = driver
-        try driver.withTransaction { connection in
+        try driver.withBlockingTransaction { connection in
             try execute(packet: packet, in: &connection)
         }
     }
@@ -1476,73 +1657,250 @@ private extension XLBindingKey {
 
 
 ///
-/// Detects "root-executor re-entry" (issue #284): a second
-/// `withTransaction(_:)` call, reached from inside an already-active body,
-/// on the *original, unpinned* database value rather than the pinned scope
-/// `body` was given.
+/// Detects "root-executor re-entry" (issue #284): a call through the
+/// *original, unpinned* database, reached from inside a scope that already
+/// holds one of that database's connections.
 ///
 /// `GRDBDatabaseDriver.isPinned` alone cannot catch this, because the
 /// captured root database's own driver was never marked pinned — only the
 /// scope handed to `body` was. And the crash this guards against cannot be
-/// caught after the fact: GRDB's writer access is not reentrant, and a
-/// reentrant `DatabasePool.write`/`writeWithoutTransaction` call traps with
-/// an unconditional `fatalError` ("Database methods are not reentrant.")
-/// before a single line of SwiftQL runs. This tracker must reject the call
-/// *before* it reaches `databasePool.write` at all.
+/// caught after the fact: GRDB's connection accesses are not reentrant, and
+/// a reentrant call traps with an unconditional "Database methods are not
+/// reentrant." before a single line of SwiftQL runs. This tracker must reject
+/// the call *before* it reaches the pool at all.
 ///
-/// Scoped per-`Thread` rather than per-pool: `body` runs synchronously to
-/// completion, so a call nested inside it is necessarily on the same thread
-/// as the active scope. Two independent, concurrent `withTransaction(_:)`
-/// calls from different threads are unrelated activations — each has its own
-/// thread dictionary — and both must succeed, serialized safely by GRDB's own
-/// writer queue.
+/// Holds are keyed by the `DatabasePool`, not by a `GRDBDatabase`'s
+/// identifier, because two databases can share one pool and GRDB's rule is
+/// about the pool's connections.
 ///
-/// Callers must enter `withActive(_:_:)` on the same thread that will run
-/// `body` -- for the GRDB adapter, that means *inside* the
-/// `databasePool.write(_:)` closure, not around it. GRDB dispatches that
-/// closure onto its own writer thread, which is not necessarily the caller's
-/// thread; marking active before calling `databasePool.write` would leave a
-/// reentrant call made from inside `body` unable to see the marker, silently
-/// defeating this guard.
-final class GRDBTransactionScopeTracker: @unchecked Sendable {
+/// A hold is scoped to the flow of control that took it, never to tasks it
+/// creates. A task created inside a scope is concurrent work: its write
+/// waits for the writer and runs after the scope, and its read sees
+/// committed data, which is correct isolation for a separate task.
+///
+/// - A hold taken in synchronous code -- every scope today, including the
+///   body of `withTransaction(_:)` on a database -- is kept per thread, in
+///   thread-local storage. Nothing in a synchronous extent can suspend, so
+///   the thread is exactly its flow of control, and GRDB's own rule is per
+///   thread too. Tasks never inherit it.
+/// - A transaction held across suspension points, as an asynchronous
+///   transaction body will be (#681), is kept in a `@TaskLocal` (issue
+///   #676), so a call after an `await` still sees it wherever the task
+///   resumes. It records its owning task, so a task created inside it, which
+///   inherits the task-local list, is not rejected.
+///
+/// Callers of the synchronous `withActive(_:holding:_:)` must enter it in the
+/// same synchronous extent that runs `body` -- for the GRDB adapter, *inside*
+/// the pool's `read`/`write` closure, not around it. GRDB may run that
+/// closure on its own queue's thread.
+final class GRDBTransactionScopeTracker: Sendable {
 
     static let shared = GRDBTransactionScopeTracker()
 
-    private let key = "swiftql.grdb.activeTransactionScopeDatabaseIdentifiers"
+    @TaskLocal
+    private static var asyncTransactions: [AsyncTransaction] = []
+
+    /// What a synchronous scope holds. Each hold rejects exactly the root
+    /// accesses from the same thread that GRDB would stop, plus a read that
+    /// would miss uncommitted writes.
+    ///
+    /// Not `Sendable`: a hold stays on the thread that took it.
+    enum Hold {
+        /// One pooled reader. A root read is rejected: GRDB would stop a
+        /// second read from this thread. A root write runs on GRDB's separate
+        /// writer.
+        case reader
+        /// The writer, and the connection that holds it. A root write is
+        /// rejected: GRDB would stop a second write from this thread. A root
+        /// read is rejected while the connection is inside a transaction,
+        /// because it would miss the uncommitted writes, and runs otherwise
+        /// (see `runTransaction(on:kind:_:)` for the commit itself).
+        case writer(Database)
+    }
+
+    /// The access a new root-database call asks for.
+    enum Access: Sendable {
+        case read
+        case write
+    }
 
     private init() {}
 
-    func isActive(_ databaseIdentifier: XLDatabaseIdentifier) -> Bool {
-        activeIdentifiers.contains(databaseIdentifier)
+    /// Whether a root access to `pool` must be refused, because a scope in
+    /// the same flow of control holds one of its connections.
+    func rejects(_ access: Access, on pool: DatabasePool) -> Bool {
+        let key = ObjectIdentifier(pool)
+        if let holds = ThreadHolds.existing, holds.rejects(access, on: key) {
+            return true
+        }
+        let transactions = Self.asyncTransactions
+        guard !transactions.isEmpty else {
+            return false
+        }
+        return withUnsafeCurrentTask { task in
+            guard let task else {
+                return false
+            }
+            return transactions.contains { transaction in
+                transaction.pool == key
+                    && transaction.isOpen
+                    && transaction.owner == task
+            }
+        }
     }
 
-    /// Marks `databaseIdentifier` active on the calling thread for the
-    /// duration of `body`, and always clears it again afterward — including
-    /// when `body` throws.
+    /// Marks `pool` as held on the calling thread for the duration of `body`,
+    /// and always clears it again afterward -- including when `body` throws.
     func withActive<Result>(
-        _ databaseIdentifier: XLDatabaseIdentifier,
+        _ pool: DatabasePool,
+        holding hold: Hold,
         _ body: () throws -> Result
     ) throws -> Result {
-        var identifiers = activeIdentifiers
-        identifiers.insert(databaseIdentifier)
-        activeIdentifiers = identifiers
-        defer {
-            var identifiers = activeIdentifiers
-            identifiers.remove(databaseIdentifier)
-            activeIdentifiers = identifiers
-        }
+        let holds = ThreadHolds.current
+        holds.push(ObjectIdentifier(pool), hold)
+        defer { holds.pop() }
         return try body()
     }
 
-    private var activeIdentifiers: Set<XLDatabaseIdentifier> {
-        get {
-            Thread.current.threadDictionary[key] as? Set<XLDatabaseIdentifier> ?? []
-        }
-        set {
-            Thread.current.threadDictionary[key] = newValue
+    /// Marks `pool` as held by a transaction in the calling task for the
+    /// duration of `body`, across every suspension point in it.
+    ///
+    /// This is the entry point for an asynchronous transaction body (#681).
+    func withAsyncTransaction<Result>(
+        on pool: DatabasePool,
+        isolation: isolated (any Actor)? = #isolation,
+        _ body: () async throws -> Result
+    ) async throws -> Result {
+        // An async function always runs in a task, so `owner` is set.
+        let owner = withUnsafeCurrentTask { $0 }
+        let transaction = AsyncTransaction(ObjectIdentifier(pool), owner: owner)
+        defer { transaction.close() }
+        return try await Self.$asyncTransactions.withValue(Self.asyncTransactions + [transaction]) {
+            try await body()
         }
     }
+
+    /// One asynchronous transaction hold and the task that owns it.
+    ///
+    /// The owner is compared by identity: `UnsafeCurrentTask` equality
+    /// compares the task pointers. The value is kept beyond the closure that
+    /// produced it, which is safe here because it is only compared, never
+    /// used to reach the task, and only while the hold is open, when the
+    /// owner is still running `body`. The hold is closed when the owner's
+    /// scope returns, so a task that later reuses the owner's address cannot
+    /// match.
+    private final class AsyncTransaction: @unchecked Sendable {
+
+        let pool: ObjectIdentifier
+
+        let owner: UnsafeCurrentTask?
+
+        private let lock = NSLock()
+        private var closed = false
+
+        init(_ pool: ObjectIdentifier, owner: UnsafeCurrentTask?) {
+            self.pool = pool
+            self.owner = owner
+        }
+
+        var isOpen: Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            return !closed
+        }
+
+        func close() {
+            lock.lock()
+            defer { lock.unlock() }
+            closed = true
+        }
+    }
+
+    ///
+    /// The holds of one thread, innermost last.
+    ///
+    /// Only its own thread reads or writes it, so it needs no lock. It lives
+    /// in pthread thread-local storage, which a task never inherits, and is
+    /// released when its thread exits.
+    ///
+    private final class ThreadHolds {
+
+        private var holds: [(pool: ObjectIdentifier, hold: Hold)] = []
+
+        func push(_ pool: ObjectIdentifier, _ hold: Hold) {
+            holds.append((pool, hold))
+        }
+
+        func pop() {
+            holds.removeLast()
+        }
+
+        func rejects(_ access: Access, on pool: ObjectIdentifier) -> Bool {
+            holds.contains { entry in
+                guard entry.pool == pool else {
+                    return false
+                }
+                switch entry.hold {
+                case .reader:
+                    return access == .read
+                case .writer(let database):
+                    return access == .write || Self.isInsideTransaction(database)
+                }
+            }
+        }
+
+        /// Whether `database` is inside a transaction, read from SQLite's
+        /// autocommit flag. `Database.isInsideTransaction` asserts that it
+        /// runs on the database's queue, and a check can run on this thread
+        /// under another queue; the flag itself is safe to read on the thread
+        /// that holds the connection.
+        private static func isInsideTransaction(_ database: Database) -> Bool {
+            guard let connection = database.sqliteConnection else {
+                return false
+            }
+            return sqlite3_get_autocommit(connection) == 0
+        }
+
+        /// This thread's holds, or `nil` when it has never taken one. A
+        /// check never allocates.
+        static var existing: ThreadHolds? {
+            pthread_getspecific(key).map { pointer in
+                Unmanaged<ThreadHolds>.fromOpaque(pointer).takeUnretainedValue()
+            }
+        }
+
+        /// This thread's holds, created on the first hold it takes.
+        static var current: ThreadHolds {
+            if let holds = existing {
+                return holds
+            }
+            let holds = ThreadHolds()
+            pthread_setspecific(key, Unmanaged.passRetained(holds).toOpaque())
+            return holds
+        }
+
+        private static let key: pthread_key_t = {
+            var key = pthread_key_t()
+            let status = pthread_key_create(&key, releaseThreadHolds)
+            precondition(status == 0, "pthread_key_create failed: \(status)")
+            return key
+        }()
+    }
 }
+
+
+/// Releases one thread's `ThreadHolds` when the thread exits.
+#if canImport(Darwin)
+private func releaseThreadHolds(_ pointer: UnsafeMutableRawPointer) {
+    Unmanaged<AnyObject>.fromOpaque(pointer).release()
+}
+#else
+private func releaseThreadHolds(_ pointer: UnsafeMutableRawPointer?) {
+    if let pointer {
+        Unmanaged<AnyObject>.fromOpaque(pointer).release()
+    }
+}
+#endif
 
 
 ///

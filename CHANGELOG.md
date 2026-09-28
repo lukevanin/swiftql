@@ -45,6 +45,54 @@
     Linux, which makes the repeat certain there. See <doc:LiveQueries>, "A
     live query may deliver the same value twice".
 
+- **The driver scopes are asynchronous** (issue #676). This changes only code
+  that conforms to `XLDatabaseDriver` or calls its scopes directly. Requests,
+  `withTransaction(_:)` on a database, and the query macros keep their
+  synchronous signatures until #681.
+  - `withReadConnection(_:)`, `withWriteConnection(_:)`, and
+    `withTransaction(_:_:)` are `async`, and they no longer mutate the driver.
+    `XLDatabaseDriver` refines `Sendable`. Each scope takes a `@Sendable`
+    operation and returns a `Sendable` result, because the driver may run the
+    operation on its own executor. The operation itself is still synchronous,
+    and so is every `XLDatabaseDriverConnection` requirement, so a statement or
+    cursor still cannot outlive its connection access.
+  - `withTransaction(_:_:)` takes an `XLTransactionKind`: `.deferred`,
+    `.immediate`, or `.exclusive`. `withTransaction(_:)` without a kind uses
+    the driver's new `defaultTransactionKind` requirement. The GRDB driver's
+    is GRDB's own default: `.immediate`, or `.deferred` for a read-only
+    database. A driver that
+    cannot honour a kind throws the new case
+    `XLDatabaseContractError.unsupportedTransactionKind(driver:kind:)`. A
+    `switch` over `XLDatabaseContractError` with no `default` clause must
+    handle the new case.
+  - Every scope throws `CancellationError`, without lending a connection, when
+    the calling task is already cancelled. Cancelling the task while the
+    operation runs can interrupt it: with GRDB 7, the statement in progress
+    throws `CancellationError`, and a transaction rolls back.
+    `withValidatedTransaction(_:_:)` rethrows `CancellationError` unchanged
+    instead of reporting a transaction failure. It does the same for an error
+    that conforms to the new `XLDriverScopeRefusal` protocol, which a driver
+    uses to mark a refusal to lend a connection. `XLTransactionScopeError`
+    conforms.
+  - A nested call through the root database that GRDB would stop with
+    "Database methods are not reentrant" now throws
+    `XLTransactionScopeError.nestedTransactionUnsupported` instead. For
+    example, a second root fetch from inside a result-set body on the root
+    database crashed the process on 1.9. Nestings GRDB supports, such as a
+    root write from inside that body, still run.
+  - A request made from a `withTransaction(_:)` scope and used from another
+    thread, such as a task created in the body, throws
+    `XLTransactionScopeError.scopeEscaped`. On 1.9 GRDB stopped the process
+    with "Database was not used on the correct thread".
+  - These checks apply to every `GRDBDatabase` over the same
+    `DatabasePool`, not only to the one that opened the scope.
+  - A root read from inside a write transaction that SwiftQL opened now
+    throws `XLTransactionScopeError.nestedTransactionUnsupported` too. For
+    example, a lazy sequence passed to `insert(contentsOf:)` is iterated
+    inside the batch's transaction, and a fetch through the root database
+    from that sequence throws. On 1.9 it ran on another connection and
+    silently missed the rows the batch had already inserted.
+
 ## [1.9.0] - 2026-09-16
 
 ### Migration

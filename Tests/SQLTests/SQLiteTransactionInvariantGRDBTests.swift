@@ -15,29 +15,29 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         case earlyExit
     }
 
-    func testSharedCommitCasesVerifyDurableStateReturnValuesAndVisibility() throws {
+    func testSharedCommitCasesVerifyDurableStateReturnValuesAndVisibility() async throws {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = makeDriver(fixture.pool)
-        try createSchema(using: &driver)
+        let driver = makeDriver(fixture.pool)
+        try createSchema(using: driver)
 
-        var before = try snapshot(using: &driver)
+        var before = try snapshot(using: driver)
         let empty = try transactionCase(.emptyCommit)
-        let emptyResult = try driver.withValidatedTransaction { _ in
+        let emptyResult = try await driver.withValidatedTransaction { _ in
             empty.id.rawValue
         }
         XCTAssertEqual(emptyResult, empty.id.rawValue)
-        var after = try snapshot(using: &driver)
+        var after = try snapshot(using: driver)
         try empty.validate(before: before, after: after)
 
         before = after
         let multiple = try transactionCase(.multipleStatementCommit)
         let multipleInsert = insertStatement(for: driver)
         let select = selectStatement(for: driver)
-        let insideCount = try driver.withValidatedTransaction { connection in
+        let insideCount = try await driver.withValidatedTransaction { connection in
             for rowID in multiple.insertedRowIDs {
-                try insert(
+                try Self.insert(
                     id: rowID,
                     value: SQLiteTransactionStateRow.conformanceValue,
                     statement: multipleInsert,
@@ -47,14 +47,14 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
             return try connection.fetchAll(connection.prepare(select)).count
         }
         XCTAssertEqual(insideCount, 2, multiple.id.rawValue)
-        after = try snapshot(using: &driver)
+        after = try snapshot(using: driver)
         try multiple.validate(before: before, after: after)
 
         before = after
         let returnValue = try transactionCase(.returnValue)
         let returnInsert = insertStatement(for: driver)
-        let returned = try driver.withValidatedTransaction { connection in
-            try insert(
+        let returned = try await driver.withValidatedTransaction { connection in
+            try Self.insert(
                 id: try XCTUnwrap(returnValue.insertedRowIDs.first),
                 value: SQLiteTransactionStateRow.conformanceValue,
                 statement: returnInsert,
@@ -64,15 +64,15 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         }
         XCTAssertEqual(returned.0, .returnValue)
         XCTAssertEqual(returned.1, 253)
-        after = try snapshot(using: &driver)
+        after = try snapshot(using: driver)
         try returnValue.validate(before: before, after: after)
 
         before = after
         let pinning = try transactionCase(.connectionPinning)
         let pinningInsert = insertStatement(for: driver)
         let pinningSelect = selectStatement(for: driver)
-        let pinnedRows = try driver.withValidatedTransaction { connection in
-            try insert(
+        let pinnedRows = try await driver.withValidatedTransaction { connection in
+            try Self.insert(
                 id: try XCTUnwrap(pinning.insertedRowIDs.first),
                 value: SQLiteTransactionStateRow.conformanceValue,
                 statement: pinningInsert,
@@ -84,16 +84,16 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
             pinnedRows.contains { $0.first == .text(pinning.id.rawValue) },
             pinning.id.rawValue
         )
-        after = try snapshot(using: &driver)
+        after = try snapshot(using: driver)
         try pinning.validate(before: before, after: after)
 
         before = after
         let pinnedVisibility = try transactionCase(.pinnedConnectionVisibility)
         let visibilityInsert = insertStatement(for: driver)
         let visibilitySelect = selectStatement(for: driver)
-        let visibleInside = try driver.withValidatedTransaction { connection in
+        let visibleInside = try await driver.withValidatedTransaction { connection in
             let rowID = try XCTUnwrap(pinnedVisibility.insertedRowIDs.first)
-            try insert(
+            try Self.insert(
                 id: rowID,
                 value: SQLiteTransactionStateRow.conformanceValue,
                 statement: visibilityInsert,
@@ -103,44 +103,44 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
             return rows.contains { $0.first == .text(rowID) }
         }
         XCTAssertTrue(visibleInside, pinnedVisibility.id.rawValue)
-        after = try snapshot(using: &driver)
+        after = try snapshot(using: driver)
         try pinnedVisibility.validate(before: before, after: after)
 
         before = after
         let poolVisibility = try transactionCase(.pooledCommitVisibility)
         let poolInsert = insertStatement(for: driver)
-        try driver.withValidatedTransaction { connection in
-            try insert(
+        try await driver.withValidatedTransaction { connection in
+            try Self.insert(
                 id: try XCTUnwrap(poolVisibility.insertedRowIDs.first),
                 value: SQLiteTransactionStateRow.conformanceValue,
                 statement: poolInsert,
                 connection: &connection
             )
         }
-        after = try snapshot(using: &driver)
+        after = try snapshot(using: driver)
         try poolVisibility.validate(before: before, after: after)
     }
 
-    func testSharedRollbackCasesPreserveCauseStateAndConnectionReuse() throws {
+    func testSharedRollbackCasesPreserveCauseStateAndConnectionReuse() async throws {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = makeDriver(fixture.pool)
-        try createSchema(using: &driver)
-        try commitSeed(using: &driver)
+        let driver = makeDriver(fixture.pool)
+        try createSchema(using: driver)
+        try await commitSeed(using: driver)
 
-        try assertRollback(
+        try await assertRollback(
             .explicitRollback,
-            driver: &driver,
+            driver: driver,
             operation: { _ in throw RollbackSignal.explicit },
             errorAssertion: { error in
                 XCTAssertEqual(error as? RollbackSignal, .explicit)
             }
         )
 
-        try assertRollback(
+        try await assertRollback(
             .bodyErrorRollback,
-            driver: &driver,
+            driver: driver,
             operation: { _ in throw RollbackSignal.bodyFailure },
             errorAssertion: { error in
                 XCTAssertEqual(error as? RollbackSignal, .bodyFailure)
@@ -148,11 +148,11 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         )
 
         let duplicateSeed = insertStatement(for: driver)
-        try assertRollback(
+        try await assertRollback(
             .constraintFailureRollback,
-            driver: &driver,
+            driver: driver,
             operation: { connection in
-                try self.insert(
+                try Self.insert(
                     id: "seed",
                     value: 999,
                     statement: duplicateSeed,
@@ -168,9 +168,9 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         )
 
         let bindFailure = logicalStatement(for: driver, sql: "SELECT :value")
-        try assertRollback(
+        try await assertRollback(
             .bindFailureRollback,
-            driver: &driver,
+            driver: driver,
             operation: { connection in
                 let statement = try connection.prepare(bindFailure)
                 _ = try connection.bind(
@@ -198,9 +198,9 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
             for: driver,
             sql: "SELECT 'not-an-integer'"
         )
-        try assertRollback(
+        try await assertRollback(
             .decodeFailureRollback,
-            driver: &driver,
+            driver: driver,
             operation: { connection in
                 let row = try XCTUnwrap(
                     connection.fetchOne(connection.prepare(invalidValue))
@@ -223,9 +223,9 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
             for: driver,
             sql: "INSERT definitely not valid SQL"
         )
-        try assertRollback(
+        try await assertRollback(
             .driverFailureRollback,
-            driver: &driver,
+            driver: driver,
             operation: { connection in
                 _ = try connection.prepare(invalidSQL)
             },
@@ -237,18 +237,18 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
             }
         )
 
-        try assertRollback(
+        try await assertRollback(
             .earlyExitRollback,
-            driver: &driver,
+            driver: driver,
             operation: { _ in throw RollbackSignal.earlyExit },
             errorAssertion: { error in
                 XCTAssertEqual(error as? RollbackSignal, .earlyExit)
             }
         )
 
-        try assertRollback(
+        try await assertRollback(
             .pooledRollbackVisibility,
-            driver: &driver,
+            driver: driver,
             operation: { _ in throw RollbackSignal.explicit },
             errorAssertion: { error in
                 XCTAssertEqual(error as? RollbackSignal, .explicit)
@@ -256,10 +256,10 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         )
 
         let reuse = try transactionCase(.postFailureReuse)
-        let beforeReuse = try snapshot(using: &driver)
+        let beforeReuse = try snapshot(using: driver)
         let reuseInsert = insertStatement(for: driver)
-        try driver.withValidatedTransaction { connection in
-            try insert(
+        try await driver.withValidatedTransaction { connection in
+            try Self.insert(
                 id: try XCTUnwrap(reuse.insertedRowIDs.first),
                 value: SQLiteTransactionStateRow.conformanceValue,
                 statement: reuseInsert,
@@ -268,18 +268,18 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         }
         try reuse.validate(
             before: beforeReuse,
-            after: try snapshot(using: &driver)
+            after: try snapshot(using: driver)
         )
     }
 
-    func testUnsupportedCapabilitiesFailBeforePoolReentryAndLeaveStateUnchanged() throws {
+    func testUnsupportedCapabilitiesFailBeforePoolReentryAndLeaveStateUnchanged() async throws {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = makeDriver(fixture.pool)
-        try createSchema(using: &driver)
-        try commitSeed(using: &driver)
-        let before = try snapshot(using: &driver)
+        let driver = makeDriver(fixture.pool)
+        try createSchema(using: driver)
+        try await commitSeed(using: driver)
+        let before = try snapshot(using: driver)
         let nested = try transactionCase(.nestedTransactionCapability)
         let disposition = try XCTUnwrap(
             SQLiteTransactionConformanceFixtures.capabilities[
@@ -304,7 +304,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         }
         try nested.validate(
             before: before,
-            after: try snapshot(using: &driver)
+            after: try snapshot(using: driver)
         )
 
         let single = try transactionCase(.singleConnectionVisibilityCapability)
@@ -330,7 +330,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         }
         try single.validate(
             before: before,
-            after: try snapshot(using: &driver)
+            after: try snapshot(using: driver)
         )
     }
 
@@ -357,7 +357,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
                 group.addTask {
                     (
                         index,
-                        try Self.commitIndependentRow(
+                        try await Self.commitIndependentRow(
                             rowID,
                             databasePool: pool
                         )
@@ -393,36 +393,38 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
 
     private func assertRollback(
         _ id: SQLiteTransactionConformanceCaseID,
-        driver: inout GRDBDatabaseDriver,
-        operation: (inout GRDBDatabaseDriverConnection) throws -> Void,
+        driver: GRDBDatabaseDriver,
+        operation: @escaping @Sendable (inout GRDBDatabaseDriverConnection) throws -> Void,
         errorAssertion: (Error) -> Void
-    ) throws {
+    ) async throws {
         let testCase = try transactionCase(id)
-        let before = try snapshot(using: &driver)
+        let before = try snapshot(using: driver)
         let statement = insertStatement(for: driver)
+        let rowID = try XCTUnwrap(testCase.insertedRowIDs.first)
 
-        XCTAssertThrowsError(
-            try driver.withValidatedTransaction { connection in
-                try insert(
-                    id: try XCTUnwrap(testCase.insertedRowIDs.first),
+        do {
+            try await driver.withValidatedTransaction { connection in
+                try Self.insert(
+                    id: rowID,
                     value: SQLiteTransactionStateRow.conformanceValue,
                     statement: statement,
                     connection: &connection
                 )
                 try operation(&connection)
-            },
-            id.rawValue
-        ) { error in
+            }
+            XCTFail("The \(id.rawValue) transaction must throw.")
+        }
+        catch {
             errorAssertion(error)
         }
 
         try testCase.validate(
             before: before,
-            after: try snapshot(using: &driver)
+            after: try snapshot(using: driver)
         )
     }
 
-    private func createSchema(using driver: inout GRDBDatabaseDriver) throws {
+    private func createSchema(using driver: GRDBDatabaseDriver) throws {
         let create = logicalStatement(
             for: driver,
             sql: """
@@ -432,15 +434,15 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
                 )
                 """
         )
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
         }
     }
 
-    private func commitSeed(using driver: inout GRDBDatabaseDriver) throws {
+    private func commitSeed(using driver: GRDBDatabaseDriver) async throws {
         let statement = insertStatement(for: driver)
-        try driver.withValidatedTransaction { connection in
-            try insert(
+        try await driver.withValidatedTransaction { connection in
+            try Self.insert(
                 id: "seed",
                 value: 0,
                 statement: statement,
@@ -449,7 +451,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         }
     }
 
-    private func insert(
+    private static func insert(
         id: String,
         value: Int64,
         statement: XLLogicalPreparedStatement,
@@ -466,10 +468,10 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
     }
 
     private func snapshot(
-        using driver: inout GRDBDatabaseDriver
+        using driver: GRDBDatabaseDriver
     ) throws -> SQLiteTransactionStateSnapshot {
         let select = selectStatement(for: driver)
-        return try driver.withReadConnection { connection in
+        return try driver.withBlockingReadConnection { connection in
             let rows = try connection.fetchAll(connection.prepare(select))
             let stateRows = try rows.map { row in
                 guard case .text(let rowID) = try XCTUnwrap(row.first) else {
@@ -554,8 +556,8 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
     private static func commitIndependentRow(
         _ rowID: String,
         databasePool: DatabasePool
-    ) throws -> SQLiteTransactionStateSnapshot {
-        var driver = GRDBDatabaseDriver(
+    ) async throws -> SQLiteTransactionStateSnapshot {
+        let driver = GRDBDatabaseDriver(
             databasePool: databasePool,
             dialect: XLSQLiteDialect()
         )
@@ -577,10 +579,10 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
             sql: "SELECT id, value FROM transaction_contract ORDER BY id"
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
         }
-        try driver.withValidatedTransaction { connection in
+        try await driver.withValidatedTransaction { connection in
             var physical = try connection.prepare(insert)
             physical = try connection.bind(
                 .text(rowID),
@@ -589,7 +591,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
             )
             try connection.execute(physical)
         }
-        return try driver.withReadConnection { connection in
+        return try driver.withBlockingReadConnection { connection in
             let rows = try connection.fetchAll(connection.prepare(select))
             return SQLiteTransactionStateSnapshot(
                 rows: try rows.map { row in

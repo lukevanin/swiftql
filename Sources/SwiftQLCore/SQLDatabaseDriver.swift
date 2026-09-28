@@ -30,6 +30,7 @@ public enum XLDatabaseContractError: Error, Equatable, Sendable, LocalizedError 
     case bindFailure(driver: XLDriverIdentifier, key: XLBindingKey?, message: String)
     case executeFailure(driver: XLDriverIdentifier, message: String)
     case transactionFailure(driver: XLDriverIdentifier, message: String)
+    case unsupportedTransactionKind(driver: XLDriverIdentifier, kind: XLTransactionKind)
     case decodeFailure(dialect: XLDialectIdentifier, column: Int?, message: String)
 
     public var errorDescription: String? {
@@ -52,6 +53,8 @@ public enum XLDatabaseContractError: Error, Equatable, Sendable, LocalizedError 
             return "Driver \(driver) could not execute the statement: \(message)"
         case .transactionFailure(let driver, let message):
             return "Driver \(driver) could not complete the transaction: \(message)"
+        case .unsupportedTransactionKind(let driver, let kind):
+            return "Driver \(driver) does not support \(kind) transactions."
         case .decodeFailure(let dialect, let column, let message):
             return "Dialect \(dialect) could not decode\(column.map { " column \($0)" } ?? " a value"): \(message)"
         }
@@ -174,6 +177,10 @@ extension XLStreamingDatabaseDriverConnection {
 }
 
 
+/// The `*Validated` helpers report a transport failure as a structured
+/// ``XLDatabaseContractError``. A `CancellationError` passes through
+/// unchanged: a driver may interrupt a statement because its task was
+/// cancelled, and that is not a failure of the statement.
 extension XLDatabaseDriverConnection {
 
     /// Rejects database and dialect requirement mismatches before preparation.
@@ -209,6 +216,9 @@ extension XLDatabaseDriverConnection {
         catch let error as XLDatabaseContractError {
             throw error
         }
+        catch let error as CancellationError {
+            throw error
+        }
         catch {
             throw XLDatabaseContractError.prepareFailure(
                 driver: driverIdentifier,
@@ -229,6 +239,9 @@ extension XLDatabaseDriverConnection {
         catch let error as XLDatabaseContractError {
             throw error
         }
+        catch let error as CancellationError {
+            throw error
+        }
         catch {
             throw XLDatabaseContractError.bindFailure(
                 driver: driverIdentifier,
@@ -245,6 +258,9 @@ extension XLDatabaseDriverConnection {
             return try fetchAll(statement)
         }
         catch let error as XLDatabaseContractError {
+            throw error
+        }
+        catch let error as CancellationError {
             throw error
         }
         catch {
@@ -264,6 +280,9 @@ extension XLDatabaseDriverConnection {
         catch let error as XLDatabaseContractError {
             throw error
         }
+        catch let error as CancellationError {
+            throw error
+        }
         catch {
             throw XLDatabaseContractError.executeFailure(
                 driver: driverIdentifier,
@@ -279,6 +298,9 @@ extension XLDatabaseDriverConnection {
         catch let error as XLDatabaseContractError {
             throw error
         }
+        catch let error as CancellationError {
+            throw error
+        }
         catch {
             throw XLDatabaseContractError.executeFailure(
                 driver: driverIdentifier,
@@ -289,8 +311,68 @@ extension XLDatabaseDriverConnection {
 }
 
 
+/// How a transaction acquires its locks when it begins.
+///
+/// The three kinds are SQLite's, and they describe *when* a transaction claims
+/// the right to write, not an isolation level:
+///
+/// - ``deferred`` claims nothing at `BEGIN`. The first read takes a read lock
+///   and the first write upgrades it, which can fail with a busy error if
+///   another writer got there first.
+/// - ``immediate`` claims the right to write at `BEGIN`, so a conflict with
+///   another writer surfaces at `BEGIN` rather than partway through the
+///   transaction. The GRDB driver uses it by default.
+/// - ``exclusive`` also keeps readers out where the journal mode allows it.
+///   Under WAL it behaves like ``immediate``.
+///
+/// A kind is a value rather than a closed enum so a driver for another
+/// database can describe its own. A driver that cannot honour a kind throws
+/// ``XLDatabaseContractError/unsupportedTransactionKind(driver:kind:)`` before
+/// it lends a connection.
+public struct XLTransactionKind: RawRepresentable, Hashable, Sendable, CustomStringConvertible {
+
+    public let rawValue: String
+
+    public init(rawValue: String) {
+        self.rawValue = rawValue
+    }
+
+    public static let deferred = XLTransactionKind(rawValue: "deferred")
+
+    public static let immediate = XLTransactionKind(rawValue: "immediate")
+
+    public static let exclusive = XLTransactionKind(rawValue: "exclusive")
+
+    public var description: String {
+        rawValue
+    }
+}
+
+
 /// A database or pool that lends connection-owned execution contexts.
-public protocol XLDatabaseDriver {
+///
+/// The driver contract is "async scope, synchronous cursor"
+/// (`Research/AsyncDriverContractFeasibility.md`). Each scope method suspends
+/// the caller until a connection is available, then runs `operation`
+/// synchronously on it. `operation` cannot suspend, so a
+/// ``XLDatabaseDriverConnection/PhysicalStatement`` or cursor it creates
+/// cannot outlive the access that owns it. The connection primitives stay
+/// synchronous for the same reason.
+///
+/// A driver is a `Sendable` value, and its scope methods do not mutate it.
+/// One driver can be shared by any number of tasks; the driver, not the
+/// caller, serializes access to each connection. `operation` is `@Sendable`
+/// because the driver may run it on its own executor rather than the
+/// caller's.
+///
+/// Every scope method checks for cancellation before it lends a connection,
+/// and throws `CancellationError` without running `operation` when the
+/// calling task is already cancelled. A driver may also interrupt
+/// `operation` when the task is cancelled while it runs: the statement in
+/// progress, or the next one, then throws, and a transaction rolls back. The
+/// GRDB adapter does this. Code outside the database that `operation` updates
+/// must not assume every statement in it ran.
+public protocol XLDatabaseDriver: Sendable {
 
     associatedtype Dialect: XLSQLDialect
 
@@ -302,49 +384,148 @@ public protocol XLDatabaseDriver {
 
     var dialect: Dialect { get }
 
-    mutating func withReadConnection<Result>(
-        _ operation: (inout Connection) throws -> Result
-    ) throws -> Result
+    /// The kind ``withTransaction(_:)`` uses when the caller names none.
+    ///
+    /// Each driver chooses its own, because the kinds a database honours are
+    /// the database's: SQLite's ``XLTransactionKind/immediate`` means nothing
+    /// to a server database. It must be a kind the driver honours.
+    var defaultTransactionKind: XLTransactionKind { get }
 
-    mutating func withWriteConnection<Result>(
-        _ operation: (inout Connection) throws -> Result
-    ) throws -> Result
+    /// Runs `operation` on a connection that reads a consistent snapshot.
+    func withReadConnection<Result: Sendable>(
+        _ operation: @Sendable (inout Connection) throws -> Result
+    ) async throws -> Result
 
-    mutating func withTransaction<Result>(
-        _ operation: (inout Connection) throws -> Result
-    ) throws -> Result
+    /// Runs `operation` on the connection that writes, outside a transaction.
+    func withWriteConnection<Result: Sendable>(
+        _ operation: @Sendable (inout Connection) throws -> Result
+    ) async throws -> Result
+
+    /// Runs `operation` inside one transaction of the given kind, on the
+    /// connection that writes.
+    ///
+    /// The transaction commits when `operation` returns, and rolls back when
+    /// it throws. The error `operation` threw is rethrown unchanged.
+    func withTransaction<Result: Sendable>(
+        _ kind: XLTransactionKind,
+        _ operation: @Sendable (inout Connection) throws -> Result
+    ) async throws -> Result
 }
 
 
 extension XLDatabaseDriver {
 
+    /// Runs `operation` inside one transaction of the driver's
+    /// ``defaultTransactionKind``.
+    public func withTransaction<Result: Sendable>(
+        _ operation: @Sendable (inout Connection) throws -> Result
+    ) async throws -> Result {
+        try await withTransaction(defaultTransactionKind, operation)
+    }
+
     /// Wraps transport transaction failures while preserving structured errors.
-    public mutating func withValidatedTransaction<Result>(
-        _ operation: (inout Connection) throws -> Result
-    ) throws -> Result {
-        var operationError: Error?
+    ///
+    /// An error thrown by `operation`, a ``XLDatabaseContractError``, a
+    /// `CancellationError`, and a driver's own typed refusal to lend a
+    /// connection are rethrown unchanged. Any other failure is reported as
+    /// ``XLDatabaseContractError/transactionFailure(driver:message:)``.
+    ///
+    /// A `nil` kind uses the driver's ``defaultTransactionKind``.
+    public func withValidatedTransaction<Result: Sendable>(
+        _ kind: XLTransactionKind? = nil,
+        _ operation: @Sendable (inout Connection) throws -> Result
+    ) async throws -> Result {
+        let operationError = XLTransactionOperationError()
         do {
-            return try withTransaction { connection in
-                do {
-                    return try operation(&connection)
-                }
-                catch {
-                    operationError = error
-                    throw error
+            return try await withTransaction(kind ?? defaultTransactionKind) { connection in
+                try operationError.recording {
+                    try operation(&connection)
                 }
             }
         }
         catch {
-            if let operationError {
-                throw operationError
-            }
-            if let contractError = error as? XLDatabaseContractError {
-                throw contractError
-            }
-            throw XLDatabaseContractError.transactionFailure(
-                driver: driverIdentifier,
-                message: String(describing: error)
-            )
+            throw operationError.validatedError(for: error, driver: driverIdentifier)
         }
+    }
+}
+
+
+/// An error a driver throws when it refuses to lend a connection at all, such
+/// as a scope used after it ended or a re-entrant call.
+///
+/// ``XLDatabaseDriver/withValidatedTransaction(_:_:)`` rethrows a conforming
+/// error unchanged: no transaction began, so it is not a transaction failure,
+/// and callers catch it by its own type. A driver declares its own refusal
+/// errors by conforming them to this protocol.
+public protocol XLDriverScopeRefusal: Error {}
+
+
+/// Records the error a validated transaction's own operation threw, so
+/// ``XLDatabaseDriver/withValidatedTransaction(_:_:)`` can tell it apart from
+/// a failure of the transaction itself.
+///
+/// The error is recorded beside the transaction rather than wrapped, so the
+/// driver's `withTransaction(_:_:)` sees exactly the error the operation
+/// threw and can match it in its own `catch` clauses. The record is locked
+/// because the operation is `@Sendable` and may run on the driver's executor.
+package final class XLTransactionOperationError: @unchecked Sendable {
+
+    private let lock = NSLock()
+    private var recorded: (any Error)?
+
+    package init() {}
+
+    /// Runs `operation`, recording any error it throws before rethrowing it.
+    ///
+    /// A driver may run the operation more than once, retrying after a busy
+    /// error, so each run clears what an earlier run recorded.
+    package func recording<Result>(
+        _ operation: () throws -> Result
+    ) throws -> Result {
+        lock.lock()
+        recorded = nil
+        lock.unlock()
+        do {
+            return try operation()
+        }
+        catch {
+            lock.lock()
+            recorded = error
+            lock.unlock()
+            throw error
+        }
+    }
+
+    /// The error a validated transaction reports when its transaction threw
+    /// `error`: the operation's own error when its last run threw one,
+    /// otherwise `error` itself when it is structured, otherwise a
+    /// transaction failure.
+    ///
+    /// The operation's error wins whatever the driver threw, as it did
+    /// before the contract became asynchronous: a driver may wrap or bridge
+    /// the error it rethrows, and the caller still gets its own back. The
+    /// one case this misreports is a driver that retries after the
+    /// operation threw and then fails before running it again; the earlier
+    /// run's error is reported then.
+    package func validatedError(
+        for error: any Error,
+        driver: XLDriverIdentifier
+    ) -> any Error {
+        lock.lock()
+        let operationError = recorded
+        lock.unlock()
+        if let operationError {
+            return operationError
+        }
+        if error is XLDatabaseContractError
+            || error is CancellationError
+            || error is any XLDriverScopeRefusal
+        {
+            return error
+        }
+        return XLDatabaseContractError.transactionFailure(
+            driver: driver,
+            message: String(describing: error)
+        )
     }
 }

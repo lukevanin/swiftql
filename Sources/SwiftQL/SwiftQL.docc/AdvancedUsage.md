@@ -106,13 +106,20 @@ transaction. Code inside that transaction must use the pinned connection and
 must not re-enter the root pool, which could lease another connection and break
 the transaction boundary or deadlock while waiting for itself.
 
-The synchronous v1 driver commits when the transaction body returns and rolls
-back when it throws. `withValidatedTransaction` preserves the exact body error,
-so a dedicated caller error can express explicit rollback intent. The v1
-contract does not expose nested transactions, savepoints, or task-cancellation
-hooks; do not attempt those by re-entering the root pool from a pinned body.
-The current GRDB v1 driver is pool-backed and does not expose a separate
-single-connection transaction capability.
+A driver transaction commits when its operation returns and rolls back when it
+throws. The driver scopes are asynchronous: `withTransaction(_:_:)` suspends
+until the writer is free, then runs the operation synchronously on it, in the
+`XLTransactionKind` the caller names. `withValidatedTransaction` preserves the
+exact operation error, so a dedicated caller error can express explicit
+rollback intent. A driver scope checks for cancellation before it lends a
+connection, and the GRDB driver's asynchronous scopes also interrupt a running
+operation when its task is cancelled, which rolls the transaction back.
+`withTransaction(_:)` on a database is different: its body is synchronous, so
+it checks for cancellation once, before the transaction begins, and then runs
+the body to completion. The contract does not
+expose nested transactions or savepoints; do not attempt those by re-entering
+the root pool from a pinned body. The current GRDB driver is pool-backed and
+does not expose a separate single-connection transaction capability.
 
 Each invocation packet carries normalized dialect values in logical-index
 order, so every call has fresh bindings. Packet-backed execution does not move
@@ -223,7 +230,11 @@ wrong answer:
   writes; re-entering the connection pool from inside an open transaction can
   also deadlock or silently lease a different connection that only sees the
   database's last *committed* state, missing the transaction's own
-  uncommitted writes.
+  uncommitted writes. A task created inside the body is separate work, not
+  part of the body: it may use the original database, where its writes wait
+  for the transaction to finish and its reads see committed data. Do not make
+  the body wait for such a task's write: the write waits for the transaction,
+  and the transaction waits for the body, so neither finishes.
 - **The scope must not escape the body.** A request, write request, or scope
   value used after `withTransaction(_:)` returns throws `.scopeEscaped`: the
   pinned connection is invalidated the instant the body returns, so

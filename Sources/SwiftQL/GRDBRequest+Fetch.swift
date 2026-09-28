@@ -34,7 +34,7 @@ extension GRDBRequest {
     func decodeRows(
         packet: XLValidatedSQLitePacket
     ) throws -> [Row] {
-        var driver = executor.driver
+        let driver = executor.driver
         // Both branches accumulate into an outer array and return Void from
         // the closure, instead of returning [Row] directly from
         // withTransaction<Result>/withReadConnection<Result>. On the pinned
@@ -57,12 +57,12 @@ extension GRDBRequest {
         // by this change.
         var items: [Row] = []
         if requiresWriteConnection {
-            try driver.withTransaction { connection in
+            try driver.withBlockingTransaction { connection in
                 items = try decodeRows(packet: packet, in: &connection)
             }
         }
         else {
-            try driver.withReadConnection { connection in
+            try driver.withBlockingReadConnection { connection in
                 items = try decodeRows(packet: packet, in: &connection)
             }
         }
@@ -104,7 +104,7 @@ extension GRDBRequest {
         packet: XLValidatedSQLitePacket,
         limit: Int
     ) throws -> [Row] {
-        var driver = executor.driver
+        let driver = executor.driver
         // Same accumulator/Void-return shape as the two decodeRows(packet:)
         // overloads above, and for the same reason: this is
         // fetchAtMost(_:bindings:)'s decode boundary (used by @SQLQuery's
@@ -123,12 +123,12 @@ extension GRDBRequest {
         // `withTransaction` returns.
         var items: [Row] = []
         if requiresWriteConnection {
-            try driver.withTransaction { connection in
+            try driver.withBlockingTransaction { connection in
                 items = try decodeRows(packet: packet, limit: limit, in: &connection)
             }
         }
         else {
-            try driver.withReadConnection { connection in
+            try driver.withBlockingReadConnection { connection in
                 items = try decodeRows(packet: packet, limit: limit, in: &connection)
             }
         }
@@ -173,8 +173,8 @@ extension GRDBRequest {
             "fetchOne: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
         let values: [XLSQLiteValue]?
         if requiresWriteConnection {
-            var driver = executor.driver
-            values = try driver.withTransaction { connection in
+            let driver = executor.driver
+            values = try driver.withBlockingTransaction { connection in
                 try executor.fetchOne(packet: packet, in: &connection)
             }
         }

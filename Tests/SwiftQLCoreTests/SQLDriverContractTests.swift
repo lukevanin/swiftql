@@ -11,6 +11,14 @@ final class SQLDriverContractTests: XCTestCase {
         case requested
     }
 
+    /// The connection a transaction ran on, and the one its statement was
+    /// prepared on. A named `Sendable` pair, because a scope's result must
+    /// be `Sendable`.
+    private struct ConnectionPair: Sendable {
+        let connection: Int
+        let statement: Int
+    }
+
     func testFakeDriverUsesItsOwnTransportAroundDialectValues() throws {
         let recorder = DriverRecorder()
         let databaseIdentifier = databaseID(1)
@@ -213,20 +221,20 @@ final class SQLDriverContractTests: XCTestCase {
         )
     }
 
-    func testLogicalStatementCreatesConnectionOwnedPhysicalStatements() throws {
+    func testLogicalStatementCreatesConnectionOwnedPhysicalStatements() async throws {
         let recorder = DriverRecorder()
         let databaseIdentifier = databaseID(2)
-        var driver = FakePoolDriver(
+        let driver = FakePoolDriver(
             databaseIdentifier: databaseIdentifier,
             connectionIDs: [11, 22],
             recorder: recorder
         )
         let logical = logicalStatement(databaseIdentifier: databaseIdentifier)
 
-        let first = try driver.withReadConnection { connection in
+        let first = try await driver.withReadConnection { connection in
             try connection.prepareValidated(logical)
         }
-        let second = try driver.withReadConnection { connection in
+        let second = try await driver.withReadConnection { connection in
             try connection.prepareValidated(logical)
         }
 
@@ -298,17 +306,17 @@ final class SQLDriverContractTests: XCTestCase {
 
     }
 
-    func testTransactionPinsPrepareBindAndExecuteToOneConnection() throws {
+    func testTransactionPinsPrepareBindAndExecuteToOneConnection() async throws {
         let recorder = DriverRecorder()
         let databaseIdentifier = databaseID(5)
-        var driver = FakePoolDriver(
+        let driver = FakePoolDriver(
             databaseIdentifier: databaseIdentifier,
             connectionIDs: [41, 42],
             recorder: recorder
         )
         let logical = logicalStatement(databaseIdentifier: databaseIdentifier)
 
-        let identities = try driver.withValidatedTransaction { connection -> (Int, Int) in
+        let identities = try await driver.withValidatedTransaction { connection -> ConnectionPair in
             var physical = try connection.prepareValidated(logical)
             physical = try connection.bindValidated(
                 .text("transaction"),
@@ -316,28 +324,33 @@ final class SQLDriverContractTests: XCTestCase {
                 in: physical
             )
             try connection.executeValidated(physical)
-            return (connection.connectionID, physical.connectionID)
+            return ConnectionPair(
+                connection: connection.connectionID,
+                statement: physical.connectionID
+            )
         }
 
-        XCTAssertEqual(identities.0, identities.1)
+        XCTAssertEqual(identities.connection, identities.statement)
         XCTAssertEqual(recorder.transactionConnectionIDs, [41])
         XCTAssertEqual(recorder.preparedConnectionIDs, [41])
         XCTAssertEqual(recorder.boundConnectionIDs, [41])
         XCTAssertEqual(recorder.executedConnectionIDs, [41])
     }
 
-    func testValidatedTransactionPreservesOperationErrors() {
-        var driver = FakePoolDriver(
+    func testValidatedTransactionPreservesOperationErrors() async {
+        let driver = FakePoolDriver(
             databaseIdentifier: databaseID(9),
             connectionIDs: [43],
             recorder: DriverRecorder()
         )
 
-        XCTAssertThrowsError(
-            try driver.withValidatedTransaction { _ in
+        do {
+            try await driver.withValidatedTransaction { _ in
                 throw OperationAbort.requested
             }
-        ) { error in
+            XCTFail("The operation's error must propagate.")
+        }
+        catch {
             XCTAssertEqual(error as? OperationAbort, .requested)
         }
     }
@@ -467,7 +480,7 @@ final class SQLDriverContractTests: XCTestCase {
         }
     }
 
-    func testTransportFailuresMapToStructuredContractErrors() throws {
+    func testTransportFailuresMapToStructuredContractErrors() async throws {
         let recorder = DriverRecorder()
         let databaseIdentifier = databaseID(6)
         let logical = logicalStatement(databaseIdentifier: databaseIdentifier)
@@ -525,16 +538,22 @@ final class SQLDriverContractTests: XCTestCase {
             )
         )
 
-        var driver = FakePoolDriver(
+        let driver = FakePoolDriver(
             databaseIdentifier: databaseIdentifier,
             connectionIDs: [61],
             recorder: DriverRecorder(),
             failTransaction: true
         )
-        assertError(
-            try driver.withValidatedTransaction { _ in () },
-            equals: .transactionFailure(driver: FakeConnection.driverID, message: "transaction")
-        )
+        do {
+            try await driver.withValidatedTransaction { _ in () }
+            XCTFail("A transport transaction failure must propagate.")
+        }
+        catch {
+            XCTAssertEqual(
+                error as? XLDatabaseContractError,
+                .transactionFailure(driver: FakeConnection.driverID, message: "transaction")
+            )
+        }
     }
 
     func testEveryErrorCategoryHasAStableDescription() {
@@ -566,10 +585,11 @@ final class SQLDriverContractTests: XCTestCase {
             .bindFailure(driver: driver, key: .named("id"), message: "bind"),
             .executeFailure(driver: driver, message: "execute"),
             .transactionFailure(driver: driver, message: "transaction"),
+            .unsupportedTransactionKind(driver: driver, kind: .exclusive),
             .decodeFailure(dialect: dialect, column: 0, message: "decode"),
         ]
 
-        XCTAssertEqual(errors.count, 10)
+        XCTAssertEqual(errors.count, 11)
         for error in errors {
             XCTAssertFalse(error.errorDescription?.isEmpty ?? true)
             XCTAssertEqual(error, error)
@@ -642,7 +662,7 @@ private struct LogicalToken: Equatable {
 }
 
 
-private enum FakeWireValue: Equatable {
+private enum FakeWireValue: Equatable, Sendable {
     case null
     case signedDecimal(String)
     case ieee754(UInt64)
@@ -681,7 +701,7 @@ private enum FakeWireValue: Equatable {
 }
 
 
-private struct FakePhysicalStatement {
+private struct FakePhysicalStatement: Sendable {
     let connectionID: Int
     let statementID: Int
     let sql: String
@@ -689,7 +709,10 @@ private struct FakePhysicalStatement {
 }
 
 
-private final class DriverRecorder {
+/// `@unchecked Sendable` because a connection holds one and a driver must be
+/// `Sendable`. Every test that uses a recorder drives it from one task, one
+/// scope at a time.
+private final class DriverRecorder: @unchecked Sendable {
     var nextStatementID = 0
     var preparedConnectionIDs: [Int] = []
     var boundConnectionIDs: [Int] = []
@@ -903,15 +926,18 @@ private struct FakeConnection:
 }
 
 
+/// A pool double that lends its connections round-robin for reads and the
+/// first connection for writes. `@unchecked Sendable` through
+/// `FakeConnectionPool`, which serializes every access under a lock.
 private struct FakePoolDriver: XLDatabaseDriver {
 
     let driverIdentifier = FakeConnection.driverID
     let databaseIdentifier: XLDatabaseIdentifier
     let dialect: XLSQLiteDialect
-    var connections: [FakeConnection]
-    var nextReadConnection = 0
-    var failTransaction: Bool
+    let defaultTransactionKind = XLTransactionKind.immediate
+    let failTransaction: Bool
     let recorder: DriverRecorder
+    private let pool: FakeConnectionPool
 
     init(
         databaseIdentifier: XLDatabaseIdentifier,
@@ -924,38 +950,74 @@ private struct FakePoolDriver: XLDatabaseDriver {
             version: XLDialectVersion(3, 46),
             capabilities: XLSQLiteDialect.standardCapabilities
         )
-        self.connections = connectionIDs.map {
-            FakeConnection(
-                connectionID: $0,
-                databaseIdentifier: databaseIdentifier,
-                recorder: recorder
-            )
-        }
+        self.pool = FakeConnectionPool(
+            connectionIDs.map {
+                FakeConnection(
+                    connectionID: $0,
+                    databaseIdentifier: databaseIdentifier,
+                    recorder: recorder
+                )
+            }
+        )
         self.failTransaction = failTransaction
         self.recorder = recorder
     }
 
-    mutating func withReadConnection<Result>(
+    func withReadConnection<Result: Sendable>(
+        _ operation: @Sendable (inout FakeConnection) throws -> Result
+    ) async throws -> Result {
+        try Task.checkCancellation()
+        return try pool.withReadConnection(operation)
+    }
+
+    func withWriteConnection<Result: Sendable>(
+        _ operation: @Sendable (inout FakeConnection) throws -> Result
+    ) async throws -> Result {
+        try Task.checkCancellation()
+        return try pool.withWriteConnection(operation)
+    }
+
+    func withTransaction<Result: Sendable>(
+        _ kind: XLTransactionKind,
+        _ operation: @Sendable (inout FakeConnection) throws -> Result
+    ) async throws -> Result {
+        try Task.checkCancellation()
+        if failTransaction {
+            throw FakeFailure.transaction
+        }
+        return try pool.withWriteConnection { connection in
+            recorder.transactionConnectionIDs.append(connection.connectionID)
+            return try operation(&connection)
+        }
+    }
+}
+
+
+private final class FakeConnectionPool: @unchecked Sendable {
+
+    private let lock = NSLock()
+    private var connections: [FakeConnection]
+    private var nextReadConnection = 0
+
+    init(_ connections: [FakeConnection]) {
+        self.connections = connections
+    }
+
+    func withReadConnection<Result>(
         _ operation: (inout FakeConnection) throws -> Result
     ) throws -> Result {
+        lock.lock()
+        defer { lock.unlock() }
         let index = nextReadConnection % connections.count
         nextReadConnection += 1
         return try operation(&connections[index])
     }
 
-    mutating func withWriteConnection<Result>(
+    func withWriteConnection<Result>(
         _ operation: (inout FakeConnection) throws -> Result
     ) throws -> Result {
-        try operation(&connections[0])
-    }
-
-    mutating func withTransaction<Result>(
-        _ operation: (inout FakeConnection) throws -> Result
-    ) throws -> Result {
-        if failTransaction {
-            throw FakeFailure.transaction
-        }
-        recorder.transactionConnectionIDs.append(connections[0].connectionID)
+        lock.lock()
+        defer { lock.unlock() }
         return try operation(&connections[0])
     }
 }
