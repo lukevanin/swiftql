@@ -311,6 +311,9 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
 
         let task = Task {
             try await driver.withTransaction { connection in
+                // Finishing the stream on every exit keeps the wait below
+                // from hanging if the operation throws before it yields.
+                defer { startedContinuation.finish() }
                 try fixtures.insertMarker(on: &connection)
                 startedContinuation.yield()
                 let deadline = Date().addingTimeInterval(10)

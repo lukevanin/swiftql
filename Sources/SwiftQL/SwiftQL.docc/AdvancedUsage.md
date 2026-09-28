@@ -232,7 +232,9 @@ wrong answer:
   database's last *committed* state, missing the transaction's own
   uncommitted writes. A task created inside the body is separate work, not
   part of the body: it may use the original database, where its writes wait
-  for the transaction to finish and its reads see committed data.
+  for the transaction to finish and its reads see committed data. Do not make
+  the body wait for such a task's write: the write waits for the transaction,
+  and the transaction waits for the body, so neither finishes.
 - **The scope must not escape the body.** A request, write request, or scope
   value used after `withTransaction(_:)` returns throws `.scopeEscaped`: the
   pinned connection is invalidated the instant the body returns, so
