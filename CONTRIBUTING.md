@@ -125,9 +125,8 @@ Avoid restating what the diff already shows.
 2. Get a Claude review. Copilot review is not available for this repository.
    Run Claude Code's `/code-review` skill on the PR at `high` effort with
    `--comment` (`/code-review <PR number> high --comment`), so the findings
-   are posted as review comments. If they
-   cannot be posted, record the round as one PR comment with a table of every
-   finding and its outcome. If you do not use Claude Code, say so in the PR:
+   are posted as review comments. If they cannot be posted, record the round
+   as one PR comment with a table of every finding and its outcome. If you do not use Claude Code, say so in the PR:
    the maintainer then runs each review and posts the closing comment, and
    you answer and fix the findings, then comment on the PR to ask for the
    next review.
