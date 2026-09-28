@@ -59,7 +59,7 @@ extension GRDBDatabase: XLTransactionalDatabase {
     ) throws -> Result {
         // Rejects reentry on the pinned scope itself (fast, value-level,
         // thread-independent) and reentry through the original, unpinned
-        // database captured from inside an active body (task-scoped; see
+        // database captured from inside an active body (see
         // `GRDBTransactionScopeTracker`). Both checks run before touching
         // the pool, because GRDB's own reentrant-write guard is
         // an uncatchable `fatalError`.
@@ -72,36 +72,21 @@ extension GRDBDatabase: XLTransactionalDatabase {
         if Task.isCancelled {
             throw CancellationError()
         }
-        // `withActive` must be entered *inside* the pool's write closure, not
-        // around it: GRDB may run that closure on its own
-        // writer thread, and outside a task the tracker's task-local value is
+        // The hold is taken inside the pool's write closure, not around it:
+        // GRDB may run that closure on its own writer thread, and a hold is
         // kept per thread. A reentrant call from inside `body` runs in this
-        // same synchronous extent (it is still on the same call stack), so
-        // marking active here is what `preconditionNotRootReentrant(_:)`
-        // actually observes.
-        //
-        // The hold wraps the whole transaction, not only `body`: GRDB commits
-        // after `body` returns, and a task created inside `body` must stay
-        // rejected until the commit, or its root read would miss the writes.
+        // same synchronous extent, so it is what
+        // `preconditionNotRootReentrant(_:)` observes. The hold also covers
+        // the commit, so `body`'s own flow cannot read around its writes.
         return try databasePool.writeWithoutTransaction { database in
-            try GRDBTransactionScopeTracker.shared.withActive(
-                driver.databaseIdentifier,
-                holding: .transaction
-            ) {
-                var result: Result?
-                try database.inTransaction {
-                    let box = GRDBPinnedConnectionBox(database)
-                    defer { box.invalidate() }
-                    let scope = GRDBDatabase(
-                        pinnedDriver: driver.pinned(to: box),
-                        pinnedFrom: self
-                    )
-                    result = try body(scope)
-                    return .commit
-                }
-                // `inTransaction` returns only after `body` returned and the
-                // transaction committed, so `result` is set.
-                return result!
+            try driver.runTransaction(on: database) {
+                let box = GRDBPinnedConnectionBox(database)
+                defer { box.invalidate() }
+                let scope = GRDBDatabase(
+                    pinnedDriver: driver.pinned(to: box),
+                    pinnedFrom: self
+                )
+                return try body(scope)
             }
         }
     }

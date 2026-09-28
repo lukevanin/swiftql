@@ -52,8 +52,7 @@ import Foundation
 /// work runs — the v1 driver has no savepoint hook, so a nested call cannot
 /// prove correct partial-rollback semantics, and re-entering the root
 /// connection pool from inside an open transaction can deadlock or hand two
-/// operations different connections. A task created inside the body is held
-/// to the same rule until the body returns. Cancellation is checked only once, at
+/// operations different connections. Cancellation is checked only once, at
 /// the very start of `withTransaction(_:)`, because the body itself runs
 /// synchronously to completion and has no cooperative cancellation point
 /// while committed or rolled-back writes are underway.
@@ -95,20 +94,22 @@ public enum XLTransactionScopeError: Error, Equatable, Sendable, LocalizedError 
     ///
     /// A request, write request, or scope value created inside a
     /// ``XLTransactionalDatabase/withTransaction(_:)`` body was used after
-    /// that body returned. The body's connection is no longer pinned by the
-    /// time this is thrown — the transaction already committed or rolled
-    /// back — so continuing would silently operate on a connection reused
-    /// for unrelated work instead of the one the caller believed it still
-    /// held.
+    /// that body returned, or from asynchronous code such as a task created
+    /// in the body. After the body returns, the connection is no longer
+    /// pinned — the transaction already committed or rolled back — so
+    /// continuing would silently operate on a connection reused for unrelated
+    /// work. From another task, the connection is still in use by the body on
+    /// its own thread, and GRDB does not allow it to be shared.
     ///
     case scopeEscaped
 
     ///
-    /// Either `withTransaction(_:)` was called again from inside an
-    /// already-active transaction body, or the original (root, unpinned)
-    /// database was used from inside an active body instead of the pinned
-    /// scope value it was given -- both re-enter the same connection pool
-    /// while a transaction is open. The v1 driver has no savepoint hook, so
+    /// The original (root, unpinned) database was used from inside a scope
+    /// that already holds one of its connections: `withTransaction(_:)` was
+    /// called again from inside an active transaction body, the root database
+    /// was used from inside a body instead of the pinned scope value it was
+    /// given, or a second root read ran inside a result-set body -- each
+    /// re-enters the same connection pool from the same flow of control. The v1 driver has no savepoint hook, so
     /// a nested call cannot commit or roll back only its own writes; pool
     /// re-entry can also deadlock or hand two operations different
     /// connections. Rejected before any nested work runs, so no partial
@@ -128,9 +129,9 @@ public enum XLTransactionScopeError: Error, Equatable, Sendable, LocalizedError 
     public var errorDescription: String? {
         switch self {
         case .scopeEscaped:
-            return "A transaction-scoped database, request, or write request was used after its 'withTransaction(_:)' body returned. Transaction-scoped values must not escape the closure."
+            return "A transaction-scoped database, request, or write request was used after its 'withTransaction(_:)' body returned, or from another task. Transaction-scoped values must not escape the closure's synchronous body."
         case .nestedTransactionUnsupported:
-            return "'withTransaction(_:)' was called again from inside an active transaction body, or the original (root) database was used instead of the pinned scope value the body was given -- both re-enter the connection pool while a transaction is open. Nested transactions and savepoints are not supported; perform every operation in one body using the scope value it receives instead."
+            return "The original (root) database was used from inside a scope that already holds one of its connections: 'withTransaction(_:)' was called again inside a transaction body, the root database was used instead of the pinned scope value the body was given, or a second root read ran inside a result-set body. Nested transactions and savepoints are not supported; inside a transaction, use the scope value the body receives, and inside a result set, finish reading before the next root read."
         case .liveQueriesUnsupportedInTransaction:
             return "Live-query 'publish()'/'publishOne()' is not supported inside a 'withTransaction(_:)' body. Fetch with 'fetchAll()'/'fetchOne()' instead, or observe outside the transaction."
         }

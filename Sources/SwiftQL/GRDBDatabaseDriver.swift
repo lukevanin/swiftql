@@ -158,31 +158,22 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         switch access {
         case .pool(let pool):
             try preconditionNotRootReentrant(.write)
-            // The hold wraps the whole transaction, so it closes only after
-            // GRDB commits or rolls back. A root read from inside it would
-            // otherwise run on a reader and miss the uncommitted writes.
             return try pool.writeWithoutTransaction { database in
-                try holding(.transaction) {
+                try runTransaction(on: database) {
                     var connection = makeConnection(database)
-                    var result: Result?
-                    try database.inTransaction {
-                        result = try operation(&connection)
-                        return .commit
-                    }
-                    // `inTransaction` returns only after `operation` returned
-                    // and the transaction committed, so `result` is set.
-                    return result!
+                    return try operation(&connection)
                 }
             }
         case .pinned(let box):
             // Already running inside the one real transaction that the
             // owning `XLTransactionalDatabase.withTransaction(_:)` scope
-            // opened with `databasePool.write`. A write statement executed
-            // through the ordinary v1 request path calls this method once
-            // per statement, so reuse the pinned connection directly instead
-            // of asking GRDB for a second write access — GRDB's own writer
-            // queue is not reentrant, and a second `databasePool.write` here
-            // would deadlock instead of composing as a nested transaction.
+            // opened through `runTransaction(on:kind:_:)`. A write statement
+            // executed through the ordinary v1 request path calls this
+            // method once per statement, so reuse the pinned connection
+            // directly instead of asking GRDB for a second write access —
+            // GRDB's own writer queue is not reentrant, and a second write
+            // access here would deadlock instead of composing as a nested
+            // transaction.
             var connection = try box.connection(makeConnection: makeConnection)
             return try operation(&connection)
         }
@@ -226,24 +217,42 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         let pool = try asynchronousPool(for: .write)
         let transactionKind = try grdbTransactionKind(kind)
         return try await pool.writeWithoutTransaction { database in
-            try holding(.transaction) {
+            try runTransaction(on: database, kind: transactionKind) {
                 var connection = makeConnection(database)
-                var result: Result?
-                try database.inTransaction(transactionKind) {
-                    result = try operation(&connection)
-                    return .commit
-                }
-                // `inTransaction` returns only after `operation` returned and
-                // the transaction committed, so `result` is set.
-                return result!
+                return try operation(&connection)
             }
         }
     }
 
     ///
-    /// Runs `body` with this database marked active in the reentrancy
-    /// tracker, for a pool-mode scope that holds a reader, the writer, or a
-    /// transaction on the writer.
+    /// Runs `body` inside one transaction on `database`, the writer
+    /// connection, with this database held for the whole transaction.
+    ///
+    /// The hold wraps the commit as well as `body`, so a root access from
+    /// `body` is rejected until the transaction has committed or rolled back.
+    /// `withTransaction(_:)` on a database, and both transaction scopes here,
+    /// open their transaction through this one path.
+    ///
+    func runTransaction<Result>(
+        on database: Database,
+        kind: Database.TransactionKind? = nil,
+        _ body: () throws -> Result
+    ) throws -> Result {
+        try holding(.writer) {
+            var result: Result?
+            try database.inTransaction(kind) {
+                result = try body()
+                return .commit
+            }
+            // `inTransaction` returns only after `body` returned and the
+            // transaction committed, so `result` is set.
+            return result!
+        }
+    }
+
+    ///
+    /// Runs `body` with this database marked as held in the reentrancy
+    /// tracker, for a pool-mode scope that holds a reader or the writer.
     ///
     /// `body` runs synchronously on the connection's queue, so a call it
     /// makes through the root database reaches `preconditionNotRootReentrant`
@@ -1624,47 +1633,44 @@ private extension XLBindingKey {
 /// reentrant." before a single line of SwiftQL runs. This tracker must reject
 /// the call *before* it reaches the pool at all.
 ///
-/// A scope records what it holds (see ``Hold``), in one of two places:
+/// A hold is scoped to the flow of control that took it, never to tasks it
+/// creates. A task created inside a scope is concurrent work: its write
+/// waits for the writer and runs after the scope, and its read sees
+/// committed data, which is correct isolation for a separate task.
 ///
-/// - A **reader** or **writer** hold is kept per thread, in thread-local
-///   storage. GRDB's rule is per thread: it stops a second read, or a second
-///   write, from the thread that already holds that kind of connection. A
-///   task created inside the scope runs on another thread with its own
-///   connection, so it must not see these holds.
-/// - A **transaction** hold is kept in a `@TaskLocal` (issue #676). A call
-///   nested inside the transaction runs in the task that opened it, even
-///   after a suspension point that resumed the task on another thread, and a
-///   task created inside the transaction inherits the hold. Every root access
-///   from either is rejected until the transaction ends, because it would
-///   lease a second connection and miss the transaction's uncommitted writes.
-///   Outside any task, Swift keeps task-local values per thread.
+/// - A hold taken in synchronous code -- every scope today, including the
+///   body of `withTransaction(_:)` on a database -- is kept per thread, in
+///   thread-local storage. Nothing in a synchronous extent can suspend, so
+///   the thread is exactly its flow of control, and GRDB's own rule is per
+///   thread too. Tasks never inherit it.
+/// - A transaction held across suspension points, as an asynchronous
+///   transaction body will be (#681), is kept in a `@TaskLocal` (issue
+///   #676), so a call after an `await` still sees it wherever the task
+///   resumes. It records its owning task, so a task created inside it, which
+///   inherits the task-local list, is not rejected.
 ///
-/// Callers must enter `withActive(_:holding:_:)` in the same synchronous
-/// extent that runs `body` -- for the GRDB adapter, *inside* the pool's
-/// `read`/`write` closure, not around it. GRDB may run that closure on its
-/// own queue's thread.
-///
-/// A transaction hold is a reference that is closed when `body` returns. A
-/// task that inherited it stops being rejected at that point, so a caller
-/// must close it only once the transaction has committed or rolled back.
+/// Callers of the synchronous `withActive(_:holding:_:)` must enter it in the
+/// same synchronous extent that runs `body` -- for the GRDB adapter, *inside*
+/// the pool's `read`/`write` closure, not around it. GRDB may run that
+/// closure on its own queue's thread.
 final class GRDBTransactionScopeTracker: Sendable {
 
     static let shared = GRDBTransactionScopeTracker()
 
     @TaskLocal
-    private static var transactions: [TransactionActivation] = []
+    private static var asyncTransactions: [AsyncTransaction] = []
 
-    /// What an active scope holds.
+    /// What a synchronous scope holds.
     enum Hold: Sendable {
-        /// One pooled reader. A root read from the same thread is rejected.
+        /// One pooled reader. A root read from the same thread is rejected;
+        /// GRDB would stop it. A root write is not; GRDB runs it on its
+        /// separate writer.
         case reader
-        /// The writer outside a transaction. A root write from the same
-        /// thread is rejected; a read is not, because GRDB serves it from a
-        /// reader and there are no uncommitted writes for it to miss.
+        /// The writer, with or without a transaction. Every root access from
+        /// the same thread is rejected: a write would ask GRDB for the writer
+        /// it holds, and a read could miss uncommitted writes, or wait for a
+        /// reader while a reader waits for this writer.
         case writer
-        /// A transaction on the writer. Every root access from the task that
-        /// opened it, and from any task created inside it, is rejected.
-        case transaction
     }
 
     /// The access a new root-database call asks for.
@@ -1676,49 +1682,79 @@ final class GRDBTransactionScopeTracker: Sendable {
     private init() {}
 
     /// Whether an access through `databaseIdentifier`'s root database must be
-    /// refused, because an open scope on that database holds a connection
-    /// that the access would conflict with.
+    /// refused, because a scope in the same flow of control holds one of its
+    /// connections.
     func rejects(_ access: Access, on databaseIdentifier: XLDatabaseIdentifier) -> Bool {
         if ThreadHolds.current.rejects(access, on: databaseIdentifier) {
             return true
         }
-        return Self.transactions.contains { transaction in
-            transaction.databaseIdentifier == databaseIdentifier && transaction.isOpen
+        let transactions = Self.asyncTransactions
+        guard !transactions.isEmpty else {
+            return false
+        }
+        return withUnsafeCurrentTask { task in
+            guard let task else {
+                return false
+            }
+            return transactions.contains { transaction in
+                transaction.databaseIdentifier == databaseIdentifier
+                    && transaction.owner == task.hashValue
+                    && transaction.isOpen
+            }
         }
     }
 
-    /// Marks `databaseIdentifier` as held for the duration of `body`, and
-    /// always clears it again afterward -- including when `body` throws.
+    /// Marks `databaseIdentifier` as held on the calling thread for the
+    /// duration of `body`, and always clears it again afterward -- including
+    /// when `body` throws.
     func withActive<Result>(
         _ databaseIdentifier: XLDatabaseIdentifier,
         holding hold: Hold,
         _ body: () throws -> Result
     ) throws -> Result {
-        switch hold {
-        case .reader, .writer:
-            let holds = ThreadHolds.current
-            holds.push(databaseIdentifier, hold)
-            defer { holds.pop() }
-            return try body()
-        case .transaction:
-            let transaction = TransactionActivation(databaseIdentifier)
-            defer { transaction.close() }
-            return try Self.$transactions.withValue(Self.transactions + [transaction]) {
-                try body()
-            }
+        let holds = ThreadHolds.current
+        holds.push(databaseIdentifier, hold)
+        defer { holds.pop() }
+        return try body()
+    }
+
+    /// Marks `databaseIdentifier` as held by a transaction in the calling
+    /// task for the duration of `body`, across every suspension point in it.
+    ///
+    /// This is the entry point for an asynchronous transaction body (#681).
+    func withAsyncTransaction<Result>(
+        _ databaseIdentifier: XLDatabaseIdentifier,
+        isolation: isolated (any Actor)? = #isolation,
+        _ body: () async throws -> Result
+    ) async throws -> Result {
+        // An async function always runs in a task, so `owner` is set.
+        let owner = withUnsafeCurrentTask { $0?.hashValue }
+        let transaction = AsyncTransaction(databaseIdentifier, owner: owner)
+        defer { transaction.close() }
+        return try await Self.$asyncTransactions.withValue(Self.asyncTransactions + [transaction]) {
+            try await body()
         }
     }
 
-    /// One transaction hold. Closed exactly once, when its scope returns.
-    private final class TransactionActivation: @unchecked Sendable {
+    /// One asynchronous transaction hold and the task that owns it.
+    ///
+    /// The owner is compared by `UnsafeCurrentTask.hashValue`, the hash of
+    /// the task's identity. A task that inherited the hold is a different
+    /// task, alive at the same time, so it does not match short of a hash
+    /// collision. The hold is closed when the owner's scope returns, so a task
+    /// that later reuses the owner's identity cannot match either.
+    private final class AsyncTransaction: @unchecked Sendable {
 
         let databaseIdentifier: XLDatabaseIdentifier
+
+        let owner: Int?
 
         private let lock = NSLock()
         private var closed = false
 
-        init(_ databaseIdentifier: XLDatabaseIdentifier) {
+        init(_ databaseIdentifier: XLDatabaseIdentifier, owner: Int?) {
             self.databaseIdentifier = databaseIdentifier
+            self.owner = owner
         }
 
         var isOpen: Bool {
@@ -1735,7 +1771,7 @@ final class GRDBTransactionScopeTracker: Sendable {
     }
 
     ///
-    /// The reader and writer holds of one thread, innermost last.
+    /// The holds of one thread, innermost last.
     ///
     /// Only its own thread reads or writes it, so it needs no lock. It lives
     /// in pthread thread-local storage, which a task never inherits, and is
@@ -1762,8 +1798,6 @@ final class GRDBTransactionScopeTracker: Sendable {
                 case .reader:
                     return access == .read
                 case .writer:
-                    return access == .write
-                case .transaction:
                     return true
                 }
             }

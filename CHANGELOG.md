@@ -84,11 +84,6 @@
     inside the batch's transaction, and a fetch through the root database
     from that sequence throws. On 1.9 it ran on another connection and
     silently missed the rows the batch had already inserted.
-  - A task created inside a `withTransaction(_:)` body now counts as re-entry
-    while the body runs. Its access through the original database throws
-    `XLTransactionScopeError.nestedTransactionUnsupported`. On 1.9 such a task
-    usually ran on another thread, missed the guard, and read the database's
-    last committed state without the transaction's own writes.
 
 ## [1.9.0] - 2026-09-16
 

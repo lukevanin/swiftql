@@ -69,8 +69,7 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
     // MARK: - Reentrancy
 
     /// An operation that holds GRDB's writer and calls back into the root
-    /// database for a write must throw, and so must any root access from
-    /// inside a transaction. Without the guard, a nested write asks GRDB for
+    /// database must throw, for a read or a write. Without the guard, a nested write asks GRDB for
     /// the writer it already holds, and GRDB stops the process with
     /// "Database methods are not reentrant".
     func testWriterScopeOperationThatReentersTheRootDatabaseThrows() async throws {
@@ -98,12 +97,14 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
             }
         }
 
-        // Outside a transaction there are no uncommitted writes to miss, and
-        // GRDB serves the read from a reader.
-        let readInsideWrite = try await driver.withWriteConnection { _ in
-            try driver.withBlockingReadConnection { _ in true }
+        // A read from the writer's thread is rejected too: while this scope
+        // holds the writer, a read that waits for a reader could deadlock
+        // with a reader waiting for the writer.
+        await assertNestedTransactionUnsupported {
+            try await driver.withWriteConnection { _ in
+                try driver.withBlockingReadConnection { _ in }
+            }
         }
-        XCTAssertTrue(readInsideWrite)
 
         let value = try await driver.withTransaction { _ in 5 }
         XCTAssertEqual(value, 5, "The guard must clear when the scope returns.")
@@ -165,9 +166,9 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
 
     /// The blocking scopes of the v1 request layer hold the same way. A
     /// nested root access that GRDB would stop on the same thread now throws
-    /// instead, and so does a root read inside a transaction. The other
-    /// nestings GRDB allows still run.
-    func testBlockingScopesRejectTheNestingsGRDBForbidsOrATransactionWouldMiss() throws {
+    /// instead, and so does any root access while the writer is held. A root
+    /// write from inside a read, which GRDB serves on its writer, still runs.
+    func testBlockingScopesRejectNestedRootAccessExceptAWriteInsideARead() throws {
         let database = try fixtures.makeDatabase()
         let driver = database.driver
 
@@ -190,13 +191,16 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
             try driver.withBlockingWriteConnection { _ in true }
         }
         XCTAssertTrue(wroteInsideRead)
-        let readInsideWrite = try driver.withBlockingWriteConnection { _ in
-            try driver.withBlockingReadConnection { _ in true }
+        XCTAssertThrowsError(
+            try driver.withBlockingWriteConnection { _ in
+                try driver.withBlockingReadConnection { _ in }
+            }
+        ) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .nestedTransactionUnsupported)
         }
-        XCTAssertTrue(readInsideWrite)
 
-        // Inside a transaction a root read would miss the uncommitted writes,
-        // so it is rejected even though GRDB would serve it.
+        // Inside a transaction a root read would also miss the uncommitted
+        // writes.
         XCTAssertThrowsError(
             try driver.withBlockingTransaction { _ in
                 try driver.withBlockingReadConnection { _ in }
@@ -206,34 +210,62 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
         }
     }
 
-    /// A task created by a transaction body inherits the task-local marker.
-    /// It reaches the root database only after two suspension points, from
-    /// which it may resume on another thread, and is still rejected. The
-    /// thread dictionary this guard used before keyed the marker to a thread,
-    /// and Swift 6 does not allow `Thread.current` in asynchronous code.
+    /// A transaction held across suspension points, as an asynchronous
+    /// transaction body will be (#681), keeps rejecting root access from its
+    /// own task wherever the task resumes. The thread-local holds of the
+    /// synchronous scopes cannot express that, and the thread dictionary the
+    /// guard used before could not be read from asynchronous code at all.
+    /// A task created inside the transaction is separate work and is not
+    /// rejected.
+    func testAsyncTransactionHoldSurvivesSuspensionPointsInItsOwnTask() async throws {
+        let database = try fixtures.makeDatabase()
+        let driver = database.driver
+        let otherDriver = try await fixtures.makeDriver()
+        let tracker = GRDBTransactionScopeTracker.shared
+
+        try await tracker.withAsyncTransaction(driver.databaseIdentifier) {
+            await Task.yield()
+            try await Task.sleep(nanoseconds: 1_000_000)
+
+            await assertNestedTransactionUnsupported {
+                try await driver.withReadConnection { _ in }
+            }
+            await assertNestedTransactionUnsupported {
+                try await driver.withTransaction { _ in }
+            }
+            XCTAssertThrowsError(try database.withTransaction { _ in }) { error in
+                XCTAssertEqual(error as? XLTransactionScopeError, .nestedTransactionUnsupported)
+            }
+
+            let otherValue = try await otherDriver.withReadConnection { _ in 3 }
+            XCTAssertEqual(otherValue, 3, "The hold names one database.")
+
+            let childValue = try await Task {
+                try await driver.withReadConnection { _ in 7 }
+            }.value
+            XCTAssertEqual(childValue, 7, "A task created inside the hold is not rejected.")
+        }
+
+        let value = try await driver.withReadConnection { _ in 9 }
+        XCTAssertEqual(value, 9, "The hold must clear when its scope returns.")
+    }
+
+    /// A task created by a synchronous transaction body is concurrent work.
+    /// Its root write waits for the writer and runs after the commit, and
+    /// its root read sees committed data, so neither is rejected.
     ///
     /// The body runs on a dispatch thread, not the test's task, so blocking
     /// it while the child runs cannot starve the cooperative pool.
-    func testTaskCreatedByATransactionBodyIsRejectedAcrossASuspensionPoint() async throws {
+    func testTaskCreatedByATransactionBodyIsNotRejected() async throws {
         let database = try fixtures.makeDatabase()
-        let otherDriver = try await fixtures.makeDriver()
 
-        let outcome = try await onDispatchThread {
-            try database.withTransaction { _ -> ChildOutcome in
+        let childRead = try await onDispatchThread {
+            try database.withTransaction { _ -> Bool in
                 let finished = DispatchSemaphore(value: 0)
-                let recorded = LockedValue<ChildOutcome?>(nil)
+                let recorded = LockedValue<Bool?>(nil)
                 Task {
-                    await Task.yield()
-                    try? await Task.sleep(nanoseconds: 1_000_000)
-                    var outcome = ChildOutcome()
-                    do {
-                        try await database.driver.withReadConnection { _ in }
-                    }
-                    catch {
-                        outcome.sameDatabaseError = error as? XLTransactionScopeError
-                    }
-                    outcome.otherDatabaseValue = try? await otherDriver.withReadConnection { _ in 3 }
-                    recorded.withValue { $0 = outcome }
+                    let read = (try? await database.driver.withReadConnection { _ in true }) ?? false
+                    recorded.withValue { $0 = read }
                     finished.signal()
                 }
                 guard finished.wait(timeout: .now() + 10) == .success else {
@@ -243,12 +275,7 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
             }
         }
 
-        XCTAssertEqual(outcome.sameDatabaseError, .nestedTransactionUnsupported)
-        XCTAssertEqual(
-            outcome.otherDatabaseValue,
-            3,
-            "The marker names one database; another database stays usable."
-        )
+        XCTAssertTrue(childRead)
     }
 
     /// Once the body has returned the transaction is over, so a marker a
@@ -382,11 +409,6 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
     }
 }
 
-
-private struct ChildOutcome: Sendable {
-    var sameDatabaseError: XLTransactionScopeError?
-    var otherDatabaseValue: Int?
-}
 
 
 private struct ChildTimedOut: Error {}
