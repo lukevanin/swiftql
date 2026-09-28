@@ -177,6 +177,10 @@ extension XLStreamingDatabaseDriverConnection {
 }
 
 
+/// The `*Validated` helpers report a transport failure as a structured
+/// ``XLDatabaseContractError``. A `CancellationError` passes through
+/// unchanged: a driver may interrupt a statement because its task was
+/// cancelled, and that is not a failure of the statement.
 extension XLDatabaseDriverConnection {
 
     /// Rejects database and dialect requirement mismatches before preparation.
@@ -212,6 +216,9 @@ extension XLDatabaseDriverConnection {
         catch let error as XLDatabaseContractError {
             throw error
         }
+        catch let error as CancellationError {
+            throw error
+        }
         catch {
             throw XLDatabaseContractError.prepareFailure(
                 driver: driverIdentifier,
@@ -232,6 +239,9 @@ extension XLDatabaseDriverConnection {
         catch let error as XLDatabaseContractError {
             throw error
         }
+        catch let error as CancellationError {
+            throw error
+        }
         catch {
             throw XLDatabaseContractError.bindFailure(
                 driver: driverIdentifier,
@@ -248,6 +258,9 @@ extension XLDatabaseDriverConnection {
             return try fetchAll(statement)
         }
         catch let error as XLDatabaseContractError {
+            throw error
+        }
+        catch let error as CancellationError {
             throw error
         }
         catch {
@@ -267,6 +280,9 @@ extension XLDatabaseDriverConnection {
         catch let error as XLDatabaseContractError {
             throw error
         }
+        catch let error as CancellationError {
+            throw error
+        }
         catch {
             throw XLDatabaseContractError.executeFailure(
                 driver: driverIdentifier,
@@ -280,6 +296,9 @@ extension XLDatabaseDriverConnection {
             try execute(statement)
         }
         catch let error as XLDatabaseContractError {
+            throw error
+        }
+        catch let error as CancellationError {
             throw error
         }
         catch {
@@ -348,8 +367,11 @@ public struct XLTransactionKind: RawRepresentable, Hashable, Sendable, CustomStr
 ///
 /// Every scope method checks for cancellation before it lends a connection,
 /// and throws `CancellationError` without running `operation` when the
-/// calling task is already cancelled. Once `operation` starts it runs to
-/// completion.
+/// calling task is already cancelled. A driver may also interrupt
+/// `operation` when the task is cancelled while it runs: the statement in
+/// progress, or the next one, then throws, and a transaction rolls back. The
+/// GRDB adapter does this. Code outside the database that `operation` updates
+/// must not assume every statement in it ran.
 public protocol XLDatabaseDriver: Sendable {
 
     associatedtype Dialect: XLSQLDialect
@@ -395,9 +417,10 @@ extension XLDatabaseDriver {
 
     /// Wraps transport transaction failures while preserving structured errors.
     ///
-    /// An error thrown by `operation`, a ``XLDatabaseContractError``, and a
-    /// `CancellationError` are rethrown unchanged. Any other failure is
-    /// reported as ``XLDatabaseContractError/transactionFailure(driver:message:)``.
+    /// An error thrown by `operation`, a ``XLDatabaseContractError``, a
+    /// `CancellationError`, and a driver's own typed refusal to lend a
+    /// connection are rethrown unchanged. Any other failure is reported as
+    /// ``XLDatabaseContractError/transactionFailure(driver:message:)``.
     public func withValidatedTransaction<Result: Sendable>(
         _ kind: XLTransactionKind = .immediate,
         _ operation: @Sendable (inout Connection) throws -> Result
@@ -417,6 +440,13 @@ extension XLDatabaseDriver {
         }
     }
 }
+
+
+/// An error a driver throws when it refuses to lend a connection at all, such
+/// as a scope used after it ended or a re-entrant call. A validated
+/// transaction rethrows it unchanged: it is not a failure of a transaction,
+/// because no transaction began, and callers catch it by its own type.
+package protocol XLDriverScopeRefusal: Error {}
 
 
 /// Carries an error thrown by a transaction's own operation past the driver,
@@ -452,7 +482,10 @@ package struct XLTransactionOperationFailure: Error {
         if let operationFailure = error as? XLTransactionOperationFailure {
             return operationFailure.underlying
         }
-        if error is XLDatabaseContractError || error is CancellationError {
+        if error is XLDatabaseContractError
+            || error is CancellationError
+            || error is any XLDriverScopeRefusal
+        {
             return error
         }
         return XLDatabaseContractError.transactionFailure(

@@ -56,7 +56,7 @@ extension GRDBRequest {
         if requiresWriteConnection {
             let driver = executor.driver
             var items: [Row] = []
-            try driver.withTransaction { connection in
+            try driver.withBlockingTransaction { connection in
                 items = try decodeRows(packet: packet, in: &connection)
             }
             // The shared eager fallback from `XLRequest` (see

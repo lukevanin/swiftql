@@ -21,10 +21,13 @@ import GRDBSQLite
 /// holds.
 ///
 /// The driver conforms to the asynchronous ``XLDatabaseDriver`` contract, and
-/// also keeps a synchronous scope of the same three names. The v1 request
-/// layer still calls the synchronous scope; it moves to the asynchronous one
-/// with #681 and #682. Both share the connection type and every connection
-/// primitive, so the two differ only in how the caller waits.
+/// also keeps a blocking scope for the v1 request layer, which moves to the
+/// asynchronous one with #681 and #682. Both share the connection type and
+/// every connection primitive, so the two differ only in how the caller
+/// waits. The blocking scope has its own names, `withBlocking...`, so that it
+/// never shadows an asynchronous member: a concrete method outranks a
+/// protocol extension method of the same name, and `try await` would then
+/// quietly block a thread.
 struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
 
     typealias Dialect = XLSQLiteDialect
@@ -113,7 +116,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         )
     }
 
-    func withReadConnection<Result>(
+    func withBlockingReadConnection<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
         switch access {
@@ -129,7 +132,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         }
     }
 
-    func withWriteConnection<Result>(
+    func withBlockingWriteConnection<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
         switch access {
@@ -145,7 +148,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         }
     }
 
-    func withTransaction<Result>(
+    func withBlockingTransaction<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
         switch access {
@@ -169,13 +172,13 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         }
     }
 
-    /// Runs `operation` synchronously on the calling thread and returns the
-    /// same error mapping as ``XLDatabaseDriver/withValidatedTransaction(_:_:)``.
-    func withValidatedTransaction<Result>(
+    /// Runs `operation` on the calling thread, with the same error mapping as
+    /// ``XLDatabaseDriver/withValidatedTransaction(_:_:)``.
+    func withBlockingValidatedTransaction<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
         do {
-            return try withTransaction { connection in
+            return try withBlockingTransaction { connection in
                 try XLTransactionOperationFailure.tagging {
                     try operation(&connection)
                 }
@@ -211,8 +214,10 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     ) async throws -> Result {
         let pool = try asynchronousPool()
         return try await pool.writeWithoutTransaction { database in
-            var connection = makeConnection(database)
-            return try operation(&connection)
+            try holdingTheWriter {
+                var connection = makeConnection(database)
+                return try operation(&connection)
+            }
         }
     }
 
@@ -223,50 +228,32 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         let transactionKind = try grdbTransactionKind(kind)
         let pool = try asynchronousPool()
         return try await pool.writeWithoutTransaction { database in
-            var connection = makeConnection(database)
-            var result: Result?
-            try database.inTransaction(transactionKind) {
-                result = try operation(&connection)
-                return .commit
-            }
-            // `inTransaction` returns only after `operation` returned and the
-            // transaction committed, so `result` is set.
-            return result!
-        }
-    }
-
-    // The two conveniences below restate the protocol extension's on the
-    // concrete type. Without them, `try await driver.withTransaction { ... }`
-    // in asynchronous code resolves to the synchronous method of the same
-    // name above, because a concrete member outranks a protocol extension
-    // member, and the caller blocks a thread while appearing to await.
-
-    /// Runs `operation` inside one ``XLTransactionKind/immediate`` transaction.
-    func withTransaction<Result: Sendable>(
-        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
-    ) async throws -> Result {
-        try await withTransaction(.immediate, operation)
-    }
-
-    /// The asynchronous form of ``withValidatedTransaction(_:)``, with the
-    /// same error mapping as ``XLDatabaseDriver/withValidatedTransaction(_:_:)``.
-    func withValidatedTransaction<Result: Sendable>(
-        _ kind: XLTransactionKind = .immediate,
-        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
-    ) async throws -> Result {
-        do {
-            return try await withTransaction(kind) { connection in
-                try XLTransactionOperationFailure.tagging {
-                    try operation(&connection)
+            try holdingTheWriter {
+                var connection = makeConnection(database)
+                var result: Result?
+                try database.inTransaction(transactionKind) {
+                    result = try operation(&connection)
+                    return .commit
                 }
+                // `inTransaction` returns only after `operation` returned and
+                // the transaction committed, so `result` is set.
+                return result!
             }
         }
-        catch {
-            throw XLTransactionOperationFailure.validatedTransactionError(
-                error,
-                driver: driverIdentifier
-            )
-        }
+    }
+
+    ///
+    /// Runs `body` with this database marked active in the reentrancy
+    /// tracker, for an asynchronous scope that holds GRDB's writer.
+    ///
+    /// `body` runs synchronously on the writer's queue, so a call it makes
+    /// through the root database reaches `preconditionNotRootReentrant()` on
+    /// the same thread and throws, instead of asking GRDB for the writer it
+    /// already holds and tripping GRDB's uncatchable "Database methods are not
+    /// reentrant" `fatalError`.
+    ///
+    private func holdingTheWriter<Result>(_ body: () throws -> Result) throws -> Result {
+        try GRDBTransactionScopeTracker.shared.withActive(databaseIdentifier, body)
     }
 
     ///
@@ -445,7 +432,7 @@ struct GRDBInvocationExecutor: Sendable {
         bindings: any XLInvocationBindingPacket
     ) throws -> [[XLSQLiteValue]] {
         let packet = try sqlitePacket(bindings)
-        return try driver.withReadConnection { connection in
+        return try driver.withBlockingReadConnection { connection in
             try fetchAll(packet: packet, in: &connection)
         }
     }
@@ -465,7 +452,7 @@ struct GRDBInvocationExecutor: Sendable {
         _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
     ) throws {
         let packet = try sqlitePacket(bindings)
-        try driver.withReadConnection { connection in
+        try driver.withBlockingReadConnection { connection in
             try forEachRow(
                 packet: packet,
                 in: &connection,
@@ -516,10 +503,10 @@ struct GRDBInvocationExecutor: Sendable {
             }
         }
         if requiresWriteConnection {
-            return try driver.withTransaction(accessor)
+            return try driver.withBlockingTransaction(accessor)
         }
         else {
-            return try driver.withReadConnection(accessor)
+            return try driver.withBlockingReadConnection(accessor)
         }
     }
 
@@ -527,7 +514,7 @@ struct GRDBInvocationExecutor: Sendable {
         bindings: any XLInvocationBindingPacket
     ) throws -> [XLSQLiteValue]? {
         let packet = try sqlitePacket(bindings)
-        return try driver.withReadConnection { connection in
+        return try driver.withBlockingReadConnection { connection in
             try fetchOne(packet: packet, in: &connection)
         }
     }
@@ -536,7 +523,7 @@ struct GRDBInvocationExecutor: Sendable {
     func fetchOne(
         packet: XLValidatedSQLitePacket
     ) throws -> [XLSQLiteValue]? {
-        return try driver.withReadConnection { connection in
+        return try driver.withBlockingReadConnection { connection in
             try fetchOne(packet: packet, in: &connection)
         }
     }
@@ -552,7 +539,7 @@ struct GRDBInvocationExecutor: Sendable {
         bindings: any XLInvocationBindingPacket
     ) throws {
         let packet = try sqlitePacket(bindings)
-        try driver.withTransaction { connection in
+        try driver.withBlockingTransaction { connection in
             try execute(packet: packet, in: &connection)
         }
     }
@@ -561,7 +548,7 @@ struct GRDBInvocationExecutor: Sendable {
     func execute(
         packet: XLValidatedSQLitePacket
     ) throws {
-        try driver.withTransaction { connection in
+        try driver.withBlockingTransaction { connection in
             try execute(packet: packet, in: &connection)
         }
     }
@@ -1677,20 +1664,6 @@ final class GRDBTransactionScopeTracker: Sendable {
         defer { activation.close() }
         return try Self.$activations.withValue(Self.activations + [activation]) {
             try body()
-        }
-    }
-
-    /// Marks `databaseIdentifier` active in the calling task for the duration
-    /// of `body`, across every suspension point in it.
-    func withActive<Result>(
-        _ databaseIdentifier: XLDatabaseIdentifier,
-        isolation: isolated (any Actor)? = #isolation,
-        _ body: () async throws -> Result
-    ) async throws -> Result {
-        let activation = Activation(databaseIdentifier)
-        defer { activation.close() }
-        return try await Self.$activations.withValue(Self.activations + [activation]) {
-            try await body()
         }
     }
 

@@ -136,3 +136,9 @@ public enum XLTransactionScopeError: Error, Equatable, Sendable, LocalizedError 
         }
     }
 }
+
+
+/// Every case is thrown before a connection is lent, so a validated
+/// transaction rethrows it unchanged rather than reporting a transaction
+/// failure.
+extension XLTransactionScopeError: XLDriverScopeRefusal {}

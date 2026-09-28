@@ -36,7 +36,7 @@ final class GRDBDriverContractTests: XCTestCase {
             switch testCase.expectation {
             case .bindingRejected:
                 XCTAssertThrowsError(
-                    try driver.withReadConnection { connection in
+                    try driver.withBlockingReadConnection { connection in
                         let statement = try connection.prepare(logicalStatement)
                         _ = try connection.bind(
                             testCase.value,
@@ -60,7 +60,7 @@ final class GRDBDriverContractTests: XCTestCase {
                     )
                 }
             case .roundTrip:
-                let row = try driver.withReadConnection { connection in
+                let row = try driver.withBlockingReadConnection { connection in
                     var statement = try connection.prepare(logicalStatement)
                     statement = try connection.bind(
                         testCase.value,
@@ -69,7 +69,7 @@ final class GRDBDriverContractTests: XCTestCase {
                     )
                     return try XCTUnwrap(connection.fetchOne(statement))
                 }
-                let streamedRows = try driver.withReadConnection { connection in
+                let streamedRows = try driver.withBlockingReadConnection { connection in
                     var statement = try connection.prepare(logicalStatement)
                     statement = try connection.bind(
                         testCase.value,
@@ -130,7 +130,7 @@ final class GRDBDriverContractTests: XCTestCase {
                     :composed = :decomposed
                 """
         )
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             var prepared = try connection.prepare(statement)
             prepared = try connection.bind(
                 .text(composed),
@@ -144,7 +144,7 @@ final class GRDBDriverContractTests: XCTestCase {
             )
             return try XCTUnwrap(connection.fetchOne(prepared))
         }
-        let streamedRows = try driver.withReadConnection { connection in
+        let streamedRows = try driver.withBlockingReadConnection { connection in
             var prepared = try connection.prepare(statement)
             prepared = try connection.bind(
                 .text(composed),
@@ -224,7 +224,7 @@ final class GRDBDriverContractTests: XCTestCase {
                 WHERE id < 0
                 """
         )
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
             try connection.execute(connection.prepare(insert))
         }
@@ -232,7 +232,7 @@ final class GRDBDriverContractTests: XCTestCase {
         var earlyRows: [[XLSQLiteValue]] = []
         var replayAfterStop: [[XLSQLiteValue]] = []
         var invocationCountAtStop = 0
-        try driver.withReadConnection { connection in
+        try driver.withBlockingReadConnection { connection in
             let statement = try connection.prepare(select)
             try connection.forEachRow(statement) { row in
                 earlyRows.append(row)
@@ -251,7 +251,7 @@ final class GRDBDriverContractTests: XCTestCase {
 
         let countBeforeError = probe.invocationCount
         XCTAssertThrowsError(
-            try driver.withReadConnection { connection in
+            try driver.withBlockingReadConnection { connection in
                 let statement = try connection.prepare(select)
                 try connection.forEachRow(statement) { row in
                     if row.first == .integer(3) {
@@ -266,14 +266,14 @@ final class GRDBDriverContractTests: XCTestCase {
         XCTAssertEqual(probe.invocationCount - countBeforeError, 3)
 
         let countBeforeFirst = probe.invocationCount
-        let first = try driver.withReadConnection { connection in
+        let first = try driver.withBlockingReadConnection { connection in
             try connection.fetchOne(connection.prepare(select))
         }
         XCTAssertEqual(first?.first, .integer(1))
         XCTAssertEqual(probe.invocationCount - countBeforeFirst, 1)
 
         let countBeforeAll = probe.invocationCount
-        let all = try driver.withReadConnection { connection in
+        let all = try driver.withBlockingReadConnection { connection in
             try connection.fetchAll(connection.prepare(select))
         }
         XCTAssertEqual(
@@ -283,7 +283,7 @@ final class GRDBDriverContractTests: XCTestCase {
         XCTAssertEqual(probe.invocationCount - countBeforeAll, 5)
 
         let countBeforeEmpty = probe.invocationCount
-        let noRows = try driver.withReadConnection { connection in
+        let noRows = try driver.withBlockingReadConnection { connection in
             try connection.fetchAll(connection.prepare(empty))
         }
         XCTAssertTrue(noRows.isEmpty)
@@ -316,7 +316,7 @@ final class GRDBDriverContractTests: XCTestCase {
             for: driver,
             sql: "SELECT id FROM cached_rows ORDER BY id"
         )
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
             try connection.execute(connection.prepare(insert))
         }
@@ -392,7 +392,7 @@ final class GRDBDriverContractTests: XCTestCase {
             for: driver,
             sql: "SELECT id FROM stepper_rows ORDER BY id"
         )
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
             try connection.execute(connection.prepare(insert))
         }
@@ -496,7 +496,7 @@ final class GRDBDriverContractTests: XCTestCase {
                 """
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
             var statement = try connection.prepare(insert)
             statement = try connection.bind(
@@ -522,7 +522,7 @@ final class GRDBDriverContractTests: XCTestCase {
             try connection.execute(statement)
         }
 
-        let row = try driver.withReadConnection { connection in
+        let row = try driver.withBlockingReadConnection { connection in
             try XCTUnwrap(connection.fetchOne(connection.prepare(select)))
         }
         XCTAssertEqual(
@@ -559,7 +559,7 @@ final class GRDBDriverContractTests: XCTestCase {
             sql: "SELECT NULL WHERE 0"
         )
 
-        let repeatedRow = try driver.withReadConnection { connection in
+        let repeatedRow = try driver.withBlockingReadConnection { connection in
             var statement = try connection.prepare(repeated)
             statement = try connection.bind(
                 .text("shared"),
@@ -579,7 +579,7 @@ final class GRDBDriverContractTests: XCTestCase {
             SQLiteValueConformanceCaseID.namedBinding.rawValue
         )
 
-        let nullRow = try driver.withReadConnection { connection in
+        let nullRow = try driver.withBlockingReadConnection { connection in
             var statement = try connection.prepare(repeated)
             statement = try connection.bind(
                 .null,
@@ -593,7 +593,7 @@ final class GRDBDriverContractTests: XCTestCase {
             [.null, .null, .text("null")],
             SQLiteValueConformanceCaseID.optionalNullVersusMissing.rawValue
         )
-        let missingRow = try driver.withReadConnection { connection in
+        let missingRow = try driver.withBlockingReadConnection { connection in
             try connection.fetchOne(connection.prepare(noRow))
         }
         XCTAssertNil(
@@ -614,7 +614,7 @@ final class GRDBDriverContractTests: XCTestCase {
             for: driver,
             sql: "SELECT :value"
         )
-        let overflowRow = try driver.withReadConnection { connection in
+        let overflowRow = try driver.withBlockingReadConnection { connection in
             var statement = try connection.prepare(overflow)
             statement = try connection.bind(
                 .real(Double(Int64.max)),
@@ -642,7 +642,7 @@ final class GRDBDriverContractTests: XCTestCase {
                 $0.id == .invalidUTF8Blob
             }
         )
-        let invalidUTF8Row = try driver.withReadConnection { connection in
+        let invalidUTF8Row = try driver.withBlockingReadConnection { connection in
             var statement = try connection.prepare(overflow)
             statement = try connection.bind(
                 invalidUTF8.value,
@@ -674,7 +674,7 @@ final class GRDBDriverContractTests: XCTestCase {
                 ORDER BY position
                 """
         )
-        let rows = try driver.withReadConnection { connection in
+        let rows = try driver.withBlockingReadConnection { connection in
             try connection.fetchAll(connection.prepare(values))
         }
         XCTAssertEqual(
@@ -724,7 +724,7 @@ final class GRDBDriverContractTests: XCTestCase {
                 """
         )
 
-        let result = try driver.withReadConnection { connection in
+        let result = try driver.withBlockingReadConnection { connection in
             var statement = try connection.prepare(logicalStatement)
             for (name, value) in values {
                 statement = try connection.bind(
@@ -756,7 +756,7 @@ final class GRDBDriverContractTests: XCTestCase {
             sql: "SELECT :value"
         )
 
-        try driver.withReadConnection { connection in
+        try driver.withBlockingReadConnection { connection in
             let statement = try connection.prepare(logicalStatement)
             XCTAssertThrowsError(
                 try connection.bind(
@@ -803,7 +803,7 @@ final class GRDBDriverContractTests: XCTestCase {
         ]
 
         for value in values {
-            let row = try driver.withReadConnection { connection in
+            let row = try driver.withBlockingReadConnection { connection in
                 var statement = try connection.prepare(logicalStatement)
                 statement = try connection.bind(
                     .real(value),
@@ -839,7 +839,7 @@ final class GRDBDriverContractTests: XCTestCase {
         )
 
         XCTAssertThrowsError(
-            try driver.withReadConnection { connection in
+            try driver.withBlockingReadConnection { connection in
                 _ = try connection.prepare(databaseMismatch)
             }
         ) { error in
@@ -861,7 +861,7 @@ final class GRDBDriverContractTests: XCTestCase {
         )
 
         XCTAssertThrowsError(
-            try driver.withReadConnection { connection in
+            try driver.withBlockingReadConnection { connection in
                 _ = try connection.prepare(dialectMismatch)
             }
         ) { error in
@@ -876,7 +876,7 @@ final class GRDBDriverContractTests: XCTestCase {
 
         let validIdentity = makeLogicalStatement(for: driver, sql: invalidSQL)
         XCTAssertThrowsError(
-            try driver.withReadConnection { connection in
+            try driver.withBlockingReadConnection { connection in
                 _ = try connection.prepare(validIdentity)
             }
         ) { error in
@@ -887,7 +887,7 @@ final class GRDBDriverContractTests: XCTestCase {
         }
 
         XCTAssertThrowsError(
-            try driver.withReadConnection { connection in
+            try driver.withBlockingReadConnection { connection in
                 _ = try connection.prepareValidated(validIdentity)
             }
         ) { error in
@@ -908,12 +908,12 @@ final class GRDBDriverContractTests: XCTestCase {
             dialect: XLSQLiteDialect()
         )
         let logicalStatement = makeLogicalStatement(for: driver, sql: "SELECT 1")
-        let physicalStatement = try driver.withReadConnection { connection in
+        let physicalStatement = try driver.withBlockingReadConnection { connection in
             try connection.prepare(logicalStatement)
         }
 
         XCTAssertThrowsError(
-            try driver.withReadConnection { connection in
+            try driver.withBlockingReadConnection { connection in
                 _ = try connection.fetchOne(physicalStatement)
             }
         ) { error in
@@ -987,12 +987,12 @@ final class GRDBDriverContractTests: XCTestCase {
             sql: "SELECT COUNT(*) FROM contract_transaction"
         )
 
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             let createStatement = try connection.prepare(create)
             try connection.execute(createStatement)
         }
 
-        let committedCount = try driver.withTransaction { connection -> XLSQLiteValue in
+        let committedCount = try driver.withBlockingTransaction { connection -> XLSQLiteValue in
             var insertStatement = try connection.prepare(insert)
             insertStatement = try connection.bind(
                 .text("committed"),
@@ -1014,7 +1014,7 @@ final class GRDBDriverContractTests: XCTestCase {
 
         var countSeenBeforeRollback: XLSQLiteValue?
         XCTAssertThrowsError(
-            try driver.withTransaction { connection in
+            try driver.withBlockingTransaction { connection in
                 var insertStatement = try connection.prepare(insert)
                 insertStatement = try connection.bind(
                     .text("rolled-back"),
@@ -1038,7 +1038,7 @@ final class GRDBDriverContractTests: XCTestCase {
         }
         XCTAssertEqual(countSeenBeforeRollback, .integer(2))
 
-        let countAfterRollback = try driver.withReadConnection { connection in
+        let countAfterRollback = try driver.withBlockingReadConnection { connection in
             let countStatement = try connection.prepare(count)
             return try XCTUnwrap(connection.fetchOne(countStatement)?.first)
         }
@@ -1080,7 +1080,7 @@ final class GRDBDriverContractTests: XCTestCase {
             for: driver,
             sql: "SELECT id, label FROM buffer_rows ORDER BY id"
         )
-        try driver.withWriteConnection { connection in
+        try driver.withBlockingWriteConnection { connection in
             try connection.execute(connection.prepare(create))
             try connection.execute(connection.prepare(insert))
         }
@@ -1091,7 +1091,7 @@ final class GRDBDriverContractTests: XCTestCase {
 
         var retainedByCallback: [[XLSQLiteValue]] = []
         var eagerlyCollected: [[XLSQLiteValue]] = []
-        try driver.withReadConnection { connection in
+        try driver.withBlockingReadConnection { connection in
             let statement = try connection.prepare(select)
             try connection.forEachRow(statement) { row in
                 retainedByCallback.append(row)

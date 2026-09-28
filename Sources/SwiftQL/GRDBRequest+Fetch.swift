@@ -57,12 +57,12 @@ extension GRDBRequest {
         // by this change.
         var items: [Row] = []
         if requiresWriteConnection {
-            try driver.withTransaction { connection in
+            try driver.withBlockingTransaction { connection in
                 items = try decodeRows(packet: packet, in: &connection)
             }
         }
         else {
-            try driver.withReadConnection { connection in
+            try driver.withBlockingReadConnection { connection in
                 items = try decodeRows(packet: packet, in: &connection)
             }
         }
@@ -123,12 +123,12 @@ extension GRDBRequest {
         // `withTransaction` returns.
         var items: [Row] = []
         if requiresWriteConnection {
-            try driver.withTransaction { connection in
+            try driver.withBlockingTransaction { connection in
                 items = try decodeRows(packet: packet, limit: limit, in: &connection)
             }
         }
         else {
-            try driver.withReadConnection { connection in
+            try driver.withBlockingReadConnection { connection in
                 items = try decodeRows(packet: packet, limit: limit, in: &connection)
             }
         }
@@ -174,7 +174,7 @@ extension GRDBRequest {
         let values: [XLSQLiteValue]?
         if requiresWriteConnection {
             let driver = executor.driver
-            values = try driver.withTransaction { connection in
+            values = try driver.withBlockingTransaction { connection in
                 try executor.fetchOne(packet: packet, in: &connection)
             }
         }

@@ -79,7 +79,7 @@ public enum DriverContractClause: String, CaseIterable, Sendable, CustomStringCo
     case unsupportedTransactionKindIsRejectedBeforeTheOperationRuns
 
     /// A task that is already cancelled gets `CancellationError` from every
-    /// scope, and no operation runs.
+    /// scope, a validated transaction included, and no operation runs.
     case cancelledTaskIsNotLentAConnection
 
     /// One driver value serves many concurrent tasks, and every write lands
@@ -134,23 +134,20 @@ private struct ContractSentinel: Error, Equatable {
 }
 
 
-/// Records whether an operation ran. Operations are `@Sendable` and may run
-/// on the driver's executor, so the flag is locked rather than captured.
-private final class OperationProbe: @unchecked Sendable {
+/// Counts how many times an operation ran. Operations are `@Sendable` and
+/// may run on the driver's executor, so the count is locked rather than
+/// captured.
+private typealias OperationProbe = LockedValue<Int>
 
-    private let lock = NSLock()
-    private var runs = 0
 
-    func record() {
-        lock.lock()
-        defer { lock.unlock() }
-        runs += 1
+extension LockedValue where Value == Int {
+
+    fileprivate func record() {
+        withLock { $0 += 1 }
     }
 
-    var runCount: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return runs
+    fileprivate var runCount: Int {
+        value
     }
 }
 
@@ -259,7 +256,7 @@ private struct ClauseCheck<Fixture: DriverContractFixture>: Sendable {
             driver: driver.driverIdentifier,
             kind: kind
         )
-        let probe = OperationProbe()
+        let probe = OperationProbe(0)
 
         do {
             try await driver.withTransaction(kind) { _ in probe.record() }
@@ -294,11 +291,15 @@ private struct ClauseCheck<Fixture: DriverContractFixture>: Sendable {
 
     func cancelledTaskIsNotLentAConnection() async throws {
         let driver = driver
-        let probe = OperationProbe()
+        let probe = OperationProbe(0)
         let scopes: [(String, @Sendable () async throws -> Void)] = [
             ("read", { try await driver.withReadConnection { _ in probe.record() } }),
             ("write", { try await driver.withWriteConnection { _ in probe.record() } }),
             ("transaction", { try await driver.withTransaction { _ in probe.record() } }),
+            (
+                "validated transaction",
+                { try await driver.withValidatedTransaction { _ in probe.record() } }
+            ),
         ]
         for (name, scope) in scopes {
             let task = Task {

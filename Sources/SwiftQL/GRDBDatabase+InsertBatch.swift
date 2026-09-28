@@ -85,7 +85,7 @@ extension GRDBDatabase {
         // back every row on failure. A scope's transaction belongs to the
         // body, so the batch takes its own savepoint to stay one unit.
         let usesSavepoint = driver.isPinned
-        try driver.withTransaction { connection in
+        try driver.withBlockingTransaction { connection in
             var iterator = rows.makeIterator()
             guard let firstRow = iterator.next() else {
                 return

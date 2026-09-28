@@ -64,8 +64,12 @@
     `switch` over `XLDatabaseContractError` with no `default` clause must
     handle the new case.
   - Every scope throws `CancellationError`, without lending a connection, when
-    the calling task is already cancelled. `withValidatedTransaction(_:_:)`
-    rethrows that error unchanged instead of reporting a transaction failure.
+    the calling task is already cancelled. Cancelling the task while the
+    operation runs can interrupt it: with GRDB 7, the statement in progress
+    throws `CancellationError`, and a transaction rolls back.
+    `withValidatedTransaction(_:_:)` rethrows `CancellationError`, and
+    `XLTransactionScopeError`, unchanged instead of reporting a transaction
+    failure.
   - A task created inside a `withTransaction(_:)` body now counts as re-entry
     while the body runs. Its access through the original database throws
     `XLTransactionScopeError.nestedTransactionUnsupported`. On 1.9 such a task

@@ -92,9 +92,9 @@ package struct GRDBRequestPhaseProbe<Output: Sendable> {
             return try body(phaseConnection)
         }
         if usesWriteConnection {
-            return try driver.withWriteConnection(access)
+            return try driver.withBlockingWriteConnection(access)
         }
-        return try driver.withReadConnection(access)
+        return try driver.withBlockingReadConnection(access)
     }
 }
 
