@@ -122,15 +122,21 @@ Avoid restating what the diff already shows.
 
 1. Open a PR from your branch against `main` (or the milestone base branch
    `version/x.y.z` when the milestone owns a dedicated branch).
-2. Request a Claude review. Copilot review is not available for this
-   repository. Run Claude Code's `/code-review` skill on the PR at `high`
-   effort with `--comment`, so the findings are posted as review comments.
-   If they cannot be posted, record the round as one PR comment that lists
-   every finding and its outcome.
-3. Address every actionable finding — either fix the code or add a brief
-   explanation of why not in a reply. Push the updated commits and run the
-   review again on the new head until a round has no actionable findings.
-4. A human maintainer merges the PR. PRs are never self-merged.
+2. Get a Claude review. Copilot review is not available for this repository.
+   Run Claude Code's `/code-review` skill on the PR at `high` effort with
+   `--comment`, so the findings are posted as review comments. If they
+   cannot be posted, record the round as one PR comment with a table of every
+   finding and its outcome. If you do not use Claude Code, say so in the PR,
+   and the maintainer runs the review.
+3. Address every actionable finding — either fix the code, or explain why
+   not in a reply on its thread, or in that round's comment when the round
+   was recorded as one. Resolve the threads a push fixes.
+4. Push, and review the new head. A finding that repeats one already
+   answered gets a reply on its existing thread, not a new thread.
+5. Stop when a round has no actionable findings, or after five rounds,
+   whichever comes first. Then say in a PR comment what is still open, and
+   leave it to the maintainer.
+6. A human maintainer merges the PR. PRs are never self-merged.
 
 Patch releases that land on a preparation branch (`release/vX.Y.Z-changelog`)
 must use a **merge commit** when merging into `main`. Squash and rebase merges
