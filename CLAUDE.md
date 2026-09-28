@@ -34,7 +34,6 @@ tag-triggered workflow owns them (Step 6). Local git
 | Decompose an issue into sub-issues | `github-mcp` `add_sub_issue` / `list_sub_issues` |
 | Create a branch | `git branch` + `git push -u origin <name>` |
 | Open a PR | `gh pr create` |
-| Comment on a PR (a review round that cannot post inline) | `github-mcp` `add_issue_comment` |
 
 **Never call the official connector's `issue_write`, `sub_issue_write`,
 `create_branch`, or `create_pull_request`.** Those tools are exposed but always
@@ -125,17 +124,19 @@ in separate delivery sessions, which review each PR as described in
 
 **Copilot review is not available for this repo. Do not request it.** Every PR
 is reviewed with Claude, following the loop in
-[CONTRIBUTING.md](CONTRIBUTING.md#pull-request-process). That loop is the one
-copy of the rules; this section adds only what a Claude session needs on top:
+[CONTRIBUTING.md](CONTRIBUTING.md#pull-request-process), which is the only copy
+of its rules. This section adds only what a Claude session needs to run it:
 
-- Run the review yourself: the `/code-review` skill on the PR, at `high`
-  effort, with `--comment`.
-- When `--comment` cannot post (the review API can return `403 Resource not
-  accessible by integration`), record the round as one PR comment with
-  `github-mcp` `add_issue_comment`: a table of every finding and its outcome.
-  If that also fails, give the table to the user instead.
-- Verify each finding before acting on it. A review at `high` effort errs on
-  the side of reporting, so some findings do not reproduce and some reverse
-  an earlier round's; say so rather than changing code to satisfy them.
-- Stop at the round limit in CONTRIBUTING.md, and hand the open questions to
-  the user rather than starting another round.
+- **Which GitHub writes work.** On #800 and #801 (September 2026),
+  `/code-review --comment` could not post: opening a review returned
+  `403 Resource not accessible by integration`. A PR conversation comment
+  through `add_issue_comment` worked, and so did creating and editing a PR.
+  Expect to record each round as one PR comment; the inline steps of the
+  loop (threads to reply on or resolve) then do not apply. If a comment
+  cannot be posted either, give the round to the user instead.
+- **Verify before acting.** A review at `high` effort errs on the side of
+  reporting, so some findings do not reproduce, and later rounds can repeat
+  or reverse earlier ones. Say so in the round's comment rather than
+  changing code to satisfy them.
+- **Tell the user as well.** When the loop stops, post its closing comment on
+  the PR as CONTRIBUTING.md asks, and give the user the same open items.
