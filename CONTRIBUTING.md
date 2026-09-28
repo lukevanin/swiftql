@@ -124,7 +124,8 @@ Avoid restating what the diff already shows.
    `version/x.y.z` when the milestone owns a dedicated branch).
 2. Get a Claude review. Copilot review is not available for this repository.
    Run Claude Code's `/code-review` skill on the PR at `high` effort with
-   `--comment`, so the findings are posted as review comments. If they
+   `--comment` (`/code-review <PR number> high --comment`), so the findings
+   are posted as review comments. If they
    cannot be posted, record the round as one PR comment with a table of every
    finding and its outcome. If you do not use Claude Code, say so in the PR:
    the maintainer then runs each review and posts the closing comment, and
@@ -140,16 +141,19 @@ Avoid restating what the diff already shows.
 4. Push, and review the new head. A finding that repeats one already answered
    is answered by a link to the earlier answer, on its own thread or in the
    table, not argued again.
-5. A finding is actionable when it is real and neither fixed nor answered
-   yet; a repeat or a finding that does not reproduce is not. The loop ends
-   when a round has no actionable findings, or after the fixes from a fifth
-   round are pushed. In the second case, review the head once more without
-   fixing anything, so no code is left unreviewed; if that review finds a
-   real defect, say so first in the closing comment, and the PR is not ready
-   to merge until it is fixed. Either way, post a closing PR comment that
-   lists what is still open, or says that nothing is, and leave it to the
-   maintainer.
-6. A human maintainer merges the PR. PRs are never self-merged.
+5. A finding is open when it is real and not yet fixed. A repeat of a
+   finding whose fix did not hold is open again. A real finding you decline
+   to fix stays open too: explain why, and it goes to the maintainer. A
+   finding that does not reproduce, or a repeat of one already fixed or
+   shown not to reproduce, is not open.
+6. The loop ends when a review finds nothing open that you mean to fix, or
+   after five rounds, whichever comes first. After the fifth round's fixes,
+   review the head once more without fixing anything, so no code is left
+   unreviewed. Then post a closing PR comment that lists every finding
+   still open, with a real defect from that last review first, or says that
+   nothing is. A PR with a real defect still open is not ready to merge; the
+   maintainer decides how its fix is reviewed.
+7. A human maintainer merges the PR. PRs are never self-merged.
 
 Patch releases that land on a preparation branch (`release/vX.Y.Z-changelog`)
 must use a **merge commit** when merging into `main`. Squash and rebase merges
