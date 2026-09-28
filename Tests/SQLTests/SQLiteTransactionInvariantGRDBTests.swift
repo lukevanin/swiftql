@@ -19,16 +19,16 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = makeDriver(fixture.pool)
-        try createSchema(using: &driver)
+        let driver = makeDriver(fixture.pool)
+        try createSchema(using: driver)
 
-        var before = try snapshot(using: &driver)
+        var before = try snapshot(using: driver)
         let empty = try transactionCase(.emptyCommit)
         let emptyResult = try driver.withBlockingValidatedTransaction { _ in
             empty.id.rawValue
         }
         XCTAssertEqual(emptyResult, empty.id.rawValue)
-        var after = try snapshot(using: &driver)
+        var after = try snapshot(using: driver)
         try empty.validate(before: before, after: after)
 
         before = after
@@ -47,7 +47,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
             return try connection.fetchAll(connection.prepare(select)).count
         }
         XCTAssertEqual(insideCount, 2, multiple.id.rawValue)
-        after = try snapshot(using: &driver)
+        after = try snapshot(using: driver)
         try multiple.validate(before: before, after: after)
 
         before = after
@@ -64,7 +64,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         }
         XCTAssertEqual(returned.0, .returnValue)
         XCTAssertEqual(returned.1, 253)
-        after = try snapshot(using: &driver)
+        after = try snapshot(using: driver)
         try returnValue.validate(before: before, after: after)
 
         before = after
@@ -84,7 +84,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
             pinnedRows.contains { $0.first == .text(pinning.id.rawValue) },
             pinning.id.rawValue
         )
-        after = try snapshot(using: &driver)
+        after = try snapshot(using: driver)
         try pinning.validate(before: before, after: after)
 
         before = after
@@ -103,7 +103,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
             return rows.contains { $0.first == .text(rowID) }
         }
         XCTAssertTrue(visibleInside, pinnedVisibility.id.rawValue)
-        after = try snapshot(using: &driver)
+        after = try snapshot(using: driver)
         try pinnedVisibility.validate(before: before, after: after)
 
         before = after
@@ -117,7 +117,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
                 connection: &connection
             )
         }
-        after = try snapshot(using: &driver)
+        after = try snapshot(using: driver)
         try poolVisibility.validate(before: before, after: after)
     }
 
@@ -125,13 +125,13 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = makeDriver(fixture.pool)
-        try createSchema(using: &driver)
-        try commitSeed(using: &driver)
+        let driver = makeDriver(fixture.pool)
+        try createSchema(using: driver)
+        try commitSeed(using: driver)
 
         try assertRollback(
             .explicitRollback,
-            driver: &driver,
+            driver: driver,
             operation: { _ in throw RollbackSignal.explicit },
             errorAssertion: { error in
                 XCTAssertEqual(error as? RollbackSignal, .explicit)
@@ -140,7 +140,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
 
         try assertRollback(
             .bodyErrorRollback,
-            driver: &driver,
+            driver: driver,
             operation: { _ in throw RollbackSignal.bodyFailure },
             errorAssertion: { error in
                 XCTAssertEqual(error as? RollbackSignal, .bodyFailure)
@@ -150,7 +150,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         let duplicateSeed = insertStatement(for: driver)
         try assertRollback(
             .constraintFailureRollback,
-            driver: &driver,
+            driver: driver,
             operation: { connection in
                 try self.insert(
                     id: "seed",
@@ -170,7 +170,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         let bindFailure = logicalStatement(for: driver, sql: "SELECT :value")
         try assertRollback(
             .bindFailureRollback,
-            driver: &driver,
+            driver: driver,
             operation: { connection in
                 let statement = try connection.prepare(bindFailure)
                 _ = try connection.bind(
@@ -200,7 +200,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         )
         try assertRollback(
             .decodeFailureRollback,
-            driver: &driver,
+            driver: driver,
             operation: { connection in
                 let row = try XCTUnwrap(
                     connection.fetchOne(connection.prepare(invalidValue))
@@ -225,7 +225,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         )
         try assertRollback(
             .driverFailureRollback,
-            driver: &driver,
+            driver: driver,
             operation: { connection in
                 _ = try connection.prepare(invalidSQL)
             },
@@ -239,7 +239,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
 
         try assertRollback(
             .earlyExitRollback,
-            driver: &driver,
+            driver: driver,
             operation: { _ in throw RollbackSignal.earlyExit },
             errorAssertion: { error in
                 XCTAssertEqual(error as? RollbackSignal, .earlyExit)
@@ -248,7 +248,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
 
         try assertRollback(
             .pooledRollbackVisibility,
-            driver: &driver,
+            driver: driver,
             operation: { _ in throw RollbackSignal.explicit },
             errorAssertion: { error in
                 XCTAssertEqual(error as? RollbackSignal, .explicit)
@@ -256,7 +256,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         )
 
         let reuse = try transactionCase(.postFailureReuse)
-        let beforeReuse = try snapshot(using: &driver)
+        let beforeReuse = try snapshot(using: driver)
         let reuseInsert = insertStatement(for: driver)
         try driver.withBlockingValidatedTransaction { connection in
             try insert(
@@ -268,7 +268,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         }
         try reuse.validate(
             before: beforeReuse,
-            after: try snapshot(using: &driver)
+            after: try snapshot(using: driver)
         )
     }
 
@@ -276,10 +276,10 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = makeDriver(fixture.pool)
-        try createSchema(using: &driver)
-        try commitSeed(using: &driver)
-        let before = try snapshot(using: &driver)
+        let driver = makeDriver(fixture.pool)
+        try createSchema(using: driver)
+        try commitSeed(using: driver)
+        let before = try snapshot(using: driver)
         let nested = try transactionCase(.nestedTransactionCapability)
         let disposition = try XCTUnwrap(
             SQLiteTransactionConformanceFixtures.capabilities[
@@ -304,7 +304,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         }
         try nested.validate(
             before: before,
-            after: try snapshot(using: &driver)
+            after: try snapshot(using: driver)
         )
 
         let single = try transactionCase(.singleConnectionVisibilityCapability)
@@ -330,7 +330,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         }
         try single.validate(
             before: before,
-            after: try snapshot(using: &driver)
+            after: try snapshot(using: driver)
         )
     }
 
@@ -393,12 +393,12 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
 
     private func assertRollback(
         _ id: SQLiteTransactionConformanceCaseID,
-        driver: inout GRDBDatabaseDriver,
+        driver: GRDBDatabaseDriver,
         operation: (inout GRDBDatabaseDriverConnection) throws -> Void,
         errorAssertion: (Error) -> Void
     ) throws {
         let testCase = try transactionCase(id)
-        let before = try snapshot(using: &driver)
+        let before = try snapshot(using: driver)
         let statement = insertStatement(for: driver)
 
         XCTAssertThrowsError(
@@ -418,11 +418,11 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
 
         try testCase.validate(
             before: before,
-            after: try snapshot(using: &driver)
+            after: try snapshot(using: driver)
         )
     }
 
-    private func createSchema(using driver: inout GRDBDatabaseDriver) throws {
+    private func createSchema(using driver: GRDBDatabaseDriver) throws {
         let create = logicalStatement(
             for: driver,
             sql: """
@@ -437,7 +437,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         }
     }
 
-    private func commitSeed(using driver: inout GRDBDatabaseDriver) throws {
+    private func commitSeed(using driver: GRDBDatabaseDriver) throws {
         let statement = insertStatement(for: driver)
         try driver.withBlockingValidatedTransaction { connection in
             try insert(
@@ -466,7 +466,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
     }
 
     private func snapshot(
-        using driver: inout GRDBDatabaseDriver
+        using driver: GRDBDatabaseDriver
     ) throws -> SQLiteTransactionStateSnapshot {
         let select = selectStatement(for: driver)
         return try driver.withBlockingReadConnection { connection in

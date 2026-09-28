@@ -123,8 +123,10 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         case .pool(let pool):
             try preconditionNotRootReentrant(.read)
             return try pool.read { database in
-                var connection = makeConnection(database)
-                return try operation(&connection)
+                try holding(.reader) {
+                    var connection = makeConnection(database)
+                    return try operation(&connection)
+                }
             }
         case .pinned(let box):
             var connection = try box.connection(makeConnection: makeConnection)
@@ -139,8 +141,10 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         case .pool(let pool):
             try preconditionNotRootReentrant(.write)
             return try pool.writeWithoutTransaction { database in
-                var connection = makeConnection(database)
-                return try operation(&connection)
+                try holding(.writer) {
+                    var connection = makeConnection(database)
+                    return try operation(&connection)
+                }
             }
         case .pinned(let box):
             var connection = try box.connection(makeConnection: makeConnection)
@@ -155,8 +159,14 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         case .pool(let pool):
             try preconditionNotRootReentrant(.write)
             return try pool.write { database in
-                var connection = makeConnection(database)
-                return try operation(&connection)
+                // `.writer`, not `.transaction`: the v1 request layer may
+                // read through the root database while this write is open,
+                // for example from a `RETURNING` result-set body, and GRDB
+                // allows that read on a reader.
+                try holding(.writer) {
+                    var connection = makeConnection(database)
+                    return try operation(&connection)
+                }
             }
         case .pinned(let box):
             // Already running inside the one real transaction that the
@@ -207,10 +217,10 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         _ kind: XLTransactionKind,
         _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
     ) async throws -> Result {
-        let transactionKind = try grdbTransactionKind(kind)
         let pool = try asynchronousPool(for: .write)
+        let transactionKind = try grdbTransactionKind(kind)
         return try await pool.writeWithoutTransaction { database in
-            try holding(.writer) {
+            try holding(.transaction) {
                 var connection = makeConnection(database)
                 var result: Result?
                 try database.inTransaction(transactionKind) {
@@ -226,7 +236,8 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
 
     ///
     /// Runs `body` with this database marked active in the reentrancy
-    /// tracker, for an asynchronous scope that holds a reader or the writer.
+    /// tracker, for a pool-mode scope that holds a reader, the writer, or a
+    /// transaction on the writer.
     ///
     /// `body` runs synchronously on the connection's queue, so a call it
     /// makes through the root database reaches `preconditionNotRootReentrant`
@@ -299,10 +310,8 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     /// connection... and break the transaction boundary" hazard the hard
     /// constraints call out.
     ///
-    /// An asynchronous read scope holds only a reader. It rejects a nested
-    /// read, which GRDB would stop with a precondition, and allows a nested
-    /// write, which GRDB runs on its separate writer. See
-    /// ``GRDBTransactionScopeTracker``.
+    /// A scope that holds only a reader or the writer rejects just the access
+    /// GRDB would stop on the same thread. See ``GRDBTransactionScopeTracker``.
     ///
     private func preconditionNotRootReentrant(
         _ access: GRDBTransactionScopeTracker.Access
@@ -1620,18 +1629,21 @@ private extension XLBindingKey {
 /// keeps task-local values per thread, which is the scope the synchronous
 /// v1 path has always had.
 ///
-/// Callers must enter `withActive(_:_:)` in the same synchronous extent that
-/// runs `body` -- for the GRDB adapter, that means *inside* the
-/// `databasePool.write(_:)` closure, not around it. GRDB may run that
-/// closure on its own writer thread, and a value bound on the caller's
+/// Callers must enter `withActive(_:holding:_:)` in the same synchronous
+/// extent that runs `body` -- for the GRDB adapter, that means *inside* the
+/// `databasePool.read`/`write` closure, not around it. GRDB may run that
+/// closure on its own queue's thread, and a value bound on the caller's
 /// thread outside a task would not be visible there.
 ///
-/// Each activation is a reference that is closed when `body` returns. A task
-/// created inside `body` inherits the task-local list; while `body` is still
-/// running, that task's root-database access is rejected like any other
-/// re-entry, because it would lease a second connection and miss the
-/// transaction's uncommitted writes. Once `body` has returned, the inherited
-/// activation reads as closed and no longer rejects anything.
+/// Each activation is a reference that is closed when `body` returns, and it
+/// records what the scope holds (see ``Hold``). A task created inside `body`
+/// inherits the task-local list. A `.transaction` activation rejects that
+/// task's root-database access while `body` runs, because the access would
+/// lease a second connection and miss the transaction's uncommitted writes.
+/// A `.reader` or `.writer` activation applies only on the thread that
+/// opened it, where GRDB's own rule applies, so it never rejects a task
+/// running elsewhere. Once `body` has returned, an inherited activation
+/// reads as closed and rejects nothing.
 final class GRDBTransactionScopeTracker: Sendable {
 
     static let shared = GRDBTransactionScopeTracker()
@@ -1641,14 +1653,20 @@ final class GRDBTransactionScopeTracker: Sendable {
 
     /// What an active scope holds.
     enum Hold: Sendable {
-        /// One pooled reader. A nested read would need a second reader from
-        /// the same thread, which GRDB forbids; a nested write uses GRDB's
-        /// separate writer, which GRDB allows.
+        /// One pooled reader. GRDB stops a second read from the thread that
+        /// holds it, so a root read from that thread is rejected. A read from
+        /// another thread, or a write, is not.
         case reader
-        /// The writer, possibly inside a transaction. Every nested access is
-        /// rejected: a nested write deadlocks or traps in GRDB, and a nested
-        /// read misses the scope's uncommitted writes.
+        /// The writer, outside a transaction or inside one the v1 request
+        /// layer opened. GRDB stops a second write from the thread that holds
+        /// it, so a root write from that thread is rejected. A read is not:
+        /// GRDB serves it from a reader.
         case writer
+        /// A transaction a caller scoped. Every root access from the task
+        /// that opened it, and from any task created inside it, is rejected
+        /// until it ends: a write would deadlock or trap, and a read would
+        /// miss the transaction's uncommitted writes (issue #284).
+        case transaction
     }
 
     /// The access a new root-database call asks for.
@@ -1665,8 +1683,7 @@ final class GRDBTransactionScopeTracker: Sendable {
     func rejects(_ access: Access, on databaseIdentifier: XLDatabaseIdentifier) -> Bool {
         Self.activations.contains { activation in
             activation.databaseIdentifier == databaseIdentifier
-                && activation.isOpen
-                && (activation.hold == .writer || access == .read)
+                && activation.rejects(access)
         }
     }
 
@@ -1675,7 +1692,7 @@ final class GRDBTransactionScopeTracker: Sendable {
     /// `body` throws.
     func withActive<Result>(
         _ databaseIdentifier: XLDatabaseIdentifier,
-        holding hold: Hold = .writer,
+        holding hold: Hold = .transaction,
         _ body: () throws -> Result
     ) throws -> Result {
         let activation = Activation(databaseIdentifier, hold: hold)
@@ -1686,11 +1703,18 @@ final class GRDBTransactionScopeTracker: Sendable {
     }
 
     /// One `withActive` call. Closed exactly once, when that call returns.
+    ///
+    /// A reader or writer hold also records its thread. A task created inside
+    /// the scope inherits the activation but runs on another thread, and the
+    /// scope's thread is busy running the scope until it closes, so only the
+    /// scope's own synchronous extent can match.
     private final class Activation: @unchecked Sendable {
 
         let databaseIdentifier: XLDatabaseIdentifier
 
         let hold: Hold
+
+        private let thread: pthread_t
 
         private let lock = NSLock()
         private var closed = false
@@ -1698,9 +1722,28 @@ final class GRDBTransactionScopeTracker: Sendable {
         init(_ databaseIdentifier: XLDatabaseIdentifier, hold: Hold) {
             self.databaseIdentifier = databaseIdentifier
             self.hold = hold
+            self.thread = pthread_self()
         }
 
-        var isOpen: Bool {
+        func rejects(_ access: Access) -> Bool {
+            guard isOpen else {
+                return false
+            }
+            switch hold {
+            case .transaction:
+                return true
+            case .reader:
+                return access == .read && isOnItsThread
+            case .writer:
+                return access == .write && isOnItsThread
+            }
+        }
+
+        private var isOnItsThread: Bool {
+            pthread_equal(thread, pthread_self()) != 0
+        }
+
+        private var isOpen: Bool {
             lock.lock()
             defer { lock.unlock() }
             return !closed

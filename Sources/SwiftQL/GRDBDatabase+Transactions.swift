@@ -80,7 +80,10 @@ extension GRDBDatabase: XLTransactionalDatabase {
         // marking active here is what `preconditionNotRootReentrant(_:)`
         // actually observes.
         return try databasePool.write { database in
-            try GRDBTransactionScopeTracker.shared.withActive(driver.databaseIdentifier) {
+            try GRDBTransactionScopeTracker.shared.withActive(
+                driver.databaseIdentifier,
+                holding: .transaction
+            ) {
                 let box = GRDBPinnedConnectionBox(database)
                 defer { box.invalidate() }
                 let scope = GRDBDatabase(

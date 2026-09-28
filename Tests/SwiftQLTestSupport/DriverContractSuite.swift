@@ -143,11 +143,11 @@ private typealias OperationProbe = LockedValue<Int>
 extension LockedValue where Value == Int {
 
     fileprivate func record() {
-        withLock { $0 += 1 }
+        withValue { $0 += 1 }
     }
 
     fileprivate var runCount: Int {
-        value
+        read()
     }
 }
 

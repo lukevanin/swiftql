@@ -126,8 +126,10 @@ Avoid restating what the diff already shows.
 1. Open a PR from your branch against `main` (or the milestone base branch
    `version/x.y.z` when the milestone owns a dedicated branch).
 2. Request a Claude review. Copilot review is not available for this
-   repository. Run Claude Code's `/code-review` skill on the PR with
-   `--comment`, so the findings are posted as review comments.
+   repository. Run Claude Code's `/code-review` skill on the PR at `high`
+   effort with `--comment`, so the findings are posted as review comments.
+   If they cannot be posted, record the round as one PR comment that lists
+   every finding and its outcome.
 3. Address every actionable finding — either fix the code or add a brief
    explanation of why not in a reply. Push the updated commits and run the
    review again on the new head until a round has no actionable findings.

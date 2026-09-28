@@ -111,9 +111,12 @@ throws. The driver scopes are asynchronous: `withTransaction(_:_:)` suspends
 until the writer is free, then runs the operation synchronously on it, in the
 `XLTransactionKind` the caller names. `withValidatedTransaction` preserves the
 exact operation error, so a dedicated caller error can express explicit
-rollback intent. A scope checks for cancellation before it lends a
-connection, and the GRDB driver also interrupts a running operation when its
-task is cancelled, which rolls the transaction back. The contract does not
+rollback intent. A driver scope checks for cancellation before it lends a
+connection, and the GRDB driver's asynchronous scopes also interrupt a running
+operation when its task is cancelled, which rolls the transaction back.
+`withTransaction(_:)` on a database is different: its body is synchronous, so
+it checks for cancellation once, before the transaction begins, and then runs
+the body to completion. The contract does not
 expose nested transactions or savepoints; do not attempt those by re-entering
 the root pool from a pinned body. The current GRDB driver is pool-backed and
 does not expose a separate single-connection transaction capability.

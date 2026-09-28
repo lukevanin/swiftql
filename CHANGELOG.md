@@ -72,6 +72,12 @@
     that conforms to the new `XLDriverScopeRefusal` protocol, which a driver
     uses to mark a refusal to lend a connection. `XLTransactionScopeError`
     conforms.
+  - A nested call through the root database that GRDB would stop with
+    "Database methods are not reentrant" now throws
+    `XLTransactionScopeError.nestedTransactionUnsupported` instead. For
+    example, a second root fetch from inside a result-set body on the root
+    database crashed the process on 1.9. Nestings GRDB supports, such as a
+    root write from inside that body, still run.
   - A task created inside a `withTransaction(_:)` body now counts as re-entry
     while the body runs. Its access through the original database throws
     `XLTransactionScopeError.nestedTransactionUnsupported`. On 1.9 such a task

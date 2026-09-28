@@ -111,9 +111,12 @@ every PR with Claude instead:
 
 1. Open the PR against its base branch.
 2. Run the `/code-review` skill on the PR at `high` effort with `--comment`, so
-   the findings are posted to the PR as review comments.
-3. Address every actionable finding: fix it, or reply on the thread explaining
-   why not.
+   the findings are posted to the PR as review comments. When the session
+   cannot post review comments (the review API can return `403 Resource not
+   accessible by integration`), post the round as one PR comment instead: a
+   table of every finding and its outcome.
+3. Verify every finding before acting on it. Fix each real one, or explain why
+   not, in a reply on its thread or in that round's comment.
 4. Push, then run the review again on the new head.
 5. Repeat until a review round has no actionable findings. Say so in a PR
    comment, and leave the merge to the maintainer.

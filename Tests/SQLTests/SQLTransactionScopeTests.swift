@@ -19,6 +19,7 @@ import Combine
 #else
 import OpenCombine
 #endif
+import SwiftQLTestSupport
 import XCTest
 import GRDB
 import SwiftQL
@@ -605,6 +606,32 @@ final class SQLTransactionScopeTests: XCTestCase {
         XCTAssertEqual(try freshRows(), [], "The outer body's write must roll back too.")
     }
 
+    /// A result set on the root database holds one pooled reader while its
+    /// body runs. A second root fetch from that body asks GRDB for another
+    /// reader from the same thread, which GRDB stops with "Database methods
+    /// are not reentrant". It throws instead (issue #676). A root write from
+    /// the same body uses GRDB's separate writer and still runs.
+    func testNestedRootFetchInsideARootResultSetThrowsAndANestedWriteRuns() throws {
+        try createTestTable()
+        let database = self.database!
+        try database.makeRequest(with: sqlInsert(TestTable(id: "alpha", value: 1))).execute()
+
+        XCTAssertThrowsError(
+            try database.makeRequest(with: selectAllTestRowsQuery()).withResultSet { results in
+                _ = try results.next()
+                _ = try database.makeRequest(with: selectAllTestRowsQuery()).fetchAll()
+            }
+        ) { error in
+            XCTAssertEqual(error as? XLTransactionScopeError, .nestedTransactionUnsupported)
+        }
+
+        try database.makeRequest(with: selectAllTestRowsQuery()).withResultSet { results in
+            _ = try results.next()
+            try database.makeRequest(with: sqlInsert(TestTable(id: "beta", value: 2))).execute()
+        }
+        XCTAssertEqual(try freshRows().map(\.id).sorted(), ["alpha", "beta"])
+    }
+
     // MARK: - Cancellation
 
     func testWithTransactionThrowsCancellationErrorWhenTheTaskIsAlreadyCancelledBeforeStarting() async throws {
@@ -730,25 +757,3 @@ final class SQLTransactionScopeTests: XCTestCase {
 }
 
 
-/// Manually synchronized mutable state safe to capture in a `@Sendable` closure -- the
-/// strict-concurrency checker cannot see that a lock makes cross-closure access safe.
-private final class LockedValue<Value>: @unchecked Sendable {
-
-    private let lock = NSLock()
-
-    private var value: Value
-
-    init(_ value: Value) {
-        self.value = value
-    }
-
-    func withValue<Result>(_ body: (inout Value) -> Result) -> Result {
-        lock.lock()
-        defer { lock.unlock() }
-        return body(&value)
-    }
-
-    func read() -> Value {
-        withValue { $0 }
-    }
-}
