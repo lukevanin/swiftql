@@ -96,6 +96,26 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
         XCTAssertEqual(value, 5, "The guard must clear when the scope returns.")
     }
 
+    /// A read scope holds one reader. A nested root read would ask GRDB for a
+    /// second reader from the same thread, which GRDB stops with "Database
+    /// methods are not reentrant", so it throws. A nested root write uses
+    /// GRDB's separate writer, which GRDB allows, so it still runs.
+    func testReadScopeOperationRejectsANestedRootReadButAllowsAWrite() async throws {
+        let database = try fixtures.makeDatabase()
+        let driver = database.driver
+
+        await assertNestedTransactionUnsupported {
+            try await driver.withReadConnection { _ in
+                try driver.withBlockingReadConnection { _ in }
+            }
+        }
+
+        let wrote = try await driver.withReadConnection { _ in
+            try database.withTransaction { _ in true }
+        }
+        XCTAssertTrue(wrote)
+    }
+
     /// A task created by a transaction body inherits the task-local marker.
     /// It reaches the root database only after two suspension points, from
     /// which it may resume on another thread, and is still rejected. The

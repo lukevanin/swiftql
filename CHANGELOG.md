@@ -67,9 +67,11 @@
     the calling task is already cancelled. Cancelling the task while the
     operation runs can interrupt it: with GRDB 7, the statement in progress
     throws `CancellationError`, and a transaction rolls back.
-    `withValidatedTransaction(_:_:)` rethrows `CancellationError`, and
-    `XLTransactionScopeError`, unchanged instead of reporting a transaction
-    failure.
+    `withValidatedTransaction(_:_:)` rethrows `CancellationError` unchanged
+    instead of reporting a transaction failure. It does the same for an error
+    that conforms to the new `XLDriverScopeRefusal` protocol, which a driver
+    uses to mark a refusal to lend a connection. `XLTransactionScopeError`
+    conforms.
   - A task created inside a `withTransaction(_:)` body now counts as re-entry
     while the body runs. Its access through the original database throws
     `XLTransactionScopeError.nestedTransactionUnsupported`. On 1.9 such a task

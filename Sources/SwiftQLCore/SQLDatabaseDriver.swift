@@ -443,10 +443,13 @@ extension XLDatabaseDriver {
 
 
 /// An error a driver throws when it refuses to lend a connection at all, such
-/// as a scope used after it ended or a re-entrant call. A validated
-/// transaction rethrows it unchanged: it is not a failure of a transaction,
-/// because no transaction began, and callers catch it by its own type.
-package protocol XLDriverScopeRefusal: Error {}
+/// as a scope used after it ended or a re-entrant call.
+///
+/// ``XLDatabaseDriver/withValidatedTransaction(_:_:)`` rethrows a conforming
+/// error unchanged: no transaction began, so it is not a transaction failure,
+/// and callers catch it by its own type. A driver declares its own refusal
+/// errors by conforming them to this protocol.
+public protocol XLDriverScopeRefusal: Error {}
 
 
 /// Carries an error thrown by a transaction's own operation past the driver,

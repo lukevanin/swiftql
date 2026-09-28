@@ -613,3 +613,27 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         }
     }
 }
+
+
+extension GRDBDatabaseDriver {
+
+    /// The blocking form of ``XLDatabaseDriver/withValidatedTransaction(_:_:)``
+    /// for these synchronous invariant tests, with the same error mapping.
+    fileprivate func withBlockingValidatedTransaction<Result>(
+        _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
+    ) throws -> Result {
+        do {
+            return try withBlockingTransaction { connection in
+                try XLTransactionOperationFailure.tagging {
+                    try operation(&connection)
+                }
+            }
+        }
+        catch {
+            throw XLTransactionOperationFailure.validatedTransactionError(
+                error,
+                driver: driverIdentifier
+            )
+        }
+    }
+}

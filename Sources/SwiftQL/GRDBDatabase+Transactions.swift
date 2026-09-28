@@ -66,7 +66,7 @@ extension GRDBDatabase: XLTransactionalDatabase {
         guard !driver.isPinned else {
             throw XLTransactionScopeError.nestedTransactionUnsupported
         }
-        guard !GRDBTransactionScopeTracker.shared.isActive(driver.databaseIdentifier) else {
+        guard !GRDBTransactionScopeTracker.shared.rejects(.write, on: driver.databaseIdentifier) else {
             throw XLTransactionScopeError.nestedTransactionUnsupported
         }
         if Task.isCancelled {
@@ -77,7 +77,7 @@ extension GRDBDatabase: XLTransactionalDatabase {
         // writer thread, and outside a task the tracker's task-local value is
         // kept per thread. A reentrant call from inside `body` runs in this
         // same synchronous extent (it is still on the same call stack), so
-        // marking active here is what `preconditionNotRootReentrant()`
+        // marking active here is what `preconditionNotRootReentrant(_:)`
         // actually observes.
         return try databasePool.write { database in
             try GRDBTransactionScopeTracker.shared.withActive(driver.databaseIdentifier) {

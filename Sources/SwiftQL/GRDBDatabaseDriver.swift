@@ -121,7 +121,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     ) throws -> Result {
         switch access {
         case .pool(let pool):
-            try preconditionNotRootReentrant()
+            try preconditionNotRootReentrant(.read)
             return try pool.read { database in
                 var connection = makeConnection(database)
                 return try operation(&connection)
@@ -137,7 +137,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     ) throws -> Result {
         switch access {
         case .pool(let pool):
-            try preconditionNotRootReentrant()
+            try preconditionNotRootReentrant(.write)
             return try pool.writeWithoutTransaction { database in
                 var connection = makeConnection(database)
                 return try operation(&connection)
@@ -153,7 +153,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     ) throws -> Result {
         switch access {
         case .pool(let pool):
-            try preconditionNotRootReentrant()
+            try preconditionNotRootReentrant(.write)
             return try pool.write { database in
                 var connection = makeConnection(database)
                 return try operation(&connection)
@@ -172,26 +172,6 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         }
     }
 
-    /// Runs `operation` on the calling thread, with the same error mapping as
-    /// ``XLDatabaseDriver/withValidatedTransaction(_:_:)``.
-    func withBlockingValidatedTransaction<Result>(
-        _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
-    ) throws -> Result {
-        do {
-            return try withBlockingTransaction { connection in
-                try XLTransactionOperationFailure.tagging {
-                    try operation(&connection)
-                }
-            }
-        }
-        catch {
-            throw XLTransactionOperationFailure.validatedTransactionError(
-                error,
-                driver: driverIdentifier
-            )
-        }
-    }
-
     // MARK: Asynchronous scope
 
     // GRDB's asynchronous accessors enqueue `operation` on the connection's
@@ -202,19 +182,21 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     func withReadConnection<Result: Sendable>(
         _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
     ) async throws -> Result {
-        let pool = try asynchronousPool()
+        let pool = try asynchronousPool(for: .read)
         return try await pool.read { database in
-            var connection = makeConnection(database)
-            return try operation(&connection)
+            try holding(.reader) {
+                var connection = makeConnection(database)
+                return try operation(&connection)
+            }
         }
     }
 
     func withWriteConnection<Result: Sendable>(
         _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
     ) async throws -> Result {
-        let pool = try asynchronousPool()
+        let pool = try asynchronousPool(for: .write)
         return try await pool.writeWithoutTransaction { database in
-            try holdingTheWriter {
+            try holding(.writer) {
                 var connection = makeConnection(database)
                 return try operation(&connection)
             }
@@ -226,9 +208,9 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
     ) async throws -> Result {
         let transactionKind = try grdbTransactionKind(kind)
-        let pool = try asynchronousPool()
+        let pool = try asynchronousPool(for: .write)
         return try await pool.writeWithoutTransaction { database in
-            try holdingTheWriter {
+            try holding(.writer) {
                 var connection = makeConnection(database)
                 var result: Result?
                 try database.inTransaction(transactionKind) {
@@ -244,16 +226,19 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
 
     ///
     /// Runs `body` with this database marked active in the reentrancy
-    /// tracker, for an asynchronous scope that holds GRDB's writer.
+    /// tracker, for an asynchronous scope that holds a reader or the writer.
     ///
-    /// `body` runs synchronously on the writer's queue, so a call it makes
-    /// through the root database reaches `preconditionNotRootReentrant()` on
-    /// the same thread and throws, instead of asking GRDB for the writer it
-    /// already holds and tripping GRDB's uncatchable "Database methods are not
-    /// reentrant" `fatalError`.
+    /// `body` runs synchronously on the connection's queue, so a call it
+    /// makes through the root database reaches `preconditionNotRootReentrant`
+    /// on the same thread and throws, instead of asking GRDB for a connection
+    /// kind it already holds and tripping GRDB's uncatchable "Database
+    /// methods are not reentrant" precondition.
     ///
-    private func holdingTheWriter<Result>(_ body: () throws -> Result) throws -> Result {
-        try GRDBTransactionScopeTracker.shared.withActive(databaseIdentifier, body)
+    private func holding<Result>(
+        _ hold: GRDBTransactionScopeTracker.Hold,
+        _ body: () throws -> Result
+    ) throws -> Result {
+        try GRDBTransactionScopeTracker.shared.withActive(databaseIdentifier, holding: hold, body)
     }
 
     ///
@@ -267,11 +252,13 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     /// ``XLTransactionScopeError/scopeEscaped`` rather than touching a GRDB
     /// `Database` off its writer queue.
     ///
-    private func asynchronousPool() throws -> DatabasePool {
+    private func asynchronousPool(
+        for access: GRDBTransactionScopeTracker.Access
+    ) throws -> DatabasePool {
         try Task.checkCancellation()
-        switch access {
+        switch self.access {
         case .pool(let pool):
-            try preconditionNotRootReentrant()
+            try preconditionNotRootReentrant(access)
             return pool
         case .pinned:
             throw XLTransactionScopeError.scopeEscaped
@@ -297,8 +284,8 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     }
 
     ///
-    /// Rejects "root-executor re-entry" (issue #284): any pool-mode connection
-    /// access — read *or* write — issued through this driver's
+    /// Rejects "root-executor re-entry" (issue #284): a pool-mode connection
+    /// access issued through this driver's
     /// `databaseIdentifier` while a
     /// ``XLTransactionalDatabase/withTransaction(_:)`` scope for that same
     /// identifier is still running in the calling task, or on the calling
@@ -310,10 +297,17 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     /// connection and return the database's last *committed* state, missing the
     /// transaction's own uncommitted writes, exactly the "lease another
     /// connection... and break the transaction boundary" hazard the hard
-    /// constraints call out. See ``GRDBTransactionScopeTracker``.
+    /// constraints call out.
     ///
-    private func preconditionNotRootReentrant() throws {
-        guard !GRDBTransactionScopeTracker.shared.isActive(databaseIdentifier) else {
+    /// An asynchronous read scope holds only a reader. It rejects a nested
+    /// read, which GRDB would stop with a precondition, and allows a nested
+    /// write, which GRDB runs on its separate writer. See
+    /// ``GRDBTransactionScopeTracker``.
+    ///
+    private func preconditionNotRootReentrant(
+        _ access: GRDBTransactionScopeTracker.Access
+    ) throws {
+        guard !GRDBTransactionScopeTracker.shared.rejects(access, on: databaseIdentifier) else {
             throw XLTransactionScopeError.nestedTransactionUnsupported
         }
     }
@@ -1645,11 +1639,34 @@ final class GRDBTransactionScopeTracker: Sendable {
     @TaskLocal
     private static var activations: [Activation] = []
 
+    /// What an active scope holds.
+    enum Hold: Sendable {
+        /// One pooled reader. A nested read would need a second reader from
+        /// the same thread, which GRDB forbids; a nested write uses GRDB's
+        /// separate writer, which GRDB allows.
+        case reader
+        /// The writer, possibly inside a transaction. Every nested access is
+        /// rejected: a nested write deadlocks or traps in GRDB, and a nested
+        /// read misses the scope's uncommitted writes.
+        case writer
+    }
+
+    /// The access a new root-database call asks for.
+    enum Access: Sendable {
+        case read
+        case write
+    }
+
     private init() {}
 
-    func isActive(_ databaseIdentifier: XLDatabaseIdentifier) -> Bool {
+    /// Whether an access through `databaseIdentifier`'s root database must be
+    /// refused, because an open scope on that database holds a connection
+    /// that the access would conflict with.
+    func rejects(_ access: Access, on databaseIdentifier: XLDatabaseIdentifier) -> Bool {
         Self.activations.contains { activation in
-            activation.databaseIdentifier == databaseIdentifier && activation.isOpen
+            activation.databaseIdentifier == databaseIdentifier
+                && activation.isOpen
+                && (activation.hold == .writer || access == .read)
         }
     }
 
@@ -1658,9 +1675,10 @@ final class GRDBTransactionScopeTracker: Sendable {
     /// `body` throws.
     func withActive<Result>(
         _ databaseIdentifier: XLDatabaseIdentifier,
+        holding hold: Hold = .writer,
         _ body: () throws -> Result
     ) throws -> Result {
-        let activation = Activation(databaseIdentifier)
+        let activation = Activation(databaseIdentifier, hold: hold)
         defer { activation.close() }
         return try Self.$activations.withValue(Self.activations + [activation]) {
             try body()
@@ -1672,11 +1690,14 @@ final class GRDBTransactionScopeTracker: Sendable {
 
         let databaseIdentifier: XLDatabaseIdentifier
 
+        let hold: Hold
+
         private let lock = NSLock()
         private var closed = false
 
-        init(_ databaseIdentifier: XLDatabaseIdentifier) {
+        init(_ databaseIdentifier: XLDatabaseIdentifier, hold: Hold) {
             self.databaseIdentifier = databaseIdentifier
+            self.hold = hold
         }
 
         var isOpen: Bool {

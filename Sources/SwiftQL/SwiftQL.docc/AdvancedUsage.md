@@ -106,13 +106,17 @@ transaction. Code inside that transaction must use the pinned connection and
 must not re-enter the root pool, which could lease another connection and break
 the transaction boundary or deadlock while waiting for itself.
 
-The synchronous v1 driver commits when the transaction body returns and rolls
-back when it throws. `withValidatedTransaction` preserves the exact body error,
-so a dedicated caller error can express explicit rollback intent. The v1
-contract does not expose nested transactions, savepoints, or task-cancellation
-hooks; do not attempt those by re-entering the root pool from a pinned body.
-The current GRDB v1 driver is pool-backed and does not expose a separate
-single-connection transaction capability.
+A driver transaction commits when its operation returns and rolls back when it
+throws. The driver scopes are asynchronous: `withTransaction(_:_:)` suspends
+until the writer is free, then runs the operation synchronously on it, in the
+`XLTransactionKind` the caller names. `withValidatedTransaction` preserves the
+exact operation error, so a dedicated caller error can express explicit
+rollback intent. A scope checks for cancellation before it lends a
+connection, and the GRDB driver also interrupts a running operation when its
+task is cancelled, which rolls the transaction back. The contract does not
+expose nested transactions or savepoints; do not attempt those by re-entering
+the root pool from a pinned body. The current GRDB driver is pool-backed and
+does not expose a separate single-connection transaction capability.
 
 Each invocation packet carries normalized dialect values in logical-index
 order, so every call has fresh bindings. Packet-backed execution does not move
