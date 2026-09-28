@@ -13,13 +13,31 @@ Repo: `lukevanin/swiftql`. Project board: **#9 "SwiftQL Project Plan"** (owner
 
 ### Tools
 
-Issue, milestone, project, and dependency **writes** go through the `github-mcp`
-server, which runs under a personal access token. The official GitHub connector
-has **no repository permission**: it can read this public repo, but every write
-returns `403 Resource not accessible by integration`. Treat it as read-only.
-Branch creation uses `git`; PRs use `gh`. Releases are written by neither — the
-tag-triggered workflow owns them (Step 6). Local git
-(status/diff/log/branch/commit/push) still uses `git` via Bash.
+Which GitHub tools a session has depends on how it was started, so check what
+is available before picking one. The routes, in order of preference:
+
+- **`github-mcp`**, where it is configured. It runs under a personal access
+  token and is the only server with the project and dependency tools in the
+  table below (`add_project_item`, `set_project_field`, `add_blocked_by`, and
+  so on). Prefer it for issue and milestone writes too.
+- **The official GitHub connector.** What it may write depends on the
+  session. In some sessions every write returns
+  `403 Resource not accessible by integration`. In the Claude Code cloud
+  sessions that delivered #800 and #801 it opened and edited PRs
+  (`create_pull_request`, `update_pull_request`) and posted and edited PR
+  conversation comments (`add_issue_comment`, `update_issue_comment`), but
+  every inline review write still returned 403. Try a write once; on a 403,
+  do not retry it, take the next route.
+- **The GitHub REST API** through `curl`, with the session's token
+  (`$GH_TOKEN` in those cloud sessions), for a write no connected server
+  offers. For example, #800's session removed an issue dependency with
+  `DELETE /repos/lukevanin/swiftql/issues/{number}/dependencies/blocked_by/{id}`,
+  where `{id}` is the blocking issue's `id`, not its number.
+- **`gh`**, where it is installed. Those cloud sessions did not have it.
+
+Branches are always created with `git`. Releases are written by none of
+these; the tag-triggered workflow owns them (Step 6). Local git
+(status/diff/log/branch/commit/push) uses `git` via Bash.
 
 | Action | Tool |
 |---|---|
@@ -33,11 +51,12 @@ tag-triggered workflow owns them (Step 6). Local git
 | Read dependencies | `github-mcp` `list_blocked_by` / `list_blocking` |
 | Decompose an issue into sub-issues | `github-mcp` `add_sub_issue` / `list_sub_issues` |
 | Create a branch | `git branch` + `git push -u origin <name>` |
-| Open a PR | `gh pr create` |
+| Open a PR | `gh pr create`, or the connector's `create_pull_request` where it can write |
 
-**Never call the official connector's `issue_write`, `sub_issue_write`,
-`create_branch`, or `create_pull_request`.** Those tools are exposed but always
-fail with 403; the table above gives the working equivalent for each.
+**Never create a branch with the connector's `create_branch`**: use `git`, so
+the branch starts from the fetched base (Step 4). Where the connector is
+read-only, its `issue_write`, `sub_issue_write`, and `create_pull_request` fail
+with 403; the table above gives the working equivalent for each.
 
 `set_project_field` and `add_blocked_by` take plain human values / issue numbers
 and resolve the underlying ids themselves — never look up option or node ids by
@@ -129,7 +148,7 @@ rules, including what to do when review comments cannot be posted. A Claude
 session runs that loop itself, and adds two things:
 
 - **Posting a round.** Which comment tool can write to the PR depends on the
-  session's GitHub setup; use one that accepts the write.
+  session's GitHub setup; use one that accepts the write (see [Tools](#tools)).
 - **Tell the user.** When the loop ends, give the user the open items from
   the closing comment. If no PR comment could be posted at all, give the
   user every round and the closing summary instead, and say that none of it
