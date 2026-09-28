@@ -497,14 +497,16 @@ package final class XLTransactionOperationError: @unchecked Sendable {
     }
 
     /// The error a validated transaction reports when its transaction threw
-    /// `error`: the operation's own error when the transaction failed with
-    /// it, otherwise `error` itself when it is structured, otherwise a
+    /// `error`: the operation's own error when its last run threw one,
+    /// otherwise `error` itself when it is structured, otherwise a
     /// transaction failure.
     ///
-    /// The recorded error is reported only when `error` has the same type.
-    /// A driver that caught the operation's error, retried, and then failed
-    /// in its own right -- before running the operation again, so nothing
-    /// cleared the record -- reports its own failure, not the stale one.
+    /// The operation's error wins whatever the driver threw, as it did
+    /// before the contract became asynchronous: a driver may wrap or bridge
+    /// the error it rethrows, and the caller still gets its own back. The
+    /// one case this misreports is a driver that retries after the
+    /// operation threw and then fails before running it again; the earlier
+    /// run's error is reported then.
     package func validatedError(
         for error: any Error,
         driver: XLDriverIdentifier
@@ -512,7 +514,7 @@ package final class XLTransactionOperationError: @unchecked Sendable {
         lock.lock()
         let operationError = recorded
         lock.unlock()
-        if let operationError, type(of: operationError) == type(of: error) {
+        if let operationError {
             return operationError
         }
         if error is XLDatabaseContractError

@@ -40,9 +40,15 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
 
     let dialect: XLSQLiteDialect
 
-    /// GRDB's own default for a write: a second writer conflicts at `BEGIN`
-    /// rather than partway through a transaction.
-    let defaultTransactionKind = XLTransactionKind.immediate
+    /// GRDB's own default: ``XLTransactionKind/immediate`` for a writable
+    /// database, so a second writer conflicts at `BEGIN` rather than partway
+    /// through a transaction, and ``XLTransactionKind/deferred`` for a
+    /// read-only one, where GRDB notes SQLite can refuse a non-deferred
+    /// transaction.
+    let defaultTransactionKind: XLTransactionKind
+
+    /// `defaultTransactionKind` as GRDB spells it, worked out once.
+    private let grdbDefaultTransactionKind: Database.TransactionKind
 
     private enum Access {
         case pool(DatabasePool)
@@ -77,19 +83,28 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         dialect: XLSQLiteDialect,
         databaseIdentifier: XLDatabaseIdentifier = XLDatabaseIdentifier(rawValue: UUID())
     ) {
-        self.access = .pool(databasePool)
-        self.dialect = dialect
-        self.databaseIdentifier = databaseIdentifier
+        let readOnly = databasePool.configuration.readonly
+        self.init(
+            access: .pool(databasePool),
+            dialect: dialect,
+            databaseIdentifier: databaseIdentifier,
+            defaultTransactionKind: readOnly ? .deferred : .immediate,
+            grdbDefaultTransactionKind: readOnly ? .deferred : .immediate
+        )
     }
 
     private init(
         access: Access,
         dialect: XLSQLiteDialect,
-        databaseIdentifier: XLDatabaseIdentifier
+        databaseIdentifier: XLDatabaseIdentifier,
+        defaultTransactionKind: XLTransactionKind,
+        grdbDefaultTransactionKind: Database.TransactionKind
     ) {
         self.access = access
         self.dialect = dialect
         self.databaseIdentifier = databaseIdentifier
+        self.defaultTransactionKind = defaultTransactionKind
+        self.grdbDefaultTransactionKind = grdbDefaultTransactionKind
     }
 
     ///
@@ -116,7 +131,9 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         GRDBDatabaseDriver(
             access: .pinned(box),
             dialect: dialect,
-            databaseIdentifier: XLDatabaseIdentifier(rawValue: UUID())
+            databaseIdentifier: XLDatabaseIdentifier(rawValue: UUID()),
+            defaultTransactionKind: defaultTransactionKind,
+            grdbDefaultTransactionKind: grdbDefaultTransactionKind
         )
     }
 
@@ -163,7 +180,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         case .pool(let pool):
             try preconditionNotRootReentrant(.write)
             return try pool.writeWithoutTransaction { database in
-                try runTransaction(on: database, kind: grdbTransactionKind(defaultTransactionKind)) {
+                try runTransaction(on: database, kind: grdbDefaultTransactionKind) {
                     var connection = makeConnection(database)
                     return try operation(&connection)
                 }
@@ -246,10 +263,11 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
     ///
     func runTransaction<Result>(
         on database: Database,
-        kind: Database.TransactionKind,
+        kind: Database.TransactionKind? = nil,
         _ body: () throws -> Result
     ) throws -> Result {
-        try holding(.writer(database)) {
+        let kind = kind ?? grdbDefaultTransactionKind
+        return try holding(.writer(database)) {
             var result: Result?
             try database.inTransaction(kind) {
                 result = try body()
@@ -305,7 +323,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
         }
     }
 
-    func grdbTransactionKind(
+    private func grdbTransactionKind(
         _ kind: XLTransactionKind
     ) throws -> Database.TransactionKind {
         switch kind {

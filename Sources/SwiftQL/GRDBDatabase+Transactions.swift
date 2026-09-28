@@ -79,10 +79,7 @@ extension GRDBDatabase: XLTransactionalDatabase {
         // has committed, only root writes stay rejected, so a GRDB
         // `databaseDidCommit` observer can read.
         return try databasePool.writeWithoutTransaction { database in
-            try driver.runTransaction(
-                on: database,
-                kind: driver.grdbTransactionKind(driver.defaultTransactionKind)
-            ) {
+            try driver.runTransaction(on: database) {
                 let box = GRDBPinnedConnectionBox(database)
                 defer { box.invalidate() }
                 let scope = GRDBDatabase(

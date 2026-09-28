@@ -66,6 +66,48 @@ final class GRDBAsyncDriverScopeTests: XCTestCase {
         )
     }
 
+    /// The driver follows GRDB's own default kind: immediate for a writable
+    /// database, deferred for a read-only one, where GRDB notes SQLite can
+    /// refuse a non-deferred transaction.
+    func testReadOnlyDatabaseOpensDeferredTransactions() async throws {
+        let driver = try await fixtures.makeDriver()
+        XCTAssertEqual(driver.defaultTransactionKind, .immediate)
+        let path = try XCTUnwrap(driver.databasePool).path
+
+        var configuration = Configuration()
+        configuration.readonly = true
+        let readOnlyPool = try DatabasePool(path: path, configuration: configuration)
+        defer { try? readOnlyPool.close() }
+        let readOnlyDatabase = try GRDBDatabase(
+            databasePool: readOnlyPool,
+            formatter: XLiteFormatter(identifierFormattingOptions: .mysqlCompatible),
+            logger: nil
+        )
+        let readOnlyDriver = readOnlyDatabase.driver
+        XCTAssertEqual(readOnlyDriver.defaultTransactionKind, .deferred)
+        let statements = LockedValue<[String]>([])
+        try await readOnlyPool.writeWithoutTransaction { database in
+            database.trace { event in
+                if case .statement(let statement) = event {
+                    statements.withValue { $0.append(statement.sql) }
+                }
+            }
+        }
+
+        let fixtures = fixtures!
+        let count = try await readOnlyDriver.withTransaction { connection in
+            try fixtures.markerCount(on: &connection)
+        }
+        XCTAssertEqual(count, 0)
+        let value = try readOnlyDatabase.withTransaction { _ in 1 }
+        XCTAssertEqual(value, 1)
+
+        XCTAssertEqual(
+            statements.read().filter { $0.hasPrefix("BEGIN") },
+            ["BEGIN DEFERRED TRANSACTION", "BEGIN DEFERRED TRANSACTION"]
+        )
+    }
+
     // MARK: - Reentrancy
 
     /// An operation that holds GRDB's writer and calls back into the root
