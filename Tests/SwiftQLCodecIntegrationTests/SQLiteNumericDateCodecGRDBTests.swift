@@ -37,7 +37,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
 
         try driver.withWriteConnection { connection in
@@ -199,7 +199,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
         let dates = [
             Date(timeIntervalSince1970: -1_000_000), // before the epoch
@@ -291,7 +291,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
 
         try driver.withWriteConnection { connection in
@@ -379,7 +379,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
 
         try driver.withWriteConnection { connection in
@@ -482,7 +482,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
         // SQLite interprets a bare REAL argument to date()/datetime() as a
         // Julian day number, which is exactly this preset's storage
@@ -507,7 +507,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
         let row = try driver.withReadConnection { connection in
             try XCTUnwrap(
@@ -532,7 +532,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
         // The stored value is milliseconds, so SQL must divide by 1000.0
         // before applying the 'unixepoch' modifier (which expects seconds).
@@ -558,7 +558,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
 
         try driver.withWriteConnection { connection in
@@ -616,7 +616,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
         // A computed SQL expression can overflow to IEEE 754 infinity even
         // though no bound parameter ever carried a non-finite value.
@@ -664,7 +664,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
         // This REAL value is finite, but converting it from a julian-day
         // number back to unix seconds (`(value - epoch) * 86400`) overflows
@@ -711,7 +711,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         defer { fixture.tearDown() }
 
         let configuration = try makeConfiguration()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
 
         try driver.withWriteConnection { connection in

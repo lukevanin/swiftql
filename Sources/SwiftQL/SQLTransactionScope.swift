@@ -52,7 +52,8 @@ import Foundation
 /// work runs — the v1 driver has no savepoint hook, so a nested call cannot
 /// prove correct partial-rollback semantics, and re-entering the root
 /// connection pool from inside an open transaction can deadlock or hand two
-/// operations different connections. Cancellation is checked only once, at
+/// operations different connections. A task created inside the body is held
+/// to the same rule until the body returns. Cancellation is checked only once, at
 /// the very start of `withTransaction(_:)`, because the body itself runs
 /// synchronously to completion and has no cooperative cancellation point
 /// while committed or rolled-back writes are underway.

@@ -59,7 +59,7 @@ extension GRDBDatabase: XLTransactionalDatabase {
     ) throws -> Result {
         // Rejects reentry on the pinned scope itself (fast, value-level,
         // thread-independent) and reentry through the original, unpinned
-        // database captured from inside an active body (thread-scoped; see
+        // database captured from inside an active body (task-scoped; see
         // `GRDBTransactionScopeTracker`). Both checks run before touching
         // `databasePool.write`, because GRDB's own reentrant-write guard is
         // an uncatchable `fatalError`.
@@ -73,12 +73,12 @@ extension GRDBDatabase: XLTransactionalDatabase {
             throw CancellationError()
         }
         // `withActive` must be entered *inside* `databasePool.write`'s
-        // closure, not around it: GRDB runs that closure on its own writer
-        // thread, not necessarily the caller's thread, and the tracker marks
-        // a thread active via `Thread.current.threadDictionary`. A reentrant
-        // call from inside `body` runs on this same writer thread (it is
-        // still on the same call stack), so marking active here is what
-        // `preconditionNotRootReentrant()` actually observes.
+        // closure, not around it: GRDB may run that closure on its own
+        // writer thread, and outside a task the tracker's task-local value is
+        // kept per thread. A reentrant call from inside `body` runs in this
+        // same synchronous extent (it is still on the same call stack), so
+        // marking active here is what `preconditionNotRootReentrant()`
+        // actually observes.
         return try databasePool.write { database in
             try GRDBTransactionScopeTracker.shared.withActive(driver.databaseIdentifier) {
                 let box = GRDBPinnedConnectionBox(database)

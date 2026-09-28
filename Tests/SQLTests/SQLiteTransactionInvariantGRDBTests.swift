@@ -555,7 +555,7 @@ final class GRDBDriverContractTests_TransactionInvariants: XCTestCase {
         _ rowID: String,
         databasePool: DatabasePool
     ) throws -> SQLiteTransactionStateSnapshot {
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: databasePool,
             dialect: XLSQLiteDialect()
         )

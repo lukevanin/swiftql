@@ -19,7 +19,13 @@ import GRDBSQLite
 /// connection access never touches the pool, so it cannot re-enter it and
 /// cannot deadlock waiting on a writer access the enclosing scope already
 /// holds.
-struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
+///
+/// The driver conforms to the asynchronous ``XLDatabaseDriver`` contract, and
+/// also keeps a synchronous scope of the same three names. The v1 request
+/// layer still calls the synchronous scope; it moves to the asynchronous one
+/// with #681 and #682. Both share the connection type and every connection
+/// primitive, so the two differ only in how the caller waits.
+struct GRDBDatabaseDriver: XLDatabaseDriver, Sendable {
 
     typealias Dialect = XLSQLiteDialect
 
@@ -107,7 +113,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
         )
     }
 
-    mutating func withReadConnection<Result>(
+    func withReadConnection<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
         switch access {
@@ -123,7 +129,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
         }
     }
 
-    mutating func withWriteConnection<Result>(
+    func withWriteConnection<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
         switch access {
@@ -139,7 +145,7 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
         }
     }
 
-    mutating func withTransaction<Result>(
+    func withTransaction<Result>(
         _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
     ) throws -> Result {
         switch access {
@@ -163,18 +169,159 @@ struct GRDBDatabaseDriver: XLDatabaseDriver, @unchecked Sendable {
         }
     }
 
+    /// Runs `operation` synchronously on the calling thread and returns the
+    /// same error mapping as ``XLDatabaseDriver/withValidatedTransaction(_:_:)``.
+    func withValidatedTransaction<Result>(
+        _ operation: (inout GRDBDatabaseDriverConnection) throws -> Result
+    ) throws -> Result {
+        do {
+            return try withTransaction { connection in
+                try XLTransactionOperationFailure.tagging {
+                    try operation(&connection)
+                }
+            }
+        }
+        catch {
+            throw XLTransactionOperationFailure.validatedTransactionError(
+                error,
+                driver: driverIdentifier
+            )
+        }
+    }
+
+    // MARK: Asynchronous scope
+
+    // GRDB's asynchronous accessors enqueue `operation` on the connection's
+    // own serial executor and suspend the caller until it has run. They add
+    // no thread hop beyond the one that confines a connection to its queue,
+    // and none of them blocks the calling thread.
+
+    func withReadConnection<Result: Sendable>(
+        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
+    ) async throws -> Result {
+        let pool = try asynchronousPool()
+        return try await pool.read { database in
+            var connection = makeConnection(database)
+            return try operation(&connection)
+        }
+    }
+
+    func withWriteConnection<Result: Sendable>(
+        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
+    ) async throws -> Result {
+        let pool = try asynchronousPool()
+        return try await pool.writeWithoutTransaction { database in
+            var connection = makeConnection(database)
+            return try operation(&connection)
+        }
+    }
+
+    func withTransaction<Result: Sendable>(
+        _ kind: XLTransactionKind,
+        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
+    ) async throws -> Result {
+        let transactionKind = try grdbTransactionKind(kind)
+        let pool = try asynchronousPool()
+        return try await pool.writeWithoutTransaction { database in
+            var connection = makeConnection(database)
+            var result: Result?
+            try database.inTransaction(transactionKind) {
+                result = try operation(&connection)
+                return .commit
+            }
+            // `inTransaction` returns only after `operation` returned and the
+            // transaction committed, so `result` is set.
+            return result!
+        }
+    }
+
+    // The two conveniences below restate the protocol extension's on the
+    // concrete type. Without them, `try await driver.withTransaction { ... }`
+    // in asynchronous code resolves to the synchronous method of the same
+    // name above, because a concrete member outranks a protocol extension
+    // member, and the caller blocks a thread while appearing to await.
+
+    /// Runs `operation` inside one ``XLTransactionKind/immediate`` transaction.
+    func withTransaction<Result: Sendable>(
+        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
+    ) async throws -> Result {
+        try await withTransaction(.immediate, operation)
+    }
+
+    /// The asynchronous form of ``withValidatedTransaction(_:)``, with the
+    /// same error mapping as ``XLDatabaseDriver/withValidatedTransaction(_:_:)``.
+    func withValidatedTransaction<Result: Sendable>(
+        _ kind: XLTransactionKind = .immediate,
+        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
+    ) async throws -> Result {
+        do {
+            return try await withTransaction(kind) { connection in
+                try XLTransactionOperationFailure.tagging {
+                    try operation(&connection)
+                }
+            }
+        }
+        catch {
+            throw XLTransactionOperationFailure.validatedTransactionError(
+                error,
+                driver: driverIdentifier
+            )
+        }
+    }
+
     ///
-    /// Rejects "root-executor re-entry" (issue #284): any pool-mode
-    /// connection access — read *or* write — issued through this driver's
-    /// `databaseIdentifier` while a ``XLTransactionalDatabase/withTransaction(_:)``
-    /// scope for that same identifier is already active on the calling
-    /// thread. This is what protects a plain `SELECT` issued through the
-    /// captured root database from inside an active transaction body, not
-    /// just a second `withTransaction(_:)` call: GRDB's reader pool is not
-    /// reentrant-locked with its writer, so a stray read like that would not
-    /// crash or deadlock — it would just silently lease a different
-    /// connection and return the database's last *committed* state, missing
-    /// the transaction's own uncommitted writes, exactly the "lease another
+    /// The pool an asynchronous scope leases from, after the checks every
+    /// asynchronous scope makes before it lends a connection.
+    ///
+    /// A pinned driver has no asynchronous scope. Its connection belongs to
+    /// one synchronous ``XLTransactionalDatabase/withTransaction(_:)`` body,
+    /// which cannot suspend, so reaching the connection from asynchronous code
+    /// means the scope value has left that body. That is reported as
+    /// ``XLTransactionScopeError/scopeEscaped`` rather than touching a GRDB
+    /// `Database` off its writer queue.
+    ///
+    private func asynchronousPool() throws -> DatabasePool {
+        try Task.checkCancellation()
+        switch access {
+        case .pool(let pool):
+            try preconditionNotRootReentrant()
+            return pool
+        case .pinned:
+            throw XLTransactionScopeError.scopeEscaped
+        }
+    }
+
+    private func grdbTransactionKind(
+        _ kind: XLTransactionKind
+    ) throws -> Database.TransactionKind {
+        switch kind {
+        case .deferred:
+            return .deferred
+        case .immediate:
+            return .immediate
+        case .exclusive:
+            return .exclusive
+        default:
+            throw XLDatabaseContractError.unsupportedTransactionKind(
+                driver: driverIdentifier,
+                kind: kind
+            )
+        }
+    }
+
+    ///
+    /// Rejects "root-executor re-entry" (issue #284): any pool-mode connection
+    /// access — read *or* write — issued through this driver's
+    /// `databaseIdentifier` while a
+    /// ``XLTransactionalDatabase/withTransaction(_:)`` scope for that same
+    /// identifier is still running in the calling task, or on the calling
+    /// thread outside any task. This is what protects a plain `SELECT` issued
+    /// through the captured root database from inside an active transaction
+    /// body, not just a second `withTransaction(_:)` call: GRDB's reader pool
+    /// is not reentrant-locked with its writer, so a stray read like that would
+    /// not crash or deadlock — it would just silently lease a different
+    /// connection and return the database's last *committed* state, missing the
+    /// transaction's own uncommitted writes, exactly the "lease another
     /// connection... and break the transaction boundary" hazard the hard
     /// constraints call out. See ``GRDBTransactionScopeTracker``.
     ///
@@ -298,7 +445,6 @@ struct GRDBInvocationExecutor: Sendable {
         bindings: any XLInvocationBindingPacket
     ) throws -> [[XLSQLiteValue]] {
         let packet = try sqlitePacket(bindings)
-        var driver = driver
         return try driver.withReadConnection { connection in
             try fetchAll(packet: packet, in: &connection)
         }
@@ -319,7 +465,6 @@ struct GRDBInvocationExecutor: Sendable {
         _ body: ([XLSQLiteValue]) throws -> XLRowStreamControl
     ) throws {
         let packet = try sqlitePacket(bindings)
-        var driver = driver
         try driver.withReadConnection { connection in
             try forEachRow(
                 packet: packet,
@@ -356,7 +501,6 @@ struct GRDBInvocationExecutor: Sendable {
         requiresWriteConnection: Bool,
         _ operation: (@escaping () throws -> [XLSQLiteValue]?) throws -> Result
     ) throws -> Result {
-        var driver = driver
         let accessor: (inout GRDBDatabaseDriverConnection) throws -> Result = { connection in
             let statement = try self.boundStatement(packet: packet, in: &connection)
             // The statement stays marked in use for all of `operation`, which
@@ -383,7 +527,6 @@ struct GRDBInvocationExecutor: Sendable {
         bindings: any XLInvocationBindingPacket
     ) throws -> [XLSQLiteValue]? {
         let packet = try sqlitePacket(bindings)
-        var driver = driver
         return try driver.withReadConnection { connection in
             try fetchOne(packet: packet, in: &connection)
         }
@@ -393,7 +536,6 @@ struct GRDBInvocationExecutor: Sendable {
     func fetchOne(
         packet: XLValidatedSQLitePacket
     ) throws -> [XLSQLiteValue]? {
-        var driver = driver
         return try driver.withReadConnection { connection in
             try fetchOne(packet: packet, in: &connection)
         }
@@ -410,7 +552,6 @@ struct GRDBInvocationExecutor: Sendable {
         bindings: any XLInvocationBindingPacket
     ) throws {
         let packet = try sqlitePacket(bindings)
-        var driver = driver
         try driver.withTransaction { connection in
             try execute(packet: packet, in: &connection)
         }
@@ -420,7 +561,6 @@ struct GRDBInvocationExecutor: Sendable {
     func execute(
         packet: XLValidatedSQLitePacket
     ) throws {
-        var driver = driver
         try driver.withTransaction { connection in
             try execute(packet: packet, in: &connection)
         }
@@ -1490,56 +1630,92 @@ private extension XLBindingKey {
 /// before a single line of SwiftQL runs. This tracker must reject the call
 /// *before* it reaches `databasePool.write` at all.
 ///
-/// Scoped per-`Thread` rather than per-pool: `body` runs synchronously to
-/// completion, so a call nested inside it is necessarily on the same thread
-/// as the active scope. Two independent, concurrent `withTransaction(_:)`
-/// calls from different threads are unrelated activations — each has its own
-/// thread dictionary — and both must succeed, serialized safely by GRDB's own
-/// writer queue.
+/// Scoped per task rather than per pool, through a `@TaskLocal` (issue #676).
+/// A call nested inside `body` runs in the task that entered the scope, so it
+/// sees the marker, even after a suspension point that resumed the task on a
+/// different thread. Two independent, concurrent `withTransaction(_:)` calls
+/// from different tasks are unrelated activations and both must succeed,
+/// serialized safely by GRDB's own writer queue. Outside any task, Swift
+/// keeps task-local values per thread, which is the scope the synchronous
+/// v1 path has always had.
 ///
-/// Callers must enter `withActive(_:_:)` on the same thread that will run
-/// `body` -- for the GRDB adapter, that means *inside* the
-/// `databasePool.write(_:)` closure, not around it. GRDB dispatches that
-/// closure onto its own writer thread, which is not necessarily the caller's
-/// thread; marking active before calling `databasePool.write` would leave a
-/// reentrant call made from inside `body` unable to see the marker, silently
-/// defeating this guard.
-final class GRDBTransactionScopeTracker: @unchecked Sendable {
+/// Callers must enter `withActive(_:_:)` in the same synchronous extent that
+/// runs `body` -- for the GRDB adapter, that means *inside* the
+/// `databasePool.write(_:)` closure, not around it. GRDB may run that
+/// closure on its own writer thread, and a value bound on the caller's
+/// thread outside a task would not be visible there.
+///
+/// Each activation is a reference that is closed when `body` returns. A task
+/// created inside `body` inherits the task-local list; while `body` is still
+/// running, that task's root-database access is rejected like any other
+/// re-entry, because it would lease a second connection and miss the
+/// transaction's uncommitted writes. Once `body` has returned, the inherited
+/// activation reads as closed and no longer rejects anything.
+final class GRDBTransactionScopeTracker: Sendable {
 
     static let shared = GRDBTransactionScopeTracker()
 
-    private let key = "swiftql.grdb.activeTransactionScopeDatabaseIdentifiers"
+    @TaskLocal
+    private static var activations: [Activation] = []
 
     private init() {}
 
     func isActive(_ databaseIdentifier: XLDatabaseIdentifier) -> Bool {
-        activeIdentifiers.contains(databaseIdentifier)
+        Self.activations.contains { activation in
+            activation.databaseIdentifier == databaseIdentifier && activation.isOpen
+        }
     }
 
-    /// Marks `databaseIdentifier` active on the calling thread for the
-    /// duration of `body`, and always clears it again afterward — including
-    /// when `body` throws.
+    /// Marks `databaseIdentifier` active in the calling task for the duration
+    /// of `body`, and always clears it again afterward -- including when
+    /// `body` throws.
     func withActive<Result>(
         _ databaseIdentifier: XLDatabaseIdentifier,
         _ body: () throws -> Result
     ) throws -> Result {
-        var identifiers = activeIdentifiers
-        identifiers.insert(databaseIdentifier)
-        activeIdentifiers = identifiers
-        defer {
-            var identifiers = activeIdentifiers
-            identifiers.remove(databaseIdentifier)
-            activeIdentifiers = identifiers
+        let activation = Activation(databaseIdentifier)
+        defer { activation.close() }
+        return try Self.$activations.withValue(Self.activations + [activation]) {
+            try body()
         }
-        return try body()
     }
 
-    private var activeIdentifiers: Set<XLDatabaseIdentifier> {
-        get {
-            Thread.current.threadDictionary[key] as? Set<XLDatabaseIdentifier> ?? []
+    /// Marks `databaseIdentifier` active in the calling task for the duration
+    /// of `body`, across every suspension point in it.
+    func withActive<Result>(
+        _ databaseIdentifier: XLDatabaseIdentifier,
+        isolation: isolated (any Actor)? = #isolation,
+        _ body: () async throws -> Result
+    ) async throws -> Result {
+        let activation = Activation(databaseIdentifier)
+        defer { activation.close() }
+        return try await Self.$activations.withValue(Self.activations + [activation]) {
+            try await body()
         }
-        set {
-            Thread.current.threadDictionary[key] = newValue
+    }
+
+    /// One `withActive` call. Closed exactly once, when that call returns.
+    private final class Activation: @unchecked Sendable {
+
+        let databaseIdentifier: XLDatabaseIdentifier
+
+        private let lock = NSLock()
+        private var closed = false
+
+        init(_ databaseIdentifier: XLDatabaseIdentifier) {
+            self.databaseIdentifier = databaseIdentifier
+        }
+
+        var isOpen: Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            return !closed
+        }
+
+        func close() {
+            lock.lock()
+            defer { lock.unlock() }
+            closed = true
         }
     }
 }

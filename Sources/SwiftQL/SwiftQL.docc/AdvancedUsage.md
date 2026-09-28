@@ -223,7 +223,10 @@ wrong answer:
   writes; re-entering the connection pool from inside an open transaction can
   also deadlock or silently lease a different connection that only sees the
   database's last *committed* state, missing the transaction's own
-  uncommitted writes.
+  uncommitted writes. A task created inside the body is held to the same rule
+  while the body runs: its access through the original database throws
+  `.nestedTransactionUnsupported` too. Once the body returns, that task can
+  use the original database again.
 - **The scope must not escape the body.** A request, write request, or scope
   value used after `withTransaction(_:)` returns throws `.scopeEscaped`: the
   pinned connection is invalidated the instant the body returns, so

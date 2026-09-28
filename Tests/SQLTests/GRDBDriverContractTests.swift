@@ -23,7 +23,7 @@ final class GRDBDriverContractTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
@@ -117,7 +117,7 @@ final class GRDBDriverContractTests: XCTestCase {
             SQLiteValueConformanceCaseID.unicodeText.rawValue
         )
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
@@ -196,7 +196,7 @@ final class GRDBDriverContractTests: XCTestCase {
         let fixture = try makeFixture(configuration: configuration)
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
@@ -300,7 +300,7 @@ final class GRDBDriverContractTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
@@ -376,7 +376,7 @@ final class GRDBDriverContractTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
@@ -459,7 +459,7 @@ final class GRDBDriverContractTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
@@ -546,7 +546,7 @@ final class GRDBDriverContractTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
@@ -606,7 +606,7 @@ final class GRDBDriverContractTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
@@ -701,7 +701,7 @@ final class GRDBDriverContractTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
@@ -747,7 +747,7 @@ final class GRDBDriverContractTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
@@ -784,7 +784,7 @@ final class GRDBDriverContractTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
@@ -824,7 +824,7 @@ final class GRDBDriverContractTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
@@ -903,7 +903,7 @@ final class GRDBDriverContractTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
@@ -965,7 +965,7 @@ final class GRDBDriverContractTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )
@@ -1061,7 +1061,7 @@ final class GRDBDriverContractTests: XCTestCase {
         let fixture = try makeFixture()
         defer { fixture.tearDown() }
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: XLSQLiteDialect()
         )

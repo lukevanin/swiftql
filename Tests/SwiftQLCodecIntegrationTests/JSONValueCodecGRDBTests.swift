@@ -30,7 +30,7 @@ final class JSONValueCodecGRDBTests: XCTestCase {
         let codingConfiguration = try XLValueCodingConfiguration(registry: registry)
         let dialect = XLSQLiteDialect()
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: dialect
         )
@@ -123,7 +123,7 @@ final class JSONValueCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [jsonCodecFixtureTextKey]
         )
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let create = logicalStatement(
             for: driver,
             sql: "CREATE TABLE optional_profiles (profile TEXT)"
@@ -177,7 +177,7 @@ final class JSONValueCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [jsonCodecFixtureTextKey]
         )
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let create = logicalStatement(
             for: driver,
             sql: "CREATE TABLE corrupt_profiles (profile TEXT NOT NULL)"

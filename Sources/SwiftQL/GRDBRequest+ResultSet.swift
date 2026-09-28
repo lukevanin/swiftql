@@ -54,7 +54,7 @@ extension GRDBRequest {
             "withResultSet: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
 
         if requiresWriteConnection {
-            var driver = executor.driver
+            let driver = executor.driver
             var items: [Row] = []
             try driver.withTransaction { connection in
                 items = try decodeRows(packet: packet, in: &connection)

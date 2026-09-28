@@ -33,7 +33,7 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
             formatter: XLiteFormatter(),
             logger: nil
         )
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: database.databasePool,
             dialect: database.dialect
         )
@@ -411,7 +411,7 @@ final class ContextualValueCodecGRDBTests: XCTestCase {
             context: optionalParameterContext
         )
 
-        var driver = GRDBDatabaseDriver(
+        let driver = GRDBDatabaseDriver(
             databasePool: fixture.pool,
             dialect: dialect
         )

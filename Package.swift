@@ -109,13 +109,15 @@ let package = Package(
         ),
 
         // Test-only scaffolding shared across test targets: scoped temporary
-        // databases, numeric SQLite version comparison, and repository-root
-        // lookup. Deliberately free of XCTest so it can be a regular target --
+        // databases, numeric SQLite version comparison, repository-root
+        // lookup, and the driver-scope contract suite (issue #676).
+        // Deliberately free of XCTest so it can be a regular target --
         // a library target has no XCTest search paths, and importing it here
         // would break `swift build` (issue #557).
         .target(
             name: "SwiftQLTestSupport",
             dependencies: [
+                "SwiftQLCore",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ],
             path: "Tests/SwiftQLTestSupport"

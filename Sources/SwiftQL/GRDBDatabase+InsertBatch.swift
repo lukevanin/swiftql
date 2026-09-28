@@ -81,7 +81,6 @@ extension GRDBDatabase {
         Rows.Element.MetaNamedResult.Row == Rows.Element,
         Rows.Element.MetaInsert.Row == Rows.Element
     {
-        var driver = driver
         // A pool-backed call owns its whole transaction, which already rolls
         // back every row on failure. A scope's transaction belongs to the
         // body, so the batch takes its own savepoint to stay one unit.

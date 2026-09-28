@@ -584,7 +584,7 @@ final class SQLTransactionScopeTests: XCTestCase {
     /// *original, unpinned* `database` value instead of the `scope` it was
     /// given — for example, by using the database-level convenience executor
     /// sugar the `@SQLQueries` macro generates over `execute`/
-    /// `withTransaction`. Without the thread-scoped tracker in
+    /// `withTransaction`. Without the task-scoped tracker in
     /// `GRDBDatabase.withTransaction`, this reaches GRDB's own reentrant-write
     /// guard, which is an uncatchable `fatalError` — so this test is the
     /// actual proof that root-executor re-entry is rejected, not merely that

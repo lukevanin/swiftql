@@ -20,7 +20,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [XLDateTextCodec.standardKey]
         )
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let inserted = Date(timeIntervalSince1970: 1_700_000_000.123)
         let updated = Date(timeIntervalSince1970: 1_700_000_500.5)
         let parameterContext = XLValueCodingContext(
@@ -186,7 +186,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [XLDateTextCodec.standardKey]
         )
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let context = XLValueCodingContext(site: .parameter, path: XLValueCodingPath("moments"))
         let dates = [
             Date(timeIntervalSince1970: 1_700_000_000.5),
@@ -254,7 +254,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [XLDateTextCodec.standardKey]
         )
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let context = XLValueCodingContext(site: .parameter, path: XLValueCodingPath("readings"))
         let date = Date(timeIntervalSince1970: 1_700_000_000.123)
 
@@ -317,7 +317,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
         // a rejected `duplicateDefault`); each property selects explicitly.
         let configuration = try XLValueCodingConfiguration(registry: registry)
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let startedContext = XLValueCodingContext(
             site: .parameter,
             path: XLValueCodingPath(["sessions", "started_at"])
@@ -411,7 +411,7 @@ final class DateTextCodecGRDBTests: XCTestCase {
             defaultCodecKeys: [XLDateTextCodec.standardKey]
         )
         let dialect = XLSQLiteDialect()
-        var driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
+        let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let resultContext = XLValueCodingContext(
             site: .result,
             path: XLValueCodingPath(["corrupt", "when"])

@@ -34,7 +34,7 @@ extension GRDBRequest {
     func decodeRows(
         packet: XLValidatedSQLitePacket
     ) throws -> [Row] {
-        var driver = executor.driver
+        let driver = executor.driver
         // Both branches accumulate into an outer array and return Void from
         // the closure, instead of returning [Row] directly from
         // withTransaction<Result>/withReadConnection<Result>. On the pinned
@@ -104,7 +104,7 @@ extension GRDBRequest {
         packet: XLValidatedSQLitePacket,
         limit: Int
     ) throws -> [Row] {
-        var driver = executor.driver
+        let driver = executor.driver
         // Same accumulator/Void-return shape as the two decodeRows(packet:)
         // overloads above, and for the same reason: this is
         // fetchAtMost(_:bindings:)'s decode boundary (used by @SQLQuery's
@@ -173,7 +173,7 @@ extension GRDBRequest {
             "fetchOne: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
         let values: [XLSQLiteValue]?
         if requiresWriteConnection {
-            var driver = executor.driver
+            let driver = executor.driver
             values = try driver.withTransaction { connection in
                 try executor.fetchOne(packet: packet, in: &connection)
             }

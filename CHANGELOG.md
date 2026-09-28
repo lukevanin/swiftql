@@ -45,6 +45,33 @@
     Linux, which makes the repeat certain there. See <doc:LiveQueries>, "A
     live query may deliver the same value twice".
 
+- **The driver scopes are asynchronous** (issue #676). This changes only code
+  that conforms to `XLDatabaseDriver` or calls its scopes directly. Requests,
+  `withTransaction(_:)` on a database, and the query macros keep their
+  synchronous signatures until #681.
+  - `withReadConnection(_:)`, `withWriteConnection(_:)`, and
+    `withTransaction(_:_:)` are `async`, and they no longer mutate the driver.
+    `XLDatabaseDriver` refines `Sendable`. Each scope takes a `@Sendable`
+    operation and returns a `Sendable` result, because the driver may run the
+    operation on its own executor. The operation itself is still synchronous,
+    and so is every `XLDatabaseDriverConnection` requirement, so a statement or
+    cursor still cannot outlive its connection access.
+  - `withTransaction(_:_:)` takes an `XLTransactionKind`: `.deferred`,
+    `.immediate`, or `.exclusive`. `withTransaction(_:)` without a kind uses
+    `.immediate`, which is what GRDB already used for a write. A driver that
+    cannot honour a kind throws the new case
+    `XLDatabaseContractError.unsupportedTransactionKind(driver:kind:)`. A
+    `switch` over `XLDatabaseContractError` with no `default` clause must
+    handle the new case.
+  - Every scope throws `CancellationError`, without lending a connection, when
+    the calling task is already cancelled. `withValidatedTransaction(_:_:)`
+    rethrows that error unchanged instead of reporting a transaction failure.
+  - A task created inside a `withTransaction(_:)` body now counts as re-entry
+    while the body runs. Its access through the original database throws
+    `XLTransactionScopeError.nestedTransactionUnsupported`. On 1.9 such a task
+    usually ran on another thread, missed the guard, and read the database's
+    last committed state without the transaction's own writes.
+
 ## [1.9.0] - 2026-09-16
 
 ### Migration

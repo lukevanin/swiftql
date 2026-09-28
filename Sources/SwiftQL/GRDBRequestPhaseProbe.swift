@@ -80,7 +80,7 @@ package struct GRDBRequestPhaseProbe<Output: Sendable> {
     package func withConnection<Result>(
         _ body: (GRDBRequestPhaseConnection) throws -> Result
     ) throws -> Result {
-        var driver = executor.driver
+        let driver = executor.driver
         let executor = executor
         let bindings = bindings
         let access: (inout GRDBDatabaseDriverConnection) throws -> Result = { connection in
