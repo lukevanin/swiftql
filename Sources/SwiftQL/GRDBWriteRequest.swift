@@ -72,20 +72,8 @@ struct GRDBWriteRequest: XLWriteRequest {
     func execute(
         bindings: any XLInvocationBindingPacket
     ) throws {
-        try executor.execute(packet: validatedPacket(bindings))
-    }
-
-    ///
-    /// Validates `bindings` against this request's layout and logs the
-    /// statement. `execute(bindings:)` and its asynchronous form (issue #681)
-    /// share it.
-    ///
-    func validatedPacket(
-        _ bindings: any XLInvocationBindingPacket
-    ) throws -> XLValidatedSQLitePacket {
-        let packet = try executor.sqlitePacket(bindings)
-        logger?.debug(
-            "execute: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-        return packet
+        try executor.execute(
+            packet: executor.validatedPacket(bindings, for: "execute", logger: logger)
+        )
     }
 }

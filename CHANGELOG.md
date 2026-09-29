@@ -121,7 +121,10 @@
     request; its render-once cache, binding packet, and `PreparedQuery` and
     `DeclaredQuery` peers are the ones a synchronous specification gets.
     `throws` alone changes nothing, because every executor already throws. A
-    typed `throws(E)` or `rethrows` is still reported at the declaration.
+    typed `throws(E)` or `rethrows` is still reported at the declaration. The
+    effects apply to the executor only: the body is copied into a synchronous,
+    nonthrowing statement builder, so a `try` or `await` in it is reported at
+    the declaration.
   - A `@SQLQueries` container still rejects `async`, now with a message that
     says why: its executors run inside a synchronous transaction, which has
     no asynchronous form yet. It accepts `throws`.

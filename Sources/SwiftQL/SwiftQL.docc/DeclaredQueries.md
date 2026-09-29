@@ -117,6 +117,11 @@ accepted too and changes nothing, because every executor already throws:
 binding and fetching can fail. A typed `throws(E)` or `rethrows` is reported
 at the declaration.
 
+The effects belong to the executor, not to the body. The macro copies the
+body into a synchronous, nonthrowing statement builder, so a `try` or `await`
+in the body is reported at the declaration. Compute a value the statement
+needs before calling the executor, and pass it as a parameter.
+
 Container form (`@SQLQueries`) generates the same executor shape, but reads
 every specification out of a nested container in one expansion and gives the
 executor its own name instead of a `fetch`-prefixed one:
@@ -488,10 +493,11 @@ generated code.
 
 Every diagnostic above — and every structural one (non-function declaration,
 static/class method, generic function, typed-throws or `rethrows` function,
-`async` container specification, variadic or unnamed parameter, missing or
-unsupported return type, missing body) — is reported on the specification's
-own source location, not on the generated code. A malformed declaration
-therefore never produces a confusing error deep inside macro-expanded output.
+`async` container specification, `try` or `await` in the body, variadic or
+unnamed parameter, missing or unsupported return type, missing body) — is
+reported on the specification's own source location, not on the generated
+code. A malformed declaration therefore never produces a confusing error deep
+inside macro-expanded output.
 
 ## Static descriptors and build validation
 

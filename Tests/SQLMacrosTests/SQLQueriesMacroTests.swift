@@ -840,6 +840,26 @@ final class SQLQueriesMacroDiagnosticTests: XCTestCase {
         }
     }
 
+    /// A container specification without a body still reports that it is
+    /// `async`, so both problems surface in one compile.
+    func test_asyncContainerSpecWithoutBody_reportsBothProblems() throws {
+        let source = Parser.parse(source: "func allPeople() async throws -> [Person]")
+        let function = try XCTUnwrap(source.statements.first?.item.as(FunctionDeclSyntax.self))
+
+        XCTAssertThrowsError(
+            try SQLQueryBuilder(
+                node: AttributeSyntax(attributeName: IdentifierTypeSyntax(name: .identifier("SQLQueries"))),
+                declaration: function,
+                macroName: "@SQLQueries",
+                supportsAsync: false
+            )
+        ) { error in
+            let messages = (error as? DiagnosticsError)?.diagnostics.map(\.message) ?? []
+            XCTAssertTrue(messages.contains { $0.hasPrefix("'@SQLQueries' requires a function body") }, "\(messages)")
+            XCTAssertTrue(messages.contains { $0.hasPrefix("'@SQLQueries' cannot declare an 'async' specification.") }, "\(messages)")
+        }
+    }
+
     func test_nonExtensionDeclaration_emitsError() {
         assertMacroExpansion(
             """

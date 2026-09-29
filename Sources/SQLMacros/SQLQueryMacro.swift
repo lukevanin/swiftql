@@ -230,8 +230,13 @@ internal struct SQLQueryBuilder {
                     message: "'\(macroName)' requires a function body that returns the query statement."
                 )
             )
+            diagnostics.append(contentsOf: unsupportedAsyncDiagnostics)
             throw DiagnosticsError(diagnostics: diagnostics)
         }
+
+        let effectfulBodyVisitor = SQLQueryEffectfulBodyVisitor(macroName: macroName)
+        effectfulBodyVisitor.walk(body)
+        diagnostics.append(contentsOf: effectfulBodyVisitor.diagnostics)
 
         let shadowingVisitor = SQLQueryShadowingVisitor(parameters: parameters, macroName: macroName)
         shadowingVisitor.walk(body)
@@ -995,6 +1000,74 @@ internal final class SQLQueryQualifiedEntryPointVisitor: SyntaxVisitor {
             )
         )
         return .visitChildren
+    }
+}
+
+
+///
+/// Rejects `try` and `await` in a specification body (issue #681).
+///
+/// A specification may be declared `async` or `throws`, but those effects
+/// belong to the generated executor. The body is copied into the synchronous,
+/// nonthrowing statement builder, so a `try` or `await` in it would fail to
+/// compile there, in generated code. It is reported here instead.
+///
+/// Closures and nested functions are not searched. The statement-builder
+/// closures are synchronous and nonthrowing, so the compiler already reports a
+/// `try` or `await` in one at the declaration, and a nested function brings
+/// its own effects.
+///
+internal final class SQLQueryEffectfulBodyVisitor: SyntaxVisitor {
+
+    private let macroName: String
+
+    private(set) var diagnostics: [Diagnostic] = []
+
+    init(macroName: String) {
+        self.macroName = macroName
+        super.init(viewMode: .sourceAccurate)
+    }
+
+    override func visit(_ node: TryExprSyntax) -> SyntaxVisitorContinueKind {
+        // `try?` and `try!` handle the error themselves, so they compile in a
+        // nonthrowing builder.
+        if node.questionOrExclamationMark == nil {
+            report(node.tryKeyword)
+        }
+        return .visitChildren
+    }
+
+    override func visit(_ node: AwaitExprSyntax) -> SyntaxVisitorContinueKind {
+        report(node.awaitKeyword)
+        return .visitChildren
+    }
+
+    override func visit(_ node: ForStmtSyntax) -> SyntaxVisitorContinueKind {
+        if let tryKeyword = node.tryKeyword {
+            report(tryKeyword)
+        }
+        if let awaitKeyword = node.awaitKeyword {
+            report(awaitKeyword)
+        }
+        return .visitChildren
+    }
+
+    override func visit(_ node: ClosureExprSyntax) -> SyntaxVisitorContinueKind {
+        .skipChildren
+    }
+
+    override func visit(_ node: FunctionDeclSyntax) -> SyntaxVisitorContinueKind {
+        .skipChildren
+    }
+
+    private func report(_ keyword: TokenSyntax) {
+        diagnostics.append(
+            Diagnostic(
+                node: keyword,
+                id: "sqlquery-effectful-body",
+                message: "'\(macroName)' cannot use '\(keyword.text)' in a specification body. The body is copied into a synchronous, nonthrowing statement builder; an 'async' or 'throws' effect applies to the generated executor, not to the body."
+            )
+        )
     }
 }
 

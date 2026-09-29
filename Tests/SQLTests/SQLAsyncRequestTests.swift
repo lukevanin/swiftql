@@ -157,10 +157,12 @@ final class XLAsyncRequestTests: XCTestCase {
         XCTAssertEqual(alpha.count, 2)
         XCTAssertEqual(beta, [TestTable(id: "beta", value: 9)])
         XCTAssertEqual(gamma, [])
-        XCTAssertLessThanOrEqual(
+        // Each test opens a new pool, so the first call renders for its key
+        // and the two later calls reuse that render.
+        XCTAssertEqual(
             DeclaredQueryRenderProbe.peerAsyncRows.count - before,
             1,
-            "every call after the first must reuse the rendered request"
+            "the first call renders once, and every later call reuses it"
         )
     }
 

@@ -1722,6 +1722,62 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
         }
     }
 
+    ///
+    /// The effects a specification declares belong to the executor. A `try`
+    /// or `await` in the body would fail to compile in the synchronous,
+    /// nonthrowing statement builder the body is copied into, so it is
+    /// reported at the specification. `try?` and `try!` compile there and are
+    /// not reported, and neither is anything inside a closure or nested
+    /// function.
+    ///
+    func test_tryOrAwaitInSpecificationBody_emitsError() throws {
+        let rejected = try builderDiagnostics(for: """
+            func people(name: String) async throws -> [Person] {
+                let threshold = try await loadThreshold()
+                return sqlResult { schema in
+                    let person = schema.table(Person.self)
+                    Select(person)
+                    From(person)
+                    Where(person.name == name && person.age >= threshold)
+                }
+            }
+            """)
+        XCTAssertEqual(rejected, [
+            "'@SQLQuery' cannot use 'try' in a specification body. The body is copied into a synchronous, nonthrowing statement builder; an 'async' or 'throws' effect applies to the generated executor, not to the body.",
+            "'@SQLQuery' cannot use 'await' in a specification body. The body is copied into a synchronous, nonthrowing statement builder; an 'async' or 'throws' effect applies to the generated executor, not to the body.",
+        ])
+
+        let accepted = try builderDiagnostics(for: """
+            func people(name: String) throws -> [Person] {
+                let threshold = (try? loadThreshold()) ?? 0
+                func helper() async throws -> Int { try await loadThreshold() }
+                return sqlResult { schema in
+                    let person = schema.table(Person.self)
+                    Select(person)
+                    From(person)
+                    Where(person.name == name && person.age >= threshold)
+                }
+            }
+            """)
+        XCTAssertEqual(accepted, [])
+    }
+
+    /// The diagnostics the builder reports for `source`, or none.
+    private func builderDiagnostics(for source: String) throws -> [String] {
+        let parsed = Parser.parse(source: source)
+        let function = try XCTUnwrap(parsed.statements.first?.item.as(FunctionDeclSyntax.self))
+        do {
+            _ = try SQLQueryBuilder(
+                node: AttributeSyntax(attributeName: IdentifierTypeSyntax(name: .identifier("SQLQuery"))),
+                declaration: function
+            )
+            return []
+        }
+        catch let error as DiagnosticsError {
+            return error.diagnostics.map(\.message)
+        }
+    }
+
     /// A builder for `peopleNamed(name:)` with the given effects and result.
     private func makeBuilder(effects: String, result: String) throws -> SQLQueryBuilder {
         let spelledEffects = effects.isEmpty ? "" : effects + " "

@@ -52,7 +52,7 @@ struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
     func fetchAll(
         bindings: any XLInvocationBindingPacket
     ) async throws -> [Row] {
-        let packet = try request.validatedPacket(bindings, for: "fetchAll")
+        let packet = try request.executor.validatedPacket(bindings, for: "fetchAll", logger: request.logger)
         return try await withConnection { connection in
             try request.decodeRows(packet: packet, in: &connection)
         }
@@ -62,7 +62,7 @@ struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
         _ limit: Int,
         bindings: any XLInvocationBindingPacket
     ) async throws -> [Row] {
-        let packet = try request.validatedPacket(bindings, for: "fetchAtMost(\(limit))")
+        let packet = try request.executor.validatedPacket(bindings, for: "fetchAtMost(\(limit))", logger: request.logger)
         return try await withConnection { connection in
             try request.decodeRows(packet: packet, limit: limit, in: &connection)
         }
@@ -75,7 +75,7 @@ struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
     func fetchOne(
         bindings: any XLInvocationBindingPacket
     ) async throws -> Row? {
-        let packet = try request.validatedPacket(bindings, for: "fetchOne")
+        let packet = try request.executor.validatedPacket(bindings, for: "fetchOne", logger: request.logger)
         return try await withConnection { connection in
             try request.decodeOne(packet: packet, in: &connection)
         }
@@ -115,7 +115,7 @@ struct GRDBAsyncWriteRequest: XLAsyncWriteRequest {
         bindings: any XLInvocationBindingPacket
     ) async throws {
         let executor = request.executor
-        let packet = try request.validatedPacket(bindings)
+        let packet = try executor.validatedPacket(bindings, for: "execute", logger: request.logger)
         try await executor.driver.withTransaction { connection in
             try executor.execute(packet: packet, in: &connection)
         }
