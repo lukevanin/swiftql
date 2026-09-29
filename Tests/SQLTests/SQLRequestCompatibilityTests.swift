@@ -277,6 +277,39 @@ final class SQLRequestCompatibilityTests: XCTestCase {
         try await request.async.execute(bindings: packet)
     }
 
+    func testLegacyConformerAsyncViewsThrowCancellationErrorForACancelledTask() async {
+        let readView = LegacyReadRequest(rows: [82]).async
+        let writeView = LegacyWriteRequest().async
+
+        let fetch = Task {
+            while !Task.isCancelled {
+                await Task.yield()
+            }
+            return try await readView.fetchAll()
+        }
+        let execute = Task {
+            while !Task.isCancelled {
+                await Task.yield()
+            }
+            try await writeView.execute()
+        }
+        fetch.cancel()
+        execute.cancel()
+
+        switch await fetch.result {
+        case .success(let rows):
+            XCTFail("A cancelled task fetched \(rows).")
+        case .failure(let error):
+            XCTAssertTrue(error is CancellationError, "\(error)")
+        }
+        switch await execute.result {
+        case .success:
+            XCTFail("A cancelled task executed the statement.")
+        case .failure(let error):
+            XCTAssertTrue(error is CancellationError, "\(error)")
+        }
+    }
+
     func testLegacyMutatingSetStillExecutesGRDBRequest() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("swiftql-request-compatibility-\(UUID().uuidString)")

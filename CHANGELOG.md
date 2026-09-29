@@ -107,8 +107,8 @@
     with the same packet as the synchronous fetches. A write request has
     `try await request.async.execute()`. The calling task suspends while the
     driver's asynchronous scope lends a connection, instead of blocking its
-    thread. The view carries the bindings set through `set(parameter:value:)`
-    when it is taken.
+    thread. A GRDB request's view carries the bindings set through
+    `set(parameter:value:)` when it is taken.
   - The asynchronous forms are a separate view, not overloads. Swift prefers
     an `async` overload inside an asynchronous function, so overloading would
     have made every existing `try request.fetchAll()` there fail to compile.

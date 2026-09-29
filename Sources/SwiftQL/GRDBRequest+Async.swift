@@ -52,10 +52,8 @@ struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
     func fetchAll(
         bindings: any XLInvocationBindingPacket
     ) async throws -> [Row] {
-        let packet = try request.executor.sqlitePacket(bindings)
-        request.logger?.debug(
-            "fetchAll: <<<\(request.executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-        return try await withConnection { request, connection in
+        let packet = try request.validatedPacket(bindings, for: "fetchAll")
+        return try await withConnection { connection in
             try request.decodeRows(packet: packet, in: &connection)
         }
     }
@@ -64,10 +62,8 @@ struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
         _ limit: Int,
         bindings: any XLInvocationBindingPacket
     ) async throws -> [Row] {
-        let packet = try request.executor.sqlitePacket(bindings)
-        request.logger?.debug(
-            "fetchAtMost(\(limit)): <<<\(request.executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-        return try await withConnection { request, connection in
+        let packet = try request.validatedPacket(bindings, for: "fetchAtMost(\(limit))")
+        return try await withConnection { connection in
             try request.decodeRows(packet: packet, limit: limit, in: &connection)
         }
     }
@@ -79,35 +75,26 @@ struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
     func fetchOne(
         bindings: any XLInvocationBindingPacket
     ) async throws -> Row? {
-        let packet = try request.executor.sqlitePacket(bindings)
-        request.logger?.debug(
-            "fetchOne: <<<\(request.executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-        let values = try await withConnection { request, connection in
-            try request.executor.fetchOne(packet: packet, in: &connection)
+        let packet = try request.validatedPacket(bindings, for: "fetchOne")
+        return try await withConnection { connection in
+            try request.decodeOne(packet: packet, in: &connection)
         }
-        guard let values else {
-            return nil
-        }
-        return try GRDBRowDecoder(reader: request.reader).decode(values: values)
     }
 
     ///
     /// Runs `operation` on the connection this request reads from: a reader,
-    /// or, for a `RETURNING` statement, the writer inside a transaction.
+    /// or, for a `RETURNING` statement, the writer inside a transaction. Each
+    /// fetch decodes inside `operation`, so a `RETURNING` row that fails to
+    /// decode rolls the statement back.
     ///
     private func withConnection<Result: Sendable>(
-        _ operation: @escaping @Sendable (GRDBRequest<Row>, inout GRDBDatabaseDriverConnection) throws -> Result
+        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
     ) async throws -> Result {
         let driver = request.executor.driver
-        let view = self
         if request.requiresWriteConnection {
-            return try await driver.withTransaction { connection in
-                try operation(view.request, &connection)
-            }
+            return try await driver.withTransaction(operation)
         }
-        return try await driver.withReadConnection { connection in
-            try operation(view.request, &connection)
-        }
+        return try await driver.withReadConnection(operation)
     }
 }
 
@@ -128,9 +115,7 @@ struct GRDBAsyncWriteRequest: XLAsyncWriteRequest {
         bindings: any XLInvocationBindingPacket
     ) async throws {
         let executor = request.executor
-        let packet = try executor.sqlitePacket(bindings)
-        request.logger?.debug(
-            "execute: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+        let packet = try request.validatedPacket(bindings)
         try await executor.driver.withTransaction { connection in
             try executor.execute(packet: packet, in: &connection)
         }

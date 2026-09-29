@@ -25,10 +25,23 @@ extension GRDBRequest {
     func fetchAll(
         bindings: any XLInvocationBindingPacket
     ) throws -> [Row] {
+        let packet = try validatedPacket(bindings, for: "fetchAll")
+        return try decodeRows(packet: packet)
+    }
+
+    ///
+    /// Validates `bindings` against this request's layout and logs the
+    /// statement, as every fetch does before it takes a connection. The
+    /// synchronous fetches and their asynchronous forms (issue #681) share it.
+    ///
+    func validatedPacket(
+        _ bindings: any XLInvocationBindingPacket,
+        for operation: String
+    ) throws -> XLValidatedSQLitePacket {
         let packet = try executor.sqlitePacket(bindings)
         logger?.debug(
-            "fetchAll: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-        return try decodeRows(packet: packet)
+            "\(operation): <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+        return packet
     }
 
     func decodeRows(
@@ -94,9 +107,7 @@ extension GRDBRequest {
         _ limit: Int,
         bindings: any XLInvocationBindingPacket
     ) throws -> [Row] {
-        let packet = try executor.sqlitePacket(bindings)
-        logger?.debug(
-            "fetchAtMost(\(limit)): <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+        let packet = try validatedPacket(bindings, for: "fetchAtMost(\(limit))")
         return try decodeRows(packet: packet, limit: limit)
     }
 
@@ -168,23 +179,27 @@ extension GRDBRequest {
     func fetchOne(
         bindings: any XLInvocationBindingPacket
     ) throws -> Row? {
-        let packet = try executor.sqlitePacket(bindings)
-        logger?.debug(
-            "fetchOne: <<<\(executor.logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
-        let values: [XLSQLiteValue]?
+        let packet = try validatedPacket(bindings, for: "fetchOne")
         if requiresWriteConnection {
-            let driver = executor.driver
-            values = try driver.withBlockingTransaction { connection in
-                try executor.fetchOne(packet: packet, in: &connection)
+            // The row is decoded inside the transaction, as `decodeRows` does,
+            // so a row that fails to decode rolls the statement back instead
+            // of reporting an error for a change that was committed.
+            return try executor.driver.withBlockingTransaction { connection in
+                try decodeOne(packet: packet, in: &connection)
             }
         }
-        else {
-            values = try executor.fetchOne(packet: packet)
+        return try executor.driver.withBlockingReadConnection { connection in
+            try decodeOne(packet: packet, in: &connection)
         }
-        guard let values else {
+    }
+
+    func decodeOne(
+        packet: XLValidatedSQLitePacket,
+        in connection: inout GRDBDatabaseDriverConnection
+    ) throws -> Row? {
+        guard let values = try executor.fetchOne(packet: packet, in: &connection) else {
             return nil
         }
-
         return try GRDBRowDecoder(reader: reader).decode(values: values)
     }
 }

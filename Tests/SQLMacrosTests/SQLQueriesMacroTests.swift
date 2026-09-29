@@ -809,6 +809,37 @@ final class SQLQueriesMacroDiagnosticTests: XCTestCase {
         )
     }
 
+    ///
+    /// The container's `async` diagnostic does not hide the body checks: an
+    /// unused parameter is reported in the same compile.
+    ///
+    func test_asyncContainerSpec_stillReportsBodyDiagnostics() throws {
+        let source = Parser.parse(source: """
+            func allPeople(id: String) async throws -> [Person] {
+                sqlResult { schema in
+                    let person = schema.table(Person.self)
+                    Select(person)
+                    From(person)
+                }
+            }
+            """)
+        let function = try XCTUnwrap(source.statements.first?.item.as(FunctionDeclSyntax.self))
+
+        XCTAssertThrowsError(
+            try SQLQueryBuilder(
+                node: AttributeSyntax(attributeName: IdentifierTypeSyntax(name: .identifier("SQLQueries"))),
+                declaration: function,
+                macroName: "@SQLQueries",
+                supportsAsync: false
+            )
+        ) { error in
+            let messages = (error as? DiagnosticsError)?.diagnostics.map(\.message) ?? []
+            XCTAssertEqual(messages.count, 2, "\(messages)")
+            XCTAssertTrue(messages.contains { $0.hasPrefix("'id' is never referenced") }, "\(messages)")
+            XCTAssertTrue(messages.contains { $0.hasPrefix("'@SQLQueries' cannot declare an 'async' specification.") }, "\(messages)")
+        }
+    }
+
     func test_nonExtensionDeclaration_emitsError() {
         assertMacroExpansion(
             """

@@ -225,9 +225,10 @@ public protocol XLRequest<Row> {
     ///
     /// `try await request.async.fetchAll()` runs the same SQL with the same
     /// bindings as `try request.fetchAll()`, but suspends the calling task
-    /// instead of blocking its thread while it waits for a connection. The
-    /// view carries the bindings set through `set(parameter:value:)` when it
-    /// is taken. See ``XLAsyncRequest``.
+    /// instead of blocking its thread while it waits for a connection. A view
+    /// taken from a request that is a value, as a GRDB request is, carries the
+    /// bindings set through `set(parameter:value:)` when it is taken; one
+    /// taken from a class reads them when it fetches. See ``XLAsyncRequest``.
     ///
     var async: any XLAsyncRequest<Row> { get }
 
@@ -660,8 +661,8 @@ public protocol XLWriteRequest {
     ///
     /// `try await request.async.execute()` runs the same SQL with the same
     /// bindings as `try request.execute()`, but suspends the calling task
-    /// instead of blocking its thread. The view carries the bindings set
-    /// through `set(parameter:value:)` when it is taken. See
+    /// instead of blocking its thread. It reads the bindings set through
+    /// `set(parameter:value:)` as ``XLRequest/async`` describes. See
     /// ``XLAsyncWriteRequest``.
     ///
     var async: any XLAsyncWriteRequest { get }

@@ -224,6 +224,23 @@ final class XLAsyncRequestTests: XCTestCase {
         XCTAssertEqual(try allRows(), [TestTable(id: "alpha", value: 1)])
     }
 
+    /// `fetchOne` on a `RETURNING` statement decodes its row inside the
+    /// statement's transaction, as `fetchAll` does, so a row that fails to
+    /// decode rolls the statement back instead of committing it.
+    func testAsyncFetchOneOfAReturningStatementRollsBackWhenTheRowFailsToDecode() async throws {
+        try await createNullableValueTestTable()
+        let statement = deleteEveryRowReturningTestTable()
+
+        do {
+            let row = try await database.makeRequest(with: statement).async.fetchOne()
+            XCTFail("A NULL value cannot decode as TestTable.value, but fetchOne returned \(String(describing: row)).")
+        }
+        catch {
+            // The decode failure is expected; what matters is the rollback.
+        }
+        XCTAssertEqual(try nullableValueRowCount(), 1, "the DELETE must roll back")
+    }
+
     func testCancelledTaskIsNotLentAConnection() async throws {
         try seed()
         let read = database.makeRequest(with: rowsMatchingIDStatement())
@@ -282,6 +299,30 @@ final class XLAsyncRequestTests: XCTestCase {
 
 
     // MARK: - Helpers
+
+    /// A `Test` table holding one row whose `value` is NULL, which
+    /// `TestTable.value` cannot decode.
+    private func createNullableValueTestTable() async throws {
+        try await databasePool.write { db in
+            try db.execute(sql: "CREATE TABLE Test (id TEXT PRIMARY KEY, value INTEGER)")
+            try db.execute(sql: "INSERT INTO Test (id, value) VALUES ('alpha', NULL)")
+        }
+    }
+
+    private func deleteEveryRowReturningTestTable() -> any XLReturningStatement<TestTable> {
+        let schema = XLSchema()
+        let table = schema.into(TestTable.self)
+        let projection = schema.table(TestTable.self)
+        return delete(table)
+            .where(table.id == table.id)
+            .returning(projection)
+    }
+
+    private func nullableValueRowCount() throws -> Int {
+        try databasePool.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM Test") ?? 0
+        }
+    }
 
     private func rowsMatchingIDStatement() -> any XLQueryStatement<TestTable> {
         sql { schema in

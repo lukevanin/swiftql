@@ -42,7 +42,7 @@ public protocol XLAsyncRequest<Row>: Sendable {
 
     ///
     /// Fetches all rows, with the bindings set through the request's
-    /// `set(parameter:value:)` methods when the view was taken.
+    /// `set(parameter:value:)` methods, read as ``XLRequest/async`` describes.
     ///
     /// The fetch is atomic: if executing the query or decoding any row fails,
     /// no partial result is returned.
@@ -62,7 +62,7 @@ public protocol XLAsyncRequest<Row>: Sendable {
 
     ///
     /// Fetches the first row, with the bindings set through the request's
-    /// `set(parameter:value:)` methods when the view was taken.
+    /// `set(parameter:value:)` methods, read as ``XLRequest/async`` describes.
     ///
     func fetchOne() async throws -> Row?
 
@@ -83,7 +83,7 @@ public protocol XLAsyncWriteRequest: Sendable {
 
     ///
     /// Executes the statement, with the bindings set through the request's
-    /// `set(parameter:value:)` methods when the view was taken.
+    /// `set(parameter:value:)` methods, read as ``XLRequest/async`` describes.
     ///
     func execute() async throws
 
@@ -96,13 +96,15 @@ extension XLRequest {
 
     ///
     /// Compatibility default for request adapters that predate
-    /// ``XLAsyncRequest``: each asynchronous fetch calls the synchronous fetch
-    /// of the same name, on the calling task's thread.
+    /// ``XLAsyncRequest``: each asynchronous fetch checks for cancellation,
+    /// then calls the synchronous fetch of the same name on the awaiting
+    /// task's thread.
     ///
     /// It keeps an existing adapter compiling, but the fetch still blocks
-    /// that thread while it waits for the database. The view is `Sendable`, so
-    /// code on an actor can await it, and the fetch then runs on the awaiting
-    /// task's thread, which is usually not the thread that made the request.
+    /// that thread, one of Swift's cooperative pool, while it waits for the
+    /// database. The view is `Sendable`, so code on an actor can await it, and
+    /// the fetch then runs on a thread that is usually not the one that made
+    /// the request.
     /// The default therefore assumes the adapter's request can be called from
     /// another thread. An adapter that can suspend instead, or whose request
     /// cannot be called from another thread, overrides this property.
@@ -117,9 +119,10 @@ extension XLWriteRequest {
 
     ///
     /// Compatibility default for request adapters that predate
-    /// ``XLAsyncWriteRequest``: asynchronous execution calls the synchronous
-    /// ``execute()`` on the calling task's thread. It makes the same
-    /// assumption about the adapter's request as ``XLRequest/async``.
+    /// ``XLAsyncWriteRequest``: asynchronous execution checks for
+    /// cancellation, then calls the synchronous ``execute()`` on the awaiting
+    /// task's thread. It makes the same assumption about the adapter's request
+    /// as ``XLRequest/async``.
     ///
     public var async: any XLAsyncWriteRequest {
         XLBlockingAsyncWriteRequest(request: self)
@@ -142,23 +145,28 @@ struct XLBlockingAsyncRequest<Request: XLRequest>: XLAsyncRequest, @unchecked Se
     let request: Request
 
     func fetchAll() async throws -> [Request.Row] {
-        try request.fetchAll()
+        try Task.checkCancellation()
+        return try request.fetchAll()
     }
 
     func fetchAll(bindings: any XLInvocationBindingPacket) async throws -> [Request.Row] {
-        try request.fetchAll(bindings: bindings)
+        try Task.checkCancellation()
+        return try request.fetchAll(bindings: bindings)
     }
 
     func fetchAtMost(_ limit: Int, bindings: any XLInvocationBindingPacket) async throws -> [Request.Row] {
-        try request.fetchAtMost(limit, bindings: bindings)
+        try Task.checkCancellation()
+        return try request.fetchAtMost(limit, bindings: bindings)
     }
 
     func fetchOne() async throws -> Request.Row? {
-        try request.fetchOne()
+        try Task.checkCancellation()
+        return try request.fetchOne()
     }
 
     func fetchOne(bindings: any XLInvocationBindingPacket) async throws -> Request.Row? {
-        try request.fetchOne(bindings: bindings)
+        try Task.checkCancellation()
+        return try request.fetchOne(bindings: bindings)
     }
 }
 
@@ -172,10 +180,12 @@ struct XLBlockingAsyncWriteRequest<Request: XLWriteRequest>: XLAsyncWriteRequest
     let request: Request
 
     func execute() async throws {
+        try Task.checkCancellation()
         try request.execute()
     }
 
     func execute(bindings: any XLInvocationBindingPacket) async throws {
+        try Task.checkCancellation()
         try request.execute(bindings: bindings)
     }
 }

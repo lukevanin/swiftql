@@ -198,11 +198,17 @@ internal struct SQLQueryBuilder {
             )
         }
 
+        // An `async` specification in a container is reported after the body
+        // checks rather than with the structural ones: it does not stop the
+        // body from being analyzed, so it should not hide what those checks
+        // find.
+        var unsupportedAsyncDiagnostics: [Diagnostic] = []
         self.isAsync = Self.checkEffectSpecifiers(
             of: function,
             macroName: macroName,
             supportsAsync: supportsAsync,
-            diagnostics: &diagnostics
+            diagnostics: &diagnostics,
+            unsupportedAsyncDiagnostics: &unsupportedAsyncDiagnostics
         )
 
         self.parameters = Self.makeParameters(
@@ -274,6 +280,7 @@ internal struct SQLQueryBuilder {
             }
         }
 
+        diagnostics.append(contentsOf: unsupportedAsyncDiagnostics)
         guard diagnostics.isEmpty else {
             throw DiagnosticsError(diagnostics: diagnostics)
         }
@@ -617,7 +624,8 @@ internal struct SQLQueryBuilder {
         of function: FunctionDeclSyntax,
         macroName: String,
         supportsAsync: Bool,
-        diagnostics: inout [Diagnostic]
+        diagnostics: inout [Diagnostic],
+        unsupportedAsyncDiagnostics: inout [Diagnostic]
     ) -> Bool {
         guard let effectSpecifiers = function.signature.effectSpecifiers else {
             return false
@@ -638,7 +646,7 @@ internal struct SQLQueryBuilder {
         }
         let isAsync = tokens.contains("async")
         if isAsync, !supportsAsync {
-            diagnostics.append(
+            unsupportedAsyncDiagnostics.append(
                 Diagnostic(
                     node: effectSpecifiers,
                     id: "sqlqueries-async-specification",
