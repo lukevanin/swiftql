@@ -53,7 +53,7 @@ struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
         bindings: any XLInvocationBindingPacket
     ) async throws -> [Row] {
         let packet = try request.executor.validatedPacket(bindings, for: "fetchAll", logger: request.logger)
-        return try await withConnection { connection in
+        return try await request.withConnection { connection in
             try request.decodeRows(packet: packet, in: &connection)
         }
     }
@@ -63,7 +63,7 @@ struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
         bindings: any XLInvocationBindingPacket
     ) async throws -> [Row] {
         let packet = try request.executor.validatedPacket(bindings, for: "fetchAtMost(\(limit))", logger: request.logger)
-        return try await withConnection { connection in
+        return try await request.withConnection { connection in
             try request.decodeRows(packet: packet, limit: limit, in: &connection)
         }
     }
@@ -76,25 +76,9 @@ struct GRDBAsyncRequest<Row: Sendable>: XLAsyncRequest, @unchecked Sendable {
         bindings: any XLInvocationBindingPacket
     ) async throws -> Row? {
         let packet = try request.executor.validatedPacket(bindings, for: "fetchOne", logger: request.logger)
-        return try await withConnection { connection in
+        return try await request.withConnection { connection in
             try request.decodeOne(packet: packet, in: &connection)
         }
-    }
-
-    ///
-    /// Runs `operation` on the connection this request reads from: a reader,
-    /// or, for a `RETURNING` statement, the writer inside a transaction. Each
-    /// fetch decodes inside `operation`, so a `RETURNING` row that fails to
-    /// decode rolls the statement back.
-    ///
-    private func withConnection<Result: Sendable>(
-        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
-    ) async throws -> Result {
-        let driver = request.executor.driver
-        if request.requiresWriteConnection {
-            return try await driver.withTransaction(operation)
-        }
-        return try await driver.withReadConnection(operation)
     }
 }
 

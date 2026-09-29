@@ -610,16 +610,19 @@ struct GRDBInvocationExecutor: Sendable {
     /// every request does before it takes a connection. The read and write
     /// requests, synchronous and asynchronous (issue #681), share it.
     ///
-    /// - Parameter operation: The request method, named in the log line.
+    /// - Parameter operation: The request method, named in the log line. It
+    ///   is formatted only when there is a logger.
     ///
     func validatedPacket(
         _ bindings: any XLInvocationBindingPacket,
-        for operation: String,
+        for operation: @autoclosure () -> String,
         logger: XLLogger?
     ) throws -> XLValidatedSQLitePacket {
         let packet = try sqlitePacket(bindings)
-        logger?.debug(
-            "\(operation): <<<\(logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+        if let logger {
+            logger.debug(
+                "\(operation()): <<<\(logicalStatement.sql)>>> parameters: <<<\(packet.bindings)>>>")
+        }
         return packet
     }
 

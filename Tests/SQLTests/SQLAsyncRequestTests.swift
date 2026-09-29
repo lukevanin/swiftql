@@ -281,6 +281,53 @@ final class XLAsyncRequestTests: XCTestCase {
         XCTAssertFalse(try allRows().contains(TestTable(id: "delta", value: 4)))
     }
 
+    /// GRDB's view suspends in the driver's asynchronous scope, which
+    /// interrupts a running statement when its task is cancelled. The
+    /// blocking default could only check for cancellation before it starts,
+    /// so this also shows that a GRDB request does not fall back to it.
+    func testCancellingARunningAsyncFetchInterruptsIt() async throws {
+        try createTestTable()
+        try await databasePool.write { db in
+            for index in 0..<1_000 {
+                try db.execute(
+                    sql: "INSERT INTO Test (id, value) VALUES (?, ?)",
+                    arguments: ["row-\(index)", index]
+                )
+            }
+        }
+        // A three-way cross join of 1,000 rows steps SQLite 10^9 times before
+        // it returns its one count, far longer than this test waits.
+        let statement = sql { schema in
+            let first = schema.table(TestTable.self)
+            let second = schema.table(TestTable.self)
+            let third = schema.table(TestTable.self)
+            Select(first.value.count())
+            From(first)
+            Join.Cross(second)
+            Join.Cross(third)
+        }
+        let view = database.makeRequest(with: statement).async
+
+        let fetch = Task {
+            try await view.fetchOne()
+        }
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let cancelledAt = Date()
+        fetch.cancel()
+
+        switch await fetch.result {
+        case .success(let count):
+            XCTFail("The fetch ran to completion and counted \(String(describing: count)).")
+        case .failure(let error):
+            XCTAssertTrue(error is CancellationError, "\(error)")
+        }
+        XCTAssertLessThan(
+            Date().timeIntervalSince(cancelledAt),
+            10,
+            "cancelling must interrupt the statement, not wait for it"
+        )
+    }
+
     func testRequestFromATransactionScopeCannotBeAwaited() async throws {
         try seed()
         let statement = rowsMatchingIDStatement()

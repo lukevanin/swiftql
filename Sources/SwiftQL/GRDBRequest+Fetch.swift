@@ -39,7 +39,7 @@ extension GRDBRequest {
     ///
     /// Every fetch decodes inside `operation`, so a `RETURNING` row that fails
     /// to decode rolls the statement back instead of reporting an error for a
-    /// committed change. `GRDBAsyncRequest` makes the same choice with the
+    /// committed change. ``withConnection(_:)`` makes the same choice with the
     /// driver's asynchronous scopes (issue #681).
     ///
     func withBlockingConnection<Result>(
@@ -49,6 +49,20 @@ extension GRDBRequest {
             return try executor.driver.withBlockingTransaction(operation)
         }
         return try executor.driver.withBlockingReadConnection(operation)
+    }
+
+    ///
+    /// The asynchronous form of ``withBlockingConnection(_:)``, for
+    /// `GRDBAsyncRequest` (issue #681): the same reader-or-writer choice, made
+    /// with the driver's asynchronous scopes.
+    ///
+    func withConnection<Result: Sendable>(
+        _ operation: @Sendable (inout GRDBDatabaseDriverConnection) throws -> Result
+    ) async throws -> Result {
+        if requiresWriteConnection {
+            return try await executor.driver.withTransaction(operation)
+        }
+        return try await executor.driver.withReadConnection(operation)
     }
 
     func decodeRows(

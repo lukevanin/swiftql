@@ -651,6 +651,8 @@ internal struct SQLQueryBuilder {
         }
         let isAsync = tokens.contains("async")
         if isAsync, !supportsAsync {
+            // Reported, and the builder stays synchronous, so no expansion can
+            // ever await inside a container's synchronous transaction.
             unsupportedAsyncDiagnostics.append(
                 Diagnostic(
                     node: effectSpecifiers,
@@ -658,6 +660,7 @@ internal struct SQLQueryBuilder {
                     message: "'\(macroName)' cannot declare an 'async' specification. Its executors run inside a synchronous transaction, which has no asynchronous form yet. Declare the query with '@SQLQuery' to await it."
                 )
             )
+            return false
         }
         return isAsync
     }
@@ -1005,17 +1008,19 @@ internal final class SQLQueryQualifiedEntryPointVisitor: SyntaxVisitor {
 
 
 ///
-/// Rejects `try` and `await` in a specification body (issue #681).
+/// Rejects throwing and suspending code in a specification body (issue #681).
 ///
 /// A specification may be declared `async` or `throws`, but those effects
 /// belong to the generated executor. The body is copied into the synchronous,
-/// nonthrowing statement builder, so a `try` or `await` in it would fail to
-/// compile there, in generated code. It is reported here instead.
+/// nonthrowing statement builder, so an `await`, or a `try` or `throw` whose
+/// error is not handled, would fail to compile there, in generated code. It is
+/// reported here instead.
 ///
-/// Closures and nested functions are not searched. The statement-builder
-/// closures are synchronous and nonthrowing, so the compiler already reports a
-/// `try` or `await` in one at the declaration, and a nested function brings
-/// its own effects.
+/// A `try` or `throw` inside a `do` with a catch-all clause is handled, and so
+/// is `try?` or `try!`. Closures and nested declarations are not searched: the
+/// statement-builder closures are synchronous and nonthrowing, so the compiler
+/// already reports a `try` or `await` in one at the declaration, and a nested
+/// function, initializer, accessor, subscript, or type brings its own effects.
 ///
 internal final class SQLQueryEffectfulBodyVisitor: SyntaxVisitor {
 
@@ -1023,16 +1028,24 @@ internal final class SQLQueryEffectfulBodyVisitor: SyntaxVisitor {
 
     private(set) var diagnostics: [Diagnostic] = []
 
+    /// How many enclosing `do` statements have a catch-all clause.
+    private var handledDepth = 0
+
     init(macroName: String) {
         self.macroName = macroName
         super.init(viewMode: .sourceAccurate)
     }
 
     override func visit(_ node: TryExprSyntax) -> SyntaxVisitorContinueKind {
-        // `try?` and `try!` handle the error themselves, so they compile in a
-        // nonthrowing builder.
-        if node.questionOrExclamationMark == nil {
+        if node.questionOrExclamationMark == nil, handledDepth == 0 {
             report(node.tryKeyword)
+        }
+        return .visitChildren
+    }
+
+    override func visit(_ node: ThrowStmtSyntax) -> SyntaxVisitorContinueKind {
+        if handledDepth == 0 {
+            report(node.throwKeyword)
         }
         return .visitChildren
     }
@@ -1043,7 +1056,7 @@ internal final class SQLQueryEffectfulBodyVisitor: SyntaxVisitor {
     }
 
     override func visit(_ node: ForStmtSyntax) -> SyntaxVisitorContinueKind {
-        if let tryKeyword = node.tryKeyword {
+        if let tryKeyword = node.tryKeyword, handledDepth == 0 {
             report(tryKeyword)
         }
         if let awaitKeyword = node.awaitKeyword {
@@ -1052,11 +1065,43 @@ internal final class SQLQueryEffectfulBodyVisitor: SyntaxVisitor {
         return .visitChildren
     }
 
+    override func visit(_ node: DoStmtSyntax) -> SyntaxVisitorContinueKind {
+        // A catch clause with no pattern catches every error, so the `do`
+        // body's errors never leave the statement. The catch clauses
+        // themselves are outside that handling.
+        guard node.catchClauses.contains(where: { $0.catchItems.isEmpty }) else {
+            return .visitChildren
+        }
+        handledDepth += 1
+        walk(node.body)
+        handledDepth -= 1
+        for clause in node.catchClauses {
+            walk(clause)
+        }
+        return .skipChildren
+    }
+
     override func visit(_ node: ClosureExprSyntax) -> SyntaxVisitorContinueKind {
         .skipChildren
     }
 
     override func visit(_ node: FunctionDeclSyntax) -> SyntaxVisitorContinueKind {
+        .skipChildren
+    }
+
+    override func visit(_ node: InitializerDeclSyntax) -> SyntaxVisitorContinueKind {
+        .skipChildren
+    }
+
+    override func visit(_ node: AccessorBlockSyntax) -> SyntaxVisitorContinueKind {
+        .skipChildren
+    }
+
+    override func visit(_ node: SubscriptDeclSyntax) -> SyntaxVisitorContinueKind {
+        .skipChildren
+    }
+
+    override func visit(_ node: MemberBlockSyntax) -> SyntaxVisitorContinueKind {
         .skipChildren
     }
 

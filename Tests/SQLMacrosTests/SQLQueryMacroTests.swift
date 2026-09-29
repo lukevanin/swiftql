@@ -1762,6 +1762,59 @@ final class SQLQueryMacroDiagnosticTests: XCTestCase {
         XCTAssertEqual(accepted, [])
     }
 
+    ///
+    /// A `throw` whose error leaves the body is reported like a `try`. A `try`
+    /// or `throw` inside a `do` with a catch-all clause is handled there, and a
+    /// local type's throwing initializer brings its own effects, so neither is
+    /// reported. A `do` whose catch clauses match only some errors can still
+    /// throw, so a `try` in it is reported.
+    ///
+    func test_throwInSpecificationBody_emitsError_unlessHandled() throws {
+        let rejected = try builderDiagnostics(for: """
+            func people(name: String) throws -> [Person] {
+                guard isEnabled() else { throw Disabled() }
+                do {
+                    _ = try loadThreshold()
+                }
+                catch is DecodingError {
+                }
+                return sqlResult { schema in
+                    let person = schema.table(Person.self)
+                    Select(person)
+                    From(person)
+                    Where(person.name == name)
+                }
+            }
+            """)
+        XCTAssertEqual(rejected.count, 2, "\(rejected)")
+        XCTAssertTrue(rejected[0].hasPrefix("'@SQLQuery' cannot use 'throw' in a specification body."), rejected[0])
+        XCTAssertTrue(rejected[1].hasPrefix("'@SQLQuery' cannot use 'try' in a specification body."), rejected[1])
+
+        let accepted = try builderDiagnostics(for: """
+            func people(name: String) throws -> [Person] {
+                let threshold: Int
+                do {
+                    threshold = try loadThreshold()
+                    if threshold < 0 { throw NegativeThreshold() }
+                }
+                catch {
+                    threshold = 0
+                }
+                struct Limits {
+                    let value: Int
+                    init() throws { value = try loadThreshold() }
+                }
+                return sqlResult { schema in
+                    let person = schema.table(Person.self)
+                    Select(person)
+                    From(person)
+                    Where(person.name == name && person.age >= threshold)
+                }
+            }
+            """)
+        XCTAssertEqual(accepted, [])
+    }
+
     /// The diagnostics the builder reports for `source`, or none.
     private func builderDiagnostics(for source: String) throws -> [String] {
         let parsed = Parser.parse(source: source)
