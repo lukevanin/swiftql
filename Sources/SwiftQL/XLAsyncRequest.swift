@@ -86,12 +86,16 @@ public protocol XLAsyncWriteRequest: Sendable {
 
     ///
     /// Executes the statement, with the bindings set through the request's
-    /// `set(parameter:value:)` methods, read as ``XLRequest/async`` describes.
+    /// `set(parameter:value:)` methods, read as ``XLRequest/async`` describes,
+    /// and reports what it did (issue #679).
     ///
-    func execute() async throws
+    @discardableResult
+    func execute() async throws -> XLExecutionResult
 
-    /// Executes the statement with one immutable per-invocation binding packet.
-    func execute(bindings: any XLInvocationBindingPacket) async throws
+    /// Executes the statement with one immutable per-invocation binding
+    /// packet, and reports what it did.
+    @discardableResult
+    func execute(bindings: any XLInvocationBindingPacket) async throws -> XLExecutionResult
 }
 
 
@@ -182,11 +186,11 @@ struct XLBlockingAsyncWriteRequest: XLAsyncWriteRequest, @unchecked Sendable {
 
     let request: any XLWriteRequest
 
-    func execute() async throws {
+    func execute() async throws -> XLExecutionResult {
         try await xlRunOffCooperativePool { try request.execute() }
     }
 
-    func execute(bindings: any XLInvocationBindingPacket) async throws {
+    func execute(bindings: any XLInvocationBindingPacket) async throws -> XLExecutionResult {
         try await xlRunOffCooperativePool { try request.execute(bindings: bindings) }
     }
 }

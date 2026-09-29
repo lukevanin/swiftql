@@ -13,8 +13,11 @@ import GRDB
 ///
 /// The default ``terminal`` policy preserves the behavior of SwiftQL 1.0: the
 /// observation terminates with its original error. ``retryBusy`` is an
-/// explicit opt-in for transient SQLite contention. It retries only
-/// `DatabaseError` values whose primary result code is `SQLITE_BUSY`.
+/// explicit opt-in for transient SQLite contention. It retries only a failure
+/// whose portable code is ``XLDatabaseErrorCode/busy`` (issue #679): an
+/// ``XLDatabaseError`` from a statement, or a GRDB `DatabaseError` with a
+/// `SQLITE_BUSY` primary result code that GRDB raises while it starts the
+/// observation.
 public enum GRDBLiveQueryRetryPolicy: Hashable, Sendable {
 
     /// Terminates the observation with its original error without retrying.
@@ -34,8 +37,7 @@ public enum GRDBLiveQueryRetryPolicy: Hashable, Sendable {
         guard self == .retryBusy,
               retryNumber >= 0,
               retryNumber < Self.retryBusyDelays.count,
-              let databaseError = error as? DatabaseError,
-              databaseError.resultCode == .SQLITE_BUSY
+              XLDatabaseErrorCode.of(error) == .busy
         else {
             return nil
         }

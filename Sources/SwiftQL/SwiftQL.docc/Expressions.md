@@ -300,6 +300,13 @@ SwiftQL's:
 | A pattern string longer than 1,024 UTF-8 bytes | `XLRegexpLengthLimitError` |
 | A subject longer than 16,384 UTF-8 bytes | `XLRegexpLengthLimitError` |
 
+Each of these errors fails the statement. SQLite keeps only the text of an
+error a function raises, so the caller receives an `XLDatabaseError` whose
+`message` describes it, such as the invalid pattern and why it is invalid,
+rather than the typed error. Check a pattern with
+`XLRegexpMatcher.matches(pattern:in:cache:)` before it reaches a statement when
+you need the typed error.
+
 Searching rather than matching the whole subject is what the widely used
 `regexp` extensions for SQLite do, and what PostgreSQL's `~` operator does.
 `"alpha-123" REGEXP '[0-9]+$'` is therefore true. Anchor a pattern with `^` and
@@ -325,7 +332,7 @@ SwiftQL bounds the input size. The bundled function refuses a pattern string
 longer than `XLRegexpMatcher.maximumPatternLength` (1,024 UTF-8 bytes) and a
 subject longer than `XLRegexpMatcher.maximumSubjectLength` (16,384 UTF-8
 bytes). It throws `XLRegexpLengthLimitError`, which the statement reports as an
-execution error. It never truncates either operand, and a pattern and subject
+`XLDatabaseError` carrying its message. It never truncates either operand, and a pattern and subject
 within the limits match exactly as before.
 
 A length bound reduces how long one match can run, but it does not remove

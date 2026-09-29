@@ -40,7 +40,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
 
-        try driver.withBlockingWriteConnection { connection in
+        _ = try driver.withBlockingWriteConnection { connection in
             try connection.execute(
                 connection.prepare(
                     logicalStatement(
@@ -294,7 +294,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
 
-        try driver.withBlockingWriteConnection { connection in
+        _ = try driver.withBlockingWriteConnection { connection in
             try connection.execute(
                 connection.prepare(
                     logicalStatement(
@@ -382,7 +382,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
 
-        try driver.withBlockingWriteConnection { connection in
+        _ = try driver.withBlockingWriteConnection { connection in
             try connection.execute(
                 connection.prepare(
                     logicalStatement(
@@ -714,7 +714,7 @@ final class SQLiteNumericDateCodecGRDBTests: XCTestCase {
         let driver = GRDBDatabaseDriver(databasePool: fixture.pool, dialect: dialect)
         let databaseIdentifier = driver.databaseIdentifier
 
-        try driver.withBlockingWriteConnection { connection in
+        _ = try driver.withBlockingWriteConnection { connection in
             try connection.execute(
                 connection.prepare(
                     logicalStatement(

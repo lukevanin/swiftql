@@ -55,6 +55,7 @@ extension GRDBDatabase: XLTransactionalDatabase {
     ///   `CancellationError` before opening the transaction. The body itself
     ///   runs synchronously to completion once started, so there is no later
     ///   cooperative cancellation point.
+    @discardableResult
     public func withTransaction<Result>(
         _ body: (GRDBDatabase) throws -> Result
     ) throws -> Result {

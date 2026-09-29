@@ -193,6 +193,48 @@ private final class InjectedBusyFunctionState: @unchecked Sendable {
 /// do -- keep passing unchanged now that `publish()` is a Combine adapter over `stream()`.
 final class XLGRDBLiveQueryRetryTests: XCTestCase {
 
+    /// Issue #679: a statement reports the portable `XLDatabaseError`, and the
+    /// policy classifies it by its portable code, not by a GRDB type.
+    func testRetryPresetClassifiesThePortableBusyCode() {
+        func portable(_ code: XLDatabaseErrorCode, native: Int32) -> XLDatabaseError {
+            XLDatabaseError(
+                code: code,
+                nativeCode: native,
+                message: nil,
+                sql: nil,
+                driver: XLDriverIdentifier(rawValue: "grdb"),
+                underlying: CancellationError()
+            )
+        }
+
+        XCTAssertEqual(
+            GRDBLiveQueryRetryPolicy.retryBusy.retryDelay(
+                after: portable(.busy, native: 5),
+                retryNumber: 0
+            ),
+            0.1
+        )
+        XCTAssertEqual(
+            GRDBLiveQueryRetryPolicy.retryBusy.retryDelay(
+                after: portable(.busy, native: 517),
+                retryNumber: 1
+            ),
+            0.2
+        )
+        XCTAssertNil(
+            GRDBLiveQueryRetryPolicy.retryBusy.retryDelay(
+                after: portable(.locked, native: 6),
+                retryNumber: 0
+            )
+        )
+        XCTAssertNil(
+            GRDBLiveQueryRetryPolicy.terminal.retryDelay(
+                after: portable(.busy, native: 5),
+                retryNumber: 0
+            )
+        )
+    }
+
     func testRetryPresetAcceptsOnlyPrimaryBusyCodesAndUsesExactDelays() {
         let primaryBusy = DatabaseError(resultCode: .SQLITE_BUSY)
         let extendedBusy = DatabaseError(resultCode: .SQLITE_BUSY_SNAPSHOT)
@@ -270,8 +312,8 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
         XCTAssertTrue(receivedValues.read().isEmpty)
         XCTAssertEqual(completionErrors.read().count, 1)
         XCTAssertEqual(
-            (completionErrors.read().first as? DatabaseError)?.resultCode,
-            .SQLITE_BUSY
+            (completionErrors.read().first as? XLDatabaseError)?.code,
+            .busy
         )
         XCTAssertEqual(fixture.functionState.invocationCount, 1)
         withExtendedLifetime(cancellable) {}
@@ -413,8 +455,8 @@ final class XLGRDBLiveQueryRetryTests: XCTestCase {
         XCTAssertTrue(scheduler.pendingDelays.isEmpty)
         XCTAssertEqual(completionErrors.read().count, 1)
         XCTAssertEqual(
-            (completionErrors.read().first as? DatabaseError)?.resultCode,
-            .SQLITE_BUSY
+            (completionErrors.read().first as? XLDatabaseError)?.code,
+            .busy
         )
         withExtendedLifetime(cancellable) {}
     }

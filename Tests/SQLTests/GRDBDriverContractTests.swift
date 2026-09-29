@@ -880,10 +880,16 @@ final class GRDBDriverContractTests: XCTestCase {
                 _ = try connection.prepare(validIdentity)
             }
         ) { error in
-            XCTAssertTrue(
-                error is DatabaseError,
-                "A real GRDB preparation failure must retain its original error type."
-            )
+            // Issue #679: the driver reports a real preparation failure as the
+            // portable error, keeping GRDB's error as the underlying one.
+            guard let error = error as? XLDatabaseError else {
+                return XCTFail("Expected an XLDatabaseError, received \(error).")
+            }
+            XCTAssertEqual(error.code, .other)
+            XCTAssertEqual(error.nativeCode, 1)
+            XCTAssertEqual(error.driver, driverIdentifier)
+            XCTAssertEqual(error.sql, invalidSQL)
+            XCTAssertTrue(error.underlying is DatabaseError)
         }
 
         XCTAssertThrowsError(
@@ -891,11 +897,13 @@ final class GRDBDriverContractTests: XCTestCase {
                 _ = try connection.prepareValidated(validIdentity)
             }
         ) { error in
-            guard case let .prepareFailure(actualDriver, message)? = error as? XLDatabaseContractError else {
-                return XCTFail("Expected a structured prepare failure, received \(error).")
+            // An XLDatabaseError is already structured, so the validated
+            // helper passes it through rather than flattening it to text.
+            guard let error = error as? XLDatabaseError else {
+                return XCTFail("Expected an XLDatabaseError, received \(error).")
             }
-            XCTAssertEqual(actualDriver, driverIdentifier)
-            XCTAssertFalse(message.isEmpty)
+            XCTAssertEqual(error.code, .other)
+            XCTAssertEqual(error.driver, driverIdentifier)
         }
     }
 
@@ -1043,6 +1051,121 @@ final class GRDBDriverContractTests: XCTestCase {
             return try XCTUnwrap(connection.fetchOne(countStatement)?.first)
         }
         XCTAssertEqual(countAfterRollback, .integer(1))
+    }
+
+    /// Issue #679: a scope maps what GRDB throws around the operation, but the
+    /// operation's own error is the caller's and is rethrown as it was thrown,
+    /// even when it is a GRDB `DatabaseError`.
+    func testOperationsOwnDatabaseErrorPassesThroughEveryScopeUnchanged() async throws {
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        let driver = GRDBDatabaseDriver(
+            databasePool: fixture.pool,
+            dialect: XLSQLiteDialect()
+        )
+        let database = try GRDBDatabase(
+            databasePool: fixture.pool,
+            formatter: XLiteFormatter(),
+            logger: nil
+        )
+        let selectOne = makeLogicalStatement(for: driver, sql: "SELECT 1")
+        @Sendable func ownError() -> DatabaseError {
+            DatabaseError(resultCode: .SQLITE_CONSTRAINT, message: "thrown by the operation")
+        }
+        func assertUnchanged(_ scope: String, _ error: any Error) {
+            XCTAssertFalse(error is XLDatabaseError, "\(scope) mapped the operation's error.")
+            let error = error as? DatabaseError
+            XCTAssertEqual(error?.resultCode, .SQLITE_CONSTRAINT, scope)
+            XCTAssertEqual(error?.message, "thrown by the operation", scope)
+        }
+
+        let blockingScopes: [(String, () throws -> Void)] = [
+            ("withBlockingReadConnection", { try driver.withBlockingReadConnection { _ in throw ownError() } }),
+            ("withBlockingWriteConnection", { try driver.withBlockingWriteConnection { _ in throw ownError() } }),
+            ("withBlockingTransaction", { try driver.withBlockingTransaction { _ in throw ownError() } }),
+            ("GRDBDatabase.withTransaction", { try database.withTransaction { _ in throw ownError() } }),
+            ("forEachRow callback", {
+                try driver.withBlockingReadConnection { connection in
+                    let statement = try connection.prepare(selectOne)
+                    try connection.forEachRow(statement) { _ in throw ownError() }
+                }
+            }),
+        ]
+        for (scope, run) in blockingScopes {
+            XCTAssertThrowsError(try run()) { error in
+                assertUnchanged(scope, error)
+            }
+        }
+
+        do {
+            try await driver.withReadConnection { _ in throw ownError() }
+            XCTFail("withReadConnection returned.")
+        }
+        catch {
+            assertUnchanged("withReadConnection", error)
+        }
+        do {
+            try await driver.withWriteConnection { _ in throw ownError() }
+            XCTFail("withWriteConnection returned.")
+        }
+        catch {
+            assertUnchanged("withWriteConnection", error)
+        }
+        do {
+            try await driver.withTransaction(.deferred) { _ in throw ownError() }
+            XCTFail("withTransaction returned.")
+        }
+        catch {
+            assertUnchanged("withTransaction", error)
+        }
+    }
+
+    /// Issue #679: a `COMMIT` that fails is GRDB's failure, not the
+    /// operation's, so the scope reports it as the portable error.
+    func testFailingCommitIsReportedAsAPortableError() throws {
+        let fixture = try makeFixture()
+        defer { fixture.tearDown() }
+
+        let driver = GRDBDatabaseDriver(
+            databasePool: fixture.pool,
+            dialect: XLSQLiteDialect()
+        )
+        let createParent = makeLogicalStatement(
+            for: driver,
+            sql: "CREATE TABLE commit_parent (id INTEGER PRIMARY KEY)"
+        )
+        let createChild = makeLogicalStatement(
+            for: driver,
+            sql: """
+                CREATE TABLE commit_child (
+                    parent INTEGER REFERENCES commit_parent (id)
+                        DEFERRABLE INITIALLY DEFERRED
+                )
+                """
+        )
+        let insertOrphan = makeLogicalStatement(
+            for: driver,
+            sql: "INSERT INTO commit_child (parent) VALUES (1)"
+        )
+        try driver.withBlockingWriteConnection { connection in
+            _ = try connection.execute(connection.prepare(createParent))
+            _ = try connection.execute(connection.prepare(createChild))
+        }
+
+        XCTAssertThrowsError(
+            try driver.withBlockingTransaction { connection in
+                // The deferred foreign key is checked only at COMMIT, so the
+                // operation itself succeeds.
+                _ = try connection.execute(connection.prepare(insertOrphan))
+            }
+        ) { error in
+            guard let error = error as? XLDatabaseError else {
+                return XCTFail("Expected an XLDatabaseError, received \(error).")
+            }
+            XCTAssertEqual(error.code, .constraint)
+            XCTAssertEqual(error.driver, driver.driverIdentifier)
+        }
     }
 
     private var sqliteRequirement: XLDialectRequirement {

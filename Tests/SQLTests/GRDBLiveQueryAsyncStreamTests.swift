@@ -1106,7 +1106,7 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
         case .success:
             XCTFail("An exhausted retry budget must terminate with the last BUSY error.")
         case .failure(let error):
-            XCTAssertEqual((error as? DatabaseError)?.resultCode, .SQLITE_BUSY)
+            XCTAssertEqual((error as? XLDatabaseError)?.code, .busy)
         }
         XCTAssertEqual(scheduler.recordedDelays, [0.1, 0.2, 0.4])
     }
@@ -1134,7 +1134,7 @@ final class GRDBLiveQueryAsyncStreamTests: XCTestCase {
             _ = try await iterator.next()
             XCTFail("Expected a permanent (non-BUSY) failure.")
         }
-        catch is DatabaseError {
+        catch is XLDatabaseError {
             // Expected: "no such table" is not a BUSY error and must not retry.
         }
         XCTAssertTrue(scheduler.recordedDelays.isEmpty)

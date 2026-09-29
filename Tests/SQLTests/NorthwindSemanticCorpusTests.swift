@@ -1247,6 +1247,7 @@ final class NorthwindSemanticCorpusTests: XCTestCase {
     }
 
     /// Keep XCTest assertions outside this closure so assertion failures retain XCTest's diagnostics.
+    @discardableResult
     private func withEvidence<T>(
         _ id: SQLiteNorthwindConformanceCaseID,
         _ source: String,

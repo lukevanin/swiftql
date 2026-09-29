@@ -338,7 +338,7 @@ private struct MarkerConnection: XLDatabaseDriverConnection, Sendable {
         return [.integer(Int64(count))]
     }
 
-    mutating func execute(_ statement: Statement) throws {
+    mutating func execute(_ statement: Statement) throws -> XLExecutionResult {
         guard statement.sql == Self.insertSQL else {
             throw XLDatabaseContractError.executeFailure(
                 driver: driverIdentifier,
@@ -346,5 +346,6 @@ private struct MarkerConnection: XLDatabaseDriverConnection, Sendable {
             )
         }
         count += 1
+        return XLExecutionResult(rowsAffected: 1, lastInsertedRowID: Int64(count), access: .write)
     }
 }

@@ -1045,6 +1045,15 @@ private extension SQLiteCombinatorialConformanceTests {
     }
 
     func failureSignature(for error: Error) -> SQLiteCombinatorialFailureSignature {
+        // Issue #679: a statement run through SwiftQL reports the portable
+        // error. The signature keeps the primary result code, as before.
+        if let error = error as? XLDatabaseError {
+            return SQLiteCombinatorialFailureSignature(
+                errorType: "SwiftQL.XLDatabaseError",
+                code: String(error.nativeCode & 0xFF),
+                message: error.message ?? "SQLite error"
+            )
+        }
         if let error = error as? DatabaseError {
             return SQLiteCombinatorialFailureSignature(
                 errorType: "GRDB.DatabaseError",

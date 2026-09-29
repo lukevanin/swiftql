@@ -98,6 +98,38 @@
   threw for a change that stayed, while `fetchAll()` rolled the same
   statement back. Now both roll back, synchronous and asynchronous alike. Code
   that caught the decode error and treated the change as made must retry it.
+- **Database failures are reported as `XLDatabaseError`** (issue #679). A
+  statement SwiftQL runs, and a `BEGIN` or `COMMIT` it issues, no longer
+  throws GRDB's `DatabaseError`. `XLDatabaseError` carries a portable `code`
+  (`.busy`, `.locked`, `.constraint`, `.readOnly`, `.interrupted`, `.full`,
+  `.corrupt`, `.ioError`, `.notADatabase`, `.tooBig`, `.misuse`, or `.other`),
+  SQLite's extended result code as `nativeCode`, the message and SQL, and
+  GRDB's error as `underlying`. Replace
+  `catch let error as DatabaseError where error.resultCode == .SQLITE_CONSTRAINT`
+  with `catch let error as XLDatabaseError where error.code == .constraint`.
+  Code that calls GRDB directly still gets `DatabaseError`, and an error your
+  own `withTransaction(_:)` body throws reaches you as it was thrown.
+  - The `*Validated` helpers and `withValidatedTransaction(_:_:)` pass an
+    `XLDatabaseError` through unchanged, instead of flattening it into
+    `prepareFailure`, `executeFailure`, or `transactionFailure` text.
+  - `GRDBLiveQueryRetryPolicy.retryBusy` classifies a failure by its portable
+    code. It still retries a GRDB BUSY error that GRDB raises while it starts
+    an observation.
+  - An error a custom function throws, `regexp`'s included, still reaches the
+    caller as text, now in an `XLDatabaseError` whose `message` describes it.
+    The documentation had promised the typed error, such as
+    `XLRegexpFunctionError`; it now says what the caller receives.
+- **`execute()` reports an `XLExecutionResult`** (issue #679): the rows the
+  statement changed, the row id it inserted, and whether it could write.
+  `XLWriteRequest.execute()` and `execute(bindings:)`, their `async` forms,
+  `XLDatabaseDriverConnection.execute(_:)`, `executeValidated(_:)`, and the
+  GRDB invocation and descriptor `execute(bindings:)` return it. All are
+  `@discardableResult`, so existing call sites compile unchanged.
+  - A type outside SwiftQL that conforms to `XLWriteRequest` or
+    `XLDatabaseDriverConnection` must return a result from `execute`.
+  - `XLTransactionalDatabase.withTransaction(_:)` is now `@discardableResult`,
+    so a body that ends in `execute()` needs no `_ =`. A generic helper of
+    your own that returns its closure's result may need one.
 - **`XLRequest` and `XLWriteRequest` have a new `async` requirement** (issue
   #681), with a default. A conformer outside SwiftQL keeps compiling: the
   default runs its synchronous methods on a Dispatch global queue while the

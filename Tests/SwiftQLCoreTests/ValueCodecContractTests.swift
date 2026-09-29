@@ -1066,8 +1066,9 @@ private struct CodecTestConnection: XLDatabaseDriverConnection {
         statement.bindings[.named("token")].map { [$0] }
     }
 
-    mutating func execute(_ statement: CodecTestPhysicalStatement) throws {
+    mutating func execute(_ statement: CodecTestPhysicalStatement) throws -> XLExecutionResult {
         _ = statement
+        return XLExecutionResult(rowsAffected: 0, lastInsertedRowID: nil, access: .write)
     }
 }
 

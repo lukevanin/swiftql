@@ -467,12 +467,14 @@ public struct GRDBPreparedStaticQuery: Sendable {
         return metadata
     }
 
-    /// Executes a descriptor declared with command cardinality.
+    /// Executes a descriptor declared with command cardinality, and reports
+    /// what it did.
+    @discardableResult
     public func execute(
         bindings: any XLInvocationBindingPacket
-    ) throws {
+    ) throws -> XLExecutionResult {
         try requireCardinality(.command)
-        try invocation.execute(bindings: validatedBindings(bindings))
+        return try invocation.execute(bindings: validatedBindings(bindings))
     }
 
     /// Fetches the sole row and rejects both missing and excess rows.

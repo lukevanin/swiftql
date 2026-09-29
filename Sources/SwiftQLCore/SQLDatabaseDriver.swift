@@ -94,7 +94,10 @@ public protocol XLDatabaseDriverConnection {
 
     mutating func fetchOne(_ statement: PhysicalStatement) throws -> [Dialect.Value]?
 
-    mutating func execute(_ statement: PhysicalStatement) throws
+    /// Runs a statement that returns no rows, and reports what it did
+    /// (issue #679).
+    @discardableResult
+    mutating func execute(_ statement: PhysicalStatement) throws -> XLExecutionResult
 }
 
 
@@ -178,9 +181,10 @@ extension XLStreamingDatabaseDriverConnection {
 
 
 /// The `*Validated` helpers report a transport failure as a structured
-/// ``XLDatabaseContractError``. A `CancellationError` passes through
-/// unchanged: a driver may interrupt a statement because its task was
-/// cancelled, and that is not a failure of the statement.
+/// ``XLDatabaseContractError``. An ``XLDatabaseError`` is already structured,
+/// so it passes through unchanged, and so does a `CancellationError`: a
+/// driver may interrupt a statement because its task was cancelled, and that
+/// is not a failure of the statement.
 extension XLDatabaseDriverConnection {
 
     /// Rejects database and dialect requirement mismatches before preparation.
@@ -216,6 +220,9 @@ extension XLDatabaseDriverConnection {
         catch let error as XLDatabaseContractError {
             throw error
         }
+        catch let error as XLDatabaseError {
+            throw error
+        }
         catch let error as CancellationError {
             throw error
         }
@@ -239,6 +246,9 @@ extension XLDatabaseDriverConnection {
         catch let error as XLDatabaseContractError {
             throw error
         }
+        catch let error as XLDatabaseError {
+            throw error
+        }
         catch let error as CancellationError {
             throw error
         }
@@ -258,6 +268,9 @@ extension XLDatabaseDriverConnection {
             return try fetchAll(statement)
         }
         catch let error as XLDatabaseContractError {
+            throw error
+        }
+        catch let error as XLDatabaseError {
             throw error
         }
         catch let error as CancellationError {
@@ -280,6 +293,9 @@ extension XLDatabaseDriverConnection {
         catch let error as XLDatabaseContractError {
             throw error
         }
+        catch let error as XLDatabaseError {
+            throw error
+        }
         catch let error as CancellationError {
             throw error
         }
@@ -291,11 +307,17 @@ extension XLDatabaseDriverConnection {
         }
     }
 
-    public mutating func executeValidated(_ statement: PhysicalStatement) throws {
+    @discardableResult
+    public mutating func executeValidated(
+        _ statement: PhysicalStatement
+    ) throws -> XLExecutionResult {
         do {
-            try execute(statement)
+            return try execute(statement)
         }
         catch let error as XLDatabaseContractError {
+            throw error
+        }
+        catch let error as XLDatabaseError {
             throw error
         }
         catch let error as CancellationError {
@@ -425,9 +447,9 @@ extension XLDatabaseDriver {
 
     /// Wraps transport transaction failures while preserving structured errors.
     ///
-    /// An error thrown by `operation`, a ``XLDatabaseContractError``, a
-    /// `CancellationError`, and a driver's own typed refusal to lend a
-    /// connection are rethrown unchanged. Any other failure is reported as
+    /// An error thrown by `operation`, a ``XLDatabaseContractError``, an
+    /// ``XLDatabaseError``, a `CancellationError`, and a driver's own typed
+    /// refusal to lend a connection are rethrown unchanged. Any other failure is reported as
     /// ``XLDatabaseContractError/transactionFailure(driver:message:)``.
     ///
     /// A `nil` kind uses the driver's ``defaultTransactionKind``.
@@ -518,6 +540,7 @@ package final class XLTransactionOperationError: @unchecked Sendable {
             return operationError
         }
         if error is XLDatabaseContractError
+            || error is XLDatabaseError
             || error is CancellationError
             || error is any XLDriverScopeRefusal
         {
